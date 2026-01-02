@@ -1,8 +1,7 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { categories, menuItems, type OrderItem, type MenuItem } from '@/lib/data';
+import { menuItems, type OrderItem, type MenuItem, categories } from '@/lib/data';
 import { PlusCircle, MinusCircle } from 'lucide-react';
 import { categoryIcons } from './icons';
 
@@ -30,24 +29,17 @@ export function BuyerMenu({ orderItems, onUpdateItem }: BuyerMenuProps) {
               <CategoryIcon className="w-8 h-8 text-accent" />
               <h2 className="font-headline text-3xl font-bold">{category}</h2>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-4">
               {itemsInCategory.map((item) => {
                 const orderItem = orderItems.find(i => i.id === item.id);
                 const quantity = orderItem ? orderItem.quantity : 0;
                 return (
-                  <Card key={item.id} className="flex flex-col overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300">
-                    <CardHeader>
-                      <CardTitle className="font-headline text-xl">{item.name}</CardTitle>
-                      <CardDescription className="text-muted-foreground mt-1">{item.description}</CardDescription>
-                    </CardHeader>
-                    <CardContent className="p-4 flex-grow">
-                      
-                    </CardContent>
-                    <CardFooter className="p-4 flex justify-between items-center">
-                      <p className="text-lg font-semibold text-primary">
-                        ${item.price.toFixed(2)}
-                      </p>
-                      <div className="flex items-center gap-2">
+                  <div key={item.id} className="flex items-center justify-between p-4 rounded-lg bg-card border shadow-sm">
+                    <div>
+                      <p className="font-semibold">{item.name}</p>
+                      <p className="text-sm font-mono text-primary">${item.price.toFixed(2)}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
                         <Button
                           variant="ghost"
                           size="icon"
@@ -66,8 +58,7 @@ export function BuyerMenu({ orderItems, onUpdateItem }: BuyerMenuProps) {
                           <PlusCircle className="h-6 w-6" />
                         </Button>
                       </div>
-                    </CardFooter>
-                  </Card>
+                  </div>
                 );
               })}
             </div>
