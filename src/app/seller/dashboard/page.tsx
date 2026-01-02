@@ -1,3 +1,5 @@
+'use client'
+
 import { mockOrders } from '@/lib/data';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ListOrdered } from 'lucide-react';

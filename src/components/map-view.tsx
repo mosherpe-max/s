@@ -1,6 +1,9 @@
+'use client'
+
 import { Truck, User } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Map, AdvancedMarker } from '@vis.gl/react-google-maps';
+import { Map, AdvancedMarker, useMap } from '@vis.gl/react-google-maps';
+import { useEffect } from 'react';
 
 interface MapViewProps {
   buyerLocation?: { latitude: number; longitude: number };
@@ -8,29 +11,41 @@ interface MapViewProps {
   buyers?: { name: string; location: { latitude: number; longitude: number } }[];
 }
 
+function MapBoundsUpdater({ buyerLocation, sellerLocation, buyers }: MapViewProps) {
+    const map = useMap();
+    useEffect(() => {
+        if (!map) return;
+
+        const bounds = new window.google.maps.LatLngBounds();
+        bounds.extend(new window.google.maps.LatLng(sellerLocation.latitude, sellerLocation.longitude));
+        if (buyerLocation) {
+            bounds.extend(new window.google.maps.LatLng(buyerLocation.latitude, buyerLocation.longitude));
+        }
+        if(buyers) {
+            buyers.forEach(buyer => {
+                bounds.extend(new window.google.maps.LatLng(buyer.location.latitude, buyer.location.longitude));
+            });
+        }
+        map.fitBounds(bounds);
+
+    }, [map, buyerLocation, sellerLocation, buyers]);
+    return null;
+}
+
+
 export function MapView({ buyerLocation, sellerLocation, buyers }: MapViewProps) {
     const center = buyerLocation ? { lat: buyerLocation.latitude, lng: buyerLocation.longitude } : { lat: sellerLocation.latitude, lng: sellerLocation.longitude };
     
-    // Calculate bounds
-    const bounds = new window.google.maps.LatLngBounds();
-    bounds.extend(new window.google.maps.LatLng(sellerLocation.latitude, sellerLocation.longitude));
-    if (buyerLocation) {
-        bounds.extend(new window.google.maps.LatLng(buyerLocation.latitude, buyerLocation.longitude));
-    }
-    if(buyers) {
-        buyers.forEach(buyer => {
-            bounds.extend(new window.google.maps.LatLng(buyer.location.latitude, buyer.location.longitude));
-        });
-    }
-
   return (
     <div className="relative w-full aspect-video rounded-lg overflow-hidden border-2 border-accent/20 shadow-inner">
       <Map
-        defaultBounds={bounds}
+        defaultCenter={center}
+        defaultZoom={12}
         mapId="a32a12d8a2a7a8a"
         mapTypeId="satellite"
         disableDefaultUI={true}
       >
+        <MapBoundsUpdater sellerLocation={sellerLocation} buyerLocation={buyerLocation} buyers={buyers} />
         {/* Seller Pin */}
         <AdvancedMarker position={{ lat: sellerLocation.latitude, lng: sellerLocation.longitude }}>
             <div className="flex flex-col items-center">
