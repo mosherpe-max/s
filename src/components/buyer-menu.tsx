@@ -8,7 +8,7 @@ import { categoryIcons } from './icons';
 interface BuyerMenuProps {
   orderItems: OrderItem[];
   onUpdateItem: (item: OrderItem) => void;
-  selectedCategory: Category | 'All';
+  selectedCategory: Category;
 }
 
 export function BuyerMenu({ orderItems, onUpdateItem, selectedCategory }: BuyerMenuProps) {
@@ -19,7 +19,7 @@ export function BuyerMenu({ orderItems, onUpdateItem, selectedCategory }: BuyerM
     onUpdateItem({ ...item, quantity: newQuantity });
   };
 
-  const filteredCategories = selectedCategory === 'All' ? categories : [selectedCategory];
+  const filteredCategories = [selectedCategory];
 
   return (
     <div className="space-y-8">

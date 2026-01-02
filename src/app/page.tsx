@@ -11,7 +11,7 @@ import { categoryIcons } from '@/components/icons';
 
 export default function Home() {
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState<Category | 'All'>('All');
+  const [selectedCategory, setSelectedCategory] = useState<Category>(categories[0]);
 
   const handleUpdateItem = (item: OrderItem) => {
     setOrderItems(prevItems => {
@@ -39,8 +39,6 @@ export default function Home() {
     }
   };
 
-  const allCategories: (Category | 'All')[] = ['All', ...categories];
-
   return (
     <div className="container mx-auto px-4 py-8">
       <header className="text-center mb-8">
@@ -51,8 +49,8 @@ export default function Home() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 xl:gap-12 items-start">
         <div className="lg:col-span-2 space-y-8">
             <div className="flex flex-wrap items-center justify-center gap-2 mb-8">
-                {allCategories.map((category) => {
-                    const CategoryIcon = category === 'All' ? null : categoryIcons[category];
+                {categories.map((category) => {
+                    const CategoryIcon = categoryIcons[category];
                     return (
                         <Button
                             key={category}
