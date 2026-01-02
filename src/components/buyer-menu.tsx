@@ -1,9 +1,8 @@
 'use client';
 
-import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { categories, menuItems, type OrderItem, type MenuItem, type Category } from '@/lib/data';
+import { categories, menuItems, type OrderItem, type MenuItem } from '@/lib/data';
 import { PlusCircle, MinusCircle } from 'lucide-react';
 import { categoryIcons } from './icons';
 
@@ -37,20 +36,12 @@ export function BuyerMenu({ orderItems, onUpdateItem }: BuyerMenuProps) {
                 const quantity = orderItem ? orderItem.quantity : 0;
                 return (
                   <Card key={item.id} className="flex flex-col overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300">
-                    <CardHeader className="p-0">
-                      <div className="aspect-video relative">
-                        <Image
-                          src={item.image.imageUrl}
-                          alt={item.name}
-                          fill
-                          className="object-cover"
-                          data-ai-hint={item.image.imageHint}
-                        />
-                      </div>
-                    </CardHeader>
-                    <CardContent className="p-4 flex-grow">
+                    <CardHeader>
                       <CardTitle className="font-headline text-xl">{item.name}</CardTitle>
                       <CardDescription className="text-muted-foreground mt-1">{item.description}</CardDescription>
+                    </CardHeader>
+                    <CardContent className="p-4 flex-grow">
+                      
                     </CardContent>
                     <CardFooter className="p-4 flex justify-between items-center">
                       <p className="text-lg font-semibold text-primary">

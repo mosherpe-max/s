@@ -7,7 +7,6 @@ export interface MenuItem {
   description: string;
   price: number;
   category: Category;
-  image: ImagePlaceholder;
 }
 
 export interface OrderItem extends MenuItem {
@@ -25,7 +24,6 @@ export const menuItems: MenuItem[] = [
     description: 'A hoppy and refreshing India Pale Ale.',
     price: 8.50,
     category: 'Beer',
-    image: PlaceHolderImages.find(img => img.id === 'beer-1')!,
   },
   {
     id: 'item-2',
@@ -33,7 +31,6 @@ export const menuItems: MenuItem[] = [
     description: 'Crisp, clean, and easy-drinking.',
     price: 6.50,
     category: 'Beer',
-    image: PlaceHolderImages.find(img => img.id === 'beer-2')!,
   },
   {
     id: 'item-3',
@@ -41,7 +38,6 @@ export const menuItems: MenuItem[] = [
     description: 'A classic G&T with a slice of lime.',
     price: 12.00,
     category: 'Spirits',
-    image: PlaceHolderImages.find(img => img.id === 'spirits-1')!,
   },
   {
     id: 'item-4',
@@ -49,7 +45,6 @@ export const menuItems: MenuItem[] = [
     description: 'Premium vodka mixed with sparkling soda.',
     price: 11.50,
     category: 'Spirits',
-    image: PlaceHolderImages.find(img => img.id === 'spirits-2')!,
   },
   {
     id: 'item-5',
@@ -57,7 +52,6 @@ export const menuItems: MenuItem[] = [
     description: 'An ice-cold can of your favorite cola.',
     price: 3.50,
     category: 'Soft Drinks',
-    image: PlaceHolderImages.find(img => img.id === 'soft-drink-1')!,
   },
   {
     id: 'item-6',
@@ -65,7 +59,6 @@ export const menuItems: MenuItem[] = [
     description: 'Pure, natural spring water.',
     price: 2.50,
     category: 'Soft Drinks',
-    image: PlaceHolderImages.find(img => img.id === 'soft-drink-2')!,
   },
   {
     id: 'item-7',
@@ -73,7 +66,6 @@ export const menuItems: MenuItem[] = [
     description: 'Salty and crunchy, the perfect snack.',
     price: 4.00,
     category: 'Snacks',
-    image: PlaceHolderImages.find(img => img.id === 'snack-1')!,
   },
   {
     id: 'item-8',
@@ -81,7 +73,6 @@ export const menuItems: MenuItem[] = [
     description: 'Fuel your back nine with this tasty bar.',
     price: 5.00,
     category: 'Snacks',
-    image: PlaceHolderImages.find(img => img.id === 'snack-2')!,
   },
 ];
 

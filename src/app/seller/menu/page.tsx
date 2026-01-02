@@ -4,7 +4,6 @@ import { PlusCircle, Edit, Trash2 } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { categories, menuItems } from "@/lib/data";
 import { categoryIcons } from "@/components/icons";
-import Image from 'next/image';
 
 export default function SellerMenuPage() {
   return (
@@ -38,7 +37,6 @@ export default function SellerMenuPage() {
                                         {menuItems.filter(item => item.category === category).map(item => (
                                             <div key={item.id} className="flex items-center justify-between gap-4 p-2 rounded-lg bg-background">
                                                 <div className="flex items-center gap-4">
-                                                    <Image src={item.image.imageUrl} alt={item.name} width={40} height={40} className="rounded-md object-cover" data-ai-hint={item.image.imageHint}/>
                                                     <div>
                                                         <p className="font-medium">{item.name}</p>
                                                         <p className="text-sm text-muted-foreground">${item.price.toFixed(2)}</p>
