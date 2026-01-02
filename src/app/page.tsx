@@ -3,10 +3,15 @@
 import React, { useState } from 'react';
 import { BuyerMenu } from '@/components/buyer-menu';
 import { OrderSummary } from '@/components/order-summary';
-import type { OrderItem } from '@/lib/data';
+import type { OrderItem, Category } from '@/lib/data';
+import { categories } from '@/lib/data';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
+import { categoryIcons } from '@/components/icons';
 
 export default function Home() {
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<Category | 'All'>('All');
 
   const handleUpdateItem = (item: OrderItem) => {
     setOrderItems(prevItems => {
@@ -34,16 +39,41 @@ export default function Home() {
     }
   };
 
+  const allCategories: (Category | 'All')[] = ['All', ...categories];
+
   return (
     <div className="container mx-auto px-4 py-8">
-      <header className="text-center mb-12">
+      <header className="text-center mb-8">
         <h1 className="font-headline text-5xl md:text-6xl font-bold text-primary">Welcome to the 19th Hole</h1>
         <p className="text-lg text-muted-foreground mt-2">Your on-course refreshment is just a few taps away.</p>
       </header>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 xl:gap-12 items-start">
-        <div className="lg:col-span-2">
-          <BuyerMenu orderItems={orderItems} onUpdateItem={handleUpdateItem} />
+        <div className="lg:col-span-2 space-y-8">
+            <div className="flex flex-wrap items-center justify-center gap-2 mb-8">
+                {allCategories.map((category) => {
+                    const CategoryIcon = category === 'All' ? null : categoryIcons[category];
+                    return (
+                        <Button
+                            key={category}
+                            variant={selectedCategory === category ? "default" : "outline"}
+                            onClick={() => setSelectedCategory(category)}
+                            className={cn(
+                                "capitalize transition-all duration-200",
+                                selectedCategory === category && 'bg-accent text-accent-foreground'
+                            )}
+                        >
+                            {CategoryIcon && <CategoryIcon className="mr-2 h-4 w-4" />}
+                            {category}
+                        </Button>
+                    )
+                })}
+            </div>
+          <BuyerMenu 
+            orderItems={orderItems} 
+            onUpdateItem={handleUpdateItem} 
+            selectedCategory={selectedCategory} 
+          />
         </div>
         <div className="lg:sticky lg:top-8">
           <OrderSummary items={orderItems} onPlaceOrder={handlePlaceOrder} />

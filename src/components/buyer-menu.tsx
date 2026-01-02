@@ -1,16 +1,17 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
-import { menuItems, type OrderItem, type MenuItem, categories } from '@/lib/data';
+import { menuItems, type OrderItem, type MenuItem, type Category, categories } from '@/lib/data';
 import { PlusCircle, MinusCircle } from 'lucide-react';
 import { categoryIcons } from './icons';
 
 interface BuyerMenuProps {
   orderItems: OrderItem[];
   onUpdateItem: (item: OrderItem) => void;
+  selectedCategory: Category | 'All';
 }
 
-export function BuyerMenu({ orderItems, onUpdateItem }: BuyerMenuProps) {
+export function BuyerMenu({ orderItems, onUpdateItem, selectedCategory }: BuyerMenuProps) {
   const handleQuantityChange = (item: MenuItem, change: number) => {
     const existingItem = orderItems.find(i => i.id === item.id);
     const currentQuantity = existingItem ? existingItem.quantity : 0;
@@ -18,11 +19,16 @@ export function BuyerMenu({ orderItems, onUpdateItem }: BuyerMenuProps) {
     onUpdateItem({ ...item, quantity: newQuantity });
   };
 
+  const filteredCategories = selectedCategory === 'All' ? categories : [selectedCategory];
+
   return (
     <div className="space-y-8">
-      {categories.map((category) => {
+      {filteredCategories.map((category) => {
         const CategoryIcon = categoryIcons[category];
         const itemsInCategory = menuItems.filter((item) => item.category === category);
+        
+        if (itemsInCategory.length === 0) return null;
+
         return (
           <section key={category} id={category.toLowerCase().replace(' ', '-')}>
             <div className="flex items-center gap-3 mb-4">
