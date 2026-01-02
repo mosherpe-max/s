@@ -47,7 +47,7 @@ export function AppHeader() {
           <Button variant="ghost" asChild>
             <Link href="/seller/dashboard">
               <User className="mr-2 h-4 w-4" />
-              Driver
+              Seller
             </Link>
           </Button>
            <Button variant="ghost" asChild>
