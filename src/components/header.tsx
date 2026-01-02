@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { UserCog, User, BookCopy } from 'lucide-react';
+import { UserCog, User, BookCopy, Truck } from 'lucide-react';
 import { Button } from './ui/button';
 
 const GolfBallIcon = (props: React.SVGProps<SVGSVGElement>) => (
@@ -46,14 +46,14 @@ export function AppHeader() {
           </Button>
           <Button variant="ghost" asChild>
             <Link href="/seller/dashboard">
-              <User className="mr-2 h-4 w-4" />
-              Seller
+              <Truck className="mr-2 h-4 w-4" />
+              Driver
             </Link>
           </Button>
            <Button variant="ghost" asChild>
             <Link href="/seller/menu">
-              <BookCopy className="mr-2 h-4 w-4" />
-              Manage Menu
+              <User className="mr-2 h-4 w-4" />
+              Seller
             </Link>
           </Button>
           <Button variant="ghost" asChild>
