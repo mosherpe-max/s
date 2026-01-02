@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, use, startTransition } from 'react';
+import React, { useState, useEffect, startTransition } from 'react';
 import { prioritizeDeliveryRoutes, type PrioritizeDeliveryRoutesOutput } from '@/ai/flows/prioritize-delivery-routes';
 import { mockOrders, mockSellerLocation } from '@/lib/data';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
