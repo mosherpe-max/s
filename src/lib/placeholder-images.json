@@ -1,3 +1,82 @@
 {
-  "placeholderImages": []
+  "placeholderImages": [
+    {
+      "id": "beer-1",
+      "description": "A glass of craft beer",
+      "imageUrl": "https://images.unsplash.com/photo-1587582816472-81e94768469a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw4fHxjcmFmdCUyMGJlZXJ8ZW58MHx8fHwxNzY3MzczMTI2fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "craft beer"
+    },
+    {
+      "id": "beer-2",
+      "description": "A can of light lager",
+      "imageUrl": "https://images.unsplash.com/photo-1609729048422-34ef39ad5465?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw1fHxsYWdlciUyMGNhbnxlbnwwfHx8fDE3NjczNzQyMzN8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "lager can"
+    },
+    {
+      "id": "spirits-1",
+      "description": "A glass of whiskey on the rocks",
+      "imageUrl": "https://images.unsplash.com/photo-1695057672316-7efe5b856ab0?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw3fHx3aGlza2V5JTIwZ2xhc3N8ZW58MHx8fHwxNzY3MzczNTM0fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "whiskey glass"
+    },
+    {
+      "id": "spirits-2",
+      "description": "A bottle of premium vodka",
+      "imageUrl": "https://images.unsplash.com/photo-1550985543-f47f38aeee65?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwyfHx2b2RrYSUyMGJvdHRsZXxlbnwwfHx8fDE3NjczNTQ3MDR8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "vodka bottle"
+    },
+    {
+      "id": "soft-drink-1",
+      "description": "A can of cola",
+      "imageUrl": "https://images.unsplash.com/photo-1630404365865-97ff92feba6a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw3fHxjb2xhJTIwY2FufGVufDB8fHx8MTc2NzM3NDIzM3ww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "cola can"
+    },
+    {
+      "id": "soft-drink-2",
+      "description": "A bottle of water",
+      "imageUrl": "https://images.unsplash.com/photo-1561041695-d2fadf9f318c?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw1fHx3YXRlciUyMGJvdHRsZXxlbnwwfHx8fDE3NjczNDgzNjB8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "water bottle"
+    },
+    {
+      "id": "snack-1",
+      "description": "A bag of potato chips",
+      "imageUrl": "https://images.unsplash.com/photo-1599490659213-e2b9527bd087?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw1fHxwb3RhdG8lMjBjaGlwc3xlbnwwfHx8fDE3NjczNjAzMTh8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "potato chips"
+    },
+    {
+      "id": "snack-2",
+      "description": "A chocolate bar",
+      "imageUrl": "https://images.unsplash.com/photo-1565071559227-20ab25b7685e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw5fHxjaG9jb2xhdGUlMjBiYXJ8ZW58MHx8fHwxNzY3Mzc0MjMzfDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "chocolate bar"
+    },
+    {
+      "id": "map-view",
+      "description": "A satellite view of a golf course",
+      "imageUrl": "https://images.unsplash.com/photo-1605144884288-49eb7f9bb447?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwzfHxnb2xmJTIwY291cnNlJTIwc2F0ZWxsaXRlfGVufDB8fHx8MTc2NzM3NDIzM3ww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "golf course satellite"
+    },
+    {
+      "id": "avatar-1",
+      "description": "User avatar 1",
+      "imageUrl": "https://images.unsplash.com/photo-1544005313-94ddf0286df2?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw5fHxwZXJzb24lMjBwb3J0cmFpdHxlbnwwfHx8fDE3NjcyOTI1NDF8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "person portrait"
+    },
+    {
+      "id": "avatar-2",
+      "description": "User avatar 2",
+      "imageUrl": "https://images.unsplash.com/photo-1600180758890-6b94519a8ba6?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw1fHxwZXJzb24lMjBwb3J0cmFpdHxlbnwwfHx8fDE3NjcyOTI1NDF8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "person portrait"
+    },
+    {
+      "id": "avatar-3",
+      "description": "User avatar 3",
+      "imageUrl": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw3fHxwZXJzb24lMjBwb3J0cmFpdHxlbnwwfHx8fDE3NjcyOTI1NDF8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "person portrait"
+    },
+    {
+      "id": "avatar-seller",
+      "description": "Seller avatar",
+      "imageUrl": "https://images.unsplash.com/photo-1531123414780-f74242c2b052?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxMHx8cGVyc29uJTIwcG9ydHJhaXR8ZW58MHx8fHwxNzY3MjkyNTQxfDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "person portrait"
+    }
+  ]
 }
