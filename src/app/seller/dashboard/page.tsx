@@ -9,9 +9,42 @@ import { Separator } from '@/components/ui/separator';
 import { MapView } from '@/components/map-view';
 import { mockSellerLocation } from '@/lib/data';
 import { APIProvider } from '@vis.gl/react-google-maps';
+import { useEffect, useState } from 'react';
+
+type LatLng = {
+  latitude: number;
+  longitude: number;
+};
 
 export default function SellerDashboardPage() {
   const sortedOrders = mockOrders;
+  const [sellerLocation, setSellerLocation] = useState<LatLng | null>(null);
+
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.watchPosition(
+        (position) => {
+          setSellerLocation({
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+          });
+        },
+        (error) => {
+          console.error("Error getting geolocation: ", error);
+          // Fallback to mock location if geolocation fails
+          setSellerLocation(mockSellerLocation);
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 5000,
+          maximumAge: 0,
+        }
+      );
+    } else {
+      // Fallback for browsers that don't support geolocation
+      setSellerLocation(mockSellerLocation);
+    }
+  }, []);
 
   return (
     <APIProvider apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!}>
@@ -23,10 +56,17 @@ export default function SellerDashboardPage() {
           <div className="md:col-span-2">
             <Card className="shadow-lg h-full">
               <CardContent className="p-0 h-[60vh] md:h-auto">
-                <MapView
-                  sellerLocation={mockSellerLocation}
-                  buyers={sortedOrders.map(o => ({ name: o.customerName, location: o.deliveryLocation }))}
-                />
+                {sellerLocation ? (
+                  <MapView
+                    sellerLocation={sellerLocation}
+                    buyers={sortedOrders.map(o => ({ name: o.customerName, location: o.deliveryLocation }))}
+                    radius={1.5 * 1609.34} // 1.5 miles in meters
+                  />
+                ) : (
+                  <div className="flex items-center justify-center h-full">
+                    <p>Loading map...</p>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>

@@ -3,16 +3,18 @@
 import { Truck, User } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Map, AdvancedMarker, useMap } from '@vis.gl/react-google-maps';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 interface MapViewProps {
   buyerLocation?: { latitude: number; longitude: number };
   sellerLocation: { latitude: number; longitude: number };
   buyers?: { name: string; location: { latitude: number; longitude: number } }[];
+  radius?: number; // in meters
 }
 
-function MapBoundsUpdater({ buyerLocation, sellerLocation, buyers }: MapViewProps) {
+function MapElements({ buyerLocation, sellerLocation, buyers, radius }: MapViewProps) {
     const map = useMap();
+
     useEffect(() => {
         if (!map) return;
 
@@ -26,14 +28,46 @@ function MapBoundsUpdater({ buyerLocation, sellerLocation, buyers }: MapViewProp
                 bounds.extend(new window.google.maps.LatLng(buyer.location.latitude, buyer.location.longitude));
             });
         }
+        
+        if (radius) {
+            // If there's a radius, we can use it to set the bounds
+            const circle = new window.google.maps.Circle({
+                center: { lat: sellerLocation.latitude, lng: sellerLocation.longitude },
+                radius: radius,
+            });
+            bounds.union(circle.getBounds()!);
+        }
+        
         map.fitBounds(bounds);
 
-    }, [map, buyerLocation, sellerLocation, buyers]);
+    }, [map, buyerLocation, sellerLocation, buyers, radius]);
+
+    // Draw Circle
+    useEffect(() => {
+      if (!map || !radius) return;
+
+      const circle = new window.google.maps.Circle({
+          strokeColor: "hsl(var(--accent))",
+          strokeOpacity: 0.8,
+          strokeWeight: 2,
+          fillColor: "hsl(var(--accent))",
+          fillOpacity: 0.2,
+          map,
+          center: { lat: sellerLocation.latitude, lng: sellerLocation.longitude },
+          radius: radius,
+      });
+
+      return () => {
+          circle.setMap(null);
+      };
+    }, [map, sellerLocation, radius]);
+
+
     return null;
 }
 
 
-export function MapView({ buyerLocation, sellerLocation, buyers }: MapViewProps) {
+export function MapView({ buyerLocation, sellerLocation, buyers, radius }: MapViewProps) {
     const center = buyerLocation ? { lat: buyerLocation.latitude, lng: buyerLocation.longitude } : { lat: sellerLocation.latitude, lng: sellerLocation.longitude };
     
   return (
@@ -45,7 +79,7 @@ export function MapView({ buyerLocation, sellerLocation, buyers }: MapViewProps)
         mapTypeId="satellite"
         disableDefaultUI={true}
       >
-        <MapBoundsUpdater sellerLocation={sellerLocation} buyerLocation={buyerLocation} buyers={buyers} />
+        <MapElements sellerLocation={sellerLocation} buyerLocation={buyerLocation} buyers={buyers} radius={radius} />
         {/* Seller Pin */}
         <AdvancedMarker position={{ lat: sellerLocation.latitude, lng: sellerLocation.longitude }}>
             <div className="flex flex-col items-center">
