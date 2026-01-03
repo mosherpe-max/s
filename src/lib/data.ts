@@ -1,3 +1,4 @@
+
 import type { ImagePlaceholder } from './placeholder-images';
 import { PlaceHolderImages } from './placeholder-images';
 
@@ -93,7 +94,7 @@ export const mockOrders: Order[] = [
   {
     orderId: 'ORD-001',
     customerName: 'Alice',
-    deliveryLocation: { latitude: 34.0522, longitude: -118.2437 },
+    deliveryLocation: { latitude: 42.7758, longitude: -83.2119 },
     items: [
         { ...menuItems.find(i => i.id === 'item-1')!, quantity: 2 },
         { ...menuItems.find(i => i.id === 'item-7')!, quantity: 1 }
@@ -104,7 +105,7 @@ export const mockOrders: Order[] = [
   {
     orderId: 'ORD-002',
     customerName: 'Bob',
-    deliveryLocation: { latitude: 34.055, longitude: -118.248 },
+    deliveryLocation: { latitude: 42.7788, longitude: -83.2159 },
     items: [
         { ...menuItems.find(i => i.id === 'item-5')!, quantity: 1 },
         { ...menuItems.find(i => i.id === 'item-6')!, quantity: 1 }
@@ -115,7 +116,7 @@ export const mockOrders: Order[] = [
   {
     orderId: 'ORD-003',
     customerName: 'Charlie',
-    deliveryLocation: { latitude: 34.049, longitude: -118.245 },
+    deliveryLocation: { latitude: 42.7728, longitude: -83.2089 },
     items: [
         { ...menuItems.find(i => i.id === 'item-3')!, quantity: 1 }
     ],
@@ -125,6 +126,6 @@ export const mockOrders: Order[] = [
 ];
 
 export const mockSellerLocation = {
-  latitude: 34.050,
-  longitude: -118.250
+  latitude: 42.7748,
+  longitude: -83.2139
 };
