@@ -39,7 +39,7 @@ export function AppHeader() {
             </Link>
             <nav className="hidden md:flex items-center gap-4 text-sm font-medium">
                 <Link href="/#features" className="text-foreground hover:text-primary transition-colors">Features</Link>
-                <Link href="#" className="text-foreground hover:text-primary transition-colors">Pricing</Link>
+                <Link href="/#pricing" className="text-foreground hover:text-primary transition-colors">Pricing</Link>
                 <Link href="/" className="text-foreground hover:text-primary transition-colors">Demo Menu</Link>
             </nav>
         </div>
