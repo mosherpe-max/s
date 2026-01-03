@@ -2,7 +2,6 @@
 
 import { mockOrders } from '@/lib/data';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ListOrdered } from 'lucide-react';
 import { MapView } from '@/components/map-view';
 import { mockSellerLocation } from '@/lib/data';
 import { APIProvider } from '@vis.gl/react-google-maps';
@@ -10,6 +9,7 @@ import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { OrderCard } from '@/components/order-card';
 
 type LatLng = {
   latitude: number;
@@ -20,6 +20,7 @@ export default function SellerDashboardPage() {
   const [orders, setOrders] = useState(mockOrders);
   const [sellerLocation, setSellerLocation] = useState<LatLng | null>(null);
   const [isActive, setIsActive] = useState(true);
+  const [showOrders, setShowOrders] = useState(false);
 
   useEffect(() => {
     if (navigator.geolocation) {
@@ -62,11 +63,13 @@ export default function SellerDashboardPage() {
         </header>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2">
+          <div className={showOrders ? "hidden lg:block lg:col-span-2" : "lg:col-span-2"}>
             <Card className="shadow-lg h-full">
               <CardHeader className='flex-row items-center justify-between'>
                 <CardTitle className="font-headline text-2xl">Order Locations</CardTitle>
-                <Button variant="outline">View {activeOrders.length} Active Orders</Button>
+                <Button variant="outline" onClick={() => setShowOrders(!showOrders)}>
+                  {showOrders ? 'View Map' : `View ${activeOrders.length} Active Orders`}
+                </Button>
               </CardHeader>
               <CardContent>
                 {sellerLocation ? (
@@ -83,7 +86,7 @@ export default function SellerDashboardPage() {
               </CardContent>
             </Card>
           </div>
-          <div className="lg:col-span-1">
+          <div className={showOrders ? "lg:col-span-1" : "hidden lg:block lg:col-span-1"}>
             <Card className="shadow-lg">
               <CardHeader>
                 <CardTitle className="font-headline text-2xl">Active Orders ({activeOrders.length})</CardTitle>
@@ -96,7 +99,9 @@ export default function SellerDashboardPage() {
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {/* Order list would go here */}
+                    {activeOrders.map((order) => (
+                      <OrderCard key={order.orderId} order={order} />
+                    ))}
                   </div>
                 )}
               </CardContent>
