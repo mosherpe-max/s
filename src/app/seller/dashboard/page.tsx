@@ -32,6 +32,7 @@ export default function SellerDashboardPage() {
           });
         },
         () => {
+          // Fallback to mock location if geolocation fails
           setSellerLocation(mockSellerLocation);
         },
         {
@@ -42,6 +43,7 @@ export default function SellerDashboardPage() {
       );
       return () => navigator.geolocation.clearWatch(watchId);
     } else {
+      // Fallback for browsers that don't support geolocation
       setSellerLocation(mockSellerLocation);
     }
   }, []);
@@ -63,11 +65,11 @@ export default function SellerDashboardPage() {
         </header>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className={showOrders ? "hidden lg:block lg:col-span-2" : "lg:col-span-2"}>
+          <div className="lg:col-span-2">
             <Card className="shadow-lg h-full">
               <CardHeader className='flex-row items-center justify-between'>
                 <CardTitle className="font-headline text-2xl">Order Locations</CardTitle>
-                <Button variant="outline" onClick={() => setShowOrders(!showOrders)}>
+                <Button variant="outline" onClick={() => setShowOrders(!showOrders)} className="lg:hidden">
                   {showOrders ? 'View Map' : `View ${activeOrders.length} Active Orders`}
                 </Button>
               </CardHeader>
