@@ -1,81 +1,53 @@
 'use client'
 
-import React, { useState } from 'react';
-import { BuyerMenu } from '@/components/buyer-menu';
-import { OrderSummary } from '@/components/order-summary';
-import type { OrderItem, Category } from '@/lib/data';
-import { categories } from '@/lib/data';
+import React from 'react';
 import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
-import { categoryIcons } from '@/components/icons';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { ShoppingCart, Users } from 'lucide-react';
+import Link from 'next/link';
 
 export default function Home() {
-  const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState<Category>(categories[0]);
-
-  const handleUpdateItem = (item: OrderItem) => {
-    setOrderItems(prevItems => {
-      const existingItemIndex = prevItems.findIndex(i => i.id === item.id);
-      if (existingItemIndex > -1) {
-        if (item.quantity === 0) {
-          return prevItems.filter(i => i.id !== item.id);
-        }
-        const newItems = [...prevItems];
-        newItems[existingItemIndex] = item;
-        return newItems;
-      } else if (item.quantity > 0) {
-        return [...prevItems, item];
-      }
-      return prevItems;
-    });
-  };
-
-  const handlePlaceOrder = () => {
-    // In a real app, this would submit the order
-    if (orderItems.length > 0) {
-      window.location.href = '/order/track';
-    } else {
-      alert("Your cart is empty. Please add items before placing an order.");
-    }
-  };
-
   return (
-    <div className="container mx-auto px-4 py-8">
-      <header className="text-center mb-8">
-        <h1 className="font-headline text-5xl md:text-6xl font-bold text-primary">Welcome to the 19th Hole</h1>
-        <p className="text-lg text-muted-foreground mt-2">Your on-course refreshment is just a few taps away.</p>
-      </header>
+    <div className="container mx-auto px-4 py-16 text-center">
+      <div className="mb-8">
+        <Button variant="secondary" size="sm" className="rounded-full mb-4 font-semibold text-xs h-auto py-1 px-3">
+            Key Features
+        </Button>
+        <h1 className="font-headline text-5xl md:text-6xl font-bold text-foreground">
+          How Koop Works
+        </h1>
+        <p className="text-lg text-muted-foreground mt-4 max-w-2xl mx-auto">
+          We connect hungry and thirsty golfers with on-course beverage carts for a seamless experience.
+        </p>
+      </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 xl:gap-12 items-start">
-        <div className="lg:col-span-2 space-y-8">
-            <div className="flex flex-wrap items-center justify-center gap-2 mb-8">
-                {categories.map((category) => {
-                    const CategoryIcon = categoryIcons[category];
-                    return (
-                        <Button
-                            key={category}
-                            variant={selectedCategory === category ? "default" : "outline"}
-                            onClick={() => setSelectedCategory(category)}
-                            className={cn(
-                                "capitalize transition-all duration-200",
-                                selectedCategory === category && 'bg-accent text-accent-foreground'
-                            )}
-                        >
-                            {CategoryIcon && <CategoryIcon className="mr-2 h-4 w-4" />}
-                            {category}
-                        </Button>
-                    )
-                })}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto mt-12">
+        <Card className="text-left shadow-xl">
+          <CardHeader>
+            <div className="flex items-center gap-4">
+              <ShoppingCart className="w-8 h-8 text-primary" />
+              <CardTitle className="font-headline text-2xl font-bold">Effortless Ordering</CardTitle>
             </div>
-          <BuyerMenu 
-            orderItems={orderItems} 
-            onUpdateItem={handleUpdateItem} 
-            selectedCategory={selectedCategory} 
-          />
-        </div>
-        <div className="lg:sticky lg:top-8">
-          <OrderSummary items={orderItems} onPlaceOrder={handlePlaceOrder} />
-        </div>
+          </CardHeader>
+          <CardContent>
+            <p className="text-muted-foreground">
+              Browse menus from on-course carts and order directly from your phone. No more waiting or waving down the cart.
+            </p>
+          </CardContent>
+        </Card>
+        <Card className="text-left shadow-xl">
+          <CardHeader>
+            <div className="flex items-center gap-4">
+              <Users className="w-8 h-8 text-primary" />
+              <CardTitle className="font-headline text-2xl font-bold">For Golf Courses</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <p className="text-muted-foreground">
+                Increase sales and efficiency with a streamlined ordering process, real-time tracking, and powerful admin tools.
+            </p>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

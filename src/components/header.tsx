@@ -1,5 +1,4 @@
 import Link from 'next/link';
-import { UserCog, User, BookCopy, Truck } from 'lucide-react';
 import { Button } from './ui/button';
 
 const GolfBallIcon = (props: React.SVGProps<SVGSVGElement>) => (
@@ -29,40 +28,35 @@ const GolfBallIcon = (props: React.SVGProps<SVGSVGElement>) => (
 
 export function AppHeader() {
   return (
-    <header className="bg-card/80 backdrop-blur-sm sticky top-0 z-40 border-b">
+    <header className="bg-transparent sticky top-0 z-40">
       <div className="container mx-auto flex h-16 items-center justify-between px-4">
-        <Link href="/" className="flex items-center gap-2">
-          <GolfBallIcon className="h-8 w-8 text-primary" />
-          <span className="font-headline text-2xl font-bold text-primary">
-            Koop
-          </span>
-        </Link>
-        <nav className="flex items-center gap-2">
-          <Button variant="ghost" asChild>
-            <Link href="/">
-              <User className="mr-2 h-4 w-4" />
-              Buyer
+        <div className="flex items-center gap-8">
+            <Link href="/" className="flex items-center gap-2">
+            <GolfBallIcon className="h-8 w-8 text-primary" />
+            <span className="font-headline text-2xl font-bold text-foreground">
+                Koop
+            </span>
             </Link>
-          </Button>
-          <Button variant="ghost" asChild>
-            <Link href="/seller/dashboard">
-              <Truck className="mr-2 h-4 w-4" />
-              Driver
-            </Link>
-          </Button>
-           <Button variant="ghost" asChild>
-            <Link href="/seller/menu">
-              <User className="mr-2 h-4 w-4" />
-              Seller
-            </Link>
-          </Button>
-          <Button variant="ghost" asChild>
-            <Link href="/admin/sellers">
-              <UserCog className="mr-2 h-4 w-4" />
-              Admin
-            </Link>
-          </Button>
-        </nav>
+            <nav className="hidden md:flex items-center gap-4 text-sm font-medium">
+                <Link href="#" className="text-foreground hover:text-primary transition-colors">Features</Link>
+                <Link href="#" className="text-foreground hover:text-primary transition-colors">Pricing</Link>
+                <Link href="/" className="text-foreground hover:text-primary transition-colors">Demo Menu</Link>
+            </nav>
+        </div>
+        <div className="flex items-center gap-4">
+            <Button variant="ghost" asChild>
+                <Link href="/seller/dashboard">Driver</Link>
+            </Button>
+            <Button variant="ghost" asChild>
+                <Link href="/seller/menu">Seller</Link>
+            </Button>
+            <Button variant="ghost" asChild>
+                <Link href="/admin/sellers">Admin</Link>
+            </Button>
+             <Button asChild>
+                <Link href="/(auth)/login">Get Started</Link>
+            </Button>
+        </div>
       </div>
     </header>
   );
