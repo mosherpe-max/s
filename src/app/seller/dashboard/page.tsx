@@ -3,13 +3,13 @@
 import { mockOrders } from '@/lib/data';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ListOrdered } from 'lucide-react';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
 import { MapView } from '@/components/map-view';
 import { mockSellerLocation } from '@/lib/data';
 import { APIProvider } from '@vis.gl/react-google-maps';
 import { useEffect, useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 
 type LatLng = {
   latitude: number;
@@ -17,20 +17,20 @@ type LatLng = {
 };
 
 export default function SellerDashboardPage() {
-  const sortedOrders = mockOrders;
+  const [orders, setOrders] = useState(mockOrders);
   const [sellerLocation, setSellerLocation] = useState<LatLng | null>(null);
+  const [isActive, setIsActive] = useState(true);
 
   useEffect(() => {
     if (navigator.geolocation) {
-      navigator.geolocation.watchPosition(
+      const watchId = navigator.geolocation.watchPosition(
         (position) => {
           setSellerLocation({
             latitude: position.coords.latitude,
             longitude: position.coords.longitude,
           });
         },
-        (error) => {
-          // Fallback to mock location if geolocation fails
+        () => {
           setSellerLocation(mockSellerLocation);
         },
         {
@@ -39,69 +39,66 @@ export default function SellerDashboardPage() {
           maximumAge: 0,
         }
       );
+      return () => navigator.geolocation.clearWatch(watchId);
     } else {
-      // Fallback for browsers that don't support geolocation
       setSellerLocation(mockSellerLocation);
     }
   }, []);
 
+  const activeOrders = isActive ? orders : [];
+
   return (
     <APIProvider apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!}>
       <div className="container mx-auto px-4 py-8">
-        <header className="text-center mb-8">
-          <h1 className="font-headline text-xl md:text-2xl font-bold text-primary">Driver Dashboard</h1>
+        <header className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="font-headline text-4xl font-bold text-primary">Driver Dashboard</h1>
+            <p className="text-lg text-muted-foreground">Demo 1 Golf Course</p>
+          </div>
+          <div className="flex items-center space-x-2">
+            <Switch id="active-mode" checked={isActive} onCheckedChange={setIsActive} />
+            <Label htmlFor="active-mode">Active</Label>
+          </div>
         </header>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          <div className="md:col-span-2">
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="lg:col-span-2">
             <Card className="shadow-lg h-full">
-              <CardContent className="p-0 h-[60vh] md:h-auto">
+              <CardHeader className='flex-row items-center justify-between'>
+                <CardTitle className="font-headline text-2xl">Order Locations</CardTitle>
+                <Button variant="outline">View {activeOrders.length} Active Orders</Button>
+              </CardHeader>
+              <CardContent>
                 {sellerLocation ? (
                   <MapView
                     sellerLocation={sellerLocation}
-                    buyers={sortedOrders.map(o => ({ name: o.customerName, location: o.deliveryLocation }))}
+                    buyers={activeOrders.map(o => ({ name: o.customerName, location: o.deliveryLocation }))}
                     radius={1.5 * 1609.34} // 1.5 miles in meters
                   />
                 ) : (
-                  <div className="flex items-center justify-center h-full">
+                  <div className="flex items-center justify-center aspect-video bg-muted rounded-lg">
                     <p>Loading map...</p>
                   </div>
                 )}
               </CardContent>
             </Card>
           </div>
-          <div className="md:col-span-1 space-y-6">
+          <div className="lg:col-span-1">
             <Card className="shadow-lg">
-              <CardHeader className="flex flex-row items-center justify-between">
-                <div className='flex items-center gap-3'>
-                  <ListOrdered className="w-6 h-6 text-accent" />
-                  <CardTitle className="font-headline text-2xl">Open Orders</CardTitle>
-                </div>
+              <CardHeader>
+                <CardTitle className="font-headline text-2xl">Active Orders ({activeOrders.length})</CardTitle>
+                <p className="text-muted-foreground">Orders waiting for delivery.</p>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  {sortedOrders.map((order, index) => (
-                    <div key={order.orderId} className="p-3 rounded-lg border bg-card/50">
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex items-start gap-3">
-                          <Badge className="text-lg bg-primary text-primary-foreground h-8 w-8 flex items-center justify-center p-0">{index + 1}</Badge>
-                          <Avatar>
-                            <AvatarImage src={order.avatar.imageUrl} alt={order.customerName} data-ai-hint={order.avatar.imageHint} />
-                            <AvatarFallback>{order.customerName.charAt(0)}</AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <p className="font-bold">{order.customerName}</p>
-                            <p className="text-sm text-muted-foreground">{order.orderId}</p>
-                          </div>
-                        </div>
-                        <p className="font-mono font-bold text-primary">${order.total.toFixed(2)}</p>
-                      </div>
-                      <Separator className="my-2" />
-                      <div className="text-sm text-muted-foreground">
-                        {order.items.map(item => `${item.quantity}x ${item.name}`).join(', ')}
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                {activeOrders.length === 0 ? (
+                  <div className="text-center text-muted-foreground py-10">
+                    No active orders.
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {/* Order list would go here */}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
