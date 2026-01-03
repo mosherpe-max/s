@@ -30,7 +30,6 @@ export default function SellerDashboardPage() {
           });
         },
         (error) => {
-          console.error("Error getting geolocation: ", error);
           // Fallback to mock location if geolocation fails
           setSellerLocation(mockSellerLocation);
         },
