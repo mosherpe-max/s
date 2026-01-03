@@ -17,7 +17,7 @@ export default function OrderTrackingPage() {
     <APIProvider apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!}>
       <div className="container mx-auto px-4 py-8">
         <header className="text-center mb-8">
-          <h1 className="font-headline text-4xl md:text-5xl font-bold text-primary">Track Your Order</h1>
+          <h1 className="font-headline text-4xl md:text-5xl font-bold text-foreground">Track Your Order</h1>
           <p className="text-lg text-muted-foreground mt-2">It's on the way!</p>
         </header>
 
