@@ -64,31 +64,38 @@ export default function SellerDashboardPage() {
           </div>
         </header>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="md:col-span-2">
             <Card className="shadow-lg h-full">
               <CardHeader className='flex-row items-center justify-between'>
                 <CardTitle className="font-headline text-2xl">Order Locations</CardTitle>
-                <Button variant="outline" onClick={() => setShowOrders(!showOrders)} className="lg:hidden">
+                <Button variant="outline" onClick={() => setShowOrders(!showOrders)} className="md:hidden">
                   {showOrders ? 'View Map' : `View ${activeOrders.length} Active Orders`}
                 </Button>
               </CardHeader>
               <CardContent>
                 {sellerLocation ? (
-                  <MapView
-                    sellerLocation={sellerLocation}
-                    buyers={activeOrders.map(o => ({ name: o.customerName, location: o.deliveryLocation }))}
-                    radius={1.5 * 1609.34} // 1.5 miles in meters
-                  />
+                  <div className={showOrders ? 'hidden md:block' : ''}>
+                    <MapView
+                      sellerLocation={sellerLocation}
+                      buyers={activeOrders.map(o => ({ name: o.customerName, location: o.deliveryLocation }))}
+                      radius={1.5 * 1609.34} // 1.5 miles in meters
+                    />
+                  </div>
                 ) : (
                   <div className="flex items-center justify-center aspect-video bg-muted rounded-lg">
                     <p>Loading map...</p>
                   </div>
                 )}
+                {showOrders && !sellerLocation && (
+                    <div className="text-center text-muted-foreground py-10 md:hidden">
+                        Loading orders...
+                    </div>
+                )}
               </CardContent>
             </Card>
           </div>
-          <div className={showOrders ? "lg:col-span-1" : "hidden lg:block lg:col-span-1"}>
+          <div className={showOrders ? "md:col-span-1" : "hidden md:block md:col-span-1"}>
             <Card className="shadow-lg">
               <CardHeader>
                 <CardTitle className="font-headline text-2xl">Active Orders ({activeOrders.length})</CardTitle>
