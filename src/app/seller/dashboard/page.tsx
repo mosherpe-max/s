@@ -17,12 +17,12 @@ export default function SellerDashboardPage() {
     <APIProvider apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!}>
       <div className="container mx-auto px-4 py-8">
         <header className="text-center mb-8">
-          <h1 className="font-headline text-3xl md:text-4xl font-bold text-primary">Driver Dashboard</h1>
+          <h1 className="font-headline text-xl md:text-2xl font-bold text-primary">Driver Dashboard</h1>
         </header>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           <div className="md:col-span-2">
             <Card className="shadow-lg h-full">
-              <CardContent className="p-0">
+              <CardContent className="p-0 h-[60vh] md:h-auto">
                 <MapView
                   sellerLocation={mockSellerLocation}
                   buyers={sortedOrders.map(o => ({ name: o.customerName, location: o.deliveryLocation }))}
