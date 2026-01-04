@@ -119,6 +119,11 @@
           "type": "number",
           "description": "The price of the menu item."
         },
+        "category": {
+          "type": "string",
+          "description": "The category of the menu item.",
+          "enum": ["Beer", "Spirits", "Soft Drinks", "Snacks"]
+        },
         "imageUrl": {
           "type": "string",
           "description": "URL of the menu item image.",
@@ -129,7 +134,8 @@
         "id",
         "menuId",
         "name",
-        "price"
+        "price",
+        "category"
       ]
     }
   },
