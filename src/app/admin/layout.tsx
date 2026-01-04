@@ -38,10 +38,6 @@ export default function AdminLayout({
           </nav>
         </aside>
         <div className="flex-1">
-          <header className="mb-8">
-            <h1 className="font-headline text-4xl md:text-5xl font-bold text-foreground">Koop Admin Panel</h1>
-            <p className="text-lg text-muted-foreground mt-2">Manage your sellers.</p>
-          </header>
           <main>{children}</main>
         </div>
       </div>
