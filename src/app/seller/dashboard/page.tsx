@@ -56,7 +56,7 @@ export default function SellerDashboardPage() {
         <header className="flex items-center justify-between mb-8">
           <div>
             <h1 className="font-headline text-4xl font-bold text-foreground">Driver Dashboard</h1>
-            <p className="text-lg text-muted-foreground">Demo 1 Golf Course</p>
+            <p className="text-sm text-muted-foreground">Demo 1 Golf Course</p>
           </div>
           <div className="flex items-center space-x-2">
             <Switch id="active-mode" checked={isActive} onCheckedChange={setIsActive} />
