@@ -5,43 +5,63 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { Separator } from './ui/separator';
 import { Button } from './ui/button';
-import { Check, Navigation, Package, CookingPot } from 'lucide-react';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { cn } from '@/lib/utils';
+import { Check, Navigation, Package, CookingPot, Send, PartyPopper } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
-
+import { Badge } from './ui/badge';
 
 interface OrderCardProps {
   order: Order;
   onUpdateStatus: (orderId: string, status: Order['status']) => void;
-  onNavigate: (location: {latitude: number, longitude: number}) => void;
 }
 
-const statusConfig: Record<Order['status'], { icon: React.ElementType, label: string, color: string }> = {
-    'Placed': { icon: Package, label: 'Placed', color: 'bg-blue-500' },
-    'Preparing': { icon: CookingPot, label: 'Preparing', color: 'bg-yellow-500' },
-    'Out for Delivery': { icon: Navigation, label: 'On its way', color: 'bg-orange-500' },
-    'Delivered': { icon: Check, label: 'Delivered', color: 'bg-green-500' },
-    'Cancelled': { icon: Check, label: 'Cancelled', color: 'bg-red-500' },
+const statusConfig: Record<Order['status'], { icon: React.ElementType, label: string, color: string, badgeVariant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
+    'Placed': { icon: Package, label: 'Placed', color: 'bg-blue-500', badgeVariant: 'default' },
+    'Preparing': { icon: CookingPot, label: 'Preparing', color: 'bg-yellow-500', badgeVariant: 'secondary' },
+    'Out for Delivery': { icon: Navigation, label: 'On its way', color: 'bg-orange-500', badgeVariant: 'outline' },
+    'Delivered': { icon: Check, label: 'Delivered', color: 'bg-green-500', badgeVariant: 'default' }, // This will likely not be seen in active list
+    'Cancelled': { icon: Check, label: 'Cancelled', color: 'bg-red-500', badgeVariant: 'destructive' }, // This will likely not be seen
 };
 
 
-export function OrderCard({ order, onUpdateStatus, onNavigate }: OrderCardProps) {
+export function OrderCard({ order, onUpdateStatus }: OrderCardProps) {
     const getInitials = (name: string) => {
         const names = name.split(' ');
         return names.map(n => n[0]).join('').toUpperCase();
     }
     
-    const StatusIcon = statusConfig[order.status].icon;
-    const statusLabel = statusConfig[order.status].label;
+    const statusInfo = statusConfig[order.status];
+
+    const renderAction = () => {
+        switch (order.status) {
+            case 'Placed':
+                return (
+                    <Button className="w-full" onClick={() => onUpdateStatus(order.id, 'Preparing')}>
+                        <Send className="mr-2 h-4 w-4" />
+                        Confirm Order
+                    </Button>
+                );
+            case 'Preparing':
+                return (
+                    <Button className="w-full" onClick={() => onUpdateStatus(order.id, 'Out for Delivery')}>
+                        <Navigation className="mr-2 h-4 w-4" />
+                        Start Delivery
+                    </Button>
+                );
+            case 'Out for Delivery':
+                 return (
+                    <Button className="w-full" onClick={() => onUpdateStatus(order.id, 'Delivered')}>
+                        <PartyPopper className="mr-2 h-4 w-4" />
+                        Complete Order
+                    </Button>
+                );
+            default:
+                return null;
+        }
+    }
+
 
     return (
-        <Card className='overflow-hidden shadow-md'>
+        <Card className='overflow-hidden shadow-md flex flex-col'>
             <CardHeader className='flex flex-row items-start gap-4 p-4 bg-muted/50'>
                 <Avatar>
                     <AvatarFallback>{getInitials(order.customerName)}</AvatarFallback>
@@ -52,27 +72,11 @@ export function OrderCard({ order, onUpdateStatus, onNavigate }: OrderCardProps)
                         {order.createdAt?.toDate && formatDistanceToNow(order.createdAt.toDate(), { addSuffix: true })}
                     </CardDescription>
                 </div>
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <Button variant="outline" size="sm" className={cn("flex items-center gap-2", `bg-background`)}>
-                            <StatusIcon className="w-4 h-4" />
-                            <span>{statusLabel}</span>
-                        </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent>
-                        {(['Placed', 'Preparing', 'Out for Delivery', 'Delivered'] as Order['status'][]).map(status => {
-                            const IconComponent = statusConfig[status].icon;
-                            return (
-                                <DropdownMenuItem key={status} onClick={() => onUpdateStatus(order.id, status)}>
-                                    {IconComponent && <IconComponent className="mr-2 h-4 w-4" />}
-                                    {status}
-                                </DropdownMenuItem>
-                            )
-                        })}
-                    </DropdownMenuContent>
-                </DropdownMenu>
+                {statusInfo && (
+                     <Badge variant={statusInfo.badgeVariant}>{statusInfo.label}</Badge>
+                )}
             </CardHeader>
-            <CardContent className='p-4 space-y-2'>
+            <CardContent className='p-4 space-y-2 flex-1'>
                 {order.items.map(item => (
                     <div key={item.id} className="flex justify-between items-center text-sm">
                         <span>{item.name} <span className='text-muted-foreground'>x{item.quantity}</span></span>
@@ -85,16 +89,11 @@ export function OrderCard({ order, onUpdateStatus, onNavigate }: OrderCardProps)
                     <span className='font-mono'>${order.total.toFixed(2)}</span>
                 </div>
             </CardContent>
-            <CardFooter className='p-2 bg-muted/50 grid grid-cols-2 gap-2'>
-                <Button onClick={() => onNavigate(order.deliveryLocation)}>
-                    <Navigation className="mr-2 h-4 w-4" />
-                    Navigate
-                </Button>
-                <Button variant='outline' onClick={() => onUpdateStatus(order.id, 'Delivered')}>
-                    <Check className="mr-2 h-4 w-4" />
-                    Complete
-                </Button>
-            </CardFooter>
+            {renderAction() && (
+                <CardFooter className='p-2 bg-muted/50'>
+                    {renderAction()}
+                </CardFooter>
+            )}
         </Card>
     );
 }

@@ -69,11 +69,6 @@ export default function SellerDashboardPage() {
     const orderRef = doc(firestore, 'orders', orderId);
     await updateDoc(orderRef, { status });
   };
-  
-  const handleNavigate = (location: {latitude: number, longitude: number}) => {
-    const url = `https://www.google.com/maps/dir/?api=1&destination=${location.latitude},${location.longitude}`;
-    window.open(url, '_blank');
-  };
 
   const activeOrders = isActive ? orders || [] : [];
   const isLoading = areOrdersLoading && isActive;
@@ -127,7 +122,6 @@ export default function SellerDashboardPage() {
                             key={order.id} 
                             order={order} 
                             onUpdateStatus={handleUpdateOrderStatus}
-                            onNavigate={handleNavigate}
                           />
                         ))}
                       </div>
@@ -156,7 +150,6 @@ export default function SellerDashboardPage() {
                         key={order.id} 
                         order={order} 
                         onUpdateStatus={handleUpdateOrderStatus}
-                        onNavigate={handleNavigate}
                       />
                     ))}
                   </div>
