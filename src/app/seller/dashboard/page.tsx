@@ -14,6 +14,7 @@ import type { Order } from '@/lib/types';
 import { mockSellerLocation } from '@/lib/data';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
+import { startOfDay } from 'date-fns';
 
 type LatLng = {
   latitude: number;
@@ -102,7 +103,7 @@ export default function SellerDashboardPage() {
                     <MapView
                       sellerLocation={sellerLocation}
                       buyers={orders.map(o => ({ name: o.customerName, location: o.deliveryLocation }))}
-                      radius={1.5 * 1609.34} // 1.5 miles in meters
+                      radius={1609.34} // 1 mile in meters
                     />
                   ) : (
                     <Skeleton className="w-full h-full rounded-lg" />
