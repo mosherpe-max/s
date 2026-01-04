@@ -51,7 +51,7 @@ export function AppHeader() {
                 <Link href="/seller/menu">Seller</Link>
             </Button>
             <Button variant="ghost" asChild>
-                <Link href="/admin/sellers">Admin</Link>
+                <Link href="/admin">Admin</Link>
             </Button>
              <Button asChild>
                 <Link href="/(auth)/login">Get Started</Link>

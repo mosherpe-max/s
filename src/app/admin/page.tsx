@@ -13,7 +13,7 @@ const mockSellers = [
     { id: 'seller-2', name: 'Jane', email: 'jane@koop.com', status: 'Inactive', avatar: PlaceHolderImages.find(i => i.id === 'avatar-2')! },
 ]
 
-export default function AdminSellersPage() {
+export default function AdminPage() {
   return (
     <>
       <header className="flex items-center justify-between mb-8">
