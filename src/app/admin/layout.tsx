@@ -19,10 +19,6 @@ export default function AdminLayout({
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <header className="mb-8">
-        <h1 className="font-headline text-4xl md:text-5xl font-bold text-foreground">Koop Admin Panel</h1>
-        <p className="text-lg text-muted-foreground mt-2">Manage your sellers.</p>
-      </header>
       <div className="flex flex-col md:flex-row gap-8">
         <aside className="md:w-64">
           <nav className="flex flex-col gap-2">
@@ -41,7 +37,13 @@ export default function AdminLayout({
             ))}
           </nav>
         </aside>
-        <main className="flex-1">{children}</main>
+        <div className="flex-1">
+          <header className="mb-8">
+            <h1 className="font-headline text-4xl md:text-5xl font-bold text-foreground">Koop Admin Panel</h1>
+            <p className="text-lg text-muted-foreground mt-2">Manage your sellers.</p>
+          </header>
+          <main>{children}</main>
+        </div>
       </div>
     </div>
   );
