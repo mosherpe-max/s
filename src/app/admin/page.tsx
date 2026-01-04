@@ -69,15 +69,35 @@ function SellerForm({
 }) {
   const form = useForm<SellerFormData>({
     resolver: zodResolver(sellerSchema),
-    defaultValues: {
-      courseName: seller?.courseName || '',
-      courseAddress: seller?.courseAddress || '',
-      contactName: seller?.contactName || '',
-      contactEmail: seller?.contactEmail || '',
-      contactPhone: seller?.contactPhone || '',
-      serviceFee: seller?.serviceFee || 0,
+    defaultValues: seller || {
+      courseName: '',
+      courseAddress: '',
+      contactName: '',
+      contactEmail: '',
+      contactPhone: '',
+      serviceFee: 0,
     },
   });
+  
+  // This is a key change: we need to reset the form when the `seller` prop changes.
+  // This ensures that when we switch from editing one seller to another, or from
+  // editing to creating, the form fields are correctly updated.
+  const isEditing = !!seller;
+  React.useEffect(() => {
+    if (seller) {
+      form.reset(seller);
+    } else {
+      form.reset({
+        courseName: '',
+        courseAddress: '',
+        contactName: '',
+        contactEmail: '',
+        contactPhone: '',
+        serviceFee: 0,
+      });
+    }
+  }, [seller, form]);
+
 
   const handleSubmit = (data: SellerFormData) => {
     onSave(data);
@@ -167,8 +187,10 @@ function SellerForm({
           />
         </div>
         <div className="flex justify-end gap-2">
-            <Button type="button" variant="ghost" onClick={onClose}>Cancel</Button>
-            <Button type="submit">{seller ? 'Save Changes' : 'Add Seller'}</Button>
+          <Button type="button" variant="ghost" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="submit">{isEditing ? 'Save Changes' : 'Add Seller'}</Button>
         </div>
       </form>
     </Form>
@@ -189,10 +211,11 @@ export default function AdminPage() {
 
   const { data: sellers, isLoading } = useCollection<Seller>(sellersCollection);
 
-  const handleSaveSeller = async (
-    sellerData: SellerFormData
-  ) => {
-    if (!firestore || !user) return;
+  const handleSaveSeller = (sellerData: SellerFormData) => {
+    if (!firestore || !user) {
+      console.error("Firestore or user not available.");
+      return;
+    };
 
     // TODO: Add geocoding to get lat/lng from address
     const placeholderLocation = {
@@ -203,12 +226,12 @@ export default function AdminPage() {
     if (editingSeller) {
       // Update existing seller
       const sellerRef = doc(firestore, 'sellers', editingSeller.id);
-      await updateDoc(sellerRef, {
+      updateDoc(sellerRef, {
         ...sellerData,
       });
     } else {
       // Add new seller
-      await addDoc(collection(firestore, 'sellers'), {
+      addDoc(collection(firestore, 'sellers'), {
         ...sellerData,
         ...placeholderLocation,
         status: 'Active',
@@ -218,17 +241,17 @@ export default function AdminPage() {
     handleCloseForm();
   };
 
-  const toggleSellerStatus = async (seller: Seller) => {
+  const toggleSellerStatus = (seller: Seller) => {
     if (!firestore) return;
     const sellerRef = doc(firestore, 'sellers', seller.id);
     const newStatus = seller.status === 'Active' ? 'Inactive' : 'Active';
-    await updateDoc(sellerRef, { status: newStatus });
+    updateDoc(sellerRef, { status: newStatus });
   };
 
-  const deleteSeller = async (sellerId: string) => {
+  const deleteSeller = (sellerId: string) => {
     if (!firestore) return;
     const sellerRef = doc(firestore, 'sellers', sellerId);
-    await deleteDoc(sellerRef);
+    deleteDoc(sellerRef);
   };
 
   const handleOpenForm = (seller: Seller | null = null) => {
@@ -322,7 +345,9 @@ export default function AdminPage() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent>
-                          <DropdownMenuItem onClick={() => handleOpenForm(seller)}>
+                          <DropdownMenuItem
+                            onClick={() => handleOpenForm(seller)}
+                          >
                             Edit
                           </DropdownMenuItem>
                           <DropdownMenuItem
@@ -332,7 +357,10 @@ export default function AdminPage() {
                               ? 'Deactivate'
                               : 'Activate'}
                           </DropdownMenuItem>
-                           <DropdownMenuItem onClick={() => deleteSeller(seller.id)} className="text-destructive">
+                          <DropdownMenuItem
+                            onClick={() => deleteSeller(seller.id)}
+                            className="text-destructive"
+                          >
                             <Trash2 className="mr-2 h-4 w-4" />
                             Delete
                           </DropdownMenuItem>
@@ -352,7 +380,11 @@ export default function AdminPage() {
               {editingSeller ? 'Edit Seller' : 'Add New Seller'}
             </DialogTitle>
           </DialogHeader>
-          <SellerForm onSave={handleSaveSeller} seller={editingSeller} onClose={handleCloseForm} />
+          <SellerForm
+            onSave={handleSaveSeller}
+            seller={editingSeller}
+            onClose={handleCloseForm}
+          />
         </DialogContent>
       </Dialog>
     </>

@@ -7,7 +7,7 @@ const GolfBallIcon = (props: React.SVGProps<SVGSVGElement>) => (
       xmlns="http://www.w3.org/2000/svg"
       width="24"
       height="24"
-      viewBox="0 0 24 24"
+      viewBox="0 0 24"
       fill="none"
       stroke="currentColor"
       strokeWidth="2"
@@ -20,7 +20,7 @@ const GolfBallIcon = (props: React.SVGProps<SVGSVGElement>) => (
       <path d="M20 16c-2 0-2.83-1-4-1s-2 1-4 1" />
       <path d="M4 16c2 0 2.83-1 4-1s2 1 4 1" />
       <path d="M12 12c2 0 2.83-1 4-1s2 1 4 1" />
-      <path d="M4 8c2 0 2.83 1 4 1s2-1 4-1" />
+      <path d="M4 8c2 0 2.83 1 4 1s2-1-4-1" />
       <path d="m8.5 8.5 3 3" />
       <path d="M20 8c-2 0-2.83 1-4 1s-2-1-4-1" />
     </svg>
@@ -50,11 +50,8 @@ export function AppHeader() {
             <Button variant="ghost" asChild>
                 <Link href="/seller/menu">Seller</Link>
             </Button>
-            <Button variant="ghost" asChild>
-                <Link href="/admin">Admin</Link>
-            </Button>
              <Button asChild>
-                <Link href="/(auth)/login">Get Started</Link>
+                <Link href="/admin">Admin Panel</Link>
             </Button>
         </div>
       </div>

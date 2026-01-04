@@ -1,7 +1,19 @@
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+'use client';
+
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { Button } from '@/components/ui/button';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { useAuth, useUser } from '@/firebase';
+import { initiateAnonymousSignIn } from '@/firebase';
 
 const GolfBallIcon = (props: React.SVGProps<SVGSVGElement>) => (
   <svg
@@ -22,46 +34,54 @@ const GolfBallIcon = (props: React.SVGProps<SVGSVGElement>) => (
     <path d="M20 16c-2 0-2.83-1-4-1s-2 1-4 1" />
     <path d="M4 16c2 0 2.83-1 4-1s2 1 4 1" />
     <path d="M12 12c2 0 2.83-1 4-1s2 1 4 1" />
-    <path d="M4 8c2 0 2.83 1 4 1s2-1 4-1" />
+    <path d="M4 8c2 0 2.83 1 4 1s2-1-4-1" />
     <path d="m8.5 8.5 3 3" />
     <path d="M20 8c-2 0-2.83 1-4 1s-2-1-4-1" />
   </svg>
 );
 
-
 export default function LoginPage() {
+  const auth = useAuth();
+  const { user, isUserLoading } = useUser();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!isUserLoading) {
+      if (user) {
+        // If user is logged in, redirect to admin page
+        router.push('/admin');
+      } else {
+        // If no user, sign in anonymously
+        initiateAnonymousSignIn(auth);
+      }
+    }
+  }, [user, isUserLoading, auth, router]);
+
+  if (isUserLoading || !user) {
+    return (
+      <div className="flex items-center justify-center min-h-[calc(100vh-4rem)] bg-background p-4">
+        <div className="text-center">
+          <p>Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex items-center justify-center min-h-[calc(100vh-4rem)] bg-background p-4">
       <Card className="w-full max-w-sm mx-auto shadow-2xl">
         <CardHeader className="text-center">
-            <div className="flex justify-center items-center mb-4">
-                <GolfBallIcon className="h-12 w-12 text-primary"/>
-            </div>
-          <CardTitle className="font-headline text-3xl">Koop Access</CardTitle>
-          <CardDescription>Enter your credentials to continue</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-4">
-            <div className="grid gap-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="driver@koop.com"
-                required
-              />
-            </div>
-            <div className="grid gap-2">
-              <div className="flex items-center">
-                <Label htmlFor="password">Password</Label>
-              </div>
-              <Input id="password" type="password" required />
-            </div>
-            <Button type="submit" className="w-full bg-accent text-accent-foreground hover:bg-accent/90">
-              Login
-            </Button>
+          <div className="flex justify-center items-center mb-4">
+            <GolfBallIcon className="h-12 w-12 text-primary" />
           </div>
-        </CardContent>
+          <CardTitle className="font-headline text-3xl">
+            Redirecting...
+          </CardTitle>
+          <CardDescription>
+            You are being redirected to the admin panel.
+          </CardDescription>
+        </CardHeader>
+        <CardContent></CardContent>
       </Card>
     </div>
   );
