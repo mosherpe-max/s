@@ -1,3 +1,4 @@
+import { Timestamp } from "firebase/firestore";
 
 export interface Seller {
   id: string;
@@ -11,13 +12,6 @@ export interface Seller {
   contactPhone: string;
   serviceFee: number;
   status: 'Active' | 'Inactive';
-}
-
-export interface Menu {
-    id: string;
-    sellerId: string;
-    name: string;
-    description: string;
 }
 
 export type Category = 'Beer' | 'Spirits' | 'Soft Drinks' | 'Snacks';
@@ -35,4 +29,21 @@ export interface MenuItem {
 
 export interface OrderItem extends MenuItem {
   quantity: number;
+}
+
+export interface Order {
+  id: string;
+  sellerId: string;
+  customerId: string;
+  customerName: string;
+  deliveryLocation: {
+    latitude: number;
+    longitude: number;
+  };
+  items: OrderItem[];
+  subtotal: number;
+  serviceFee: number;
+  total: number;
+  status: 'Placed' | 'Preparing' | 'Out for Delivery' | 'Delivered' | 'Cancelled';
+  createdAt: Timestamp;
 }

@@ -84,11 +84,6 @@
           "description": "The category of the menu item.",
           "enum": ["Beer", "Spirits", "Soft Drinks", "Snacks"]
         },
-        "imageUrl": {
-          "type": "string",
-          "description": "URL of the menu item image.",
-          "format": "uri"
-        },
         "rank": {
           "type": "number",
           "description": "The display order of the menu item within its category."
@@ -101,6 +96,50 @@
         "category",
         "rank"
       ]
+    },
+    "Order": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Order",
+      "type": "object",
+      "description": "Represents a customer's order.",
+      "properties": {
+        "sellerId": {
+          "type": "string",
+          "description": "The ID of the seller this order belongs to."
+        },
+        "customerId": {
+          "type": "string",
+          "description": "The ID of the customer who placed the order."
+        },
+        "customerName": {
+          "type": "string",
+          "description": "The name of the customer."
+        },
+        "deliveryLocation": {
+          "type": "object",
+          "properties": {
+            "latitude": { "type": "number" },
+            "longitude": { "type": "number" }
+          },
+          "required": ["latitude", "longitude"]
+        },
+        "items": {
+          "type": "array",
+          "items": { "$ref": "#/backend/entities/MenuItem" }
+        },
+        "subtotal": { "type": "number" },
+        "serviceFee": { "type": "number" },
+        "total": { "type": "number" },
+        "status": {
+          "type": "string",
+          "enum": ["Placed", "Preparing", "Out for Delivery", "Delivered", "Cancelled"]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["sellerId", "customerId", "deliveryLocation", "items", "total", "status", "createdAt"]
     }
   },
   "auth": {
@@ -143,6 +182,22 @@
             {
               "name": "menuItemId",
               "description": "The unique identifier of the menu item."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/orders/{orderId}",
+        "definition": {
+          "entityName": "Order",
+          "schema": {
+            "$ref": "#/backend/entities/Order"
+          },
+          "description": "Stores all customer orders for all sellers.",
+          "params": [
+             {
+              "name": "orderId",
+              "description": "The unique identifier of the order."
             }
           ]
         }

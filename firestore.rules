@@ -14,6 +14,7 @@
  * The data is organized hierarchically:
  * - /sellers/{sellerId}
  *   - /menuItems/{menuItemId}
+ * - /orders/{orderId}
  *
  */
 rules_version = '2';
@@ -38,6 +39,16 @@ service cloud.firestore {
      */
     match /sellers/{sellerId}/menuItems/{menuItemId} {
        allow read, write: if true;
+    }
+
+    /**
+     * @description Rules for the orders collection.
+     * @path /orders/{orderId}
+     * @allow (read) Anyone can read order data.
+     * @allow (write) Anyone can write to order data (INSECURE - FOR PROTOTYPING).
+     */
+    match /orders/{orderId} {
+      allow read, write: if true;
     }
   }
 }

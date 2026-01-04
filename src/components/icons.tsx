@@ -1,5 +1,5 @@
-import { Beer, Martini, GlassWater, Cookie, Icon as LucideIcon } from 'lucide-react';
-import type { Category } from '@/lib/data';
+import { Beer, Martini, GlassWater, Cookie, Icon as LucideIcon, CookingPot, Package } from 'lucide-react';
+import type { Category } from '@/lib/types';
 
 export const categoryIcons: Record<Category, LucideIcon> = {
   'Beer': Beer,

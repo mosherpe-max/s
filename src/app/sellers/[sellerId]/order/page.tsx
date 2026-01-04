@@ -1,10 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { collection } from 'firebase/firestore';
-import { useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
-import { doc } from 'firebase/firestore';
-import type { Seller, OrderItem, MenuItem, Category } from '@/lib/types';
+import { collection, doc, addDoc, serverTimestamp } from 'firebase/firestore';
+import { useFirestore, useCollection, useMemoFirebase, useDoc, useUser } from '@/firebase';
+import type { Seller, OrderItem, MenuItem, Category, Order } from '@/lib/types';
 import { categories } from '@/lib/types';
 import { BuyerMenu } from '@/components/buyer-menu';
 import { OrderSummary } from '@/components/order-summary';
@@ -17,6 +16,7 @@ import { categoryIcons } from '@/components/icons';
 export default function BuyerMenuPage({ params }: { params: { sellerId: string } }) {
   const { sellerId } = params;
   const firestore = useFirestore();
+  const { user } = useUser();
   const router = useRouter();
   const { toast } = useToast();
 
@@ -50,14 +50,69 @@ export default function BuyerMenuPage({ params }: { params: { sellerId: string }
     });
   };
 
-  const handlePlaceOrder = () => {
-    // In a real app, you'd save the order to Firestore here.
-    toast({
-      title: 'Order Placed!',
-      description: "We've sent your order to the cart.",
-    });
-    router.push('/order/track');
+  const handlePlaceOrder = async () => {
+    if (!firestore || !seller) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Could not connect to the service. Please try again.',
+      });
+      return;
+    }
+    
+    // Get user's location
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const { latitude, longitude } = position.coords;
+        const subtotal = orderItems.reduce((acc, item) => acc + item.price * item.quantity, 0);
+        const total = subtotal + (seller.serviceFee || 0);
+
+        const orderData: Omit<Order, 'id' | 'createdAt'> = {
+          sellerId: sellerId,
+          // For now, using anonymous user ID or a placeholder
+          customerId: user?.uid || 'anonymous-user',
+          customerName: user?.displayName || 'Guest Golfer',
+          deliveryLocation: { latitude, longitude },
+          items: orderItems,
+          subtotal,
+          serviceFee: seller.serviceFee || 0,
+          total,
+          status: 'Placed',
+        };
+
+        try {
+          const ordersCollection = collection(firestore, 'orders');
+          await addDoc(ordersCollection, {
+            ...orderData,
+            createdAt: serverTimestamp(),
+          });
+          
+          toast({
+            title: 'Order Placed!',
+            description: "We've sent your order to the cart.",
+          });
+          router.push('/order/track');
+        } catch(e: any) {
+            console.error(e);
+            toast({
+                variant: 'destructive',
+                title: 'Uh oh! Something went wrong.',
+                description: e.message || 'Could not place order.',
+            });
+        }
+      },
+      (error) => {
+        console.error("Geolocation error:", error);
+        toast({
+          variant: 'destructive',
+          title: 'Location Error',
+          description: 'Could not get your location. Please enable location services and try again.',
+        });
+      },
+      { enableHighAccuracy: true }
+    );
   };
+
 
   const isLoading = isSellerLoading || areItemsLoading;
 
