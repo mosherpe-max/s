@@ -4,7 +4,7 @@
  *
  * ## Core Philosophy (PROTOTYPING)
  * This ruleset implements a "Public Read, Public Write" security model FOR PROTOTYPING ONLY.
- * All data related to sellers, menus, and menu items is publicly readable and writable
+ * All data related to sellers and menu items is publicly readable and writable
  * by any user, including anonymous ones. This is to facilitate rapid development and testing.
  *
  * WARNING: THESE RULES ARE INSECURE AND MUST BE REPLACED WITH PROPER
@@ -13,8 +13,7 @@
  * ## Data Structure
  * The data is organized hierarchically:
  * - /sellers/{sellerId}
- *   - /menus/{menuId}
- *     - /menuItems/{menuItemId}
+ *   - /menuItems/{menuItemId}
  *
  */
 rules_version = '2';
@@ -32,22 +31,12 @@ service cloud.firestore {
     }
 
     /**
-     * @description Rules for the menus subcollection.
-     * @path /sellers/{sellerId}/menus/{menuId}
-     * @allow (read) Anyone can read menu data.
-     * @allow (write) Anyone can write to menu data (INSECURE - FOR PROTOTYPING).
-     */
-    match /sellers/{sellerId}/menus/{menuId} {
-      allow read, write: if true;
-    }
-
-    /**
      * @description Rules for the menuItems subcollection.
-     * @path /sellers/{sellerId}/menus/{menuId}/menuItems/{menuItemId}
+     * @path /sellers/{sellerId}/menuItems/{menuItemId}
      * @allow (read) Anyone can read menu item data.
      * @allow (write) Anyone can write to menu item data (INSECURE - FOR PROTOTYPING).
      */
-    match /sellers/{sellerId}/menus/{menuId}/menuItems/{menuItemId} {
+    match /sellers/{sellerId}/menuItems/{menuItemId} {
        allow read, write: if true;
     }
   }

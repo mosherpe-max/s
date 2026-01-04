@@ -21,11 +21,10 @@ export interface Menu {
 
 export type Category = 'Beer' | 'Spirits' | 'Soft Drinks' | 'Snacks';
 
-export const categories: Category[] = ['Beer', 'Spirits', 'Soft Drinks', 'Snacks'];
+export const categories: readonly Category[] = ['Beer', 'Spirits', 'Soft Drinks', 'Snacks'];
 
 export interface MenuItem {
     id: string;
-    menuId: string;
     name: string;
     description: string;
     price: number;
