@@ -8,7 +8,7 @@ import { MoreHorizontal, PlusCircle } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import { mockSellers, type Seller } from "@/lib/data";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
@@ -38,34 +38,36 @@ function SellerForm({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="grid gap-4 py-4">
-      <div className="grid gap-2">
-        <Label htmlFor="courseName">Course Name</Label>
-        <Input id="courseName" name="courseName" defaultValue={seller?.courseName} required />
+    <form onSubmit={handleSubmit}>
+      <div className="grid gap-4 py-4">
+        <div className="grid gap-2">
+          <Label htmlFor="courseName">Course Name</Label>
+          <Input id="courseName" name="courseName" defaultValue={seller?.courseName} required />
+        </div>
+        <div className="grid gap-2">
+          <Label htmlFor="courseAddress">Address</Label>
+          <Input id="courseAddress" name="courseAddress" defaultValue={seller?.courseAddress} required />
+        </div>
+        <div className="grid gap-2">
+          <Label htmlFor="contactName">Contact Name</Label>
+          <Input id="contactName" name="contactName" defaultValue={seller?.contactName} required />
+        </div>
+        <div className="grid gap-2">
+          <Label htmlFor="contactEmail">Contact Email</Label>
+          <Input id="contactEmail" name="contactEmail" type="email" defaultValue={seller?.contactEmail} required />
+        </div>
+        <div className="grid gap-2">
+          <Label htmlFor="contactPhone">Contact Phone</Label>
+          <Input id="contactPhone" name="contactPhone" type="tel" defaultValue={seller?.contactPhone} required />
+        </div>
+        <div className="grid gap-2">
+          <Label htmlFor="serviceFee">Service Fee</Label>
+          <Input id="serviceFee" name="serviceFee" type="number" step="0.50" defaultValue={seller?.serviceFee} required />
+        </div>
       </div>
-      <div className="grid gap-2">
-        <Label htmlFor="courseAddress">Address</Label>
-        <Input id="courseAddress" name="courseAddress" defaultValue={seller?.courseAddress} required />
-      </div>
-      <div className="grid gap-2">
-        <Label htmlFor="contactName">Contact Name</Label>
-        <Input id="contactName" name="contactName" defaultValue={seller?.contactName} required />
-      </div>
-      <div className="grid gap-2">
-        <Label htmlFor="contactEmail">Contact Email</Label>
-        <Input id="contactEmail" name="contactEmail" type="email" defaultValue={seller?.contactEmail} required />
-      </div>
-      <div className="grid gap-2">
-        <Label htmlFor="contactPhone">Contact Phone</Label>
-        <Input id="contactPhone" name="contactPhone" type="tel" defaultValue={seller?.contactPhone} required />
-      </div>
-      <div className="grid gap-2">
-        <Label htmlFor="serviceFee">Service Fee</Label>
-        <Input id="serviceFee" name="serviceFee" type="number" step="0.50" defaultValue={seller?.serviceFee} required />
-      </div>
-      <div className="flex justify-end">
+      <DialogFooter>
         <Button type="submit">{seller ? 'Save Changes' : 'Add Seller'}</Button>
-      </div>
+      </DialogFooter>
     </form>
   );
 }
