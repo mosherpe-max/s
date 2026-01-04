@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { collection, doc, setDoc } from 'firebase/firestore';
+import { collection, doc, setDoc, updateDoc } from 'firebase/firestore';
 import { useFirestore, useDoc, useCollection, useMemoFirebase } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -28,7 +28,7 @@ import {
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 
-import type { Menu, MenuItem, Seller, Category } from '@/lib/types';
+import type { Menu, MenuItem, Seller } from '@/lib/types';
 import { categories } from '@/lib/types';
 
 const menuSchema = z.object({
@@ -359,7 +359,8 @@ export default function SellerAdminPage({
     if (!firestore) return;
 
     if (editingMenu) {
-      // Logic for updating a menu would go here
+      const menuRef = doc(firestore, 'sellers', sellerId, 'menus', editingMenu.id);
+      updateDoc(menuRef, { ...menuData });
     } else {
       const newMenuRef = doc(collection(firestore, 'sellers', sellerId, 'menus'));
       setDoc(newMenuRef, {
@@ -394,7 +395,7 @@ export default function SellerAdminPage({
         </header>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>Manage Menus</CardTitle>
+            <CardTitle>Manage Menus & Items</CardTitle>
             <Button onClick={() => handleOpenMenuForm()} disabled={isLoading}>
               <PlusCircle className="mr-2 h-4 w-4" />
               Add Menu
