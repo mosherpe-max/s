@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { collection, doc, setDoc, deleteDoc } from 'firebase/firestore';
+import { collection, doc, setDoc, deleteDoc, writeBatch } from 'firebase/firestore';
 import { useFirestore, useDoc, useCollection, useMemoFirebase } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -25,6 +25,7 @@ import { Separator } from '@/components/ui/separator';
 
 import type { MenuItem, Seller, Category } from '@/lib/types';
 import { categories } from '@/lib/types';
+import { menuItems as mockMenuItems } from '@/lib/data';
 
 const menuItemSchema = z.object({
   name: z.string().min(1, 'Item name is required'),
@@ -169,6 +170,18 @@ export default function SellerAdminPage({
   }, [firestore, sellerId]);
 
   const { data: menuItems, isLoading: areItemsLoading } = useCollection<MenuItem>(menuItemsQuery);
+  
+  const handleSeedData = async () => {
+    if (!firestore) return;
+    const batch = writeBatch(firestore);
+    mockMenuItems.forEach((item) => {
+      const { id, ...rest } = item;
+      const newItemRef = doc(collection(firestore, 'sellers', sellerId, 'menuItems'));
+      batch.set(newItemRef, { ...rest, id: newItemRef.id });
+    });
+    await batch.commit();
+  };
+
 
   const handleOpenItemForm = (item: MenuItem | null = null) => {
     setEditingItem(item);
@@ -224,10 +237,15 @@ export default function SellerAdminPage({
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Manage Menu Items</CardTitle>
+            <div className="flex gap-2">
+            {menuItems && menuItems.length === 0 && !isLoading && (
+              <Button onClick={handleSeedData} variant="outline">Seed Menu</Button>
+            )}
             <Button onClick={() => handleOpenItemForm()} disabled={isLoading}>
               <PlusCircle className="mr-2 h-4 w-4" />
               Add Menu Item
             </Button>
+            </div>
           </CardHeader>
           <CardContent>
             {isLoading ? (
@@ -275,7 +293,7 @@ export default function SellerAdminPage({
                 ))}
               </div>
             ) : (
-                <p className="text-center text-muted-foreground py-8">No menu items found. Click "Add Menu Item" to create one.</p>
+                <p className="text-center text-muted-foreground py-8">No menu items found. Click "Add Menu Item" or "Seed Menu" to create one.</p>
             )}
           </CardContent>
         </Card>
