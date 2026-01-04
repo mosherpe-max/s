@@ -14,11 +14,9 @@ import { Label } from "@/components/ui/label";
 
 function SellerForm({
   onSave,
-  onOpenChange,
   seller,
 }: {
-  onSave: (sellerData: Omit<Seller, 'id' | 'latitude' | 'longitude'>, id?: string) => void;
-  onOpenChange: (open: boolean) => void;
+  onSave: (sellerData: Omit<Seller, 'id' | 'latitude' | 'longitude'>) => void;
   seller?: Seller | null;
 }) {
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
@@ -33,8 +31,7 @@ function SellerForm({
       serviceFee: parseFloat(formData.get('serviceFee') as string),
       status: (seller?.status || 'Active') as 'Active' | 'Inactive',
     };
-    onSave(sellerData, seller?.id);
-    onOpenChange(false);
+    onSave(sellerData);
   };
 
   return (
@@ -77,12 +74,12 @@ export default function AdminPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingSeller, setEditingSeller] = useState<Seller | null>(null);
 
-  const handleSaveSeller = (sellerData: Omit<Seller, 'id' | 'latitude' | 'longitude'>, id?: string) => {
-    if (id) {
+  const handleSaveSeller = (sellerData: Omit<Seller, 'id' | 'latitude' | 'longitude'>) => {
+    if (editingSeller) {
       // Update existing seller
       setSellers(prevSellers =>
         prevSellers.map(seller =>
-          seller.id === id
+          seller.id === editingSeller.id
             ? { ...seller, ...sellerData }
             : seller
         )
@@ -98,7 +95,9 @@ export default function AdminPage() {
       };
       setSellers(prevSellers => [...prevSellers, newSeller]);
     }
+    setIsFormOpen(false); // Close the dialog after saving
   };
+  
 
   const toggleSellerStatus = (sellerId: string) => {
     setSellers(prevSellers =>
@@ -115,9 +114,11 @@ export default function AdminPage() {
     setIsFormOpen(true);
   };
   
-  const handleCloseForm = () => {
-    setIsFormOpen(false);
-    setEditingSeller(null);
+  const handleDialogChange = (open: boolean) => {
+    if (!open) {
+      setEditingSeller(null);
+    }
+    setIsFormOpen(open);
   }
 
   return (
@@ -130,20 +131,10 @@ export default function AdminPage() {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Manage Sellers</CardTitle>
-          <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
-            <DialogTrigger asChild>
-              <Button onClick={() => handleOpenForm()}>
-                <PlusCircle className="mr-2 h-4 w-4" />
-                Add Seller
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px] max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>{editingSeller ? 'Edit Seller' : 'Add New Seller'}</DialogTitle>
-              </DialogHeader>
-              <SellerForm onSave={handleSaveSeller} onOpenChange={handleCloseForm} seller={editingSeller} />
-            </DialogContent>
-          </Dialog>
+          <Button onClick={() => handleOpenForm()}>
+            <PlusCircle className="mr-2 h-4 w-4" />
+            Add Seller
+          </Button>
         </CardHeader>
         <CardContent>
           <Table>
@@ -197,6 +188,14 @@ export default function AdminPage() {
           </Table>
         </CardContent>
       </Card>
+      <Dialog open={isFormOpen} onOpenChange={handleDialogChange}>
+        <DialogContent className="sm:max-w-[425px] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{editingSeller ? 'Edit Seller' : 'Add New Seller'}</DialogTitle>
+          </DialogHeader>
+          <SellerForm onSave={handleSaveSeller} seller={editingSeller} />
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
