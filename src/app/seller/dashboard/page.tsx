@@ -1,19 +1,20 @@
 'use client'
 
-import { collection, query, where, doc, updateDoc } from 'firebase/firestore';
+import { collection, query, where, doc, updateDoc, Timestamp, startOfDay } from 'firebase/firestore';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { MapView } from '@/components/map-view';
 import { APIProvider } from '@vis.gl/react-google-maps';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { OrderCard } from '@/components/order-card';
-import type { Order } from '@/lib/types';
+import type { Order, MenuItem } from '@/lib/types';
 import { mockSellerLocation } from '@/lib/data';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
+import { DailySummaryCard } from '@/components/daily-summary';
 
 type LatLng = {
   latitude: number;
@@ -26,7 +27,7 @@ export default function SellerDashboardPage() {
   const [isActive, setIsActive] = useState(true);
   const [showOrders, setShowOrders] = useState(false);
 
-  const ordersQuery = useMemoFirebase(() => {
+  const activeOrdersQuery = useMemoFirebase(() => {
     if (!firestore || !isActive) return null;
     // For now, hardcode the sellerId to '1' for "Demo Course 1"
     return query(
@@ -36,7 +37,20 @@ export default function SellerDashboardPage() {
     );
   }, [firestore, isActive]);
 
-  const { data: orders, isLoading: areOrdersLoading } = useCollection<Order>(ordersQuery);
+  const { data: activeOrders, isLoading: areActiveOrdersLoading } = useCollection<Order>(activeOrdersQuery);
+  
+  const dailyOrdersQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    const todayStart = startOfDay(new Date());
+    return query(
+      collection(firestore, 'orders'),
+      where('sellerId', '==', '1'),
+      where('createdAt', '>=', Timestamp.fromDate(todayStart))
+    );
+  }, [firestore]);
+
+  const { data: dailyOrders, isLoading: areDailyOrdersLoading } = useCollection<Order>(dailyOrdersQuery);
+
 
   useEffect(() => {
     if (navigator.geolocation) {
@@ -70,8 +84,35 @@ export default function SellerDashboardPage() {
     await updateDoc(orderRef, { status });
   };
 
-  const activeOrders = isActive ? orders || [] : [];
-  const isLoading = areOrdersLoading && isActive;
+  const orders = isActive ? activeOrders || [] : [];
+  const isLoading = areActiveOrdersLoading && isActive;
+
+  const summaryStats = useMemo(() => {
+    if (!dailyOrders) return { completedOrders: 0, totalRevenue: 0, topItems: [] };
+
+    const completed = dailyOrders.filter(order => order.status === 'Delivered');
+    const revenue = completed.reduce((acc, order) => acc + order.total, 0);
+
+    const itemCounts = completed
+      .flatMap(order => order.items)
+      .reduce((acc, item) => {
+        if (!acc[item.name]) {
+          acc[item.name] = { name: item.name, quantity: 0 };
+        }
+        acc[item.name].quantity += item.quantity;
+        return acc;
+      }, {} as Record<string, {name: string; quantity: number}>);
+
+    const topSellingItems = Object.values(itemCounts)
+      .sort((a, b) => b.quantity - a.quantity)
+      .slice(0, 3);
+      
+    return {
+      completedOrders: completed.length,
+      totalRevenue: revenue,
+      topItems: topSellingItems,
+    };
+  }, [dailyOrders]);
 
   return (
     <APIProvider apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!}>
@@ -79,7 +120,7 @@ export default function SellerDashboardPage() {
         <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4">
           <div>
             <h1 className="font-headline text-4xl font-bold text-foreground">Driver Dashboard</h1>
-            <p className="text-sm text-muted-foreground">Demo 1 Golf Course</p>
+            <p className="text-sm text-muted-foreground">Demo Course 1</p>
           </div>
           <div className="flex items-center space-x-2">
             <Switch id="active-mode" checked={isActive} onCheckedChange={setIsActive} />
@@ -93,7 +134,7 @@ export default function SellerDashboardPage() {
               <CardHeader className='flex-row items-center justify-between'>
                 <CardTitle className="font-headline text-2xl">Order Locations</CardTitle>
                 <Button variant="outline" onClick={() => setShowOrders(!showOrders)} className="md:hidden">
-                  {showOrders ? 'View Map' : `View ${activeOrders.length} Active Orders`}
+                  {showOrders ? 'View Map' : `View ${orders.length} Active Orders`}
                 </Button>
               </CardHeader>
               <CardContent>
@@ -101,7 +142,7 @@ export default function SellerDashboardPage() {
                   {sellerLocation ? (
                     <MapView
                       sellerLocation={sellerLocation}
-                      buyers={activeOrders.map(o => ({ name: o.customerName, location: o.deliveryLocation }))}
+                      buyers={orders.map(o => ({ name: o.customerName, location: o.deliveryLocation }))}
                       radius={1.5 * 1609.34} // 1.5 miles in meters
                     />
                   ) : (
@@ -111,13 +152,13 @@ export default function SellerDashboardPage() {
                 <div className={cn('md:hidden', showOrders ? 'block' : 'hidden')}>
                     {isLoading ? (
                       <div className="text-center text-muted-foreground py-10">Loading orders...</div>
-                    ) : activeOrders.length === 0 ? (
+                    ) : orders.length === 0 ? (
                       <div className="text-center text-muted-foreground py-10">
                         No active orders.
                       </div>
                     ) : (
                       <div className="space-y-4">
-                        {activeOrders.map((order, index) => (
+                        {orders.map((order, index) => (
                           <OrderCard 
                             key={order.id} 
                             order={order}
@@ -134,19 +175,19 @@ export default function SellerDashboardPage() {
           <div className="hidden md:block md:col-span-1">
             <Card className="shadow-lg">
               <CardHeader>
-                <CardTitle className="font-headline text-2xl">Active Orders ({activeOrders.length})</CardTitle>
+                <CardTitle className="font-headline text-2xl">Active Orders ({orders.length})</CardTitle>
                 <p className="text-muted-foreground">Orders waiting for delivery.</p>
               </CardHeader>
               <CardContent>
                 {isLoading ? (
                     <div className="text-center text-muted-foreground py-10">Loading orders...</div>
-                ) : activeOrders.length === 0 ? (
+                ) : orders.length === 0 ? (
                   <div className="text-center text-muted-foreground py-10">
                     No active orders.
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {activeOrders.map((order, index) => (
+                    {orders.map((order, index) => (
                       <OrderCard 
                         key={order.id} 
                         order={order} 
@@ -159,6 +200,12 @@ export default function SellerDashboardPage() {
               </CardContent>
             </Card>
           </div>
+        </div>
+        <div className="mt-8">
+            <DailySummaryCard 
+                isLoading={areDailyOrdersLoading}
+                stats={summaryStats}
+            />
         </div>
       </div>
     </APIProvider>
