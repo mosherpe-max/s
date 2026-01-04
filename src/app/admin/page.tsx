@@ -298,6 +298,8 @@ export default function AdminPage() {
               <TableRow>
                 <TableHead>Golf Course</TableHead>
                 <TableHead>Seller ID</TableHead>
+                <TableHead>Latitude</TableHead>
+                <TableHead>Longitude</TableHead>
                 <TableHead>Contact</TableHead>
                 <TableHead>Service Fee</TableHead>
                 <TableHead>Status</TableHead>
@@ -307,7 +309,7 @@ export default function AdminPage() {
             <TableBody>
               {isLoading && (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center">
+                  <TableCell colSpan={8} className="text-center">
                     Loading...
                   </TableCell>
                 </TableRow>
@@ -323,6 +325,12 @@ export default function AdminPage() {
                     </TableCell>
                     <TableCell>
                       <div className="font-mono text-sm">{seller.id}</div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="font-mono text-sm">{seller.latitude.toFixed(4)}</div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="font-mono text-sm">{seller.longitude.toFixed(4)}</div>
                     </TableCell>
                     <TableCell>
                       <div className="font-medium">{seller.contactName}</div>
