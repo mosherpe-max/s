@@ -2,18 +2,9 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { useAuth, useUser } from '@/firebase';
 import { initiateAnonymousSignIn } from '@/firebase';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 
 const GolfBallIcon = (props: React.SVGProps<SVGSVGElement>) => (
   <svg
@@ -57,15 +48,9 @@ export default function LoginPage() {
     }
   }, [user, isUserLoading, auth, router]);
 
-  if (isUserLoading || !user) {
-    return (
-      <div className="flex items-center justify-center min-h-[calc(100vh-4rem)] bg-background p-4">
-        <div className="text-center">
-          <p>Loading...</p>
-        </div>
-      </div>
-    );
-  }
+  const message = isUserLoading || !user ? 'Authenticating...' : 'Redirecting...';
+  const description = isUserLoading || !user ? 'Please wait while we sign you in.' : 'You are being redirected to the admin panel.';
+
 
   return (
     <div className="flex items-center justify-center min-h-[calc(100vh-4rem)] bg-background p-4">
@@ -75,10 +60,10 @@ export default function LoginPage() {
             <GolfBallIcon className="h-12 w-12 text-primary" />
           </div>
           <CardTitle className="font-headline text-3xl">
-            Redirecting...
+            {message}
           </CardTitle>
           <CardDescription>
-            You are being redirected to the admin panel.
+            {description}
           </CardDescription>
         </CardHeader>
         <CardContent></CardContent>
