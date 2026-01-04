@@ -13,6 +13,7 @@ import { OrderCard } from '@/components/order-card';
 import type { Order } from '@/lib/types';
 import { mockSellerLocation } from '@/lib/data';
 import { Skeleton } from '@/components/ui/skeleton';
+import { cn } from '@/lib/utils';
 
 type LatLng = {
   latitude: number;
