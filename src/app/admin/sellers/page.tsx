@@ -1,3 +1,4 @@
+
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -15,9 +16,11 @@ const mockSellers = [
 export default function AdminSellersPage() {
   return (
     <>
-      <header className="mb-8">
-        <h1 className="font-headline text-4xl md:text-5xl font-bold text-foreground">Koop Admin Panel</h1>
-        <p className="text-lg text-muted-foreground mt-2">Manage your sellers.</p>
+      <header className="flex items-center justify-between mb-8">
+        <div>
+          <h1 className="font-headline text-4xl font-bold text-foreground">Koop Admin Panel</h1>
+          <p className="text-lg text-muted-foreground">Manage your sellers.</p>
+        </div>
       </header>
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
