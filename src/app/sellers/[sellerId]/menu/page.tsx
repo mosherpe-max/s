@@ -149,11 +149,12 @@ function MenuItemForm({
   );
 }
 
-export default function SellerAdminPage({
-  params: { sellerId },
+export default function SellerMenuAdminPage({
+  params,
 }: {
   params: { sellerId: string };
 }) {
+  const { sellerId } = params;
   const firestore = useFirestore();
 
   const [isItemFormOpen, setIsItemFormOpen] = useState(false);

@@ -138,7 +138,7 @@ export default function Home() {
               dashboard provides all the tools you need to succeed.
             </p>
             <Button asChild size="lg" style={{backgroundColor: 'var(--accent)', color: 'var(--accent-foreground)'}}>
-                <Link href="/seller-admin">
+                <Link href="/sellers/1/menu">
                     Explore the Seller Dashboard
                     <ArrowRight className="ml-2 h-5 w-5" />
                 </Link>

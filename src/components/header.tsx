@@ -40,18 +40,15 @@ export function AppHeader() {
             <nav className="hidden md:flex items-center gap-4 text-sm font-medium">
                 <Link href="/#features" className="text-foreground hover:text-primary transition-colors">Features</Link>
                 <Link href="/#pricing" className="text-foreground hover:text-primary transition-colors">Pricing</Link>
-                <Link href="/" className="text-foreground hover:text-primary transition-colors">Demo Menu</Link>
+                <Link href="/sellers/1/menu" className="text-foreground hover:text-primary transition-colors">Demo Menu</Link>
             </nav>
         </div>
         <div className="flex items-center gap-4">
             <Button variant="ghost" asChild>
                 <Link href="/seller/dashboard">Driver</Link>
             </Button>
-            <Button variant="ghost" asChild>
-                <Link href="/sellers/1">Seller</Link>
-            </Button>
-             <Button asChild>
-                <Link href="/admin">Admin Panel</Link>
+            <Button asChild>
+                <Link href="/sellers/1/menu">Seller Admin</Link>
             </Button>
         </div>
       </div>
