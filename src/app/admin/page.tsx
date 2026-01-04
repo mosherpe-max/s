@@ -30,7 +30,7 @@ import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import {
   collection,
   doc,
-  addDoc,
+  setDoc,
   updateDoc,
   deleteDoc,
 } from 'firebase/firestore';
@@ -228,7 +228,9 @@ export default function AdminPage() {
         ...sellerData,
       });
     } else {
-      addDoc(collection(firestore, 'sellers'), {
+      const newSellerId = sellers ? (sellers.length + 1).toString() : '1';
+      const newSellerRef = doc(firestore, 'sellers', newSellerId);
+      setDoc(newSellerRef, {
         ...sellerData,
         ...placeholderLocation,
         status: 'Active',
