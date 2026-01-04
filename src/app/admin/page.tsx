@@ -228,7 +228,18 @@ export default function AdminPage() {
         ...sellerData,
       });
     } else {
-      const newSellerId = sellers ? (sellers.length + 1).toString() : '1';
+        const nextId = () => {
+          if (!sellers || sellers.length === 0) {
+            return '1';
+          }
+          const highestId = sellers.reduce((maxId, seller) => {
+            const currentId = parseInt(seller.id, 10);
+            return currentId > maxId ? currentId : maxId;
+          }, 0);
+          return (highestId + 1).toString();
+        };
+
+      const newSellerId = nextId();
       const newSellerRef = doc(firestore, 'sellers', newSellerId);
       setDoc(newSellerRef, {
         ...sellerData,
