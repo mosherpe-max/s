@@ -60,12 +60,15 @@ export function OrderCard({ order, onUpdateStatus, onNavigate }: OrderCardProps)
                         </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent>
-                        {(['Placed', 'Preparing', 'Out for Delivery', 'Delivered'] as Order['status'][]).map(status => (
-                            <DropdownMenuItem key={status} onClick={() => onUpdateStatus(order.id, status)}>
-                                {statusConfig[status].icon && <statusConfig[status].icon className="mr-2 h-4 w-4" />}
-                                {status}
-                            </DropdownMenuItem>
-                        ))}
+                        {(['Placed', 'Preparing', 'Out for Delivery', 'Delivered'] as Order['status'][]).map(status => {
+                            const IconComponent = statusConfig[status].icon;
+                            return (
+                                <DropdownMenuItem key={status} onClick={() => onUpdateStatus(order.id, status)}>
+                                    {IconComponent && <IconComponent className="mr-2 h-4 w-4" />}
+                                    {status}
+                                </DropdownMenuItem>
+                            )
+                        })}
                     </DropdownMenuContent>
                 </DropdownMenu>
             </CardHeader>
