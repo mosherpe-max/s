@@ -26,14 +26,15 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { useAuth, useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import { useFirestore, useCollection, useMemoFirebase, useUser } from '@/firebase';
 import {
-  addDoc,
   collection,
-  deleteDoc,
   doc,
+  addDoc,
   updateDoc,
+  deleteDoc,
 } from 'firebase/firestore';
+
 import type { Seller } from '@/lib/types';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
@@ -79,9 +80,6 @@ function SellerForm({
     },
   });
   
-  // This is a key change: we need to reset the form when the `seller` prop changes.
-  // This ensures that when we switch from editing one seller to another, or from
-  // editing to creating, the form fields are correctly updated.
   const isEditing = !!seller;
   React.useEffect(() => {
     if (seller) {
@@ -202,14 +200,14 @@ export default function AdminPage() {
   const [editingSeller, setEditingSeller] = useState<Seller | null>(null);
 
   const firestore = useFirestore();
-  const { user } = useAuth();
+  const { user, isUserLoading } = useUser();
 
   const sellersCollection = useMemoFirebase(() => {
     if (!firestore) return null;
     return collection(firestore, 'sellers');
   }, [firestore]);
 
-  const { data: sellers, isLoading } = useCollection<Seller>(sellersCollection);
+  const { data: sellers, isLoading: areSellersLoading } = useCollection<Seller>(sellersCollection);
 
   const handleSaveSeller = (sellerData: SellerFormData) => {
     if (!firestore || !user) {
@@ -217,20 +215,17 @@ export default function AdminPage() {
       return;
     };
 
-    // TODO: Add geocoding to get lat/lng from address
     const placeholderLocation = {
       latitude: 42.7,
       longitude: -83.2,
     };
 
     if (editingSeller) {
-      // Update existing seller
       const sellerRef = doc(firestore, 'sellers', editingSeller.id);
       updateDoc(sellerRef, {
         ...sellerData,
       });
     } else {
-      // Add new seller
       addDoc(collection(firestore, 'sellers'), {
         ...sellerData,
         ...placeholderLocation,
@@ -263,6 +258,8 @@ export default function AdminPage() {
     setEditingSeller(null);
     setIsFormOpen(false);
   };
+  
+  const isLoading = isUserLoading || areSellersLoading;
 
   return (
     <>
@@ -390,3 +387,5 @@ export default function AdminPage() {
     </>
   );
 }
+
+    
