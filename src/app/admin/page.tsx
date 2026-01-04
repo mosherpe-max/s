@@ -61,7 +61,7 @@ function SellerForm({
       </div>
       <div className="grid gap-2">
         <Label htmlFor="serviceFee">Service Fee</Label>
-        <Input id="serviceFee" name="serviceFee" type="number" step="0.01" defaultValue={seller?.serviceFee} required />
+        <Input id="serviceFee" name="serviceFee" type="number" step="0.50" defaultValue={seller?.serviceFee} required />
       </div>
       <div className="flex justify-end">
         <Button type="submit">{seller ? 'Save Changes' : 'Add Seller'}</Button>
