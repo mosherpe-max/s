@@ -39,31 +39,31 @@ function SellerForm({
 
   return (
     <form onSubmit={handleSubmit} className="grid gap-4 py-4">
-      <div className="grid grid-cols-4 items-center gap-4">
-        <Label htmlFor="courseName" className="text-right">Course Name</Label>
-        <Input id="courseName" name="courseName" defaultValue={seller?.courseName} className="col-span-3" required />
+      <div className="grid gap-2">
+        <Label htmlFor="courseName">Course Name</Label>
+        <Input id="courseName" name="courseName" defaultValue={seller?.courseName} required />
       </div>
-      <div className="grid grid-cols-4 items-center gap-4">
-        <Label htmlFor="courseAddress" className="text-right">Address</Label>
-        <Input id="courseAddress" name="courseAddress" defaultValue={seller?.courseAddress} className="col-span-3" required />
+      <div className="grid gap-2">
+        <Label htmlFor="courseAddress">Address</Label>
+        <Input id="courseAddress" name="courseAddress" defaultValue={seller?.courseAddress} required />
       </div>
-      <div className="grid grid-cols-4 items-center gap-4">
-        <Label htmlFor="contactName" className="text-right">Contact Name</Label>
-        <Input id="contactName" name="contactName" defaultValue={seller?.contactName} className="col-span-3" required />
+      <div className="grid gap-2">
+        <Label htmlFor="contactName">Contact Name</Label>
+        <Input id="contactName" name="contactName" defaultValue={seller?.contactName} required />
       </div>
-      <div className="grid grid-cols-4 items-center gap-4">
-        <Label htmlFor="contactEmail" className="text-right">Contact Email</Label>
-        <Input id="contactEmail" name="contactEmail" type="email" defaultValue={seller?.contactEmail} className="col-span-3" required />
+      <div className="grid gap-2">
+        <Label htmlFor="contactEmail">Contact Email</Label>
+        <Input id="contactEmail" name="contactEmail" type="email" defaultValue={seller?.contactEmail} required />
       </div>
-      <div className="grid grid-cols-4 items-center gap-4">
-        <Label htmlFor="contactPhone" className="text-right">Contact Phone</Label>
-        <Input id="contactPhone" name="contactPhone" type="tel" defaultValue={seller?.contactPhone} className="col-span-3" required />
+      <div className="grid gap-2">
+        <Label htmlFor="contactPhone">Contact Phone</Label>
+        <Input id="contactPhone" name="contactPhone" type="tel" defaultValue={seller?.contactPhone} required />
       </div>
-      <div className="grid grid-cols-4 items-center gap-4">
-        <Label htmlFor="serviceFee" className="text-right">Service Fee</Label>
-        <Input id="serviceFee" name="serviceFee" type="number" step="0.01" defaultValue={seller?.serviceFee} className="col-span-3" required />
+      <div className="grid gap-2">
+        <Label htmlFor="serviceFee">Service Fee</Label>
+        <Input id="serviceFee" name="serviceFee" type="number" step="0.01" defaultValue={seller?.serviceFee} required />
       </div>
-      <div className="flex justify-end col-span-4">
+      <div className="flex justify-end">
         <Button type="submit">{seller ? 'Save Changes' : 'Add Seller'}</Button>
       </div>
     </form>
