@@ -145,7 +145,7 @@ export interface Seller {
 
 export const mockSellers: Seller[] = [
   {
-    id: 'seller-1',
+    id: '1',
     courseName: 'Oakland Hills Country Club',
     courseAddress: '3951 W Maple Rd, Bloomfield Hills, MI 48301',
     latitude: 42.5516,
@@ -157,7 +157,7 @@ export const mockSellers: Seller[] = [
     status: 'Active',
   },
   {
-    id: 'seller-2',
+    id: '2',
     courseName: 'The Wyndgate',
     courseAddress: '1975 Gunn Rd, Rochester Hills, MI 48306',
     latitude: 42.7107,
