@@ -11,3 +11,19 @@ export interface Seller {
   serviceFee: number;
   status: 'Active' | 'Inactive';
 }
+
+export interface Menu {
+    id: string;
+    sellerId: string;
+    name: string;
+    description: string;
+}
+
+export interface MenuItem {
+    id: string;
+    menuId: string;
+    name: string;
+    description: string;
+    price: number;
+    imageUrl?: string;
+}
