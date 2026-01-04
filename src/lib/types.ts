@@ -30,4 +30,5 @@ export interface MenuItem {
     price: number;
     category: Category;
     imageUrl?: string;
+    rank: number;
 }

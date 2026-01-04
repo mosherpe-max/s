@@ -1,11 +1,11 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { collection, doc, setDoc, deleteDoc, writeBatch } from 'firebase/firestore';
 import { useFirestore, useDoc, useCollection, useMemoFirebase } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { PlusCircle, Edit, Trash2 } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, GripVertical } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -22,6 +22,7 @@ import {
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { cn } from '@/lib/utils';
 
 import type { MenuItem, Seller, Category } from '@/lib/types';
 import { categories } from '@/lib/types';
@@ -172,13 +173,32 @@ export default function SellerAdminPage({
   const { data: menuItems, isLoading: areItemsLoading } = useCollection<MenuItem>(menuItemsQuery);
   
   const handleSeedData = async () => {
-    if (!firestore) return;
+    if (!firestore || !menuItems) return;
     const batch = writeBatch(firestore);
-    mockMenuItems.forEach((item) => {
-      const { id, ...rest } = item;
-      const newItemRef = doc(collection(firestore, 'sellers', sellerId, 'menuItems'));
-      batch.set(newItemRef, { ...rest, id: newItemRef.id });
+  
+    const itemsByCategory = mockMenuItems.reduce((acc, item) => {
+      if (!acc[item.category]) {
+        acc[item.category] = [];
+      }
+      acc[item.category].push(item);
+      return acc;
+    }, {} as Record<Category, typeof mockMenuItems>);
+  
+    // Filter out existing items from mock data to prevent duplicates
+    const existingNames = new Set(menuItems.map(item => item.name));
+    
+    Object.values(itemsByCategory).forEach(categoryItems => {
+      let rank = 1;
+      categoryItems.forEach((item) => {
+        if (!existingNames.has(item.name)) {
+          const { id, ...rest } = item;
+          const newItemRef = doc(collection(firestore, 'sellers', sellerId, 'menuItems'));
+          batch.set(newItemRef, { ...rest, id: newItemRef.id, rank });
+          rank++;
+        }
+      });
     });
+  
     await batch.commit();
   };
 
@@ -201,7 +221,9 @@ export default function SellerAdminPage({
       setDoc(itemRef, itemData, { merge: true });
     } else {
       const newItemRef = doc(collection(firestore, 'sellers', sellerId, 'menuItems'));
-      setDoc(newItemRef, { ...itemData, id: newItemRef.id });
+      const itemsInCategory = menuItems?.filter(item => item.category === itemData.category) || [];
+      const newRank = itemsInCategory.length > 0 ? Math.max(...itemsInCategory.map(item => item.rank)) + 1 : 1;
+      setDoc(newItemRef, { ...itemData, id: newItemRef.id, rank: newRank });
     }
     handleCloseItemForm();
   };
@@ -216,7 +238,7 @@ export default function SellerAdminPage({
 
   const groupedItems = useMemo(() => {
     if (!menuItems) return {};
-    return menuItems.reduce((acc, item) => {
+    const grouped = menuItems.reduce((acc, item) => {
       const category = item.category || 'Uncategorized';
       if (!acc[category]) {
         acc[category] = [];
@@ -224,7 +246,70 @@ export default function SellerAdminPage({
       acc[category].push(item);
       return acc;
     }, {} as Record<string, MenuItem[]>);
+
+    // Sort items within each category by rank
+    for (const category in grouped) {
+      grouped[category].sort((a, b) => a.rank - b.rank);
+    }
+
+    return grouped;
   }, [menuItems]);
+
+
+  // Drag and drop state and handlers
+  const [draggedItem, setDraggedItem] = useState<MenuItem | null>(null);
+  const dragOverItem = useRef<MenuItem | null>(null);
+
+  const handleDragStart = (e: React.DragEvent<HTMLDivElement>, item: MenuItem) => {
+    setDraggedItem(item);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', item.id);
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>, item: MenuItem) => {
+    e.preventDefault();
+    if (draggedItem?.category === item.category) {
+        dragOverItem.current = item;
+        // Basic visual feedback could be added here if needed
+    }
+  };
+
+  const handleDrop = async () => {
+    if (!firestore || !draggedItem || !dragOverItem.current || draggedItem.id === dragOverItem.current.id || draggedItem.category !== dragOverItem.current.category) {
+      return;
+    }
+  
+    const category = draggedItem.category;
+    const items = [...(groupedItems[category] || [])];
+    const dragIndex = items.findIndex(item => item.id === draggedItem.id);
+    const dropIndex = items.findIndex(item => item.id === dragOverItem.current!.id);
+  
+    if (dragIndex === -1 || dropIndex === -1) return;
+  
+    const newOrderedItems = [...items];
+    const [reorderedItem] = newOrderedItems.splice(dragIndex, 1);
+    newOrderedItems.splice(dropIndex, 0, reorderedItem);
+  
+    // Update ranks and prepare for batch write
+    const batch = writeBatch(firestore);
+    newOrderedItems.forEach((item, index) => {
+      if (item.rank !== index + 1) {
+        const itemRef = doc(firestore, 'sellers', sellerId, 'menuItems', item.id);
+        batch.update(itemRef, { rank: index + 1 });
+      }
+    });
+  
+    await batch.commit();
+    
+    setDraggedItem(null);
+    dragOverItem.current = null;
+  };
+  
+  const handleDragEnd = () => {
+      setDraggedItem(null);
+      dragOverItem.current = null;
+  };
+
 
   return (
     <>
@@ -260,10 +345,19 @@ export default function SellerAdminPage({
                       <div className="space-y-2 mt-4">
                         {groupedItems[category].map((item) => (
                            <div
-                           key={item.id}
-                           className="flex items-center justify-between gap-4 p-2 rounded-lg bg-muted/50"
+                            key={item.id}
+                            draggable
+                            onDragStart={(e) => handleDragStart(e, item)}
+                            onDragOver={(e) => handleDragOver(e, item)}
+                            onDrop={handleDrop}
+                            onDragEnd={handleDragEnd}
+                            className={cn(
+                                "flex items-center justify-between gap-4 p-2 rounded-lg bg-muted/50 transition-opacity",
+                                draggedItem?.id === item.id ? "opacity-50" : "opacity-100"
+                            )}
                          >
                            <div className="flex items-center gap-4">
+                             <GripVertical className="h-5 w-5 text-muted-foreground cursor-move" />
                              <div>
                                <p className="font-medium">{item.name}</p>
                                <p className="text-sm text-muted-foreground">

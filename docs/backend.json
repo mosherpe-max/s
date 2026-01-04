@@ -88,13 +88,18 @@
           "type": "string",
           "description": "URL of the menu item image.",
           "format": "uri"
+        },
+        "rank": {
+          "type": "number",
+          "description": "The display order of the menu item within its category."
         }
       },
       "required": [
         "id",
         "name",
         "price",
-        "category"
+        "category",
+        "rank"
       ]
     }
   },
