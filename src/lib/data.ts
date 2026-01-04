@@ -129,3 +129,43 @@ export const mockSellerLocation = {
   latitude: 42.7748,
   longitude: -83.2139
 };
+
+export interface Seller {
+  id: string;
+  courseName: string;
+  courseAddress: string;
+  latitude: number;
+  longitude: number;
+  contactName: string;
+  contactEmail: string;
+  contactPhone: string;
+  serviceFee: number;
+  status: 'Active' | 'Inactive';
+}
+
+export const mockSellers: Seller[] = [
+  {
+    id: 'seller-1',
+    courseName: 'Oakland Hills Country Club',
+    courseAddress: '3951 W Maple Rd, Bloomfield Hills, MI 48301',
+    latitude: 42.5516,
+    longitude: -83.2562,
+    contactName: 'Mike Johnson',
+    contactEmail: 'mike.j@ohcc.com',
+    contactPhone: '(248) 555-1234',
+    serviceFee: 5.00,
+    status: 'Active',
+  },
+  {
+    id: 'seller-2',
+    courseName: 'The Wyndgate',
+    courseAddress: '1975 Gunn Rd, Rochester Hills, MI 48306',
+    latitude: 42.7107,
+    longitude: -83.1837,
+    contactName: 'Jane Smith',
+    contactEmail: 'jane.s@thewyndgate.com',
+    contactPhone: '(248) 555-5678',
+    serviceFee: 4.50,
+    status: 'Inactive',
+  },
+];
