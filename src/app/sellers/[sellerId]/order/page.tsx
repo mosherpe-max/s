@@ -13,8 +13,7 @@ import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { categoryIcons } from '@/components/icons';
 
-export default function BuyerMenuPage({ params }: { params: { sellerId: string } }) {
-  const { sellerId } = params;
+export default function BuyerMenuPage({ params: { sellerId } }: { params: { sellerId: string } }) {
   const firestore = useFirestore();
   const { user } = useUser();
   const router = useRouter();
