@@ -117,10 +117,11 @@ export default function SellerDashboardPage() {
                       </div>
                     ) : (
                       <div className="space-y-4">
-                        {activeOrders.map((order) => (
+                        {activeOrders.map((order, index) => (
                           <OrderCard 
                             key={order.id} 
-                            order={order} 
+                            order={order}
+                            orderNumber={index + 1}
                             onUpdateStatus={handleUpdateOrderStatus}
                           />
                         ))}
@@ -145,10 +146,11 @@ export default function SellerDashboardPage() {
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {activeOrders.map((order) => (
+                    {activeOrders.map((order, index) => (
                       <OrderCard 
                         key={order.id} 
                         order={order} 
+                        orderNumber={index + 1}
                         onUpdateStatus={handleUpdateOrderStatus}
                       />
                     ))}

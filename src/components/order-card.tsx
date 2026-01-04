@@ -11,6 +11,7 @@ import { Badge } from './ui/badge';
 
 interface OrderCardProps {
   order: Order;
+  orderNumber: number;
   onUpdateStatus: (orderId: string, status: Order['status']) => void;
 }
 
@@ -23,7 +24,7 @@ const statusConfig: Record<Order['status'], { icon: React.ElementType, label: st
 };
 
 
-export function OrderCard({ order, onUpdateStatus }: OrderCardProps) {
+export function OrderCard({ order, orderNumber, onUpdateStatus }: OrderCardProps) {
     const getInitials = (name: string) => {
         const names = name.split(' ');
         return names.map(n => n[0]).join('').toUpperCase();
@@ -64,7 +65,7 @@ export function OrderCard({ order, onUpdateStatus }: OrderCardProps) {
         <Card className='overflow-hidden shadow-md flex flex-col'>
             <CardHeader className='flex flex-row items-start gap-4 p-4 bg-muted/50'>
                 <Avatar>
-                    <AvatarFallback>{getInitials(order.customerName)}</AvatarFallback>
+                    <AvatarFallback className="font-bold text-lg">{orderNumber}</AvatarFallback>
                 </Avatar>
                 <div className='flex-1'>
                     <CardTitle className='text-lg font-semibold'>{order.customerName}</CardTitle>
