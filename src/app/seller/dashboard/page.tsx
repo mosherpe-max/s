@@ -92,7 +92,7 @@ export default function SellerDashboardPage() {
           <div className="md:col-span-2">
             <Card className="shadow-lg h-full">
               <CardHeader className='flex-row items-center justify-between'>
-                <CardTitle className="font-headline text-2xl">Order Locations</CardTitle>
+                <CardTitle className="font-headline text-2xl"></CardTitle>
                 <Button variant="outline" onClick={() => setShowOrders(!showOrders)} className="md:hidden">
                   {showOrders ? 'View Map' : `View ${orders.length} Active Orders`}
                 </Button>
