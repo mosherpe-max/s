@@ -18,11 +18,8 @@
  * of the root `/sellers/{sellerId}` document.
  *
  * ## Key Security Decisions
- * - **CRITICAL: Assumed Ownership Field:** The `Seller` entity schema is missing an `ownerId`
- *   field. Secure write operations are impossible without it. These rules are written with
- *   the assumption that an `ownerId` field (containing the creator's UID) will be added to each
- *   `Seller` document. Write rules for the `/sellers` collection are currently disabled and
- *   marked with a `TODO` to enforce this schema change.
+ * - **Owner-Only Writes:** A user can only create, update, or delete a seller profile or its
+ *   sub-collections if their UID matches the `ownerId` field in the `Seller` document.
  * - **Public Read Access:** All data is considered public and can be read (`get`, `list`) without
  *   authentication. This supports the application's need to display seller information to all users.
  * - **Strict Write Control:** A user can only modify a seller profile or its sub-collections
@@ -54,7 +51,7 @@ service cloud.firestore {
     function isSignedIn() {
       return request.auth != null;
     }
-
+    
     /**
      * Checks if the document being operated on already exists.
      * CRITICAL for all update and delete operations.
@@ -64,12 +61,21 @@ service cloud.firestore {
     }
 
     /**
+     * Checks if the current user is the owner of a document.
+     */
+    function isOwner(ownerId) {
+      return isSignedIn() && request.auth.uid == ownerId;
+    }
+
+
+    /**
      * Checks if the current user is the owner of the parent seller document.
      * This requires a read operation, which is counted against quotas.
      * It is essential for securing subcollection writes.
      */
     function isSellerOwner(sellerId) {
-      return get(/databases/$(database)/documents/sellers/$(sellerId)).data.ownerId == request.auth.uid;
+      let sellerDoc = get(/databases/$(database)/documents/sellers/$(sellerId));
+      return sellerDoc.data.ownerId == request.auth.uid;
     }
 
     // -------------------------------------------------------------------------
@@ -80,18 +86,13 @@ service cloud.firestore {
      * @description Rules for the top-level seller profiles collection.
      * @path /sellers/{sellerId}
      * @allow (get) Anyone, authenticated or not, can read a seller's profile.
-     * @deny (create) A user attempts to create a seller profile. This is denied until the schema is fixed.
-     * @principle Public Read with Owner-Only Writes. Writes are currently blocked pending a schema update.
+     * @allow (create) An authenticated user creates a seller profile they own.
+     * @principle Public Read with Owner-Only Writes.
      */
     match /sellers/{sellerId} {
       allow get, list: if true;
-
-      // CRITICAL: Cannot implement owner-only writes. The 'Seller' entity is missing an 'ownerId' field.
-      // All write operations are disabled until the application ensures an 'ownerId' (matching the creator's UID)
-      // is added to every Seller document upon creation.
-      allow create: if isSignedIn(); // TODO: Add owner validation once the schema is updated. Rule should be: isSignedIn() && request.resource.data.ownerId == request.auth.uid;
-      allow update: if false; // TODO: Add owner validation once the schema is updated. Rule should be: isExistingDoc() && isOwner(resource.data.ownerId);
-      allow delete: if false; // TODO: Add owner validation once the schema is updated. Rule should be: isExistingDoc() && isOwner(resource.data.ownerId);
+      allow create: if isOwner(request.resource.data.ownerId);
+      allow update, delete: if isExistingDoc() && isOwner(resource.data.ownerId);
     }
 
     /**
@@ -103,7 +104,6 @@ service cloud.firestore {
      */
     match /sellers/{sellerId}/menus/{menuId} {
       allow get, list: if true;
-
       allow create: if isSignedIn() && isSellerOwner(sellerId) && request.resource.data.sellerId == sellerId;
       allow update: if isExistingDoc() && isSellerOwner(sellerId) && request.resource.data.sellerId == sellerId;
       allow delete: if isExistingDoc() && isSellerOwner(sellerId);

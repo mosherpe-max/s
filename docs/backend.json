@@ -6,21 +6,29 @@
       "type": "object",
       "description": "Represents a seller in the Koop application.",
       "properties": {
-        "id": {
+        "ownerId": {
           "type": "string",
-          "description": "Unique identifier for the seller entity."
+          "description": "The UID of the user who owns this seller profile."
         },
-        "name": {
+        "courseName": {
           "type": "string",
-          "description": "The name of the seller."
+          "description": "The name of the golf course."
         },
-        "description": {
+        "courseAddress": {
           "type": "string",
-          "description": "A description of the seller and what they offer."
+          "description": "The physical address of the golf course."
         },
-        "location": {
+        "latitude": {
+          "type": "number",
+          "description": "The latitude of the golf course."
+        },
+        "longitude": {
+          "type": "number",
+          "description": "The longitude of the golf course."
+        },
+        "contactName": {
           "type": "string",
-          "description": "The physical location of the seller (e.g., GPS coordinates or address)."
+          "description": "The primary contact person for the seller."
         },
         "contactEmail": {
           "type": "string",
@@ -31,19 +39,23 @@
           "type": "string",
           "description": "The contact phone number for the seller."
         },
-        "menuIds": {
-          "type": "array",
-          "description": "References to Menus. (Relationship: Seller 1:N Menu)",
-          "items": {
-            "type": "string"
-          }
+        "serviceFee": {
+          "type": "number",
+          "description": "The service fee charged by the seller."
+        },
+        "status": {
+          "type": "string",
+          "enum": ["Active", "Inactive"],
+          "description": "The current status of the seller."
         }
       },
       "required": [
-        "id",
-        "name",
-        "description",
-        "location"
+        "ownerId",
+        "courseName",
+        "courseAddress",
+        "contactName",
+        "contactEmail",
+        "status"
       ]
     },
     "Menu": {

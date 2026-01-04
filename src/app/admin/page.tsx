@@ -1,131 +1,254 @@
 'use client';
 
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { MoreHorizontal, PlusCircle } from "lucide-react";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Badge } from "@/components/ui/badge";
-import { mockSellers, type Seller } from "@/lib/data";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { MoreHorizontal, PlusCircle, Trash2 } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Badge } from '@/components/ui/badge';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { useAuth, useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import {
+  addDoc,
+  collection,
+  deleteDoc,
+  doc,
+  updateDoc,
+} from 'firebase/firestore';
+import type { Seller } from '@/lib/types';
+import { z } from 'zod';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
+
+const sellerSchema = z.object({
+  courseName: z.string().min(1, 'Course name is required'),
+  courseAddress: z.string().min(1, 'Address is required'),
+  contactName: z.string().min(1, 'Contact name is required'),
+  contactEmail: z.string().email('Invalid email address'),
+  contactPhone: z.string().min(1, 'Contact phone is required'),
+  serviceFee: z.coerce.number().min(0, 'Service fee must be a positive number'),
+});
+
+type SellerFormData = z.infer<typeof sellerSchema>;
 
 function SellerForm({
   onSave,
   seller,
+  onClose,
 }: {
-  onSave: (sellerData: Omit<Seller, 'id' | 'latitude' | 'longitude'>) => void;
+  onSave: (sellerData: Omit<Seller, 'id' | 'status' | 'ownerId' | 'latitude' | 'longitude'>) => void;
   seller?: Seller | null;
+  onClose: () => void;
 }) {
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const formData = new FormData(event.currentTarget);
-    const sellerData = {
-      courseName: formData.get('courseName') as string,
-      courseAddress: formData.get('courseAddress') as string,
-      contactName: formData.get('contactName') as string,
-      contactEmail: formData.get('contactEmail') as string,
-      contactPhone: formData.get('contactPhone') as string,
-      serviceFee: parseFloat(formData.get('serviceFee') as string),
-      status: (seller?.status || 'Active') as 'Active' | 'Inactive',
-    };
-    onSave(sellerData);
+  const form = useForm<SellerFormData>({
+    resolver: zodResolver(sellerSchema),
+    defaultValues: {
+      courseName: seller?.courseName || '',
+      courseAddress: seller?.courseAddress || '',
+      contactName: seller?.contactName || '',
+      contactEmail: seller?.contactEmail || '',
+      contactPhone: seller?.contactPhone || '',
+      serviceFee: seller?.serviceFee || 0,
+    },
+  });
+
+  const handleSubmit = (data: SellerFormData) => {
+    onSave(data);
   };
 
   return (
-    <form onSubmit={handleSubmit}>
-      <div className="grid gap-4 py-4">
-        <div className="grid gap-2">
-          <Label htmlFor="courseName">Course Name</Label>
-          <Input id="courseName" name="courseName" defaultValue={seller?.courseName} required />
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(handleSubmit)}>
+        <div className="grid gap-4 py-4">
+          <FormField
+            control={form.control}
+            name="courseName"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Course Name</FormLabel>
+                <FormControl>
+                  <Input {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="courseAddress"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Address</FormLabel>
+                <FormControl>
+                  <Input {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="contactName"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Contact Name</FormLabel>
+                <FormControl>
+                  <Input {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="contactEmail"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Contact Email</FormLabel>
+                <FormControl>
+                  <Input type="email" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="contactPhone"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Contact Phone</FormLabel>
+                <FormControl>
+                  <Input type="tel" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="serviceFee"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Service Fee</FormLabel>
+                <FormControl>
+                  <Input type="number" step="0.50" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
         </div>
-        <div className="grid gap-2">
-          <Label htmlFor="courseAddress">Address</Label>
-          <Input id="courseAddress" name="courseAddress" defaultValue={seller?.courseAddress} required />
+        <div className="flex justify-end gap-2">
+            <Button type="button" variant="ghost" onClick={onClose}>Cancel</Button>
+            <Button type="submit">{seller ? 'Save Changes' : 'Add Seller'}</Button>
         </div>
-        <div className="grid gap-2">
-          <Label htmlFor="contactName">Contact Name</Label>
-          <Input id="contactName" name="contactName" defaultValue={seller?.contactName} required />
-        </div>
-        <div className="grid gap-2">
-          <Label htmlFor="contactEmail">Contact Email</Label>
-          <Input id="contactEmail" name="contactEmail" type="email" defaultValue={seller?.contactEmail} required />
-        </div>
-        <div className="grid gap-2">
-          <Label htmlFor="contactPhone">Contact Phone</Label>
-          <Input id="contactPhone" name="contactPhone" type="tel" defaultValue={seller?.contactPhone} required />
-        </div>
-        <div className="grid gap-2">
-          <Label htmlFor="serviceFee">Service Fee</Label>
-          <Input id="serviceFee" name="serviceFee" type="number" step="0.50" defaultValue={seller?.serviceFee} required />
-        </div>
-      </div>
-      <DialogFooter>
-        <Button type="submit">{seller ? 'Save Changes' : 'Add Seller'}</Button>
-      </DialogFooter>
-    </form>
+      </form>
+    </Form>
   );
 }
 
 export default function AdminPage() {
-  const [sellers, setSellers] = useState<Seller[]>(mockSellers);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingSeller, setEditingSeller] = useState<Seller | null>(null);
 
-  const handleSaveSeller = (sellerData: Omit<Seller, 'id' | 'latitude' | 'longitude'>) => {
+  const firestore = useFirestore();
+  const { user } = useAuth();
+
+  const sellersCollection = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return collection(firestore, 'sellers');
+  }, [firestore]);
+
+  const { data: sellers, isLoading } = useCollection<Seller>(sellersCollection);
+
+  const handleSaveSeller = async (
+    sellerData: Omit<Seller, 'id' | 'status' | 'ownerId' | 'latitude' | 'longitude'>
+  ) => {
+    if (!firestore || !user) return;
+
+    // TODO: Add geocoding to get lat/lng from address
+    const placeholderLocation = {
+      latitude: 42.7,
+      longitude: -83.2,
+    };
+
     if (editingSeller) {
       // Update existing seller
-      setSellers(prevSellers =>
-        prevSellers.map(seller =>
-          seller.id === editingSeller.id
-            ? { ...seller, ...sellerData }
-            : seller
-        )
-      );
+      const sellerRef = doc(firestore, 'sellers', editingSeller.id);
+      await updateDoc(sellerRef, {
+        ...sellerData,
+      });
     } else {
       // Add new seller
-      const newSeller: Seller = {
+      await addDoc(collection(firestore, 'sellers'), {
         ...sellerData,
-        id: (Math.max(...sellers.map(s => parseInt(s.id))) + 1).toString(),
-        // Mock coordinates for now
-        latitude: 42.7,
-        longitude: -83.2,
-      };
-      setSellers(prevSellers => [...prevSellers, newSeller]);
+        ...placeholderLocation,
+        status: 'Active',
+        ownerId: user.uid,
+      });
     }
-    setIsFormOpen(false); // Close the dialog after saving
+    handleCloseForm();
   };
-  
 
-  const toggleSellerStatus = (sellerId: string) => {
-    setSellers(prevSellers =>
-      prevSellers.map(seller =>
-        seller.id === sellerId
-          ? { ...seller, status: seller.status === 'Active' ? 'Inactive' : 'Active' }
-          : seller
-      )
-    );
+  const toggleSellerStatus = async (seller: Seller) => {
+    if (!firestore) return;
+    const sellerRef = doc(firestore, 'sellers', seller.id);
+    const newStatus = seller.status === 'Active' ? 'Inactive' : 'Active';
+    await updateDoc(sellerRef, { status: newStatus });
+  };
+
+  const deleteSeller = async (sellerId: string) => {
+    if (!firestore) return;
+    const sellerRef = doc(firestore, 'sellers', sellerId);
+    await deleteDoc(sellerRef);
   };
 
   const handleOpenForm = (seller: Seller | null = null) => {
     setEditingSeller(seller);
     setIsFormOpen(true);
   };
-  
-  const handleDialogChange = (open: boolean) => {
-    if (!open) {
-      setEditingSeller(null);
-    }
-    setIsFormOpen(open);
-  }
+
+  const handleCloseForm = () => {
+    setEditingSeller(null);
+    setIsFormOpen(false);
+  };
 
   return (
     <>
       <header className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="font-headline text-4xl font-bold text-foreground">Koop Admin Panel</h1>
+          <h1 className="font-headline text-4xl font-bold text-foreground">
+            Koop Admin Panel
+          </h1>
         </div>
       </header>
       <Card>
@@ -149,51 +272,88 @@ export default function AdminPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {sellers.map(seller => (
-              <TableRow key={seller.id}>
-                <TableCell>
-                  <div className="font-medium">{seller.courseName}</div>
-                  <div className="text-sm text-muted-foreground">{seller.courseAddress}</div>
-                </TableCell>
-                <TableCell>
-                  <div className="font-mono text-sm">{seller.id}</div>
-                </TableCell>
-                <TableCell>
-                  <div className="font-medium">{seller.contactName}</div>
-                  <div className="text-sm text-muted-foreground">{seller.contactEmail}</div>
-                  <div className="text-sm text-muted-foreground">{seller.contactPhone}</div>
-                </TableCell>
-                <TableCell>${seller.serviceFee.toFixed(2)}</TableCell>
-                <TableCell>
-                  <Badge variant={seller.status === 'Active' ? 'default' : 'destructive'} className={seller.status === 'Active' ? 'bg-accent text-accent-foreground' : ''}>{seller.status}</Badge>
-                </TableCell>
-                <TableCell className="text-right">
-                  <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
+              {isLoading && (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center">
+                    Loading...
+                  </TableCell>
+                </TableRow>
+              )}
+              {sellers &&
+                sellers.map((seller) => (
+                  <TableRow key={seller.id}>
+                    <TableCell>
+                      <div className="font-medium">{seller.courseName}</div>
+                      <div className="text-sm text-muted-foreground">
+                        {seller.courseAddress}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="font-mono text-sm">{seller.id}</div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="font-medium">{seller.contactName}</div>
+                      <div className="text-sm text-muted-foreground">
+                        {seller.contactEmail}
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        {seller.contactPhone}
+                      </div>
+                    </TableCell>
+                    <TableCell>${seller.serviceFee.toFixed(2)}</TableCell>
+                    <TableCell>
+                      <Badge
+                        variant={
+                          seller.status === 'Active' ? 'default' : 'destructive'
+                        }
+                        className={
+                          seller.status === 'Active'
+                            ? 'bg-accent text-accent-foreground'
+                            : ''
+                        }
+                      >
+                        {seller.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
                           <Button variant="ghost" size="icon">
-                              <MoreHorizontal className="h-4 w-4" />
+                            <MoreHorizontal className="h-4 w-4" />
                           </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent>
-                          <DropdownMenuItem onClick={() => handleOpenForm(seller)}>Edit</DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => toggleSellerStatus(seller.id)}>
-                            {seller.status === 'Active' ? 'Deactivate' : 'Activate'}
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent>
+                          <DropdownMenuItem onClick={() => handleOpenForm(seller)}>
+                            Edit
                           </DropdownMenuItem>
-                      </DropdownMenuContent>
-                  </DropdownMenu>
-                </TableCell>
-              </TableRow>
-              ))}
+                          <DropdownMenuItem
+                            onClick={() => toggleSellerStatus(seller)}
+                          >
+                            {seller.status === 'Active'
+                              ? 'Deactivate'
+                              : 'Activate'}
+                          </DropdownMenuItem>
+                           <DropdownMenuItem onClick={() => deleteSeller(seller.id)} className="text-destructive">
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))}
             </TableBody>
           </Table>
         </CardContent>
       </Card>
-      <Dialog open={isFormOpen} onOpenChange={handleDialogChange}>
+      <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
         <DialogContent className="sm:max-w-[425px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{editingSeller ? 'Edit Seller' : 'Add New Seller'}</DialogTitle>
+            <DialogTitle>
+              {editingSeller ? 'Edit Seller' : 'Add New Seller'}
+            </DialogTitle>
           </DialogHeader>
-          <SellerForm onSave={handleSaveSeller} seller={editingSeller} />
+          <SellerForm onSave={handleSaveSeller} seller={editingSeller} onClose={handleCloseForm} />
         </DialogContent>
       </Dialog>
     </>
