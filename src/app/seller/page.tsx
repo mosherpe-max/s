@@ -5,12 +5,11 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { categories, menuItems } from "@/lib/data";
 import { categoryIcons } from "@/components/icons";
 
-export default function SellerMenuPage() {
+export default function SellerPage() {
   return (
     <div className="container mx-auto px-4 py-8">
         <header className="mb-8">
-            <h1 className="font-headline text-4xl md:text-5xl font-bold text-foreground">Seller Admin</h1>
-            <p className="text-lg text-muted-foreground mt-2">Manage your menu offerings.</p>
+            <h1 className="font-headline text-2xl md:text-3xl font-bold text-foreground">Seller Admin</h1>
         </header>
         <Card>
             <CardHeader className="flex flex-row items-center justify-between">
