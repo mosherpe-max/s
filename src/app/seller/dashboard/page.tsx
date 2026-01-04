@@ -1,6 +1,6 @@
 'use client'
 
-import { collection, query, where, doc, updateDoc, Timestamp, startOfDay } from 'firebase/firestore';
+import { collection, query, where, doc, updateDoc, Timestamp } from 'firebase/firestore';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { MapView } from '@/components/map-view';
@@ -15,6 +15,7 @@ import { mockSellerLocation } from '@/lib/data';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { DailySummaryCard } from '@/components/daily-summary';
+import { startOfDay } from 'date-fns';
 
 type LatLng = {
   latitude: number;
