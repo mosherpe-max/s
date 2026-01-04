@@ -43,10 +43,6 @@ export default function AdminPage() {
               <TableRow key={seller.id}>
                 <TableCell>
                   <div className="flex items-center gap-3">
-                      <Avatar>
-                          <AvatarImage src={seller.avatar.imageUrl} alt={seller.name} data-ai-hint={seller.avatar.imageHint} />
-                          <AvatarFallback>{seller.name.charAt(0)}</AvatarFallback>
-                      </Avatar>
                       <div>
                           <p className="font-medium">{seller.name}</p>
                           <p className="text-sm text-muted-foreground">{seller.email}</p>
