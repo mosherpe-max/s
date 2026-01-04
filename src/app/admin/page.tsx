@@ -28,6 +28,7 @@ export default function AdminPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Golf Course</TableHead>
+                <TableHead>Seller ID</TableHead>
                 <TableHead>Contact</TableHead>
                 <TableHead>Service Fee</TableHead>
                 <TableHead>Status</TableHead>
@@ -40,6 +41,9 @@ export default function AdminPage() {
                 <TableCell>
                   <div className="font-medium">{seller.courseName}</div>
                   <div className="text-sm text-muted-foreground">{seller.courseAddress}</div>
+                </TableCell>
+                <TableCell>
+                  <div className="font-mono text-sm">{seller.id}</div>
                 </TableCell>
                 <TableCell>
                   <div className="font-medium">{seller.contactName}</div>
@@ -72,4 +76,3 @@ export default function AdminPage() {
     </>
   );
 }
-
