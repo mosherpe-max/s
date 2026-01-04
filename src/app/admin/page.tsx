@@ -26,7 +26,6 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { useAuth, useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import {
   addDoc,
@@ -64,7 +63,7 @@ function SellerForm({
   seller,
   onClose,
 }: {
-  onSave: (sellerData: Omit<Seller, 'id' | 'status' | 'ownerId' | 'latitude' | 'longitude'>) => void;
+  onSave: (sellerData: SellerFormData) => void;
   seller?: Seller | null;
   onClose: () => void;
 }) {
@@ -191,7 +190,7 @@ export default function AdminPage() {
   const { data: sellers, isLoading } = useCollection<Seller>(sellersCollection);
 
   const handleSaveSeller = async (
-    sellerData: Omit<Seller, 'id' | 'status' | 'ownerId' | 'latitude' | 'longitude'>
+    sellerData: SellerFormData
   ) => {
     if (!firestore || !user) return;
 
