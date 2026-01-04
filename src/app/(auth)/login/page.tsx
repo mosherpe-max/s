@@ -1,9 +1,5 @@
 'use client';
 
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { useAuth, useUser } from '@/firebase';
-import { initiateAnonymousSignIn } from '@/firebase';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 
 const GolfBallIcon = (props: React.SVGProps<SVGSVGElement>) => (
@@ -32,25 +28,8 @@ const GolfBallIcon = (props: React.SVGProps<SVGSVGElement>) => (
 );
 
 export default function LoginPage() {
-  const auth = useAuth();
-  const { user, isUserLoading } = useUser();
-  const router = useRouter();
-
-  useEffect(() => {
-    if (!isUserLoading) {
-      if (user) {
-        // If user is logged in, redirect to admin page
-        router.push('/admin');
-      } else {
-        // If no user, sign in anonymously
-        initiateAnonymousSignIn(auth);
-      }
-    }
-  }, [user, isUserLoading, auth, router]);
-
-  const message = isUserLoading || !user ? 'Authenticating...' : 'Redirecting...';
-  const description = isUserLoading || !user ? 'Please wait while we sign you in.' : 'You are being redirected to the admin panel.';
-
+  const message = 'Prototyping Mode';
+  const description = 'User authentication is currently disabled for development.';
 
   return (
     <div className="flex items-center justify-center min-h-[calc(100vh-4rem)] bg-background p-4">

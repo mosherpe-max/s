@@ -1,6 +1,6 @@
 export interface Seller {
   id: string;
-  ownerId: string;
+  ownerId?: string; // Made optional for prototyping
   courseName: string;
   courseAddress: string;
   latitude: number;

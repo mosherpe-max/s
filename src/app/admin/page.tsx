@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -26,7 +26,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { useFirestore, useCollection, useMemoFirebase, useUser } from '@/firebase';
+import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import {
   collection,
   doc,
@@ -83,7 +83,8 @@ function SellerForm({
   });
   
   const isEditing = !!seller;
-  React.useEffect(() => {
+  
+  useEffect(() => {
     if (seller) {
       form.reset(seller);
     } else {
@@ -202,7 +203,6 @@ export default function AdminPage() {
   const [editingSeller, setEditingSeller] = useState<Seller | null>(null);
 
   const firestore = useFirestore();
-  const { user, isUserLoading } = useUser();
 
   const sellersCollection = useMemoFirebase(() => {
     if (!firestore) return null;
@@ -212,9 +212,8 @@ export default function AdminPage() {
   const { data: sellers, isLoading: areSellersLoading } = useCollection<Seller>(sellersCollection);
 
   const handleSaveSeller = (sellerData: SellerFormData) => {
-    if (!firestore || !user) {
-      // This should ideally not be hit if buttons are disabled correctly
-      console.error("Firestore or user not available.");
+    if (!firestore) {
+      console.error("Firestore not available.");
       return;
     };
 
@@ -233,7 +232,6 @@ export default function AdminPage() {
         ...sellerData,
         ...placeholderLocation,
         status: 'Active',
-        ownerId: user.uid,
       });
     }
     handleCloseForm();
@@ -262,7 +260,7 @@ export default function AdminPage() {
     setIsFormOpen(false);
   };
   
-  const isLoading = isUserLoading || areSellersLoading;
+  const isLoading = areSellersLoading;
 
   return (
     <>

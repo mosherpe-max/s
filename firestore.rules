@@ -2,126 +2,53 @@
  * @file firestore.rules
  * @description Firestore Security Rules for the Koop Application.
  *
- * ## Core Philosophy
- * This ruleset implements a "Public Read, Owner-Only Write" security model. All data related
- * to sellers, including their menus and menu items, is publicly readable by any user, including
- * anonymous ones. However, all write operations (creating, updating, or deleting data) are
- * strictly restricted to the authenticated user who owns the seller profile.
+ * ## Core Philosophy (PROTOTYPING)
+ * This ruleset implements a "Public Read, Public Write" security model FOR PROTOTYPING ONLY.
+ * All data related to sellers, menus, and menu items is publicly readable and writable
+ * by any user, including anonymous ones. This is to facilitate rapid development and testing.
+ *
+ * WARNING: THESE RULES ARE INSECURE AND MUST BE REPLACED WITH PROPER
+ * AUTHENTICATION-BASED RULES BEFORE GOING TO PRODUCTION.
  *
  * ## Data Structure
- * The data is organized hierarchically to represent ownership clearly:
+ * The data is organized hierarchically:
  * - /sellers/{sellerId}
  *   - /menus/{menuId}
  *     - /menuItems/{menuItemId}
  *
- * Access to subcollections (menus, menuItems) is controlled by checking the ownership
- * of the root `/sellers/{sellerId}` document.
- *
- * ## Key Security Decisions
- * - **Owner-Only Writes:** A user can only create, update, or delete a seller profile or its
- *   sub-collections if their UID matches the `ownerId` field in the `Seller` document.
- * - **Public Read Access:** All data is considered public and can be read (`get`, `list`) without
- *   authentication. This supports the application's need to display seller information to all users.
- * - **Strict Write Control:** A user can only modify a seller profile or its sub-collections
- *   if they are the designated owner in the `seller` document's `ownerId` field.
- *
- * ## Denormalization for Authorization
- * - **Menus & MenuItems:** The `Menu` document contains a `sellerId` and the `MenuItem` document
- *   contains a `menuId`. These denormalized fields are used to enforce relational integrity
- *   during write operations without needing to read the parent document's data.
- * - **Seller Ownership (Required):** The most critical piece of denormalized data is the `ownerId`
- *   on the `Seller` document. Access to the entire data tree under a seller depends on this one
- *   field, which is checked using a `get()` call in the rules for subcollections.
- *
- * ## Structural Segregation
- * This model does not require structural segregation as there is no concept of private or
- * draft data. All seller-related content is treated as publicly visible upon creation.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // -------------------------------------------------------------------------
-    // Helper Functions
-    // -------------------------------------------------------------------------
-
-    /**
-     * Checks if the user is authenticated.
-     */
-    function isSignedIn() {
-      return request.auth != null;
-    }
-    
-    /**
-     * Checks if the document being operated on already exists.
-     * CRITICAL for all update and delete operations.
-     */
-    function isExistingDoc() {
-      return resource != null;
-    }
-
-    /**
-     * Checks if the current user is the owner of a document.
-     */
-    function isOwner(ownerId) {
-      return isSignedIn() && request.auth.uid == ownerId;
-    }
-
-
-    /**
-     * Checks if the current user is the owner of the parent seller document.
-     * This requires a read operation, which is counted against quotas.
-     * It is essential for securing subcollection writes.
-     */
-    function isSellerOwner(sellerId) {
-      let sellerDoc = get(/databases/$(database)/documents/sellers/$(sellerId));
-      return sellerDoc.data.ownerId == request.auth.uid;
-    }
-
-    // -------------------------------------------------------------------------
-    // Collection Rules
-    // -------------------------------------------------------------------------
-
     /**
      * @description Rules for the top-level seller profiles collection.
      * @path /sellers/{sellerId}
-     * @allow (get) Anyone, authenticated or not, can read a seller's profile.
-     * @allow (create) An authenticated user creates a seller profile they own.
-     * @principle Public Read with Owner-Only Writes.
+     * @allow (read) Anyone can read seller data.
+     * @allow (write) Anyone can write to seller data (INSECURE - FOR PROTOTYPING).
      */
     match /sellers/{sellerId} {
-      allow get, list: if true;
-      allow create: if isOwner(request.resource.data.ownerId);
-      allow update, delete: if isExistingDoc() && isOwner(resource.data.ownerId);
+      allow read, write: if true;
     }
 
     /**
-     * @description Rules for the menus subcollection within a seller document.
+     * @description Rules for the menus subcollection.
      * @path /sellers/{sellerId}/menus/{menuId}
-     * @allow (create) The owner of the parent seller profile creates a new menu for that seller.
-     * @deny (update) A user who does not own the parent seller tries to update a menu.
-     * @principle Enforces ownership via parent document lookup and validates relational integrity.
+     * @allow (read) Anyone can read menu data.
+     * @allow (write) Anyone can write to menu data (INSECURE - FOR PROTOTYPING).
      */
     match /sellers/{sellerId}/menus/{menuId} {
-      allow get, list: if true;
-      allow create: if isSignedIn() && isSellerOwner(sellerId) && request.resource.data.sellerId == sellerId;
-      allow update: if isExistingDoc() && isSellerOwner(sellerId) && request.resource.data.sellerId == sellerId;
-      allow delete: if isExistingDoc() && isSellerOwner(sellerId);
+      allow read, write: if true;
     }
 
     /**
-     * @description Rules for the menuItems subcollection within a menu document.
+     * @description Rules for the menuItems subcollection.
      * @path /sellers/{sellerId}/menus/{menuId}/menuItems/{menuItemId}
-     * @allow (create) The owner of the grandparent seller profile creates a new menu item.
-     * @deny (delete) A user who does not own the grandparent seller tries to delete a menu item.
-     * @principle Enforces ownership via grandparent document lookup and validates relational integrity.
+     * @allow (read) Anyone can read menu item data.
+     * @allow (write) Anyone can write to menu item data (INSECURE - FOR PROTOTYPING).
      */
     match /sellers/{sellerId}/menus/{menuId}/menuItems/{menuItemId} {
-      allow get, list: if true;
-
-      allow create: if isSignedIn() && isSellerOwner(sellerId) && request.resource.data.menuId == menuId;
-      allow update: if isExistingDoc() && isSellerOwner(sellerId) && request.resource.data.menuId == menuId;
-      allow delete: if isExistingDoc() && isSellerOwner(sellerId);
+       allow read, write: if true;
     }
   }
 }

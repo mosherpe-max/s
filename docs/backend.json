@@ -8,7 +8,7 @@
       "properties": {
         "ownerId": {
           "type": "string",
-          "description": "The UID of the user who owns this seller profile."
+          "description": "The UID of the user who owns this seller profile. Optional for prototyping."
         },
         "courseName": {
           "type": "string",
@@ -50,7 +50,6 @@
         }
       },
       "required": [
-        "ownerId",
         "courseName",
         "courseAddress",
         "contactName",
