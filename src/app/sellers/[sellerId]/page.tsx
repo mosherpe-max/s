@@ -21,7 +21,6 @@ import { z } from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 
 import type { Menu, MenuItem, Seller } from '@/lib/types';
-import { categoryIcons } from '@/components/icons';
 
 const menuSchema = z.object({
   name: z.string().min(1, 'Menu name is required'),
@@ -156,11 +155,10 @@ function MenuItemsList({ menuId, sellerId }: { menuId: string, sellerId: string 
 }
 
 export default function SellerAdminPage({
-  params,
+  params: { sellerId },
 }: {
   params: { sellerId: string };
 }) {
-  const { sellerId } = params;
   const firestore = useFirestore();
 
   const [isMenuFormOpen, setIsMenuFormOpen] = useState(false);
