@@ -115,6 +115,7 @@ export default function BuyerMenuPage({ params }: { params: { sellerId: string }
           <OrderSummary
             items={orderItems.filter((item) => item.quantity > 0)}
             onPlaceOrder={handlePlaceOrder}
+            serviceFee={seller?.serviceFee}
           />
         </aside>
       </div>

@@ -1,3 +1,4 @@
+
 export interface Seller {
   id: string;
   ownerId?: string; // Made optional for prototyping
@@ -29,6 +30,9 @@ export interface MenuItem {
     description: string;
     price: number;
     category: Category;
-    imageUrl?: string;
     rank: number;
+}
+
+export interface OrderItem extends MenuItem {
+  quantity: number;
 }

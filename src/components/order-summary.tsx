@@ -1,19 +1,19 @@
+
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import type { OrderItem } from '@/lib/data';
+import type { OrderItem } from '@/lib/types';
 import { ShoppingCart } from 'lucide-react';
 
 interface OrderSummaryProps {
   items: OrderItem[];
   onPlaceOrder: () => void;
+  serviceFee?: number;
 }
 
-export function OrderSummary({ items, onPlaceOrder }: OrderSummaryProps) {
+export function OrderSummary({ items, onPlaceOrder, serviceFee = 0 }: OrderSummaryProps) {
   const subtotal = items.reduce((acc, item) => acc + item.price * item.quantity, 0);
-  const taxRate = 0.08;
-  const tax = subtotal * taxRate;
-  const total = subtotal + tax;
+  const total = subtotal + serviceFee;
 
   return (
     <Card className="shadow-2xl">
@@ -46,8 +46,8 @@ export function OrderSummary({ items, onPlaceOrder }: OrderSummaryProps) {
                 <p className="font-mono">${subtotal.toFixed(2)}</p>
               </div>
               <div className="flex justify-between">
-                <p className="text-muted-foreground">Tax (8%)</p>
-                <p className="font-mono">${tax.toFixed(2)}</p>
+                <p className="text-muted-foreground">Service Fee</p>
+                <p className="font-mono">${serviceFee.toFixed(2)}</p>
               </div>
             </div>
             <Separator />
