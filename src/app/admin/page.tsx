@@ -1,13 +1,92 @@
+'use client';
 
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { MoreHorizontal, PlusCircle } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
-import { mockSellers } from "@/lib/data";
+import { mockSellers, type Seller } from "@/lib/data";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+
+function AddSellerForm({ onAddSeller, onOpenChange }: { onAddSeller: (seller: Omit<Seller, 'id' | 'latitude' | 'longitude'>) => void, onOpenChange: (open: boolean) => void }) {
+  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    const newSeller = {
+      courseName: formData.get('courseName') as string,
+      courseAddress: formData.get('courseAddress') as string,
+      contactName: formData.get('contactName') as string,
+      contactEmail: formData.get('contactEmail') as string,
+      contactPhone: formData.get('contactPhone') as string,
+      serviceFee: parseFloat(formData.get('serviceFee') as string),
+      status: 'Active' as 'Active' | 'Inactive',
+    };
+    onAddSeller(newSeller);
+    onOpenChange(false);
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="grid gap-4 py-4">
+      <div className="grid grid-cols-4 items-center gap-4">
+        <Label htmlFor="courseName" className="text-right">Course Name</Label>
+        <Input id="courseName" name="courseName" className="col-span-3" required />
+      </div>
+      <div className="grid grid-cols-4 items-center gap-4">
+        <Label htmlFor="courseAddress" className="text-right">Address</Label>
+        <Input id="courseAddress" name="courseAddress" className="col-span-3" required />
+      </div>
+      <div className="grid grid-cols-4 items-center gap-4">
+        <Label htmlFor="contactName" className="text-right">Contact Name</Label>
+        <Input id="contactName" name="contactName" className="col-span-3" required />
+      </div>
+      <div className="grid grid-cols-4 items-center gap-4">
+        <Label htmlFor="contactEmail" className="text-right">Contact Email</Label>
+        <Input id="contactEmail" name="contactEmail" type="email" className="col-span-3" required />
+      </div>
+      <div className="grid grid-cols-4 items-center gap-4">
+        <Label htmlFor="contactPhone" className="text-right">Contact Phone</Label>
+        <Input id="contactPhone" name="contactPhone" type="tel" className="col-span-3" required />
+      </div>
+      <div className="grid grid-cols-4 items-center gap-4">
+        <Label htmlFor="serviceFee" className="text-right">Service Fee</Label>
+        <Input id="serviceFee" name="serviceFee" type="number" step="0.01" className="col-span-3" required />
+      </div>
+      <div className="flex justify-end col-span-4">
+        <Button type="submit">Add Seller</Button>
+      </div>
+    </form>
+  );
+}
 
 export default function AdminPage() {
+  const [sellers, setSellers] = useState<Seller[]>(mockSellers);
+  const [isAddSellerOpen, setIsAddSellerOpen] = useState(false);
+
+  const addSeller = (newSellerData: Omit<Seller, 'id' | 'latitude' | 'longitude'>) => {
+    const newSeller: Seller = {
+      ...newSellerData,
+      id: (Math.max(...sellers.map(s => parseInt(s.id))) + 1).toString(),
+      // Mock coordinates for now
+      latitude: 42.7,
+      longitude: -83.2,
+    };
+    setSellers(prevSellers => [...prevSellers, newSeller]);
+  };
+
+  const toggleSellerStatus = (sellerId: string) => {
+    setSellers(prevSellers =>
+      prevSellers.map(seller =>
+        seller.id === sellerId
+          ? { ...seller, status: seller.status === 'Active' ? 'Inactive' : 'Active' }
+          : seller
+      )
+    );
+  };
+
   return (
     <>
       <header className="flex items-center justify-between mb-8">
@@ -18,10 +97,20 @@ export default function AdminPage() {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Manage Sellers</CardTitle>
-          <Button>
-              <PlusCircle className="mr-2 h-4 w-4" />
-              Add Seller
-          </Button>
+          <Dialog open={isAddSellerOpen} onOpenChange={setIsAddSellerOpen}>
+            <DialogTrigger asChild>
+              <Button>
+                <PlusCircle className="mr-2 h-4 w-4" />
+                Add Seller
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[425px]">
+              <DialogHeader>
+                <DialogTitle>Add New Seller</DialogTitle>
+              </DialogHeader>
+              <AddSellerForm onAddSeller={addSeller} onOpenChange={setIsAddSellerOpen} />
+            </DialogContent>
+          </Dialog>
         </CardHeader>
         <CardContent>
           <Table>
@@ -36,7 +125,7 @@ export default function AdminPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {mockSellers.map(seller => (
+              {sellers.map(seller => (
               <TableRow key={seller.id}>
                 <TableCell>
                   <div className="font-medium">{seller.courseName}</div>
@@ -63,7 +152,9 @@ export default function AdminPage() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent>
                           <DropdownMenuItem>Edit</DropdownMenuItem>
-                          <DropdownMenuItem>Deactivate</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => toggleSellerStatus(seller.id)}>
+                            {seller.status === 'Active' ? 'Deactivate' : 'Activate'}
+                          </DropdownMenuItem>
                       </DropdownMenuContent>
                   </DropdownMenu>
                 </TableCell>
