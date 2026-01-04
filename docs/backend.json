@@ -1,0 +1,196 @@
+{
+  "entities": {
+    "Seller": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Seller",
+      "type": "object",
+      "description": "Represents a seller in the Koop application.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the seller entity."
+        },
+        "name": {
+          "type": "string",
+          "description": "The name of the seller."
+        },
+        "description": {
+          "type": "string",
+          "description": "A description of the seller and what they offer."
+        },
+        "location": {
+          "type": "string",
+          "description": "The physical location of the seller (e.g., GPS coordinates or address)."
+        },
+        "contactEmail": {
+          "type": "string",
+          "description": "The contact email address for the seller.",
+          "format": "email"
+        },
+        "contactPhone": {
+          "type": "string",
+          "description": "The contact phone number for the seller."
+        },
+        "menuIds": {
+          "type": "array",
+          "description": "References to Menus. (Relationship: Seller 1:N Menu)",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "description",
+        "location"
+      ]
+    },
+    "Menu": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Menu",
+      "type": "object",
+      "description": "Represents a menu offered by a seller.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the menu entity."
+        },
+        "sellerId": {
+          "type": "string",
+          "description": "Reference to Seller. (Relationship: Seller 1:N Menu)"
+        },
+        "name": {
+          "type": "string",
+          "description": "The name of the menu (e.g., 'Beer Menu', 'Snacks')."
+        },
+        "description": {
+          "type": "string",
+          "description": "A description of the menu."
+        },
+        "itemIds": {
+          "type": "array",
+          "description": "References to MenuItems. (Relationship: Menu 1:N MenuItem)",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "sellerId",
+        "name"
+      ]
+    },
+    "MenuItem": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "MenuItem",
+      "type": "object",
+      "description": "Represents a single item on a menu.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the menu item entity."
+        },
+        "menuId": {
+          "type": "string",
+          "description": "Reference to Menu. (Relationship: Menu 1:N MenuItem)"
+        },
+        "name": {
+          "type": "string",
+          "description": "The name of the menu item (e.g., 'Bud Light', 'Chips')."
+        },
+        "description": {
+          "type": "string",
+          "description": "A description of the menu item."
+        },
+        "price": {
+          "type": "number",
+          "description": "The price of the menu item."
+        },
+        "imageUrl": {
+          "type": "string",
+          "description": "URL of the menu item image.",
+          "format": "uri"
+        }
+      },
+      "required": [
+        "id",
+        "menuId",
+        "name",
+        "price"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/sellers/{sellerId}",
+        "definition": {
+          "entityName": "Seller",
+          "schema": {
+            "$ref": "#/backend/entities/Seller"
+          },
+          "description": "Stores seller profiles. Each document represents a seller in the Koop application.",
+          "params": [
+            {
+              "name": "sellerId",
+              "description": "The unique identifier of the seller."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/sellers/{sellerId}/menus/{menuId}",
+        "definition": {
+          "entityName": "Menu",
+          "schema": {
+            "$ref": "#/backend/entities/Menu"
+          },
+          "description": "Stores menus associated with a specific seller.  The 'sellerId' field within the menu document is redundant but is denormalized here for authorization independence; it allows rules to validate that the menu belongs to the seller, without requiring a 'get()' call to the parent 'seller' document. This supports secure list operations. The menu object includes the sellerId.",
+          "params": [
+            {
+              "name": "sellerId",
+              "description": "The unique identifier of the seller."
+            },
+            {
+              "name": "menuId",
+              "description": "The unique identifier of the menu."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/sellers/{sellerId}/menus/{menuId}/menuItems/{menuItemId}",
+        "definition": {
+          "entityName": "MenuItem",
+          "schema": {
+            "$ref": "#/backend/entities/MenuItem"
+          },
+          "description": "Stores menu items associated with a specific menu. The 'menuId' field within the menuItem document is redundant but is denormalized here for authorization independence; it allows rules to validate that the menuItem belongs to the menu, without requiring a 'get()' call to the parent 'menu' document. This supports secure list operations. The menuItem object includes the menuId.",
+          "params": [
+            {
+              "name": "sellerId",
+              "description": "The unique identifier of the seller."
+            },
+            {
+              "name": "menuId",
+              "description": "The unique identifier of the menu."
+            },
+            {
+              "name": "menuItemId",
+              "description": "The unique identifier of the menu item."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore structure is designed to efficiently manage seller, menu, and menu item data for the Koop application, while adhering to the principles of Authorization Independence and QAPs.  We leverage hierarchical paths for ownership, associating menus and menu items directly with sellers. There is no need for collaborative access, therefore, membership maps are not required. Segregation by collection is implicit in the design."
+  }
+}
