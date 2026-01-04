@@ -281,7 +281,7 @@ export default function SellerAdminPage({
         </Card>
       </div>
       <Dialog open={isItemFormOpen} onOpenChange={setIsItemFormOpen}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-[425px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingItem ? 'Edit Menu Item' : 'Add New Item'}</DialogTitle>
           </DialogHeader>
