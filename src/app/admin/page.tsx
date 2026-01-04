@@ -130,7 +130,7 @@ export default function AdminPage() {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Manage Sellers</CardTitle>
-          <Dialog open={isFormOpen} onOpenChange={(open) => open ? handleOpenForm() : handleCloseForm()}>
+          <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
             <DialogTrigger asChild>
               <Button onClick={() => handleOpenForm()}>
                 <PlusCircle className="mr-2 h-4 w-4" />
