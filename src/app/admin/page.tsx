@@ -19,7 +19,6 @@ export default function AdminPage() {
       <header className="flex items-center justify-between mb-8">
         <div>
           <h1 className="font-headline text-4xl font-bold text-foreground">Koop Admin Panel</h1>
-          <p className="text-lg text-muted-foreground">Manage your sellers.</p>
         </div>
       </header>
       <Card>
