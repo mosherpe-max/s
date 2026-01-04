@@ -61,12 +61,14 @@ type SellerFormData = z.infer<typeof sellerSchema>;
 
 function SellerForm({
   onSave,
-  seller,
   onClose,
+  seller,
+  disabled,
 }: {
   onSave: (sellerData: SellerFormData) => void;
-  seller?: Seller | null;
   onClose: () => void;
+  seller?: Seller | null;
+  disabled?: boolean;
 }) {
   const form = useForm<SellerFormData>({
     resolver: zodResolver(sellerSchema),
@@ -188,7 +190,7 @@ function SellerForm({
           <Button type="button" variant="ghost" onClick={onClose}>
             Cancel
           </Button>
-          <Button type="submit">{isEditing ? 'Save Changes' : 'Add Seller'}</Button>
+          <Button type="submit" disabled={disabled}>{isEditing ? 'Save Changes' : 'Add Seller'}</Button>
         </div>
       </form>
     </Form>
@@ -211,6 +213,7 @@ export default function AdminPage() {
 
   const handleSaveSeller = (sellerData: SellerFormData) => {
     if (!firestore || !user) {
+      // This should ideally not be hit if buttons are disabled correctly
       console.error("Firestore or user not available.");
       return;
     };
@@ -273,7 +276,7 @@ export default function AdminPage() {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Manage Sellers</CardTitle>
-          <Button onClick={() => handleOpenForm()}>
+          <Button onClick={() => handleOpenForm()} disabled={isLoading}>
             <PlusCircle className="mr-2 h-4 w-4" />
             Add Seller
           </Button>
@@ -337,7 +340,7 @@ export default function AdminPage() {
                     <TableCell className="text-right">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon">
+                          <Button variant="ghost" size="icon" disabled={isLoading}>
                             <MoreHorizontal className="h-4 w-4" />
                           </Button>
                         </DropdownMenuTrigger>
@@ -381,11 +384,10 @@ export default function AdminPage() {
             onSave={handleSaveSeller}
             seller={editingSeller}
             onClose={handleCloseForm}
+            disabled={isLoading}
           />
         </DialogContent>
       </Dialog>
     </>
   );
 }
-
-    
