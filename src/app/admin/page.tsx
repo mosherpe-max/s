@@ -12,20 +12,28 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-function AddSellerForm({ onAddSeller, onOpenChange }: { onAddSeller: (seller: Omit<Seller, 'id' | 'latitude' | 'longitude'>) => void, onOpenChange: (open: boolean) => void }) {
+function SellerForm({
+  onSave,
+  onOpenChange,
+  seller,
+}: {
+  onSave: (sellerData: Omit<Seller, 'id' | 'latitude' | 'longitude'>, id?: string) => void;
+  onOpenChange: (open: boolean) => void;
+  seller?: Seller | null;
+}) {
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
-    const newSeller = {
+    const sellerData = {
       courseName: formData.get('courseName') as string,
       courseAddress: formData.get('courseAddress') as string,
       contactName: formData.get('contactName') as string,
       contactEmail: formData.get('contactEmail') as string,
       contactPhone: formData.get('contactPhone') as string,
       serviceFee: parseFloat(formData.get('serviceFee') as string),
-      status: 'Active' as 'Active' | 'Inactive',
+      status: (seller?.status || 'Active') as 'Active' | 'Inactive',
     };
-    onAddSeller(newSeller);
+    onSave(sellerData, seller?.id);
     onOpenChange(false);
   };
 
@@ -33,30 +41,30 @@ function AddSellerForm({ onAddSeller, onOpenChange }: { onAddSeller: (seller: Om
     <form onSubmit={handleSubmit} className="grid gap-4 py-4">
       <div className="grid grid-cols-4 items-center gap-4">
         <Label htmlFor="courseName" className="text-right">Course Name</Label>
-        <Input id="courseName" name="courseName" className="col-span-3" required />
+        <Input id="courseName" name="courseName" defaultValue={seller?.courseName} className="col-span-3" required />
       </div>
       <div className="grid grid-cols-4 items-center gap-4">
         <Label htmlFor="courseAddress" className="text-right">Address</Label>
-        <Input id="courseAddress" name="courseAddress" className="col-span-3" required />
+        <Input id="courseAddress" name="courseAddress" defaultValue={seller?.courseAddress} className="col-span-3" required />
       </div>
       <div className="grid grid-cols-4 items-center gap-4">
         <Label htmlFor="contactName" className="text-right">Contact Name</Label>
-        <Input id="contactName" name="contactName" className="col-span-3" required />
+        <Input id="contactName" name="contactName" defaultValue={seller?.contactName} className="col-span-3" required />
       </div>
       <div className="grid grid-cols-4 items-center gap-4">
         <Label htmlFor="contactEmail" className="text-right">Contact Email</Label>
-        <Input id="contactEmail" name="contactEmail" type="email" className="col-span-3" required />
+        <Input id="contactEmail" name="contactEmail" type="email" defaultValue={seller?.contactEmail} className="col-span-3" required />
       </div>
       <div className="grid grid-cols-4 items-center gap-4">
         <Label htmlFor="contactPhone" className="text-right">Contact Phone</Label>
-        <Input id="contactPhone" name="contactPhone" type="tel" className="col-span-3" required />
+        <Input id="contactPhone" name="contactPhone" type="tel" defaultValue={seller?.contactPhone} className="col-span-3" required />
       </div>
       <div className="grid grid-cols-4 items-center gap-4">
         <Label htmlFor="serviceFee" className="text-right">Service Fee</Label>
-        <Input id="serviceFee" name="serviceFee" type="number" step="0.01" className="col-span-3" required />
+        <Input id="serviceFee" name="serviceFee" type="number" step="0.01" defaultValue={seller?.serviceFee} className="col-span-3" required />
       </div>
       <div className="flex justify-end col-span-4">
-        <Button type="submit">Add Seller</Button>
+        <Button type="submit">{seller ? 'Save Changes' : 'Add Seller'}</Button>
       </div>
     </form>
   );
@@ -64,17 +72,30 @@ function AddSellerForm({ onAddSeller, onOpenChange }: { onAddSeller: (seller: Om
 
 export default function AdminPage() {
   const [sellers, setSellers] = useState<Seller[]>(mockSellers);
-  const [isAddSellerOpen, setIsAddSellerOpen] = useState(false);
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [editingSeller, setEditingSeller] = useState<Seller | null>(null);
 
-  const addSeller = (newSellerData: Omit<Seller, 'id' | 'latitude' | 'longitude'>) => {
-    const newSeller: Seller = {
-      ...newSellerData,
-      id: (Math.max(...sellers.map(s => parseInt(s.id))) + 1).toString(),
-      // Mock coordinates for now
-      latitude: 42.7,
-      longitude: -83.2,
-    };
-    setSellers(prevSellers => [...prevSellers, newSeller]);
+  const handleSaveSeller = (sellerData: Omit<Seller, 'id' | 'latitude' | 'longitude'>, id?: string) => {
+    if (id) {
+      // Update existing seller
+      setSellers(prevSellers =>
+        prevSellers.map(seller =>
+          seller.id === id
+            ? { ...seller, ...sellerData }
+            : seller
+        )
+      );
+    } else {
+      // Add new seller
+      const newSeller: Seller = {
+        ...sellerData,
+        id: (Math.max(...sellers.map(s => parseInt(s.id))) + 1).toString(),
+        // Mock coordinates for now
+        latitude: 42.7,
+        longitude: -83.2,
+      };
+      setSellers(prevSellers => [...prevSellers, newSeller]);
+    }
   };
 
   const toggleSellerStatus = (sellerId: string) => {
@@ -87,6 +108,16 @@ export default function AdminPage() {
     );
   };
 
+  const handleOpenForm = (seller: Seller | null = null) => {
+    setEditingSeller(seller);
+    setIsFormOpen(true);
+  };
+  
+  const handleCloseForm = () => {
+    setIsFormOpen(false);
+    setEditingSeller(null);
+  }
+
   return (
     <>
       <header className="flex items-center justify-between mb-8">
@@ -97,18 +128,18 @@ export default function AdminPage() {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Manage Sellers</CardTitle>
-          <Dialog open={isAddSellerOpen} onOpenChange={setIsAddSellerOpen}>
+          <Dialog open={isFormOpen} onOpenChange={(open) => open ? handleOpenForm() : handleCloseForm()}>
             <DialogTrigger asChild>
-              <Button>
+              <Button onClick={() => handleOpenForm()}>
                 <PlusCircle className="mr-2 h-4 w-4" />
                 Add Seller
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[425px]">
               <DialogHeader>
-                <DialogTitle>Add New Seller</DialogTitle>
+                <DialogTitle>{editingSeller ? 'Edit Seller' : 'Add New Seller'}</DialogTitle>
               </DialogHeader>
-              <AddSellerForm onAddSeller={addSeller} onOpenChange={setIsAddSellerOpen} />
+              <SellerForm onSave={handleSaveSeller} onOpenChange={handleCloseForm} seller={editingSeller} />
             </DialogContent>
           </Dialog>
         </CardHeader>
@@ -151,7 +182,7 @@ export default function AdminPage() {
                           </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent>
-                          <DropdownMenuItem>Edit</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleOpenForm(seller)}>Edit</DropdownMenuItem>
                           <DropdownMenuItem onClick={() => toggleSellerStatus(seller.id)}>
                             {seller.status === 'Active' ? 'Deactivate' : 'Activate'}
                           </DropdownMenuItem>
