@@ -1,21 +1,19 @@
 'use client'
 
-import { collection, query, where, doc, updateDoc, Timestamp } from 'firebase/firestore';
+import { collection, query, where, doc, updateDoc } from 'firebase/firestore';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { MapView } from '@/components/map-view';
 import { APIProvider } from '@vis.gl/react-google-maps';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { OrderCard } from '@/components/order-card';
-import type { Order, MenuItem } from '@/lib/types';
+import type { Order } from '@/lib/types';
 import { mockSellerLocation } from '@/lib/data';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
-import { DailySummaryCard } from '@/components/daily-summary';
-import { startOfDay } from 'date-fns';
 
 type LatLng = {
   latitude: number;
@@ -39,19 +37,6 @@ export default function SellerDashboardPage() {
   }, [firestore, isActive]);
 
   const { data: activeOrders, isLoading: areActiveOrdersLoading } = useCollection<Order>(activeOrdersQuery);
-  
-  const dailyOrdersQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
-    const todayStart = startOfDay(new Date());
-    return query(
-      collection(firestore, 'orders'),
-      where('sellerId', '==', '1'),
-      where('createdAt', '>=', Timestamp.fromDate(todayStart))
-    );
-  }, [firestore]);
-
-  const { data: dailyOrders, isLoading: areDailyOrdersLoading } = useCollection<Order>(dailyOrdersQuery);
-
 
   useEffect(() => {
     if (navigator.geolocation) {
@@ -87,33 +72,6 @@ export default function SellerDashboardPage() {
 
   const orders = isActive ? activeOrders || [] : [];
   const isLoading = areActiveOrdersLoading && isActive;
-
-  const summaryStats = useMemo(() => {
-    if (!dailyOrders) return { completedOrders: 0, totalRevenue: 0, topItems: [] };
-
-    const completed = dailyOrders.filter(order => order.status === 'Delivered');
-    const revenue = completed.reduce((acc, order) => acc + order.total, 0);
-
-    const itemCounts = completed
-      .flatMap(order => order.items)
-      .reduce((acc, item) => {
-        if (!acc[item.name]) {
-          acc[item.name] = { name: item.name, quantity: 0 };
-        }
-        acc[item.name].quantity += item.quantity;
-        return acc;
-      }, {} as Record<string, {name: string; quantity: number}>);
-
-    const topSellingItems = Object.values(itemCounts)
-      .sort((a, b) => b.quantity - a.quantity)
-      .slice(0, 3);
-      
-    return {
-      completedOrders: completed.length,
-      totalRevenue: revenue,
-      topItems: topSellingItems,
-    };
-  }, [dailyOrders]);
 
   return (
     <APIProvider apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!}>
@@ -201,12 +159,6 @@ export default function SellerDashboardPage() {
               </CardContent>
             </Card>
           </div>
-        </div>
-        <div className="mt-8">
-            <DailySummaryCard 
-                isLoading={areDailyOrdersLoading}
-                stats={summaryStats}
-            />
         </div>
       </div>
     </APIProvider>
