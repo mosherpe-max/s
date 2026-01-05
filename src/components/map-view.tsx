@@ -8,7 +8,7 @@ import { useEffect, useState } from 'react';
 interface MapViewProps {
   buyerLocation?: { latitude: number; longitude: number };
   sellerLocation: { latitude: number; longitude: number };
-  buyers?: { name: string; location: { latitude: number; longitude: number } }[];
+  buyers?: { id: string; name: string; location: { latitude: number; longitude: number } }[];
   radius?: number; // in meters
 }
 
@@ -104,7 +104,7 @@ export function MapView({ buyerLocation, sellerLocation, buyers, radius }: MapVi
 
         {/* Multiple Buyer Pins (for seller view) */}
         {buyers && buyers.map((buyer, index) => (
-            <AdvancedMarker key={buyer.name} position={{ lat: buyer.location.latitude, lng: buyer.location.longitude }}>
+            <AdvancedMarker key={buyer.id} position={{ lat: buyer.location.latitude, lng: buyer.location.longitude }}>
                 <div className="flex flex-col items-center">
                     <div className={cn(
                         "flex items-center justify-center w-10 h-10 rounded-full shadow-lg font-bold text-accent-foreground",

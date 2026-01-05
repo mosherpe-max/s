@@ -84,11 +84,11 @@ export default function SellerDashboardPage() {
           </div>
         </header>
 
-        <div className="flex-grow h-0 bg-muted">
+        <div className="flex-grow h-3/4 bg-muted">
           {sellerLocation ? (
             <MapView
               sellerLocation={sellerLocation}
-              buyers={orders.map(o => ({ name: o.customerName, location: o.deliveryLocation }))}
+              buyers={orders.map(o => ({ id: o.id, name: o.customerName, location: o.deliveryLocation }))}
               radius={1609.34} // 1 mile in meters
             />
           ) : (
