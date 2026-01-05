@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -15,7 +16,8 @@ import { categoryIcons } from '@/components/icons';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 
-export default function BuyerMenuPage({ params: { sellerId } }: { params: { sellerId: string } }) {
+export default function BuyerMenuPage({ params }: { params: { sellerId: string } }) {
+  const { sellerId } = params;
   const firestore = useFirestore();
   const { user } = useUser();
   const router = useRouter();
