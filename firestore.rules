@@ -3,12 +3,12 @@
  * @description Firestore Security Rules for the Koop Application.
  *
  * ## Core Philosophy (PROTOTYPING)
- * This ruleset implements a "Public Read, Public Write" security model FOR PROTOTYPING ONLY.
- * All data related to sellers and menu items is publicly readable and writable
- * by any user, including anonymous ones. This is to facilitate rapid development and testing.
+ * This ruleset implements a security model where data is publicly readable and
+ * writable by any authenticated user, including anonymous ones, to facilitate
+ * rapid development and testing.
  *
- * WARNING: THESE RULES ARE INSECURE AND MUST BE REPLACED WITH PROPER
- * AUTHENTICATION-BASED RULES BEFORE GOING TO PRODUCTION.
+ * WARNING: THESE RULES ARE INSECURE FOR PRODUCTION AND MUST BE REFINED
+ * WITH ROLE-BASED ACCESS CONTROLS BEFORE LAUNCH.
  *
  * ## Data Structure
  * The data is organized hierarchically:
@@ -24,31 +24,29 @@ service cloud.firestore {
     /**
      * @description Rules for the top-level seller profiles collection.
      * @path /sellers/{sellerId}
-     * @allow (read) Anyone can read seller data.
-     * @allow (write) Anyone can write to seller data (INSECURE - FOR PROTOTYPING).
+     * @allow (read, write) Any authenticated user can read or write seller data.
      */
     match /sellers/{sellerId} {
-      allow read, write: if true;
+      allow read, write: if request.auth != null;
     }
 
     /**
      * @description Rules for the menuItems subcollection.
      * @path /sellers/{sellerId}/menuItems/{menuItemId}
-     * @allow (read) Anyone can read menu item data.
-     * @allow (write) Anyone can write to menu item data (INSECURE - FOR PROTOTYPING).
+     * @allow (read, write) Any authenticated user can read or write menu item data.
      */
     match /sellers/{sellerId}/menuItems/{menuItemId} {
-       allow read, write: if true;
+       allow read, write: if request.auth != null;
     }
 
     /**
      * @description Rules for the orders collection.
-     * @path /orders/{orderId}
-     * @allow (read) Anyone can read order data.
-     * @allow (write) Anyone can write to order data (INSECURE - FOR PROTOTYPING).
+     * This rule allows any authenticated user to query (list) the collection.
+     * @path /orders
+     * @allow (list) Any authenticated user can list orders.
      */
     match /orders/{orderId} {
-      allow read, write: if true;
+      allow list, read, write: if request.auth != null;
     }
   }
 }
