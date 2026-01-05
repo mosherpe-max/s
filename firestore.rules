@@ -15,30 +15,10 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Rules for the top-level seller profiles collection.
-     * @path /sellers/{sellerId}
-     * @allow (read, write) Anyone can read or write for prototyping.
+     * @description Rules for all collections. Anyone can read or write for prototyping.
      */
-    match /sellers/{sellerId} {
+    match /{document=**} {
       allow read, write: if true;
-    }
-
-    /**
-     * @description Rules for the menuItems subcollection.
-     * @path /sellers/{sellerId}/menuItems/{menuItemId}
-     * @allow (read, write) Anyone can read or write for prototyping.
-     */
-    match /sellers/{sellerId}/menuItems/{menuItemId} {
-       allow read, write: if true;
-    }
-
-    /**
-     * @description Rules for the orders collection.
-     * @path /orders
-     * @allow (list, read, write) Anyone can query or access orders for prototyping.
-     */
-    match /orders/{orderId} {
-      allow list, read, write: if true;
     }
   }
 }
