@@ -1,22 +1,17 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { cn } from '@/lib/utils';
+import type { Order } from '@/lib/types';
 
-const statuses = ['Order Placed', 'Preparing', 'Out for Delivery', 'Delivered'];
+const statuses: Order['status'][] = ['Placed', 'Preparing', 'Out for Delivery', 'Delivered'];
 
-export function OrderStatus() {
-  const [currentStatusIndex, setCurrentStatusIndex] = useState(0);
+interface OrderStatusProps {
+    currentStatus: Order['status'];
+}
 
-  useEffect(() => {
-    // Simulate order progress
-    if (currentStatusIndex < statuses.length - 1) {
-      const timer = setTimeout(() => {
-        setCurrentStatusIndex(prev => prev + 1);
-      }, 5000); // Advance status every 5 seconds
-      return () => clearTimeout(timer);
-    }
-  }, [currentStatusIndex]);
+export function OrderStatus({ currentStatus }: OrderStatusProps) {
+  const currentStatusIndex = statuses.indexOf(currentStatus);
 
   return (
     <div className="w-full">
@@ -36,7 +31,7 @@ export function OrderStatus() {
       <div className="w-full bg-muted rounded-full h-2.5">
         <div
           className="bg-accent h-2.5 rounded-full transition-all duration-1000 ease-out"
-          style={{ width: `${(currentStatusIndex / (statuses.length - 1)) * 100}%` }}
+          style={{ width: `${currentStatusIndex >= 0 ? (currentStatusIndex / (statuses.length - 1)) * 100 : 0}%` }}
         ></div>
       </div>
     </div>
