@@ -12,6 +12,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { categoryIcons } from '@/components/icons';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 export default function BuyerMenuPage({ params: { sellerId } }: { params: { sellerId: string } }) {
   const firestore = useFirestore();
@@ -61,7 +63,7 @@ export default function BuyerMenuPage({ params: { sellerId } }: { params: { sell
     
     // Get user's location
     navigator.geolocation.getCurrentPosition(
-      async (position) => {
+      (position) => {
         const { latitude, longitude } = position.coords;
         const subtotal = orderItems.reduce((acc, item) => acc + item.price * item.quantity, 0);
         const total = subtotal + (seller.serviceFee || 0);
@@ -79,26 +81,26 @@ export default function BuyerMenuPage({ params: { sellerId } }: { params: { sell
           status: 'Placed',
         };
 
-        try {
-          const ordersCollection = collection(firestore, 'orders');
-          await addDoc(ordersCollection, {
-            ...orderData,
-            createdAt: serverTimestamp(),
-          });
-          
-          toast({
-            title: 'Order Placed!',
-            description: "We've sent your order to the cart.",
-          });
-          router.push('/order/track');
-        } catch(e: any) {
-            console.error(e);
+        const ordersCollection = collection(firestore, 'orders');
+        addDoc(ordersCollection, {
+          ...orderData,
+          createdAt: serverTimestamp(),
+        })
+        .then(() => {
             toast({
-                variant: 'destructive',
-                title: 'Uh oh! Something went wrong.',
-                description: e.message || 'Could not place order.',
+              title: 'Order Placed!',
+              description: "We've sent your order to the cart.",
             });
-        }
+            router.push('/order/track');
+        })
+        .catch((e) => {
+            const contextualError = new FirestorePermissionError({
+              path: ordersCollection.path,
+              operation: 'create',
+              requestResourceData: orderData
+            });
+            errorEmitter.emit('permission-error', contextualError);
+        });
       },
       (error) => {
         console.error("Geolocation error:", error);
