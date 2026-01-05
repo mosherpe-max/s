@@ -15,21 +15,16 @@ interface OrderCardProps {
   onUpdateStatus: (orderId: string, status: Order['status']) => void;
 }
 
-const statusConfig: Record<Order['status'], { icon: React.ElementType, label: string, color: string, badgeVariant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
-    'Placed': { icon: Package, label: 'Placed', color: 'bg-blue-500', badgeVariant: 'default' },
-    'Preparing': { icon: CookingPot, label: 'Preparing', color: 'bg-yellow-500', badgeVariant: 'secondary' },
-    'Out for Delivery': { icon: Navigation, label: 'On its way', color: 'bg-orange-500', badgeVariant: 'outline' },
-    'Delivered': { icon: Check, label: 'Delivered', color: 'bg-green-500', badgeVariant: 'default' }, // This will likely not be seen in active list
-    'Cancelled': { icon: Check, label: 'Cancelled', color: 'bg-red-500', badgeVariant: 'destructive' }, // This will likely not be seen
+const statusConfig: Record<Order['status'], { icon: React.ElementType, label: string, badgeVariant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
+    'Placed': { icon: Package, label: 'Placed', badgeVariant: 'default' },
+    'Preparing': { icon: CookingPot, label: 'Preparing', badgeVariant: 'secondary' },
+    'Out for Delivery': { icon: Navigation, label: 'On its way', badgeVariant: 'outline' },
+    'Delivered': { icon: Check, label: 'Delivered', badgeVariant: 'default' },
+    'Cancelled': { icon: Check, label: 'Cancelled', badgeVariant: 'destructive' },
 };
 
 
 export function OrderCard({ order, orderNumber, onUpdateStatus }: OrderCardProps) {
-    const getInitials = (name: string) => {
-        const names = name.split(' ');
-        return names.map(n => n[0]).join('').toUpperCase();
-    }
-    
     const statusInfo = statusConfig[order.status];
 
     const renderAction = () => {
@@ -62,10 +57,10 @@ export function OrderCard({ order, orderNumber, onUpdateStatus }: OrderCardProps
 
 
     return (
-        <Card className='overflow-hidden shadow-md flex flex-col'>
+        <Card className='overflow-hidden shadow-md flex flex-col h-full'>
             <CardHeader className='flex flex-row items-start gap-4 p-4 bg-muted/50'>
-                <Avatar>
-                    <AvatarFallback className="font-bold text-lg">{orderNumber}</AvatarFallback>
+                <Avatar className="w-10 h-10">
+                    <AvatarFallback className="font-bold text-lg bg-accent text-accent-foreground">{orderNumber}</AvatarFallback>
                 </Avatar>
                 <div className='flex-1'>
                     <CardTitle className='text-lg font-semibold'>{order.customerName}</CardTitle>
@@ -91,7 +86,7 @@ export function OrderCard({ order, orderNumber, onUpdateStatus }: OrderCardProps
                 </div>
             </CardContent>
             {renderAction() && (
-                <CardFooter className='p-2 bg-muted/50'>
+                <CardFooter className='p-2 bg-muted/50 mt-auto'>
                     {renderAction()}
                 </CardFooter>
             )}

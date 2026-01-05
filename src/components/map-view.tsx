@@ -71,7 +71,7 @@ export function MapView({ buyerLocation, sellerLocation, buyers, radius }: MapVi
     const center = buyerLocation ? { lat: buyerLocation.latitude, lng: buyerLocation.longitude } : { lat: sellerLocation.latitude, lng: sellerLocation.longitude };
     
   return (
-    <div className="relative w-full aspect-video rounded-lg overflow-hidden border-2 border-accent/20 shadow-inner">
+    <div className="relative w-full h-full">
       <Map
         defaultCenter={center}
         defaultZoom={12}
@@ -108,13 +108,13 @@ export function MapView({ buyerLocation, sellerLocation, buyers, radius }: MapVi
                 <div className="flex flex-col items-center">
                     <div className={cn(
                         "flex items-center justify-center w-10 h-10 rounded-full shadow-lg font-bold text-accent-foreground",
-                        index % 2 === 0 ? "bg-accent" : "bg-secondary text-secondary-foreground"
+                        "bg-accent"
                     )}>
                         {index + 1}
                     </div>
                     <div className={cn(
                         "w-0 h-0 border-l-8 border-l-transparent border-r-8 border-r-transparent border-t-8",
-                        index % 2 === 0 ? "border-t-accent" : "border-t-secondary"
+                        "border-t-accent"
                     )}></div>
                 </div>
             </AdvancedMarker>

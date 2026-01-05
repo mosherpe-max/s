@@ -2,19 +2,16 @@
 
 import { collection, query, where, doc, updateDoc } from 'firebase/firestore';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { MapView } from '@/components/map-view';
 import { APIProvider } from '@vis.gl/react-google-maps';
 import { useEffect, useState } from 'react';
-import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { OrderCard } from '@/components/order-card';
 import type { Order } from '@/lib/types';
 import { mockSellerLocation } from '@/lib/data';
 import { Skeleton } from '@/components/ui/skeleton';
-import { cn } from '@/lib/utils';
-import { startOfDay } from 'date-fns';
+import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 
 type LatLng = {
   latitude: number;
@@ -25,7 +22,6 @@ export default function SellerDashboardPage() {
   const firestore = useFirestore();
   const [sellerLocation, setSellerLocation] = useState<LatLng | null>(null);
   const [isActive, setIsActive] = useState(true);
-  const [showOrders, setShowOrders] = useState(false);
 
   const activeOrdersQuery = useMemoFirebase(() => {
     if (!firestore || !isActive) return null;
@@ -76,10 +72,10 @@ export default function SellerDashboardPage() {
 
   return (
     <APIProvider apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!}>
-      <div className="container mx-auto px-4 py-8">
-        <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4">
+      <div className="flex flex-col h-[calc(100vh-5rem)]">
+        <header className="flex-shrink-0 px-4 py-4 flex items-center justify-between border-b">
           <div>
-            <h1 className="font-headline text-4xl font-bold text-foreground">Driver Dashboard</h1>
+            <h1 className="font-headline text-2xl font-bold text-foreground">Driver Dashboard</h1>
             <p className="text-sm text-muted-foreground">Demo Course 1</p>
           </div>
           <div className="flex items-center space-x-2">
@@ -88,78 +84,46 @@ export default function SellerDashboardPage() {
           </div>
         </header>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          <div className="md:col-span-2">
-            <Card className="shadow-lg h-full">
-              <CardHeader className='flex-row items-center justify-between'>
-                <CardTitle className="font-headline text-2xl"></CardTitle>
-                <Button variant="outline" onClick={() => setShowOrders(!showOrders)} className="md:hidden">
-                  {showOrders ? 'View Map' : `View ${orders.length} Active Orders`}
-                </Button>
-              </CardHeader>
-              <CardContent>
-                <div className={cn('h-full min-h-[400px] md:min-h-0', showOrders ? 'hidden md:block' : '')}>
-                  {sellerLocation ? (
-                    <MapView
-                      sellerLocation={sellerLocation}
-                      buyers={orders.map(o => ({ name: o.customerName, location: o.deliveryLocation }))}
-                      radius={1609.34} // 1 mile in meters
-                    />
-                  ) : (
-                    <Skeleton className="w-full h-full rounded-lg" />
-                  )}
-                </div>
-                <div className={cn('md:hidden', showOrders ? 'block' : 'hidden')}>
-                    {isLoading ? (
-                      <div className="text-center text-muted-foreground py-10">Loading orders...</div>
-                    ) : orders.length === 0 ? (
-                      <div className="text-center text-muted-foreground py-10">
-                        No active orders.
-                      </div>
-                    ) : (
-                      <div className="space-y-4">
-                        {orders.map((order, index) => (
-                          <OrderCard 
-                            key={order.id} 
-                            order={order}
-                            orderNumber={index + 1}
-                            onUpdateStatus={handleUpdateOrderStatus}
-                          />
-                        ))}
-                      </div>
-                    )}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-          <div className="hidden md:block md:col-span-1">
-            <Card className="shadow-lg">
-              <CardHeader>
-                <CardTitle className="font-headline text-2xl">Active Orders ({orders.length})</CardTitle>
-                <p className="text-muted-foreground">Orders waiting for delivery.</p>
-              </CardHeader>
-              <CardContent>
+        <div className="flex-grow h-0 bg-muted">
+          {sellerLocation ? (
+            <MapView
+              sellerLocation={sellerLocation}
+              buyers={orders.map(o => ({ name: o.customerName, location: o.deliveryLocation }))}
+              radius={1609.34} // 1 mile in meters
+            />
+          ) : (
+            <Skeleton className="w-full h-full" />
+          )}
+        </div>
+
+        <div className="flex-shrink-0 h-1/4 bg-background border-t">
+            <h2 className="font-headline text-lg font-semibold px-4 pt-3 pb-2">Active Orders ({orders.length})</h2>
+            <ScrollArea className="h-full w-full pb-4">
+              <div className="flex space-x-4 px-4">
                 {isLoading ? (
-                    <div className="text-center text-muted-foreground py-10">Loading orders...</div>
+                  [...Array(3)].map((_, i) => (
+                    <div key={i} className="w-80 flex-shrink-0">
+                      <Skeleton className="h-48 w-full" />
+                    </div>
+                  ))
                 ) : orders.length === 0 ? (
-                  <div className="text-center text-muted-foreground py-10">
+                  <div className="flex-1 text-center text-muted-foreground py-10">
                     No active orders.
                   </div>
                 ) : (
-                  <div className="space-y-4">
-                    {orders.map((order, index) => (
+                  orders.map((order, index) => (
+                    <div key={order.id} className="w-80 flex-shrink-0">
                       <OrderCard 
-                        key={order.id} 
                         order={order} 
                         orderNumber={index + 1}
                         onUpdateStatus={handleUpdateOrderStatus}
                       />
-                    ))}
-                  </div>
+                    </div>
+                  ))
                 )}
-              </CardContent>
-            </Card>
-          </div>
+              </div>
+            <ScrollBar orientation="horizontal" />
+          </ScrollArea>
         </div>
       </div>
     </APIProvider>
