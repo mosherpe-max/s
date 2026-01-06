@@ -1,3 +1,4 @@
+
 'use client'
 
 import { collection, query, where, doc, updateDoc } from 'firebase/firestore';
@@ -84,7 +85,7 @@ export default function SellerDashboardPage() {
           </div>
         </header>
 
-        <div className="flex-grow h-3/4 bg-muted">
+        <div className="flex-grow bg-muted">
           {sellerLocation ? (
             <MapView
               sellerLocation={sellerLocation}
@@ -96,7 +97,7 @@ export default function SellerDashboardPage() {
           )}
         </div>
 
-        <div className="flex-shrink-0 h-1/4 bg-background border-t flex flex-col">
+        <div className="flex-shrink-0 h-[25vh] bg-background border-t flex flex-col">
             <h2 className="font-headline text-lg font-semibold px-4 pt-3 pb-2 flex-shrink-0">Active Orders ({orders.length})</h2>
             <ScrollArea className="flex-grow min-h-0">
               <div className="space-y-4 p-4">
