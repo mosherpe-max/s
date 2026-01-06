@@ -12,7 +12,6 @@ import { OrderCard } from '@/components/order-card';
 import type { Order } from '@/lib/types';
 import { mockSellerLocation } from '@/lib/data';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ScrollArea } from '@/components/ui/scroll-area';
 
 type LatLng = {
   latitude: number;
@@ -73,8 +72,8 @@ export default function SellerDashboardPage() {
 
   return (
     <APIProvider apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!}>
-      <div className="flex flex-col h-[calc(100vh-5rem)]">
-        <header className="flex-shrink-0 px-4 py-4 flex items-center justify-between border-b">
+      <div className="flex flex-col">
+        <header className="flex-shrink-0 px-4 py-4 flex items-center justify-between border-b bg-background sticky top-16 z-20">
           <div>
             <h1 className="font-headline text-2xl font-bold text-foreground">Driver Dashboard</h1>
             <p className="text-sm text-muted-foreground">Demo Course 1</p>
@@ -85,7 +84,7 @@ export default function SellerDashboardPage() {
           </div>
         </header>
 
-        <div className="flex-grow bg-muted">
+        <div className="h-[60vh] bg-muted">
           {sellerLocation ? (
             <MapView
               sellerLocation={sellerLocation}
@@ -97,9 +96,8 @@ export default function SellerDashboardPage() {
           )}
         </div>
 
-        <div className="flex-shrink-0 h-[25vh] bg-background border-t flex flex-col">
-            <h2 className="font-headline text-lg font-semibold px-4 pt-3 pb-2 flex-shrink-0">Active Orders ({orders.length})</h2>
-            <ScrollArea className="flex-grow min-h-0">
+        <div className="bg-background border-t">
+            <h2 className="font-headline text-lg font-semibold px-4 pt-3 pb-2">Active Orders ({orders.length})</h2>
               <div className="space-y-4 p-4">
                 {isLoading ? (
                   <div className="space-y-4">
@@ -108,7 +106,7 @@ export default function SellerDashboardPage() {
                     ))}
                   </div>
                 ) : orders.length === 0 ? (
-                  <div className="flex items-center justify-center h-full text-muted-foreground py-10">
+                  <div className="flex items-center justify-center text-muted-foreground py-10">
                     No active orders.
                   </div>
                 ) : (
@@ -122,7 +120,6 @@ export default function SellerDashboardPage() {
                   ))
                 )}
               </div>
-          </ScrollArea>
         </div>
       </div>
     </APIProvider>
