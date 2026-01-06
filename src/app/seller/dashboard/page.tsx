@@ -11,7 +11,7 @@ import { OrderCard } from '@/components/order-card';
 import type { Order } from '@/lib/types';
 import { mockSellerLocation } from '@/lib/data';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 type LatLng = {
   latitude: number;
@@ -96,33 +96,31 @@ export default function SellerDashboardPage() {
           )}
         </div>
 
-        <div className="flex-shrink-0 h-1/4 bg-background border-t">
-            <h2 className="font-headline text-lg font-semibold px-4 pt-3 pb-2">Active Orders ({orders.length})</h2>
-            <ScrollArea className="h-full w-full pb-4">
-              <div className="flex space-x-4 px-4">
+        <div className="flex-shrink-0 h-1/4 bg-background border-t flex flex-col">
+            <h2 className="font-headline text-lg font-semibold px-4 pt-3 pb-2 flex-shrink-0">Active Orders ({orders.length})</h2>
+            <ScrollArea className="flex-grow min-h-0">
+              <div className="space-y-4 p-4">
                 {isLoading ? (
-                  [...Array(3)].map((_, i) => (
-                    <div key={i} className="w-80 flex-shrink-0">
-                      <Skeleton className="h-48 w-full" />
-                    </div>
-                  ))
+                  <div className="space-y-4">
+                    {[...Array(2)].map((_, i) => (
+                      <Skeleton key={i} className="h-24 w-full" />
+                    ))}
+                  </div>
                 ) : orders.length === 0 ? (
-                  <div className="flex-1 text-center text-muted-foreground py-10">
+                  <div className="flex items-center justify-center h-full text-muted-foreground py-10">
                     No active orders.
                   </div>
                 ) : (
                   orders.map((order, index) => (
-                    <div key={order.id} className="w-80 flex-shrink-0">
-                      <OrderCard 
-                        order={order} 
-                        orderNumber={index + 1}
-                        onUpdateStatus={handleUpdateOrderStatus}
-                      />
-                    </div>
+                    <OrderCard 
+                      key={order.id}
+                      order={order} 
+                      orderNumber={index + 1}
+                      onUpdateStatus={handleUpdateOrderStatus}
+                    />
                   ))
                 )}
               </div>
-            <ScrollBar orientation="horizontal" />
           </ScrollArea>
         </div>
       </div>
