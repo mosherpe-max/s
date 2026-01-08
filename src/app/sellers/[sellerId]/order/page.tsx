@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, use } from 'react';
+import { useState } from 'react';
 import { collection, doc, addDoc, serverTimestamp } from 'firebase/firestore';
 import { useFirestore, useCollection, useMemoFirebase, useDoc, useUser } from '@/firebase';
 import type { Seller, OrderItem, MenuItem, Category, Order } from '@/lib/types';
@@ -16,8 +16,8 @@ import { categoryIcons } from '@/components/icons';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 
-export default function BuyerMenuPage({ params }: { params: Promise<{ sellerId: string }> }) {
-  const { sellerId } = use(params);
+export default function BuyerMenuPage({ params }: { params: { sellerId: string } }) {
+  const { sellerId } = params;
   const firestore = useFirestore();
   const { user } = useUser();
   const router = useRouter();
@@ -73,8 +73,8 @@ export default function BuyerMenuPage({ params }: { params: Promise<{ sellerId: 
         const orderData: Omit<Order, 'id' | 'createdAt'> = {
           sellerId: sellerId,
           // For now, using anonymous user ID or a placeholder
-          customerId: user?.uid || 'anonymous-user',
-          customerName: user?.displayName || 'Guest Golfer',
+          customerId: 'public-user',
+          customerName: 'Guest Golfer',
           deliveryLocation: { latitude, longitude },
           items: orderItems,
           subtotal,
@@ -95,7 +95,7 @@ export default function BuyerMenuPage({ params }: { params: Promise<{ sellerId: 
             });
             router.push('/order/track');
         })
-        .catch((e) => {
+        .catch(() => {
             const contextualError = new FirestorePermissionError({
               path: ordersCollection.path,
               operation: 'create',
@@ -112,7 +112,7 @@ export default function BuyerMenuPage({ params }: { params: Promise<{ sellerId: 
           description: 'Could not get your location. Please enable location services and try again.',
         });
       },
-      { enableHighAccuracy: true, maximumAge: 60000 }
+      { enableHighAccuracy: true, maximumAge: 60000, timeout: 5000 }
     );
   };
 

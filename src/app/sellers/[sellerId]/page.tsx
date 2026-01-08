@@ -24,7 +24,6 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
-import { use } from 'react';
 
 import type { MenuItem, Seller, Category } from '@/lib/types';
 import { categories } from '@/lib/types';
@@ -154,9 +153,9 @@ function MenuItemForm({
 export default function SellerMenuAdminPage({
   params,
 }: {
-  params: Promise<{ sellerId: string }>;
+  params: { sellerId: string };
 }) {
-  const { sellerId } = use(params);
+  const { sellerId } = params;
   const firestore = useFirestore();
 
   const [isItemFormOpen, setIsItemFormOpen] = useState(false);
