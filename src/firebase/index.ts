@@ -2,8 +2,10 @@
 
 import { firebaseConfig } from '@/firebase/config';
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore'
+import { getAuth, Auth } from 'firebase/auth';
+import { getFirestore, Firestore } from 'firebase/firestore';
+
+const isOpenPrototyping = true;
 
 // IMPORTANT: DO NOT MODIFY THIS FUNCTION
 export function initializeFirebase() {
@@ -32,12 +34,24 @@ export function initializeFirebase() {
   return getSdks(getApp());
 }
 
-export function getSdks(firebaseApp: FirebaseApp) {
-  return {
+interface FirebaseServices {
+  firebaseApp: FirebaseApp;
+  firestore: Firestore;
+  auth: Auth | null;
+}
+
+export function getSdks(firebaseApp: FirebaseApp): FirebaseServices {
+  const services: FirebaseServices = {
     firebaseApp,
-    auth: getAuth(firebaseApp),
-    firestore: getFirestore(firebaseApp)
+    firestore: getFirestore(firebaseApp),
+    auth: null,
   };
+
+  if (!isOpenPrototyping) {
+    services.auth = getAuth(firebaseApp);
+  }
+
+  return services;
 }
 
 export * from './provider';
