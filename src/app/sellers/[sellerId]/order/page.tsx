@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, use } from 'react';
 import { collection, doc, addDoc, serverTimestamp } from 'firebase/firestore';
 import { useFirestore, useCollection, useMemoFirebase, useDoc, useUser } from '@/firebase';
 import type { Seller, OrderItem, MenuItem, Category, Order } from '@/lib/types';
@@ -16,8 +16,8 @@ import { categoryIcons } from '@/components/icons';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 
-export default function BuyerMenuPage({ params }: { params: { sellerId: string } }) {
-  const { sellerId } = params;
+export default function BuyerMenuPage({ params }: { params: Promise<{ sellerId: string }> }) {
+  const { sellerId } = use(params);
   const firestore = useFirestore();
   const { user } = useUser();
   const router = useRouter();
@@ -53,7 +53,7 @@ export default function BuyerMenuPage({ params }: { params: { sellerId: string }
     });
   };
 
-  const handlePlaceOrder = async () => {
+  const handlePlaceOrder = () => {
     if (!firestore || !seller) {
       toast({
         variant: 'destructive',
