@@ -2,8 +2,13 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Allow public read and write access to all documents for prototyping.
-    match /{document=**} {
+    match /sellers/{sellerId} {
+      allow read, write: if true;
+    }
+    match /sellers/{sellerId}/menuItems/{menuItemId} {
+      allow read, write: if true;
+    }
+    match /orders/{orderId} {
       allow read, write: if true;
     }
   }
