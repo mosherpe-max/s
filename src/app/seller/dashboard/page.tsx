@@ -12,6 +12,7 @@ import { OrderCard } from '@/components/order-card';
 import type { Order } from '@/lib/types';
 import { mockSellerLocation } from '@/lib/data';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 type LatLng = {
   latitude: number;
@@ -51,7 +52,7 @@ export default function SellerDashboardPage() {
         {
           enableHighAccuracy: true,
           timeout: 5000,
-          maximumAge: 0,
+          maximumAge: 60000,
         }
       );
       return () => navigator.geolocation.clearWatch(watchId);
@@ -98,15 +99,15 @@ export default function SellerDashboardPage() {
 
         <div className="bg-background border-t">
             <h2 className="font-headline text-lg font-semibold px-4 pt-3 pb-2">Active Orders ({orders.length})</h2>
-              <div className="space-y-4 p-4">
+              <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 overflow-y-auto">
                 {isLoading ? (
-                  <div className="space-y-4">
-                    {[...Array(2)].map((_, i) => (
-                      <Skeleton key={i} className="h-24 w-full" />
+                  <>
+                    {[...Array(3)].map((_, i) => (
+                      <Skeleton key={i} className="h-60 w-full" />
                     ))}
-                  </div>
+                  </>
                 ) : orders.length === 0 ? (
-                  <div className="flex items-center justify-center text-muted-foreground py-10">
+                  <div className="col-span-full flex items-center justify-center text-muted-foreground py-10">
                     No active orders.
                   </div>
                 ) : (

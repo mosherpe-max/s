@@ -112,7 +112,7 @@ export default function BuyerMenuPage({ params }: { params: Promise<{ sellerId: 
           description: 'Could not get your location. Please enable location services and try again.',
         });
       },
-      { enableHighAccuracy: true }
+      { enableHighAccuracy: true, maximumAge: 60000 }
     );
   };
 
