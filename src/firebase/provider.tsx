@@ -3,8 +3,15 @@
 import React, { DependencyList, createContext, useContext, ReactNode, useMemo, useState, useEffect } from 'react';
 import { FirebaseApp } from 'firebase/app';
 import { Firestore } from 'firebase/firestore';
-import { Auth, User } from 'firebase/auth';
+import { Auth, User, onAuthStateChanged } from 'firebase/auth';
 import { FirebaseErrorListener } from '@/components/FirebaseErrorListener'
+
+// --- OPEN PROTOTYPING ---
+// Set to true to disable authentication and operate in a public-only mode.
+// This is useful for rapid prototyping and development without permission errors.
+const isOpenPrototyping = true;
+// --------------------------
+
 
 interface FirebaseProviderProps {
   children: ReactNode;
@@ -15,21 +22,23 @@ interface FirebaseProviderProps {
 
 // Combined state for the Firebase context
 export interface FirebaseContextState {
-  areServicesAvailable: boolean; // True if core services (app, firestore, auth instance) are provided
+  areServicesAvailable: boolean;
   firebaseApp: FirebaseApp | null;
   firestore: Firestore | null;
-  auth: Auth | null; // The Auth service instance
-  // User state is removed for open prototyping
+  auth: Auth | null; // Can be null in prototyping mode
+  user: User | null;
+  isUserLoading: boolean;
+  userError: Error | null;
 }
 
 // Return type for useFirebase()
 export interface FirebaseServices {
   firebaseApp: FirebaseApp;
   firestore: Firestore;
-  auth: Auth;
+  auth: Auth | null; // Can be null in prototyping mode
 }
 
-// Return type for useUser() - specific to user auth state
+// Return type for useUser()
 export interface UserHookResult {
   user: User | null;
   isUserLoading: boolean;
@@ -39,26 +48,50 @@ export interface UserHookResult {
 // React Context
 export const FirebaseContext = createContext<FirebaseContextState | undefined>(undefined);
 
-/**
- * FirebaseProvider manages and provides Firebase services.
- * User authentication state has been removed for open prototyping.
- */
 export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
   children,
   firebaseApp,
   firestore,
   auth,
 }) => {
-  // Memoize the context value
+  const [user, setUser] = useState<User | null>(null);
+  const [userError, setUserError] = useState<Error | null>(null);
+  const [isUserLoading, setIsUserLoading] = useState<boolean>(!isOpenPrototyping);
+
+  useEffect(() => {
+    if (isOpenPrototyping || !auth) {
+      setUser(null);
+      setIsUserLoading(false);
+      return;
+    }
+
+    const unsubscribe = onAuthStateChanged(
+      auth,
+      (user) => {
+        setUser(user);
+        setIsUserLoading(false);
+      },
+      (error) => {
+        setUserError(error);
+        setIsUserLoading(false);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [auth]);
+
   const contextValue = useMemo((): FirebaseContextState => {
-    const servicesAvailable = !!(firebaseApp && firestore && auth);
+    const servicesAvailable = !!(firebaseApp && firestore);
     return {
       areServicesAvailable: servicesAvailable,
       firebaseApp: servicesAvailable ? firebaseApp : null,
       firestore: servicesAvailable ? firestore : null,
-      auth: servicesAvailable ? auth : null,
+      auth: isOpenPrototyping ? null : servicesAvailable ? auth : null,
+      user,
+      isUserLoading,
+      userError,
     };
-  }, [firebaseApp, firestore, auth]);
+  }, [firebaseApp, firestore, auth, user, isUserLoading, userError]);
 
   return (
     <FirebaseContext.Provider value={contextValue}>
@@ -68,10 +101,6 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
   );
 };
 
-/**
- * Hook to access core Firebase services.
- * Throws error if core services are not available or used outside provider.
- */
 export const useFirebase = (): FirebaseServices => {
   const context = useContext(FirebaseContext);
 
@@ -79,8 +108,13 @@ export const useFirebase = (): FirebaseServices => {
     throw new Error('useFirebase must be used within a FirebaseProvider.');
   }
 
-  if (!context.areServicesAvailable || !context.firebaseApp || !context.firestore || !context.auth) {
+  if (!context.areServicesAvailable || !context.firebaseApp || !context.firestore) {
     throw new Error('Firebase core services not available. Check FirebaseProvider props.');
+  }
+  
+  // Auth can be null in prototyping mode
+  if (!isOpenPrototyping && !context.auth) {
+     throw new Error('Firebase Auth service not available. Check FirebaseProvider props.');
   }
 
   return {
@@ -90,22 +124,37 @@ export const useFirebase = (): FirebaseServices => {
   };
 };
 
-/** Hook to access Firebase Auth instance. */
-export const useAuth = (): Auth => {
-  const { auth } = useFirebase();
-  return auth;
+
+export const useAuth = (): Auth | null => {
+  const context = useContext(FirebaseContext);
+  if (context === undefined) {
+    throw new Error('useAuth must be used within a FirebaseProvider.');
+  }
+  return context.auth;
 };
 
-/** Hook to access Firestore instance. */
+
 export const useFirestore = (): Firestore => {
-  const { firestore } = useFirebase();
-  return firestore;
+  const context = useContext(FirebaseContext);
+  if (context === undefined) {
+    throw new Error('useFirestore must be used within a FirebaseProvider.');
+  }
+  if (!context.firestore) {
+    throw new Error('Firestore service not available.');
+  }
+  return context.firestore;
 };
 
-/** Hook to access Firebase App instance. */
+
 export const useFirebaseApp = (): FirebaseApp => {
-  const { firebaseApp } = useFirebase();
-  return firebaseApp;
+  const context = useContext(FirebaseContext);
+  if (context === undefined) {
+    throw new Error('useFirebaseApp must be used within a FirebaseProvider.');
+  }
+  if (!context.firebaseApp) {
+    throw new Error('Firebase App instance not available.');
+  }
+  return context.firebaseApp;
 };
 
 type MemoFirebase <T> = T & {__memo?: boolean};
@@ -119,11 +168,14 @@ export function useMemoFirebase<T>(factory: () => T, deps: DependencyList): T | 
   return memoized;
 }
 
-/**
- * Hook for user state, disabled for open prototyping.
- * Always returns a null user and false for loading.
- * @returns {UserHookResult} Object with user: null, isUserLoading: false, userError: null.
- */
 export const useUser = (): UserHookResult => {
-    return { user: null, isUserLoading: false, userError: null };
+    const context = useContext(FirebaseContext);
+    if (context === undefined) {
+      throw new Error('useUser must be used within a FirebaseProvider.');
+    }
+    return {
+      user: context.user,
+      isUserLoading: context.isUserLoading,
+      userError: context.userError,
+    };
 };
