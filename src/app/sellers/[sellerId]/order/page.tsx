@@ -15,6 +15,7 @@ import { useToast } from '@/hooks/use-toast';
 import { categoryIcons } from '@/components/icons';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
+import { mockBuyerLocation } from '@/lib/data';
 
 export default function BuyerMenuPage({ params }: { params: Promise<{ sellerId: string }> }) {
   const { sellerId } = use(params);
@@ -63,57 +64,43 @@ export default function BuyerMenuPage({ params }: { params: Promise<{ sellerId: 
       return;
     }
     
-    // Get user's location
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const { latitude, longitude } = position.coords;
-        const subtotal = orderItems.reduce((acc, item) => acc + item.price * item.quantity, 0);
-        const total = subtotal + (seller.serviceFee || 0);
+    // Use mock location for prototyping
+    const { latitude, longitude } = mockBuyerLocation;
+    const subtotal = orderItems.reduce((acc, item) => acc + item.price * item.quantity, 0);
+    const total = subtotal + (seller.serviceFee || 0);
 
-        const orderData: Omit<Order, 'id' | 'createdAt'> = {
-          sellerId: sellerId,
-          // For now, using anonymous user ID or a placeholder
-          customerId: 'public-user',
-          customerName: 'Guest Golfer',
-          deliveryLocation: { latitude, longitude },
-          items: orderItems,
-          subtotal,
-          serviceFee: seller.serviceFee || 0,
-          total,
-          status: 'Placed',
-        };
+    const orderData: Omit<Order, 'id' | 'createdAt'> = {
+      sellerId: sellerId,
+      customerId: 'public-user',
+      customerName: 'Guest Golfer',
+      deliveryLocation: { latitude, longitude },
+      items: orderItems,
+      subtotal,
+      serviceFee: seller.serviceFee || 0,
+      total,
+      status: 'Placed',
+    };
 
-        const ordersCollection = collection(firestore, 'orders');
-        addDoc(ordersCollection, {
-          ...orderData,
-          createdAt: serverTimestamp(),
-        })
-        .then(() => {
-            toast({
-              title: 'Order Placed!',
-              description: "We've sent your order to the cart.",
-            });
-            router.push('/order/track');
-        })
-        .catch(() => {
-            const contextualError = new FirestorePermissionError({
-              path: ordersCollection.path,
-              operation: 'create',
-              requestResourceData: orderData
-            });
-            errorEmitter.emit('permission-error', contextualError);
-        });
-      },
-      (error) => {
-        console.error("Geolocation error:", error);
+    const ordersCollection = collection(firestore, 'orders');
+    addDoc(ordersCollection, {
+      ...orderData,
+      createdAt: serverTimestamp(),
+    })
+    .then(() => {
         toast({
-          variant: 'destructive',
-          title: 'Location Error',
-          description: 'Could not get your location. Please enable location services and try again.',
+          title: 'Order Placed!',
+          description: "We've sent your order to the cart.",
         });
-      },
-      { enableHighAccuracy: true, maximumAge: 60000, timeout: 5000 }
-    );
+        router.push('/order/track');
+    })
+    .catch(() => {
+        const contextualError = new FirestorePermissionError({
+          path: ordersCollection.path,
+          operation: 'create',
+          requestResourceData: orderData
+        });
+        errorEmitter.emit('permission-error', contextualError);
+    });
   };
 
 

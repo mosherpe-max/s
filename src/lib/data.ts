@@ -60,3 +60,8 @@ export const mockSellerLocation = {
   latitude: 42.7748,
   longitude: -83.2139
 };
+
+export const mockBuyerLocation = {
+    latitude: 42.770,
+    longitude: -83.220
+};
