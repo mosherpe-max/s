@@ -1,8 +1,18 @@
-
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /{document=**} {
+    // Allow public read/write access to sellers for prototyping
+    match /sellers/{sellerId} {
+      allow read, write: if true;
+    }
+
+    // Allow public read/write access to menu items for prototyping
+    match /sellers/{sellerId}/menuItems/{menuItemId} {
+      allow read, write: if true;
+    }
+
+    // Allow public read/write access to orders for prototyping
+    match /orders/{orderId} {
       allow read, write: if true;
     }
   }
