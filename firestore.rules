@@ -1,19 +1,20 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Allow public read/write access to sellers for prototyping
+
+    // Allow list, read, and write for all users on the sellers collection
     match /sellers/{sellerId} {
-      allow read, write: if true;
+      allow list, read, write: if true;
+
+      // Allow list, read, and write for all users on the menuItems subcollection
+      match /menuItems/{menuItemId} {
+        allow list, read, write: if true;
+      }
     }
 
-    // Allow public read/write access to menu items for prototyping
-    match /sellers/{sellerId}/menuItems/{menuItemId} {
-      allow read, write: if true;
-    }
-
-    // Allow public read/write access to orders for prototyping
+    // Allow list, read, and write for all users on the orders collection
     match /orders/{orderId} {
-      allow read, write: if true;
+      allow list, read, write: if true;
     }
   }
 }
