@@ -17,7 +17,7 @@ import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { mockBuyerLocation } from '@/lib/data';
 
-export default function BuyerMenuPage({ params }: { params: Promise<{ sellerId: string }> }) {
+export default function BuyerMenuPage({ params }: { params: { sellerId: string } }) {
   const { sellerId } = use(params);
   const firestore = useFirestore();
   const { user } = useUser();

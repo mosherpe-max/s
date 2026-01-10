@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { collection, query, orderBy, limit, where, doc } from 'firebase/firestore';
+import { collection, query, orderBy, limit, where } from 'firebase/firestore';
 import { useFirestore, useCollection, useDoc, useMemoFirebase } from '@/firebase';
 import type { Order, Seller } from '@/lib/types';
 import { MapView } from '@/components/map-view';
