@@ -90,7 +90,7 @@ export default function SellerDashboardPage() {
             <MapView
               sellerLocation={sellerLocation}
               buyers={orders.map(o => ({ id: o.id, name: o.customerName, location: o.deliveryLocation }))}
-              radius={1609.34} // 1 mile in meters
+              radius={2414.02} // 1.5 miles in meters
             />
           ) : (
             <Skeleton className="w-full h-full" />

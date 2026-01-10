@@ -19,30 +19,38 @@ function MapElements({ buyerLocation, sellerLocation, buyers, radius }: MapViewP
         if (!map) return;
 
         const bounds = new window.google.maps.LatLngBounds();
-        bounds.extend(new window.google.maps.LatLng(sellerLocation.latitude, sellerLocation.longitude));
+        const sellerLatLng = new window.google.maps.LatLng(sellerLocation.latitude, sellerLocation.longitude);
+        
+        // Start with the seller's position.
+        bounds.extend(sellerLatLng);
+
+        // If a radius is provided, expand the bounds to that circle.
+        if (radius) {
+            const circle = new window.google.maps.Circle({
+                center: sellerLatLng,
+                radius: radius,
+            });
+            bounds.union(circle.getBounds()!);
+        }
+
+        // Always include the single buyer location if it exists.
         if (buyerLocation) {
             bounds.extend(new window.google.maps.LatLng(buyerLocation.latitude, buyerLocation.longitude));
         }
+
+        // Always include all buyers from the list if it exists.
         if(buyers) {
             buyers.forEach(buyer => {
                 bounds.extend(new window.google.maps.LatLng(buyer.location.latitude, buyer.location.longitude));
             });
         }
         
-        if (radius) {
-            // If there's a radius, we can use it to set the bounds
-            const circle = new window.google.maps.Circle({
-                center: { lat: sellerLocation.latitude, lng: sellerLocation.longitude },
-                radius: radius,
-            });
-            bounds.union(circle.getBounds()!);
-        }
-        
+        // Fit the map to the final calculated bounds.
         map.fitBounds(bounds);
 
     }, [map, buyerLocation, sellerLocation, buyers, radius]);
 
-    // Draw Circle
+    // Effect to draw the radius circle
     useEffect(() => {
       if (!map || !radius) return;
 
