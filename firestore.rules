@@ -1,18 +1,14 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // Allow list, read, and write for all users on the sellers collection
     match /sellers/{sellerId} {
       allow list, read, write: if true;
-
-      // Allow list, read, and write for all users on the menuItems subcollection
       match /menuItems/{menuItemId} {
         allow list, read, write: if true;
       }
     }
 
-    // Allow list, read, and write for all users on the orders collection
+    // This rule allows anyone to query the 'orders' collection.
     match /orders/{orderId} {
       allow list, read, write: if true;
     }
