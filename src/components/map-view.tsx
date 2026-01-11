@@ -21,10 +21,15 @@ function MapElements({ buyerLocation, sellerLocation, buyers, radius }: MapViewP
         const bounds = new window.google.maps.LatLngBounds();
         const sellerLatLng = new window.google.maps.LatLng(sellerLocation.latitude, sellerLocation.longitude);
         
-        // Start with the seller's position.
+        // Always include the seller's position.
         bounds.extend(sellerLatLng);
 
-        // If a radius is provided, expand the bounds to that circle.
+        // Always include the single buyer location if it exists.
+        if (buyerLocation) {
+            bounds.extend(new window.google.maps.LatLng(buyerLocation.latitude, buyerLocation.longitude));
+        }
+
+        // If a radius is provided for the seller view, expand the bounds to that circle.
         if (radius) {
             const circle = new window.google.maps.Circle({
                 center: sellerLatLng,
@@ -33,12 +38,7 @@ function MapElements({ buyerLocation, sellerLocation, buyers, radius }: MapViewP
             bounds.union(circle.getBounds()!);
         }
 
-        // Always include the single buyer location if it exists.
-        if (buyerLocation) {
-            bounds.extend(new window.google.maps.LatLng(buyerLocation.latitude, buyerLocation.longitude));
-        }
-
-        // Always include all buyers from the list if it exists.
+        // Always include all buyers from the list if it exists (for seller view).
         if(buyers) {
             buyers.forEach(buyer => {
                 bounds.extend(new window.google.maps.LatLng(buyer.location.latitude, buyer.location.longitude));
@@ -46,11 +46,12 @@ function MapElements({ buyerLocation, sellerLocation, buyers, radius }: MapViewP
         }
         
         // Fit the map to the final calculated bounds.
+        // A little padding is automatically added by the API.
         map.fitBounds(bounds);
 
     }, [map, buyerLocation, sellerLocation, buyers, radius]);
 
-    // Effect to draw the radius circle
+    // Effect to draw the radius circle for the seller dashboard
     useEffect(() => {
       if (!map || !radius) return;
 
