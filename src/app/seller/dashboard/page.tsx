@@ -77,8 +77,8 @@ export default function SellerDashboardPage() {
 
   return (
     <APIProvider apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!}>
-      <div className="flex flex-col">
-        <header className="flex-shrink-0 px-4 py-4 flex items-center justify-between border-b bg-background sticky top-16 z-20">
+      <div className="flex flex-col h-full">
+        <header className="flex-shrink-0 px-4 py-4 flex items-center justify-between border-b bg-background">
           <div>
             <h1 className="font-headline text-2xl font-bold text-foreground">Driver Dashboard</h1>
             <p className="text-sm text-muted-foreground">Demo Course 1</p>
@@ -89,7 +89,9 @@ export default function SellerDashboardPage() {
           </div>
         </header>
 
-        <div className="h-[60vh] bg-muted relative">
+        <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
+          {/* Map Container */}
+          <div className="relative md:w-3/4 h-[50vh] md:h-full bg-muted">
            <Button
               variant="outline"
               size="icon"
@@ -99,27 +101,29 @@ export default function SellerDashboardPage() {
             >
               <Focus className="h-5 w-5" />
             </Button>
-          {sellerLocation ? (
-            <MapView
-              sellerLocation={sellerLocation}
-              buyers={orders.map(o => ({ id: o.id, name: o.customerName, location: o.deliveryLocation }))}
-              radius={2414.02} // 1.5 miles in meters
-              zoomMode={zoomMode}
-            />
-          ) : (
-            <Skeleton className="w-full h-full" />
-          )}
-        </div>
-
-        <div className="bg-background border-t">
-            <h2 className="font-headline text-lg font-semibold px-4 pt-3 pb-2">Active Orders ({orders.length})</h2>
-              <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 overflow-y-auto">
+            {sellerLocation ? (
+              <MapView
+                sellerLocation={sellerLocation}
+                buyers={orders.map(o => ({ id: o.id, name: o.customerName, location: o.deliveryLocation }))}
+                radius={2414.02} // 1.5 miles in meters
+                zoomMode={zoomMode}
+              />
+            ) : (
+              <Skeleton className="w-full h-full" />
+            )}
+          </div>
+          
+          {/* Orders List */}
+          <div className="md:w-1/4 flex-1 flex flex-col bg-background border-t md:border-t-0 md:border-l">
+            <h2 className="font-headline text-lg font-semibold px-4 pt-3 pb-2 shrink-0 border-b">Active Orders ({orders.length})</h2>
+            <ScrollArea className="flex-1">
+              <div className="p-4 space-y-4">
                 {isLoading ? (
-                  <>
+                  <div className="space-y-4">
                     {[...Array(3)].map((_, i) => (
-                      <Skeleton key={i} className="h-60 w-full" />
+                      <Skeleton key={i} className="h-48 w-full" />
                     ))}
-                  </>
+                  </div>
                 ) : orders.length === 0 ? (
                   <div className="col-span-full flex items-center justify-center text-muted-foreground py-10">
                     No active orders.
@@ -135,6 +139,8 @@ export default function SellerDashboardPage() {
                   ))
                 )}
               </div>
+            </ScrollArea>
+          </div>
         </div>
       </div>
     </APIProvider>
