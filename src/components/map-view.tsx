@@ -19,34 +19,27 @@ function MapElements({ buyerLocation, sellerLocation, buyers, radius }: MapViewP
         if (!map) return;
 
         const bounds = new window.google.maps.LatLngBounds();
-        const sellerLatLng = new window.google.maps.LatLng(sellerLocation.latitude, sellerLocation.longitude);
         
-        // Always include the seller's position.
-        bounds.extend(sellerLatLng);
-
-        // Always include the single buyer location if it exists.
-        if (buyerLocation) {
-            bounds.extend(new window.google.maps.LatLng(buyerLocation.latitude, buyerLocation.longitude));
-        }
-
-        // If a radius is provided for the seller view, expand the bounds to that circle.
+        // If a radius is provided (Driver Dashboard view), the initial zoom is set to that radius.
         if (radius) {
+            const sellerLatLng = new window.google.maps.LatLng(sellerLocation.latitude, sellerLocation.longitude);
             const circle = new window.google.maps.Circle({
                 center: sellerLatLng,
                 radius: radius,
             });
             bounds.union(circle.getBounds()!);
-        }
-
-        // Always include all buyers from the list if it exists (for seller view).
-        if(buyers) {
-            buyers.forEach(buyer => {
-                bounds.extend(new window.google.maps.LatLng(buyer.location.latitude, buyer.location.longitude));
-            });
+            // Any buyers outside this radius will still have markers, but won't be in the initial view.
+        } else {
+            // For the buyer tracking view, fit both the buyer and seller on the map.
+            const sellerLatLng = new window.google.maps.LatLng(sellerLocation.latitude, sellerLocation.longitude);
+            bounds.extend(sellerLatLng);
+    
+            if (buyerLocation) {
+                bounds.extend(new window.google.maps.LatLng(buyerLocation.latitude, buyerLocation.longitude));
+            }
         }
         
         // Fit the map to the final calculated bounds.
-        // A little padding is automatically added by the API.
         map.fitBounds(bounds);
 
     }, [map, buyerLocation, sellerLocation, buyers, radius]);
