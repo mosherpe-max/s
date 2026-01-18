@@ -77,7 +77,7 @@ export default function SellerDashboardPage() {
 
   return (
     <APIProvider apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!}>
-      <div className="flex flex-col h-full">
+      <div className="flex flex-col h-[calc(100vh-4rem)]">
         <header className="flex-shrink-0 px-4 py-4 flex items-center justify-between border-b bg-background">
           <div>
             <h1 className="font-headline text-2xl font-bold text-foreground">Driver Dashboard</h1>
