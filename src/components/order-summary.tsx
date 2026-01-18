@@ -3,15 +3,16 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import type { OrderItem } from '@/lib/types';
-import { ShoppingCart } from 'lucide-react';
+import { ShoppingCart, Loader2 } from 'lucide-react';
 
 interface OrderSummaryProps {
   items: OrderItem[];
   onPlaceOrder: () => void;
   serviceFee?: number;
+  isPlacingOrder?: boolean;
 }
 
-export function OrderSummary({ items, onPlaceOrder, serviceFee = 0 }: OrderSummaryProps) {
+export function OrderSummary({ items, onPlaceOrder, serviceFee = 0, isPlacingOrder = false }: OrderSummaryProps) {
   const subtotal = items.reduce((acc, item) => acc + item.price * item.quantity, 0);
   const total = subtotal + serviceFee;
 
@@ -63,9 +64,16 @@ export function OrderSummary({ items, onPlaceOrder, serviceFee = 0 }: OrderSumma
           size="lg" 
           className="w-full bg-accent text-accent-foreground hover:bg-accent/90" 
           onClick={onPlaceOrder}
-          disabled={items.length === 0}
+          disabled={items.length === 0 || isPlacingOrder}
         >
-          Place Order
+          {isPlacingOrder ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Placing Order...
+            </>
+          ) : (
+            'Place Order'
+          )}
         </Button>
       </CardFooter>
     </Card>

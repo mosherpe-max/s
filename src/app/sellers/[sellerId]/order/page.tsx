@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, use } from 'react';
@@ -26,6 +25,7 @@ export default function BuyerMenuPage({ params }: { params: { sellerId: string }
 
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<Category>(categories[0]);
+  const [isPlacingOrder, setIsPlacingOrder] = useState(false);
 
   const sellerRef = useMemoFirebase(
     () => (firestore ? doc(firestore, 'sellers', sellerId) : null),
@@ -63,44 +63,72 @@ export default function BuyerMenuPage({ params }: { params: { sellerId: string }
       });
       return;
     }
-    
-    // Use mock location for prototyping
-    const { latitude, longitude } = mockBuyerLocation;
-    const subtotal = orderItems.reduce((acc, item) => acc + item.price * item.quantity, 0);
-    const total = subtotal + (seller.serviceFee || 0);
+    setIsPlacingOrder(true);
 
-    const orderData: Omit<Order, 'id' | 'createdAt'> = {
-      sellerId: sellerId,
-      customerId: 'public-user',
-      customerName: 'Guest Golfer',
-      deliveryLocation: { latitude, longitude },
-      items: orderItems,
-      subtotal,
-      serviceFee: seller.serviceFee || 0,
-      total,
-      status: 'Placed',
+    const createOrder = (latitude: number, longitude: number) => {
+      const subtotal = orderItems.reduce((acc, item) => acc + item.price * item.quantity, 0);
+      const total = subtotal + (seller.serviceFee || 0);
+
+      const orderData: Omit<Order, 'id' | 'createdAt'> = {
+        sellerId: sellerId,
+        customerId: 'public-user',
+        customerName: 'Guest Golfer',
+        deliveryLocation: { latitude, longitude },
+        items: orderItems,
+        subtotal,
+        serviceFee: seller.serviceFee || 0,
+        total,
+        status: 'Placed',
+      };
+
+      const ordersCollection = collection(firestore, 'orders');
+      addDoc(ordersCollection, {
+        ...orderData,
+        createdAt: serverTimestamp(),
+      })
+      .then(() => {
+          toast({
+            title: 'Order Placed!',
+            description: "We've sent your order to the cart.",
+          });
+          router.push('/order/track');
+      })
+      .catch(() => {
+          const contextualError = new FirestorePermissionError({
+            path: ordersCollection.path,
+            operation: 'create',
+            requestResourceData: orderData
+          });
+          errorEmitter.emit('permission-error', contextualError);
+      }).finally(() => {
+        setIsPlacingOrder(false);
+      });
     };
 
-    const ordersCollection = collection(firestore, 'orders');
-    addDoc(ordersCollection, {
-      ...orderData,
-      createdAt: serverTimestamp(),
-    })
-    .then(() => {
-        toast({
-          title: 'Order Placed!',
-          description: "We've sent your order to the cart.",
-        });
-        router.push('/order/track');
-    })
-    .catch(() => {
-        const contextualError = new FirestorePermissionError({
-          path: ordersCollection.path,
-          operation: 'create',
-          requestResourceData: orderData
-        });
-        errorEmitter.emit('permission-error', contextualError);
-    });
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          createOrder(position.coords.latitude, position.coords.longitude);
+        },
+        () => {
+          toast({
+            title: 'Location Error',
+            description: 'Could not get your location. Using a fallback for this order.',
+            variant: 'destructive',
+          });
+          const { latitude, longitude } = mockBuyerLocation;
+          createOrder(latitude, longitude);
+        }
+      );
+    } else {
+      toast({
+        title: 'Location Error',
+        description: 'Geolocation is not supported. Using a fallback for this order.',
+        variant: 'destructive',
+      });
+      const { latitude, longitude } = mockBuyerLocation;
+      createOrder(latitude, longitude);
+    }
   };
 
 
@@ -161,6 +189,7 @@ export default function BuyerMenuPage({ params }: { params: { sellerId: string }
             items={orderItems.filter((item) => item.quantity > 0)}
             onPlaceOrder={handlePlaceOrder}
             serviceFee={seller?.serviceFee}
+            isPlacingOrder={isPlacingOrder}
           />
         </aside>
       </div>
