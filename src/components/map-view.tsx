@@ -1,18 +1,20 @@
+
 'use client'
 
 import { Truck, User } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Map, AdvancedMarker, useMap } from '@vis.gl/react-google-maps';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 
 interface MapViewProps {
   buyerLocation?: { latitude: number; longitude: number };
   sellerLocation: { latitude: number; longitude: number };
   buyers?: { id: string; name: string; location: { latitude: number; longitude: number } }[];
   radius?: number; // in meters
+  zoomMode?: 'radius' | 'all';
 }
 
-function MapElements({ buyerLocation, sellerLocation, buyers, radius }: MapViewProps) {
+function MapElements({ buyerLocation, sellerLocation, buyers, radius, zoomMode = 'all' }: MapViewProps) {
     const map = useMap();
 
     useEffect(() => {
@@ -20,29 +22,38 @@ function MapElements({ buyerLocation, sellerLocation, buyers, radius }: MapViewP
 
         const bounds = new window.google.maps.LatLngBounds();
         
-        // If a radius is provided (Driver Dashboard view), the initial zoom is set to that radius.
-        if (radius) {
+        // On the driver dashboard, if zoomMode is 'radius', fit to the circle
+        if (zoomMode === 'radius' && radius) {
             const sellerLatLng = new window.google.maps.LatLng(sellerLocation.latitude, sellerLocation.longitude);
             const circle = new window.google.maps.Circle({
                 center: sellerLatLng,
                 radius: radius,
             });
-            bounds.union(circle.getBounds()!);
-            // Any buyers outside this radius will still have markers, but won't be in the initial view.
+            const circleBounds = circle.getBounds();
+            if (circleBounds) {
+                bounds.union(circleBounds);
+            }
         } else {
-            // For the buyer tracking view, fit both the buyer and seller on the map.
+            // For the buyer tracking view, or 'all' mode on driver view
             const sellerLatLng = new window.google.maps.LatLng(sellerLocation.latitude, sellerLocation.longitude);
             bounds.extend(sellerLatLng);
     
             if (buyerLocation) {
                 bounds.extend(new window.google.maps.LatLng(buyerLocation.latitude, buyerLocation.longitude));
             }
+
+            if (buyers) {
+                buyers.forEach(buyer => {
+                    bounds.extend(new window.google.maps.LatLng(buyer.location.latitude, buyer.location.longitude));
+                });
+            }
         }
         
-        // Fit the map to the final calculated bounds.
-        map.fitBounds(bounds);
+        if (!bounds.isEmpty()) {
+            map.fitBounds(bounds, 100);
+        }
 
-    }, [map, buyerLocation, sellerLocation, buyers, radius]);
+    }, [map, buyerLocation, sellerLocation, buyers, radius, zoomMode]);
 
     // Effect to draw the radius circle for the seller dashboard
     useEffect(() => {
@@ -69,7 +80,7 @@ function MapElements({ buyerLocation, sellerLocation, buyers, radius }: MapViewP
 }
 
 
-export function MapView({ buyerLocation, sellerLocation, buyers, radius }: MapViewProps) {
+export function MapView({ buyerLocation, sellerLocation, buyers, radius, zoomMode }: MapViewProps) {
     const center = buyerLocation ? { lat: buyerLocation.latitude, lng: buyerLocation.longitude } : { lat: sellerLocation.latitude, lng: sellerLocation.longitude };
     
   return (
@@ -79,9 +90,8 @@ export function MapView({ buyerLocation, sellerLocation, buyers, radius }: MapVi
         defaultZoom={12}
         mapId="a32a12d8a2a7a8a"
         mapTypeId="satellite"
-        disableDefaultUI={true}
       >
-        <MapElements sellerLocation={sellerLocation} buyerLocation={buyerLocation} buyers={buyers} radius={radius} />
+        <MapElements sellerLocation={sellerLocation} buyerLocation={buyerLocation} buyers={buyers} radius={radius} zoomMode={zoomMode} />
         {/* Seller Pin */}
         <AdvancedMarker position={{ lat: sellerLocation.latitude, lng: sellerLocation.longitude }}>
             <div className="flex flex-col items-center">

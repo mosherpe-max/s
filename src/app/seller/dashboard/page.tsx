@@ -13,6 +13,8 @@ import type { Order } from '@/lib/types';
 import { mockSellerLocation } from '@/lib/data';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Button } from '@/components/ui/button';
+import { Focus } from 'lucide-react';
 
 type LatLng = {
   latitude: number;
@@ -23,6 +25,8 @@ export default function SellerDashboardPage() {
   const firestore = useFirestore();
   const [sellerLocation, setSellerLocation] = useState<LatLng | null>(null);
   const [isActive, setIsActive] = useState(true);
+  const [zoomMode, setZoomMode] = useState<'radius' | 'all'>('radius');
+
 
   const activeOrdersQuery = useMemoFirebase(() => {
     if (!firestore || !isActive) return null;
@@ -85,12 +89,22 @@ export default function SellerDashboardPage() {
           </div>
         </header>
 
-        <div className="h-[60vh] bg-muted">
+        <div className="h-[60vh] bg-muted relative">
+           <Button
+              variant="outline"
+              size="icon"
+              className="absolute top-2 right-2 z-10 bg-background/80 hover:bg-background"
+              onClick={() => setZoomMode(current => (current === 'radius' ? 'all' : 'radius'))}
+              aria-label="Toggle map zoom"
+            >
+              <Focus className="h-5 w-5" />
+            </Button>
           {sellerLocation ? (
             <MapView
               sellerLocation={sellerLocation}
               buyers={orders.map(o => ({ id: o.id, name: o.customerName, location: o.deliveryLocation }))}
               radius={2414.02} // 1.5 miles in meters
+              zoomMode={zoomMode}
             />
           ) : (
             <Skeleton className="w-full h-full" />
