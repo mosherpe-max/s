@@ -90,6 +90,9 @@ export function MapView({ buyerLocation, sellerLocation, buyers, radius, zoomMod
         defaultZoom={12}
         mapId="a32a12d8a2a7a8a"
         mapTypeId="satellite"
+        mapTypeControl={false}
+        streetViewControl={false}
+        fullscreenControl={false}
       >
         <MapElements sellerLocation={sellerLocation} buyerLocation={buyerLocation} buyers={buyers} radius={radius} zoomMode={zoomMode} />
         {/* Seller Pin */}
