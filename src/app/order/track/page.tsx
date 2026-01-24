@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import { collection, query, orderBy, limit, doc } from 'firebase/firestore';
+import { collection, query, orderBy, limit, doc, updateDoc } from 'firebase/firestore';
 import { useCollection, useDoc, useFirestore, useMemoFirebase } from '@/firebase';
 import type { Order, Seller } from '@/lib/types';
 import { APIProvider } from '@vis.gl/react-google-maps';
@@ -97,6 +97,46 @@ export default function OrderTrackingPage() {
         prevStatusRef.current = order.status;
     }
   }, [order, toast]);
+
+  // Effect to track buyer's location every 30 seconds when 'Out for Delivery'
+  useEffect(() => {
+    if (!firestore || !order || order.status !== 'Out for Delivery') {
+      return; // Do nothing if no order, or status is not 'Out for Delivery'
+    }
+
+    const trackLocation = () => {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            const { latitude, longitude } = position.coords;
+            const orderRef = doc(firestore, 'orders', order.id);
+            // Update the document in Firestore
+            updateDoc(orderRef, {
+              deliveryLocation: { latitude, longitude }
+            }).catch((err) => {
+              console.error("Failed to update buyer location:", err);
+            });
+          },
+          (error) => {
+            console.error("Error getting buyer location:", error);
+          },
+          {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 0
+          }
+        );
+      }
+    };
+
+    // Set up the interval
+    const intervalId = setInterval(trackLocation, 30000); // 30 seconds
+
+    // Cleanup function to clear the interval
+    return () => {
+      clearInterval(intervalId);
+    };
+  }, [firestore, order]);
 
 
   // Once we have the order, get the seller's information.
