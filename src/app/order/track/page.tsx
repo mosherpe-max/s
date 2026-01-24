@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { collection, query, orderBy, limit, doc } from 'firebase/firestore';
 import { useCollection, useDoc, useFirestore, useMemoFirebase } from '@/firebase';
 import type { Order, Seller } from '@/lib/types';
@@ -14,7 +14,6 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { PartyPopper, Package, CookingPot, Navigation } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import * as Tone from 'tone';
 
 function OrderSummaryCard({ order }: { order: Order }) {
     return (
@@ -44,18 +43,6 @@ export default function OrderTrackingPage() {
   const { toast } = useToast();
   const prevStatusRef = useRef<Order['status']>();
 
-  const synth = useMemo(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        return new Tone.Synth().toDestination();
-      } catch (e) {
-        console.error("Failed to create Tone.Synth", e);
-        return null;
-      }
-    }
-    return null;
-  }, []);
-
   // Query for the most recent order placed.
   const latestOrderQuery = useMemoFirebase(() => {
     if (!firestore) return null;
@@ -74,11 +61,6 @@ export default function OrderTrackingPage() {
         let title = '';
         let description = '';
         let Icon: React.ElementType = Package;
-        let playSound = () => {
-            if (synth && Tone.context.state === 'running') {
-               synth.triggerAttackRelease('C5', '8n', Tone.now());
-            }
-        };
 
         switch (order.status) {
             case 'Preparing':
@@ -95,14 +77,6 @@ export default function OrderTrackingPage() {
                 title = 'Order Delivered!';
                 description = 'Enjoy your refreshments.';
                 Icon = PartyPopper;
-                playSound = () => {
-                    if (synth && Tone.context.state === 'running') {
-                        const now = Tone.now();
-                        synth.triggerAttackRelease('C5', '8n', now);
-                        synth.triggerAttackRelease('E5', '8n', now + 0.2);
-                        synth.triggerAttackRelease('G5', '8n', now + 0.4);
-                    }
-                };
                 break;
         }
 
@@ -117,14 +91,12 @@ export default function OrderTrackingPage() {
                 description: description,
             });
         }
-        
-        playSound();
     }
 
     if (order) {
         prevStatusRef.current = order.status;
     }
-  }, [order, toast, synth]);
+  }, [order, toast]);
 
 
   // Once we have the order, get the seller's information.

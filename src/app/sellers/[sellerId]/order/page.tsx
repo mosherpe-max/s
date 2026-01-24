@@ -18,7 +18,6 @@ import { mockBuyerLocation } from '@/lib/data';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetFooter } from '@/components/ui/sheet';
 import { Loader2 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import * as Tone from 'tone';
 
 export default function BuyerMenuPage({ params }: { params: { sellerId: string } }) {
   const { sellerId } = use(params);
@@ -59,9 +58,6 @@ export default function BuyerMenuPage({ params }: { params: { sellerId: string }
   };
 
   const handlePlaceOrder = async () => {
-    // Start AudioContext on user gesture to allow sounds on the tracking page
-    await Tone.start();
-    
     if (!firestore || !seller) {
       toast({
         variant: 'destructive',
