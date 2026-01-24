@@ -30,7 +30,7 @@ function MapElements({ buyerLocation, sellerLocation, buyers, radius, zoomMode =
             // Always fit both the seller (driver) and the buyer.
             bounds.extend(sellerLatLng);
             bounds.extend(new window.google.maps.LatLng(buyerLocation.latitude, buyerLocation.longitude));
-            map.fitBounds(bounds, 100); // Add some padding
+            map.fitBounds(bounds, 50); // Reduced padding to zoom in further
 
         } else {
             // --- Seller Dashboard View ---
