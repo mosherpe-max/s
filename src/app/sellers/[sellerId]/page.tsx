@@ -1,7 +1,6 @@
-
 'use client';
 
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef, use } from 'react';
 import { collection, doc, setDoc, deleteDoc, writeBatch } from 'firebase/firestore';
 import { useFirestore, useDoc, useCollection, useMemoFirebase } from '@/firebase';
 import { Button } from '@/components/ui/button';
@@ -155,7 +154,7 @@ export default function SellerMenuAdminPage({
 }: {
   params: { sellerId: string };
 }) {
-  const { sellerId } = params;
+  const { sellerId } = use(params);
   const firestore = useFirestore();
 
   const [isItemFormOpen, setIsItemFormOpen] = useState(false);
