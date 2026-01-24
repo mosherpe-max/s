@@ -91,7 +91,7 @@ export default function SellerDashboardPage() {
 
         <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
           {/* Map Container */}
-          <div className="relative md:w-3/4 h-[50vh] md:h-full bg-muted">
+          <div className="relative md:w-2/3 h-[50vh] md:h-full bg-muted">
            <Button
               variant="outline"
               size="icon"
@@ -114,7 +114,7 @@ export default function SellerDashboardPage() {
           </div>
           
           {/* Orders List */}
-          <div className="md:w-1/4 flex-1 flex flex-col bg-background border-t md:border-t-0 md:border-l">
+          <div className="md:w-1/3 flex-1 flex flex-col bg-background border-t md:border-t-0 md:border-l">
             <h2 className="font-headline text-lg font-semibold px-4 pt-3 pb-2 shrink-0 border-b">Active Orders ({orders.length})</h2>
             <ScrollArea className="flex-1">
               <div className="p-4 space-y-4">
