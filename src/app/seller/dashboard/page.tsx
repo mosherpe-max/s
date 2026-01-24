@@ -25,7 +25,7 @@ export default function SellerDashboardPage() {
   const firestore = useFirestore();
   const [sellerLocation, setSellerLocation] = useState<LatLng | null>(null);
   const [isActive, setIsActive] = useState(true);
-  const [zoomMode, setZoomMode] = useState<'radius' | 'all'>('radius');
+  const [zoomMode, setZoomMode] = useState<'radius' | 'all'>('all');
 
 
   const activeOrdersQuery = useMemoFirebase(() => {
@@ -105,7 +105,7 @@ export default function SellerDashboardPage() {
               <MapView
                 sellerLocation={sellerLocation}
                 buyers={orders.map(o => ({ id: o.id, name: o.customerName, location: o.deliveryLocation }))}
-                radius={2414.02} // 1.5 miles in meters
+                radius={1609.34} // 1 mile in meters
                 zoomMode={zoomMode}
               />
             ) : (

@@ -19,40 +19,48 @@ function MapElements({ buyerLocation, sellerLocation, buyers, radius, zoomMode =
 
     useEffect(() => {
         if (!map) return;
-
+    
         const bounds = new window.google.maps.LatLngBounds();
         
-        // On the driver dashboard, if zoomMode is 'radius', fit to the circle
-        if (zoomMode === 'radius' && radius) {
-            const sellerLatLng = new window.google.maps.LatLng(sellerLocation.latitude, sellerLocation.longitude);
-            const circle = new window.google.maps.Circle({
-                center: sellerLatLng,
-                radius: radius,
-            });
-            const circleBounds = circle.getBounds();
-            if (circleBounds) {
-                bounds.union(circleBounds);
-            }
-        } else {
-            // For the buyer tracking view, or 'all' mode on driver view
-            const sellerLatLng = new window.google.maps.LatLng(sellerLocation.latitude, sellerLocation.longitude);
-            bounds.extend(sellerLatLng);
+        const hasBuyers = buyers && buyers.length > 0;
     
-            if (buyerLocation) {
-                bounds.extend(new window.google.maps.LatLng(buyerLocation.latitude, buyerLocation.longitude));
-            }
-
-            if (buyers) {
+        // This component is used by both buyer tracking and seller dashboard.
+        // Buyer tracking view has `buyerLocation` and no `buyers` array or radius.
+        if (buyerLocation) {
+            // Buyer tracking page logic: always fit both seller and buyer.
+            bounds.extend(new window.google.maps.LatLng(sellerLocation.latitude, sellerLocation.longitude));
+            bounds.extend(new window.google.maps.LatLng(buyerLocation.latitude, buyerLocation.longitude));
+        } else {
+            // Seller dashboard logic
+            if (zoomMode === 'all' && hasBuyers) {
+                // 'All' mode with buyers: fit driver and all buyers.
+                bounds.extend(new window.google.maps.LatLng(sellerLocation.latitude, sellerLocation.longitude));
                 buyers.forEach(buyer => {
                     bounds.extend(new window.google.maps.LatLng(buyer.location.latitude, buyer.location.longitude));
                 });
+            } else {
+                // 'Radius' mode, OR 'All' mode with no buyers: fit to the circle radius.
+                if (radius) {
+                    const sellerLatLng = new window.google.maps.LatLng(sellerLocation.latitude, sellerLocation.longitude);
+                    const circle = new window.google.maps.Circle({
+                        center: sellerLatLng,
+                        radius: radius,
+                    });
+                    const circleBounds = circle.getBounds();
+                    if (circleBounds) {
+                        bounds.union(circleBounds);
+                    }
+                } else {
+                     // Fallback if no radius is provided: just center on seller.
+                     bounds.extend(new window.google.maps.LatLng(sellerLocation.latitude, sellerLocation.longitude));
+                }
             }
         }
         
         if (!bounds.isEmpty()) {
-            map.fitBounds(bounds, 100);
+            map.fitBounds(bounds, 100); // 100px padding
         }
-
+    
     }, [map, buyerLocation, sellerLocation, buyers, radius, zoomMode]);
 
     // Effect to draw the radius circle for the seller dashboard
