@@ -1,4 +1,3 @@
-
 'use client'
 
 import { Truck, User } from 'lucide-react';
@@ -12,9 +11,10 @@ interface MapViewProps {
   buyers?: { id: string; name: string; location: { latitude: number; longitude: number } }[];
   radius?: number; // in meters
   zoomMode?: 'radius' | 'all';
+  interactive?: boolean;
 }
 
-function MapElements({ buyerLocation, sellerLocation, buyers, radius, zoomMode = 'all' }: MapViewProps) {
+function MapElements({ buyerLocation, sellerLocation, buyers, radius, zoomMode = 'all' }: Omit<MapViewProps, 'interactive'>) {
     const map = useMap();
 
     useEffect(() => {
@@ -77,7 +77,7 @@ function MapElements({ buyerLocation, sellerLocation, buyers, radius, zoomMode =
 }
 
 
-export function MapView({ buyerLocation, sellerLocation, buyers, radius, zoomMode }: MapViewProps) {
+export function MapView({ buyerLocation, sellerLocation, buyers, radius, zoomMode, interactive = true }: MapViewProps) {
     const center = buyerLocation ? { lat: buyerLocation.latitude, lng: buyerLocation.longitude } : { lat: sellerLocation.latitude, lng: sellerLocation.longitude };
     
   return (
@@ -90,6 +90,8 @@ export function MapView({ buyerLocation, sellerLocation, buyers, radius, zoomMod
         mapTypeControl={false}
         streetViewControl={false}
         fullscreenControl={false}
+        gestureHandling={interactive ? 'auto' : 'none'}
+        zoomControl={interactive}
       >
         <MapElements sellerLocation={sellerLocation} buyerLocation={buyerLocation} buyers={buyers} radius={radius} zoomMode={zoomMode} />
         {/* Seller Pin */}

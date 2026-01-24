@@ -79,6 +79,7 @@ export default function OrderTrackingPage() {
               <MapView
                 sellerLocation={{ latitude: seller.latitude, longitude: seller.longitude }}
                 buyerLocation={order.deliveryLocation}
+                interactive={false}
               />
             ) : (
               <div className="w-full h-full flex items-center justify-center">
