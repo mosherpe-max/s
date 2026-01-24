@@ -15,6 +15,9 @@ import { categoryIcons } from '@/components/icons';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { mockBuyerLocation } from '@/lib/data';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetFooter } from '@/components/ui/sheet';
+import { Loader2 } from 'lucide-react';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 export default function BuyerMenuPage({ params }: { params: { sellerId: string } }) {
   const { sellerId } = use(params);
@@ -64,9 +67,11 @@ export default function BuyerMenuPage({ params }: { params: { sellerId: string }
       return;
     }
     setIsPlacingOrder(true);
+    
+    const activeOrderItems = orderItems.filter((item) => item.quantity > 0);
 
     const createOrder = (latitude: number, longitude: number) => {
-      const subtotal = orderItems.reduce((acc, item) => acc + item.price * item.quantity, 0);
+      const subtotal = activeOrderItems.reduce((acc, item) => acc + item.price * item.quantity, 0);
       const total = subtotal + (seller.serviceFee || 0);
 
       const orderData: Omit<Order, 'id' | 'createdAt'> = {
@@ -74,7 +79,7 @@ export default function BuyerMenuPage({ params }: { params: { sellerId: string }
         customerId: 'public-user',
         customerName: 'Guest Golfer',
         deliveryLocation: { latitude, longitude },
-        items: orderItems,
+        items: activeOrderItems,
         subtotal,
         serviceFee: seller.serviceFee || 0,
         total,
@@ -133,66 +138,104 @@ export default function BuyerMenuPage({ params }: { params: { sellerId: string }
 
 
   const isLoading = isSellerLoading || areItemsLoading;
+  const activeOrderItems = orderItems.filter((item) => item.quantity > 0);
+  const totalItems = activeOrderItems.reduce((acc, item) => acc + item.quantity, 0);
+  const subtotal = activeOrderItems.reduce((acc, item) => acc + item.price * item.quantity, 0);
+  const total = subtotal + (seller?.serviceFee || 0);
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <header className="mb-8 text-center">
-        <h1 className="font-headline text-4xl md:text-5xl font-bold text-foreground">
-          {isLoading ? <Skeleton className="h-12 w-3/4 mx-auto" /> : seller?.courseName}
+    <div className="flex flex-col h-full">
+      <header className="px-4 pt-4 pb-2 text-center shrink-0">
+        <h1 className="font-headline text-3xl font-bold text-foreground">
+          {isLoading ? <Skeleton className="h-9 w-3/4 mx-auto" /> : seller?.courseName}
         </h1>
-        <p className="text-lg text-muted-foreground mt-2">
+        <p className="text-sm text-muted-foreground mt-1">
           Place your order and we'll deliver it to you on the course!
         </p>
       </header>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
-        <main className="lg:col-span-2 space-y-8">
-          <div className="sticky top-16 bg-background/95 backdrop-blur-sm z-10 py-4">
-            <div className="flex justify-center gap-2 flex-wrap">
-              {categories.map((category) => {
+      <div className="sticky top-0 bg-background/95 backdrop-blur-sm z-10 py-2 shrink-0 border-b">
+         <ScrollArea className="w-full whitespace-nowrap">
+            <div className="flex gap-2 px-4">
+            {categories.map((category) => {
                 const Icon = categoryIcons[category];
                 return (
-                  <Button
+                <Button
                     key={category}
                     variant={selectedCategory === category ? 'default' : 'outline'}
                     onClick={() => setSelectedCategory(category)}
-                    className="flex-grow sm:flex-grow-0"
-                  >
+                    className="shrink-0"
+                >
                     <Icon className="mr-2 h-4 w-4" />
                     {category}
-                  </Button>
+                </Button>
                 );
-              })}
+            })}
             </div>
-          </div>
-          
-          {isLoading ? (
-            <div className="space-y-4">
-                <Skeleton className="h-48 w-full" />
-                <Skeleton className="h-24 w-full" />
-                <Skeleton className="h-24 w-full" />
-            </div>
-          ) : menuItems ? (
-            <BuyerMenu
-              orderItems={orderItems}
-              onUpdateItem={handleUpdateItem}
-              selectedCategory={selectedCategory}
-              menuItems={menuItems}
-            />
-          ) : (
-            <p>No menu items available.</p>
-          )}
-        </main>
-
-        <aside className="lg:col-span-1 sticky top-20">
-          <OrderSummary
-            items={orderItems.filter((item) => item.quantity > 0)}
-            onPlaceOrder={handlePlaceOrder}
-            serviceFee={seller?.serviceFee}
-            isPlacingOrder={isPlacingOrder}
-          />
-        </aside>
+        </ScrollArea>
       </div>
+      
+      <main className="flex-1 overflow-y-auto px-4 pt-4 pb-28"> {/* Padding-bottom for floating button */}
+        {isLoading ? (
+          <div className="space-y-4">
+              <Skeleton className="h-20 w-full" />
+              <Skeleton className="h-20 w-full" />
+              <Skeleton className="h-20 w-full" />
+          </div>
+        ) : menuItems ? (
+          <BuyerMenu
+            orderItems={orderItems}
+            onUpdateItem={handleUpdateItem}
+            selectedCategory={selectedCategory}
+            menuItems={menuItems}
+          />
+        ) : (
+          <p>No menu items available.</p>
+        )}
+      </main>
+
+      {activeOrderItems.length > 0 && (
+        <div className="fixed bottom-0 left-0 right-0 p-4 bg-background/90 backdrop-blur-sm border-t z-20">
+          <Sheet>
+            <SheetTrigger asChild>
+              <Button size="lg" className="w-full text-lg h-14">
+                <div className="flex justify-between items-center w-full">
+                  <span>View Order ({totalItems})</span>
+                  <span className="font-mono">${total.toFixed(2)}</span>
+                </div>
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="bottom" className="rounded-t-lg">
+              <SheetHeader>
+                 <SheetTitle className="text-center">Your Order</SheetTitle>
+              </SheetHeader>
+              <div className="py-4 max-h-[50vh] overflow-y-auto">
+                <OrderSummary
+                  items={activeOrderItems}
+                  serviceFee={seller?.serviceFee}
+                />
+              </div>
+              <SheetFooter>
+                <Button 
+                  size="lg" 
+                  className="w-full h-12 text-lg" 
+                  onClick={handlePlaceOrder}
+                  disabled={isPlacingOrder}
+                >
+                  {isPlacingOrder ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Placing Order...
+                    </>
+                  ) : (
+                    `Place Order - $${total.toFixed(2)}`
+                  )}
+                </Button>
+              </SheetFooter>
+            </SheetContent>
+          </Sheet>
+        </div>
+      )}
     </div>
   );
 }
