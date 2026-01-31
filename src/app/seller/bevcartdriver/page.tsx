@@ -86,6 +86,20 @@ export default function BevCartDriverDashboardPage() {
     );
   }, [activeOrders]);
 
+  // Handle Tab Close / App Close (Best Effort)
+  useEffect(() => {
+    const handleUnload = () => {
+      if (firestore && isPrimaryActive) {
+        const sellerDocRef = doc(firestore, 'sellers', 'demo-course');
+        // We use updateDoc. Since this is non-blocking, we just fire it.
+        updateDoc(sellerDocRef, { status: 'Inactive' }).catch(() => {});
+      }
+    };
+
+    window.addEventListener('beforeunload', handleUnload);
+    return () => window.removeEventListener('beforeunload', handleUnload);
+  }, [firestore, isPrimaryActive]);
+
   useEffect(() => {
     if (!driverOrders) return;
 
@@ -100,7 +114,7 @@ export default function BevCartDriverDashboardPage() {
         title: (
           <div className="flex items-center gap-2">
             <Bell className="h-5 w-5 text-primary animate-bounce" />
-            <span className="font-headline font-bold text-lg">New Order Received!</span>
+            <span className="font-headline font-bold text-lg text-primary">New Order Received!</span>
           </div>
         ),
         description: `There are ${newPlacedOrders.length} new order(s) for your Beverage Cart.`,
@@ -155,7 +169,8 @@ export default function BevCartDriverDashboardPage() {
         const sellerDocRef = doc(firestore, 'sellers', 'demo-course');
         updateDoc(sellerDocRef, {
           latitude: sellerLocRef.current.latitude,
-          longitude: sellerLocRef.current.longitude
+          longitude: sellerLocRef.current.longitude,
+          status: 'Active' // Ensure status stays active while reporting
         }).catch(() => {});
       }
     };
@@ -231,7 +246,7 @@ export default function BevCartDriverDashboardPage() {
       return (
           <div className="flex flex-col items-center justify-center h-screen p-8 text-center space-y-6">
               <AlertCircle className="h-16 w-16 text-muted-foreground opacity-20" />
-              <h1 className="text-2xl font-headline font-bold">KOOP Driver Interface</h1>
+              <h1 className="text-2xl font-headline font-bold uppercase">KOOP Driver Interface</h1>
               <p className="text-muted-foreground max-w-sm">
                   Initialize your seller profile to access driver tools.
               </p>
@@ -245,12 +260,12 @@ export default function BevCartDriverDashboardPage() {
   return (
     <APIProvider apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!}>
       <div className="flex flex-col h-screen overflow-hidden">
-        <header className="flex-shrink-0 px-4 h-16 flex items-center justify-between border-b bg-background z-20 shadow-sm">
+        <header className="flex-shrink-0 px-4 h-16 flex items-center justify-between border-b-2 border-[#E50000] bg-[#213147] z-20 shadow-sm">
           <div className="flex flex-col">
-            <h1 className="font-headline text-lg md:text-xl font-bold text-foreground uppercase">
+            <h1 className="font-headline text-lg md:text-xl font-bold text-white uppercase">
               Beverage Cart Driver Dashboard
             </h1>
-            <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest leading-none">
+            <span className="text-[10px] uppercase font-bold text-white/60 tracking-widest leading-none">
               DRIVER: Demo Golf Course - Public
             </span>
           </div>
@@ -259,8 +274,9 @@ export default function BevCartDriverDashboardPage() {
               id="active-mode" 
               checked={isPrimaryActive} 
               onCheckedChange={handleToggleActive} 
+              className="data-[state=checked]:bg-[#E50000]"
             />
-            <Label htmlFor="active-mode" className="text-sm font-semibold whitespace-nowrap">
+            <Label htmlFor="active-mode" className="text-sm font-semibold whitespace-nowrap text-white">
               {isPrimaryActive ? 'CART: ACTIVE' : 'CART: INACTIVE'}
             </Label>
           </div>
@@ -292,7 +308,7 @@ export default function BevCartDriverDashboardPage() {
           <div className="w-full md:w-1/3 flex flex-col bg-background border-t md:border-t-0 md:border-l overflow-hidden min-h-0">
             <h2 className="font-headline text-lg font-semibold px-4 pt-3 pb-2 shrink-0 border-b flex items-center justify-between">
               <span>Your Active Orders</span>
-              <span className="bg-primary text-primary-foreground text-xs rounded-full px-2 py-0.5">
+              <span className="bg-[#E50000] text-white text-xs rounded-full px-2 py-0.5">
                 {driverOrders.length}
               </span>
             </h2>
