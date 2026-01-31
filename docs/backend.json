@@ -92,6 +92,10 @@
           "type": "string",
           "description": "The primary brand color for the menu (e.g. #22c55e)."
         },
+        "logoUrl": {
+          "type": "string",
+          "description": "URL for the seller's logo image."
+        },
         "headerImageUrl": {
           "type": "string",
           "description": "URL for the menu header image."

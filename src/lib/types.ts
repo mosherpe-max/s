@@ -35,6 +35,7 @@ export interface Seller {
   status: 'Active' | 'Inactive';
   // Branding & Customization
   brandColor?: string;
+  logoUrl?: string;
   headerImageUrl?: string;
   welcomeMessage?: string;
 }

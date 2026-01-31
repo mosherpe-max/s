@@ -6,7 +6,7 @@ import { collection, doc, setDoc, deleteDoc, writeBatch, query, where, updateDoc
 import { useFirestore, useDoc, useCollection, useMemoFirebase } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
-import { PlusCircle, Edit, Trash2, GripVertical, Filter, DollarSign, ShoppingBag, Clock, Database, Users, UserPlus, Sparkles, Download, Calendar as CalendarIcon, FileSpreadsheet, Palette, Image as ImageIcon, MessageSquare, Save, Loader2 } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, GripVertical, Filter, DollarSign, ShoppingBag, Clock, Database, Users, UserPlus, Sparkles, Download, Calendar as CalendarIcon, FileSpreadsheet, Palette, Image as ImageIcon, MessageSquare, Save, Loader2, Upload } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
   AlertDialog,
@@ -44,6 +44,7 @@ import { menuItems as mockMenuItems } from '@/lib/data';
 import { useToast } from '@/hooks/use-toast';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
+import Image from 'next/image';
 
 const menuItemSchema = z.object({
   name: z.string().min(1, 'Item name is required'),
@@ -64,6 +65,7 @@ type MemberFormData = z.infer<typeof memberSchema>;
 
 const customizationSchema = z.object({
   brandColor: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, 'Must be a valid HEX color (e.g. #22c55e)').optional().or(z.literal('')),
+  logoUrl: z.string().url('Must be a valid image URL').optional().or(z.literal('')),
   headerImageUrl: z.string().url('Must be a valid image URL').optional().or(z.literal('')),
   welcomeMessage: z.string().max(200, 'Keep it brief (max 200 chars)').optional(),
 });
@@ -244,6 +246,7 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
     resolver: zodResolver(customizationSchema),
     defaultValues: {
       brandColor: seller?.brandColor || '',
+      logoUrl: seller?.logoUrl || '',
       headerImageUrl: seller?.headerImageUrl || '',
       welcomeMessage: seller?.welcomeMessage || '',
     },
@@ -253,6 +256,7 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
     if (seller) {
       customizationForm.reset({
         brandColor: seller.brandColor || '',
+        logoUrl: seller.logoUrl || '',
         headerImageUrl: seller.headerImageUrl || '',
         welcomeMessage: seller.welcomeMessage || '',
       });
@@ -522,26 +526,43 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
             <CardContent className="flex-1">
               <Form {...customizationForm}>
                 <form onSubmit={customizationForm.handleSubmit(handleSaveCustomization)} className="space-y-4">
-                  <FormField
-                    control={customizationForm.control}
-                    name="brandColor"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="flex items-center gap-2"><Palette className="h-4 w-4" /> Brand Color (HEX)</FormLabel>
-                        <div className="flex gap-2">
-                           <FormControl>
-                            <Input {...field} placeholder="#22c55e" />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField
+                      control={customizationForm.control}
+                      name="brandColor"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="flex items-center gap-2"><Palette className="h-4 w-4" /> Brand Color</FormLabel>
+                          <div className="flex gap-2">
+                            <FormControl>
+                              <Input {...field} placeholder="#22c55e" />
+                            </FormControl>
+                            <div 
+                              className="w-10 h-10 rounded-md border shadow-sm shrink-0" 
+                              style={{ backgroundColor: field.value || 'hsl(var(--primary))' }} 
+                            />
+                          </div>
+                          <FormDescription>Primary branding color.</FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={customizationForm.control}
+                      name="logoUrl"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="flex items-center gap-2"><Upload className="h-4 w-4" /> Logo URL</FormLabel>
+                          <FormControl>
+                            <Input {...field} placeholder="https://..." />
                           </FormControl>
-                          <div 
-                            className="w-10 h-10 rounded-md border shadow-sm shrink-0" 
-                            style={{ backgroundColor: field.value || 'hsl(var(--primary))' }} 
-                          />
-                        </div>
-                        <FormDescription>The primary color for buttons and highlights.</FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                          <FormDescription>Shown in the app header.</FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
                   <FormField
                     control={customizationForm.control}
                     name="headerImageUrl"
@@ -551,7 +572,7 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
                         <FormControl>
                           <Input {...field} placeholder="https://images.unsplash.com/..." />
                         </FormControl>
-                        <FormDescription>A custom photo shown at the top of your menu.</FormDescription>
+                        <FormDescription>Custom photo at the top of the menu.</FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -563,7 +584,7 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
                       <FormItem>
                         <FormLabel className="flex items-center gap-2"><MessageSquare className="h-4 w-4" /> Welcome Message</FormLabel>
                         <FormControl>
-                          <Textarea {...field} placeholder="Enjoy your round! Order refreshments here." rows={2} />
+                          <Textarea {...field} placeholder="Enjoy your round!" rows={2} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -579,7 +600,7 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
                       ) : (
                         <>
                           <Save className="mr-2 h-4 w-4" />
-                          Apply Custom Branding
+                          Apply Branding
                         </>
                       )}
                     </Button>

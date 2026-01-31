@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -6,6 +7,10 @@ import { usePathname } from 'next/navigation';
 import { ShoppingCart } from 'lucide-react';
 import { useCart } from '@/lib/cart-context';
 import { useState, useEffect } from 'react';
+import { useFirestore, useDoc, useMemoFirebase } from '@/firebase';
+import { doc } from 'firebase/firestore';
+import type { Seller } from '@/lib/types';
+import Image from 'next/image';
 
 const GolfBallIcon = (props: React.SVGProps<SVGSVGElement>) => (
     <svg
@@ -34,6 +39,7 @@ const GolfBallIcon = (props: React.SVGProps<SVGSVGElement>) => (
 
 export function AppHeader() {
   const pathname = usePathname();
+  const firestore = useFirestore();
   const { total, totalItems, setIsCartOpen } = useCart();
   
   const [isMounted, setIsMounted] = useState(false);
@@ -42,11 +48,16 @@ export function AppHeader() {
     setIsMounted(true);
   }, []);
 
-  // Compute values that depend on pathname. usePathname is safe for SSR.
+  // Attempt to extract sellerId from path (e.g., /sellers/[sellerId]/...)
+  const sellerIdMatch = pathname?.match(/^\/sellers\/([^/]+)/);
+  const sellerId = sellerIdMatch ? sellerIdMatch[1] : null;
+
+  const sellerRef = useMemoFirebase(() => (firestore && sellerId ? doc(firestore, 'sellers', sellerId) : null), [firestore, sellerId]);
+  const { data: seller } = useDoc<Seller>(sellerRef);
+
   const isOrderPage = pathname?.includes('/order') && !pathname?.includes('/track');
   const isDriverPage = pathname === '/seller/bevcartdriver';
 
-  // Hide the global header on the Driver Dashboard.
   if (isDriverPage) return null;
 
   return (
@@ -54,12 +65,34 @@ export function AppHeader() {
       <div className="container mx-auto flex h-16 items-center justify-between px-4">
         <div className="flex items-center gap-8">
             <Link href="/" className="flex items-center gap-2">
-            <GolfBallIcon className="h-8 w-8 text-primary" />
-            <span className="font-headline text-2xl font-bold text-foreground">
-                Koop
-            </span>
+            {seller && isMounted ? (
+              <div className="flex items-center gap-3">
+                {seller.logoUrl ? (
+                  <div className="relative w-10 h-10 overflow-hidden rounded-md">
+                    <Image 
+                      src={seller.logoUrl} 
+                      alt={seller.courseName} 
+                      fill 
+                      className="object-contain" 
+                    />
+                  </div>
+                ) : (
+                  <GolfBallIcon className="h-8 w-8 text-primary" />
+                )}
+                <span className="font-headline text-lg md:text-xl font-bold text-foreground">
+                    {seller.courseName}
+                </span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <GolfBallIcon className="h-8 w-8 text-primary" />
+                <span className="font-headline text-2xl font-bold text-foreground">
+                    Koop
+                </span>
+              </div>
+            )}
             </Link>
-            {!isOrderPage && (
+            {!isOrderPage && !seller && (
               <nav className="hidden lg:flex items-center gap-4 text-sm font-medium">
                   <Link href="/#features" className="text-foreground hover:text-primary transition-colors">Features</Link>
                   <Link href="/#pricing" className="text-foreground hover:text-primary transition-colors">Pricing</Link>
@@ -68,11 +101,6 @@ export function AppHeader() {
             )}
         </div>
         <div className="flex items-center gap-2 md:gap-4">
-            {/* 
-              HYDRATION SAFETY: 
-              During initial render (isMounted === false), render the common 'guest' UI.
-              After mount (isMounted === true), we can render path-specific or state-specific UI like the cart.
-            */}
             {isMounted && isOrderPage ? (
               <Button 
                 variant="outline" 
