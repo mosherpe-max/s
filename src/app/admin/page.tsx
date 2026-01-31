@@ -228,6 +228,17 @@ export default function KoopAdminPage() {
     }
   }, [halfwayCount, isHalfwayHouseEnabled, append, remove, form]);
 
+  // Clear invalid menu types when establishment type changes
+  useEffect(() => {
+    const validOptions = getMenuOptionsForType(selectedType);
+    const currentMenuTypes = form.getValues('menuTypes') || [];
+    const filteredMenuTypes = currentMenuTypes.filter(t => validOptions.includes(t));
+    
+    if (filteredMenuTypes.length !== currentMenuTypes.length) {
+      form.setValue('menuTypes', filteredMenuTypes);
+    }
+  }, [selectedType, form]);
+
   const handleOpenForm = (seller: Seller | null = null) => {
     setEditingSeller(seller);
     if (seller) {
