@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useMemo, useEffect, useRef, use } from 'react';
@@ -255,6 +256,7 @@ export default function SellerAdminPage({
         batch.set(sellerDoc, {
           id: sellerId,
           courseName: sellerId === 'demo-course' ? 'Demo Golf Course' : 'Sample Course',
+          type: 'Public Golf Course',
           courseAddress: '123 Fairway Drive, Pebble Beach, CA',
           latitude: 42.7748,
           longitude: -83.2139,
@@ -423,6 +425,11 @@ export default function SellerAdminPage({
           <h1 className="font-headline text-2xl md:text-3xl font-bold text-foreground">
             Seller Admin - {isSellerLoading ? 'Loading...' : (seller?.courseName || sellerId)}
           </h1>
+          {seller && (
+             <Badge variant="outline" className="mt-1 text-xs uppercase font-bold tracking-wider">
+               {seller.type}
+             </Badge>
+          )}
         </header>
 
         <section className="mb-12">

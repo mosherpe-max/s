@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState } from 'react';
@@ -29,10 +30,12 @@ import {
 } from "@/components/ui/table";
 import { Badge } from '@/components/ui/badge';
 import type { Seller } from '@/lib/types';
+import { sellerTypes } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 
 const sellerSchema = z.object({
   courseName: z.string().min(1, 'Course name is required'),
+  type: z.enum(['Private Golf Course', 'Semi Private Golf Course', 'Public Golf Course', 'Bowling Alley', 'Brewery', 'Restaurant']),
   courseAddress: z.string().min(1, 'Address is required'),
   latitude: z.coerce.number(),
   longitude: z.coerce.number(),
@@ -62,6 +65,7 @@ export default function KoopAdminPage() {
     resolver: zodResolver(sellerSchema),
     defaultValues: {
       courseName: '',
+      type: 'Public Golf Course',
       courseAddress: '',
       latitude: 0,
       longitude: 0,
@@ -80,6 +84,7 @@ export default function KoopAdminPage() {
     } else {
       form.reset({
         courseName: '',
+        type: 'Public Golf Course',
         courseAddress: '',
         latitude: 0,
         longitude: 0,
@@ -150,6 +155,7 @@ export default function KoopAdminPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Course Name</TableHead>
+                    <TableHead>Type</TableHead>
                     <TableHead>Contact</TableHead>
                     <TableHead>Location</TableHead>
                     <TableHead>Fee</TableHead>
@@ -161,6 +167,9 @@ export default function KoopAdminPage() {
                   {sellers.map((seller) => (
                     <TableRow key={seller.id}>
                       <TableCell className="font-medium">{seller.courseName}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="text-[10px] uppercase">{seller.type}</Badge>
+                      </TableCell>
                       <TableCell>
                         <div className="flex flex-col text-xs">
                           <span className="font-semibold">{seller.contactName}</span>
@@ -215,12 +224,35 @@ export default function KoopAdminPage() {
                   name="courseName"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Course Name</FormLabel>
+                      <FormLabel>Course/Establishment Name</FormLabel>
                       <FormControl><Input {...field} placeholder="e.g. Pebble Beach" /></FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
+                <FormField
+                  control={form.control}
+                  name="type"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Seller Type</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {sellerTypes.map((type) => (
+                            <SelectItem key={type} value={type}>{type}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
                   name="status"
@@ -240,6 +272,17 @@ export default function KoopAdminPage() {
                     </FormItem>
                   )}
                 />
+                 <FormField
+                  control={form.control}
+                  name="serviceFee"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Service Fee ($)</FormLabel>
+                      <FormControl><Input type="number" step="0.01" {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               </div>
 
               <FormField
@@ -247,14 +290,14 @@ export default function KoopAdminPage() {
                 name="courseAddress"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Course Address</FormLabel>
+                    <FormLabel>Address</FormLabel>
                     <FormControl><Input {...field} placeholder="Full address" /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
                   name="latitude"
@@ -273,17 +316,6 @@ export default function KoopAdminPage() {
                     <FormItem>
                       <FormLabel>Longitude</FormLabel>
                       <FormControl><Input type="number" step="0.000001" {...field} /></FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="serviceFee"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Service Fee ($)</FormLabel>
-                      <FormControl><Input type="number" step="0.01" {...field} /></FormControl>
                       <FormMessage />
                     </FormItem>
                   )}

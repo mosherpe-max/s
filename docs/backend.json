@@ -13,7 +13,12 @@
         },
         "courseName": {
           "type": "string",
-          "description": "The name of the golf course."
+          "description": "The name of the golf course or establishment."
+        },
+        "type": {
+          "type": "string",
+          "enum": ["Private Golf Course", "Semi Private Golf Course", "Public Golf Course", "Bowling Alley", "Brewery", "Restaurant"],
+          "description": "The type of establishment for the seller."
         },
         "courseAddress": {
           "type": "string",
@@ -52,6 +57,7 @@
       },
       "required": [
         "courseName",
+        "type",
         "courseAddress",
         "contactName",
         "contactEmail",
