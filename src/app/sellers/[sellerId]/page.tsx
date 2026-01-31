@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useMemo, useEffect, useRef, use } from 'react';
@@ -226,12 +225,28 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
           contactPhone: '555-0100', serviceFee: 2.50, status: 'Active'
         });
       }
+
+      // Seed Menu Items
       mockMenuItems.forEach((item, index) => {
         const newItemRef = doc(collection(firestore, 'sellers', sellerId, 'menuItems'));
         batch.set(newItemRef, { ...item, id: newItemRef.id, rank: index + 1 });
       });
+
+      // Seed Members for Private Courses
+      const mockMembers = [
+        { name: 'Jane Doe', memberNumber: 'MEM-1001' },
+        { name: 'John Smith', memberNumber: 'MEM-1002' },
+        { name: 'Alice Johnson', memberNumber: 'MEM-1003' },
+        { name: 'Robert Brown', memberNumber: 'MEM-1004' }
+      ];
+
+      mockMembers.forEach((member) => {
+        const memberRef = doc(collection(firestore, 'sellers', sellerId, 'members'));
+        batch.set(memberRef, { ...member, id: memberRef.id });
+      });
+
       await batch.commit();
-      toast({ title: "Database Initialized" });
+      toast({ title: "Database Initialized", description: "Demo course, menu, and members loaded." });
     } catch (e) { toast({ variant: "destructive", title: "Seeding Failed" }); }
     finally { setIsSeeding(false); }
   };
@@ -273,6 +288,7 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
       <div className="container mx-auto px-4 py-20 flex flex-col items-center justify-center text-center">
         <Database className="h-16 w-16 text-muted-foreground mb-4 opacity-20" />
         <h1 className="font-headline text-3xl font-bold mb-2">Initialize Demo Course</h1>
+        <p className="text-muted-foreground mb-8 max-w-sm mx-auto">Click below to set up the "Demo Golf Course" with sample menu items and a member list for testing.</p>
         <Button size="lg" onClick={handleSeedData} disabled={isSeeding}>{isSeeding ? 'Initializing...' : 'Set Up Demo Course'}</Button>
       </div>
     );
