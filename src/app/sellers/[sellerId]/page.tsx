@@ -1,13 +1,13 @@
 
 'use client';
 
-import React, { useState, useMemo, useEffect, useRef, use } from 'react';
+import React, { useState, useMemo, useEffect, use } from 'react';
 import { collection, doc, setDoc, deleteDoc, writeBatch, query, where, updateDoc } from 'firebase/firestore';
 import { useFirestore, useDoc, useCollection, useMemoFirebase } from '@/firebase';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
-import { PlusCircle, Edit, Trash2, GripVertical, Filter, DollarSign, ShoppingBag, Clock, Database, Users, UserPlus, Sparkles, Download, Calendar as CalendarIcon, FileSpreadsheet, Palette, Save, Loader2, Upload, Smartphone, Beer, Martini, GlassWater, Cookie, ListChecks } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { PlusCircle, Edit, Trash2, Filter, DollarSign, ShoppingBag, Clock, Database, Users, UserPlus, Sparkles, Download, Calendar as CalendarIcon, FileSpreadsheet, Palette, Save, Loader2, Upload, Smartphone, Beer, ListChecks, ChevronUp, ChevronDown, Check } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -52,7 +52,7 @@ const menuItemSchema = z.object({
   description: z.string().optional(),
   price: z.coerce.number().min(0, 'Price must be a positive number'),
   category: z.enum(categories),
-  availableOn: z.array(z.string()).min(1, 'Select at least one menu type'),
+  availableOn: z.array(z.string()).optional(),
 });
 
 type MenuItemFormData = z.infer<typeof menuItemSchema>;
@@ -66,7 +66,7 @@ const memberSchema = z.object({
 type MemberFormData = z.infer<typeof memberSchema>;
 
 const customizationSchema = z.object({
-  brandColor: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, 'Must be a valid HEX color (e.g. #22c55e)').optional().or(z.literal('')),
+  brandColor: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, 'Must be a valid HEX color').optional().or(z.literal('')),
   logoUrl: z.string().optional().or(z.literal('')),
 });
 
@@ -79,18 +79,16 @@ const sampleMembers = [
   { name: 'Robert Brown', memberNumber: '1004', status: 'Active' }
 ];
 
-function MenuItemForm({
+function MasterItemForm({
   onSave,
   onClose,
   menuItem,
   disabled,
-  sellerMenuTypes,
 }: {
   onSave: (itemData: MenuItemFormData) => void;
   onClose: () => void;
   menuItem?: MenuItem | null;
   disabled?: boolean;
-  sellerMenuTypes: string[];
 }) {
   const form = useForm<MenuItemFormData>({
     resolver: zodResolver(menuItemSchema),
@@ -99,11 +97,9 @@ function MenuItemForm({
       description: '',
       price: 0,
       category: 'Beer',
-      availableOn: sellerMenuTypes,
+      availableOn: [],
     },
   });
-
-  const isEditing = !!menuItem;
 
   useEffect(() => {
     form.reset(menuItem || { 
@@ -111,78 +107,32 @@ function MenuItemForm({
       description: '', 
       price: 0, 
       category: 'Beer', 
-      availableOn: sellerMenuTypes 
+      availableOn: [] 
     });
-  }, [menuItem, form, sellerMenuTypes]);
+  }, [menuItem, form]);
 
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSave)}>
-        <div className="grid gap-4 py-4 max-h-[70vh] overflow-y-auto pr-2">
+        <div className="grid gap-4 py-4 pr-2">
           <FormField control={form.control} name="name" render={({ field }) => (
             <FormItem><FormLabel>Item Name</FormLabel><FormControl><Input {...field} placeholder="e.g., Craft IPA" /></FormControl><FormMessage /></FormItem>
           )} />
           <FormField control={form.control} name="description" render={({ field }) => (
             <FormItem><FormLabel>Description</FormLabel><FormControl><Textarea {...field} placeholder="A short description of the item." /></FormControl><FormMessage /></FormItem>
           )} />
-          <FormField control={form.control} name="price" render={({ field }) => (
-            <FormItem><FormLabel>Price</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
-          )} />
-          <FormField control={form.control} name="category" render={({ field }) => (
-            <FormItem><FormLabel>Category</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select a category" /></SelectTrigger></FormControl><SelectContent>{categories.map((cat) => (<SelectItem key={cat} value={cat}>{cat}</SelectItem>))}</SelectContent></Select><FormMessage /></FormItem>
-          )} />
-
-          <FormField
-            control={form.control}
-            name="availableOn"
-            render={() => (
-              <FormItem className="space-y-3">
-                <FormLabel className="flex items-center gap-2">
-                  <ListChecks className="h-4 w-4" /> Available On
-                </FormLabel>
-                <div className="grid grid-cols-1 gap-2 border rounded-md p-3">
-                  {sellerMenuTypes.map((type) => (
-                    <FormField
-                      key={type}
-                      control={form.control}
-                      name="availableOn"
-                      render={({ field }) => {
-                        return (
-                          <FormItem
-                            key={type}
-                            className="flex flex-row items-start space-x-3 space-y-0"
-                          >
-                            <FormControl>
-                              <Checkbox
-                                checked={field.value?.includes(type)}
-                                onCheckedChange={(checked) => {
-                                  return checked
-                                    ? field.onChange([...field.value, type])
-                                    : field.onChange(
-                                        field.value?.filter(
-                                          (value) => value !== type
-                                        )
-                                      )
-                                }}
-                              />
-                            </FormControl>
-                            <FormLabel className="text-sm font-normal cursor-pointer">
-                              {type}
-                            </FormLabel>
-                          </FormItem>
-                        )
-                      }}
-                    />
-                  ))}
-                </div>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+          <div className="grid grid-cols-2 gap-4">
+            <FormField control={form.control} name="price" render={({ field }) => (
+                <FormItem><FormLabel>Price</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
+            )} />
+            <FormField control={form.control} name="category" render={({ field }) => (
+                <FormItem><FormLabel>Category</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select a category" /></SelectTrigger></FormControl><SelectContent>{categories.map((cat) => (<SelectItem key={cat} value={cat}>{cat}</SelectItem>))}</SelectContent></Select><FormMessage /></FormItem>
+            )} />
+          </div>
         </div>
         <div className="flex justify-end gap-2 pt-4 border-t">
           <Button type="button" variant="ghost" onClick={onClose}>Cancel</Button>
-          <Button type="submit" disabled={disabled}>{isEditing ? 'Save Changes' : 'Add Item'}</Button>
+          <Button type="submit" disabled={disabled}>{menuItem ? 'Save Changes' : 'Add Item'}</Button>
         </div>
       </form>
     </Form>
@@ -246,12 +196,12 @@ function MemberForm({
 
 function StatTile({ title, revenue, orders, longWait }: { title: string, revenue: number, orders: number, longWait: number }) {
   return (
-    <Card className="flex-1 min-w-[300px]">
+    <Card className="flex-1 min-w-[300px] shadow-sm">
       <CardHeader className="pb-2">
         <CardTitle className="text-lg font-headline">{title}</CardTitle>
         <CardDescription>Sales Performance</CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-4 pt-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2"><DollarSign className="h-4 w-4 text-primary" /><span className="text-sm font-medium">Total Revenue</span></div>
           <span className="font-mono font-bold">${revenue.toFixed(2)}</span>
@@ -274,10 +224,7 @@ function MobilePreview({ logoUrl, brandColor, sellerName, menuType }: { logoUrl?
   
   return (
     <div className="relative mx-auto border-[8px] border-slate-900 rounded-[2.5rem] h-[550px] w-[280px] bg-background shadow-2xl overflow-hidden flex flex-col font-body">
-      {/* Phone Notch */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-6 bg-slate-900 rounded-b-2xl z-30"></div>
-      
-      {/* Header Mock */}
       <div className="px-4 pt-8 pb-3 border-b bg-background/95 flex items-center gap-2 shrink-0">
         {logoUrl ? (
           <div className="relative w-8 h-8 rounded-md overflow-hidden shrink-0">
@@ -290,8 +237,6 @@ function MobilePreview({ logoUrl, brandColor, sellerName, menuType }: { logoUrl?
         )}
         <span className="text-xs font-bold truncate font-headline">{sellerName}</span>
       </div>
-
-      {/* Menu Body Mock */}
       <div className="flex-1 overflow-hidden p-3 space-y-4">
         <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
           {['Beer', 'Spirits', 'Soft Drinks'].map((cat, i) => (
@@ -300,11 +245,9 @@ function MobilePreview({ logoUrl, brandColor, sellerName, menuType }: { logoUrl?
             </div>
           ))}
         </div>
-        
         <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
           <Beer className="w-3 h-3" style={{ color }} /> BEER MENU
         </div>
-
         <div className="space-y-2">
           {[1, 2].map(i => (
             <div key={i} className="p-3 rounded-xl border bg-card shadow-sm flex justify-between items-start">
@@ -317,15 +260,11 @@ function MobilePreview({ logoUrl, brandColor, sellerName, menuType }: { logoUrl?
           ))}
         </div>
       </div>
-
-      {/* Footer Mock */}
       <div className="p-3 bg-background border-t shrink-0">
         <div className="w-full h-10 rounded-lg flex items-center justify-center text-sm font-bold text-white shadow-lg" style={{ backgroundColor: color }}>
           Place Order ({menuType})
         </div>
       </div>
-      
-      {/* Bottom Bar */}
       <div className="h-1.5 w-24 bg-slate-300 rounded-full mx-auto mb-2 mt-auto"></div>
     </div>
   );
@@ -337,17 +276,19 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
   const { toast } = useToast();
 
   const [isMounted, setIsMounted] = useState(false);
-  const [isItemFormOpen, setIsItemFormOpen] = useState(false);
+  const [isMasterFormOpen, setIsMasterFormOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
+  
+  const [isPickingOpen, setIsPickingOpen] = useState(false);
+  const [pickingMenuType, setPickingMenuType] = useState<string>('');
+
   const [isMemberFormOpen, setIsMemberFormOpen] = useState(false);
   const [editingMember, setEditingMember] = useState<Member | null>(null);
   const [memberToDelete, setMemberToDelete] = useState<Member | null>(null);
-  const [activeFilter, setActiveFilter] = useState<Category | 'All'>('All');
   const [isSeeding, setIsSeeding] = useState(false);
   const [isSavingCustomization, setIsSavingCustomization] = useState(false);
   const [previewMenuType, setPreviewMenuType] = useState<string>('');
 
-  // Export filters
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
 
@@ -416,78 +357,40 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
 
   const handleExportCSV = () => {
     if (!orders) return;
-    
     const start = startDate ? new Date(startDate) : new Date(0);
     const end = endDate ? new Date(endDate) : new Date();
     end.setHours(23, 59, 59, 999);
-
     const filtered = orders.filter(o => {
       const date = o.createdAt.toDate();
       return date >= start && date <= end;
     });
-
     if (filtered.length === 0) {
-      toast({ title: "No data", description: "No sales found for the selected date range.", variant: "destructive" });
+      toast({ title: "No data", description: "No sales found for the selected range.", variant: "destructive" });
       return;
     }
-
-    const headers = ["Order ID", "Date", "Customer", "Payment Method", "Items", "Subtotal", "Service Fee", "Total", "Status"];
-    const rows = filtered.map(o => [
-      o.id,
-      o.createdAt.toDate().toLocaleString(),
-      o.customerName,
-      o.paymentMethod || 'N/A',
-      o.items.map(i => `${i.name} (${i.quantity})`).join("; "),
-      o.subtotal.toFixed(2),
-      o.serviceFee.toFixed(2),
-      o.total.toFixed(2),
-      o.status
-    ]);
-
+    const headers = ["Order ID", "Date", "Customer", "Items", "Total", "Status"];
+    const rows = filtered.map(o => [o.id, o.createdAt.toDate().toLocaleString(), o.customerName, o.items.map(i => `${i.name} (${i.quantity})`).join("; "), o.total.toFixed(2), o.status]);
     const csvContent = [headers, ...rows].map(e => e.join(",")).join("\n");
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.setAttribute("href", url);
-    link.setAttribute("download", `sales_report_${seller?.courseName || sellerId}_${new Date().toISOString().split('T')[0]}.csv`);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
+    link.setAttribute("download", `sales_${sellerId}.csv`);
     link.click();
-    document.body.removeChild(link);
-    
-    toast({ title: "Export Started", description: "Your sales report is downloading." });
   };
 
   const handleSaveCustomization = async (data: CustomizationFormData) => {
     if (!firestore || !sellerId) return;
     setIsSavingCustomization(true);
     const ref = doc(firestore, 'sellers', sellerId);
-    
-    updateDoc(ref, data)
-      .then(() => {
-        toast({ title: "Customization Saved", description: "Your menu branding has been updated." });
-      })
-      .catch((err) => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-          path: ref.path,
-          operation: 'update',
-          requestResourceData: data
-        }));
-      })
-      .finally(() => setIsSavingCustomization(false));
+    updateDoc(ref, data).finally(() => setIsSavingCustomization(false));
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, onChange: (val: string) => void) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 1024 * 1024) { 
-        toast({ variant: 'destructive', title: 'File too large', description: 'Please choose a logo smaller than 1MB.' });
-        return;
-      }
       const reader = new FileReader();
-      reader.onloadend = () => {
-        onChange(reader.result as string);
-      };
+      reader.onloadend = () => onChange(reader.result as string);
       reader.readAsDataURL(file);
     }
   };
@@ -505,78 +408,84 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
           contactPhone: '555-0100', serviceFee: 2.50, status: 'Active', menuTypes: ['Beverage Cart', 'Clubhouse']
         });
       }
-
       mockMenuItems.forEach((item, index) => {
         const newItemRef = doc(collection(firestore, 'sellers', sellerId, 'menuItems'));
         batch.set(newItemRef, { 
-          ...item, 
-          id: newItemRef.id, 
-          rank: index + 1,
-          availableOn: ['Beverage Cart', 'Clubhouse', 'Pool', 'Take Out', 'Halfway House']
+          ...item, id: newItemRef.id, rank: index + 1, 
+          availableOn: ['Beverage Cart'],
+          menuRanks: { 'Beverage Cart': index + 1 }
         });
       });
-
       sampleMembers.forEach((member) => {
         const memberRef = doc(collection(firestore, 'sellers', sellerId, 'members'));
         batch.set(memberRef, { ...member, id: memberRef.id });
       });
-
       await batch.commit();
-      toast({ title: "Database Initialized", description: "Demo course, menu, and members loaded." });
-    } catch (e) { toast({ variant: "destructive", title: "Seeding Failed" }); }
-    finally { setIsSeeding(false); }
+      toast({ title: "Demo Ready", description: "Sample data loaded." });
+    } finally { setIsSeeding(false); }
   };
 
-  const handleSeedMembers = async () => {
-    if (!firestore) return;
-    setIsSeeding(true);
-    try {
-      const batch = writeBatch(firestore);
-      sampleMembers.forEach((member) => {
-        const memberRef = doc(collection(firestore, 'sellers', sellerId, 'members'));
-        batch.set(memberRef, { ...member, id: memberRef.id, status: 'Active' });
-      });
-      await batch.commit();
-      toast({ title: "Members Seeded", description: "Sample member list added for testing." });
-    } catch (e) {
-      toast({ variant: "destructive", title: "Seeding Failed" });
-    } finally {
-      setIsSeeding(false);
-    }
-  };
-
-  const handleSaveMenuItem = (data: MenuItemFormData) => {
+  const handleSaveMasterItem = (data: MenuItemFormData) => {
     if (!firestore) return;
     const itemRef = editingItem ? doc(firestore, 'sellers', sellerId, 'menuItems', editingItem.id) : doc(collection(firestore, 'sellers', sellerId, 'menuItems'));
-    const payload = editingItem ? data : { ...data, id: itemRef.id, rank: (menuItems?.length || 0) + 1 };
-    setDoc(itemRef, payload, { merge: true }).catch(err => errorEmitter.emit('permission-error', new FirestorePermissionError({ path: itemRef.path, operation: 'write', requestResourceData: payload })));
-    setEditingItem(null); setIsItemFormOpen(false);
+    const payload = { ...data, id: itemRef.id, rank: editingItem?.rank || (menuItems?.length || 0) + 1 };
+    setDoc(itemRef, payload, { merge: true });
+    setEditingItem(null); setIsMasterFormOpen(false);
+  };
+
+  const handleToggleItemAvailability = (item: MenuItem, menuType: string) => {
+    if (!firestore) return;
+    const currentAvailable = item.availableOn || [];
+    const isAvailable = currentAvailable.includes(menuType);
+    const nextAvailable = isAvailable ? currentAvailable.filter(t => t !== menuType) : [...currentAvailable, menuType];
+    
+    const updates: Partial<MenuItem> = { availableOn: nextAvailable };
+    
+    // Initialize rank if adding
+    if (!isAvailable) {
+        const menuRanks = item.menuRanks || {};
+        if (!menuRanks[menuType]) {
+            const currentMax = menuItems?.filter(i => i.availableOn?.includes(menuType)).length || 0;
+            menuRanks[menuType] = currentMax + 1;
+            updates.menuRanks = menuRanks;
+        }
+    }
+
+    updateDoc(doc(firestore, 'sellers', sellerId, 'menuItems', item.id), updates);
+  };
+
+  const handleRerank = (item: MenuItem, menuType: string, direction: 'up' | 'down') => {
+    if (!firestore || !menuItems) return;
+    
+    const itemsInMenu = menuItems
+        .filter(i => i.availableOn?.includes(menuType) && i.category === item.category)
+        .sort((a, b) => (a.menuRanks?.[menuType] || 0) - (b.menuRanks?.[menuType] || 0));
+    
+    const currentIndex = itemsInMenu.findIndex(i => i.id === item.id);
+    const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+
+    if (targetIndex >= 0 && targetIndex < itemsInMenu.length) {
+        const targetItem = itemsInMenu[targetIndex];
+        const currentRank = item.menuRanks?.[menuType] || currentIndex + 1;
+        const targetRank = targetItem.menuRanks?.[menuType] || targetIndex + 1;
+
+        const batch = writeBatch(firestore);
+        batch.update(doc(firestore, 'sellers', sellerId, 'menuItems', item.id), {
+            [`menuRanks.${menuType}`]: targetRank
+        });
+        batch.update(doc(firestore, 'sellers', sellerId, 'menuItems', targetItem.id), {
+            [`menuRanks.${menuType}`]: currentRank
+        });
+        batch.commit();
+    }
   };
 
   const handleSaveMember = (data: MemberFormData) => {
     if (!firestore) return;
     const memberRef = editingMember ? doc(firestore, 'sellers', sellerId, 'members', editingMember.id) : doc(collection(firestore, 'sellers', sellerId, 'members'));
-    const payload = { ...data, id: memberRef.id };
-    setDoc(memberRef, payload, { merge: true }).catch(err => errorEmitter.emit('permission-error', new FirestorePermissionError({ path: memberRef.path, operation: 'write', requestResourceData: payload })));
+    setDoc(memberRef, { ...data, id: memberRef.id }, { merge: true });
     setEditingMember(null); setIsMemberFormOpen(false);
   };
-
-  const handleConfirmDeleteMember = () => {
-    if (!firestore || !memberToDelete) return;
-    const ref = doc(firestore, 'sellers', sellerId, 'members', memberToDelete.id);
-    deleteDoc(ref).catch(err => errorEmitter.emit('permission-error', new FirestorePermissionError({ path: ref.path, operation: 'delete' })));
-    setMemberToDelete(null);
-  };
-
-  const groupedItems = useMemo(() => {
-    if (!menuItems) return {};
-    return menuItems.reduce((acc, item) => {
-      const cat = item.category || 'Uncategorized';
-      if (!acc[cat]) acc[cat] = [];
-      acc[cat].push(item);
-      return acc;
-    }, {} as Record<string, MenuItem[]>);
-  }, [menuItems]);
 
   if (!isMounted) return null;
 
@@ -585,113 +494,85 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
       <div className="container mx-auto px-4 py-20 flex flex-col items-center justify-center text-center">
         <Database className="h-16 w-16 text-muted-foreground mb-4 opacity-20" />
         <h1 className="font-headline text-3xl font-bold mb-2">Initialize Demo Course</h1>
-        <p className="text-muted-foreground mb-8 max-w-sm mx-auto">Click below to set up the "Demo Golf Course" with sample menu items and a member list for testing.</p>
         <Button size="lg" onClick={handleSeedData} disabled={isSeeding}>{isSeeding ? 'Initializing...' : 'Set Up Demo Course'}</Button>
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <header className="mb-8">
+    <div className="container mx-auto px-4 py-8 max-w-7xl">
+      <header className="mb-10">
         <div className="flex items-center gap-3">
-            <h1 className="font-headline text-2xl md:text-3xl font-bold text-foreground">Seller Admin</h1>
+            <h1 className="font-headline text-3xl font-bold text-foreground">Seller Admin</h1>
             {seller && <Badge variant="outline">{seller.type}</Badge>}
         </div>
-        <p className="text-muted-foreground text-sm mt-1">Manage establishment settings, menu items, and sales reports.</p>
+        <p className="text-muted-foreground text-sm mt-1">Configure your menus, monitor performance, and customize your brand.</p>
       </header>
 
       <section className="mb-12">
-        <h2 className="font-headline text-xl font-bold mb-4 flex items-center gap-2"><DollarSign className="h-6 w-6 text-primary" /> Sales Data Dashboard</h2>
-        <div className="flex flex-wrap gap-4">{dashboardStats ? (
-          <>
-            <StatTile title="Daily" {...dashboardStats.daily} />
-            <StatTile title="This Month" {...dashboardStats.monthly} />
-            <StatTile title="This Year" {...dashboardStats.yearly} />
-          </>
-        ) : <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full"><Skeleton className="h-40 w-full" /><Skeleton className="h-40 w-full" /><Skeleton className="h-40 w-full" /></div>}</div>
+        <h2 className="font-headline text-xl font-bold mb-6 flex items-center gap-2"><DollarSign className="h-6 w-6 text-primary" /> Performance Overview</h2>
+        <div className="flex flex-wrap gap-4">
+            {dashboardStats ? (
+                <>
+                    <StatTile title="Daily" {...dashboardStats.daily} />
+                    <StatTile title="Monthly" {...dashboardStats.monthly} />
+                    <StatTile title="Yearly" {...dashboardStats.yearly} />
+                </>
+            ) : <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full"><Skeleton className="h-40 w-full" /><Skeleton className="h-40 w-full" /><Skeleton className="h-40 w-full" /></div>}
+        </div>
       </section>
 
-      <section className="mb-12">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Card className="flex flex-col h-full">
-            <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-              <div>
-                <CardTitle className="flex items-center gap-2"><FileSpreadsheet className="h-5 w-5" /> Recent Sales & Export</CardTitle>
-                <CardDescription>View latest activity or export historical data.</CardDescription>
-              </div>
-              <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
-                <Button onClick={handleExportCSV} variant="outline" size="sm" className="w-full sm:w-auto">
-                  <Download className="mr-2 h-4 w-4" /> Export CSV
-                </Button>
-              </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
+          {/* Sales Card */}
+          <Card className="shadow-sm border-muted h-full flex flex-col">
+            <CardHeader className="bg-muted/30">
+              <CardTitle className="flex items-center gap-2 text-lg"><FileSpreadsheet className="h-5 w-5" /> Recent Sales</CardTitle>
             </CardHeader>
-            <CardContent className="flex-1">
-              <div className="flex flex-wrap gap-2 mb-4">
-                <div className="flex items-center gap-2">
-                  <CalendarIcon className="h-4 w-4 text-muted-foreground" />
-                  <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="h-8 w-28 md:w-36 text-xs" />
-                  <span className="text-muted-foreground">-</span>
-                  <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="h-8 w-28 md:w-36 text-xs" />
-                </div>
+            <CardContent className="flex-1 pt-6">
+              <div className="flex flex-wrap gap-2 mb-6">
+                  <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="h-9 w-36 text-xs" />
+                  <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="h-9 w-36 text-xs" />
+                  <Button onClick={handleExportCSV} variant="outline" size="sm" className="h-9"><Download className="mr-2 h-4 w-4" /> Export CSV</Button>
               </div>
               {areOrdersLoading ? <Skeleton className="h-32 w-full" /> : recentOrders && recentOrders.length > 0 ? (
                 <div className="overflow-x-auto">
                   <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Date</TableHead>
-                        <TableHead>Customer</TableHead>
-                        <TableHead>Total</TableHead>
-                        <TableHead>Status</TableHead>
-                      </TableRow>
-                    </TableHeader>
+                    <TableHeader><TableRow><TableHead>Date</TableHead><TableHead>Customer</TableHead><TableHead>Total</TableHead></TableRow></TableHeader>
                     <TableBody>
                       {recentOrders.map(order => (
                         <TableRow key={order.id}>
                           <TableCell className="text-xs">{order.createdAt && format(order.createdAt.toDate(), 'MMM d, h:mm a')}</TableCell>
                           <TableCell className="text-sm font-medium">{order.customerName}</TableCell>
                           <TableCell className="font-mono text-sm">${order.total.toFixed(2)}</TableCell>
-                          <TableCell>
-                            <Badge variant="outline" className="text-[10px]">{order.status}</Badge>
-                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
                   </Table>
                 </div>
-              ) : (
-                <div className="text-center py-8 text-muted-foreground italic">No recent sales data available.</div>
-              )}
+              ) : <div className="text-center py-10 text-muted-foreground italic">No recent sales.</div>}
             </CardContent>
           </Card>
 
-          <Card className="flex flex-col h-full">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2"><Palette className="h-5 w-5" /> Menu Branding</CardTitle>
-              <CardDescription>Customize the look and feel of your digital menu for buyers with live mobile preview.</CardDescription>
+          {/* Branding Card */}
+          <Card className="shadow-sm border-muted h-full flex flex-col">
+            <CardHeader className="bg-muted/30">
+              <CardTitle className="flex items-center gap-2 text-lg"><Palette className="h-5 w-5" /> Menu Branding</CardTitle>
             </CardHeader>
-            <CardContent className="flex-1">
+            <CardContent className="flex-1 pt-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div className="space-y-6">
                   <Form {...customizationForm}>
-                    <form onSubmit={customizationForm.handleSubmit(handleSaveCustomization)} className="space-y-4">
+                    <form onSubmit={customizationForm.handleSubmit(handleSaveCustomization)} className="space-y-5">
                       <FormField
                         control={customizationForm.control}
                         name="brandColor"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="flex items-center gap-2"><Palette className="h-4 w-4" /> Brand Color</FormLabel>
+                            <FormLabel className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-muted-foreground"><Palette className="h-3.5 w-3.5" /> Brand Color</FormLabel>
                             <div className="flex gap-2">
-                              <FormControl>
-                                <Input {...field} placeholder="#22c55e" />
-                              </FormControl>
-                              <div 
-                                className="w-10 h-10 rounded-md border shadow-sm shrink-0" 
-                                style={{ backgroundColor: field.value || watchedValues.brandColor }} 
-                              />
+                              <FormControl><Input {...field} placeholder="#22c55e" className="h-9" /></FormControl>
+                              <div className="w-9 h-9 rounded-md border shadow-sm shrink-0" style={{ backgroundColor: field.value || watchedValues.brandColor }} />
                             </div>
-                            <FormMessage />
                           </FormItem>
                         )}
                       />
@@ -700,146 +581,139 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
                         name="logoUrl"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="flex items-center gap-2"><Upload className="h-4 w-4" /> Seller Logo</FormLabel>
-                            <FormControl>
-                              <div className="space-y-3">
-                                <Input 
-                                  type="file" 
-                                  accept="image/jpeg,image/png" 
-                                  onChange={(e) => handleFileChange(e, field.onChange)} 
-                                />
-                              </div>
-                            </FormControl>
-                            <FormDescription>Pick file from computer. Recommended: JPEG.</FormDescription>
-                            <FormMessage />
+                            <FormLabel className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-muted-foreground"><Upload className="h-3.5 w-3.5" /> Logo (JPEG/PNG)</FormLabel>
+                            <FormControl><Input type="file" accept="image/*" onChange={(e) => handleFileChange(e, field.onChange)} className="h-9" /></FormControl>
                           </FormItem>
                         )}
                       />
-
                       <div className="space-y-2">
-                        <FormLabel>Preview Menu Type</FormLabel>
+                        <FormLabel className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Preview Menu Type</FormLabel>
                         <Select value={previewMenuType} onValueChange={setPreviewMenuType}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select menu type" />
-                          </SelectTrigger>
+                          <SelectTrigger className="h-9"><SelectValue placeholder="Select type" /></SelectTrigger>
                           <SelectContent>
-                            {seller?.menuTypes?.map(type => (
-                              <SelectItem key={type} value={type}>{type}</SelectItem>
-                            ))}
-                            {(!seller?.menuTypes || seller?.menuTypes.length === 0) && (
-                              <SelectItem value="Default">Default</SelectItem>
-                            )}
+                            {seller?.menuTypes?.map(type => <SelectItem key={type} value={type}>{type}</SelectItem>)}
                           </SelectContent>
                         </Select>
-                        <FormDescription>Visualize how your menu looks for different delivery modes.</FormDescription>
                       </div>
-
-                      <div className="flex justify-end pt-2">
-                        <Button type="submit" disabled={isSavingCustomization}>
-                          {isSavingCustomization ? (
-                            <>
-                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                              Saving...
-                            </>
-                          ) : (
-                            <>
-                              <Save className="mr-2 h-4 w-4" />
-                              Apply Branding
-                            </>
-                          )}
-                        </Button>
-                      </div>
+                      <Button type="submit" disabled={isSavingCustomization} className="w-full">
+                        {isSavingCustomization ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : <Save className="mr-2 h-4 w-4" />}
+                        Save Branding
+                      </Button>
                     </form>
                   </Form>
                 </div>
-                
                 <div className="flex flex-col items-center justify-center bg-muted/20 p-4 rounded-xl border border-dashed">
-                   <div className="text-xs font-bold text-muted-foreground mb-4 uppercase tracking-widest flex items-center gap-2">
-                      <Smartphone className="w-4 h-4" /> Live Mobile Preview
-                   </div>
-                   <MobilePreview 
-                      logoUrl={watchedValues.logoUrl} 
-                      brandColor={watchedValues.brandColor} 
-                      sellerName={seller?.courseName || 'Demo Establishment'}
-                      menuType={previewMenuType || 'Order'}
-                   />
+                   <MobilePreview logoUrl={watchedValues.logoUrl} brandColor={watchedValues.brandColor} sellerName={seller?.courseName || 'Demo Establishment'} menuType={previewMenuType || 'Order'} />
                 </div>
               </div>
             </CardContent>
           </Card>
-        </div>
-      </section>
-
-      <div className="flex flex-col md:flex-row gap-4 mb-6">
-        <div className="flex flex-wrap gap-2 items-center flex-1">
-          <Filter className="h-4 w-4 text-muted-foreground mr-2" />
-          {['All', ...categories].map((filter) => (
-            <Button key={filter} variant={activeFilter === filter ? 'default' : 'outline'} size="sm" onClick={() => setActiveFilter(filter as any)} className="h-8">{filter}</Button>
-          ))}
-        </div>
-        <Button onClick={() => { setEditingItem(null); setIsItemFormOpen(true); }} size="sm" disabled={!seller}><PlusCircle className="mr-2 h-4 w-4" /> Add Menu Item</Button>
       </div>
 
-      <Card className="mb-12">
-        <CardHeader><CardTitle>Menu Items</CardTitle></CardHeader>
+      <Separator className="my-10" />
+
+      {/* MASTER MENU TILE */}
+      <Card className="mb-12 shadow-md border-primary/20 bg-primary/5">
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle className="flex items-center gap-2"><Database className="h-5 w-5 text-primary" /> Master Item Library</CardTitle>
+            <CardDescription>Maintain your global catalog of food and beverages. Changes here reflect across all menus.</CardDescription>
+          </div>
+          <Button onClick={() => { setEditingItem(null); setIsMasterFormOpen(true); }} size="sm" className="shadow-lg"><PlusCircle className="mr-2 h-4 w-4" /> New Master Item</Button>
+        </CardHeader>
         <CardContent>
-          {areItemsLoading ? <div className="space-y-4">{[...Array(5)].map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}</div> : menuItems && menuItems.length > 0 ? (
-            <div className="space-y-6">
-              {categories.filter(cat => activeFilter === 'All' || activeFilter === cat).map((category) => (groupedItems[category]?.length > 0 && (
-                <div key={category}>
-                  <h3 className="font-headline text-xl font-semibold mb-2">{category}</h3>
-                  <Separator />
-                  <div className="space-y-2 mt-4">
-                    {groupedItems[category].sort((a,b) => a.rank - b.rank).map((item) => (
-                      <div key={item.id} className="flex items-center justify-between gap-4 p-2 rounded-lg bg-muted/50 border border-transparent hover:border-border">
-                        <div className="flex items-center gap-4">
-                          <GripVertical className="h-5 w-5 text-muted-foreground" />
-                          <div>
-                            <p className="font-medium">{item.name}</p>
-                            <div className="flex items-center gap-2 mt-0.5">
-                              <p className="text-sm text-muted-foreground">${item.price.toFixed(2)}</p>
-                              <div className="flex gap-1">
-                                {item.availableOn?.map(type => (
-                                  <Badge key={type} variant="outline" className="text-[9px] h-4 px-1">{type}</Badge>
-                                ))}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Badge variant="secondary" className="hidden sm:inline-flex">{item.category}</Badge>
-                          <Button variant="ghost" size="icon" onClick={() => { setEditingItem(item); setIsItemFormOpen(true); }}><Edit className="h-4 w-4" /></Button>
-                          <Button variant="ghost" size="icon" className="text-destructive" onClick={() => { if (!firestore) return; deleteDoc(doc(firestore, 'sellers', sellerId, 'menuItems', item.id)); }}><Trash2 className="h-4 w-4" /></Button>
-                        </div>
-                      </div>
-                    ))}
+          {areItemsLoading ? <Skeleton className="h-40 w-full" /> : menuItems && menuItems.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-4">
+              {menuItems.sort((a,b) => a.name.localeCompare(b.name)).map(item => (
+                <div key={item.id} className="p-4 rounded-xl bg-background border shadow-sm group hover:border-primary/50 transition-all">
+                  <div className="flex justify-between items-start mb-2">
+                    <Badge variant="secondary" className="text-[10px]">{item.category}</Badge>
+                    <div className="flex gap-1">
+                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setEditingItem(item); setIsMasterFormOpen(true); }}><Edit className="h-3.5 w-3.5" /></Button>
+                      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => deleteDoc(doc(firestore!, 'sellers', sellerId, 'menuItems', item.id))}><Trash2 className="h-3.5 w-3.5" /></Button>
+                    </div>
                   </div>
+                  <h4 className="font-bold">{item.name}</h4>
+                  <p className="text-xs text-muted-foreground line-clamp-2 mt-1 mb-2">{item.description}</p>
+                  <p className="font-mono font-bold text-sm text-primary">${item.price.toFixed(2)}</p>
                 </div>
-              )))}
+              ))}
             </div>
-          ) : <div className="text-center py-12 text-muted-foreground">No menu items found.</div>}
+          ) : <div className="text-center py-10 text-muted-foreground italic">Your item library is empty.</div>}
         </CardContent>
       </Card>
 
+      {/* DYNAMIC MENU TYPE TILES */}
+      <h2 className="font-headline text-2xl font-bold mb-6 mt-16 flex items-center gap-2"><ListChecks className="h-6 w-6 text-primary" /> Active Service Menus</h2>
+      <div className="grid grid-cols-1 gap-12">
+        {seller?.menuTypes?.map(menuType => {
+            const itemsInThisMenu = menuItems?.filter(i => i.availableOn?.includes(menuType)) || [];
+            return (
+                <Card key={menuType} className="shadow-lg">
+                    <CardHeader className="flex flex-row items-center justify-between border-b bg-muted/20">
+                        <div>
+                            <CardTitle className="text-xl">{menuType} Menu</CardTitle>
+                            <CardDescription>Customize the selection and order of items specifically for {menuType}.</CardDescription>
+                        </div>
+                        <Button variant="outline" onClick={() => { setPickingMenuType(menuType); setIsPickingOpen(true); }} className="bg-background">
+                            <PlusCircle className="mr-2 h-4 w-4" /> Pick Master Items
+                        </Button>
+                    </CardHeader>
+                    <CardContent className="pt-6">
+                        {itemsInThisMenu.length === 0 ? (
+                            <div className="text-center py-12 border-2 border-dashed rounded-xl">
+                                <p className="text-muted-foreground italic">No items picked for this menu yet.</p>
+                                <Button variant="link" onClick={() => { setPickingMenuType(menuType); setIsPickingOpen(true); }}>Choose items from library</Button>
+                            </div>
+                        ) : (
+                            <div className="space-y-10">
+                                {categories.map(category => {
+                                    const itemsInCategory = itemsInThisMenu
+                                        .filter(i => i.category === category)
+                                        .sort((a, b) => (a.menuRanks?.[menuType] || 0) - (b.menuRanks?.[menuType] || 0));
+                                    
+                                    if (itemsInCategory.length === 0) return null;
+
+                                    return (
+                                        <div key={category} className="space-y-4">
+                                            <h4 className="font-bold text-sm uppercase tracking-[0.2em] text-muted-foreground border-l-4 border-primary pl-3">{category}</h4>
+                                            <div className="space-y-2">
+                                                {itemsInCategory.map((item, idx) => (
+                                                    <div key={item.id} className="flex items-center justify-between p-3 rounded-lg bg-card border group">
+                                                        <div className="flex items-center gap-4">
+                                                            <div className="flex flex-col gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleRerank(item, menuType, 'up')} disabled={idx === 0}><ChevronUp className="h-4 w-4" /></Button>
+                                                                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleRerank(item, menuType, 'down')} disabled={idx === itemsInCategory.length - 1}><ChevronDown className="h-4 w-4" /></Button>
+                                                            </div>
+                                                            <div>
+                                                                <p className="font-medium text-sm">{item.name}</p>
+                                                                <p className="text-xs text-muted-foreground font-mono">${item.price.toFixed(2)}</p>
+                                                            </div>
+                                                        </div>
+                                                        <Button variant="ghost" size="icon" className="text-destructive h-8 w-8" onClick={() => handleToggleItemAvailability(item, menuType)}><Trash2 className="h-4 w-4" /></Button>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
+            );
+        })}
+      </div>
+
       {isClubSeller && (
-        <section className="mb-12">
-          <Card>
-            <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <section className="mt-20 mb-12">
+          <Card className="shadow-sm">
+            <CardHeader className="flex flex-row items-center justify-between">
               <div>
-                <CardTitle className="flex items-center gap-2"><Users className="h-5 w-5" /> Member Management</CardTitle>
-                <CardDescription>Maintain your club member list for member-account charging.</CardDescription>
+                <CardTitle className="flex items-center gap-2"><Users className="h-5 w-5" /> Member List</CardTitle>
+                <CardDescription>Club accounts available for member charging.</CardDescription>
               </div>
-              <div className="flex items-center gap-2">
-                {(!members || members.length === 0) && (
-                   <Button variant="outline" size="sm" onClick={handleSeedMembers} disabled={isSeeding}>
-                    <Sparkles className="mr-2 h-4 w-4 text-amber-500" />
-                    Seed Sample Members
-                  </Button>
-                )}
-                <Button onClick={() => { setEditingMember(null); setIsMemberFormOpen(true); }} size="sm">
-                  <UserPlus className="mr-2 h-4 w-4" /> Add Member
-                </Button>
-              </div>
+              <Button onClick={() => { setEditingMember(null); setIsMemberFormOpen(true); }} size="sm" variant="outline"><UserPlus className="mr-2 h-4 w-4" /> Add Member</Button>
             </CardHeader>
             <CardContent>
               {areMembersLoading ? <Skeleton className="h-32 w-full" /> : members && members.length > 0 ? (
@@ -850,11 +724,7 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
                       <TableRow key={m.id}>
                         <TableCell className="font-medium">{m.name}</TableCell>
                         <TableCell className="font-mono text-xs">{m.memberNumber}</TableCell>
-                        <TableCell>
-                          <Badge variant={m.status === 'Active' ? 'default' : 'secondary'}>
-                            {m.status}
-                          </Badge>
-                        </TableCell>
+                        <TableCell><Badge variant={m.status === 'Active' ? 'default' : 'secondary'}>{m.status}</Badge></TableCell>
                         <TableCell className="text-right">
                           <Button variant="ghost" size="icon" onClick={() => { setEditingMember(m); setIsMemberFormOpen(true); }}><Edit className="h-4 w-4" /></Button>
                           <Button variant="ghost" size="icon" className="text-destructive" onClick={() => setMemberToDelete(m)}><Trash2 className="h-4 w-4" /></Button>
@@ -863,43 +733,67 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
                     ))}
                   </TableBody>
                 </Table>
-              ) : <div className="text-center py-12 text-muted-foreground border-2 border-dashed rounded-lg flex flex-col items-center gap-2">
-                  <Users className="h-8 w-8 opacity-20" />
-                  <p>No members registered for this course.</p>
-                  <p className="text-xs">Add members manually or use the "Seed Sample Members" button above.</p>
-              </div>}
+              ) : <div className="text-center py-10 text-muted-foreground italic">No members registered.</div>}
             </CardContent>
           </Card>
         </section>
       )}
 
-      <Dialog open={isItemFormOpen} onOpenChange={setIsItemFormOpen}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader><DialogTitle>{editingItem ? 'Edit Item' : 'Add Item'}</DialogTitle></DialogHeader>
-          <MenuItemForm 
-            onSave={handleSaveMenuItem} 
-            menuItem={editingItem} 
-            onClose={() => setIsItemFormOpen(false)} 
-            sellerMenuTypes={seller?.menuTypes || []}
-          />
+      {/* DIALOGS */}
+      <Dialog open={isMasterFormOpen} onOpenChange={setIsMasterFormOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader><DialogTitle>{editingItem ? 'Edit Master Item' : 'Create Master Item'}</DialogTitle></DialogHeader>
+          <MasterItemForm onSave={handleSaveMasterItem} menuItem={editingItem} onClose={() => setIsMasterFormOpen(false)} />
         </DialogContent>
       </Dialog>
+
+      <Dialog open={isPickingOpen} onOpenChange={setIsPickingOpen}>
+        <DialogContent className="sm:max-w-[600px] max-h-[85vh] flex flex-col">
+            <DialogHeader>
+                <DialogTitle>Select Items for {pickingMenuType}</DialogTitle>
+                <CardDescription>Pick which items from your Master Library should be available on the {pickingMenuType} menu.</CardDescription>
+            </DialogHeader>
+            <Separator className="my-2" />
+            <div className="flex-1 overflow-y-auto pr-2">
+                {categories.map(category => {
+                    const itemsInCategory = menuItems?.filter(i => i.category === category) || [];
+                    if (itemsInCategory.length === 0) return null;
+                    return (
+                        <div key={category} className="mb-6">
+                            <h5 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">{category}</h5>
+                            <div className="space-y-2">
+                                {itemsInCategory.map(item => {
+                                    const isSelected = item.availableOn?.includes(pickingMenuType);
+                                    return (
+                                        <div key={item.id} onClick={() => handleToggleItemAvailability(item, pickingMenuType)} className={cn(
+                                            "flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-all",
+                                            isSelected ? "border-primary bg-primary/5 shadow-inner" : "hover:bg-muted/50"
+                                        )}>
+                                            <div>
+                                                <p className="text-sm font-bold">{item.name}</p>
+                                                <p className="text-xs text-muted-foreground">${item.price.toFixed(2)}</p>
+                                            </div>
+                                            {isSelected && <Check className="h-5 w-5 text-primary" />}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+            <DialogFooter className="mt-4 border-t pt-4">
+                <Button onClick={() => setIsPickingOpen(false)}>Done</Button>
+            </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={isMemberFormOpen} onOpenChange={setIsMemberFormOpen}><DialogContent className="sm:max-w-[425px]"><DialogHeader><DialogTitle>{editingMember ? 'Edit Member' : 'Add Member'}</DialogTitle></DialogHeader><MemberForm onSave={handleSaveMember} member={editingMember} onClose={() => setIsMemberFormOpen(false)} /></DialogContent></Dialog>
 
       <AlertDialog open={!!memberToDelete} onOpenChange={(open) => !open && setMemberToDelete(null)}>
         <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This action will remove <strong>{memberToDelete?.name}</strong> from the club member list.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmDeleteMember} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Delete Member
-            </AlertDialogAction>
-          </AlertDialogFooter>
+          <AlertDialogHeader><AlertDialogTitle>Delete Member?</AlertDialogTitle><AlertDialogDescription>This will remove <strong>{memberToDelete?.name}</strong> from the club list.</AlertDialogDescription></AlertDialogHeader>
+          <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => { if (!firestore || !memberToDelete) return; deleteDoc(doc(firestore, 'sellers', sellerId, 'members', memberToDelete.id)); setMemberToDelete(null); }} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Delete Member</AlertDialogAction></AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
     </div>

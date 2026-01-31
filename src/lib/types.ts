@@ -50,6 +50,8 @@ export interface MenuItem {
     category: Category;
     rank: number;
     availableOn?: string[];
+    // Per-menu ranking: map of menuType to rank value
+    menuRanks?: Record<string, number>;
 }
 
 export interface Member {
