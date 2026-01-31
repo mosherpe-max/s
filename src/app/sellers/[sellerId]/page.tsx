@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useMemo, useEffect, useRef, use } from 'react';
@@ -176,7 +175,7 @@ function StatTile({ title, revenue, orders, longWait }: { title: string, revenue
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Clock className="h-4 w-4 text-destructive" />
-            <span className="text-sm font-medium">Orders > 10m</span>
+            <span className="text-sm font-medium">Orders {'>'} 10m</span>
           </div>
           <span className="font-mono font-bold text-destructive">{longWait}</span>
         </div>
@@ -185,7 +184,7 @@ function StatTile({ title, revenue, orders, longWait }: { title: string, revenue
   );
 }
 
-export default function SellerMenuAdminPage({
+export default function SellerAdminPage({
   params,
 }: {
   params: { sellerId: string };
