@@ -207,7 +207,7 @@ export default function BevCartDriverDashboardPage() {
 
   return (
     <APIProvider apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!}>
-      <div className="flex flex-col h-[calc(100vh-6px)] overflow-hidden">
+      <div className="flex flex-col h-screen overflow-hidden">
         <header className="flex-shrink-0 px-4 h-16 flex items-center justify-between border-b bg-background z-20 shadow-sm">
           <h1 className="font-headline text-lg md:text-xl font-bold text-foreground">
             {seller?.courseName || 'Demo Course'} - Driver Dashboard
