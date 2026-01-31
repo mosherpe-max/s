@@ -98,11 +98,20 @@ export default function OrderTrackingPage() {
     }
   }, [order, toast]);
 
-  // Effect to track buyer's location every 30 seconds when 'Out for Delivery'
+  // Effect to track buyer's location based on order status
   useEffect(() => {
-    if (!firestore || !order || order.status !== 'Out for Delivery') {
-      return; // Do nothing if no order, or status is not 'Out for Delivery'
+    if (!firestore || !order) return;
+
+    // Determine tracking frequency
+    let intervalTime: number | null = null;
+    if (order.status === 'Preparing') {
+      intervalTime = 60000; // 1 minute
+    } else if (order.status === 'Out for Delivery') {
+      intervalTime = 15000; // 15 seconds
     }
+
+    // Don't start interval if status doesn't require tracking
+    if (!intervalTime) return;
 
     const trackLocation = () => {
       if (navigator.geolocation) {
@@ -110,11 +119,10 @@ export default function OrderTrackingPage() {
           (position) => {
             const { latitude, longitude } = position.coords;
             const orderRef = doc(firestore, 'orders', order.id);
-            // Update the document in Firestore
             updateDoc(orderRef, {
               deliveryLocation: { latitude, longitude }
             }).catch((err) => {
-              console.error("Failed to update buyer location:", err);
+              // Silently handle update errors in prototype
             });
           },
           (error) => {
@@ -129,14 +137,15 @@ export default function OrderTrackingPage() {
       }
     };
 
-    // Set up the interval
-    const intervalId = setInterval(trackLocation, 30000); // 30 seconds
+    // Initial check
+    trackLocation();
 
-    // Cleanup function to clear the interval
+    const intervalId = setInterval(trackLocation, intervalTime);
+
     return () => {
       clearInterval(intervalId);
     };
-  }, [firestore, order]);
+  }, [firestore, order?.id, order?.status]);
 
 
   // Once we have the order, get the seller's information.

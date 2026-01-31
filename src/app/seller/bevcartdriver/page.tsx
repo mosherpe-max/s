@@ -4,7 +4,7 @@ import { collection, query, where, doc, updateDoc } from 'firebase/firestore';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { MapView } from '@/components/map-view';
 import { APIProvider } from '@vis.gl/react-google-maps';
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { OrderCard } from '@/components/order-card';
@@ -23,6 +23,7 @@ type LatLng = {
 export default function BevCartDriverDashboardPage() {
   const firestore = useFirestore();
   const [sellerLocation, setSellerLocation] = useState<LatLng | null>(null);
+  const sellerLocRef = useRef<LatLng | null>(null);
   const [isActive, setIsActive] = useState(true);
   const [zoomMode, setZoomMode] = useState<'radius' | 'all'>('all');
   
@@ -49,6 +50,11 @@ export default function BevCartDriverDashboardPage() {
     return () => clearInterval(interval);
   }, []);
 
+  // Update internal ref when location state changes
+  useEffect(() => {
+    sellerLocRef.current = sellerLocation;
+  }, [sellerLocation]);
+
   useEffect(() => {
     if (navigator.geolocation) {
       const watchId = navigator.geolocation.watchPosition(
@@ -74,6 +80,26 @@ export default function BevCartDriverDashboardPage() {
       setSellerLocation(mockSellerLocation);
     }
   }, []);
+
+  // Effect to sync driver location to Firestore for buyer tracking
+  useEffect(() => {
+    if (!firestore || !isActive) return;
+
+    const syncLocation = async () => {
+      if (sellerLocRef.current) {
+        const sellerRef = doc(firestore, 'sellers', '1'); // Hardcoded ID '1' as used in the demo
+        await updateDoc(sellerRef, {
+          latitude: sellerLocRef.current.latitude,
+          longitude: sellerLocRef.current.longitude
+        }).catch(() => {});
+      }
+    };
+
+    // Update every 15 seconds to satisfy tracking requirements
+    const intervalId = setInterval(syncLocation, 15000);
+
+    return () => clearInterval(intervalId);
+  }, [firestore, isActive]);
 
   const handleUpdateOrderStatus = async (orderId: string, status: Order['status']) => {
     if (!firestore) return;
