@@ -37,18 +37,21 @@ export function AppHeader() {
                 Koop
             </span>
             </Link>
-            <nav className="hidden md:flex items-center gap-4 text-sm font-medium">
+            <nav className="hidden lg:flex items-center gap-4 text-sm font-medium">
                 <Link href="/#features" className="text-foreground hover:text-primary transition-colors">Features</Link>
                 <Link href="/#pricing" className="text-foreground hover:text-primary transition-colors">Pricing</Link>
                 <Link href="/sellers/1/order" className="text-foreground hover:text-primary transition-colors">Demo Menu</Link>
             </nav>
         </div>
-        <div className="flex items-center gap-4">
-            <Button variant="ghost" asChild>
+        <div className="flex items-center gap-2 md:gap-4">
+            <Button variant="ghost" size="sm" asChild className="hidden sm:inline-flex">
+                <Link href="/admin/sellers">Admin</Link>
+            </Button>
+            <Button variant="ghost" size="sm" asChild>
                 <Link href="/seller/dashboard">Driver</Link>
             </Button>
-            <Button asChild>
-                <Link href="/sellers/1">Seller Admin</Link>
+            <Button size="sm" asChild>
+                <Link href="/sellers/1">Menu Mgr</Link>
             </Button>
         </div>
       </div>
