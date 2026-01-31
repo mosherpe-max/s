@@ -1,14 +1,14 @@
 'use client'
 
 import { collection, query, where, doc, updateDoc } from 'firebase/firestore';
-import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import { useCollection, useFirestore, useMemoFirebase, useDoc } from '@/firebase';
 import { MapView } from '@/components/map-view';
 import { APIProvider } from '@vis.gl/react-google-maps';
 import { useEffect, useState, useMemo, useRef } from 'react';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { OrderCard } from '@/components/order-card';
-import type { Order } from '@/lib/types';
+import type { Order, Seller } from '@/lib/types';
 import { mockSellerLocation } from '@/lib/data';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -24,10 +24,18 @@ export default function BevCartDriverDashboardPage() {
   const firestore = useFirestore();
   const [sellerLocation, setSellerLocation] = useState<LatLng | null>(null);
   const sellerLocRef = useRef<LatLng | null>(null);
-  const [isActive, setIsActive] = useState(true);
   const [zoomMode, setZoomMode] = useState<'radius' | 'all'>('all');
   
   const [now, setNow] = useState(Date.now());
+
+  // Get current seller status from DB
+  const sellerRef = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return doc(firestore, 'sellers', '1');
+  }, [firestore]);
+  const { data: seller } = useDoc<Seller>(sellerRef);
+
+  const isActive = seller?.status === 'Active';
 
   const activeOrdersQuery = useMemoFirebase(() => {
     if (!firestore || !isActive) return null;
@@ -98,6 +106,12 @@ export default function BevCartDriverDashboardPage() {
     await updateDoc(orderRef, { status });
   };
 
+  const handleToggleActive = async (checked: boolean) => {
+    if (!firestore) return;
+    const sellerRef = doc(firestore, 'sellers', '1');
+    await updateDoc(sellerRef, { status: checked ? 'Active' : 'Inactive' });
+  };
+
   const orders = isActive ? activeOrders || [] : [];
   const isLoading = areActiveOrdersLoading && isActive;
 
@@ -130,10 +144,14 @@ export default function BevCartDriverDashboardPage() {
       <div className="flex flex-col h-[calc(100vh-6px)] overflow-hidden">
         <header className="flex-shrink-0 px-4 h-16 flex items-center justify-between border-b bg-background z-20">
           <h1 className="font-headline text-lg md:text-xl font-bold text-foreground">
-            Demo Course 1 - Driver Dashboard
+            {seller?.courseName || 'Demo Course'} - Driver Dashboard
           </h1>
           <div className="flex items-center space-x-3">
-            <Switch id="active-mode" checked={isActive} onCheckedChange={setIsActive} />
+            <Switch 
+              id="active-mode" 
+              checked={isActive} 
+              onCheckedChange={handleToggleActive} 
+            />
             <Label htmlFor="active-mode" className="text-sm font-semibold whitespace-nowrap">
               {isActive ? 'Active' : 'Inactive'}
             </Label>
@@ -177,7 +195,7 @@ export default function BevCartDriverDashboardPage() {
                   </div>
                 ) : orders.length === 0 ? (
                   <div className="flex items-center justify-center text-muted-foreground py-10 italic">
-                    No active orders.
+                    {isActive ? 'No active orders.' : 'Cart is currently inactive.'}
                   </div>
                 ) : (
                   orders.map((order, index) => (

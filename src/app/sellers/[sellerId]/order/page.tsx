@@ -16,9 +16,10 @@ import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { mockBuyerLocation } from '@/lib/data';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetFooter } from '@/components/ui/sheet';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Truck, AlertCircle } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useCart } from '@/lib/cart-context';
+import Link from 'next/link';
 
 export default function BuyerMenuPage({ params }: { params: { sellerId: string } }) {
   const { sellerId } = use(params);
@@ -42,9 +43,6 @@ export default function BuyerMenuPage({ params }: { params: { sellerId: string }
   );
   const { data: menuItems, isLoading: areItemsLoading } = useCollection<MenuItem>(menuItemsQuery);
 
-  // Clear cart when starting a new order session if needed, 
-  // though for prototyping it stays persistent.
-  
   const handlePlaceOrder = async () => {
     if (!firestore || !seller) {
       toast({
@@ -54,6 +52,16 @@ export default function BuyerMenuPage({ params }: { params: { sellerId: string }
       });
       return;
     }
+
+    if (seller.status === 'Inactive') {
+      toast({
+        variant: 'destructive',
+        title: 'Service Unavailable',
+        description: 'The beverage cart is currently offline. Please try again later.',
+      });
+      return;
+    }
+
     setIsPlacingOrder(true);
     
     const activeOrderItems = orderItems.filter((item) => item.quantity > 0);
@@ -114,11 +122,6 @@ export default function BuyerMenuPage({ params }: { params: { sellerId: string }
         }
       );
     } else {
-      toast({
-        title: 'Location Error',
-        description: 'Geolocation is not supported. Using a fallback for this order.',
-        variant: 'destructive',
-      });
       const { latitude, longitude } = mockBuyerLocation;
       createOrder(latitude, longitude);
     }
@@ -127,6 +130,25 @@ export default function BuyerMenuPage({ params }: { params: { sellerId: string }
 
   const isLoading = isSellerLoading || areItemsLoading;
   const activeOrderItems = orderItems.filter((item) => item.quantity > 0);
+
+  if (!isLoading && seller?.status === 'Inactive') {
+    return (
+      <div className="flex flex-col items-center justify-center h-[calc(100vh-4rem)] p-8 text-center space-y-6">
+        <div className="bg-muted p-8 rounded-full">
+           <Truck className="h-16 w-16 text-muted-foreground opacity-50" />
+        </div>
+        <div className="space-y-2">
+          <h2 className="text-3xl font-headline font-bold">Service Currently Unavailable</h2>
+          <p className="text-muted-foreground max-w-sm mx-auto">
+            The beverage cart at {seller.courseName} is currently offline. Please check back later or listen for the cart on the course!
+          </p>
+        </div>
+        <Button asChild variant="outline" size="lg">
+          <Link href="/">Back to Home</Link>
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-full">
