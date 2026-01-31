@@ -28,7 +28,6 @@ export default function RootLayout({
         <FirebaseClientProvider>
           <CartProvider>
             <OrderNotificationListener />
-            <div className="h-1.5 bg-red-600 w-full" />
             <AppHeader />
             <main className="flex-1">
               {children}

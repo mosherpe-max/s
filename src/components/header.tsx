@@ -1,4 +1,3 @@
-
 'use client';
 
 import Link from 'next/link';
@@ -136,6 +135,7 @@ export function AppHeader() {
             )}
         </div>
       </div>
+      <div className="h-0.5 bg-red-600 w-full" />
     </header>
   );
 }
