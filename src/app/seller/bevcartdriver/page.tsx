@@ -27,12 +27,10 @@ export default function BevCartDriverDashboardPage() {
   const [isActive, setIsActive] = useState(true);
   const [zoomMode, setZoomMode] = useState<'radius' | 'all'>('all');
   
-  // Tick state to force re-render for color aging calculations
   const [now, setNow] = useState(Date.now());
 
   const activeOrdersQuery = useMemoFirebase(() => {
     if (!firestore || !isActive) return null;
-    // For now, hardcode the sellerId to '1' for "Demo Course 1"
     return query(
       collection(firestore, 'orders'),
       where('sellerId', '==', '1'),
@@ -42,7 +40,6 @@ export default function BevCartDriverDashboardPage() {
 
   const { data: activeOrders, isLoading: areActiveOrdersLoading } = useCollection<Order>(activeOrdersQuery);
 
-  // Update current time every 30 seconds to refresh age-based colors
   useEffect(() => {
     const interval = setInterval(() => {
       setNow(Date.now());
@@ -50,7 +47,6 @@ export default function BevCartDriverDashboardPage() {
     return () => clearInterval(interval);
   }, []);
 
-  // Update internal ref when location state changes
   useEffect(() => {
     sellerLocRef.current = sellerLocation;
   }, [sellerLocation]);
@@ -65,7 +61,6 @@ export default function BevCartDriverDashboardPage() {
           });
         },
         () => {
-          // Fallback to mock location if geolocation fails
           setSellerLocation(mockSellerLocation);
         },
         {
@@ -76,18 +71,16 @@ export default function BevCartDriverDashboardPage() {
       );
       return () => navigator.geolocation.clearWatch(watchId);
     } else {
-      // Fallback for browsers that don't support geolocation
       setSellerLocation(mockSellerLocation);
     }
   }, []);
 
-  // Effect to sync driver location to Firestore for buyer tracking
   useEffect(() => {
     if (!firestore || !isActive) return;
 
     const syncLocation = async () => {
       if (sellerLocRef.current) {
-        const sellerRef = doc(firestore, 'sellers', '1'); // Hardcoded ID '1' as used in the demo
+        const sellerRef = doc(firestore, 'sellers', '1');
         await updateDoc(sellerRef, {
           latitude: sellerLocRef.current.latitude,
           longitude: sellerLocRef.current.longitude
@@ -95,9 +88,7 @@ export default function BevCartDriverDashboardPage() {
       }
     };
 
-    // Update every 15 seconds to satisfy tracking requirements
     const intervalId = setInterval(syncLocation, 15000);
-
     return () => clearInterval(intervalId);
   }, [firestore, isActive]);
 
@@ -110,10 +101,9 @@ export default function BevCartDriverDashboardPage() {
   const orders = isActive ? activeOrders || [] : [];
   const isLoading = areActiveOrdersLoading && isActive;
 
-  // Calculate buyer data for map with age-based colors
   const mappedBuyers = useMemo(() => {
     return orders.map(o => {
-      let colorClass = "bg-green-600"; // Default < 7 mins
+      let colorClass = "bg-green-600";
       
       if (o.createdAt) {
         const orderTime = o.createdAt.toDate().getTime();
@@ -137,20 +127,20 @@ export default function BevCartDriverDashboardPage() {
 
   return (
     <APIProvider apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!}>
-      <div className="flex flex-col h-[calc(100vh-4rem)] overflow-hidden">
-        <header className="flex-shrink-0 px-4 py-4 flex items-center justify-between border-b bg-background z-20">
-          <div>
-            <h1 className="font-headline text-2xl font-bold text-foreground">Driver Dashboard</h1>
-            <p className="text-sm text-muted-foreground">Demo Course 1</p>
-          </div>
-          <div className="flex items-center space-x-2">
+      <div className="flex flex-col h-[calc(100vh-6px)] overflow-hidden">
+        <header className="flex-shrink-0 px-4 h-16 flex items-center justify-between border-b bg-background z-20">
+          <h1 className="font-headline text-lg md:text-xl font-bold text-foreground">
+            Demo Course 1 - Driver Dashboard
+          </h1>
+          <div className="flex items-center space-x-3">
             <Switch id="active-mode" checked={isActive} onCheckedChange={setIsActive} />
-            <Label htmlFor="active-mode">{isActive ? 'Active' : 'Inactive'}</Label>
+            <Label htmlFor="active-mode" className="text-sm font-semibold whitespace-nowrap">
+              {isActive ? 'Active' : 'Inactive'}
+            </Label>
           </div>
         </header>
 
         <div className="flex-1 flex flex-col md:flex-row overflow-hidden min-h-0">
-          {/* Map Container */}
           <div className="relative w-full md:w-2/3 h-[40vh] md:h-full bg-muted shrink-0 md:shrink">
            <Button
               variant="outline"
@@ -165,7 +155,7 @@ export default function BevCartDriverDashboardPage() {
               <MapView
                 sellerLocation={sellerLocation}
                 buyers={mappedBuyers}
-                radius={1609.34} // 1 mile in meters
+                radius={1609.34}
                 zoomMode={zoomMode}
               />
             ) : (
@@ -173,7 +163,6 @@ export default function BevCartDriverDashboardPage() {
             )}
           </div>
           
-          {/* Orders List */}
           <div className="w-full md:w-1/3 flex flex-col bg-background border-t md:border-t-0 md:border-l overflow-hidden min-h-0">
             <h2 className="font-headline text-lg font-semibold px-4 pt-3 pb-2 shrink-0 border-b">
               Active Orders ({orders.length})

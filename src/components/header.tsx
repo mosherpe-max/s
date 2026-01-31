@@ -36,6 +36,10 @@ export function AppHeader() {
   const { total, totalItems, setIsCartOpen } = useCart();
   
   const isOrderPage = pathname?.includes('/order') && !pathname?.includes('/track');
+  const isDriverPage = pathname === '/seller/bevcartdriver';
+
+  // Hide the global header on the Driver Dashboard for a cleaner, focused interface.
+  if (isDriverPage) return null;
 
   return (
     <header className="bg-transparent sticky top-0 z-40 bg-background/80 backdrop-blur-md border-b">
