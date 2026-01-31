@@ -73,6 +73,7 @@ export function AppHeader() {
                       alt={seller.courseName} 
                       fill 
                       className="object-contain" 
+                      unoptimized
                     />
                   </div>
                 ) : (
@@ -135,7 +136,6 @@ export function AppHeader() {
             )}
         </div>
       </div>
-      <div className="h-0.5 bg-red-600 w-full" />
     </header>
   );
 }
