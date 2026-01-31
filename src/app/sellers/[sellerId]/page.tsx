@@ -7,6 +7,16 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { PlusCircle, Edit, Trash2, GripVertical, Filter, DollarSign, ShoppingBag, Clock, Database, Users, UserPlus, Sparkles } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useForm } from 'react-hook-form';
@@ -184,6 +194,7 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
   const [isMemberFormOpen, setIsMemberFormOpen] = useState(false);
   const [editingMember, setEditingMember] = useState<Member | null>(null);
+  const [memberToDelete, setMemberToDelete] = useState<Member | null>(null);
   const [activeFilter, setActiveFilter] = useState<Category | 'All'>('All');
   const [isSeeding, setIsSeeding] = useState(false);
 
@@ -285,10 +296,11 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
     setEditingMember(null); setIsMemberFormOpen(false);
   };
 
-  const handleDeleteMember = (id: string) => {
-    if (!firestore) return;
-    const ref = doc(firestore, 'sellers', sellerId, 'members', id);
+  const handleConfirmDeleteMember = () => {
+    if (!firestore || !memberToDelete) return;
+    const ref = doc(firestore, 'sellers', sellerId, 'members', memberToDelete.id);
     deleteDoc(ref).catch(err => errorEmitter.emit('permission-error', new FirestorePermissionError({ path: ref.path, operation: 'delete' })));
+    setMemberToDelete(null);
   };
 
   const groupedItems = useMemo(() => {
@@ -395,7 +407,7 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
                         <TableCell className="font-mono text-xs">{m.memberNumber}</TableCell>
                         <TableCell className="text-right">
                           <Button variant="ghost" size="icon" onClick={() => { setEditingMember(m); setIsMemberFormOpen(true); }}><Edit className="h-4 w-4" /></Button>
-                          <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDeleteMember(m.id)}><Trash2 className="h-4 w-4" /></Button>
+                          <Button variant="ghost" size="icon" className="text-destructive" onClick={() => setMemberToDelete(m)}><Trash2 className="h-4 w-4" /></Button>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -413,6 +425,23 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
 
       <Dialog open={isItemFormOpen} onOpenChange={setIsItemFormOpen}><DialogContent className="sm:max-w-[425px]"><DialogHeader><DialogTitle>{editingItem ? 'Edit Item' : 'Add Item'}</DialogTitle></DialogHeader><MenuItemForm onSave={handleSaveMenuItem} menuItem={editingItem} onClose={() => setIsItemFormOpen(false)} /></DialogContent></Dialog>
       <Dialog open={isMemberFormOpen} onOpenChange={setIsMemberFormOpen}><DialogContent className="sm:max-w-[425px]"><DialogHeader><DialogTitle>{editingMember ? 'Edit Member' : 'Add Member'}</DialogTitle></DialogHeader><MemberForm onSave={handleSaveMember} member={editingMember} onClose={() => setIsMemberFormOpen(false)} /></DialogContent></Dialog>
+
+      <AlertDialog open={!!memberToDelete} onOpenChange={(open) => !open && setMemberToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action will remove <strong>{memberToDelete?.name}</strong> from the club member list. They will no longer be able to charge orders to their account using member ID <strong>{memberToDelete?.memberNumber}</strong>.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmDeleteMember} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete Member
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
