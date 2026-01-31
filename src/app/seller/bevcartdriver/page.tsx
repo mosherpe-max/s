@@ -25,7 +25,6 @@ type LatLng = {
   longitude: number;
 };
 
-// Deterministic color assignment for drivers to avoid red, yellow, green
 const getDriverColorClass = (id: string) => {
   const driverColors = [
     'bg-indigo-600',
@@ -36,7 +35,6 @@ const getDriverColorClass = (id: string) => {
     'bg-slate-700',
   ];
   
-  // Use a simple hash of the ID to pick a color
   let hash = 0;
   for (let i = 0; i < id.length; i++) {
     hash = id.charCodeAt(i) + ((hash << 5) - hash);
@@ -56,14 +54,12 @@ export default function BevCartDriverDashboardPage() {
   const lastOrderIdsRef = useRef<Set<string>>(new Set());
   const initialLoadRef = useRef(true);
 
-  // Fetch current primary driver (demo-course)
   const primarySellerRef = useMemoFirebase(() => {
     if (!firestore) return null;
     return doc(firestore, 'sellers', 'demo-course');
   }, [firestore]);
   const { data: primarySeller, isLoading: isPrimaryLoading } = useDoc<Seller>(primarySellerRef);
 
-  // Fetch all active sellers to show on map
   const activeSellersQuery = useMemoFirebase(() => {
     if (!firestore) return null;
     return query(collection(firestore, 'sellers'), where('status', '==', 'Active'));
@@ -72,7 +68,6 @@ export default function BevCartDriverDashboardPage() {
 
   const isPrimaryActive = primarySeller?.status === 'Active';
 
-  // Fetch all active orders platform-wide for the map, but we'll filter the list for the driver
   const activeOrdersQuery = useMemoFirebase(() => {
     if (!firestore) return null;
     return query(
@@ -83,7 +78,6 @@ export default function BevCartDriverDashboardPage() {
 
   const { data: activeOrders, isLoading: areActiveOrdersLoading } = useCollection<Order>(activeOrdersQuery);
 
-  // Filter orders specifically for this Beverage Cart driver at Demo Golf Course
   const driverOrders = useMemo(() => {
     if (!activeOrders) return [];
     return activeOrders.filter(o => 
@@ -166,7 +160,8 @@ export default function BevCartDriverDashboardPage() {
       }
     };
 
-    const intervalId = setInterval(syncLocation, 15000);
+    // Reports driver location to Firestore every 30 seconds
+    const intervalId = setInterval(syncLocation, 30000);
     return () => clearInterval(intervalId);
   }, [firestore, isPrimaryActive]);
 
