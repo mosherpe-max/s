@@ -31,7 +31,7 @@ export default function BevCartDriverDashboardPage() {
   const [sellerLocation, setSellerLocation] = useState<LatLng | null>(null);
   const sellerLocRef = useRef<LatLng | null>(null);
   const [zoomMode, setZoomMode] = useState<'radius' | 'all'>('all');
-  const [now, setNow] = useState(Date.now());
+  const [now, setNow] = useState<number | null>(null);
   
   const lastOrderIdsRef = useRef<Set<string>>(new Set());
   const initialLoadRef = useRef(true);
@@ -81,6 +81,7 @@ export default function BevCartDriverDashboardPage() {
   }, [activeOrders, isActive, toast]);
 
   useEffect(() => {
+    setNow(Date.now());
     const interval = setInterval(() => {
       setNow(Date.now());
     }, 30000);
@@ -167,6 +168,7 @@ export default function BevCartDriverDashboardPage() {
   const isLoading = (areActiveOrdersLoading && isActive) || isSellerLoading;
 
   const mappedBuyers = useMemo(() => {
+    if (!now) return [];
     return orders.map(o => {
       let colorClass = "bg-green-600";
       if (o.createdAt) {

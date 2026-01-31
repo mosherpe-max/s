@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import type { Order } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from './ui/card';
 import { Avatar, AvatarFallback } from './ui/avatar';
@@ -26,6 +27,11 @@ const statusConfig: Record<Order['status'], { icon: React.ElementType, label: st
 
 export function OrderCard({ order, orderNumber, onUpdateStatus }: OrderCardProps) {
     const statusInfo = statusConfig[order.status];
+    const [mounted, setMounted] = useState(false);
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
 
     const renderAction = () => {
         switch (order.status) {
@@ -65,7 +71,7 @@ export function OrderCard({ order, orderNumber, onUpdateStatus }: OrderCardProps
                 <div className='flex-1'>
                     <CardTitle className='text-lg font-semibold'>{order.customerName}</CardTitle>
                     <CardDescription>
-                        {order.createdAt?.toDate && formatDistanceToNow(order.createdAt.toDate(), { addSuffix: true })}
+                        {mounted && order.createdAt?.toDate ? formatDistanceToNow(order.createdAt.toDate(), { addSuffix: true }) : 'Processing...'}
                     </CardDescription>
                 </div>
                 {statusInfo && (

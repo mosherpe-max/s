@@ -22,7 +22,6 @@ const KoopLogo = () => (
 
 export function AppHeader() {
   const pathname = usePathname();
-  const firestore = useFirestore();
   const { total, totalItems, setIsCartOpen } = useCart();
   
   const [isMounted, setIsMounted] = useState(false);
