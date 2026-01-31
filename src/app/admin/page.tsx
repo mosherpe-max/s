@@ -60,6 +60,21 @@ const sellerSchema = z.object({
 
 type SellerFormData = z.infer<typeof sellerSchema>;
 
+/**
+ * Converts a string into a URL-friendly slug.
+ */
+function slugify(text: string): string {
+  return text
+    .toString()
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, '-')     // Replace spaces with -
+    .replace(/[^\w-]+/g, '')  // Remove all non-word chars
+    .replace(/--+/g, '-')     // Replace multiple - with single -
+    .replace(/^-+/, '')       // Trim - from start of text
+    .replace(/-+$/, '');      // Trim - from end of text
+}
+
 export default function KoopAdminPage() {
   const firestore = useFirestore();
   const { toast } = useToast();
@@ -114,17 +129,17 @@ export default function KoopAdminPage() {
   const onSave = (data: SellerFormData) => {
     if (!firestore) return;
 
-    const sellerRef = editingSeller 
-      ? doc(firestore, 'sellers', editingSeller.id)
-      : doc(collection(firestore, 'sellers'));
+    // Use existing ID if editing, otherwise generate a "smart" slug ID from the name
+    const sellerId = editingSeller ? editingSeller.id : slugify(data.courseName);
+    const sellerRef = doc(firestore, 'sellers', sellerId);
     
-    const payload = editingSeller ? { ...data, id: editingSeller.id } : { ...data, id: sellerRef.id };
+    const payload = { ...data, id: sellerId };
 
     setDoc(sellerRef, payload, { merge: true })
       .then(() => {
         toast({ 
           title: editingSeller ? 'Seller Updated' : 'Seller Created', 
-          description: `${data.courseName} has been saved.` 
+          description: `${data.courseName} has been saved with ID: ${sellerId}` 
         });
         setIsFormOpen(false);
       })
@@ -163,7 +178,7 @@ export default function KoopAdminPage() {
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
         <div>
           <h1 className="font-headline text-3xl font-bold text-foreground">Koop Admin</h1>
-          <p className="text-muted-foreground">Manage golf course sellers and partners.</p>
+          <p className="text-muted-foreground">Manage establishment sellers and partners.</p>
         </div>
         <Button onClick={() => handleOpenForm()}>
           <PlusCircle className="mr-2 h-4 w-4" />
@@ -183,7 +198,7 @@ export default function KoopAdminPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>ID</TableHead>
+                    <TableHead>ID / Slug</TableHead>
                     <TableHead>Course Name</TableHead>
                     <TableHead>Type</TableHead>
                     <TableHead>Contact</TableHead>
@@ -236,7 +251,7 @@ export default function KoopAdminPage() {
             </div>
           ) : (
             <div className="text-center py-12 text-muted-foreground border-2 border-dashed rounded-lg">
-              No sellers found. Add your first golf course to get started.
+              No sellers found. Add your first establishment to get started.
             </div>
           )}
         </CardContent>
