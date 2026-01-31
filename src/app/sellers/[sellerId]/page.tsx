@@ -5,7 +5,7 @@ import { collection, doc, setDoc, deleteDoc, writeBatch } from 'firebase/firesto
 import { useFirestore, useDoc, useCollection, useMemoFirebase } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { PlusCircle, Edit, Trash2, GripVertical } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, GripVertical, Filter } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -159,6 +159,7 @@ export default function SellerMenuAdminPage({
 
   const [isItemFormOpen, setIsItemFormOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
+  const [activeFilter, setActiveFilter] = useState<Category | 'All'>('All');
 
   const sellerRef = useMemoFirebase(() => {
     if (!firestore) return null;
@@ -271,7 +272,6 @@ export default function SellerMenuAdminPage({
     e.preventDefault();
     if (draggedItem?.category === item.category) {
         dragOverItem.current = item;
-        // Basic visual feedback could be added here if needed
     }
   };
 
@@ -311,6 +311,7 @@ export default function SellerMenuAdminPage({
       dragOverItem.current = null;
   };
 
+  const filterOptions: (Category | 'All')[] = ['All', ...categories];
 
   return (
     <>
@@ -320,25 +321,43 @@ export default function SellerMenuAdminPage({
             Seller Admin - {isLoading ? 'Loading...' : seller?.courseName}
           </h1>
         </header>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>Manage Menu Items</CardTitle>
-            <div className="flex gap-2">
+
+        <div className="flex flex-col md:flex-row gap-4 mb-6">
+          <div className="flex flex-wrap gap-2 items-center flex-1">
+             <Filter className="h-4 w-4 text-muted-foreground mr-2" />
+             {filterOptions.map((filter) => (
+               <Button
+                key={filter}
+                variant={activeFilter === filter ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setActiveFilter(filter)}
+                className="h-8"
+               >
+                 {filter}
+               </Button>
+             ))}
+          </div>
+          <div className="flex gap-2">
             {menuItems && menuItems.length === 0 && !isLoading && (
-              <Button onClick={handleSeedData} variant="outline">Seed Menu</Button>
+              <Button onClick={handleSeedData} variant="outline" size="sm">Seed Menu</Button>
             )}
-            <Button onClick={() => handleOpenItemForm()} disabled={isLoading}>
+            <Button onClick={() => handleOpenItemForm()} disabled={isLoading} size="sm">
               <PlusCircle className="mr-2 h-4 w-4" />
               Add Menu Item
             </Button>
-            </div>
+          </div>
+        </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Menu Items</CardTitle>
           </CardHeader>
           <CardContent>
             {isLoading ? (
                 <p>Loading menu items...</p>
             ) : menuItems && menuItems.length > 0 ? (
               <div className="space-y-6">
-                {categories.map((category) => (
+                {categories.filter(cat => activeFilter === 'All' || activeFilter === cat).map((category) => (
                   (groupedItems[category] && groupedItems[category].length > 0) && (
                     <div key={category}>
                       <h3 className="font-headline text-xl font-semibold mb-2">{category}</h3>
