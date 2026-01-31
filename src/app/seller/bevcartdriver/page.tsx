@@ -4,7 +4,7 @@ import { collection, query, where, doc, updateDoc } from 'firebase/firestore';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { MapView } from '@/components/map-view';
 import { APIProvider } from '@vis.gl/react-google-maps';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { OrderCard } from '@/components/order-card';
@@ -25,6 +25,9 @@ export default function BevCartDriverDashboardPage() {
   const [sellerLocation, setSellerLocation] = useState<LatLng | null>(null);
   const [isActive, setIsActive] = useState(true);
   const [zoomMode, setZoomMode] = useState<'radius' | 'all'>('all');
+  
+  // Tick state to force re-render for color aging calculations
+  const [now, setNow] = useState(Date.now());
 
   const activeOrdersQuery = useMemoFirebase(() => {
     if (!firestore || !isActive) return null;
@@ -37,6 +40,14 @@ export default function BevCartDriverDashboardPage() {
   }, [firestore, isActive]);
 
   const { data: activeOrders, isLoading: areActiveOrdersLoading } = useCollection<Order>(activeOrdersQuery);
+
+  // Update current time every 30 seconds to refresh age-based colors
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setNow(Date.now());
+    }, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     if (navigator.geolocation) {
@@ -73,6 +84,31 @@ export default function BevCartDriverDashboardPage() {
   const orders = isActive ? activeOrders || [] : [];
   const isLoading = areActiveOrdersLoading && isActive;
 
+  // Calculate buyer data for map with age-based colors
+  const mappedBuyers = useMemo(() => {
+    return orders.map(o => {
+      let colorClass = "bg-green-600"; // Default < 7 mins
+      
+      if (o.createdAt) {
+        const orderTime = o.createdAt.toDate().getTime();
+        const minutesElapsed = (now - orderTime) / (1000 * 60);
+
+        if (minutesElapsed > 10) {
+          colorClass = "bg-red-600";
+        } else if (minutesElapsed > 7) {
+          colorClass = "bg-yellow-500";
+        }
+      }
+
+      return {
+        id: o.id,
+        name: o.customerName,
+        location: o.deliveryLocation,
+        colorClass
+      };
+    });
+  }, [orders, now]);
+
   return (
     <APIProvider apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!}>
       <div className="flex flex-col h-[calc(100vh-4rem)] overflow-hidden">
@@ -102,7 +138,7 @@ export default function BevCartDriverDashboardPage() {
             {sellerLocation ? (
               <MapView
                 sellerLocation={sellerLocation}
-                buyers={orders.map(o => ({ id: o.id, name: o.customerName, location: o.deliveryLocation }))}
+                buyers={mappedBuyers}
                 radius={1609.34} // 1 mile in meters
                 zoomMode={zoomMode}
               />

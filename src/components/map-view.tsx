@@ -8,7 +8,12 @@ import { useEffect } from 'react';
 interface MapViewProps {
   buyerLocation?: { latitude: number; longitude: number };
   sellerLocation: { latitude: number; longitude: number };
-  buyers?: { id: string; name: string; location: { latitude: number; longitude: number } }[];
+  buyers?: { 
+    id: string; 
+    name: string; 
+    location: { latitude: number; longitude: number };
+    colorClass?: string;
+  }[];
   radius?: number; // in meters
   zoomMode?: 'radius' | 'all';
   interactive?: boolean;
@@ -50,7 +55,7 @@ function MapElements({ buyerLocation, sellerLocation, buyers, radius, zoomMode =
             }
         }
     
-    }, [map, buyerLocation, sellerLocation, buyers, zoomMode]); // 'radius' is kept as a dependency for the circle effect
+    }, [map, buyerLocation, sellerLocation, buyers, zoomMode]); 
 
     // Effect to draw the radius circle for the seller dashboard
     useEffect(() => {
@@ -98,7 +103,7 @@ export function MapView({ buyerLocation, sellerLocation, buyers, radius, zoomMod
         {/* Seller Pin */}
         <AdvancedMarker position={{ lat: sellerLocation.latitude, lng: sellerLocation.longitude }}>
             <div className="flex flex-col items-center">
-                <div className="bg-primary p-2 rounded-full shadow-lg">
+                <div className="bg-primary p-2 rounded-full shadow-lg border-2 border-primary-foreground">
                     <Truck className="w-6 h-6 text-primary-foreground" />
                 </div>
                 <div className="w-0 h-0 border-l-8 border-l-transparent border-r-8 border-r-transparent border-t-8 border-t-primary"></div>
@@ -118,22 +123,27 @@ export function MapView({ buyerLocation, sellerLocation, buyers, radius, zoomMod
         )}
 
         {/* Multiple Buyer Pins (for seller view) */}
-        {buyers && buyers.map((buyer, index) => (
-            <AdvancedMarker key={buyer.id} position={{ lat: buyer.location.latitude, lng: buyer.location.longitude }}>
-                <div className="flex flex-col items-center">
-                    <div className={cn(
-                        "flex items-center justify-center w-10 h-10 rounded-full shadow-lg font-bold text-accent-foreground",
-                        "bg-accent"
-                    )}>
-                        {index + 1}
+        {buyers && buyers.map((buyer, index) => {
+            const colorClass = buyer.colorClass || "bg-accent";
+            const arrowColorClass = colorClass.replace('bg-', 'border-t-');
+
+            return (
+                <AdvancedMarker key={buyer.id} position={{ lat: buyer.location.latitude, lng: buyer.location.longitude }}>
+                    <div className="flex flex-col items-center">
+                        <div className={cn(
+                            "flex items-center justify-center w-10 h-10 rounded-full shadow-lg font-bold text-white border-2 border-white transition-colors duration-500",
+                            colorClass
+                        )}>
+                            {index + 1}
+                        </div>
+                        <div className={cn(
+                            "w-0 h-0 border-l-8 border-l-transparent border-r-8 border-r-transparent border-t-8 transition-colors duration-500",
+                            arrowColorClass
+                        )}></div>
                     </div>
-                    <div className={cn(
-                        "w-0 h-0 border-l-8 border-l-transparent border-r-8 border-r-transparent border-t-8",
-                        "border-t-accent"
-                    )}></div>
-                </div>
-            </AdvancedMarker>
-        ))}
+                </AdvancedMarker>
+            );
+        })}
       </Map>
     </div>
   );
