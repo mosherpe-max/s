@@ -45,6 +45,7 @@ import { useToast } from '@/hooks/use-toast';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import Image from 'next/image';
+import { BrandingFooter } from '@/components/branding-footer';
 
 const menuItemSchema = z.object({
   name: z.string().min(1, 'Item name is required'),
@@ -514,337 +515,340 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-7xl">
-      <header className="mb-10">
-        <div className="flex items-center gap-3">
-            <h1 className="font-headline text-3xl font-bold text-foreground">Seller Admin</h1>
-            {seller && <Badge variant="outline">{seller.type}</Badge>}
-        </div>
-        <p className="text-muted-foreground text-sm mt-1">Configure your menus, monitor performance, and customize your brand.</p>
-      </header>
+    <div className="flex flex-col min-h-screen">
+      <div className="container mx-auto px-4 py-8 max-w-7xl flex-1">
+        <header className="mb-10">
+          <div className="flex items-center gap-3">
+              <h1 className="font-headline text-3xl font-bold text-foreground">Seller Admin</h1>
+              {seller && <Badge variant="outline">{seller.type}</Badge>}
+          </div>
+          <p className="text-muted-foreground text-sm mt-1">Configure your menus, monitor performance, and customize your brand.</p>
+        </header>
 
-      <section className="mb-12">
-        <h2 className="font-headline text-xl font-bold mb-6 flex items-center gap-2"><DollarSign className="h-6 w-6 text-primary" /> Performance Overview</h2>
-        <div className="flex flex-wrap gap-4">
-            {dashboardStats ? (
-                <>
-                    <StatTile title="Daily" {...dashboardStats.daily} />
-                    <StatTile title="Monthly" {...dashboardStats.monthly} />
-                    <StatTile title="Yearly" {...dashboardStats.yearly} />
-                </>
-            ) : <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full"><Skeleton className="h-40 w-full" /><Skeleton className="h-40 w-full" /><Skeleton className="h-40 w-full" /></div>}
-        </div>
-      </section>
+        <section className="mb-12">
+          <h2 className="font-headline text-xl font-bold mb-6 flex items-center gap-2"><DollarSign className="h-6 w-6 text-primary" /> Performance Overview</h2>
+          <div className="flex flex-wrap gap-4">
+              {dashboardStats ? (
+                  <>
+                      <StatTile title="Daily" {...dashboardStats.daily} />
+                      <StatTile title="Monthly" {...dashboardStats.monthly} />
+                      <StatTile title="Yearly" {...dashboardStats.yearly} />
+                  </>
+              ) : <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full"><Skeleton className="h-40 w-full" /><Skeleton className="h-40 w-full" /><Skeleton className="h-40 w-full" /></div>}
+          </div>
+        </section>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
-          {/* Sales Card */}
-          <Card className="shadow-sm border-muted h-full flex flex-col">
-            <CardHeader className="bg-muted/30">
-              <CardTitle className="flex items-center gap-2 text-lg"><FileSpreadsheet className="h-5 w-5" /> Recent Sales</CardTitle>
-            </CardHeader>
-            <CardContent className="flex-1 pt-6">
-              <div className="flex flex-wrap gap-2 mb-6">
-                  <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="h-9 w-36 text-xs" />
-                  <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="h-9 w-36 text-xs" />
-                  <Button onClick={handleExportCSV} variant="outline" size="sm" className="h-9"><Download className="mr-2 h-4 w-4" /> Export CSV</Button>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
+            {/* Sales Card */}
+            <Card className="shadow-sm border-muted h-full flex flex-col">
+              <CardHeader className="bg-muted/30">
+                <CardTitle className="flex items-center gap-2 text-lg"><FileSpreadsheet className="h-5 w-5" /> Recent Sales</CardTitle>
+              </CardHeader>
+              <CardContent className="flex-1 pt-6">
+                <div className="flex flex-wrap gap-2 mb-6">
+                    <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="h-9 w-36 text-xs" />
+                    <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="h-9 w-36 text-xs" />
+                    <Button onClick={handleExportCSV} variant="outline" size="sm" className="h-9"><Download className="mr-2 h-4 w-4" /> Export CSV</Button>
+                </div>
+                {areOrdersLoading ? <Skeleton className="h-32 w-full" /> : recentOrders && recentOrders.length > 0 ? (
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader><TableRow><TableHead>Date</TableHead><TableHead>Customer</TableHead><TableHead>Total</TableHead></TableRow></TableHeader>
+                      <TableBody>
+                        {recentOrders.map(order => (
+                          <TableRow key={order.id}>
+                            <TableCell className="text-xs">{order.createdAt && format(order.createdAt.toDate(), 'MMM d, h:mm a')}</TableCell>
+                            <TableCell className="text-sm font-medium">{order.customerName}</TableCell>
+                            <TableCell className="font-mono text-sm">${order.total.toFixed(2)}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                ) : <div className="text-center py-10 text-muted-foreground italic">No recent sales.</div>}
+              </CardContent>
+            </Card>
+
+            {/* Branding Card */}
+            <Card className="shadow-sm border-muted h-full flex flex-col">
+              <CardHeader className="bg-muted/30">
+                <CardTitle className="flex items-center gap-2 text-lg"><Palette className="h-5 w-5" /> Menu Branding</CardTitle>
+              </CardHeader>
+              <CardContent className="flex-1 pt-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div className="space-y-6">
+                    <Form {...customizationForm}>
+                      <form onSubmit={customizationForm.handleSubmit(handleSaveCustomization)} className="space-y-5">
+                        <FormField
+                          control={customizationForm.control}
+                          name="brandColor"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-muted-foreground"><Palette className="h-3.5 w-3.5" /> Brand Color</FormLabel>
+                              <div className="flex gap-2">
+                                <FormControl><Input {...field} placeholder="#22c55e" className="h-9" /></FormControl>
+                                <div className="w-9 h-9 rounded-md border shadow-sm shrink-0" style={{ backgroundColor: field.value || watchedValues.brandColor }} />
+                              </div>
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={customizationForm.control}
+                          name="logoUrl"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-muted-foreground"><Upload className="h-3.5 w-3.5" /> Logo (JPEG/PNG)</FormLabel>
+                              <FormControl><Input type="file" accept="image/*" onChange={(e) => handleFileChange(e, field.onChange)} className="h-9" /></FormControl>
+                            </FormItem>
+                          )}
+                        />
+                        <div className="space-y-2">
+                          <FormLabel className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Preview Menu Type</FormLabel>
+                          <Select value={previewMenuType} onValueChange={setPreviewMenuType}>
+                            <SelectTrigger className="h-9"><SelectValue placeholder="Select type" /></SelectTrigger>
+                            <SelectContent>
+                              {seller?.menuTypes?.map(type => <SelectItem key={type} value={type}>{type}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <Button type="submit" disabled={isSavingCustomization} className="w-full">
+                          {isSavingCustomization ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : <Save className="mr-2 h-4 w-4" />}
+                          Save Branding
+                        </Button>
+                      </form>
+                    </Form>
+                  </div>
+                  <div className="flex flex-col items-center justify-center bg-muted/20 p-4 rounded-xl border border-dashed">
+                     <MobilePreview logoUrl={watchedValues.logoUrl} brandColor={watchedValues.brandColor} sellerName={seller?.courseName || 'Demo Establishment'} menuType={previewMenuType || 'Order'} />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+        </div>
+
+        <Separator className="my-10" />
+
+        {/* MASTER MENU TILE */}
+        <Card className="mb-12 shadow-md border-primary/20 bg-primary/5">
+          <CardHeader className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <CardTitle className="flex items-center gap-2"><Database className="h-5 w-5 text-primary" /> Master Item Library</CardTitle>
+              <CardDescription>Maintain your global catalog. Use the filters below to browse categories.</CardDescription>
+            </div>
+            <Button onClick={() => { setEditingItem(null); setIsMasterFormOpen(true); }} size="sm" className="shadow-lg"><PlusCircle className="mr-2 h-4 w-4" /> New Master Item</Button>
+          </CardHeader>
+          <CardContent>
+            {/* Category Filters */}
+            <div className="flex flex-wrap items-center gap-2 mb-8 bg-background/50 p-2 rounded-lg border">
+              <div className="flex items-center gap-2 text-muted-foreground text-xs font-bold uppercase tracking-widest px-2 mr-2">
+                <Filter className="h-3 w-3" /> Filter
               </div>
-              {areOrdersLoading ? <Skeleton className="h-32 w-full" /> : recentOrders && recentOrders.length > 0 ? (
-                <div className="overflow-x-auto">
+              <Button 
+                variant={masterCategoryFilter === 'All' ? 'default' : 'ghost'} 
+                size="sm" 
+                onClick={() => setMasterCategoryFilter('All')}
+                className="h-8 text-xs"
+              >
+                All
+              </Button>
+              {categories.map(cat => (
+                <Button 
+                  key={cat}
+                  variant={masterCategoryFilter === cat ? 'default' : 'ghost'} 
+                  size="sm" 
+                  onClick={() => setMasterCategoryFilter(cat)}
+                  className="h-8 text-xs"
+                >
+                  {cat}
+                </Button>
+              ))}
+            </div>
+
+            {areItemsLoading ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"><Skeleton className="h-40 w-full" /><Skeleton className="h-40 w-full" /><Skeleton className="h-40 w-full" /></div>
+            ) : filteredMasterItems.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {filteredMasterItems.map(item => (
+                  <div key={item.id} className="p-4 rounded-xl bg-background border shadow-sm group hover:border-primary/50 transition-all">
+                    <div className="flex justify-between items-start mb-2">
+                      <Badge variant="secondary" className="text-[10px]">{item.category}</Badge>
+                      <div className="flex gap-1">
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setEditingItem(item); setIsMasterFormOpen(true); }}><Edit className="h-3.5 w-3.5" /></Button>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => deleteDoc(doc(firestore!, 'sellers', sellerId, 'menuItems', item.id))}><Trash2 className="h-3.5 w-3.5" /></Button>
+                      </div>
+                    </div>
+                    <h4 className="font-bold">{item.name}</h4>
+                    <p className="text-xs text-muted-foreground line-clamp-2 mt-1 mb-2">{item.description}</p>
+                    <p className="font-mono font-bold text-sm text-primary">${item.price.toFixed(2)}</p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-16 text-muted-foreground italic border-2 border-dashed rounded-xl">
+                <p>No items found in {masterCategoryFilter === 'All' ? 'the library' : `the ${masterCategoryFilter} category`}.</p>
+                {masterCategoryFilter !== 'All' && (
+                  <Button variant="link" onClick={() => setMasterCategoryFilter('All')}>Clear filter</Button>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* DYNAMIC MENU TYPE TILES */}
+        <h2 className="font-headline text-2xl font-bold mb-6 mt-16 flex items-center gap-2"><ListChecks className="h-6 w-6 text-primary" /> Active Service Menus</h2>
+        <div className="grid grid-cols-1 gap-12">
+          {seller?.menuTypes?.map(menuType => {
+              const itemsInThisMenu = menuItems?.filter(i => i.availableOn?.includes(menuType)) || [];
+              return (
+                  <Card key={menuType} className="shadow-lg">
+                      <CardHeader className="flex flex-row items-center justify-between border-b bg-muted/20">
+                          <div>
+                              <CardTitle className="text-xl">{menuType} Menu</CardTitle>
+                              <CardDescription>Customize the selection and order of items specifically for {menuType}.</CardDescription>
+                          </div>
+                          <Button variant="outline" onClick={() => { setPickingMenuType(menuType); setIsPickingOpen(true); }} className="bg-background">
+                              <PlusCircle className="mr-2 h-4 w-4" /> Pick Master Items
+                          </Button>
+                      </CardHeader>
+                      <CardContent className="pt-6">
+                          {itemsInThisMenu.length === 0 ? (
+                              <div className="text-center py-12 border-2 border-dashed rounded-xl">
+                                  <p className="text-muted-foreground italic">No items picked for this menu yet.</p>
+                                  <Button variant="link" onClick={() => { setPickingMenuType(menuType); setIsPickingOpen(true); }}>Choose items from library</Button>
+                              </div>
+                          ) : (
+                              <div className="space-y-10">
+                                  {categories.map(category => {
+                                      const itemsInCategory = itemsInThisMenu
+                                          .filter(i => i.category === category)
+                                          .sort((a, b) => (a.menuRanks?.[menuType] || 0) - (b.menuRanks?.[menuType] || 0));
+                                      
+                                      if (itemsInCategory.length === 0) return null;
+
+                                      return (
+                                          <div key={category} className="space-y-4">
+                                              <h4 className="font-bold text-sm uppercase tracking-[0.2em] text-muted-foreground border-l-4 border-primary pl-3">{category}</h4>
+                                              <div className="space-y-2">
+                                                  {itemsInCategory.map((item, idx) => (
+                                                      <div key={item.id} className="flex items-center justify-between p-3 rounded-lg bg-card border group">
+                                                          <div className="flex items-center gap-4">
+                                                              <div className="flex flex-col gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                  <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleRerank(item, menuType, 'up')} disabled={idx === 0}><ChevronUp className="h-4 w-4" /></Button>
+                                                                  <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleRerank(item, menuType, 'down')} disabled={idx === itemsInCategory.length - 1}><ChevronDown className="h-4 w-4" /></Button>
+                                                              </div>
+                                                              <div>
+                                                                  <p className="font-medium text-sm">{item.name}</p>
+                                                                  <p className="text-xs text-muted-foreground font-mono">${item.price.toFixed(2)}</p>
+                                                              </div>
+                                                          </div>
+                                                          <Button variant="ghost" size="icon" className="text-destructive h-8 w-8" onClick={() => handleToggleItemAvailability(item, menuType)}><Trash2 className="h-4 w-4" /></Button>
+                                                      </div>
+                                                  ))}
+                                              </div>
+                                          </div>
+                                      );
+                                  })}
+                              </div>
+                          )}
+                      </CardContent>
+                  </Card>
+              );
+          })}
+        </div>
+
+        {isClubSeller && (
+          <section className="mt-20 mb-12">
+            <Card className="shadow-sm">
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2"><Users className="h-5 w-5" /> Member List</CardTitle>
+                  <CardDescription>Club accounts available for member charging.</CardDescription>
+                </div>
+                <Button onClick={() => { setEditingMember(null); setIsMemberFormOpen(true); }} size="sm" variant="outline"><UserPlus className="mr-2 h-4 w-4" /> Add Member</Button>
+              </CardHeader>
+              <CardContent>
+                {areMembersLoading ? <Skeleton className="h-32 w-full" /> : members && members.length > 0 ? (
                   <Table>
-                    <TableHeader><TableRow><TableHead>Date</TableHead><TableHead>Customer</TableHead><TableHead>Total</TableHead></TableRow></TableHeader>
+                    <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Member ID</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
                     <TableBody>
-                      {recentOrders.map(order => (
-                        <TableRow key={order.id}>
-                          <TableCell className="text-xs">{order.createdAt && format(order.createdAt.toDate(), 'MMM d, h:mm a')}</TableCell>
-                          <TableCell className="text-sm font-medium">{order.customerName}</TableCell>
-                          <TableCell className="font-mono text-sm">${order.total.toFixed(2)}</TableCell>
+                      {members.map(m => (
+                        <TableRow key={m.id}>
+                          <TableCell className="font-medium">{m.name}</TableCell>
+                          <TableCell className="font-mono text-xs">{m.memberNumber}</TableCell>
+                          <TableCell><Badge variant={m.status === 'Active' ? 'default' : 'secondary'}>{m.status}</Badge></TableCell>
+                          <TableCell className="text-right">
+                            <Button variant="ghost" size="icon" onClick={() => { setEditingMember(m); setIsMemberFormOpen(true); }}><Edit className="h-4 w-4" /></Button>
+                            <Button variant="ghost" size="icon" className="text-destructive" onClick={() => setMemberToDelete(m)}><Trash2 className="h-4 w-4" /></Button>
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
                   </Table>
-                </div>
-              ) : <div className="text-center py-10 text-muted-foreground italic">No recent sales.</div>}
-            </CardContent>
-          </Card>
+                ) : <div className="text-center py-10 text-muted-foreground italic">No members registered.</div>}
+              </CardContent>
+            </Card>
+          </section>
+        )}
 
-          {/* Branding Card */}
-          <Card className="shadow-sm border-muted h-full flex flex-col">
-            <CardHeader className="bg-muted/30">
-              <CardTitle className="flex items-center gap-2 text-lg"><Palette className="h-5 w-5" /> Menu Branding</CardTitle>
-            </CardHeader>
-            <CardContent className="flex-1 pt-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div className="space-y-6">
-                  <Form {...customizationForm}>
-                    <form onSubmit={customizationForm.handleSubmit(handleSaveCustomization)} className="space-y-5">
-                      <FormField
-                        control={customizationForm.control}
-                        name="brandColor"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-muted-foreground"><Palette className="h-3.5 w-3.5" /> Brand Color</FormLabel>
-                            <div className="flex gap-2">
-                              <FormControl><Input {...field} placeholder="#22c55e" className="h-9" /></FormControl>
-                              <div className="w-9 h-9 rounded-md border shadow-sm shrink-0" style={{ backgroundColor: field.value || watchedValues.brandColor }} />
-                            </div>
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={customizationForm.control}
-                        name="logoUrl"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-muted-foreground"><Upload className="h-3.5 w-3.5" /> Logo (JPEG/PNG)</FormLabel>
-                            <FormControl><Input type="file" accept="image/*" onChange={(e) => handleFileChange(e, field.onChange)} className="h-9" /></FormControl>
-                          </FormItem>
-                        )}
-                      />
-                      <div className="space-y-2">
-                        <FormLabel className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Preview Menu Type</FormLabel>
-                        <Select value={previewMenuType} onValueChange={setPreviewMenuType}>
-                          <SelectTrigger className="h-9"><SelectValue placeholder="Select type" /></SelectTrigger>
-                          <SelectContent>
-                            {seller?.menuTypes?.map(type => <SelectItem key={type} value={type}>{type}</SelectItem>)}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <Button type="submit" disabled={isSavingCustomization} className="w-full">
-                        {isSavingCustomization ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : <Save className="mr-2 h-4 w-4" />}
-                        Save Branding
-                      </Button>
-                    </form>
-                  </Form>
-                </div>
-                <div className="flex flex-col items-center justify-center bg-muted/20 p-4 rounded-xl border border-dashed">
-                   <MobilePreview logoUrl={watchedValues.logoUrl} brandColor={watchedValues.brandColor} sellerName={seller?.courseName || 'Demo Establishment'} menuType={previewMenuType || 'Order'} />
-                </div>
+        {/* DIALOGS */}
+        <Dialog open={isMasterFormOpen} onOpenChange={setIsMasterFormOpen}>
+          <DialogContent className="sm:max-w-[500px]">
+            <DialogHeader><DialogTitle>{editingItem ? 'Edit Master Item' : 'Create Master Item'}</DialogTitle></DialogHeader>
+            <MasterItemForm onSave={handleSaveMasterItem} menuItem={editingItem} onClose={() => setIsMasterFormOpen(false)} />
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={isPickingOpen} onOpenChange={setIsPickingOpen}>
+          <DialogContent className="sm:max-w-[600px] max-h-[85vh] flex flex-col">
+              <DialogHeader>
+                  <DialogTitle>Select Items for {pickingMenuType}</DialogTitle>
+                  <CardDescription>Pick which items from your Master Library should be available on the {pickingMenuType} menu.</CardDescription>
+              </DialogHeader>
+              <Separator className="my-2" />
+              <div className="flex-1 overflow-y-auto pr-2">
+                  {categories.map(category => {
+                      const itemsInCategory = menuItems?.filter(i => i.category === category) || [];
+                      if (itemsInCategory.length === 0) return null;
+                      return (
+                          <div key={category} className="mb-6">
+                              <h5 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">{category}</h5>
+                              <div className="space-y-2">
+                                  {itemsInCategory.map(item => {
+                                      const isSelected = item.availableOn?.includes(pickingMenuType);
+                                      return (
+                                          <div key={item.id} onClick={() => handleToggleItemAvailability(item, pickingMenuType)} className={cn(
+                                              "flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-all",
+                                              isSelected ? "border-primary bg-primary/5 shadow-inner" : "hover:bg-muted/50"
+                                          )}>
+                                              <div>
+                                                  <p className="text-sm font-bold">{item.name}</p>
+                                                  <p className="text-xs text-muted-foreground">${item.price.toFixed(2)}</p>
+                                              </div>
+                                              {isSelected && <Check className="h-5 w-5 text-primary" />}
+                                          </div>
+                                      );
+                                  })}
+                              </div>
+                          </div>
+                      );
+                  })}
               </div>
-            </CardContent>
-          </Card>
+              <DialogFooter className="mt-4 border-t pt-4">
+                  <Button onClick={() => setIsPickingOpen(false)}>Done</Button>
+              </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={isMemberFormOpen} onOpenChange={setIsMemberFormOpen}><DialogContent className="sm:max-w-[425px]"><DialogHeader><DialogTitle>{editingMember ? 'Edit Member' : 'Add Member'}</DialogTitle></DialogHeader><MemberForm onSave={handleSaveMember} member={editingMember} onClose={() => setIsMemberFormOpen(false)} /></DialogContent></Dialog>
+
+        <AlertDialog open={!!memberToDelete} onOpenChange={(open) => !open && setMemberToDelete(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader><AlertDialogTitle>Delete Member?</AlertDialogTitle><AlertDialogDescription>This will remove <strong>{memberToDelete?.name}</strong> from the club list.</AlertDialogDescription></AlertDialogHeader>
+            <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => { if (!firestore || !memberToDelete) return; deleteDoc(doc(firestore, 'sellers', sellerId, 'members', memberToDelete.id)); setMemberToDelete(null); }} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Delete Member</AlertDialogAction></AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
-
-      <Separator className="my-10" />
-
-      {/* MASTER MENU TILE */}
-      <Card className="mb-12 shadow-md border-primary/20 bg-primary/5">
-        <CardHeader className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <CardTitle className="flex items-center gap-2"><Database className="h-5 w-5 text-primary" /> Master Item Library</CardTitle>
-            <CardDescription>Maintain your global catalog. Use the filters below to browse categories.</CardDescription>
-          </div>
-          <Button onClick={() => { setEditingItem(null); setIsMasterFormOpen(true); }} size="sm" className="shadow-lg"><PlusCircle className="mr-2 h-4 w-4" /> New Master Item</Button>
-        </CardHeader>
-        <CardContent>
-          {/* Category Filters */}
-          <div className="flex flex-wrap items-center gap-2 mb-8 bg-background/50 p-2 rounded-lg border">
-            <div className="flex items-center gap-2 text-muted-foreground text-xs font-bold uppercase tracking-widest px-2 mr-2">
-              <Filter className="h-3 w-3" /> Filter
-            </div>
-            <Button 
-              variant={masterCategoryFilter === 'All' ? 'default' : 'ghost'} 
-              size="sm" 
-              onClick={() => setMasterCategoryFilter('All')}
-              className="h-8 text-xs"
-            >
-              All
-            </Button>
-            {categories.map(cat => (
-              <Button 
-                key={cat}
-                variant={masterCategoryFilter === cat ? 'default' : 'ghost'} 
-                size="sm" 
-                onClick={() => setMasterCategoryFilter(cat)}
-                className="h-8 text-xs"
-              >
-                {cat}
-              </Button>
-            ))}
-          </div>
-
-          {areItemsLoading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"><Skeleton className="h-40 w-full" /><Skeleton className="h-40 w-full" /><Skeleton className="h-40 w-full" /></div>
-          ) : filteredMasterItems.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredMasterItems.map(item => (
-                <div key={item.id} className="p-4 rounded-xl bg-background border shadow-sm group hover:border-primary/50 transition-all">
-                  <div className="flex justify-between items-start mb-2">
-                    <Badge variant="secondary" className="text-[10px]">{item.category}</Badge>
-                    <div className="flex gap-1">
-                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setEditingItem(item); setIsMasterFormOpen(true); }}><Edit className="h-3.5 w-3.5" /></Button>
-                      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => deleteDoc(doc(firestore!, 'sellers', sellerId, 'menuItems', item.id))}><Trash2 className="h-3.5 w-3.5" /></Button>
-                    </div>
-                  </div>
-                  <h4 className="font-bold">{item.name}</h4>
-                  <p className="text-xs text-muted-foreground line-clamp-2 mt-1 mb-2">{item.description}</p>
-                  <p className="font-mono font-bold text-sm text-primary">${item.price.toFixed(2)}</p>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-16 text-muted-foreground italic border-2 border-dashed rounded-xl">
-              <p>No items found in {masterCategoryFilter === 'All' ? 'the library' : `the ${masterCategoryFilter} category`}.</p>
-              {masterCategoryFilter !== 'All' && (
-                <Button variant="link" onClick={() => setMasterCategoryFilter('All')}>Clear filter</Button>
-              )}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* DYNAMIC MENU TYPE TILES */}
-      <h2 className="font-headline text-2xl font-bold mb-6 mt-16 flex items-center gap-2"><ListChecks className="h-6 w-6 text-primary" /> Active Service Menus</h2>
-      <div className="grid grid-cols-1 gap-12">
-        {seller?.menuTypes?.map(menuType => {
-            const itemsInThisMenu = menuItems?.filter(i => i.availableOn?.includes(menuType)) || [];
-            return (
-                <Card key={menuType} className="shadow-lg">
-                    <CardHeader className="flex flex-row items-center justify-between border-b bg-muted/20">
-                        <div>
-                            <CardTitle className="text-xl">{menuType} Menu</CardTitle>
-                            <CardDescription>Customize the selection and order of items specifically for {menuType}.</CardDescription>
-                        </div>
-                        <Button variant="outline" onClick={() => { setPickingMenuType(menuType); setIsPickingOpen(true); }} className="bg-background">
-                            <PlusCircle className="mr-2 h-4 w-4" /> Pick Master Items
-                        </Button>
-                    </CardHeader>
-                    <CardContent className="pt-6">
-                        {itemsInThisMenu.length === 0 ? (
-                            <div className="text-center py-12 border-2 border-dashed rounded-xl">
-                                <p className="text-muted-foreground italic">No items picked for this menu yet.</p>
-                                <Button variant="link" onClick={() => { setPickingMenuType(menuType); setIsPickingOpen(true); }}>Choose items from library</Button>
-                            </div>
-                        ) : (
-                            <div className="space-y-10">
-                                {categories.map(category => {
-                                    const itemsInCategory = itemsInThisMenu
-                                        .filter(i => i.category === category)
-                                        .sort((a, b) => (a.menuRanks?.[menuType] || 0) - (b.menuRanks?.[menuType] || 0));
-                                    
-                                    if (itemsInCategory.length === 0) return null;
-
-                                    return (
-                                        <div key={category} className="space-y-4">
-                                            <h4 className="font-bold text-sm uppercase tracking-[0.2em] text-muted-foreground border-l-4 border-primary pl-3">{category}</h4>
-                                            <div className="space-y-2">
-                                                {itemsInCategory.map((item, idx) => (
-                                                    <div key={item.id} className="flex items-center justify-between p-3 rounded-lg bg-card border group">
-                                                        <div className="flex items-center gap-4">
-                                                            <div className="flex flex-col gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleRerank(item, menuType, 'up')} disabled={idx === 0}><ChevronUp className="h-4 w-4" /></Button>
-                                                                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleRerank(item, menuType, 'down')} disabled={idx === itemsInCategory.length - 1}><ChevronDown className="h-4 w-4" /></Button>
-                                                            </div>
-                                                            <div>
-                                                                <p className="font-medium text-sm">{item.name}</p>
-                                                                <p className="text-xs text-muted-foreground font-mono">${item.price.toFixed(2)}</p>
-                                                            </div>
-                                                        </div>
-                                                        <Button variant="ghost" size="icon" className="text-destructive h-8 w-8" onClick={() => handleToggleItemAvailability(item, menuType)}><Trash2 className="h-4 w-4" /></Button>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        )}
-                    </CardContent>
-                </Card>
-            );
-        })}
-      </div>
-
-      {isClubSeller && (
-        <section className="mt-20 mb-12">
-          <Card className="shadow-sm">
-            <CardHeader className="flex flex-row items-center justify-between">
-              <div>
-                <CardTitle className="flex items-center gap-2"><Users className="h-5 w-5" /> Member List</CardTitle>
-                <CardDescription>Club accounts available for member charging.</CardDescription>
-              </div>
-              <Button onClick={() => { setEditingMember(null); setIsMemberFormOpen(true); }} size="sm" variant="outline"><UserPlus className="mr-2 h-4 w-4" /> Add Member</Button>
-            </CardHeader>
-            <CardContent>
-              {areMembersLoading ? <Skeleton className="h-32 w-full" /> : members && members.length > 0 ? (
-                <Table>
-                  <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Member ID</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
-                  <TableBody>
-                    {members.map(m => (
-                      <TableRow key={m.id}>
-                        <TableCell className="font-medium">{m.name}</TableCell>
-                        <TableCell className="font-mono text-xs">{m.memberNumber}</TableCell>
-                        <TableCell><Badge variant={m.status === 'Active' ? 'default' : 'secondary'}>{m.status}</Badge></TableCell>
-                        <TableCell className="text-right">
-                          <Button variant="ghost" size="icon" onClick={() => { setEditingMember(m); setIsMemberFormOpen(true); }}><Edit className="h-4 w-4" /></Button>
-                          <Button variant="ghost" size="icon" className="text-destructive" onClick={() => setMemberToDelete(m)}><Trash2 className="h-4 w-4" /></Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              ) : <div className="text-center py-10 text-muted-foreground italic">No members registered.</div>}
-            </CardContent>
-          </Card>
-        </section>
-      )}
-
-      {/* DIALOGS */}
-      <Dialog open={isMasterFormOpen} onOpenChange={setIsMasterFormOpen}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader><DialogTitle>{editingItem ? 'Edit Master Item' : 'Create Master Item'}</DialogTitle></DialogHeader>
-          <MasterItemForm onSave={handleSaveMasterItem} menuItem={editingItem} onClose={() => setIsMasterFormOpen(false)} />
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={isPickingOpen} onOpenChange={setIsPickingOpen}>
-        <DialogContent className="sm:max-w-[600px] max-h-[85vh] flex flex-col">
-            <DialogHeader>
-                <DialogTitle>Select Items for {pickingMenuType}</DialogTitle>
-                <CardDescription>Pick which items from your Master Library should be available on the {pickingMenuType} menu.</CardDescription>
-            </DialogHeader>
-            <Separator className="my-2" />
-            <div className="flex-1 overflow-y-auto pr-2">
-                {categories.map(category => {
-                    const itemsInCategory = menuItems?.filter(i => i.category === category) || [];
-                    if (itemsInCategory.length === 0) return null;
-                    return (
-                        <div key={category} className="mb-6">
-                            <h5 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">{category}</h5>
-                            <div className="space-y-2">
-                                {itemsInCategory.map(item => {
-                                    const isSelected = item.availableOn?.includes(pickingMenuType);
-                                    return (
-                                        <div key={item.id} onClick={() => handleToggleItemAvailability(item, pickingMenuType)} className={cn(
-                                            "flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-all",
-                                            isSelected ? "border-primary bg-primary/5 shadow-inner" : "hover:bg-muted/50"
-                                        )}>
-                                            <div>
-                                                <p className="text-sm font-bold">{item.name}</p>
-                                                <p className="text-xs text-muted-foreground">${item.price.toFixed(2)}</p>
-                                            </div>
-                                            {isSelected && <Check className="h-5 w-5 text-primary" />}
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        </div>
-                    );
-                })}
-            </div>
-            <DialogFooter className="mt-4 border-t pt-4">
-                <Button onClick={() => setIsPickingOpen(false)}>Done</Button>
-            </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={isMemberFormOpen} onOpenChange={setIsMemberFormOpen}><DialogContent className="sm:max-w-[425px]"><DialogHeader><DialogTitle>{editingMember ? 'Edit Member' : 'Add Member'}</DialogTitle></DialogHeader><MemberForm onSave={handleSaveMember} member={editingMember} onClose={() => setIsMemberFormOpen(false)} /></DialogContent></Dialog>
-
-      <AlertDialog open={!!memberToDelete} onOpenChange={(open) => !open && setMemberToDelete(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader><AlertDialogTitle>Delete Member?</AlertDialogTitle><AlertDialogDescription>This will remove <strong>{memberToDelete?.name}</strong> from the club list.</AlertDialogDescription></AlertDialogHeader>
-          <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => { if (!firestore || !memberToDelete) return; deleteDoc(doc(firestore, 'sellers', sellerId, 'members', memberToDelete.id)); setMemberToDelete(null); }} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Delete Member</AlertDialogAction></AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <BrandingFooter />
     </div>
   );
 }
