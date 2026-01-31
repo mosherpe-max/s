@@ -154,6 +154,7 @@ export default function KoopAdminPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead>ID</TableHead>
                     <TableHead>Course Name</TableHead>
                     <TableHead>Type</TableHead>
                     <TableHead>Contact</TableHead>
@@ -166,6 +167,7 @@ export default function KoopAdminPage() {
                 <TableBody>
                   {sellers.map((seller) => (
                     <TableRow key={seller.id}>
+                      <TableCell className="font-mono text-xs text-muted-foreground">{seller.id}</TableCell>
                       <TableCell className="font-medium">{seller.courseName}</TableCell>
                       <TableCell>
                         <Badge variant="outline" className="text-[10px] uppercase">{seller.type}</Badge>
