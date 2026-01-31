@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -85,8 +84,9 @@ const getMenuOptionsForType = (type: string) => {
   switch (type) {
     case 'Private Golf Course':
     case 'Semi Private Golf Course':
-    case 'Public Golf Course':
       return ["Beverage Cart", "Clubhouse", "Pool", "Take Out", "Halfway House"];
+    case 'Public Golf Course':
+      return ["Beverage Cart", "Clubhouse", "Take Out", "Halfway House"];
     case 'Brewery':
     case 'Restaurant':
       return ["Take Out", "Dine-In"];
