@@ -100,13 +100,13 @@ export function MapView({ buyerLocation, sellerLocation, buyers, radius, zoomMod
         fullscreenControl={false}
       >
         <MapElements sellerLocation={sellerLocation} buyerLocation={buyerLocation} buyers={buyers} radius={radius} zoomMode={zoomMode} />
-        {/* Seller Pin */}
+        {/* Seller Pin (Driver) - Uses Indigo to stand out from green/yellow/red order markers */}
         <AdvancedMarker position={{ lat: sellerLocation.latitude, lng: sellerLocation.longitude }}>
             <div className="flex flex-col items-center">
-                <div className="bg-primary p-2 rounded-full shadow-lg border-2 border-primary-foreground">
-                    <Truck className="w-6 h-6 text-primary-foreground" />
+                <div className="bg-indigo-600 p-2 rounded-full shadow-lg border-2 border-white">
+                    <Truck className="w-6 h-6 text-white" />
                 </div>
-                <div className="w-0 h-0 border-l-8 border-l-transparent border-r-8 border-r-transparent border-t-8 border-t-primary"></div>
+                <div className="w-0 h-0 border-l-8 border-l-transparent border-r-8 border-r-transparent border-t-8 border-t-indigo-600"></div>
             </div>
         </AdvancedMarker>
 
