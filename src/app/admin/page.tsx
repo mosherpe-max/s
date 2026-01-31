@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState } from 'react';
@@ -441,7 +440,9 @@ export default function KoopAdminPage() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Contact Email</FormLabel>
-                        <FormControl><Input type="email" {...field} /></FormControl>
+                        <FormControl>
+                          <Input type="email" placeholder="manager@course.com" {...field} />
+                        </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -452,7 +453,9 @@ export default function KoopAdminPage() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Contact Phone</FormLabel>
-                        <FormControl><Input {...field} /></FormControl>
+                        <FormControl>
+                          <Input placeholder="(555) 000-0000" {...field} />
+                        </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
