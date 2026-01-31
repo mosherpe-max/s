@@ -65,7 +65,7 @@ type MemberFormData = z.infer<typeof memberSchema>;
 
 const customizationSchema = z.object({
   brandColor: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, 'Must be a valid HEX color (e.g. #22c55e)').optional().or(z.literal('')),
-  logoUrl: z.string().url('Must be a valid image URL').optional().or(z.literal('')),
+  logoUrl: z.string().optional().or(z.literal('')),
   headerImageUrl: z.string().url('Must be a valid image URL').optional().or(z.literal('')),
   welcomeMessage: z.string().max(200, 'Keep it brief (max 200 chars)').optional(),
 });
@@ -352,6 +352,21 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
       .finally(() => setIsSavingCustomization(false));
   };
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, onChange: (val: string) => void) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 1024 * 1024) { // 1MB limit for prototype
+        toast({ variant: 'destructive', title: 'File too large', description: 'Please choose a logo smaller than 1MB.' });
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        onChange(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleSeedData = async () => {
     if (!firestore) return;
     setIsSeeding(true);
@@ -505,9 +520,8 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
                           <TableCell className="font-mono text-sm">${order.total.toFixed(2)}</TableCell>
                           <TableCell>
                             <Badge variant="outline" className="text-[10px]">{order.status}</Badge>
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                          </TableRow>
+                        ))}
                     </TableBody>
                   </Table>
                 </div>
@@ -552,11 +566,27 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
                       name="logoUrl"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="flex items-center gap-2"><Upload className="h-4 w-4" /> Logo URL</FormLabel>
+                          <FormLabel className="flex items-center gap-2"><Upload className="h-4 w-4" /> Seller Logo</FormLabel>
                           <FormControl>
-                            <Input {...field} placeholder="https://..." />
+                            <div className="space-y-3">
+                              <Input 
+                                type="file" 
+                                accept="image/jpeg,image/png" 
+                                onChange={(e) => handleFileChange(e, field.onChange)} 
+                              />
+                              {field.value && (
+                                <div className="relative w-20 h-20 border rounded-md overflow-hidden bg-muted/20">
+                                  <Image 
+                                    src={field.value} 
+                                    alt="Logo Preview" 
+                                    fill 
+                                    className="object-contain" 
+                                  />
+                                </div>
+                              )}
+                            </div>
                           </FormControl>
-                          <FormDescription>Shown in the app header.</FormDescription>
+                          <FormDescription>Pick file from computer. Recommended: JPEG.</FormDescription>
                           <FormMessage />
                         </FormItem>
                       )}
