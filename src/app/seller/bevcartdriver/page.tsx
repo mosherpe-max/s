@@ -26,7 +26,6 @@ export default function BevCartDriverDashboardPage() {
   const [isActive, setIsActive] = useState(true);
   const [zoomMode, setZoomMode] = useState<'radius' | 'all'>('all');
 
-
   const activeOrdersQuery = useMemoFirebase(() => {
     if (!firestore || !isActive) return null;
     // For now, hardcode the sellerId to '1' for "Demo Course 1"
@@ -76,8 +75,8 @@ export default function BevCartDriverDashboardPage() {
 
   return (
     <APIProvider apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!}>
-      <div className="flex flex-col h-[calc(100vh-4rem)]">
-        <header className="flex-shrink-0 px-4 py-4 flex items-center justify-between border-b bg-background">
+      <div className="flex flex-col h-[calc(100vh-4rem)] overflow-hidden">
+        <header className="flex-shrink-0 px-4 py-4 flex items-center justify-between border-b bg-background z-20">
           <div>
             <h1 className="font-headline text-2xl font-bold text-foreground">Driver Dashboard</h1>
             <p className="text-sm text-muted-foreground">Demo Course 1</p>
@@ -88,9 +87,9 @@ export default function BevCartDriverDashboardPage() {
           </div>
         </header>
 
-        <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
+        <div className="flex-1 flex flex-col md:flex-row overflow-hidden min-h-0">
           {/* Map Container */}
-          <div className="relative md:w-2/3 h-[50vh] md:h-full bg-muted">
+          <div className="relative w-full md:w-2/3 h-[40vh] md:h-full bg-muted shrink-0 md:shrink">
            <Button
               variant="outline"
               size="icon"
@@ -113,10 +112,12 @@ export default function BevCartDriverDashboardPage() {
           </div>
           
           {/* Orders List */}
-          <div className="md:w-1/3 flex-1 flex flex-col bg-background border-t md:border-t-0 md:border-l">
-            <h2 className="font-headline text-lg font-semibold px-4 pt-3 pb-2 shrink-0 border-b">Active Orders ({orders.length})</h2>
-            <ScrollArea className="flex-1">
-              <div className="p-4 space-y-4">
+          <div className="w-full md:w-1/3 flex flex-col bg-background border-t md:border-t-0 md:border-l overflow-hidden min-h-0">
+            <h2 className="font-headline text-lg font-semibold px-4 pt-3 pb-2 shrink-0 border-b">
+              Active Orders ({orders.length})
+            </h2>
+            <ScrollArea className="flex-1 w-full">
+              <div className="p-4 space-y-4 pb-12">
                 {isLoading ? (
                   <div className="space-y-4">
                     {[...Array(3)].map((_, i) => (
@@ -124,7 +125,7 @@ export default function BevCartDriverDashboardPage() {
                     ))}
                   </div>
                 ) : orders.length === 0 ? (
-                  <div className="col-span-full flex items-center justify-center text-muted-foreground py-10">
+                  <div className="flex items-center justify-center text-muted-foreground py-10 italic">
                     No active orders.
                   </div>
                 ) : (
