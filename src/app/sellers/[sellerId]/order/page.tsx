@@ -1,9 +1,10 @@
+
 'use client';
 
 import { useState, use, useEffect, useMemo } from 'react';
 import { collection, doc, addDoc, serverTimestamp } from 'firebase/firestore';
 import { useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
-import type { Seller, MenuItem, Category, Order } from '@/lib/types';
+import type { Seller, MenuItem, Category, Order, PaymentMethod } from '@/lib/types';
 import { categories } from '@/lib/types';
 import { BuyerMenu } from '@/components/buyer-menu';
 import { OrderSummary } from '@/components/order-summary';
@@ -16,7 +17,7 @@ import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { mockBuyerLocation } from '@/lib/data';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetFooter } from '@/components/ui/sheet';
-import { Loader2, AlertCircle, CreditCard, User, MapPin, Store } from 'lucide-react';
+import { Loader2, AlertCircle, CreditCard, User, MapPin, Store, Banknote } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useCart } from '@/lib/cart-context';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -35,7 +36,7 @@ export default function BuyerOrderPage({ params }: { params: { sellerId: string 
   const [selectedCategory, setSelectedCategory] = useState<Category>(categories[0]);
   const [selectedMenuType, setSelectedMenuType] = useState<string>('');
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<'Credit Card' | 'Member Account'>('Credit Card');
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('Credit Card');
   
   const [inputMemberId, setInputMemberId] = useState('');
   const [inputMemberLastName, setInputMemberLastName] = useState('');
@@ -57,12 +58,18 @@ export default function BuyerOrderPage({ params }: { params: { sellerId: string 
 
   const isPrivateCourse = seller?.type === 'Private Golf Course';
   const isSemiPrivateCourse = seller?.type === 'Semi Private Golf Course';
+  const isPublicCourse = seller?.type === 'Public Golf Course';
+  const isBevCart = selectedMenuType === 'Beverage Cart';
 
   useEffect(() => {
-    if (isPrivateCourse) {
+    if (isPublicCourse && isBevCart) {
+      setPaymentMethod('Pay with Cash or Credit Card to Beverage Cart Operator');
+    } else if (isPrivateCourse) {
       setPaymentMethod('Member Account');
+    } else if (paymentMethod === 'Pay with Cash or Credit Card to Beverage Cart Operator') {
+      setPaymentMethod('Credit Card');
     }
-  }, [isPrivateCourse]);
+  }, [isPublicCourse, isBevCart, isPrivateCourse]);
 
   useEffect(() => {
     if (seller?.menuTypes && seller.menuTypes.length > 0 && !selectedMenuType) {
@@ -320,7 +327,15 @@ export default function BuyerOrderPage({ params }: { params: { sellerId: string 
             <div className="space-y-4">
               <h3 className="font-bold text-sm uppercase tracking-wider text-muted-foreground">Payment Method</h3>
               
-              {isPrivateCourse ? (
+              {isPublicCourse && isBevCart ? (
+                <div className="bg-muted/50 p-4 rounded-lg flex items-center gap-4 border border-primary/20 animate-in fade-in slide-in-from-top-2">
+                  <Banknote className="h-6 w-6 text-primary shrink-0" style={{ color: brandStyle.primaryColor }} />
+                  <div>
+                    <p className="text-sm font-bold">Pay At Delivery</p>
+                    <p className="text-xs text-muted-foreground">Cash or Credit Card to Beverage Cart Operator</p>
+                  </div>
+                </div>
+              ) : isPrivateCourse ? (
                 <div className="bg-muted/50 p-3 rounded-lg flex items-center gap-3 border border-primary/10">
                   <User className="h-5 w-5 text-primary" style={{ color: brandStyle.primaryColor }} />
                   <div>
@@ -329,7 +344,7 @@ export default function BuyerOrderPage({ params }: { params: { sellerId: string 
                   </div>
                 </div>
               ) : (
-                <RadioGroup value={paymentMethod} onValueChange={(v: any) => setPaymentMethod(v)}>
+                <RadioGroup value={paymentMethod as any} onValueChange={(v: any) => setPaymentMethod(v)}>
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="Credit Card" id="cc" style={{ borderColor: brandStyle.primaryColor }} />
                     <Label htmlFor="cc" className="flex items-center gap-2 cursor-pointer"><CreditCard className="h-4 w-4" /> Credit Card</Label>

@@ -66,6 +66,8 @@ export interface OrderItem extends MenuItem {
   quantity: number;
 }
 
+export type PaymentMethod = 'Credit Card' | 'Member Account' | 'Pay with Cash or Credit Card to Beverage Cart Operator';
+
 export interface Order {
   id: string;
   sellerId: string;
@@ -73,7 +75,7 @@ export interface Order {
   customerName: string;
   menuType: string;
   menuTypeLocation?: string;
-  paymentMethod?: 'Credit Card' | 'Member Account';
+  paymentMethod?: PaymentMethod;
   memberId?: string;
   memberLastName?: string;
   deliveryLocation: {

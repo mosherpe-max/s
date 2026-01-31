@@ -208,7 +208,7 @@
         },
         "paymentMethod": {
           "type": "string",
-          "enum": ["Credit Card", "Member Account"]
+          "enum": ["Credit Card", "Member Account", "Pay with Cash or Credit Card to Beverage Cart Operator"]
         },
         "memberId": {
           "type": "string",
