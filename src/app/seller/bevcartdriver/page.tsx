@@ -284,7 +284,7 @@ export default function BevCartDriverDashboardPage() {
         </div>
 
         {/* Branding Footer */}
-        <footer className="h-10 bg-[#213147] text-white flex items-center justify-between px-6 shrink-0 z-30">
+        <footer className="h-7 bg-[#213147] text-white flex items-center justify-between px-6 shrink-0 z-30">
           <span className="text-[10px] font-medium">Copyright 2026</span>
           <div className="flex items-center gap-2">
             <span className="text-[10px] font-medium">Powered by</span>
