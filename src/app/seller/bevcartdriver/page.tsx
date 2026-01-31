@@ -13,7 +13,7 @@ import { mockSellerLocation } from '@/lib/data';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
-import { Focus, Bell } from 'lucide-react';
+import { Focus, Bell, Package } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 type LatLng = {
