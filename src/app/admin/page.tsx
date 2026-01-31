@@ -8,6 +8,16 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PlusCircle, Edit, Trash2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Input } from '@/components/ui/input';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -55,6 +65,7 @@ export default function KoopAdminPage() {
   const { toast } = useToast();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingSeller, setEditingSeller] = useState<Seller | null>(null);
+  const [sellerToDelete, setSellerToDelete] = useState<Seller | null>(null);
 
   const sellersQuery = useMemoFirebase(() => {
     if (!firestore) return null;
@@ -107,7 +118,7 @@ export default function KoopAdminPage() {
       ? doc(firestore, 'sellers', editingSeller.id)
       : doc(collection(firestore, 'sellers'));
     
-    const payload = editingSeller ? data : { ...data, id: sellerRef.id };
+    const payload = editingSeller ? { ...data, id: editingSeller.id } : { ...data, id: sellerRef.id };
 
     setDoc(sellerRef, payload, { merge: true })
       .then(() => {
@@ -126,21 +137,25 @@ export default function KoopAdminPage() {
       });
   };
 
-  const onDelete = (id: string, name: string) => {
-    if (!firestore) return;
-    if (confirm(`Are you sure you want to delete ${name}?`)) {
-      const sellerRef = doc(firestore, 'sellers', id);
-      deleteDoc(sellerRef)
-        .then(() => {
-          toast({ title: 'Seller Deleted', description: `${name} has been removed.` });
-        })
-        .catch(async (error) => {
-          errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: sellerRef.path,
-            operation: 'delete'
-          }));
-        });
-    }
+  const confirmDelete = () => {
+    if (!firestore || !sellerToDelete) return;
+    
+    const id = sellerToDelete.id;
+    const name = sellerToDelete.courseName;
+    const sellerRef = doc(firestore, 'sellers', id);
+    
+    deleteDoc(sellerRef)
+      .then(() => {
+        toast({ title: 'Seller Deleted', description: `${name} has been removed.` });
+      })
+      .catch(async (error) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+          path: sellerRef.path,
+          operation: 'delete'
+        }));
+      });
+    
+    setSellerToDelete(null);
   };
 
   return (
@@ -209,7 +224,7 @@ export default function KoopAdminPage() {
                           <Button variant="ghost" size="icon" onClick={() => handleOpenForm(seller)}>
                             <Edit className="h-4 w-4" />
                           </Button>
-                          <Button variant="ghost" size="icon" className="text-destructive" onClick={() => onDelete(seller.id, seller.courseName)}>
+                          <Button variant="ghost" size="icon" className="text-destructive" onClick={() => setSellerToDelete(seller)}>
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
@@ -385,6 +400,23 @@ export default function KoopAdminPage() {
           </Form>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!sellerToDelete} onOpenChange={(open) => !open && setSellerToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete <strong>{sellerToDelete?.courseName}</strong> and all its associated data. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete Seller
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
