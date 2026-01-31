@@ -13,7 +13,8 @@ import { mockSellerLocation } from '@/lib/data';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
-import { Focus } from 'lucide-react';
+import { Focus, Bell } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 type LatLng = {
   latitude: number;
@@ -22,11 +23,15 @@ type LatLng = {
 
 export default function BevCartDriverDashboardPage() {
   const firestore = useFirestore();
+  const { toast } = useToast();
   const [sellerLocation, setSellerLocation] = useState<LatLng | null>(null);
   const sellerLocRef = useRef<LatLng | null>(null);
   const [zoomMode, setZoomMode] = useState<'radius' | 'all'>('all');
-  
   const [now, setNow] = useState(Date.now());
+  
+  // Ref to track seen order IDs for "New Order" notifications
+  const lastOrderIdsRef = useRef<Set<string>>(new Set());
+  const initialLoadRef = useRef(true);
 
   // Get current seller status from DB
   const sellerRef = useMemoFirebase(() => {
@@ -47,6 +52,37 @@ export default function BevCartDriverDashboardPage() {
   }, [firestore, isActive]);
 
   const { data: activeOrders, isLoading: areActiveOrdersLoading } = useCollection<Order>(activeOrdersQuery);
+
+  // Sound notification effect
+  useEffect(() => {
+    if (!activeOrders || !isActive) return;
+
+    const currentOrderIds = new Set(activeOrders.map(o => o.id));
+    
+    // Check for newly "Placed" orders
+    const newPlacedOrders = activeOrders.filter(o => o.status === 'Placed' && !lastOrderIdsRef.current.has(o.id));
+
+    if (newPlacedOrders.length > 0 && !initialLoadRef.current) {
+      // Play Sound
+      const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+      audio.play().catch(e => console.log("Audio play blocked by browser. User interaction needed."));
+
+      // Show Toast
+      toast({
+        title: (
+          <div className="flex items-center gap-2">
+            <Bell className="h-5 w-5 text-primary animate-bounce" />
+            <span className="font-headline font-bold text-lg">New Order Received!</span>
+          </div>
+        ),
+        description: `You have ${newPlacedOrders.length} new order(s) waiting for confirmation.`,
+      });
+    }
+
+    // Update the set of seen order IDs
+    lastOrderIdsRef.current = currentOrderIds;
+    initialLoadRef.current = false;
+  }, [activeOrders, isActive, toast]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -142,7 +178,7 @@ export default function BevCartDriverDashboardPage() {
   return (
     <APIProvider apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!}>
       <div className="flex flex-col h-[calc(100vh-6px)] overflow-hidden">
-        <header className="flex-shrink-0 px-4 h-16 flex items-center justify-between border-b bg-background z-20">
+        <header className="flex-shrink-0 px-4 h-16 flex items-center justify-between border-b bg-background z-20 shadow-sm">
           <h1 className="font-headline text-lg md:text-xl font-bold text-foreground">
             {seller?.courseName || 'Demo Course'} - Driver Dashboard
           </h1>
@@ -182,8 +218,11 @@ export default function BevCartDriverDashboardPage() {
           </div>
           
           <div className="w-full md:w-1/3 flex flex-col bg-background border-t md:border-t-0 md:border-l overflow-hidden min-h-0">
-            <h2 className="font-headline text-lg font-semibold px-4 pt-3 pb-2 shrink-0 border-b">
-              Active Orders ({orders.length})
+            <h2 className="font-headline text-lg font-semibold px-4 pt-3 pb-2 shrink-0 border-b flex items-center justify-between">
+              <span>Active Orders</span>
+              <span className="bg-primary text-primary-foreground text-xs rounded-full px-2 py-0.5">
+                {orders.length}
+              </span>
             </h2>
             <ScrollArea className="flex-1 w-full">
               <div className="p-4 space-y-4 pb-12">
@@ -194,8 +233,11 @@ export default function BevCartDriverDashboardPage() {
                     ))}
                   </div>
                 ) : orders.length === 0 ? (
-                  <div className="flex items-center justify-center text-muted-foreground py-10 italic">
-                    {isActive ? 'No active orders.' : 'Cart is currently inactive.'}
+                  <div className="flex flex-col items-center justify-center text-muted-foreground py-20 text-center px-4">
+                    <Package className="h-12 w-12 opacity-20 mb-2" />
+                    <p className="italic">
+                      {isActive ? 'No active orders right now.' : 'Cart is currently inactive.'}
+                    </p>
                   </div>
                 ) : (
                   orders.map((order, index) => (
