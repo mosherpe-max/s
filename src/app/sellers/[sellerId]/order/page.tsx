@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, use, useEffect, useMemo } from 'react';
@@ -390,7 +389,7 @@ export default function BuyerOrderPage({ params }: { params: { sellerId: string 
               disabled={isPlacingOrder}
               style={{ backgroundColor: brandStyle.primaryColor }}
             >
-              {isPlacingOrder ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : `Complete Purchase`}
+              {isPlacingOrder ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : `Place Order`}
             </Button>
           </SheetFooter>
         </SheetContent>
