@@ -55,7 +55,7 @@ export function AppHeader() {
               <nav className="hidden lg:flex items-center gap-4 text-sm font-medium">
                   <Link href="/#features" className="text-foreground hover:text-primary transition-colors">Features</Link>
                   <Link href="/#pricing" className="text-foreground hover:text-primary transition-colors">Pricing</Link>
-                  <Link href="/sellers/1/order" className="text-foreground hover:text-primary transition-colors">Demo Menu</Link>
+                  <Link href="/sellers/demo-course/order" className="text-foreground hover:text-primary transition-colors">Demo Menu</Link>
               </nav>
             )}
         </div>
@@ -89,7 +89,7 @@ export function AppHeader() {
                     <Link href="/seller/bevcartdriver">Driver</Link>
                 </Button>
                 <Button variant="ghost" size="sm" asChild>
-                    <Link href="/sellers/1">Seller Admin</Link>
+                    <Link href="/sellers/demo-course">Seller Admin</Link>
                 </Button>
               </>
             )}

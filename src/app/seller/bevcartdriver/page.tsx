@@ -1,4 +1,3 @@
-
 'use client'
 
 import { collection, query, where, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
@@ -34,10 +33,10 @@ export default function BevCartDriverDashboardPage() {
   const lastOrderIdsRef = useRef<Set<string>>(new Set());
   const initialLoadRef = useRef(true);
 
-  // Get current seller status from DB
+  // Get current seller status from DB. Using 'demo-course' as a slug-based ID.
   const sellerRef = useMemoFirebase(() => {
     if (!firestore) return null;
-    return doc(firestore, 'sellers', '1');
+    return doc(firestore, 'sellers', 'demo-course');
   }, [firestore]);
   const { data: seller } = useDoc<Seller>(sellerRef);
 
@@ -47,7 +46,7 @@ export default function BevCartDriverDashboardPage() {
     if (!firestore || !isActive) return null;
     return query(
       collection(firestore, 'orders'),
-      where('sellerId', '==', '1'),
+      where('sellerId', '==', 'demo-course'),
       where('status', 'in', ['Placed', 'Preparing', 'Out for Delivery'])
     );
   }, [firestore, isActive]);
@@ -125,7 +124,7 @@ export default function BevCartDriverDashboardPage() {
 
     const syncLocation = async () => {
       if (sellerLocRef.current) {
-        const sellerRef = doc(firestore, 'sellers', '1');
+        const sellerRef = doc(firestore, 'sellers', 'demo-course');
         await updateDoc(sellerRef, {
           latitude: sellerLocRef.current.latitude,
           longitude: sellerLocRef.current.longitude
@@ -149,7 +148,7 @@ export default function BevCartDriverDashboardPage() {
 
   const handleToggleActive = async (checked: boolean) => {
     if (!firestore) return;
-    const sellerRef = doc(firestore, 'sellers', '1');
+    const sellerRef = doc(firestore, 'sellers', 'demo-course');
     await updateDoc(sellerRef, { status: checked ? 'Active' : 'Inactive' });
   };
 

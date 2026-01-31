@@ -29,7 +29,7 @@ export default function Home() {
           </p>
           <div className="mt-8 flex justify-center gap-4">
             <Button asChild size="lg">
-              <Link href="/sellers/1/order">
+              <Link href="/sellers/demo-course/order">
                 View Sample Menu
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Link>
@@ -138,7 +138,7 @@ export default function Home() {
               dashboard provides all the tools you need to succeed.
             </p>
             <Button asChild size="lg" style={{backgroundColor: 'var(--accent)', color: 'var(--accent-foreground)'}}>
-                <Link href="/sellers/1/menu">
+                <Link href="/sellers/demo-course">
                     Explore the Seller Dashboard
                     <ArrowRight className="ml-2 h-5 w-5" />
                 </Link>
