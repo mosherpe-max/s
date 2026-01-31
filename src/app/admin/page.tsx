@@ -6,7 +6,7 @@ import { collection, doc, setDoc, deleteDoc } from 'firebase/firestore';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { PlusCircle, Edit, Trash2 } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, Loader2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
   AlertDialog,
@@ -52,8 +52,6 @@ const sellerSchema = z.object({
   city: z.string().min(1, 'City is required'),
   state: z.string().min(1, 'State is required'),
   zip: z.string().min(1, 'ZIP code is required'),
-  latitude: z.coerce.number(),
-  longitude: z.coerce.number(),
   contactName: z.string().min(1, 'Contact name is required'),
   contactEmail: z.string().email('Invalid email address'),
   contactPhone: z.string().min(1, 'Phone number is required'),
@@ -82,6 +80,7 @@ export default function KoopAdminPage() {
   const firestore = useFirestore();
   const { toast } = useToast();
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [editingSeller, setEditingSeller] = useState<Seller | null>(null);
   const [sellerToDelete, setSellerToDelete] = useState<Seller | null>(null);
 
@@ -101,8 +100,6 @@ export default function KoopAdminPage() {
       city: '',
       state: '',
       zip: '',
-      latitude: 0,
-      longitude: 0,
       contactName: '',
       contactEmail: '',
       contactPhone: '',
@@ -123,8 +120,6 @@ export default function KoopAdminPage() {
         city: '',
         state: '',
         zip: '',
-        latitude: 0,
-        longitude: 0,
         contactName: '',
         contactEmail: '',
         contactPhone: '',
@@ -135,20 +130,45 @@ export default function KoopAdminPage() {
     setIsFormOpen(true);
   };
 
-  const onSave = (data: SellerFormData) => {
+  const onSave = async (data: SellerFormData) => {
     if (!firestore) return;
+    setIsSaving(true);
 
-    // Use existing ID if editing, otherwise generate a "smart" slug ID from the name
+    let latitude = editingSeller?.latitude || 0;
+    let longitude = editingSeller?.longitude || 0;
+
+    // Attempt to geocode the address
+    const fullAddress = `${data.streetAddress}, ${data.city}, ${data.state} ${data.zip}`;
+    try {
+      const response = await fetch(
+        `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(fullAddress)}&key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}`
+      );
+      const result = await response.json();
+      if (result.status === 'OK') {
+        const location = result.results[0].geometry.location;
+        latitude = location.lat;
+        longitude = location.lng;
+      } else {
+        toast({
+          variant: 'destructive',
+          title: 'Geocoding Failed',
+          description: 'Could not calculate coordinates for the address. Using existing or default values.'
+        });
+      }
+    } catch (error) {
+      console.error("Geocoding error:", error);
+    }
+
     const sellerId = editingSeller ? editingSeller.id : slugify(data.courseName);
     const sellerRef = doc(firestore, 'sellers', sellerId);
     
-    const payload = { ...data, id: sellerId };
+    const payload = { ...data, id: sellerId, latitude, longitude };
 
     setDoc(sellerRef, payload, { merge: true })
       .then(() => {
         toast({ 
           title: editingSeller ? 'Seller Updated' : 'Seller Created', 
-          description: `${data.courseName} has been saved with ID: ${sellerId}` 
+          description: `${data.courseName} has been saved with smart ID: ${sellerId}` 
         });
         setIsFormOpen(false);
       })
@@ -158,6 +178,9 @@ export default function KoopAdminPage() {
           operation: editingSeller ? 'update' : 'create',
           requestResourceData: payload
         }));
+      })
+      .finally(() => {
+        setIsSaving(false);
       });
   };
 
@@ -207,7 +230,7 @@ export default function KoopAdminPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>ID / Slug</TableHead>
+                    <TableHead>Seller ID</TableHead>
                     <TableHead>Course Name</TableHead>
                     <TableHead>Type</TableHead>
                     <TableHead>Contact</TableHead>
@@ -235,7 +258,9 @@ export default function KoopAdminPage() {
                         <div className="flex flex-col text-xs text-muted-foreground">
                           <span className="font-semibold text-foreground">{seller.streetAddress}</span>
                           <span>{seller.city}, {seller.state} {seller.zip}</span>
-                          <span className="font-mono mt-1 opacity-70">{seller.latitude.toFixed(4)}, {seller.longitude.toFixed(4)}</span>
+                          <span className="font-mono mt-1 opacity-70">
+                            {seller.latitude?.toFixed(4)}, {seller.longitude?.toFixed(4)}
+                          </span>
                         </div>
                       </TableCell>
                       <TableCell className="font-mono text-xs">${seller.serviceFee.toFixed(2)}</TableCell>
@@ -344,7 +369,10 @@ export default function KoopAdminPage() {
               </div>
 
               <div className="space-y-4 pt-4 border-t">
-                <h3 className="font-semibold text-sm">Location Address</h3>
+                <div className="flex justify-between items-center">
+                   <h3 className="font-semibold text-sm">Location Address</h3>
+                   <span className="text-[10px] text-muted-foreground italic">Coordinates are calculated automatically</span>
+                </div>
                 <FormField
                   control={form.control}
                   name="streetAddress"
@@ -386,31 +414,6 @@ export default function KoopAdminPage() {
                       <FormItem>
                         <FormLabel>ZIP Code</FormLabel>
                         <FormControl><Input {...field} placeholder="93953" /></FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="latitude"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Latitude</FormLabel>
-                        <FormControl><Input type="number" step="0.000001" {...field} /></FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="longitude"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Longitude</FormLabel>
-                        <FormControl><Input type="number" step="0.000001" {...field} /></FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -458,8 +461,11 @@ export default function KoopAdminPage() {
               </div>
 
               <div className="flex justify-end gap-2 pt-4">
-                <Button type="button" variant="outline" onClick={() => setIsFormOpen(false)}>Cancel</Button>
-                <Button type="submit">{editingSeller ? 'Save Changes' : 'Create Seller'}</Button>
+                <Button type="button" variant="outline" onClick={() => setIsFormOpen(false)} disabled={isSaving}>Cancel</Button>
+                <Button type="submit" disabled={isSaving}>
+                  {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {editingSeller ? 'Save Changes' : 'Create Seller'}
+                </Button>
               </div>
             </form>
           </Form>
