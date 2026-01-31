@@ -88,8 +88,8 @@ export function AppHeader() {
                 <Button variant="ghost" size="sm" asChild>
                     <Link href="/seller/bevcartdriver">Driver</Link>
                 </Button>
-                <Button size="sm" asChild>
-                    <Link href="/sellers/1">Menu Mgr</Link>
+                <Button variant="ghost" size="sm" asChild>
+                    <Link href="/sellers/1">Seller Admin</Link>
                 </Button>
               </>
             )}
