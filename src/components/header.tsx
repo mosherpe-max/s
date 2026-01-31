@@ -37,7 +37,7 @@ export function AppHeader() {
   if (isDriverPage) return null;
 
   return (
-    <header className="sticky top-0 z-40 bg-[#213147] border-b border-white/10">
+    <header className="sticky top-0 z-40 bg-[#213147] border-b border-[#E50000]">
       <div className="container mx-auto flex h-16 items-center justify-between px-4">
         <div className="flex items-center gap-8">
           <Link href="/" className="flex items-center transition-opacity hover:opacity-90">
