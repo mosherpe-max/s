@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, use, useEffect, useMemo } from 'react';
@@ -23,7 +24,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Input } from '@/components/ui/input';
-import Link from 'next/link';
+import Image from 'next/image';
 
 export default function BuyerMenuPage({ params }: { params: { sellerId: string } }) {
   const { sellerId } = use(params);
@@ -130,19 +131,64 @@ export default function BuyerMenuPage({ params }: { params: { sellerId: string }
 
   if (!isLoading && !seller) return <div className="p-8 text-center"><h2 className="text-2xl font-bold">Course Not Found</h2></div>;
 
+  const brandStyle = {
+    '--primary': seller?.brandColor ? `0 0% 0% / 0` : undefined, // We can't easily override HSL vars like this globally, but we'll use inline styles for buttons
+    primaryColor: seller?.brandColor || 'hsl(var(--primary))',
+  };
+
   return (
-    <div className="flex flex-col h-full">
-      <header className="px-4 pt-4 pb-2 text-center shrink-0">
-        <h1 className="font-headline text-3xl font-bold">{isLoading ? <Skeleton className="h-9 w-3/4 mx-auto" /> : seller?.courseName}</h1>
+    <div className="flex flex-col h-full bg-background">
+      {/* Dynamic Header Image */}
+      {seller?.headerImageUrl && (
+        <div className="relative w-full h-40 shrink-0">
+          <Image 
+            src={seller.headerImageUrl} 
+            alt={seller.courseName} 
+            fill 
+            className="object-cover" 
+            priority
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+        </div>
+      )}
+
+      <header className={cn(
+        "px-4 pt-6 pb-2 text-center shrink-0",
+        seller?.headerImageUrl ? "relative -mt-10 z-10" : "pt-4"
+      )}>
+        <h1 className={cn(
+          "font-headline text-3xl font-bold",
+          seller?.headerImageUrl ? "text-white drop-shadow-lg" : "text-foreground"
+        )}>
+          {isLoading ? <Skeleton className="h-9 w-3/4 mx-auto" /> : seller?.courseName}
+        </h1>
+        {seller?.welcomeMessage && (
+          <p className={cn(
+            "text-sm mt-1 max-w-xs mx-auto",
+            seller?.headerImageUrl ? "text-white/90" : "text-muted-foreground"
+          )}>
+            {seller.welcomeMessage}
+          </p>
+        )}
       </header>
 
-      <div className="sticky top-0 bg-background/95 backdrop-blur-sm z-10 py-2 shrink-0 border-b">
+      <div className="sticky top-0 bg-background/95 backdrop-blur-sm z-20 py-2 shrink-0 border-b">
         <ScrollArea className="w-full whitespace-nowrap">
           <div className="flex gap-2 px-4">
             {categories.map((cat) => {
               const Icon = categoryIcons[cat];
+              const isSelected = selectedCategory === cat;
               return (
-                <Button key={cat} variant={selectedCategory === cat ? 'default' : 'outline'} onClick={() => setSelectedCategory(cat)} className="shrink-0"><Icon className="mr-2 h-4 w-4" />{cat}</Button>
+                <Button 
+                  key={cat} 
+                  variant={isSelected ? 'default' : 'outline'} 
+                  onClick={() => setSelectedCategory(cat)} 
+                  className="shrink-0"
+                  style={isSelected ? { backgroundColor: brandStyle.primaryColor } : {}}
+                >
+                  <Icon className="mr-2 h-4 w-4" />
+                  {cat}
+                </Button>
               );
             })}
           </div>
@@ -150,15 +196,34 @@ export default function BuyerMenuPage({ params }: { params: { sellerId: string }
       </div>
 
       <main className="flex-1 overflow-y-auto px-4 pt-4 pb-28">
-        {isLoading ? <div className="space-y-4"><Skeleton className="h-20 w-full" /><Skeleton className="h-20 w-full" /></div> : (
-          <BuyerMenu orderItems={orderItems} onUpdateItem={updateItem} selectedCategory={selectedCategory} menuItems={menuItems || []} />
+        {isLoading ? (
+          <div className="space-y-4">
+            <Skeleton className="h-20 w-full" />
+            <Skeleton className="h-20 w-full" />
+          </div>
+        ) : (
+          <BuyerMenu 
+            orderItems={orderItems} 
+            onUpdateItem={updateItem} 
+            selectedCategory={selectedCategory} 
+            menuItems={menuItems || []} 
+            accentColor={brandStyle.primaryColor}
+          />
         )}
       </main>
 
       <Sheet open={isCartOpen} onOpenChange={setIsCartOpen}>
         {activeOrderItems.length > 0 && (
           <div className="fixed bottom-0 left-0 right-0 p-4 bg-background/90 backdrop-blur-sm border-t z-20">
-            <SheetTrigger asChild><Button size="lg" className="w-full text-lg h-14">View Order ({totalItems}) - ${total.toFixed(2)}</Button></SheetTrigger>
+            <SheetTrigger asChild>
+              <Button 
+                size="lg" 
+                className="w-full text-lg h-14 shadow-lg"
+                style={{ backgroundColor: brandStyle.primaryColor }}
+              >
+                View Order ({totalItems}) - ${total.toFixed(2)}
+              </Button>
+            </SheetTrigger>
           </div>
         )}
         <SheetContent side="bottom" className="rounded-t-lg max-h-[90vh] overflow-y-auto">
@@ -172,8 +237,8 @@ export default function BuyerMenuPage({ params }: { params: { sellerId: string }
               <h3 className="font-bold text-sm uppercase tracking-wider text-muted-foreground">Payment Method</h3>
               
               {isPrivateCourse ? (
-                <div className="bg-muted/50 p-3 rounded-lg flex items-center gap-3">
-                  <User className="h-5 w-5 text-primary" />
+                <div className="bg-muted/50 p-3 rounded-lg flex items-center gap-3 border border-primary/10">
+                  <User className="h-5 w-5 text-primary" style={{ color: brandStyle.primaryColor }} />
                   <div>
                     <p className="text-sm font-bold">Member Account Only</p>
                     <p className="text-xs text-muted-foreground">This is a private club establishment.</p>
@@ -182,12 +247,12 @@ export default function BuyerMenuPage({ params }: { params: { sellerId: string }
               ) : (
                 <RadioGroup value={paymentMethod} onValueChange={(v: any) => setPaymentMethod(v)}>
                   <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="Credit Card" id="cc" />
+                    <RadioGroupItem value="Credit Card" id="cc" style={{ borderColor: brandStyle.primaryColor }} />
                     <Label htmlFor="cc" className="flex items-center gap-2 cursor-pointer"><CreditCard className="h-4 w-4" /> Credit Card</Label>
                   </div>
                   {isSemiPrivateCourse && (
                     <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="Member Account" id="member" />
+                      <RadioGroupItem value="Member Account" id="member" style={{ borderColor: brandStyle.primaryColor }} />
                       <Label htmlFor="member" className="flex items-center gap-2 cursor-pointer"><User className="h-4 w-4" /> Member Account</Label>
                     </div>
                   )}
@@ -222,7 +287,13 @@ export default function BuyerMenuPage({ params }: { params: { sellerId: string }
             </div>
           </div>
           <SheetFooter>
-            <Button size="lg" className="w-full" onClick={handlePlaceOrder} disabled={isPlacingOrder}>
+            <Button 
+              size="lg" 
+              className="w-full" 
+              onClick={handlePlaceOrder} 
+              disabled={isPlacingOrder}
+              style={{ backgroundColor: brandStyle.primaryColor }}
+            >
               {isPlacingOrder ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : `Complete Purchase`}
             </Button>
           </SheetFooter>

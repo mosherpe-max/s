@@ -33,6 +33,10 @@ export interface Seller {
   contactPhone: string;
   serviceFee: number;
   status: 'Active' | 'Inactive';
+  // Branding & Customization
+  brandColor?: string;
+  headerImageUrl?: string;
+  welcomeMessage?: string;
 }
 
 export type Category = 'Beer' | 'Spirits' | 'Soft Drinks' | 'Snacks';

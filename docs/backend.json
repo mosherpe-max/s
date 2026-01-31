@@ -87,6 +87,18 @@
           "type": "string",
           "enum": ["Active", "Inactive"],
           "description": "The current status of the seller."
+        },
+        "brandColor": {
+          "type": "string",
+          "description": "The primary brand color for the menu (e.g. #22c55e)."
+        },
+        "headerImageUrl": {
+          "type": "string",
+          "description": "URL for the menu header image."
+        },
+        "welcomeMessage": {
+          "type": "string",
+          "description": "A welcome message displayed to buyers."
         }
       },
       "required": [

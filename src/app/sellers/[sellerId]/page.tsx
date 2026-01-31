@@ -2,11 +2,11 @@
 'use client';
 
 import React, { useState, useMemo, useEffect, useRef, use } from 'react';
-import { collection, doc, setDoc, deleteDoc, writeBatch, query, where } from 'firebase/firestore';
+import { collection, doc, setDoc, deleteDoc, writeBatch, query, where, updateDoc } from 'firebase/firestore';
 import { useFirestore, useDoc, useCollection, useMemoFirebase } from '@/firebase';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { PlusCircle, Edit, Trash2, GripVertical, Filter, DollarSign, ShoppingBag, Clock, Database, Users, UserPlus, Sparkles, Download, Calendar as CalendarIcon, FileSpreadsheet } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { PlusCircle, Edit, Trash2, GripVertical, Filter, DollarSign, ShoppingBag, Clock, Database, Users, UserPlus, Sparkles, Download, Calendar as CalendarIcon, FileSpreadsheet, Palette, Image as ImageIcon, MessageSquare, Save, Loader2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
   AlertDialog,
@@ -23,7 +23,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import {
   Select,
   SelectContent,
@@ -61,6 +61,14 @@ const memberSchema = z.object({
 });
 
 type MemberFormData = z.infer<typeof memberSchema>;
+
+const customizationSchema = z.object({
+  brandColor: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, 'Must be a valid HEX color (e.g. #22c55e)').optional().or(z.literal('')),
+  headerImageUrl: z.string().url('Must be a valid image URL').optional().or(z.literal('')),
+  welcomeMessage: z.string().max(200, 'Keep it brief (max 200 chars)').optional(),
+});
+
+type CustomizationFormData = z.infer<typeof customizationSchema>;
 
 const sampleMembers = [
   { name: 'Jane Doe', memberNumber: '1001', status: 'Active' },
@@ -214,6 +222,7 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
   const [memberToDelete, setMemberToDelete] = useState<Member | null>(null);
   const [activeFilter, setActiveFilter] = useState<Category | 'All'>('All');
   const [isSeeding, setIsSeeding] = useState(false);
+  const [isSavingCustomization, setIsSavingCustomization] = useState(false);
 
   // Export filters
   const [startDate, setStartDate] = useState<string>('');
@@ -230,6 +239,25 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
 
   const ordersQuery = useMemoFirebase(() => (firestore ? query(collection(firestore, 'orders'), where('sellerId', '==', sellerId)) : null), [firestore, sellerId]);
   const { data: orders, isLoading: areOrdersLoading } = useCollection<Order>(ordersQuery);
+
+  const customizationForm = useForm<CustomizationFormData>({
+    resolver: zodResolver(customizationSchema),
+    defaultValues: {
+      brandColor: seller?.brandColor || '',
+      headerImageUrl: seller?.headerImageUrl || '',
+      welcomeMessage: seller?.welcomeMessage || '',
+    },
+  });
+
+  useEffect(() => {
+    if (seller) {
+      customizationForm.reset({
+        brandColor: seller.brandColor || '',
+        headerImageUrl: seller.headerImageUrl || '',
+        welcomeMessage: seller.welcomeMessage || '',
+      });
+    }
+  }, [seller, customizationForm]);
 
   const isClubSeller = seller?.type === 'Private Golf Course' || seller?.type === 'Semi Private Golf Course';
 
@@ -301,6 +329,25 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
     toast({ title: "Export Started", description: "Your sales report is downloading." });
   };
 
+  const handleSaveCustomization = async (data: CustomizationFormData) => {
+    if (!firestore || !sellerId) return;
+    setIsSavingCustomization(true);
+    const ref = doc(firestore, 'sellers', sellerId);
+    
+    updateDoc(ref, data)
+      .then(() => {
+        toast({ title: "Customization Saved", description: "Your menu branding has been updated." });
+      })
+      .catch((err) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+          path: ref.path,
+          operation: 'update',
+          requestResourceData: data
+        }));
+      })
+      .finally(() => setIsSavingCustomization(false));
+  };
+
   const handleSeedData = async () => {
     if (!firestore) return;
     setIsSeeding(true);
@@ -367,7 +414,7 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
 
   const handleConfirmDeleteMember = () => {
     if (!firestore || !memberToDelete) return;
-    const ref = doc(firestore, 'sellers', sellerId, 'members', memberToDelete.id);
+    const ref = doc(firestore, 'sellers', sellerId, 'memberId', memberToDelete.id);
     deleteDoc(ref).catch(err => errorEmitter.emit('permission-error', new FirestorePermissionError({ path: ref.path, operation: 'delete' })));
     setMemberToDelete(null);
   };
@@ -411,59 +458,137 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
         ) : <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full"><Skeleton className="h-40 w-full" /><Skeleton className="h-40 w-full" /><Skeleton className="h-40 w-full" /></div>}</div>
       </section>
 
-      {/* NEW: Recent Sales and Export Tile */}
       <section className="mb-12">
-        <Card>
-          <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-            <div>
-              <CardTitle className="flex items-center gap-2"><FileSpreadsheet className="h-5 w-5" /> Recent Sales & Export</CardTitle>
-              <CardDescription>View latest activity or export historical data.</CardDescription>
-            </div>
-            <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
-              <div className="flex items-center gap-2 w-full sm:w-auto">
-                <CalendarIcon className="h-4 w-4 text-muted-foreground" />
-                <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="h-8 w-full sm:w-36 text-xs" />
-                <span className="text-muted-foreground">-</span>
-                <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="h-8 w-full sm:w-36 text-xs" />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Recent Sales and Export Card */}
+          <Card className="flex flex-col h-full">
+            <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+              <div>
+                <CardTitle className="flex items-center gap-2"><FileSpreadsheet className="h-5 w-5" /> Recent Sales & Export</CardTitle>
+                <CardDescription>View latest activity or export historical data.</CardDescription>
               </div>
-              <Button onClick={handleExportCSV} variant="outline" size="sm" className="w-full sm:w-auto">
-                <Download className="mr-2 h-4 w-4" /> Export CSV
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {areOrdersLoading ? <Skeleton className="h-32 w-full" /> : recentOrders && recentOrders.length > 0 ? (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Order #</TableHead>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Customer</TableHead>
-                      <TableHead>Total</TableHead>
-                      <TableHead>Status</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {recentOrders.map(order => (
-                      <TableRow key={order.id}>
-                        <TableCell className="font-mono text-xs">{order.id.slice(0, 8)}</TableCell>
-                        <TableCell className="text-xs">{order.createdAt && format(order.createdAt.toDate(), 'MMM d, h:mm a')}</TableCell>
-                        <TableCell className="text-sm font-medium">{order.customerName}</TableCell>
-                        <TableCell className="font-mono text-sm">${order.total.toFixed(2)}</TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className="text-[10px]">{order.status}</Badge>
-                        </TableCell>
+              <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
+                <Button onClick={handleExportCSV} variant="outline" size="sm" className="w-full sm:w-auto">
+                  <Download className="mr-2 h-4 w-4" /> Export CSV
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="flex-1">
+              <div className="flex flex-wrap gap-2 mb-4">
+                <div className="flex items-center gap-2">
+                  <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+                  <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="h-8 w-28 md:w-36 text-xs" />
+                  <span className="text-muted-foreground">-</span>
+                  <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="h-8 w-28 md:w-36 text-xs" />
+                </div>
+              </div>
+              {areOrdersLoading ? <Skeleton className="h-32 w-full" /> : recentOrders && recentOrders.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Customer</TableHead>
+                        <TableHead>Total</TableHead>
+                        <TableHead>Status</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            ) : (
-              <div className="text-center py-8 text-muted-foreground italic">No recent sales data available.</div>
-            )}
-          </CardContent>
-        </Card>
+                    </TableHeader>
+                    <TableBody>
+                      {recentOrders.map(order => (
+                        <TableRow key={order.id}>
+                          <TableCell className="text-xs">{order.createdAt && format(order.createdAt.toDate(), 'MMM d, h:mm a')}</TableCell>
+                          <TableCell className="text-sm font-medium">{order.customerName}</TableCell>
+                          <TableCell className="font-mono text-sm">${order.total.toFixed(2)}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className="text-[10px]">{order.status}</Badge>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground italic">No recent sales data available.</div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Menu Customization Card */}
+          <Card className="flex flex-col h-full">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2"><Palette className="h-5 w-5" /> Menu Branding</CardTitle>
+              <CardDescription>Customize the look and feel of your digital menu for buyers.</CardDescription>
+            </CardHeader>
+            <CardContent className="flex-1">
+              <Form {...customizationForm}>
+                <form onSubmit={customizationForm.handleSubmit(handleSaveCustomization)} className="space-y-4">
+                  <FormField
+                    control={customizationForm.control}
+                    name="brandColor"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="flex items-center gap-2"><Palette className="h-4 w-4" /> Brand Color (HEX)</FormLabel>
+                        <div className="flex gap-2">
+                           <FormControl>
+                            <Input {...field} placeholder="#22c55e" />
+                          </FormControl>
+                          <div 
+                            className="w-10 h-10 rounded-md border shadow-sm shrink-0" 
+                            style={{ backgroundColor: field.value || 'hsl(var(--primary))' }} 
+                          />
+                        </div>
+                        <FormDescription>The primary color for buttons and highlights.</FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={customizationForm.control}
+                    name="headerImageUrl"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="flex items-center gap-2"><ImageIcon className="h-4 w-4" /> Header Image URL</FormLabel>
+                        <FormControl>
+                          <Input {...field} placeholder="https://images.unsplash.com/..." />
+                        </FormControl>
+                        <FormDescription>A custom photo shown at the top of your menu.</FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={customizationForm.control}
+                    name="welcomeMessage"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="flex items-center gap-2"><MessageSquare className="h-4 w-4" /> Welcome Message</FormLabel>
+                        <FormControl>
+                          <Textarea {...field} placeholder="Enjoy your round! Order refreshments here." rows={2} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <div className="flex justify-end pt-2">
+                    <Button type="submit" disabled={isSavingCustomization}>
+                      {isSavingCustomization ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Saving...
+                        </>
+                      ) : (
+                        <>
+                          <Save className="mr-2 h-4 w-4" />
+                          Apply Custom Branding
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </form>
+              </Form>
+            </CardContent>
+          </Card>
+        </div>
       </section>
 
       <div className="flex flex-col md:flex-row gap-4 mb-6">
@@ -560,7 +685,7 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action will remove <strong>{memberToDelete?.name}</strong> from the club member list. They will no longer be able to charge orders to their account using member ID <strong>{memberToDelete?.memberNumber}</strong>.
+              This action will remove <strong>{memberToDelete?.name}</strong> from the club member list.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
