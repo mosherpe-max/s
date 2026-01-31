@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, use, useEffect, useMemo } from 'react';
@@ -23,6 +22,7 @@ import { useCart } from '@/lib/cart-context';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Separator } from '@/components/ui/separator';
 import Link from 'next/link';
 
 export default function BuyerMenuPage({ params }: { params: { sellerId: string } }) {
