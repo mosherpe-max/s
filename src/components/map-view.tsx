@@ -8,6 +8,7 @@ import { useEffect } from 'react';
 interface MapViewProps {
   buyerLocation?: { latitude: number; longitude: number };
   sellerLocation?: { latitude: number; longitude: number };
+  showPrimaryMarker?: boolean;
   sellers?: {
     id: string;
     name: string;
@@ -92,7 +93,7 @@ function MapElements({ buyerLocation, sellerLocation, sellers, buyers, radius, z
 }
 
 
-export function MapView({ buyerLocation, sellerLocation, sellers, buyers, radius, zoomMode, interactive = true }: MapViewProps) {
+export function MapView({ buyerLocation, sellerLocation, showPrimaryMarker = true, sellers, buyers, radius, zoomMode, interactive = true }: MapViewProps) {
     const center = buyerLocation ? { lat: buyerLocation.latitude, lng: buyerLocation.longitude } : (sellerLocation ? { lat: sellerLocation.latitude, lng: sellerLocation.longitude } : { lat: 0, lng: 0 });
     
   return (
@@ -128,8 +129,8 @@ export function MapView({ buyerLocation, sellerLocation, sellers, buyers, radius
             );
         })}
 
-        {/* Primary Seller Pin (if not in sellers array) */}
-        {sellerLocation && (!sellers || !sellers.some(s => s.location.latitude === sellerLocation.latitude && s.location.longitude === sellerLocation.longitude)) && (
+        {/* Primary Seller Pin (if not in sellers array and shown) */}
+        {showPrimaryMarker && sellerLocation && (!sellers || !sellers.some(s => s.location.latitude === sellerLocation.latitude && s.location.longitude === sellerLocation.longitude)) && (
              <AdvancedMarker position={{ lat: sellerLocation.latitude, lng: sellerLocation.longitude }}>
                 <div className="flex flex-col items-center">
                     <div className="bg-indigo-600 p-2 rounded-full shadow-lg border-2 border-white">

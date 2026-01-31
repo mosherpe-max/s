@@ -1,4 +1,3 @@
-
 'use client'
 
 import { collection, query, where, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
@@ -315,6 +314,7 @@ export default function BevCartDriverDashboardPage() {
                 buyers={mappedBuyers}
                 radius={1609.34}
                 zoomMode={zoomMode}
+                showPrimaryMarker={isPrimaryActive}
               />
             ) : (
               <Skeleton className="w-full h-full" />
