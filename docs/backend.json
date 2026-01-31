@@ -119,6 +119,18 @@
         "rank"
       ]
     },
+    "Member": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Member",
+      "type": "object",
+      "description": "Represents a club member for Private/Semi-Private courses.",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "memberNumber": { "type": "string" }
+      },
+      "required": ["id", "name", "memberNumber"]
+    },
     "Order": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Order",
@@ -136,6 +148,14 @@
         "customerName": {
           "type": "string",
           "description": "The name of the customer."
+        },
+        "paymentMethod": {
+          "type": "string",
+          "enum": ["Credit Card", "Member Account"]
+        },
+        "memberId": {
+          "type": "string",
+          "description": "The ID of the member if paymentMethod is Member Account."
         },
         "deliveryLocation": {
           "type": "object",
@@ -184,12 +204,9 @@
           "schema": {
             "$ref": "#/backend/entities/Seller"
           },
-          "description": "Stores seller profiles. Each document represents a seller in the Koop application.",
+          "description": "Stores seller profiles.",
           "params": [
-            {
-              "name": "sellerId",
-              "description": "The unique identifier of the seller."
-            }
+            { "name": "sellerId", "description": "The unique identifier of the seller." }
           ]
         }
       },
@@ -202,14 +219,22 @@
           },
           "description": "Stores menu items associated with a specific seller.",
           "params": [
-            {
-              "name": "sellerId",
-              "description": "The unique identifier of the seller."
-            },
-            {
-              "name": "menuItemId",
-              "description": "The unique identifier of the menu item."
-            }
+            { "name": "sellerId", "description": "The unique identifier of the seller." },
+            { "name": "menuItemId", "description": "The unique identifier of the menu item." }
+          ]
+        }
+      },
+      {
+        "path": "/sellers/{sellerId}/members/{memberId}",
+        "definition": {
+          "entityName": "Member",
+          "schema": {
+            "$ref": "#/backend/entities/Member"
+          },
+          "description": "Stores member list for Private/Semi-Private courses.",
+          "params": [
+            { "name": "sellerId", "description": "The unique identifier of the seller." },
+            { "name": "memberId", "description": "The unique identifier of the member." }
           ]
         }
       },
@@ -222,14 +247,11 @@
           },
           "description": "Stores all customer orders for all sellers.",
           "params": [
-             {
-              "name": "orderId",
-              "description": "The unique identifier of the order."
-            }
+             { "name": "orderId", "description": "The unique identifier of the order." }
           ]
         }
       }
     ],
-    "reasoning": "The Firestore structure is designed to efficiently manage seller and menu item data for the Koop application. Since each seller has only one menu, menu items are stored in a subcollection directly under the seller."
+    "reasoning": "Standard hierarchical structure with subcollections for menu items and members."
   }
 }

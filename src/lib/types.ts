@@ -43,6 +43,12 @@ export interface MenuItem {
     rank: number;
 }
 
+export interface Member {
+  id: string;
+  name: string;
+  memberNumber: string;
+}
+
 export interface OrderItem extends MenuItem {
   quantity: number;
 }
@@ -52,6 +58,8 @@ export interface Order {
   sellerId: string;
   customerId: string;
   customerName: string;
+  paymentMethod?: 'Credit Card' | 'Member Account';
+  memberId?: string;
   deliveryLocation: {
     latitude: number;
     longitude: number;

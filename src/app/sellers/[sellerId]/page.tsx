@@ -6,7 +6,7 @@ import { collection, doc, setDoc, deleteDoc, writeBatch, query, where } from 'fi
 import { useFirestore, useDoc, useCollection, useMemoFirebase } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { PlusCircle, Edit, Trash2, GripVertical, Filter, DollarSign, ShoppingBag, Clock, Database } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, GripVertical, Filter, DollarSign, ShoppingBag, Clock, Database, Users, UserPlus } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -24,10 +24,11 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
 import { isToday, isThisMonth, isThisYear } from 'date-fns';
 
-import type { MenuItem, Seller, Category, Order } from '@/lib/types';
+import type { MenuItem, Seller, Category, Order, Member } from '@/lib/types';
 import { categories } from '@/lib/types';
 import { menuItems as mockMenuItems } from '@/lib/data';
 import { useToast } from '@/hooks/use-toast';
@@ -42,6 +43,13 @@ const menuItemSchema = z.object({
 });
 
 type MenuItemFormData = z.infer<typeof menuItemSchema>;
+
+const memberSchema = z.object({
+  name: z.string().min(1, 'Member name is required'),
+  memberNumber: z.string().min(1, 'Member ID number is required'),
+});
+
+type MemberFormData = z.infer<typeof memberSchema>;
 
 function MenuItemForm({
   onSave,
@@ -70,85 +78,66 @@ function MenuItemForm({
     form.reset(menuItem || { name: '', description: '', price: 0, category: 'Beer' });
   }, [menuItem, form]);
 
-  const handleSubmit = (data: MenuItemFormData) => {
-    onSave(data);
-  };
+  return (
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSave)}>
+        <div className="grid gap-4 py-4">
+          <FormField control={form.control} name="name" render={({ field }) => (
+            <FormItem><FormLabel>Item Name</FormLabel><FormControl><Input {...field} placeholder="e.g., Craft IPA" /></FormControl><FormMessage /></FormItem>
+          )} />
+          <FormField control={form.control} name="description" render={({ field }) => (
+            <FormItem><FormLabel>Description</FormLabel><FormControl><Textarea {...field} placeholder="A short description of the item." /></FormControl><FormMessage /></FormItem>
+          )} />
+          <FormField control={form.control} name="price" render={({ field }) => (
+            <FormItem><FormLabel>Price</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
+          )} />
+          <FormField control={form.control} name="category" render={({ field }) => (
+            <FormItem><FormLabel>Category</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select a category" /></SelectTrigger></FormControl><SelectContent>{categories.map((cat) => (<SelectItem key={cat} value={cat}>{cat}</SelectItem>))}</SelectContent></Select><FormMessage /></FormItem>
+          )} />
+        </div>
+        <div className="flex justify-end gap-2">
+          <Button type="button" variant="ghost" onClick={onClose}>Cancel</Button>
+          <Button type="submit" disabled={disabled}>{isEditing ? 'Save Changes' : 'Add Item'}</Button>
+        </div>
+      </form>
+    </Form>
+  );
+}
+
+function MemberForm({
+  onSave,
+  onClose,
+  member,
+  disabled,
+}: {
+  onSave: (data: MemberFormData) => void;
+  onClose: () => void;
+  member?: Member | null;
+  disabled?: boolean;
+}) {
+  const form = useForm<MemberFormData>({
+    resolver: zodResolver(memberSchema),
+    defaultValues: member || { name: '', memberNumber: '' },
+  });
+
+  useEffect(() => {
+    form.reset(member || { name: '', memberNumber: '' });
+  }, [member, form]);
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(handleSubmit)}>
+      <form onSubmit={form.handleSubmit(onSave)}>
         <div className="grid gap-4 py-4">
-          <FormField
-            control={form.control}
-            name="name"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Item Name</FormLabel>
-                <FormControl>
-                  <Input {...field} placeholder="e.g., Craft IPA" />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="description"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Description</FormLabel>
-                <FormControl>
-                  <Textarea {...field} placeholder="A short description of the item." />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="price"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Price</FormLabel>
-                <FormControl>
-                  <Input type="number" step="0.01" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="category"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Category</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a category" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {categories.map((cat) => (
-                      <SelectItem key={cat} value={cat}>
-                        {cat}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+          <FormField control={form.control} name="name" render={({ field }) => (
+            <FormItem><FormLabel>Member Name</FormLabel><FormControl><Input {...field} placeholder="Jane Doe" /></FormControl><FormMessage /></FormItem>
+          )} />
+          <FormField control={form.control} name="memberNumber" render={({ field }) => (
+            <FormItem><FormLabel>Member ID Number</FormLabel><FormControl><Input {...field} placeholder="MEM-12345" /></FormControl><FormMessage /></FormItem>
+          )} />
         </div>
         <div className="flex justify-end gap-2">
-          <Button type="button" variant="ghost" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button type="submit" disabled={disabled}>
-            {isEditing ? 'Save Changes' : 'Add Item'}
-          </Button>
+          <Button type="button" variant="ghost" onClick={onClose}>Cancel</Button>
+          <Button type="submit" disabled={disabled}>{member ? 'Update' : 'Add Member'}</Button>
         </div>
       </form>
     </Form>
@@ -164,24 +153,15 @@ function StatTile({ title, revenue, orders, longWait }: { title: string, revenue
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <DollarSign className="h-4 w-4 text-primary" />
-            <span className="text-sm font-medium">Total Revenue</span>
-          </div>
+          <div className="flex items-center gap-2"><DollarSign className="h-4 w-4 text-primary" /><span className="text-sm font-medium">Total Revenue</span></div>
           <span className="font-mono font-bold">${revenue.toFixed(2)}</span>
         </div>
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <ShoppingBag className="h-4 w-4 text-primary" />
-            <span className="text-sm font-medium">Total Orders</span>
-          </div>
+          <div className="flex items-center gap-2"><ShoppingBag className="h-4 w-4 text-primary" /><span className="text-sm font-medium">Total Orders</span></div>
           <span className="font-mono font-bold">{orders}</span>
         </div>
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Clock className="h-4 w-4 text-destructive" />
-            <span className="text-sm font-medium">Orders {'>'} 10m</span>
-          </div>
+          <div className="flex items-center gap-2"><Clock className="h-4 w-4 text-destructive" /><span className="text-sm font-medium">Orders {'>'} 10m</span></div>
           <span className="font-mono font-bold text-destructive">{longWait}</span>
         </div>
       </CardContent>
@@ -189,41 +169,34 @@ function StatTile({ title, revenue, orders, longWait }: { title: string, revenue
   );
 }
 
-export default function SellerAdminPage({
-  params,
-}: {
-  params: { sellerId: string };
-}) {
+export default function SellerAdminPage({ params }: { params: { sellerId: string } }) {
   const { sellerId } = use(params);
   const firestore = useFirestore();
   const { toast } = useToast();
 
   const [isItemFormOpen, setIsItemFormOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
+  const [isMemberFormOpen, setIsMemberFormOpen] = useState(false);
+  const [editingMember, setEditingMember] = useState<Member | null>(null);
   const [activeFilter, setActiveFilter] = useState<Category | 'All'>('All');
   const [isSeeding, setIsSeeding] = useState(false);
 
-  const sellerRef = useMemoFirebase(() => {
-    if (!firestore) return null;
-    return doc(firestore, 'sellers', sellerId);
-  }, [firestore, sellerId]);
+  const sellerRef = useMemoFirebase(() => (firestore ? doc(firestore, 'sellers', sellerId) : null), [firestore, sellerId]);
   const { data: seller, isLoading: isSellerLoading } = useDoc<Seller>(sellerRef);
 
-  const menuItemsQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
-    return collection(firestore, 'sellers', sellerId, 'menuItems');
-  }, [firestore, sellerId]);
+  const menuItemsQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'sellers', sellerId, 'menuItems') : null), [firestore, sellerId]);
   const { data: menuItems, isLoading: areItemsLoading } = useCollection<MenuItem>(menuItemsQuery);
 
-  const ordersQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
-    return query(collection(firestore, 'orders'), where('sellerId', '==', sellerId));
-  }, [firestore, sellerId]);
+  const membersQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'sellers', sellerId, 'members') : null), [firestore, sellerId]);
+  const { data: members, isLoading: areMembersLoading } = useCollection<Member>(membersQuery);
+
+  const ordersQuery = useMemoFirebase(() => (firestore ? query(collection(firestore, 'orders'), where('sellerId', '==', sellerId)) : null), [firestore, sellerId]);
   const { data: orders, isLoading: areOrdersLoading } = useCollection<Order>(ordersQuery);
+
+  const isClubSeller = seller?.type === 'Private Golf Course' || seller?.type === 'Semi Private Golf Course';
 
   const dashboardStats = useMemo(() => {
     if (!orders) return null;
-
     const calculate = (filtered: Order[]) => {
       const revenue = filtered.reduce((acc, o) => acc + o.total, 0);
       const longWait = filtered.filter(o => {
@@ -233,360 +206,167 @@ export default function SellerAdminPage({
       }).length;
       return { revenue, orders: filtered.length, longWait };
     };
-
-    const daily = orders.filter(o => o.createdAt && isToday(o.createdAt.toDate()));
-    const monthly = orders.filter(o => o.createdAt && isThisMonth(o.createdAt.toDate()));
-    const yearly = orders.filter(o => o.createdAt && isThisYear(o.createdAt.toDate()));
-
     return {
-      daily: calculate(daily),
-      monthly: calculate(monthly),
-      yearly: calculate(yearly),
+      daily: calculate(orders.filter(o => o.createdAt && isToday(o.createdAt.toDate()))),
+      monthly: calculate(orders.filter(o => o.createdAt && isThisMonth(o.createdAt.toDate()))),
+      yearly: calculate(orders.filter(o => o.createdAt && isThisYear(o.createdAt.toDate()))),
     };
   }, [orders]);
-  
+
   const handleSeedData = async () => {
     if (!firestore) return;
     setIsSeeding(true);
-    
     try {
       const batch = writeBatch(firestore);
-  
       if (!seller) {
-        const sellerDoc = doc(firestore, 'sellers', sellerId);
-        batch.set(sellerDoc, {
-          id: sellerId,
-          courseName: sellerId === 'demo-course' ? 'Demo Golf Course' : 'Sample Course',
-          type: 'Public Golf Course',
-          streetAddress: '123 Fairway Drive',
-          city: 'Pebble Beach',
-          state: 'CA',
-          zip: '93953',
-          latitude: 42.7748,
-          longitude: -83.2139,
-          contactName: 'Pro Shop Manager',
-          contactEmail: 'manager@democourse.com',
-          contactPhone: '555-0100',
-          serviceFee: 2.50,
-          status: 'Active'
+        batch.set(doc(firestore, 'sellers', sellerId), {
+          id: sellerId, courseName: sellerId === 'demo-course' ? 'Demo Golf Course' : 'Sample Course',
+          type: 'Private Golf Course', streetAddress: '123 Fairway Drive', city: 'Pebble Beach', state: 'CA', zip: '93953',
+          latitude: 42.7748, longitude: -83.2139, contactName: 'Pro Shop Manager', contactEmail: 'manager@democourse.com',
+          contactPhone: '555-0100', serviceFee: 2.50, status: 'Active'
         });
       }
-
-      const existingNames = new Set(menuItems?.map(item => item.name) || []);
-      
       mockMenuItems.forEach((item, index) => {
-        if (!existingNames.has(item.name)) {
-          const newItemRef = doc(collection(firestore, 'sellers', sellerId, 'menuItems'));
-          batch.set(newItemRef, { 
-            ...item, 
-            id: newItemRef.id, 
-            rank: index + 1 
-          });
-        }
+        const newItemRef = doc(collection(firestore, 'sellers', sellerId, 'menuItems'));
+        batch.set(newItemRef, { ...item, id: newItemRef.id, rank: index + 1 });
       });
-  
       await batch.commit();
-      toast({
-        title: "Database Initialized",
-        description: `Demo data has been seeded for ${sellerId}.`,
-      });
-    } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "Seeding Failed",
-        description: "Could not initialize demo data.",
-      });
-    } finally {
-      setIsSeeding(false);
-    }
+      toast({ title: "Database Initialized" });
+    } catch (e) { toast({ variant: "destructive", title: "Seeding Failed" }); }
+    finally { setIsSeeding(false); }
   };
 
-
-  const handleOpenItemForm = (item: MenuItem | null = null) => {
-    setEditingItem(item);
-    setIsItemFormOpen(true);
-  };
-
-  const handleCloseItemForm = () => {
-    setEditingItem(null);
-    setIsItemFormOpen(false);
-  };
-  
-  const handleSaveMenuItem = (itemData: MenuItemFormData) => {
+  const handleSaveMenuItem = (data: MenuItemFormData) => {
     if (!firestore) return;
-    
-    const itemRef = editingItem 
-      ? doc(firestore, 'sellers', sellerId, 'menuItems', editingItem.id)
-      : doc(collection(firestore, 'sellers', sellerId, 'menuItems'));
-
-    const itemsInCategory = menuItems?.filter(item => item.category === itemData.category) || [];
-    const newRank = editingItem ? editingItem.rank : (itemsInCategory.length > 0 ? Math.max(...itemsInCategory.map(item => item.rank)) + 1 : 1);
-    
-    const payload = editingItem ? itemData : { ...itemData, id: itemRef.id, rank: newRank };
-
-    setDoc(itemRef, payload, { merge: true })
-      .catch(async (error) => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-          path: itemRef.path,
-          operation: editingItem ? 'update' : 'create',
-          requestResourceData: payload
-        }));
-      });
-
-    handleCloseItemForm();
+    const itemRef = editingItem ? doc(firestore, 'sellers', sellerId, 'menuItems', editingItem.id) : doc(collection(firestore, 'sellers', sellerId, 'menuItems'));
+    const payload = editingItem ? data : { ...data, id: itemRef.id, rank: (menuItems?.length || 0) + 1 };
+    setDoc(itemRef, payload, { merge: true }).catch(err => errorEmitter.emit('permission-error', new FirestorePermissionError({ path: itemRef.path, operation: 'write', requestResourceData: payload })));
+    setEditingItem(null); setIsItemFormOpen(false);
   };
 
-  const handleDeleteMenuItem = (itemId: string) => {
+  const handleSaveMember = (data: MemberFormData) => {
     if (!firestore) return;
-    const itemRef = doc(firestore, 'sellers', sellerId, 'menuItems', itemId);
-    deleteDoc(itemRef)
-      .catch(async (error) => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-          path: itemRef.path,
-          operation: 'delete'
-        }));
-      });
+    const memberRef = editingMember ? doc(firestore, 'sellers', sellerId, 'members', editingMember.id) : doc(collection(firestore, 'sellers', sellerId, 'members'));
+    const payload = { ...data, id: memberRef.id };
+    setDoc(memberRef, payload, { merge: true }).catch(err => errorEmitter.emit('permission-error', new FirestorePermissionError({ path: memberRef.path, operation: 'write', requestResourceData: payload })));
+    setEditingMember(null); setIsMemberFormOpen(false);
   };
 
-  const isLoading = isSellerLoading || areItemsLoading || areOrdersLoading;
+  const handleDeleteMember = (id: string) => {
+    if (!firestore) return;
+    const ref = doc(firestore, 'sellers', sellerId, 'members', id);
+    deleteDoc(ref).catch(err => errorEmitter.emit('permission-error', new FirestorePermissionError({ path: ref.path, operation: 'delete' })));
+  };
 
   const groupedItems = useMemo(() => {
     if (!menuItems) return {};
-    const grouped = menuItems.reduce((acc, item) => {
-      const category = item.category || 'Uncategorized';
-      if (!acc[category]) {
-        acc[category] = [];
-      }
-      acc[category].push(item);
+    return menuItems.reduce((acc, item) => {
+      const cat = item.category || 'Uncategorized';
+      if (!acc[cat]) acc[cat] = [];
+      acc[cat].push(item);
       return acc;
     }, {} as Record<string, MenuItem[]>);
-
-    for (const category in grouped) {
-      grouped[category].sort((a, b) => a.rank - b.rank);
-    }
-
-    return grouped;
   }, [menuItems]);
-
-  const [draggedItem, setDraggedItem] = useState<MenuItem | null>(null);
-  const dragOverItem = useRef<MenuItem | null>(null);
-
-  const handleDragStart = (e: React.DragEvent<HTMLDivElement>, item: MenuItem) => {
-    setDraggedItem(item);
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/plain', item.id);
-  };
-
-  const handleDragOver = (e: React.DragEvent<HTMLDivElement>, item: MenuItem) => {
-    e.preventDefault();
-    if (draggedItem?.category === item.category) {
-        dragOverItem.current = item;
-    }
-  };
-
-  const handleDrop = async () => {
-    if (!firestore || !draggedItem || !dragOverItem.current || draggedItem.id === dragOverItem.current.id || draggedItem.category !== dragOverItem.current.category) {
-      return;
-    }
-  
-    const category = draggedItem.category;
-    const items = [...(groupedItems[category] || [])];
-    const dragIndex = items.findIndex(item => item.id === draggedItem.id);
-    const dropIndex = items.findIndex(item => item.id === dragOverItem.current!.id);
-  
-    if (dragIndex === -1 || dropIndex === -1) return;
-  
-    const newOrderedItems = [...items];
-    const [reorderedItem] = newOrderedItems.splice(dragIndex, 1);
-    newOrderedItems.splice(dropIndex, 0, reorderedItem);
-  
-    const batch = writeBatch(firestore);
-    newOrderedItems.forEach((item, index) => {
-      if (item.rank !== index + 1) {
-        const itemRef = doc(firestore, 'sellers', sellerId, 'menuItems', item.id);
-        batch.update(itemRef, { rank: index + 1 });
-      }
-    });
-  
-    await batch.commit();
-    
-    setDraggedItem(null);
-    dragOverItem.current = null;
-  };
-  
-  const handleDragEnd = () => {
-      setDraggedItem(null);
-      dragOverItem.current = null;
-  };
-
-  const filterOptions: (Category | 'All')[] = ['All', ...categories];
 
   if (!isSellerLoading && !seller && sellerId === 'demo-course') {
     return (
       <div className="container mx-auto px-4 py-20 flex flex-col items-center justify-center text-center">
         <Database className="h-16 w-16 text-muted-foreground mb-4 opacity-20" />
         <h1 className="font-headline text-3xl font-bold mb-2">Initialize Demo Course</h1>
-        <p className="text-muted-foreground max-w-md mb-8">
-          It looks like the demo course database hasn't been set up yet. Click the button below to initialize the seller profile and seed the menu.
-        </p>
-        <Button size="lg" onClick={handleSeedData} disabled={isSeeding}>
-          {isSeeding ? 'Initializing...' : 'Set Up Demo Course'}
-        </Button>
+        <Button size="lg" onClick={handleSeedData} disabled={isSeeding}>{isSeeding ? 'Initializing...' : 'Set Up Demo Course'}</Button>
       </div>
     );
   }
 
   return (
-    <>
-      <div className="container mx-auto px-4 py-8">
-        <header className="mb-8">
-          <h1 className="font-headline text-2xl md:text-3xl font-bold text-foreground">
-            Seller Admin - {isSellerLoading ? 'Loading...' : (seller?.courseName || sellerId)}
-          </h1>
-          {seller && (
-             <Badge variant="outline" className="mt-1 text-xs uppercase font-bold tracking-wider">
-               {seller.type}
-             </Badge>
-          )}
-        </header>
+    <div className="container mx-auto px-4 py-8">
+      <header className="mb-8">
+        <h1 className="font-headline text-2xl md:text-3xl font-bold text-foreground">Seller Admin - {seller?.courseName || sellerId}</h1>
+        {seller && <Badge variant="outline" className="mt-1">{seller.type}</Badge>}
+      </header>
 
+      <section className="mb-12">
+        <h2 className="font-headline text-xl font-bold mb-4 flex items-center gap-2"><DollarSign className="h-6 w-6 text-primary" /> Sales Data Dashboard</h2>
+        <div className="flex flex-wrap gap-4">{dashboardStats ? (
+          <>
+            <StatTile title="Daily" {...dashboardStats.daily} />
+            <StatTile title="This Month" {...dashboardStats.monthly} />
+            <StatTile title="This Year" {...dashboardStats.yearly} />
+          </>
+        ) : <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full"><Skeleton className="h-40 w-full" /><Skeleton className="h-40 w-full" /><Skeleton className="h-40 w-full" /></div>}</div>
+      </section>
+
+      {isClubSeller && (
         <section className="mb-12">
-          <h2 className="font-headline text-xl font-bold mb-4 flex items-center gap-2">
-            <DollarSign className="h-6 w-6 text-primary" />
-            Sales Data Dashboard
-          </h2>
-          <div className="flex flex-wrap gap-4">
-            {dashboardStats ? (
-              <>
-                <StatTile title="Daily" {...dashboardStats.daily} />
-                <StatTile title="This Month" {...dashboardStats.monthly} />
-                <StatTile title="This Year" {...dashboardStats.yearly} />
-              </>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full">
-                <Skeleton className="h-40 w-full" />
-                <Skeleton className="h-40 w-full" />
-                <Skeleton className="h-40 w-full" />
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2"><Users className="h-5 w-5" /> Member Management</CardTitle>
+                <CardDescription>Maintain your club member list for member-account charging.</CardDescription>
               </div>
-            )}
-          </div>
-        </section>
-
-        <Separator className="my-8" />
-
-        <div className="flex flex-col md:flex-row gap-4 mb-6">
-          <div className="flex flex-wrap gap-2 items-center flex-1">
-             <Filter className="h-4 w-4 text-muted-foreground mr-2" />
-             {filterOptions.map((filter) => (
-               <Button
-                key={filter}
-                variant={activeFilter === filter ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setActiveFilter(filter)}
-                className="h-8"
-               >
-                 {filter}
-               </Button>
-             ))}
-          </div>
-          <div className="flex gap-2">
-            {(!menuItems || menuItems.length === 0) && !isLoading && (
-              <Button onClick={handleSeedData} variant="outline" size="sm" disabled={isSeeding}>
-                <Database className="mr-2 h-4 w-4" />
-                Seed Menu
+              <Button onClick={() => { setEditingMember(null); setIsMemberFormOpen(true); }} size="sm">
+                <UserPlus className="mr-2 h-4 w-4" /> Add Member
               </Button>
-            )}
-            <Button onClick={() => handleOpenItemForm()} disabled={isLoading} size="sm">
-              <PlusCircle className="mr-2 h-4 w-4" />
-              Add Menu Item
-            </Button>
-          </div>
-        </div>
+            </CardHeader>
+            <CardContent>
+              {areMembersLoading ? <Skeleton className="h-32 w-full" /> : members && members.length > 0 ? (
+                <Table>
+                  <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Member ID</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
+                  <TableBody>
+                    {members.map(m => (
+                      <TableRow key={m.id}>
+                        <TableCell className="font-medium">{m.name}</TableCell>
+                        <TableCell className="font-mono text-xs">{m.memberNumber}</TableCell>
+                        <TableCell className="text-right">
+                          <Button variant="ghost" size="icon" onClick={() => { setEditingMember(m); setIsMemberFormOpen(true); }}><Edit className="h-4 w-4" /></Button>
+                          <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDeleteMember(m.id)}><Trash2 className="h-4 w-4" /></Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              ) : <div className="text-center py-6 text-muted-foreground">No members found.</div>}
+            </CardContent>
+          </Card>
+        </section>
+      )}
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Menu Items</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {areItemsLoading ? (
-                <div className="space-y-4">
-                  {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
-                </div>
-            ) : menuItems && menuItems.length > 0 ? (
-              <div className="space-y-6">
-                {categories.filter(cat => activeFilter === 'All' || activeFilter === cat).map((category) => (
-                  (groupedItems[category] && groupedItems[category].length > 0) && (
-                    <div key={category}>
-                      <h3 className="font-headline text-xl font-semibold mb-2">{category}</h3>
-                      <Separator />
-                      <div className="space-y-2 mt-4">
-                        {groupedItems[category].map((item) => (
-                           <div
-                            key={item.id}
-                            draggable
-                            onDragStart={(e) => handleDragStart(e, item)}
-                            onDragOver={(e) => handleDragOver(e, item)}
-                            onDrop={handleDrop}
-                            onDragEnd={handleDragEnd}
-                            className={cn(
-                                "flex items-center justify-between gap-4 p-2 rounded-lg bg-muted/50 transition-opacity border border-transparent hover:border-border",
-                                draggedItem?.id === item.id ? "opacity-50" : "opacity-100"
-                            )}
-                         >
-                           <div className="flex items-center gap-4">
-                             <GripVertical className="h-5 w-5 text-muted-foreground cursor-move" />
-                             <div>
-                               <p className="font-medium">{item.name}</p>
-                               <p className="text-sm text-muted-foreground">
-                                 ${item.price.toFixed(2)}
-                               </p>
-                             </div>
-                           </div>
-                           <div className="flex items-center gap-2">
-                              <Badge variant="secondary" className="hidden sm:inline-flex">{item.category}</Badge>
-                             <Button variant="ghost" size="icon" onClick={() => handleOpenItemForm(item)}>
-                               <Edit className="h-4 w-4" />
-                             </Button>
-                             <Button
-                               variant="ghost"
-                               size="icon"
-                               className="text-destructive hover:text-destructive"
-                               onClick={() => handleDeleteMenuItem(item.id)}
-                             >
-                               <Trash2 className="h-4 w-4" />
-                             </Button>
-                           </div>
-                         </div>
-                        ))}
-                      </div>
-                    </div>
-                  )
-                ))}
-              </div>
-            ) : (
-                <div className="text-center py-12">
-                  <p className="text-muted-foreground mb-4">No menu items found.</p>
-                  <Button onClick={handleSeedData} variant="outline" disabled={isSeeding}>
-                    Seed Sample Menu
-                  </Button>
-                </div>
-            )}
-          </CardContent>
-        </Card>
+      <div className="flex flex-col md:flex-row gap-4 mb-6">
+        <div className="flex flex-wrap gap-2 items-center flex-1">
+          <Filter className="h-4 w-4 text-muted-foreground mr-2" />
+          {['All', ...categories].map((filter) => (
+            <Button key={filter} variant={activeFilter === filter ? 'default' : 'outline'} size="sm" onClick={() => setActiveFilter(filter as any)} className="h-8">{filter}</Button>
+          ))}
+        </div>
+        <Button onClick={() => { setEditingItem(null); setIsItemFormOpen(true); }} size="sm"><PlusCircle className="mr-2 h-4 w-4" /> Add Menu Item</Button>
       </div>
-      <Dialog open={isItemFormOpen} onOpenChange={setIsItemFormOpen}>
-        <DialogContent className="sm:max-w-[425px] max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{editingItem ? 'Edit Menu Item' : 'Add New Item'}</DialogTitle>
-          </DialogHeader>
-          <MenuItemForm
-            onSave={handleSaveMenuItem}
-            menuItem={editingItem}
-            onClose={handleCloseItemForm}
-            disabled={isLoading}
-          />
-        </DialogContent>
-      </Dialog>
-    </>
+
+      <Card>
+        <CardHeader><CardTitle>Menu Items</CardTitle></CardHeader>
+        <CardContent>
+          {areItemsLoading ? <div className="space-y-4">{[...Array(5)].map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}</div> : menuItems && menuItems.length > 0 ? (
+            <div className="space-y-6">
+              {categories.filter(cat => activeFilter === 'All' || activeFilter === cat).map((category) => (groupedItems[category]?.length > 0 && (
+                <div key={category}>
+                  <h3 className="font-headline text-xl font-semibold mb-2">{category}</h3>
+                  <Separator />
+                  <div className="space-y-2 mt-4">
+                    {groupedItems[category].sort((a,b) => a.rank - b.rank).map((item) => (
+                      <div key={item.id} className="flex items-center justify-between gap-4 p-2 rounded-lg bg-muted/50 border border-transparent hover:border-border">
+                        <div className="flex items-center gap-4"><GripVertical className="h-5 w-5 text-muted-foreground" /><div><p className="font-medium">{item.name}</p><p className="text-sm text-muted-foreground">${item.price.toFixed(2)}</p></div></div>
+                        <div className="flex items-center gap-2"><Badge variant="secondary" className="hidden sm:inline-flex">{item.category}</Badge><Button variant="ghost" size="icon" onClick={() => { setEditingItem(item); setIsItemFormOpen(true); }}><Edit className="h-4 w-4" /></Button><Button variant="ghost" size="icon" className="text-destructive" onClick={() => { if (!firestore) return; deleteDoc(doc(firestore, 'sellers', sellerId, 'menuItems', item.id)); }}><Trash2 className="h-4 w-4" /></Button></div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )))}
+            </div>
+          ) : <div className="text-center py-12 text-muted-foreground">No menu items found.</div>}
+        </CardContent>
+      </Card>
+
+      <Dialog open={isItemFormOpen} onOpenChange={setIsItemFormOpen}><DialogContent className="sm:max-w-[425px]"><DialogHeader><DialogTitle>{editingItem ? 'Edit Item' : 'Add Item'}</DialogTitle></DialogHeader><MenuItemForm onSave={handleSaveMenuItem} menuItem={editingItem} onClose={() => setIsItemFormOpen(false)} /></DialogContent></Dialog>
+      <Dialog open={isMemberFormOpen} onOpenChange={setIsMemberFormOpen}><DialogContent className="sm:max-w-[425px]"><DialogHeader><DialogTitle>{editingMember ? 'Edit Member' : 'Add Member'}</DialogTitle></DialogHeader><MemberForm onSave={handleSaveMember} member={editingMember} onClose={() => setIsMemberFormOpen(false)} /></DialogContent></Dialog>
+    </div>
   );
 }
