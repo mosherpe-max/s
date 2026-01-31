@@ -5,7 +5,7 @@ import { collection, doc, setDoc, deleteDoc, writeBatch, query, where } from 'fi
 import { useFirestore, useDoc, useCollection, useMemoFirebase } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { PlusCircle, Edit, Trash2, GripVertical, Filter, DollarSign, ShoppingBag, Clock } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, GripVertical, Filter, DollarSign, ShoppingBag, Clock, Database } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -29,6 +29,7 @@ import { isToday, isThisMonth, isThisYear } from 'date-fns';
 import type { MenuItem, Seller, Category, Order } from '@/lib/types';
 import { categories } from '@/lib/types';
 import { menuItems as mockMenuItems } from '@/lib/data';
+import { useToast } from '@/hooks/use-toast';
 
 const menuItemSchema = z.object({
   name: z.string().min(1, 'Item name is required'),
@@ -192,10 +193,12 @@ export default function SellerAdminPage({
 }) {
   const { sellerId } = use(params);
   const firestore = useFirestore();
+  const { toast } = useToast();
 
   const [isItemFormOpen, setIsItemFormOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
   const [activeFilter, setActiveFilter] = useState<Category | 'All'>('All');
+  const [isSeeding, setIsSeeding] = useState(false);
 
   const sellerRef = useMemoFirebase(() => {
     if (!firestore) return null;
@@ -240,33 +243,57 @@ export default function SellerAdminPage({
   }, [orders]);
   
   const handleSeedData = async () => {
-    if (!firestore || !menuItems) return;
-    const batch = writeBatch(firestore);
-  
-    const itemsByCategory = mockMenuItems.reduce((acc, item) => {
-      if (!acc[item.category]) {
-        acc[item.category] = [];
-      }
-      acc[item.category].push(item);
-      return acc;
-    }, {} as Record<Category, typeof mockMenuItems>);
-  
-    // Filter out existing items from mock data to prevent duplicates
-    const existingNames = new Set(menuItems.map(item => item.name));
+    if (!firestore) return;
+    setIsSeeding(true);
     
-    Object.values(itemsByCategory).forEach(categoryItems => {
-      let rank = 1;
-      categoryItems.forEach((item) => {
+    try {
+      const batch = writeBatch(firestore);
+  
+      // If seller doesn't exist, create the demo seller doc
+      if (!seller) {
+        const sellerDoc = doc(firestore, 'sellers', sellerId);
+        batch.set(sellerDoc, {
+          id: sellerId,
+          courseName: sellerId === 'demo-course' ? 'Demo Golf Course' : 'Sample Course',
+          courseAddress: '123 Fairway Drive, Pebble Beach, CA',
+          latitude: 42.7748,
+          longitude: -83.2139,
+          contactName: 'Pro Shop Manager',
+          contactEmail: 'manager@democourse.com',
+          contactPhone: '555-0100',
+          serviceFee: 2.50,
+          status: 'Active'
+        });
+      }
+
+      const existingNames = new Set(menuItems?.map(item => item.name) || []);
+      
+      mockMenuItems.forEach((item, index) => {
         if (!existingNames.has(item.name)) {
-          const { id, ...rest } = item;
           const newItemRef = doc(collection(firestore, 'sellers', sellerId, 'menuItems'));
-          batch.set(newItemRef, { ...rest, id: newItemRef.id, rank });
-          rank++;
+          batch.set(newItemRef, { 
+            ...item, 
+            id: newItemRef.id, 
+            rank: index + 1 
+          });
         }
       });
-    });
   
-    await batch.commit();
+      await batch.commit();
+      toast({
+        title: "Database Initialized",
+        description: `Demo data has been seeded for ${sellerId}.`,
+      });
+    } catch (error) {
+      console.error(error);
+      toast({
+        variant: "destructive",
+        title: "Seeding Failed",
+        description: "Could not initialize demo data.",
+      });
+    } finally {
+      setIsSeeding(false);
+    }
   };
 
 
@@ -314,7 +341,6 @@ export default function SellerAdminPage({
       return acc;
     }, {} as Record<string, MenuItem[]>);
 
-    // Sort items within each category by rank
     for (const category in grouped) {
       grouped[category].sort((a, b) => a.rank - b.rank);
     }
@@ -322,8 +348,6 @@ export default function SellerAdminPage({
     return grouped;
   }, [menuItems]);
 
-
-  // Drag and drop state and handlers
   const [draggedItem, setDraggedItem] = useState<MenuItem | null>(null);
   const dragOverItem = useRef<MenuItem | null>(null);
 
@@ -356,7 +380,6 @@ export default function SellerAdminPage({
     const [reorderedItem] = newOrderedItems.splice(dragIndex, 1);
     newOrderedItems.splice(dropIndex, 0, reorderedItem);
   
-    // Update ranks and prepare for batch write
     const batch = writeBatch(firestore);
     newOrderedItems.forEach((item, index) => {
       if (item.rank !== index + 1) {
@@ -378,16 +401,30 @@ export default function SellerAdminPage({
 
   const filterOptions: (Category | 'All')[] = ['All', ...categories];
 
+  if (!isSellerLoading && !seller && sellerId === 'demo-course') {
+    return (
+      <div className="container mx-auto px-4 py-20 flex flex-col items-center justify-center text-center">
+        <Database className="h-16 w-16 text-muted-foreground mb-4 opacity-20" />
+        <h1 className="font-headline text-3xl font-bold mb-2">Initialize Demo Course</h1>
+        <p className="text-muted-foreground max-w-md mb-8">
+          It looks like the demo course database hasn't been set up yet. Click the button below to initialize the seller profile and seed the menu.
+        </p>
+        <Button size="lg" onClick={handleSeedData} disabled={isSeeding}>
+          {isSeeding ? 'Initializing...' : 'Set Up Demo Course'}
+        </Button>
+      </div>
+    );
+  }
+
   return (
     <>
       <div className="container mx-auto px-4 py-8">
         <header className="mb-8">
           <h1 className="font-headline text-2xl md:text-3xl font-bold text-foreground">
-            Seller Admin - {isSellerLoading ? 'Loading...' : seller?.courseName}
+            Seller Admin - {isSellerLoading ? 'Loading...' : (seller?.courseName || sellerId)}
           </h1>
         </header>
 
-        {/* Sales Dashboard Section */}
         <section className="mb-12">
           <h2 className="font-headline text-xl font-bold mb-4 flex items-center gap-2">
             <DollarSign className="h-6 w-6 text-primary" />
@@ -428,8 +465,11 @@ export default function SellerAdminPage({
              ))}
           </div>
           <div className="flex gap-2">
-            {menuItems && menuItems.length === 0 && !isLoading && (
-              <Button onClick={handleSeedData} variant="outline" size="sm">Seed Menu</Button>
+            {(!menuItems || menuItems.length === 0) && !isLoading && (
+              <Button onClick={handleSeedData} variant="outline" size="sm" disabled={isSeeding}>
+                <Database className="mr-2 h-4 w-4" />
+                Seed Menu
+              </Button>
             )}
             <Button onClick={() => handleOpenItemForm()} disabled={isLoading} size="sm">
               <PlusCircle className="mr-2 h-4 w-4" />
@@ -444,7 +484,9 @@ export default function SellerAdminPage({
           </CardHeader>
           <CardContent>
             {areItemsLoading ? (
-                <p>Loading menu items...</p>
+                <div className="space-y-4">
+                  {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
+                </div>
             ) : menuItems && menuItems.length > 0 ? (
               <div className="space-y-6">
                 {categories.filter(cat => activeFilter === 'All' || activeFilter === cat).map((category) => (
@@ -462,7 +504,7 @@ export default function SellerAdminPage({
                             onDrop={handleDrop}
                             onDragEnd={handleDragEnd}
                             className={cn(
-                                "flex items-center justify-between gap-4 p-2 rounded-lg bg-muted/50 transition-opacity",
+                                "flex items-center justify-between gap-4 p-2 rounded-lg bg-muted/50 transition-opacity border border-transparent hover:border-border",
                                 draggedItem?.id === item.id ? "opacity-50" : "opacity-100"
                             )}
                          >
@@ -476,7 +518,7 @@ export default function SellerAdminPage({
                              </div>
                            </div>
                            <div className="flex items-center gap-2">
-                              <Badge variant="secondary">{item.category}</Badge>
+                              <Badge variant="secondary" className="hidden sm:inline-flex">{item.category}</Badge>
                              <Button variant="ghost" size="icon" onClick={() => handleOpenItemForm(item)}>
                                <Edit className="h-4 w-4" />
                              </Button>
@@ -497,7 +539,12 @@ export default function SellerAdminPage({
                 ))}
               </div>
             ) : (
-                <p className="text-center text-muted-foreground py-8">No menu items found. Click "Add Menu Item" or "Seed Menu" to create one.</p>
+                <div className="text-center py-12">
+                  <p className="text-muted-foreground mb-4">No menu items found.</p>
+                  <Button onClick={handleSeedData} variant="outline" disabled={isSeeding}>
+                    Seed Sample Menu
+                  </Button>
+                </div>
             )}
           </CardContent>
         </Card>

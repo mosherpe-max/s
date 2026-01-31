@@ -16,7 +16,7 @@ import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { mockBuyerLocation } from '@/lib/data';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetFooter } from '@/components/ui/sheet';
-import { Loader2, Truck, AlertCircle } from 'lucide-react';
+import { Loader2, Truck, AlertCircle, Database } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useCart } from '@/lib/cart-context';
 import Link from 'next/link';
@@ -131,6 +131,30 @@ export default function BuyerMenuPage({ params }: { params: { sellerId: string }
   const isLoading = isSellerLoading || areItemsLoading;
   const activeOrderItems = orderItems.filter((item) => item.quantity > 0);
 
+  if (!isLoading && !seller) {
+      return (
+          <div className="flex flex-col items-center justify-center h-[calc(100vh-4rem)] p-8 text-center space-y-6">
+              <div className="bg-muted p-8 rounded-full">
+                  <AlertCircle className="h-16 w-16 text-muted-foreground opacity-50" />
+              </div>
+              <div className="space-y-2">
+                  <h2 className="text-3xl font-headline font-bold">Menu Not Found</h2>
+                  <p className="text-muted-foreground max-w-sm mx-auto">
+                      This course hasn't set up their menu yet. If you are the admin, please go to the Seller Admin page to initialize the course.
+                  </p>
+              </div>
+              <div className="flex gap-4">
+                  <Button asChild variant="outline">
+                      <Link href="/">Back to Home</Link>
+                  </Button>
+                  <Button asChild>
+                      <Link href={`/sellers/${sellerId}`}>Go to Seller Admin</Link>
+                  </Button>
+              </div>
+          </div>
+      );
+  }
+
   if (!isLoading && seller?.status === 'Inactive') {
     return (
       <div className="flex flex-col items-center justify-center h-[calc(100vh-4rem)] p-8 text-center space-y-6">
@@ -189,7 +213,7 @@ export default function BuyerMenuPage({ params }: { params: { sellerId: string }
               <Skeleton className="h-20 w-full" />
               <Skeleton className="h-20 w-full" />
           </div>
-        ) : menuItems ? (
+        ) : menuItems && menuItems.length > 0 ? (
           <BuyerMenu
             orderItems={orderItems}
             onUpdateItem={updateItem}
@@ -197,7 +221,13 @@ export default function BuyerMenuPage({ params }: { params: { sellerId: string }
             menuItems={menuItems}
           />
         ) : (
-          <p>No menu items available.</p>
+          <div className="flex flex-col items-center justify-center py-20 text-center space-y-4">
+              <Database className="h-12 w-12 text-muted-foreground opacity-20" />
+              <p className="text-muted-foreground">This course has no menu items listed.</p>
+              <Button asChild variant="link">
+                  <Link href={`/sellers/${sellerId}`}>Set up menu in Seller Admin</Link>
+              </Button>
+          </div>
         )}
       </main>
 

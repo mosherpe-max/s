@@ -13,8 +13,9 @@ import { mockSellerLocation } from '@/lib/data';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
-import { Focus, Bell, Package } from 'lucide-react';
+import { Focus, Bell, Package, AlertCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import Link from 'next/link';
 
 type LatLng = {
   latitude: number;
@@ -29,16 +30,14 @@ export default function BevCartDriverDashboardPage() {
   const [zoomMode, setZoomMode] = useState<'radius' | 'all'>('all');
   const [now, setNow] = useState(Date.now());
   
-  // Ref to track seen order IDs for "New Order" notifications
   const lastOrderIdsRef = useRef<Set<string>>(new Set());
   const initialLoadRef = useRef(true);
 
-  // Get current seller status from DB. Using 'demo-course' as a slug-based ID.
   const sellerRef = useMemoFirebase(() => {
     if (!firestore) return null;
     return doc(firestore, 'sellers', 'demo-course');
   }, [firestore]);
-  const { data: seller } = useDoc<Seller>(sellerRef);
+  const { data: seller, isLoading: isSellerLoading } = useDoc<Seller>(sellerRef);
 
   const isActive = seller?.status === 'Active';
 
@@ -53,21 +52,16 @@ export default function BevCartDriverDashboardPage() {
 
   const { data: activeOrders, isLoading: areActiveOrdersLoading } = useCollection<Order>(activeOrdersQuery);
 
-  // Sound notification effect
   useEffect(() => {
     if (!activeOrders || !isActive) return;
 
     const currentOrderIds = new Set(activeOrders.map(o => o.id));
-    
-    // Check for newly "Placed" orders
     const newPlacedOrders = activeOrders.filter(o => o.status === 'Placed' && !lastOrderIdsRef.current.has(o.id));
 
     if (newPlacedOrders.length > 0 && !initialLoadRef.current) {
-      // Play Sound
       const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
-      audio.play().catch(e => console.log("Audio play blocked by browser. User interaction needed."));
+      audio.play().catch(e => console.log("Audio play blocked by browser."));
 
-      // Show Toast
       toast({
         title: (
           <div className="flex items-center gap-2">
@@ -79,7 +73,6 @@ export default function BevCartDriverDashboardPage() {
       });
     }
 
-    // Update the set of seen order IDs
     lastOrderIdsRef.current = currentOrderIds;
     initialLoadRef.current = false;
   }, [activeOrders, isActive, toast]);
@@ -124,8 +117,8 @@ export default function BevCartDriverDashboardPage() {
 
     const syncLocation = async () => {
       if (sellerLocRef.current) {
-        const sellerRef = doc(firestore, 'sellers', 'demo-course');
-        await updateDoc(sellerRef, {
+        const sellerDocRef = doc(firestore, 'sellers', 'demo-course');
+        await updateDoc(sellerDocRef, {
           latitude: sellerLocRef.current.latitude,
           longitude: sellerLocRef.current.longitude
         }).catch(() => {});
@@ -148,12 +141,12 @@ export default function BevCartDriverDashboardPage() {
 
   const handleToggleActive = async (checked: boolean) => {
     if (!firestore) return;
-    const sellerRef = doc(firestore, 'sellers', 'demo-course');
-    await updateDoc(sellerRef, { status: checked ? 'Active' : 'Inactive' });
+    const sellerDocRef = doc(firestore, 'sellers', 'demo-course');
+    await updateDoc(sellerDocRef, { status: checked ? 'Active' : 'Inactive' });
   };
 
   const orders = isActive ? activeOrders || [] : [];
-  const isLoading = areActiveOrdersLoading && isActive;
+  const isLoading = (areActiveOrdersLoading && isActive) || isSellerLoading;
 
   const mappedBuyers = useMemo(() => {
     return orders.map(o => {
@@ -178,6 +171,21 @@ export default function BevCartDriverDashboardPage() {
       };
     });
   }, [orders, now]);
+
+  if (!isSellerLoading && !seller) {
+      return (
+          <div className="flex flex-col items-center justify-center h-screen p-8 text-center space-y-6">
+              <AlertCircle className="h-16 w-16 text-muted-foreground opacity-20" />
+              <h1 className="text-2xl font-headline font-bold">Demo Course Not Initialized</h1>
+              <p className="text-muted-foreground max-w-sm">
+                  The demo course seller profile is missing from the database. Please initialize it in the Seller Admin first.
+              </p>
+              <Button asChild>
+                  <Link href="/sellers/demo-course">Initialize Demo Course</Link>
+              </Button>
+          </div>
+      );
+  }
 
   return (
     <APIProvider apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!}>
