@@ -45,7 +45,7 @@ export function AppHeader() {
         </div>
         <div className="flex items-center gap-2 md:gap-4">
             <Button variant="ghost" size="sm" asChild className="hidden sm:inline-flex">
-                <Link href="/admin/sellers">Admin</Link>
+                <Link href="/admin">Admin</Link>
             </Button>
             <Button variant="ghost" size="sm" asChild>
                 <Link href="/seller/dashboard">Driver</Link>
