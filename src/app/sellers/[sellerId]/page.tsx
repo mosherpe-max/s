@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useMemo, useEffect, use } from 'react';
@@ -411,16 +410,20 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
     setIsSeeding(true);
     try {
       const batch = writeBatch(firestore);
-      if (!seller) {
-        batch.set(doc(firestore, 'sellers', sellerId), {
-          id: sellerId, 
-          courseName: sellerId === 'demo-course' ? 'Demo Golf Course - Public' : 'Sample Course',
-          type: sellerId === 'demo-course' ? 'Public Golf Course' : 'Private Golf Course', 
-          streetAddress: '123 Fairway Drive', city: 'Pebble Beach', state: 'CA', zip: '93953',
-          latitude: 42.7748, longitude: -83.2139, contactName: 'Pro Shop Manager', contactEmail: 'manager@democourse.com',
-          contactPhone: '555-0100', serviceFee: 2.50, status: 'Inactive', menuTypes: ['Beverage Cart', 'Clubhouse']
-        });
-      }
+      
+      const isDemo = sellerId === 'demo-course';
+      
+      batch.set(doc(firestore, 'sellers', sellerId), {
+        id: sellerId, 
+        courseName: isDemo ? 'Demo Golf Course - Public' : 'Sample Course',
+        type: isDemo ? 'Public Golf Course' : 'Private Golf Course', 
+        streetAddress: '123 Fairway Drive', city: 'Pebble Beach', state: 'CA', zip: '93953',
+        latitude: 42.7748, longitude: -83.2139, contactName: 'Pro Shop Manager', contactEmail: 'manager@democourse.com',
+        contactPhone: '555-0100', serviceFee: 2.50, status: 'Inactive', 
+        lastActive: null,
+        menuTypes: ['Beverage Cart', 'Clubhouse']
+      }, { merge: true });
+      
       mockMenuItems.forEach((item, index) => {
         const newItemRef = doc(collection(firestore, 'sellers', sellerId, 'menuItems'));
         const availableOn = ['Beverage Cart', 'Clubhouse'];
@@ -439,7 +442,7 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
         batch.set(memberRef, { ...member, id: memberRef.id });
       });
       await batch.commit();
-      toast({ title: "Demo Ready", description: "Sample data loaded." });
+      toast({ title: "Demo Ready", description: "Sample data loaded and status set to Inactive." });
     } finally { setIsSeeding(false); }
   };
 
@@ -459,7 +462,6 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
     
     const updates: Partial<MenuItem> = { availableOn: nextAvailable };
     
-    // Initialize rank if adding
     if (!isAvailable) {
         const menuRanks = item.menuRanks || {};
         if (!menuRanks[menuType]) {
@@ -511,7 +513,7 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
     return (
       <div className="container mx-auto px-4 py-20 flex flex-col items-center justify-center text-center">
         <Database className="h-16 w-16 text-muted-foreground mb-4 opacity-20" />
-        <h1 className="font-headline text-3xl font-bold mb-2">Initialize Demo Course</h1>
+        <h1 className="font-headline text-3xl font-bold mb-2">Initialize KOOP Demo Course</h1>
         <Button size="lg" onClick={handleSeedData} disabled={isSeeding}>{isSeeding ? 'Initializing...' : 'Set Up Demo Course'}</Button>
       </div>
     );
@@ -520,14 +522,22 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
   return (
     <div className="flex flex-col min-h-screen">
       <div className="container mx-auto px-4 py-8 max-w-7xl flex-1">
-        <header className="mb-10">
-          <div className="flex items-center gap-3">
-              <h1 className="font-headline text-3xl font-bold text-foreground">
-                Seller Admin: {seller?.courseName || 'Loading...'}
-              </h1>
-              {seller && <Badge variant="outline">{seller.type}</Badge>}
+        <header className="mb-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-3">
+                <h1 className="font-headline text-3xl font-bold text-foreground">
+                  KOOP Seller Admin: {seller?.courseName || 'Loading...'}
+                </h1>
+                {seller && <Badge variant="outline">{seller.type}</Badge>}
+            </div>
+            <p className="text-muted-foreground text-sm mt-1">Configure your menus, monitor performance, and customize your brand.</p>
           </div>
-          <p className="text-muted-foreground text-sm mt-1">Configure your menus, monitor performance, and customize your brand.</p>
+          <div className="flex gap-2">
+             <Button variant="outline" size="sm" onClick={handleSeedData} disabled={isSeeding}>
+                <Sparkles className="mr-2 h-4 w-4" />
+                Reset Demo Data
+             </Button>
+          </div>
         </header>
 
         <section className="mb-12">
@@ -544,7 +554,6 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
         </section>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
-            {/* Sales Card */}
             <Card className="shadow-sm border-muted h-full flex flex-col">
               <CardHeader className="bg-muted/30">
                 <CardTitle className="flex items-center gap-2 text-lg"><FileSpreadsheet className="h-5 w-5" /> Recent Sales</CardTitle>
@@ -574,7 +583,6 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
               </CardContent>
             </Card>
 
-            {/* Branding Card */}
             <Card className="shadow-sm border-muted h-full flex flex-col">
               <CardHeader className="bg-muted/30">
                 <CardTitle className="flex items-center gap-2 text-lg"><Palette className="h-5 w-5" /> Menu Branding</CardTitle>
@@ -633,7 +641,6 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
 
         <Separator className="my-10" />
 
-        {/* MASTER MENU TILE */}
         <Card className="mb-12 shadow-md border-primary/20 bg-primary/5">
           <CardHeader className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
@@ -643,7 +650,6 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
             <Button onClick={() => { setEditingItem(null); setIsMasterFormOpen(true); }} size="sm" className="shadow-lg"><PlusCircle className="mr-2 h-4 w-4" /> New Master Item</Button>
           </CardHeader>
           <CardContent>
-            {/* Category Filters */}
             <div className="flex flex-wrap items-center gap-2 mb-8 bg-background/50 p-2 rounded-lg border">
               <div className="flex items-center gap-2 text-muted-foreground text-xs font-bold uppercase tracking-widest px-2 mr-2">
                 <Filter className="h-3 w-3" /> Filter
@@ -699,7 +705,6 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
           </CardContent>
         </Card>
 
-        {/* DYNAMIC MENU TYPE TILES */}
         <h2 className="font-headline text-2xl font-bold mb-6 mt-16 flex items-center gap-2"><ListChecks className="h-6 w-6 text-primary" /> Active Service Menus</h2>
         <div className="grid grid-cols-1 gap-12">
           {seller?.menuTypes?.map(menuType => {
@@ -795,7 +800,6 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
           </section>
         )}
 
-        {/* DIALOGS */}
         <Dialog open={isMasterFormOpen} onOpenChange={setIsMasterFormOpen}>
           <DialogContent className="sm:max-w-[500px]">
             <DialogHeader><DialogTitle>{editingItem ? 'Edit Master Item' : 'Create Master Item'}</DialogTitle></DialogHeader>

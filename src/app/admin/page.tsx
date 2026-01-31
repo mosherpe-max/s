@@ -1,12 +1,12 @@
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { collection, doc, setDoc, deleteDoc, query } from 'firebase/firestore';
+import { collection, doc, setDoc, deleteDoc, query, writeBatch, getDocs } from 'firebase/firestore';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { PlusCircle, Edit, Trash2, Loader2, MapPin, Mail, Phone, User, Building, DollarSign, ShoppingBag, BarChart3, ListChecks, Utensils } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { PlusCircle, Edit, Trash2, Loader2, MapPin, Mail, Phone, User, Building, DollarSign, ShoppingBag, BarChart3, ListChecks, Utensils, RefreshCw, AlertTriangle } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -16,6 +16,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Input } from '@/components/ui/input';
 import { useForm, useFieldArray } from 'react-hook-form';
@@ -134,11 +135,12 @@ function GlobalStatCard({ title, revenue, orders, avgTransaction }: { title: str
   );
 }
 
-export default function KoopAdminPage() {
+export default function KOOPAdminPage() {
   const firestore = useFirestore();
   const { toast } = useToast();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
   const [editingSeller, setEditingSeller] = useState<Seller | null>(null);
   const [sellerToDelete, setSellerToDelete] = useState<Seller | null>(null);
 
@@ -212,7 +214,6 @@ export default function KoopAdminPage() {
   const isLaneDeliveryEnabled = selectedMenuTypes.includes('Lane Delivery');
   const isDineInEnabled = selectedMenuTypes.includes('Dine-In');
 
-  // Sync halfway house names fields with count
   useEffect(() => {
     if (isHalfwayHouseEnabled) {
       const currentNames = form.getValues('halfwayHouseNames') || [];
@@ -231,7 +232,6 @@ export default function KoopAdminPage() {
     }
   }, [halfwayCount, isHalfwayHouseEnabled, append, remove, form]);
 
-  // Clear invalid menu types when establishment type changes
   useEffect(() => {
     const validOptions = getMenuOptionsForType(selectedType);
     const currentMenuTypes = form.getValues('menuTypes') || [];
@@ -241,7 +241,6 @@ export default function KoopAdminPage() {
       form.setValue('menuTypes', filteredMenuTypes);
     }
 
-    // Reset lane delivery or dine-in specific fields if their menu types are gone
     if (!filteredMenuTypes.includes('Lane Delivery')) form.setValue('laneCount', 0);
     if (!filteredMenuTypes.includes('Dine-In')) form.setValue('tableCount', 0);
     
@@ -291,6 +290,43 @@ export default function KoopAdminPage() {
     setIsFormOpen(true);
   };
 
+  const handleSystemReset = async () => {
+    if (!firestore) return;
+    setIsResetting(true);
+    
+    try {
+      const batch = writeBatch(firestore);
+      
+      const ordersSnapshot = await getDocs(collection(firestore, 'orders'));
+      ordersSnapshot.forEach((orderDoc) => {
+        batch.delete(orderDoc.ref);
+      });
+      
+      const sellersSnapshot = await getDocs(collection(firestore, 'sellers'));
+      sellersSnapshot.forEach((sellerDoc) => {
+        batch.update(sellerDoc.ref, { 
+          status: 'Inactive', 
+          lastActive: null 
+        });
+      });
+      
+      await batch.commit();
+      toast({
+        title: "System Reset Complete",
+        description: "All orders have been cleared and drivers disconnected.",
+      });
+    } catch (error) {
+      console.error("Reset failed:", error);
+      toast({
+        variant: "destructive",
+        title: "Reset Failed",
+        description: "An error occurred while resetting the platform state.",
+      });
+    } finally {
+      setIsResetting(false);
+    }
+  };
+
   const onSave = async (data: SellerFormData) => {
     if (!firestore) return;
     setIsSaving(true);
@@ -332,7 +368,7 @@ export default function KoopAdminPage() {
       .then(() => {
         toast({ 
           title: editingSeller ? 'Seller Updated' : 'Seller Created', 
-          description: `${data.courseName} has been saved with ID: ${sellerId}` 
+          description: `${data.courseName} has been saved.` 
         });
         setIsFormOpen(false);
       })
@@ -373,8 +409,39 @@ export default function KoopAdminPage() {
     <div className="container mx-auto px-4 py-8 max-w-7xl">
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 text-center md:text-left">
         <div>
-          <h1 className="font-headline text-3xl font-bold text-foreground">KOOP Admin</h1>
+          <h1 className="font-headline text-3xl font-bold text-foreground uppercase tracking-tight">KOOP Admin</h1>
           <p className="text-muted-foreground">Manage your seller network and monitor platform performance.</p>
+        </div>
+        <div className="flex items-center gap-3 self-center md:self-auto">
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="outline" className="border-destructive text-destructive hover:bg-destructive/10">
+                <RefreshCw className={cn("mr-2 h-4 w-4", isResetting && "animate-spin")} />
+                System Reset
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle className="flex items-center gap-2">
+                  <AlertTriangle className="h-5 w-5 text-destructive" />
+                  Hard Platform Reset
+                </AlertDialogTitle>
+                <AlertDialogDescription>
+                  This action will <strong>delete all active orders</strong> and set <strong>all sellers to Inactive</strong>. This is used to clear ghost markers and stale data during prototyping.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={handleSystemReset} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                  Reset Everything
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+          <Button onClick={() => handleOpenForm()} size="default" className="shadow-sm">
+            <PlusCircle className="mr-2 h-4 w-4" />
+            Register New Seller
+          </Button>
         </div>
       </header>
 
@@ -405,15 +472,11 @@ export default function KoopAdminPage() {
       </section>
 
       <Card className="shadow-sm border-muted">
-        <CardHeader className="bg-muted/30 flex flex-col sm:flex-row items-start sm:items-center justify-between py-4 gap-4">
+        <CardHeader className="bg-muted/30 flex flex-col sm:flex-row items-start sm:items-center justify-between py-4 gap-4 border-b">
           <div className="flex items-center gap-3">
             <CardTitle className="text-xl">Registered Sellers</CardTitle>
             <Badge variant="outline" className="bg-background">{sellers?.length || 0} Total</Badge>
           </div>
-          <Button onClick={() => handleOpenForm()} size="sm" className="shadow-sm w-full sm:w-auto">
-            <PlusCircle className="mr-2 h-4 w-4" />
-            Register New Seller
-          </Button>
         </CardHeader>
         <CardContent className="p-0">
           {isSellersLoading ? (
@@ -462,7 +525,7 @@ export default function KoopAdminPage() {
                         </div>
                       </TableCell>
                       <TableCell className="text-center align-top pt-5">
-                        <Badge variant={seller.status === 'Active' ? 'default' : 'secondary'} className="w-16 justify-center">
+                        <Badge variant={seller.status === 'Active' ? 'default' : 'secondary'} className="w-16 justify-center transition-colors">
                           {seller.status}
                         </Badge>
                       </TableCell>
@@ -495,7 +558,9 @@ export default function KoopAdminPage() {
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
         <DialogContent className="sm:max-w-[700px] max-h-[95vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-2xl font-headline">{editingSeller ? 'Edit Seller' : 'Register Seller'}</DialogTitle>
+            <DialogTitle className="text-2xl font-headline">
+              {editingSeller ? 'Edit Seller Profile' : 'Register New Seller'}
+            </DialogTitle>
             <DialogDescription>
                 Ensure all details are accurate. Coordinates will be calculated automatically based on the address.
             </DialogDescription>
@@ -834,7 +899,7 @@ export default function KoopAdminPage() {
                   {isSaving ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Validating...
+                      Saving...
                     </>
                   ) : (
                     editingSeller ? 'Save Changes' : 'Register Seller'
