@@ -6,7 +6,7 @@ import { collection, doc, setDoc, deleteDoc, writeBatch, query, where, updateDoc
 import { useFirestore, useDoc, useCollection, useMemoFirebase } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
-import { PlusCircle, Edit, Trash2, GripVertical, Filter, DollarSign, ShoppingBag, Clock, Database, Users, UserPlus, Sparkles, Download, Calendar as CalendarIcon, FileSpreadsheet, Palette, Save, Loader2, Upload } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, GripVertical, Filter, DollarSign, ShoppingBag, Clock, Database, Users, UserPlus, Sparkles, Download, Calendar as CalendarIcon, FileSpreadsheet, Palette, Save, Loader2, Upload, Smartphone, Beer, Martini, GlassWater, Cookie } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
   AlertDialog,
@@ -22,7 +22,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
+import { z } from 'z ' ;
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import {
   Select,
@@ -210,6 +210,68 @@ function StatTile({ title, revenue, orders, longWait }: { title: string, revenue
   );
 }
 
+function MobilePreview({ logoUrl, brandColor, sellerName, menuType }: { logoUrl?: string, brandColor?: string, sellerName: string, menuType: string }) {
+  const color = brandColor || 'hsl(var(--primary))';
+  
+  return (
+    <div className="relative mx-auto border-[8px] border-slate-900 rounded-[2.5rem] h-[550px] w-[280px] bg-background shadow-2xl overflow-hidden flex flex-col font-body">
+      {/* Phone Notch */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-6 bg-slate-900 rounded-b-2xl z-30"></div>
+      
+      {/* Header Mock */}
+      <div className="px-4 pt-8 pb-3 border-b bg-background/95 flex items-center gap-2 shrink-0">
+        {logoUrl ? (
+          <div className="relative w-8 h-8 rounded-md overflow-hidden shrink-0">
+            <Image src={logoUrl} alt="logo" fill className="object-contain" unoptimized />
+          </div>
+        ) : (
+          <div className="w-8 h-8 bg-muted rounded-md flex items-center justify-center shrink-0">
+            <Smartphone className="w-4 h-4 text-muted-foreground" />
+          </div>
+        )}
+        <span className="text-xs font-bold truncate font-headline">{sellerName}</span>
+      </div>
+
+      {/* Menu Body Mock */}
+      <div className="flex-1 overflow-hidden p-3 space-y-4">
+        <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+          {['Beer', 'Spirits', 'Soft Drinks'].map((cat, i) => (
+            <div key={cat} className={cn("px-3 py-1 rounded-full text-[10px] whitespace-nowrap border", i === 0 ? "text-white" : "bg-muted")} style={i === 0 ? { backgroundColor: color } : {}}>
+              {cat}
+            </div>
+          ))}
+        </div>
+        
+        <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+          <Beer className="w-3 h-3" style={{ color }} /> BEER MENU
+        </div>
+
+        <div className="space-y-2">
+          {[1, 2].map(i => (
+            <div key={i} className="p-3 rounded-xl border bg-card shadow-sm flex justify-between items-start">
+              <div>
+                <p className="text-[11px] font-bold">Item {i}</p>
+                <p className="text-[10px] font-mono font-bold" style={{ color }}>$8.50</p>
+              </div>
+              <div className="w-6 h-6 rounded-full border flex items-center justify-center text-xs">+</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Footer Mock */}
+      <div className="p-3 bg-background border-t shrink-0">
+        <div className="w-full h-10 rounded-lg flex items-center justify-center text-sm font-bold text-white shadow-lg" style={{ backgroundColor: color }}>
+          Place Order ({menuType})
+        </div>
+      </div>
+      
+      {/* Bottom Bar */}
+      <div className="h-1.5 w-24 bg-slate-300 rounded-full mx-auto mb-2 mt-auto"></div>
+    </div>
+  );
+}
+
 export default function SellerAdminPage({ params }: { params: { sellerId: string } }) {
   const { sellerId } = use(params);
   const firestore = useFirestore();
@@ -224,6 +286,7 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
   const [activeFilter, setActiveFilter] = useState<Category | 'All'>('All');
   const [isSeeding, setIsSeeding] = useState(false);
   const [isSavingCustomization, setIsSavingCustomization] = useState(false);
+  const [previewMenuType, setPreviewMenuType] = useState<string>('');
 
   // Export filters
   const [startDate, setStartDate] = useState<string>('');
@@ -248,17 +311,22 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
   const customizationForm = useForm<CustomizationFormData>({
     resolver: zodResolver(customizationSchema),
     defaultValues: {
-      brandColor: seller?.brandColor || '',
+      brandColor: seller?.brandColor || '#22c55e',
       logoUrl: seller?.logoUrl || '',
     },
   });
 
+  const watchedValues = customizationForm.watch();
+
   useEffect(() => {
     if (seller) {
       customizationForm.reset({
-        brandColor: seller.brandColor || '',
+        brandColor: seller.brandColor || '#22c55e',
         logoUrl: seller.logoUrl || '',
       });
+      if (seller.menuTypes && seller.menuTypes.length > 0) {
+        setPreviewMenuType(seller.menuTypes[0]);
+      }
     }
   }, [seller, customizationForm]);
 
@@ -375,7 +443,7 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
           id: sellerId, courseName: sellerId === 'demo-course' ? 'Demo Golf Course' : 'Sample Course',
           type: 'Private Golf Course', streetAddress: '123 Fairway Drive', city: 'Pebble Beach', state: 'CA', zip: '93953',
           latitude: 42.7748, longitude: -83.2139, contactName: 'Pro Shop Manager', contactEmail: 'manager@democourse.com',
-          contactPhone: '555-0100', serviceFee: 2.50, status: 'Active'
+          contactPhone: '555-0100', serviceFee: 2.50, status: 'Active', menuTypes: ['Beverage Cart', 'Clubhouse']
         });
       }
 
@@ -534,81 +602,102 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
           <Card className="flex flex-col h-full">
             <CardHeader>
               <CardTitle className="flex items-center gap-2"><Palette className="h-5 w-5" /> Menu Branding</CardTitle>
-              <CardDescription>Customize the look and feel of your digital menu for buyers.</CardDescription>
+              <CardDescription>Customize the look and feel of your digital menu for buyers with live mobile preview.</CardDescription>
             </CardHeader>
             <CardContent className="flex-1">
-              <Form {...customizationForm}>
-                <form onSubmit={customizationForm.handleSubmit(handleSaveCustomization)} className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField
-                      control={customizationForm.control}
-                      name="brandColor"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="flex items-center gap-2"><Palette className="h-4 w-4" /> Brand Color</FormLabel>
-                          <div className="flex gap-2">
-                            <FormControl>
-                              <Input {...field} placeholder="#22c55e" />
-                            </FormControl>
-                            <div 
-                              className="w-10 h-10 rounded-md border shadow-sm shrink-0" 
-                              style={{ backgroundColor: field.value || 'hsl(var(--primary))' }} 
-                            />
-                          </div>
-                          <FormDescription>Primary branding color.</FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={customizationForm.control}
-                      name="logoUrl"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="flex items-center gap-2"><Upload className="h-4 w-4" /> Seller Logo</FormLabel>
-                          <FormControl>
-                            <div className="space-y-3">
-                              <Input 
-                                type="file" 
-                                accept="image/jpeg,image/png" 
-                                onChange={(e) => handleFileChange(e, field.onChange)} 
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="space-y-6">
+                  <Form {...customizationForm}>
+                    <form onSubmit={customizationForm.handleSubmit(handleSaveCustomization)} className="space-y-4">
+                      <FormField
+                        control={customizationForm.control}
+                        name="brandColor"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="flex items-center gap-2"><Palette className="h-4 w-4" /> Brand Color</FormLabel>
+                            <div className="flex gap-2">
+                              <FormControl>
+                                <Input {...field} placeholder="#22c55e" />
+                              </FormControl>
+                              <div 
+                                className="w-10 h-10 rounded-md border shadow-sm shrink-0" 
+                                style={{ backgroundColor: field.value || watchedValues.brandColor }} 
                               />
-                              {field.value && (
-                                <div className="relative w-20 h-20 border rounded-md overflow-hidden bg-muted/20">
-                                  <Image 
-                                    src={field.value} 
-                                    alt="Logo Preview" 
-                                    fill 
-                                    className="object-contain" 
-                                  />
-                                </div>
-                              )}
                             </div>
-                          </FormControl>
-                          <FormDescription>Pick file from computer. Recommended: JPEG.</FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={customizationForm.control}
+                        name="logoUrl"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="flex items-center gap-2"><Upload className="h-4 w-4" /> Seller Logo</FormLabel>
+                            <FormControl>
+                              <div className="space-y-3">
+                                <Input 
+                                  type="file" 
+                                  accept="image/jpeg,image/png" 
+                                  onChange={(e) => handleFileChange(e, field.onChange)} 
+                                />
+                              </div>
+                            </FormControl>
+                            <FormDescription>Pick file from computer. Recommended: JPEG.</FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
 
-                  <div className="flex justify-end pt-2">
-                    <Button type="submit" disabled={isSavingCustomization}>
-                      {isSavingCustomization ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Saving...
-                        </>
-                      ) : (
-                        <>
-                          <Save className="mr-2 h-4 w-4" />
-                          Apply Branding
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                </form>
-              </Form>
+                      <div className="space-y-2">
+                        <FormLabel>Preview Menu Type</FormLabel>
+                        <Select value={previewMenuType} onValueChange={setPreviewMenuType}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select menu type" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {seller?.menuTypes?.map(type => (
+                              <SelectItem key={type} value={type}>{type}</SelectItem>
+                            ))}
+                            {(!seller?.menuTypes || seller?.menuTypes.length === 0) && (
+                              <SelectItem value="Default">Default</SelectItem>
+                            )}
+                          </SelectContent>
+                        </Select>
+                        <FormDescription>Visualize how your menu looks for different delivery modes.</FormDescription>
+                      </div>
+
+                      <div className="flex justify-end pt-2">
+                        <Button type="submit" disabled={isSavingCustomization}>
+                          {isSavingCustomization ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Saving...
+                            </>
+                          ) : (
+                            <>
+                              <Save className="mr-2 h-4 w-4" />
+                              Apply Branding
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    </form>
+                  </Form>
+                </div>
+                
+                <div className="flex flex-col items-center justify-center bg-muted/20 p-4 rounded-xl border border-dashed">
+                   <div className="text-xs font-bold text-muted-foreground mb-4 uppercase tracking-widest flex items-center gap-2">
+                      <Smartphone className="w-4 h-4" /> Live Mobile Preview
+                   </div>
+                   <MobilePreview 
+                      logoUrl={watchedValues.logoUrl} 
+                      brandColor={watchedValues.brandColor} 
+                      sellerName={seller?.courseName || 'Demo Establishment'}
+                      menuType={previewMenuType || 'Order'}
+                   />
+                </div>
+              </div>
             </CardContent>
           </Card>
         </div>
