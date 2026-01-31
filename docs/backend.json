@@ -20,9 +20,21 @@
           "enum": ["Private Golf Course", "Semi Private Golf Course", "Public Golf Course", "Bowling Alley", "Brewery", "Restaurant"],
           "description": "The type of establishment for the seller."
         },
-        "courseAddress": {
+        "streetAddress": {
           "type": "string",
-          "description": "The physical address of the golf course."
+          "description": "The street address of the establishment."
+        },
+        "city": {
+          "type": "string",
+          "description": "The city where the establishment is located."
+        },
+        "state": {
+          "type": "string",
+          "description": "The state where the establishment is located."
+        },
+        "zip": {
+          "type": "string",
+          "description": "The postal/zip code of the establishment."
         },
         "latitude": {
           "type": "number",
@@ -58,7 +70,10 @@
       "required": [
         "courseName",
         "type",
-        "courseAddress",
+        "streetAddress",
+        "city",
+        "state",
+        "zip",
         "contactName",
         "contactEmail",
         "status"

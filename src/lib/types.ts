@@ -17,7 +17,10 @@ export interface Seller {
   ownerId?: string; // Made optional for prototyping
   courseName: string;
   type: SellerType;
-  courseAddress: string;
+  streetAddress: string;
+  city: string;
+  state: string;
+  zip: string;
   latitude: number;
   longitude: number;
   contactName: string;

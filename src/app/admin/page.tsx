@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState } from 'react';
@@ -47,7 +48,10 @@ import { FirestorePermissionError } from '@/firebase/errors';
 const sellerSchema = z.object({
   courseName: z.string().min(1, 'Course name is required'),
   type: z.enum(['Private Golf Course', 'Semi Private Golf Course', 'Public Golf Course', 'Bowling Alley', 'Brewery', 'Restaurant']),
-  courseAddress: z.string().min(1, 'Address is required'),
+  streetAddress: z.string().min(1, 'Street address is required'),
+  city: z.string().min(1, 'City is required'),
+  state: z.string().min(1, 'State is required'),
+  zip: z.string().min(1, 'ZIP code is required'),
   latitude: z.coerce.number(),
   longitude: z.coerce.number(),
   contactName: z.string().min(1, 'Contact name is required'),
@@ -93,7 +97,10 @@ export default function KoopAdminPage() {
     defaultValues: {
       courseName: '',
       type: 'Public Golf Course',
-      courseAddress: '',
+      streetAddress: '',
+      city: '',
+      state: '',
+      zip: '',
       latitude: 0,
       longitude: 0,
       contactName: '',
@@ -112,7 +119,10 @@ export default function KoopAdminPage() {
       form.reset({
         courseName: '',
         type: 'Public Golf Course',
-        courseAddress: '',
+        streetAddress: '',
+        city: '',
+        state: '',
+        zip: '',
         latitude: 0,
         longitude: 0,
         contactName: '',
@@ -223,8 +233,9 @@ export default function KoopAdminPage() {
                       </TableCell>
                       <TableCell>
                         <div className="flex flex-col text-xs text-muted-foreground">
-                          <span>{seller.courseAddress}</span>
-                          <span className="font-mono">{seller.latitude.toFixed(4)}, {seller.longitude.toFixed(4)}</span>
+                          <span className="font-semibold text-foreground">{seller.streetAddress}</span>
+                          <span>{seller.city}, {seller.state} {seller.zip}</span>
+                          <span className="font-mono mt-1 opacity-70">{seller.latitude.toFixed(4)}, {seller.longitude.toFixed(4)}</span>
                         </div>
                       </TableCell>
                       <TableCell className="font-mono text-xs">${seller.serviceFee.toFixed(2)}</TableCell>
@@ -332,41 +343,79 @@ export default function KoopAdminPage() {
                 />
               </div>
 
-              <FormField
-                control={form.control}
-                name="courseAddress"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Address</FormLabel>
-                    <FormControl><Input {...field} placeholder="Full address" /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              <div className="space-y-4 pt-4 border-t">
+                <h3 className="font-semibold text-sm">Location Address</h3>
+                <FormField
+                  control={form.control}
+                  name="streetAddress"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Street Address</FormLabel>
+                      <FormControl><Input {...field} placeholder="123 Fairway Dr" /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="city"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>City</FormLabel>
+                        <FormControl><Input {...field} placeholder="Pebble Beach" /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="state"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>State</FormLabel>
+                        <FormControl><Input {...field} placeholder="CA" /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="zip"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>ZIP Code</FormLabel>
+                        <FormControl><Input {...field} placeholder="93953" /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="latitude"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Latitude</FormLabel>
-                      <FormControl><Input type="number" step="0.000001" {...field} /></FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="longitude"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Longitude</FormLabel>
-                      <FormControl><Input type="number" step="0.000001" {...field} /></FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="latitude"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Latitude</FormLabel>
+                        <FormControl><Input type="number" step="0.000001" {...field} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="longitude"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Longitude</FormLabel>
+                        <FormControl><Input type="number" step="0.000001" {...field} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
               </div>
 
               <div className="space-y-4 pt-4 border-t">
