@@ -48,7 +48,7 @@ export function AppHeader() {
                 <Link href="/admin">Admin</Link>
             </Button>
             <Button variant="ghost" size="sm" asChild>
-                <Link href="/seller/dashboard">Driver</Link>
+                <Link href="/seller/bevcartdriver">Driver</Link>
             </Button>
             <Button size="sm" asChild>
                 <Link href="/sellers/1">Menu Mgr</Link>
