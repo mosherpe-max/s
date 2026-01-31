@@ -296,6 +296,40 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
         ) : <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full"><Skeleton className="h-40 w-full" /><Skeleton className="h-40 w-full" /><Skeleton className="h-40 w-full" /></div>}</div>
       </section>
 
+      <div className="flex flex-col md:flex-row gap-4 mb-6">
+        <div className="flex flex-wrap gap-2 items-center flex-1">
+          <Filter className="h-4 w-4 text-muted-foreground mr-2" />
+          {['All', ...categories].map((filter) => (
+            <Button key={filter} variant={activeFilter === filter ? 'default' : 'outline'} size="sm" onClick={() => setActiveFilter(filter as any)} className="h-8">{filter}</Button>
+          ))}
+        </div>
+        <Button onClick={() => { setEditingItem(null); setIsItemFormOpen(true); }} size="sm"><PlusCircle className="mr-2 h-4 w-4" /> Add Menu Item</Button>
+      </div>
+
+      <Card className="mb-12">
+        <CardHeader><CardTitle>Menu Items</CardTitle></CardHeader>
+        <CardContent>
+          {areItemsLoading ? <div className="space-y-4">{[...Array(5)].map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}</div> : menuItems && menuItems.length > 0 ? (
+            <div className="space-y-6">
+              {categories.filter(cat => activeFilter === 'All' || activeFilter === cat).map((category) => (groupedItems[category]?.length > 0 && (
+                <div key={category}>
+                  <h3 className="font-headline text-xl font-semibold mb-2">{category}</h3>
+                  <Separator />
+                  <div className="space-y-2 mt-4">
+                    {groupedItems[category].sort((a,b) => a.rank - b.rank).map((item) => (
+                      <div key={item.id} className="flex items-center justify-between gap-4 p-2 rounded-lg bg-muted/50 border border-transparent hover:border-border">
+                        <div className="flex items-center gap-4"><GripVertical className="h-5 w-5 text-muted-foreground" /><div><p className="font-medium">{item.name}</p><p className="text-sm text-muted-foreground">${item.price.toFixed(2)}</p></div></div>
+                        <div className="flex items-center gap-2"><Badge variant="secondary" className="hidden sm:inline-flex">{item.category}</Badge><Button variant="ghost" size="icon" onClick={() => { setEditingItem(item); setIsItemFormOpen(true); }}><Edit className="h-4 w-4" /></Button><Button variant="ghost" size="icon" className="text-destructive" onClick={() => { if (!firestore) return; deleteDoc(doc(firestore, 'sellers', sellerId, 'menuItems', item.id)); }}><Trash2 className="h-4 w-4" /></Button></div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )))}
+            </div>
+          ) : <div className="text-center py-12 text-muted-foreground">No menu items found.</div>}
+        </CardContent>
+      </Card>
+
       {isClubSeller && (
         <section className="mb-12">
           <Card>
@@ -330,40 +364,6 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
           </Card>
         </section>
       )}
-
-      <div className="flex flex-col md:flex-row gap-4 mb-6">
-        <div className="flex flex-wrap gap-2 items-center flex-1">
-          <Filter className="h-4 w-4 text-muted-foreground mr-2" />
-          {['All', ...categories].map((filter) => (
-            <Button key={filter} variant={activeFilter === filter ? 'default' : 'outline'} size="sm" onClick={() => setActiveFilter(filter as any)} className="h-8">{filter}</Button>
-          ))}
-        </div>
-        <Button onClick={() => { setEditingItem(null); setIsItemFormOpen(true); }} size="sm"><PlusCircle className="mr-2 h-4 w-4" /> Add Menu Item</Button>
-      </div>
-
-      <Card>
-        <CardHeader><CardTitle>Menu Items</CardTitle></CardHeader>
-        <CardContent>
-          {areItemsLoading ? <div className="space-y-4">{[...Array(5)].map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}</div> : menuItems && menuItems.length > 0 ? (
-            <div className="space-y-6">
-              {categories.filter(cat => activeFilter === 'All' || activeFilter === cat).map((category) => (groupedItems[category]?.length > 0 && (
-                <div key={category}>
-                  <h3 className="font-headline text-xl font-semibold mb-2">{category}</h3>
-                  <Separator />
-                  <div className="space-y-2 mt-4">
-                    {groupedItems[category].sort((a,b) => a.rank - b.rank).map((item) => (
-                      <div key={item.id} className="flex items-center justify-between gap-4 p-2 rounded-lg bg-muted/50 border border-transparent hover:border-border">
-                        <div className="flex items-center gap-4"><GripVertical className="h-5 w-5 text-muted-foreground" /><div><p className="font-medium">{item.name}</p><p className="text-sm text-muted-foreground">${item.price.toFixed(2)}</p></div></div>
-                        <div className="flex items-center gap-2"><Badge variant="secondary" className="hidden sm:inline-flex">{item.category}</Badge><Button variant="ghost" size="icon" onClick={() => { setEditingItem(item); setIsItemFormOpen(true); }}><Edit className="h-4 w-4" /></Button><Button variant="ghost" size="icon" className="text-destructive" onClick={() => { if (!firestore) return; deleteDoc(doc(firestore, 'sellers', sellerId, 'menuItems', item.id)); }}><Trash2 className="h-4 w-4" /></Button></div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )))}
-            </div>
-          ) : <div className="text-center py-12 text-muted-foreground">No menu items found.</div>}
-        </CardContent>
-      </Card>
 
       <Dialog open={isItemFormOpen} onOpenChange={setIsItemFormOpen}><DialogContent className="sm:max-w-[425px]"><DialogHeader><DialogTitle>{editingItem ? 'Edit Item' : 'Add Item'}</DialogTitle></DialogHeader><MenuItemForm onSave={handleSaveMenuItem} menuItem={editingItem} onClose={() => setIsItemFormOpen(false)} /></DialogContent></Dialog>
       <Dialog open={isMemberFormOpen} onOpenChange={setIsMemberFormOpen}><DialogContent className="sm:max-w-[425px]"><DialogHeader><DialogTitle>{editingMember ? 'Edit Member' : 'Add Member'}</DialogTitle></DialogHeader><MemberForm onSave={handleSaveMember} member={editingMember} onClose={() => setIsMemberFormOpen(false)} /></DialogContent></Dialog>
