@@ -1,4 +1,3 @@
-
 import type { ImagePlaceholder } from './placeholder-images';
 import { PlaceHolderImages } from './placeholder-images';
 import type { Order, Category, OrderItem, MenuItem, Seller } from './types';
@@ -7,51 +6,99 @@ import type { Order, Category, OrderItem, MenuItem, Seller } from './types';
 export const menuItems: (Omit<MenuItem, 'id' | 'rank'> & { id?: string, rank?: number })[] = [
   {
     name: 'Craft IPA',
-    description: 'A hoppy and refreshing India Pale Ale.',
+    description: 'A hoppy and refreshing India Pale Ale with citrus notes.',
     price: 8.50,
     category: 'Beer',
   },
   {
     name: 'Light Lager',
-    description: 'Crisp, clean, and easy-drinking.',
+    description: 'Crisp, clean, and easy-drinking lager.',
     price: 6.50,
     category: 'Beer',
   },
   {
-    name: 'Golfers\' Gin & Tonic',
-    description: 'A classic G&T with a slice of lime.',
+    name: "Golfers' Gin & Tonic",
+    description: 'Premium botanical gin mixed with crisp tonic and lime.',
     price: 12.00,
     category: 'Spirits',
   },
   {
     name: 'Fairway Vodka Soda',
-    description: 'Premium vodka mixed with sparkling soda.',
+    description: 'Triple-distilled vodka with sparkling club soda and lemon.',
     price: 11.50,
     category: 'Spirits',
   },
   {
     name: 'Classic Cola',
-    description: 'An ice-cold can of your favorite cola.',
+    description: 'Chilled 12oz can of classic cola.',
     price: 3.50,
     category: 'Soft Drinks',
   },
   {
     name: 'Spring Water',
-    description: 'Pure, natural spring water.',
+    description: 'Pure, chilled natural spring water.',
     price: 2.50,
     category: 'Soft Drinks',
   },
   {
     name: 'Kettle-Cooked Chips',
-    description: 'Salty and crunchy, the perfect snack.',
+    description: 'Hand-cooked sea salt potato chips.',
     price: 4.00,
     category: 'Snacks',
   },
   {
     name: 'Energy Bar',
-    description: 'Fuel your back nine with this tasty bar.',
+    description: 'High-protein chocolate peanut butter fuel bar.',
     price: 5.00,
     category: 'Snacks',
+  },
+  {
+    name: 'Grilled Salmon',
+    description: 'Atlantic salmon with wild rice and seasonal vegetables.',
+    price: 24.00,
+    category: 'Entrees',
+  },
+  {
+    name: 'Filet Mignon',
+    description: '8oz center-cut filet with garlic mashed potatoes.',
+    price: 38.00,
+    category: 'Entrees',
+  },
+  {
+    name: 'Jumbo Shrimp Cocktail',
+    description: 'Five chilled jumbo shrimp with zesty cocktail sauce.',
+    price: 16.00,
+    category: 'Appetizers',
+  },
+  {
+    name: 'Mozzarella Sticks',
+    description: 'Six breaded sticks served with warm marinara.',
+    price: 10.00,
+    category: 'Appetizers',
+  },
+  {
+    name: 'Turkey Club Sandwich',
+    description: 'Triple-decker with roasted turkey, bacon, lettuce, and tomato.',
+    price: 15.00,
+    category: 'Sandwiches',
+  },
+  {
+    name: 'Classic Burger',
+    description: 'Half-pound Angus beef on a brioche bun with fries.',
+    price: 16.50,
+    category: 'Sandwiches',
+  },
+  {
+    name: 'NY Cheesecake',
+    description: 'Classic creamy cheesecake with strawberry drizzle.',
+    price: 9.00,
+    category: 'Dessert',
+  },
+  {
+    name: 'Chocolate Lava Cake',
+    description: 'Warm dark chocolate cake with a molten center.',
+    price: 11.00,
+    category: 'Dessert',
   },
 ];
 

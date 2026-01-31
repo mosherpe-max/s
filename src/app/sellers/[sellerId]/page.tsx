@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useMemo, useEffect, use } from 'react';
@@ -420,10 +419,15 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
       }
       mockMenuItems.forEach((item, index) => {
         const newItemRef = doc(collection(firestore, 'sellers', sellerId, 'menuItems'));
+        const availableOn = ['Beverage Cart', 'Clubhouse'];
+        const menuRanks = {
+          'Beverage Cart': index + 1,
+          'Clubhouse': index + 1
+        };
         batch.set(newItemRef, { 
           ...item, id: newItemRef.id, rank: index + 1, 
-          availableOn: ['Beverage Cart'],
-          menuRanks: { 'Beverage Cart': index + 1 }
+          availableOn,
+          menuRanks
         });
       });
       sampleMembers.forEach((member) => {
