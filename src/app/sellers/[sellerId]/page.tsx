@@ -5,7 +5,7 @@ import { collection, doc, setDoc, deleteDoc, writeBatch, query, where } from 'fi
 import { useFirestore, useDoc, useCollection, useMemoFirebase } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { PlusCircle, Edit, Trash2, GripVertical, Filter, DollarSign, ShoppingBag, Clock, Database, Users, UserPlus } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, GripVertical, Filter, DollarSign, ShoppingBag, Clock, Database, Users, UserPlus, Sparkles } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -49,6 +49,13 @@ const memberSchema = z.object({
 });
 
 type MemberFormData = z.infer<typeof memberSchema>;
+
+const sampleMembers = [
+  { name: 'Jane Doe', memberNumber: 'MEM-1001' },
+  { name: 'John Smith', memberNumber: 'MEM-1002' },
+  { name: 'Alice Johnson', memberNumber: 'MEM-1003' },
+  { name: 'Robert Brown', memberNumber: 'MEM-1004' }
+];
 
 function MenuItemForm({
   onSave,
@@ -233,14 +240,7 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
       });
 
       // Seed Members for Private Courses
-      const mockMembers = [
-        { name: 'Jane Doe', memberNumber: 'MEM-1001' },
-        { name: 'John Smith', memberNumber: 'MEM-1002' },
-        { name: 'Alice Johnson', memberNumber: 'MEM-1003' },
-        { name: 'Robert Brown', memberNumber: 'MEM-1004' }
-      ];
-
-      mockMembers.forEach((member) => {
+      sampleMembers.forEach((member) => {
         const memberRef = doc(collection(firestore, 'sellers', sellerId, 'members'));
         batch.set(memberRef, { ...member, id: memberRef.id });
       });
@@ -249,6 +249,24 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
       toast({ title: "Database Initialized", description: "Demo course, menu, and members loaded." });
     } catch (e) { toast({ variant: "destructive", title: "Seeding Failed" }); }
     finally { setIsSeeding(false); }
+  };
+
+  const handleSeedMembers = async () => {
+    if (!firestore) return;
+    setIsSeeding(true);
+    try {
+      const batch = writeBatch(firestore);
+      sampleMembers.forEach((member) => {
+        const memberRef = doc(collection(firestore, 'sellers', sellerId, 'members'));
+        batch.set(memberRef, { ...member, id: memberRef.id });
+      });
+      await batch.commit();
+      toast({ title: "Members Seeded", description: "Sample member list added for testing." });
+    } catch (e) {
+      toast({ variant: "destructive", title: "Seeding Failed" });
+    } finally {
+      setIsSeeding(false);
+    }
   };
 
   const handleSaveMenuItem = (data: MenuItemFormData) => {
@@ -349,14 +367,22 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
       {isClubSeller && (
         <section className="mb-12">
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
+            <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
               <div>
                 <CardTitle className="flex items-center gap-2"><Users className="h-5 w-5" /> Member Management</CardTitle>
                 <CardDescription>Maintain your club member list for member-account charging.</CardDescription>
               </div>
-              <Button onClick={() => { setEditingMember(null); setIsMemberFormOpen(true); }} size="sm">
-                <UserPlus className="mr-2 h-4 w-4" /> Add Member
-              </Button>
+              <div className="flex items-center gap-2">
+                {(!members || members.length === 0) && (
+                   <Button variant="outline" size="sm" onClick={handleSeedMembers} disabled={isSeeding}>
+                    <Sparkles className="mr-2 h-4 w-4 text-amber-500" />
+                    Seed Sample Members
+                  </Button>
+                )}
+                <Button onClick={() => { setEditingMember(null); setIsMemberFormOpen(true); }} size="sm">
+                  <UserPlus className="mr-2 h-4 w-4" /> Add Member
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
               {areMembersLoading ? <Skeleton className="h-32 w-full" /> : members && members.length > 0 ? (
@@ -375,7 +401,11 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
                     ))}
                   </TableBody>
                 </Table>
-              ) : <div className="text-center py-6 text-muted-foreground">No members found.</div>}
+              ) : <div className="text-center py-12 text-muted-foreground border-2 border-dashed rounded-lg flex flex-col items-center gap-2">
+                  <Users className="h-8 w-8 opacity-20" />
+                  <p>No members registered for this course.</p>
+                  <p className="text-xs">Add members manually or use the "Seed Sample Members" button above.</p>
+              </div>}
             </CardContent>
           </Card>
         </section>
