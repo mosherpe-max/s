@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { OrderCard } from '@/components/order-card';
 import type { Order, Seller } from '@/lib/types';
 import { mockSellerLocation } from '@/lib/data';
-import { Skeleton } from '@/skeleton';
+import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Focus, Bell, Package, AlertCircle } from 'lucide-react';
