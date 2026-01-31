@@ -38,9 +38,9 @@ export interface Seller {
   logoUrl?: string;
 }
 
-export type Category = 'Beer' | 'Spirits' | 'Soft Drinks' | 'Snacks';
+export type Category = 'Beer' | 'Spirits' | 'Soft Drinks' | 'Snacks' | 'Entrees' | 'Appetizers' | 'Sandwiches' | 'Dessert';
 
-export const categories: readonly Category[] = ['Beer', 'Spirits', 'Soft Drinks', 'Snacks'];
+export const categories: readonly Category[] = ['Beer', 'Spirits', 'Soft Drinks', 'Snacks', 'Entrees', 'Appetizers', 'Sandwiches', 'Dessert'];
 
 export interface MenuItem {
     id: string;

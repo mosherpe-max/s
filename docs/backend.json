@@ -138,7 +138,7 @@
         "category": {
           "type": "string",
           "description": "The category of the menu item.",
-          "enum": ["Beer", "Spirits", "Soft Drinks", "Snacks"]
+          "enum": ["Beer", "Spirits", "Soft Drinks", "Snacks", "Entrees", "Appetizers", "Sandwiches", "Dessert"]
         },
         "rank": {
           "type": "number",
