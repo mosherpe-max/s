@@ -412,8 +412,10 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
       const batch = writeBatch(firestore);
       if (!seller) {
         batch.set(doc(firestore, 'sellers', sellerId), {
-          id: sellerId, courseName: sellerId === 'demo-course' ? 'Demo Golf Course' : 'Sample Course',
-          type: 'Private Golf Course', streetAddress: '123 Fairway Drive', city: 'Pebble Beach', state: 'CA', zip: '93953',
+          id: sellerId, 
+          courseName: sellerId === 'demo-course' ? 'Demo Golf Course - Public' : 'Sample Course',
+          type: sellerId === 'demo-course' ? 'Public Golf Course' : 'Private Golf Course', 
+          streetAddress: '123 Fairway Drive', city: 'Pebble Beach', state: 'CA', zip: '93953',
           latitude: 42.7748, longitude: -83.2139, contactName: 'Pro Shop Manager', contactEmail: 'manager@democourse.com',
           contactPhone: '555-0100', serviceFee: 2.50, status: 'Active', menuTypes: ['Beverage Cart', 'Clubhouse']
         });

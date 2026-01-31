@@ -243,9 +243,14 @@ export default function BevCartDriverDashboardPage() {
     <APIProvider apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!}>
       <div className="flex flex-col h-screen overflow-hidden">
         <header className="flex-shrink-0 px-4 h-16 flex items-center justify-between border-b bg-background z-20 shadow-sm">
-          <h1 className="font-headline text-lg md:text-xl font-bold text-foreground">
-            KOOP Operational Dashboard
-          </h1>
+          <div className="flex flex-col">
+            <h1 className="font-headline text-lg md:text-xl font-bold text-foreground">
+              KOOP Operational Dashboard
+            </h1>
+            <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest leading-none">
+              Driver: {primarySeller?.courseName || 'Demo Golf Course - Public'}
+            </span>
+          </div>
           <div className="flex items-center space-x-3">
             <Switch 
               id="active-mode" 
