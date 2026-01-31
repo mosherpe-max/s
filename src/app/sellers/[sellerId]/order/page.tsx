@@ -1,10 +1,9 @@
-
 'use client';
 
 import { useState, use, useEffect, useMemo } from 'react';
 import { collection, doc, addDoc, serverTimestamp } from 'firebase/firestore';
 import { useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
-import type { Seller, OrderItem, MenuItem, Category, Order } from '@/lib/types';
+import type { Seller, MenuItem, Category, Order } from '@/lib/types';
 import { categories } from '@/lib/types';
 import { BuyerMenu } from '@/components/buyer-menu';
 import { OrderSummary } from '@/components/order-summary';
@@ -17,15 +16,14 @@ import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { mockBuyerLocation } from '@/lib/data';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetFooter } from '@/components/ui/sheet';
-import { Loader2, Truck, AlertCircle, Database, CreditCard, User, MapPin, Store } from 'lucide-react';
+import { Loader2, AlertCircle, CreditCard, User, MapPin, Store } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useCart } from '@/lib/cart-context';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { cn } from '@/lib/utils';
+import { BrandingFooter } from '@/components/branding-footer';
 
 export default function BuyerOrderPage({ params }: { params: { sellerId: string } }) {
   const { sellerId } = use(params);
@@ -39,11 +37,8 @@ export default function BuyerOrderPage({ params }: { params: { sellerId: string 
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<'Credit Card' | 'Member Account'>('Credit Card');
   
-  // Member authentication state
   const [inputMemberId, setInputMemberId] = useState('');
   const [inputMemberLastName, setInputMemberLastName] = useState('');
-
-  // Location specific state based on menuType
   const [menuTypeLocation, setMenuTypeLocation] = useState<string>('');
 
   const sellerRef = useMemoFirebase(() => (firestore ? doc(firestore, 'sellers', sellerId) : null), [firestore, sellerId]);
@@ -55,7 +50,6 @@ export default function BuyerOrderPage({ params }: { params: { sellerId: string 
   const filteredMenuItems = useMemo(() => {
     if (!menuItems) return [];
     if (!selectedMenuType) return menuItems;
-    // Filter items based on availability for the selected menu type
     return menuItems.filter(item => 
       !item.availableOn || item.availableOn.length === 0 || item.availableOn.includes(selectedMenuType)
     );
@@ -64,14 +58,12 @@ export default function BuyerOrderPage({ params }: { params: { sellerId: string 
   const isPrivateCourse = seller?.type === 'Private Golf Course';
   const isSemiPrivateCourse = seller?.type === 'Semi Private Golf Course';
 
-  // Enforce payment method for Private Golf Courses
   useEffect(() => {
     if (isPrivateCourse) {
       setPaymentMethod('Member Account');
     }
   }, [isPrivateCourse]);
 
-  // Set default menu type when seller loads
   useEffect(() => {
     if (seller?.menuTypes && seller.menuTypes.length > 0 && !selectedMenuType) {
       setSelectedMenuType(seller.menuTypes[0]);
@@ -89,7 +81,6 @@ export default function BuyerOrderPage({ params }: { params: { sellerId: string 
       return;
     }
 
-    // Validation
     if (!selectedMenuType) {
         toast({ variant: 'destructive', title: 'Menu Selection Required', description: 'Please select where you are ordering from.' });
         return;
@@ -179,10 +170,9 @@ export default function BuyerOrderPage({ params }: { params: { sellerId: string 
   };
 
   return (
-    <div className="flex flex-col h-full bg-background">
+    <div className="flex flex-col h-full bg-background min-h-screen">
       <div className="sticky top-0 bg-background/95 backdrop-blur-sm z-20 shrink-0 border-b">
         <div className="px-4 py-3 space-y-3">
-            {/* Menu Type Selector */}
             <div className="flex flex-col gap-1.5">
                 <Label className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest flex items-center gap-1">
                     <Store className="w-3 h-3" /> Service Mode
@@ -196,7 +186,7 @@ export default function BuyerOrderPage({ params }: { params: { sellerId: string 
                                 size="sm"
                                 onClick={() => {
                                     setSelectedMenuType(type);
-                                    setMenuTypeLocation(''); // Reset location info when type changes
+                                    setMenuTypeLocation('');
                                 }} 
                                 className="shrink-0 h-8 text-xs px-3"
                                 style={selectedMenuType === type ? { backgroundColor: brandStyle.primaryColor } : {}}
@@ -210,7 +200,6 @@ export default function BuyerOrderPage({ params }: { params: { sellerId: string 
 
             <Separator />
 
-            {/* Category Selector */}
             <ScrollArea className="w-full whitespace-nowrap">
                 <div className="flex gap-2 pb-1">
                     {categories.map((cat) => {
@@ -235,7 +224,7 @@ export default function BuyerOrderPage({ params }: { params: { sellerId: string 
         </div>
       </div>
 
-      <main className="flex-1 overflow-y-auto px-4 pt-4 pb-28">
+      <main className="flex-1 overflow-y-auto px-4 pt-4 pb-12">
         {isLoading ? (
           <div className="space-y-4">
             <Skeleton className="h-20 w-full" />
@@ -251,6 +240,8 @@ export default function BuyerOrderPage({ params }: { params: { sellerId: string 
           />
         )}
       </main>
+
+      <BrandingFooter />
 
       <Sheet open={isCartOpen} onOpenChange={setIsCartOpen}>
         {activeOrderItems.length > 0 && (
@@ -273,7 +264,6 @@ export default function BuyerOrderPage({ params }: { params: { sellerId: string 
 
             <Separator />
 
-            {/* Dynamic Contextual Inputs Based on Menu Type */}
             <div className="space-y-4">
                 <h3 className="font-bold text-sm uppercase tracking-wider text-muted-foreground flex items-center gap-2">
                     <MapPin className="w-4 h-4" /> Delivery Location
@@ -373,9 +363,6 @@ export default function BuyerOrderPage({ params }: { params: { sellerId: string 
                       onChange={(e) => setInputMemberLastName(e.target.value)}
                     />
                   </div>
-                  <p className="text-[10px] text-muted-foreground italic">
-                    For security, both fields are required to verify your club account.
-                  </p>
                 </div>
               )}
             </div>

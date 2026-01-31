@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ShoppingCart, ArrowRight, UserCheck } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { BrandingFooter } from '@/components/branding-footer';
 
 export default function Home() {
   return (
@@ -146,6 +147,7 @@ export default function Home() {
           </div>
         </div>
       </section>
+      <BrandingFooter />
     </div>
   );
 }

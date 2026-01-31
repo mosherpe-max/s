@@ -13,6 +13,7 @@ import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { PartyPopper } from 'lucide-react';
+import { BrandingFooter } from '@/components/branding-footer';
 
 function OrderSummaryCard({ order }: { order: Order }) {
     return (
@@ -40,7 +41,6 @@ function OrderSummaryCard({ order }: { order: Order }) {
 export default function OrderTrackingPage() {
   const firestore = useFirestore();
 
-  // Query for the most recent order placed.
   const latestOrderQuery = useMemoFirebase(() => {
     if (!firestore) return null;
     return query(
@@ -53,19 +53,16 @@ export default function OrderTrackingPage() {
   const { data: orders, isLoading: isLoadingOrder } = useCollection<Order>(latestOrderQuery);
   const order = orders?.[0];
   
-  // Effect to track buyer's location based on order status
   useEffect(() => {
     if (!firestore || !order) return;
 
-    // Determine tracking frequency
     let intervalTime: number | null = null;
     if (order.status === 'Preparing') {
-      intervalTime = 60000; // 1 minute
+      intervalTime = 60000;
     } else if (order.status === 'Out for Delivery') {
-      intervalTime = 15000; // 15 seconds
+      intervalTime = 15000;
     }
 
-    // Don't start interval if status doesn't require tracking
     if (!intervalTime) return;
 
     const trackLocation = () => {
@@ -76,13 +73,9 @@ export default function OrderTrackingPage() {
             const orderRef = doc(firestore, 'orders', order.id);
             updateDoc(orderRef, {
               deliveryLocation: { latitude, longitude }
-            }).catch((err) => {
-              // Silently handle update errors in prototype
-            });
+            }).catch(() => {});
           },
-          (error) => {
-            // Silently handle errors
-          },
+          () => {},
           {
             enableHighAccuracy: true,
             timeout: 10000,
@@ -92,18 +85,12 @@ export default function OrderTrackingPage() {
       }
     };
 
-    // Initial check
     trackLocation();
-
     const intervalId = setInterval(trackLocation, intervalTime);
-
-    return () => {
-      clearInterval(intervalId);
-    };
+    return () => clearInterval(intervalId);
   }, [firestore, order?.id, order?.status]);
 
 
-  // Once we have the order, get the seller's information.
   const sellerRef = useMemoFirebase(() => {
     if (!firestore || !order?.sellerId) return null;
     return doc(firestore, 'sellers', order.sellerId);
@@ -112,14 +99,12 @@ export default function OrderTrackingPage() {
   const { data: seller, isLoading: isLoadingSeller } = useDoc<Seller>(sellerRef);
 
   const isLoading = isLoadingOrder || (orders && orders.length > 0 && isLoadingSeller);
-
   const isDelivered = order?.status === 'Delivered';
 
   return (
     <APIProvider apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!}>
-      <div className="flex flex-col h-[calc(100vh-4rem)] bg-muted/20">
+      <div className="flex flex-col min-h-[calc(100vh-4rem)] bg-muted/20">
         
-        {/* Map View - Top 50% */}
         {!isDelivered && (
           <div className="h-[50vh] bg-muted">
             {isLoading ? (
@@ -138,8 +123,7 @@ export default function OrderTrackingPage() {
           </div>
         )}
 
-        {/* Status and Summary - Bottom 50% or full height */}
-        <div className="flex-1 p-4 space-y-4 overflow-y-auto">
+        <div className="flex-1 p-4 space-y-4">
           {isLoading ? (
             <div className="space-y-4">
               <Skeleton className="h-8 w-full" />
@@ -168,11 +152,11 @@ export default function OrderTrackingPage() {
              <Card>
                 <CardContent className="pt-6 text-center text-muted-foreground">
                     <p>No active order found.</p>
-                    <p className="text-xs mt-2">Place an order from the sample menu to see tracking information here.</p>
                 </CardContent>
              </Card>
           )}
         </div>
+        <BrandingFooter />
       </div>
     </APIProvider>
   );

@@ -18,6 +18,7 @@ import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
+import { BrandingFooter } from '@/components/branding-footer';
 
 type LatLng = {
   latitude: number;
@@ -62,7 +63,7 @@ export default function BevCartDriverDashboardPage() {
 
     if (newPlacedOrders.length > 0 && !initialLoadRef.current) {
       const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
-      audio.play().catch(e => console.log("Audio play blocked by browser."));
+      audio.play().catch(() => {});
 
       toast({
         title: (
@@ -139,7 +140,7 @@ export default function BevCartDriverDashboardPage() {
       updates.deliveredAt = serverTimestamp();
     }
     updateDoc(orderRef, updates)
-      .catch(async (error) => {
+      .catch(async () => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({
           path: orderRef.path,
           operation: 'update',
@@ -153,7 +154,7 @@ export default function BevCartDriverDashboardPage() {
     const sellerDocRef = doc(firestore, 'sellers', 'demo-course');
     const updates = { status: checked ? 'Active' : 'Inactive' };
     updateDoc(sellerDocRef, updates)
-      .catch(async (error) => {
+      .catch(async () => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({
           path: sellerDocRef.path,
           operation: 'update',
@@ -168,18 +169,12 @@ export default function BevCartDriverDashboardPage() {
   const mappedBuyers = useMemo(() => {
     return orders.map(o => {
       let colorClass = "bg-green-600";
-      
       if (o.createdAt) {
         const orderTime = o.createdAt.toDate().getTime();
         const minutesElapsed = (now - orderTime) / (1000 * 60);
-
-        if (minutesElapsed > 10) {
-          colorClass = "bg-red-600";
-        } else if (minutesElapsed > 7) {
-          colorClass = "bg-yellow-500";
-        }
+        if (minutesElapsed > 10) colorClass = "bg-red-600";
+        else if (minutesElapsed > 7) colorClass = "bg-yellow-500";
       }
-
       return {
         id: o.id,
         name: o.customerName,
@@ -195,7 +190,7 @@ export default function BevCartDriverDashboardPage() {
               <AlertCircle className="h-16 w-16 text-muted-foreground opacity-20" />
               <h1 className="text-2xl font-headline font-bold">Demo Course Not Initialized</h1>
               <p className="text-muted-foreground max-w-sm">
-                  The demo course seller profile is missing from the database. Please initialize it in the Seller Admin first.
+                  The demo course seller profile is missing from the database.
               </p>
               <Button asChild>
                   <Link href="/sellers/demo-course">Initialize Demo Course</Link>
@@ -230,7 +225,6 @@ export default function BevCartDriverDashboardPage() {
               size="icon"
               className="absolute top-2 right-2 z-10 bg-background/80 hover:bg-background"
               onClick={() => setZoomMode(current => (current === 'radius' ? 'all' : 'radius'))}
-              aria-label="Toggle map zoom"
             >
               <Focus className="h-5 w-5" />
             </Button>
@@ -283,22 +277,7 @@ export default function BevCartDriverDashboardPage() {
           </div>
         </div>
 
-        {/* Branding Footer */}
-        <footer className="h-7 bg-[#213147] text-white flex items-center justify-between px-6 shrink-0 z-30">
-          <span className="text-[10px] font-medium">Copyright 2026</span>
-          <div className="flex items-center gap-2">
-            <span className="text-[10px] font-medium">Powered by</span>
-            <div className="flex items-center gap-0.5 font-headline font-bold text-xs tracking-tight">
-              <span>KO</span>
-              <div className="relative flex items-center justify-center w-3 h-3">
-                <div className="absolute inset-0 border-[1.2px] border-red-600 rounded-full"></div>
-                <div className="absolute w-[5px] h-[5px] border-[0.8px] border-red-600 rounded-full"></div>
-                <div className="w-[1.5px] h-[1.5px] bg-red-600 rounded-full"></div>
-              </div>
-              <span>P</span>
-            </div>
-          </div>
-        </footer>
+        <BrandingFooter />
       </div>
     </APIProvider>
   );
