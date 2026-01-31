@@ -285,9 +285,9 @@ export default function BevCartDriverDashboardPage() {
 
         {/* Branding Footer */}
         <footer className="h-10 bg-[#213147] text-white flex items-center justify-between px-6 shrink-0 z-30">
-          <span className="text-[10px] font-medium opacity-60">Copyright 2026</span>
+          <span className="text-[10px] font-medium">Copyright 2026</span>
           <div className="flex items-center gap-2">
-            <span className="text-[10px] font-medium opacity-40">Powered by</span>
+            <span className="text-[10px] font-medium">Powered by</span>
             <div className="flex items-center gap-0.5 font-headline font-bold text-xs tracking-tight">
               <span>KO</span>
               <div className="relative flex items-center justify-center w-3 h-3">
