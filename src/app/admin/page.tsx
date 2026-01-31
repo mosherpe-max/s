@@ -23,12 +23,9 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+  RadioGroup,
+  RadioGroupItem
+} from '@/components/ui/radio-group';
 import {
   Table,
   TableBody,
@@ -423,13 +420,43 @@ export default function KoopAdminPage() {
                 <h3 className="text-sm font-bold uppercase tracking-wider text-primary flex items-center gap-2">
                     <Building className="h-4 w-4" /> Basic Information
                 </h3>
+                
+                <FormField
+                  control={form.control}
+                  name="type"
+                  render={({ field }) => (
+                    <FormItem className="space-y-3">
+                      <FormLabel>Seller Type</FormLabel>
+                      <FormControl>
+                        <RadioGroup
+                          onValueChange={field.onChange}
+                          value={field.value}
+                          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pt-2"
+                        >
+                          {sellerTypes.map((type) => (
+                            <FormItem key={type} className="flex items-center space-x-2 space-y-0 border rounded-md p-2 hover:bg-muted/50 cursor-pointer transition-colors">
+                              <FormControl>
+                                <RadioGroupItem value={type} />
+                              </FormControl>
+                              <FormLabel className="font-normal cursor-pointer flex-1">
+                                {type}
+                              </FormLabel>
+                            </FormItem>
+                          ))}
+                        </RadioGroup>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
                     name="courseName"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Course / Business Name</FormLabel>
+                        <FormLabel>Seller / Business Name</FormLabel>
                         <FormControl><Input {...field} placeholder="e.g. Pebble Beach Golf Links" /></FormControl>
                         <FormMessage />
                       </FormItem>
@@ -437,45 +464,41 @@ export default function KoopAdminPage() {
                   />
                   <FormField
                     control={form.control}
-                    name="type"
+                    name="status"
                     render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Seller Type</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                          <FormControl>
-                            <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {sellerTypes.map((type) => (
-                              <SelectItem key={type} value={type}>{type}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                      <FormItem className="space-y-3">
+                        <FormLabel>Account Status</FormLabel>
+                        <FormControl>
+                          <RadioGroup
+                            onValueChange={field.onChange}
+                            value={field.value}
+                            className="flex flex-row space-x-6 pt-2"
+                          >
+                            <FormItem className="flex items-center space-x-2 space-y-0">
+                              <FormControl>
+                                <RadioGroupItem value="Active" />
+                              </FormControl>
+                              <FormLabel className="font-normal cursor-pointer">
+                                Active
+                              </FormLabel>
+                            </FormItem>
+                            <FormItem className="flex items-center space-x-2 space-y-0">
+                              <FormControl>
+                                <RadioGroupItem value="Inactive" />
+                              </FormControl>
+                              <FormLabel className="font-normal cursor-pointer">
+                                Inactive
+                              </FormLabel>
+                            </FormItem>
+                          </RadioGroup>
+                        </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
                 </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="status"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Account Status</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                          <FormControl>
-                            <SelectTrigger><SelectValue placeholder="Select status" /></SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="Active">Active</SelectItem>
-                            <SelectItem value="Inactive">Inactive</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
                    <FormField
                     control={form.control}
                     name="serviceFee"
