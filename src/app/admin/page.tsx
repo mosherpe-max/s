@@ -287,15 +287,11 @@ export default function KoopAdminPage() {
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-7xl">
-      <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+      <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 text-center md:text-left">
         <div>
           <h1 className="font-headline text-3xl font-bold text-foreground">Koop Admin</h1>
           <p className="text-muted-foreground">Manage your seller network and monitor platform performance.</p>
         </div>
-        <Button onClick={() => handleOpenForm()} className="shadow-md">
-          <PlusCircle className="mr-2 h-4 w-4" />
-          Register New Seller
-        </Button>
       </header>
 
       <section className="mb-10">
@@ -325,9 +321,15 @@ export default function KoopAdminPage() {
       </section>
 
       <Card className="shadow-sm border-muted">
-        <CardHeader className="bg-muted/30 flex flex-row items-center justify-between py-4">
-          <CardTitle className="text-xl">Registered Sellers</CardTitle>
-          <Badge variant="outline" className="bg-background">{sellers?.length || 0} Total</Badge>
+        <CardHeader className="bg-muted/30 flex flex-col sm:flex-row items-start sm:items-center justify-between py-4 gap-4">
+          <div className="flex items-center gap-3">
+            <CardTitle className="text-xl">Registered Sellers</CardTitle>
+            <Badge variant="outline" className="bg-background">{sellers?.length || 0} Total</Badge>
+          </div>
+          <Button onClick={() => handleOpenForm()} size="sm" className="shadow-sm w-full sm:w-auto">
+            <PlusCircle className="mr-2 h-4 w-4" />
+            Register New Seller
+          </Button>
         </CardHeader>
         <CardContent className="p-0">
           {isSellersLoading ? (
