@@ -288,6 +288,8 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
   const [isSeeding, setIsSeeding] = useState(false);
   const [isSavingCustomization, setIsSavingCustomization] = useState(false);
   const [previewMenuType, setPreviewMenuType] = useState<string>('');
+  
+  const [masterCategoryFilter, setMasterCategoryFilter] = useState<string>('All');
 
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
@@ -354,6 +356,14 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
     if (!orders) return [];
     return [...orders].sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis()).slice(0, 5);
   }, [orders]);
+  
+  const filteredMasterItems = useMemo(() => {
+    if (!menuItems) return [];
+    if (masterCategoryFilter === 'All') return [...menuItems].sort((a,b) => a.name.localeCompare(b.name));
+    return menuItems
+      .filter(item => item.category === masterCategoryFilter)
+      .sort((a,b) => a.name.localeCompare(b.name));
+  }, [menuItems, masterCategoryFilter]);
 
   const handleExportCSV = () => {
     if (!orders) return;
@@ -614,17 +624,45 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
 
       {/* MASTER MENU TILE */}
       <Card className="mb-12 shadow-md border-primary/20 bg-primary/5">
-        <CardHeader className="flex flex-row items-center justify-between">
+        <CardHeader className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <CardTitle className="flex items-center gap-2"><Database className="h-5 w-5 text-primary" /> Master Item Library</CardTitle>
-            <CardDescription>Maintain your global catalog of food and beverages. Changes here reflect across all menus.</CardDescription>
+            <CardDescription>Maintain your global catalog. Use the filters below to browse categories.</CardDescription>
           </div>
           <Button onClick={() => { setEditingItem(null); setIsMasterFormOpen(true); }} size="sm" className="shadow-lg"><PlusCircle className="mr-2 h-4 w-4" /> New Master Item</Button>
         </CardHeader>
         <CardContent>
-          {areItemsLoading ? <Skeleton className="h-40 w-full" /> : menuItems && menuItems.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-4">
-              {menuItems.sort((a,b) => a.name.localeCompare(b.name)).map(item => (
+          {/* Category Filters */}
+          <div className="flex flex-wrap items-center gap-2 mb-8 bg-background/50 p-2 rounded-lg border">
+            <div className="flex items-center gap-2 text-muted-foreground text-xs font-bold uppercase tracking-widest px-2 mr-2">
+              <Filter className="h-3 w-3" /> Filter
+            </div>
+            <Button 
+              variant={masterCategoryFilter === 'All' ? 'default' : 'ghost'} 
+              size="sm" 
+              onClick={() => setMasterCategoryFilter('All')}
+              className="h-8 text-xs"
+            >
+              All
+            </Button>
+            {categories.map(cat => (
+              <Button 
+                key={cat}
+                variant={masterCategoryFilter === cat ? 'default' : 'ghost'} 
+                size="sm" 
+                onClick={() => setMasterCategoryFilter(cat)}
+                className="h-8 text-xs"
+              >
+                {cat}
+              </Button>
+            ))}
+          </div>
+
+          {areItemsLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"><Skeleton className="h-40 w-full" /><Skeleton className="h-40 w-full" /><Skeleton className="h-40 w-full" /></div>
+          ) : filteredMasterItems.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {filteredMasterItems.map(item => (
                 <div key={item.id} className="p-4 rounded-xl bg-background border shadow-sm group hover:border-primary/50 transition-all">
                   <div className="flex justify-between items-start mb-2">
                     <Badge variant="secondary" className="text-[10px]">{item.category}</Badge>
@@ -639,7 +677,14 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
                 </div>
               ))}
             </div>
-          ) : <div className="text-center py-10 text-muted-foreground italic">Your item library is empty.</div>}
+          ) : (
+            <div className="text-center py-16 text-muted-foreground italic border-2 border-dashed rounded-xl">
+              <p>No items found in {masterCategoryFilter === 'All' ? 'the library' : `the ${masterCategoryFilter} category`}.</p>
+              {masterCategoryFilter !== 'All' && (
+                <Button variant="link" onClick={() => setMasterCategoryFilter('All')}>Clear filter</Button>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
 
