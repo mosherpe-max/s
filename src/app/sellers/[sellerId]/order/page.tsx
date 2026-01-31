@@ -4,7 +4,7 @@
 import { useState, use, useEffect, useMemo } from 'react';
 import { collection, doc, addDoc, serverTimestamp } from 'firebase/firestore';
 import { useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
-import type { Seller, OrderItem, MenuItem, Category, Order, Member } from '@/lib/types';
+import type { Seller, OrderItem, MenuItem, Category, Order } from '@/lib/types';
 import { categories } from '@/lib/types';
 import { BuyerMenu } from '@/components/buyer-menu';
 import { OrderSummary } from '@/components/order-summary';
@@ -17,17 +17,17 @@ import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { mockBuyerLocation } from '@/lib/data';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetFooter } from '@/components/ui/sheet';
-import { Loader2, Truck, AlertCircle, Database, CreditCard, User } from 'lucide-react';
+import { Loader2, Truck, AlertCircle, Database, CreditCard, User, MapPin, Store } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useCart } from '@/lib/cart-context';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
-import Image from 'next/image';
 
-export default function BuyerMenuPage({ params }: { params: { sellerId: string } }) {
+export default function BuyerOrderPage({ params }: { params: { sellerId: string } }) {
   const { sellerId } = use(params);
   const firestore = useFirestore();
   const router = useRouter();
@@ -35,12 +35,16 @@ export default function BuyerMenuPage({ params }: { params: { sellerId: string }
   const { orderItems, updateItem, isCartOpen, setIsCartOpen, total, totalItems, clearCart } = useCart();
 
   const [selectedCategory, setSelectedCategory] = useState<Category>(categories[0]);
+  const [selectedMenuType, setSelectedMenuType] = useState<string>('');
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<'Credit Card' | 'Member Account'>('Credit Card');
   
   // Member authentication state
   const [inputMemberId, setInputMemberId] = useState('');
   const [inputMemberLastName, setInputMemberLastName] = useState('');
+
+  // Location specific state based on menuType
+  const [menuTypeLocation, setMenuTypeLocation] = useState<string>('');
 
   const sellerRef = useMemoFirebase(() => (firestore ? doc(firestore, 'sellers', sellerId) : null), [firestore, sellerId]);
   const { data: seller, isLoading: isSellerLoading } = useDoc<Seller>(sellerRef);
@@ -50,7 +54,6 @@ export default function BuyerMenuPage({ params }: { params: { sellerId: string }
 
   const isPrivateCourse = seller?.type === 'Private Golf Course';
   const isSemiPrivateCourse = seller?.type === 'Semi Private Golf Course';
-  const isClubSeller = isPrivateCourse || isSemiPrivateCourse;
 
   // Enforce payment method for Private Golf Courses
   useEffect(() => {
@@ -58,6 +61,13 @@ export default function BuyerMenuPage({ params }: { params: { sellerId: string }
       setPaymentMethod('Member Account');
     }
   }, [isPrivateCourse]);
+
+  // Set default menu type when seller loads
+  useEffect(() => {
+    if (seller?.menuTypes && seller.menuTypes.length > 0 && !selectedMenuType) {
+      setSelectedMenuType(seller.menuTypes[0]);
+    }
+  }, [seller, selectedMenuType]);
 
   const handlePlaceOrder = async () => {
     if (!firestore || !seller) {
@@ -68,6 +78,27 @@ export default function BuyerMenuPage({ params }: { params: { sellerId: string }
     if (seller.status === 'Inactive') {
       toast({ variant: 'destructive', title: 'Service Unavailable', description: 'The beverage cart is offline.' });
       return;
+    }
+
+    // Validation
+    if (!selectedMenuType) {
+        toast({ variant: 'destructive', title: 'Menu Selection Required', description: 'Please select where you are ordering from.' });
+        return;
+    }
+
+    if (selectedMenuType === 'Halfway House' && !menuTypeLocation) {
+        toast({ variant: 'destructive', title: 'Location Required', description: 'Please select which Halfway House you are at.' });
+        return;
+    }
+
+    if (selectedMenuType === 'Lane Delivery' && !menuTypeLocation) {
+        toast({ variant: 'destructive', title: 'Lane Number Required', description: 'Please enter your lane number.' });
+        return;
+    }
+
+    if (selectedMenuType === 'Dine-In' && !menuTypeLocation) {
+        toast({ variant: 'destructive', title: 'Table Number Required', description: 'Please enter your table number.' });
+        return;
     }
 
     if (paymentMethod === 'Member Account') {
@@ -99,6 +130,8 @@ export default function BuyerMenuPage({ params }: { params: { sellerId: string }
         total,
         status: 'Placed',
         paymentMethod,
+        menuType: selectedMenuType,
+        menuTypeLocation: menuTypeLocation || undefined,
         memberId: paymentMethod === 'Member Account' ? inputMemberId : undefined,
         memberLastName: paymentMethod === 'Member Account' ? inputMemberLastName : undefined,
       };
@@ -106,7 +139,7 @@ export default function BuyerMenuPage({ params }: { params: { sellerId: string }
       const ordersCol = collection(firestore, 'orders');
       addDoc(ordersCol, { ...orderData, createdAt: serverTimestamp() })
         .then(() => {
-          toast({ title: 'Order Placed!', description: "Delivery is on its way." });
+          toast({ title: 'Order Placed!', description: "Your order has been received." });
           clearCart();
           router.push('/order/track');
         })
@@ -118,7 +151,7 @@ export default function BuyerMenuPage({ params }: { params: { sellerId: string }
       navigator.geolocation.getCurrentPosition(
         (p) => createOrder(p.coords.latitude, p.coords.longitude),
         () => {
-          toast({ title: 'Location Fallback', description: 'Using estimated course location.' });
+          toast({ title: 'Location Fallback', description: 'Using estimated location.' });
           createOrder(mockBuyerLocation.latitude, mockBuyerLocation.longitude);
         }
       );
@@ -130,7 +163,7 @@ export default function BuyerMenuPage({ params }: { params: { sellerId: string }
   const isLoading = isSellerLoading || areItemsLoading;
   const activeOrderItems = orderItems.filter((item) => item.quantity > 0);
 
-  if (!isLoading && !seller) return <div className="p-8 text-center"><h2 className="text-2xl font-bold">Course Not Found</h2></div>;
+  if (!isLoading && !seller) return <div className="p-8 text-center"><h2 className="text-2xl font-bold">Seller Not Found</h2></div>;
 
   const brandStyle = {
     primaryColor: seller?.brandColor || 'hsl(var(--primary))',
@@ -138,27 +171,59 @@ export default function BuyerMenuPage({ params }: { params: { sellerId: string }
 
   return (
     <div className="flex flex-col h-full bg-background">
-      <div className="sticky top-0 bg-background/95 backdrop-blur-sm z-20 py-2 shrink-0 border-b">
-        <ScrollArea className="w-full whitespace-nowrap">
-          <div className="flex gap-2 px-4">
-            {categories.map((cat) => {
-              const Icon = categoryIcons[cat];
-              const isSelected = selectedCategory === cat;
-              return (
-                <Button 
-                  key={cat} 
-                  variant={isSelected ? 'default' : 'outline'} 
-                  onClick={() => setSelectedCategory(cat)} 
-                  className="shrink-0"
-                  style={isSelected ? { backgroundColor: brandStyle.primaryColor } : {}}
-                >
-                  <Icon className="mr-2 h-4 w-4" />
-                  {cat}
-                </Button>
-              );
-            })}
-          </div>
-        </ScrollArea>
+      <div className="sticky top-0 bg-background/95 backdrop-blur-sm z-20 shrink-0 border-b">
+        <div className="px-4 py-3 space-y-3">
+            {/* Menu Type Selector */}
+            <div className="flex flex-col gap-1.5">
+                <Label className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest flex items-center gap-1">
+                    <Store className="w-3 h-3" /> Service Mode
+                </Label>
+                <ScrollArea className="w-full whitespace-nowrap">
+                    <div className="flex gap-2 pb-1">
+                        {seller?.menuTypes?.map((type) => (
+                            <Button 
+                                key={type} 
+                                variant={selectedMenuType === type ? 'default' : 'outline'} 
+                                size="sm"
+                                onClick={() => {
+                                    setSelectedMenuType(type);
+                                    setMenuTypeLocation(''); // Reset location info when type changes
+                                }} 
+                                className="shrink-0 h-8 text-xs px-3"
+                                style={selectedMenuType === type ? { backgroundColor: brandStyle.primaryColor } : {}}
+                            >
+                                {type}
+                            </Button>
+                        ))}
+                    </div>
+                </ScrollArea>
+            </div>
+
+            <Separator />
+
+            {/* Category Selector */}
+            <ScrollArea className="w-full whitespace-nowrap">
+                <div className="flex gap-2 pb-1">
+                    {categories.map((cat) => {
+                        const Icon = categoryIcons[cat];
+                        const isSelected = selectedCategory === cat;
+                        return (
+                            <Button 
+                                key={cat} 
+                                variant={isSelected ? 'default' : 'outline'} 
+                                size="sm"
+                                onClick={() => setSelectedCategory(cat)} 
+                                className="shrink-0 h-8 text-xs px-3"
+                                style={isSelected ? { backgroundColor: brandStyle.primaryColor } : {}}
+                            >
+                                <Icon className="mr-2 h-3.5 w-3.5" />
+                                {cat}
+                            </Button>
+                        );
+                    })}
+                </div>
+            </ScrollArea>
+        </div>
       </div>
 
       <main className="flex-1 overflow-y-auto px-4 pt-4 pb-28">
@@ -196,6 +261,60 @@ export default function BuyerMenuPage({ params }: { params: { sellerId: string }
           <SheetHeader><SheetTitle>Review Order</SheetTitle></SheetHeader>
           <div className="py-4 space-y-6">
             <OrderSummary items={activeOrderItems} serviceFee={seller?.serviceFee} />
+
+            <Separator />
+
+            {/* Dynamic Contextual Inputs Based on Menu Type */}
+            <div className="space-y-4">
+                <h3 className="font-bold text-sm uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                    <MapPin className="w-4 h-4" /> Delivery Location
+                </h3>
+                
+                <div className="p-3 bg-muted/50 rounded-lg border flex flex-col gap-1">
+                    <p className="text-xs font-bold text-primary" style={{ color: brandStyle.primaryColor }}>Ordering From</p>
+                    <p className="text-sm font-medium">{selectedMenuType}</p>
+                </div>
+
+                {selectedMenuType === 'Halfway House' && (
+                    <div className="space-y-2 animate-in slide-in-from-top-2">
+                        <Label>Select Halfway House</Label>
+                        <Select value={menuTypeLocation} onValueChange={setMenuTypeLocation}>
+                            <SelectTrigger>
+                                <SelectValue placeholder="Which house are you at?" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {seller?.halfwayHouseNames?.map(name => (
+                                    <SelectItem key={name} value={name}>{name}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                )}
+
+                {selectedMenuType === 'Lane Delivery' && (
+                    <div className="space-y-2 animate-in slide-in-from-top-2">
+                        <Label>Bowling Lane Number</Label>
+                        <Input 
+                            type="number" 
+                            placeholder={`1 - ${seller?.laneCount || 24}`}
+                            value={menuTypeLocation}
+                            onChange={(e) => setMenuTypeLocation(e.target.value)}
+                        />
+                    </div>
+                )}
+
+                {selectedMenuType === 'Dine-In' && (
+                    <div className="space-y-2 animate-in slide-in-from-top-2">
+                        <Label>Table Number</Label>
+                        <Input 
+                            type="number" 
+                            placeholder={`1 - ${seller?.tableCount || 50}`}
+                            value={menuTypeLocation}
+                            onChange={(e) => setMenuTypeLocation(e.target.value)}
+                        />
+                    </div>
+                )}
+            </div>
 
             <Separator />
 

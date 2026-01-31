@@ -96,10 +96,6 @@
           "type": "string",
           "description": "URL for the seller's logo image."
         },
-        "headerImageUrl": {
-          "type": "string",
-          "description": "URL for the menu header image."
-        },
         "welcomeMessage": {
           "type": "string",
           "description": "A welcome message displayed to buyers."
@@ -192,6 +188,14 @@
           "type": "string",
           "description": "The name of the customer."
         },
+        "menuType": {
+          "type": "string",
+          "description": "The specific service mode selected (e.g., 'Beverage Cart', 'Halfway House')."
+        },
+        "menuTypeLocation": {
+          "type": "string",
+          "description": "Specific location details like House Name, Lane Number, or Table Number."
+        },
         "paymentMethod": {
           "type": "string",
           "enum": ["Credit Card", "Member Account"]
@@ -233,7 +237,7 @@
           "description": "The time when the order was successfully delivered."
         }
       },
-      "required": ["sellerId", "customerId", "deliveryLocation", "items", "total", "status", "createdAt"]
+      "required": ["sellerId", "customerId", "deliveryLocation", "items", "total", "status", "createdAt", "menuType"]
     }
   },
   "auth": {

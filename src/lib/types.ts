@@ -67,6 +67,8 @@ export interface Order {
   sellerId: string;
   customerId: string;
   customerName: string;
+  menuType: string;
+  menuTypeLocation?: string;
   paymentMethod?: 'Credit Card' | 'Member Account';
   memberId?: string;
   memberLastName?: string;
