@@ -1,6 +1,7 @@
+
 'use client'
 
-import { collection, query, where, doc, updateDoc } from 'firebase/firestore';
+import { collection, query, where, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { useCollection, useFirestore, useMemoFirebase, useDoc } from '@/firebase';
 import { MapView } from '@/components/map-view';
 import { APIProvider } from '@vis.gl/react-google-maps';
@@ -139,7 +140,11 @@ export default function BevCartDriverDashboardPage() {
   const handleUpdateOrderStatus = async (orderId: string, status: Order['status']) => {
     if (!firestore) return;
     const orderRef = doc(firestore, 'orders', orderId);
-    await updateDoc(orderRef, { status });
+    const updates: any = { status };
+    if (status === 'Delivered') {
+      updates.deliveredAt = serverTimestamp();
+    }
+    await updateDoc(orderRef, updates);
   };
 
   const handleToggleActive = async (checked: boolean) => {

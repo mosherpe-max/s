@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "Seller": {
@@ -137,6 +138,11 @@
         "createdAt": {
           "type": "string",
           "format": "date-time"
+        },
+        "deliveredAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The time when the order was successfully delivered."
         }
       },
       "required": ["sellerId", "customerId", "deliveryLocation", "items", "total", "status", "createdAt"]

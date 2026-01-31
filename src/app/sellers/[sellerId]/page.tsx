@@ -1,11 +1,12 @@
+
 'use client';
 
 import React, { useState, useMemo, useEffect, useRef, use } from 'react';
-import { collection, doc, setDoc, deleteDoc, writeBatch } from 'firebase/firestore';
+import { collection, doc, setDoc, deleteDoc, writeBatch, query, where } from 'firebase/firestore';
 import { useFirestore, useDoc, useCollection, useMemoFirebase } from '@/firebase';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { PlusCircle, Edit, Trash2, GripVertical, Filter } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { PlusCircle, Edit, Trash2, GripVertical, Filter, DollarSign, ShoppingBag, Clock } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -23,8 +24,9 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
+import { isToday, isThisMonth, isThisYear } from 'date-fns';
 
-import type { MenuItem, Seller, Category } from '@/lib/types';
+import type { MenuItem, Seller, Category, Order } from '@/lib/types';
 import { categories } from '@/lib/types';
 import { menuItems as mockMenuItems } from '@/lib/data';
 
@@ -149,6 +151,40 @@ function MenuItemForm({
   );
 }
 
+function StatTile({ title, revenue, orders, longWait }: { title: string, revenue: number, orders: number, longWait: number }) {
+  return (
+    <Card className="flex-1 min-w-[300px]">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-lg font-headline">{title}</CardTitle>
+        <CardDescription>Sales Performance</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <DollarSign className="h-4 w-4 text-primary" />
+            <span className="text-sm font-medium">Total Revenue</span>
+          </div>
+          <span className="font-mono font-bold">${revenue.toFixed(2)}</span>
+        </div>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <ShoppingBag className="h-4 w-4 text-primary" />
+            <span className="text-sm font-medium">Total Orders</span>
+          </div>
+          <span className="font-mono font-bold">{orders}</span>
+        </div>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Clock className="h-4 w-4 text-destructive" />
+            <span className="text-sm font-medium">Orders > 10m</span>
+          </div>
+          <span className="font-mono font-bold text-destructive">{longWait}</span>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function SellerMenuAdminPage({
   params,
 }: {
@@ -171,8 +207,37 @@ export default function SellerMenuAdminPage({
     if (!firestore) return null;
     return collection(firestore, 'sellers', sellerId, 'menuItems');
   }, [firestore, sellerId]);
-
   const { data: menuItems, isLoading: areItemsLoading } = useCollection<MenuItem>(menuItemsQuery);
+
+  const ordersQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return query(collection(firestore, 'orders'), where('sellerId', '==', sellerId));
+  }, [firestore, sellerId]);
+  const { data: orders, isLoading: areOrdersLoading } = useCollection<Order>(ordersQuery);
+
+  const dashboardStats = useMemo(() => {
+    if (!orders) return null;
+
+    const calculate = (filtered: Order[]) => {
+      const revenue = filtered.reduce((acc, o) => acc + o.total, 0);
+      const longWait = filtered.filter(o => {
+        if (!o.deliveredAt || !o.createdAt) return false;
+        const duration = (o.deliveredAt.toDate().getTime() - o.createdAt.toDate().getTime()) / 60000;
+        return duration > 10;
+      }).length;
+      return { revenue, orders: filtered.length, longWait };
+    };
+
+    const daily = orders.filter(o => o.createdAt && isToday(o.createdAt.toDate()));
+    const monthly = orders.filter(o => o.createdAt && isThisMonth(o.createdAt.toDate()));
+    const yearly = orders.filter(o => o.createdAt && isThisYear(o.createdAt.toDate()));
+
+    return {
+      daily: calculate(daily),
+      monthly: calculate(monthly),
+      yearly: calculate(yearly),
+    };
+  }, [orders]);
   
   const handleSeedData = async () => {
     if (!firestore || !menuItems) return;
@@ -236,7 +301,7 @@ export default function SellerMenuAdminPage({
     deleteDoc(itemRef);
   };
 
-  const isLoading = isSellerLoading || areItemsLoading;
+  const isLoading = isSellerLoading || areItemsLoading || areOrdersLoading;
 
   const groupedItems = useMemo(() => {
     if (!menuItems) return {};
@@ -318,9 +383,34 @@ export default function SellerMenuAdminPage({
       <div className="container mx-auto px-4 py-8">
         <header className="mb-8">
           <h1 className="font-headline text-2xl md:text-3xl font-bold text-foreground">
-            Seller Admin - {isLoading ? 'Loading...' : seller?.courseName}
+            Seller Admin - {isSellerLoading ? 'Loading...' : seller?.courseName}
           </h1>
         </header>
+
+        {/* Sales Dashboard Section */}
+        <section className="mb-12">
+          <h2 className="font-headline text-xl font-bold mb-4 flex items-center gap-2">
+            <DollarSign className="h-6 w-6 text-primary" />
+            Sales Data Dashboard
+          </h2>
+          <div className="flex flex-wrap gap-4">
+            {dashboardStats ? (
+              <>
+                <StatTile title="Daily" {...dashboardStats.daily} />
+                <StatTile title="This Month" {...dashboardStats.monthly} />
+                <StatTile title="This Year" {...dashboardStats.yearly} />
+              </>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full">
+                <Skeleton className="h-40 w-full" />
+                <Skeleton className="h-40 w-full" />
+                <Skeleton className="h-40 w-full" />
+              </div>
+            )}
+          </div>
+        </section>
+
+        <Separator className="my-8" />
 
         <div className="flex flex-col md:flex-row gap-4 mb-6">
           <div className="flex flex-wrap gap-2 items-center flex-1">
@@ -353,7 +443,7 @@ export default function SellerMenuAdminPage({
             <CardTitle>Menu Items</CardTitle>
           </CardHeader>
           <CardContent>
-            {isLoading ? (
+            {areItemsLoading ? (
                 <p>Loading menu items...</p>
             ) : menuItems && menuItems.length > 0 ? (
               <div className="space-y-6">

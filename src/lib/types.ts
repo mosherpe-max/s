@@ -1,3 +1,4 @@
+
 import { Timestamp } from "firebase/firestore";
 
 export interface Seller {
@@ -46,4 +47,5 @@ export interface Order {
   total: number;
   status: 'Placed' | 'Preparing' | 'Out for Delivery' | 'Delivered' | 'Cancelled';
   createdAt: Timestamp;
+  deliveredAt?: Timestamp;
 }
