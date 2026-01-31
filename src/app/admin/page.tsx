@@ -27,6 +27,8 @@ import {
   RadioGroup,
   RadioGroupItem
 } from '@/components/ui/radio-group';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
 import {
   Table,
   TableBody,
@@ -50,9 +52,7 @@ const sellerSchema = z.object({
   type: z.enum(['Private Golf Course', 'Semi Private Golf Course', 'Public Golf Course', 'Bowling Alley', 'Brewery', 'Restaurant'], {
     required_error: "Please select a seller type",
   }),
-  menuType: z.string({
-    required_error: "Please select a menu type",
-  }),
+  menuTypes: z.array(z.string()).min(1, 'Please select at least one menu type'),
   halfwayHouseCount: z.coerce.number().min(0).optional(),
   halfwayHouseNames: z.array(z.string()).optional(),
   laneCount: z.coerce.number().min(0).optional(),
@@ -181,7 +181,7 @@ export default function KoopAdminPage() {
     defaultValues: {
       courseName: '',
       type: 'Public Golf Course',
-      menuType: '',
+      menuTypes: [],
       halfwayHouseCount: 0,
       halfwayHouseNames: [],
       laneCount: 0,
@@ -203,12 +203,15 @@ export default function KoopAdminPage() {
   });
 
   const selectedType = form.watch('type');
-  const selectedMenuType = form.watch('menuType');
+  const selectedMenuTypes = form.watch('menuTypes') || [];
   const halfwayCount = form.watch('halfwayHouseCount') || 0;
+
+  const isHalfwayHouseEnabled = selectedMenuTypes.includes('Halfway House');
+  const isLaneDeliveryEnabled = selectedMenuTypes.includes('Lane Delivery');
 
   // Sync halfway house names fields with count
   useEffect(() => {
-    if (selectedMenuType === 'Halfway House') {
+    if (isHalfwayHouseEnabled) {
       const currentNames = form.getValues('halfwayHouseNames') || [];
       if (halfwayCount > currentNames.length) {
         for (let i = currentNames.length; i < halfwayCount; i++) {
@@ -223,7 +226,7 @@ export default function KoopAdminPage() {
       form.setValue('halfwayHouseNames', []);
       form.setValue('halfwayHouseCount', 0);
     }
-  }, [halfwayCount, selectedMenuType, append, remove, form]);
+  }, [halfwayCount, isHalfwayHouseEnabled, append, remove, form]);
 
   const handleOpenForm = (seller: Seller | null = null) => {
     setEditingSeller(seller);
@@ -231,7 +234,7 @@ export default function KoopAdminPage() {
       form.reset({
         courseName: seller.courseName,
         type: seller.type,
-        menuType: seller.menuType || '',
+        menuTypes: seller.menuTypes || [],
         halfwayHouseCount: seller.halfwayHouseCount || 0,
         halfwayHouseNames: seller.halfwayHouseNames || [],
         laneCount: seller.laneCount || 0,
@@ -249,7 +252,7 @@ export default function KoopAdminPage() {
       form.reset({
         courseName: '',
         type: 'Public Golf Course',
-        menuType: '',
+        menuTypes: [],
         halfwayHouseCount: 0,
         halfwayHouseNames: [],
         laneCount: 0,
@@ -515,36 +518,53 @@ export default function KoopAdminPage() {
 
                 <FormField
                   control={form.control}
-                  name="menuType"
-                  render={({ field }) => (
+                  name="menuTypes"
+                  render={() => (
                     <FormItem className="space-y-3">
                       <FormLabel className="flex items-center gap-2">
-                        <ListChecks className="h-4 w-4" /> Menu Type
+                        <ListChecks className="h-4 w-4" /> Enabled Menu Types
                       </FormLabel>
-                      <FormControl>
-                        <RadioGroup
-                          onValueChange={field.onChange}
-                          value={field.value}
-                          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pt-2"
-                        >
-                          {getMenuOptionsForType(selectedType).map((option) => (
-                            <FormItem key={option} className="flex items-center space-x-2 space-y-0 border rounded-md p-2 hover:bg-muted/50 cursor-pointer transition-colors">
-                              <FormControl>
-                                <RadioGroupItem value={option} />
-                              </FormControl>
-                              <FormLabel className="font-normal cursor-pointer flex-1">
-                                {option}
-                              </FormLabel>
-                            </FormItem>
-                          ))}
-                        </RadioGroup>
-                      </FormControl>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pt-2">
+                        {getMenuOptionsForType(selectedType).map((option) => (
+                          <FormField
+                            key={option}
+                            control={form.control}
+                            name="menuTypes"
+                            render={({ field }) => {
+                              return (
+                                <FormItem
+                                  key={option}
+                                  className="flex flex-row items-start space-x-3 space-y-0 border rounded-md p-2 hover:bg-muted/50 cursor-pointer transition-colors"
+                                >
+                                  <FormControl>
+                                    <Checkbox
+                                      checked={field.value?.includes(option)}
+                                      onCheckedChange={(checked) => {
+                                        return checked
+                                          ? field.onChange([...field.value, option])
+                                          : field.onChange(
+                                              field.value?.filter(
+                                                (value) => value !== option
+                                              )
+                                            )
+                                      }}
+                                    />
+                                  </FormControl>
+                                  <FormLabel className="text-sm font-normal cursor-pointer flex-1">
+                                    {option}
+                                  </FormLabel>
+                                </FormItem>
+                              )
+                            }}
+                          />
+                        ))}
+                      </div>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
 
-                {selectedMenuType === 'Halfway House' && (
+                {isHalfwayHouseEnabled && (
                   <div className="space-y-4 bg-muted/30 p-4 rounded-lg border animate-in slide-in-from-top-2">
                     <FormField
                       control={form.control}
@@ -586,7 +606,7 @@ export default function KoopAdminPage() {
                   </div>
                 )}
 
-                {selectedMenuType === 'Lane Delivery' && (
+                {isLaneDeliveryEnabled && (
                   <div className="bg-muted/30 p-4 rounded-lg border animate-in slide-in-from-top-2">
                     <FormField
                       control={form.control}

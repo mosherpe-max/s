@@ -20,9 +20,10 @@
           "enum": ["Private Golf Course", "Semi Private Golf Course", "Public Golf Course", "Bowling Alley", "Brewery", "Restaurant"],
           "description": "The type of establishment for the seller."
         },
-        "menuType": {
-          "type": "string",
-          "description": "The primary service type/menu category for this seller."
+        "menuTypes": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "The service types/menu categories enabled for this seller."
         },
         "halfwayHouseCount": {
           "type": "number",
