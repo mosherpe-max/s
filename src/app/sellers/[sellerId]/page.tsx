@@ -215,6 +215,7 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
   const firestore = useFirestore();
   const { toast } = useToast();
 
+  const [isMounted, setIsMounted] = useState(false);
   const [isItemFormOpen, setIsItemFormOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
   const [isMemberFormOpen, setIsMemberFormOpen] = useState(false);
@@ -227,6 +228,10 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
   // Export filters
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   const sellerRef = useMemoFirebase(() => (firestore ? doc(firestore, 'sellers', sellerId) : null), [firestore, sellerId]);
   const { data: seller, isLoading: isSellerLoading } = useDoc<Seller>(sellerRef);
@@ -287,7 +292,6 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
     
     const start = startDate ? new Date(startDate) : new Date(0);
     const end = endDate ? new Date(endDate) : new Date();
-    // End date should include the full day
     end.setHours(23, 59, 59, 999);
 
     const filtered = orders.filter(o => {
@@ -349,7 +353,7 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, onChange: (val: string) => void) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 1024 * 1024) { // 1MB limit for prototype
+      if (file.size > 1024 * 1024) { 
         toast({ variant: 'destructive', title: 'File too large', description: 'Please choose a logo smaller than 1MB.' });
         return;
       }
@@ -442,6 +446,8 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
     }, {} as Record<string, MenuItem[]>);
   }, [menuItems]);
 
+  if (!isMounted) return null;
+
   if (!isSellerLoading && !seller && sellerId === 'demo-course') {
     return (
       <div className="container mx-auto px-4 py-20 flex flex-col items-center justify-center text-center">
@@ -473,7 +479,6 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
 
       <section className="mb-12">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Recent Sales and Export Card */}
           <Card className="flex flex-col h-full">
             <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
               <div>
@@ -526,7 +531,6 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
             </CardContent>
           </Card>
 
-          {/* Menu Customization Card */}
           <Card className="flex flex-col h-full">
             <CardHeader>
               <CardTitle className="flex items-center gap-2"><Palette className="h-5 w-5" /> Menu Branding</CardTitle>
