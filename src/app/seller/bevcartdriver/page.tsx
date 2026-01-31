@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { OrderCard } from '@/components/order-card';
 import type { Order, Seller } from '@/lib/types';
 import { mockSellerLocation } from '@/lib/data';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Skeleton } from '@/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Focus, Bell, Package, AlertCircle } from 'lucide-react';
@@ -23,6 +23,26 @@ import { BrandingFooter } from '@/components/branding-footer';
 type LatLng = {
   latitude: number;
   longitude: number;
+};
+
+// Deterministic color assignment for drivers to avoid red, yellow, green
+const getDriverColorClass = (id: string) => {
+  const driverColors = [
+    'bg-indigo-600',
+    'bg-blue-600',
+    'bg-purple-600',
+    'bg-pink-600',
+    'bg-cyan-600',
+    'bg-slate-700',
+  ];
+  
+  // Use a simple hash of the ID to pick a color
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) {
+    hash = id.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const index = Math.abs(hash) % driverColors.length;
+  return driverColors[index];
 };
 
 export default function BevCartDriverDashboardPage() {
@@ -180,7 +200,8 @@ export default function BevCartDriverDashboardPage() {
     return activeSellers.map(s => ({
         id: s.id,
         name: s.courseName,
-        location: { latitude: s.latitude, longitude: s.longitude }
+        location: { latitude: s.latitude, longitude: s.longitude },
+        colorClass: getDriverColorClass(s.id)
     }));
   }, [activeSellers]);
 

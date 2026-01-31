@@ -12,6 +12,7 @@ interface MapViewProps {
     id: string;
     name: string;
     location: { latitude: number; longitude: number };
+    colorClass?: string;
   }[];
   buyers?: { 
     id: string; 
@@ -111,16 +112,21 @@ export function MapView({ buyerLocation, sellerLocation, sellers, buyers, radius
         <MapElements sellerLocation={sellerLocation} buyerLocation={buyerLocation} sellers={sellers} buyers={buyers} radius={radius} zoomMode={zoomMode} />
         
         {/* Render all Sellers (Drivers) */}
-        {sellers && sellers.map(s => (
-            <AdvancedMarker key={s.id} position={{ lat: s.location.latitude, lng: s.location.longitude }}>
-                <div className="flex flex-col items-center">
-                    <div className="bg-indigo-600 p-2 rounded-full shadow-lg border-2 border-white">
-                        <Truck className="w-6 h-6 text-white" />
-                    </div>
-                    <div className="w-0 h-0 border-l-8 border-l-transparent border-r-8 border-r-transparent border-t-8 border-t-indigo-600"></div>
-                </div>
-            </AdvancedMarker>
-        ))}
+        {sellers && sellers.map(s => {
+            const colorClass = s.colorClass || "bg-indigo-600";
+            const arrowColorClass = colorClass.replace('bg-', 'border-t-');
+            
+            return (
+              <AdvancedMarker key={s.id} position={{ lat: s.location.latitude, lng: s.location.longitude }}>
+                  <div className="flex flex-col items-center">
+                      <div className={cn("p-2 rounded-full shadow-lg border-2 border-white", colorClass)}>
+                          <Truck className="w-6 h-6 text-white" />
+                      </div>
+                      <div className={cn("w-0 h-0 border-l-8 border-l-transparent border-r-8 border-r-transparent border-t-8", arrowColorClass)}></div>
+                  </div>
+              </AdvancedMarker>
+            );
+        })}
 
         {/* Primary Seller Pin (if not in sellers array) */}
         {sellerLocation && (!sellers || !sellers.some(s => s.location.latitude === sellerLocation.latitude && s.location.longitude === sellerLocation.longitude)) && (
