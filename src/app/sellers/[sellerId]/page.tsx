@@ -51,10 +51,10 @@ const memberSchema = z.object({
 type MemberFormData = z.infer<typeof memberSchema>;
 
 const sampleMembers = [
-  { name: 'Jane Doe', memberNumber: 'MEM-1001' },
-  { name: 'John Smith', memberNumber: 'MEM-1002' },
-  { name: 'Alice Johnson', memberNumber: 'MEM-1003' },
-  { name: 'Robert Brown', memberNumber: 'MEM-1004' }
+  { name: 'Jane Doe', memberNumber: '1001' },
+  { name: 'John Smith', memberNumber: '1002' },
+  { name: 'Alice Johnson', memberNumber: '1003' },
+  { name: 'Robert Brown', memberNumber: '1004' }
 ];
 
 function MenuItemForm({
@@ -138,7 +138,7 @@ function MemberForm({
             <FormItem><FormLabel>Member Name</FormLabel><FormControl><Input {...field} placeholder="Jane Doe" /></FormControl><FormMessage /></FormItem>
           )} />
           <FormField control={form.control} name="memberNumber" render={({ field }) => (
-            <FormItem><FormLabel>Member ID Number</FormLabel><FormControl><Input {...field} placeholder="MEM-12345" /></FormControl><FormMessage /></FormItem>
+            <FormItem><FormLabel>Member ID Number</FormLabel><FormControl><Input {...field} placeholder="12345" /></FormControl><FormMessage /></FormItem>
           )} />
         </div>
         <div className="flex justify-end gap-2">

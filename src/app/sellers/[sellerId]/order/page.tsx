@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, use, useEffect, useMemo } from 'react';
@@ -201,7 +200,7 @@ export default function BuyerMenuPage({ params }: { params: { sellerId: string }
                     <Label htmlFor="memberId">Member ID Number</Label>
                     <Input 
                       id="memberId"
-                      placeholder="e.g. MEM-12345"
+                      placeholder="e.g. 12345"
                       value={inputMemberId}
                       onChange={(e) => setInputMemberId(e.target.value)}
                     />
