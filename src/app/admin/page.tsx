@@ -1,11 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
-import { collection, doc, setDoc, deleteDoc } from 'firebase/firestore';
+import React, { useState, useMemo } from 'react';
+import { collection, doc, setDoc, deleteDoc, query } from 'firebase/firestore';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { PlusCircle, Edit, Trash2, Loader2, MapPin, Mail, Phone, User, Building } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { PlusCircle, Edit, Trash2, Loader2, MapPin, Mail, Phone, User, Building, DollarSign, ShoppingBag, BarChart3 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import {
   AlertDialog,
@@ -20,7 +20,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
+import { z } from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import {
   Select,
@@ -39,16 +39,14 @@ import {
 } from "@/components/ui/table";
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import type { Seller } from '@/lib/types';
+import { Skeleton } from '@/components/ui/skeleton';
+import type { Seller, Order } from '@/lib/types';
 import { sellerTypes } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
+import { isToday, isThisMonth, isThisYear } from 'date-fns';
 
-/**
- * Validation schema for the Seller form.
- * Ensures data integrity and correct formatting for the database.
- */
 const sellerSchema = z.object({
   courseName: z.string().min(2, 'Course name must be at least 2 characters'),
   type: z.enum(['Private Golf Course', 'Semi Private Golf Course', 'Public Golf Course', 'Bowling Alley', 'Brewery', 'Restaurant'], {
@@ -67,9 +65,6 @@ const sellerSchema = z.object({
 
 type SellerFormData = z.infer<typeof sellerSchema>;
 
-/**
- * Converts a string into a URL-friendly slug for "Smart IDs".
- */
 function slugify(text: string): string {
   return text
     .toString()
@@ -80,6 +75,42 @@ function slugify(text: string): string {
     .replace(/--+/g, '-')
     .replace(/^-+/, '')
     .replace(/-+$/, '');
+}
+
+function GlobalStatCard({ title, revenue, orders, avgTransaction }: { title: string, revenue: number, orders: number, avgTransaction: number }) {
+  return (
+    <Card className="flex-1 min-w-[280px] shadow-sm">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-lg font-headline flex items-center gap-2">
+           <BarChart3 className="h-4 w-4 text-primary" />
+           {title} Sales
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <DollarSign className="h-3.5 w-3.5" />
+            <span className="text-xs font-medium uppercase tracking-wider">Revenue (Fees)</span>
+          </div>
+          <span className="font-mono font-bold text-sm">${revenue.toFixed(2)}</span>
+        </div>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <ShoppingBag className="h-3.5 w-3.5" />
+            <span className="text-xs font-medium uppercase tracking-wider">Total Orders</span>
+          </div>
+          <span className="font-mono font-bold text-sm">{orders}</span>
+        </div>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <DollarSign className="h-3.5 w-3.5" />
+            <span className="text-xs font-medium uppercase tracking-wider">Avg Transaction</span>
+          </div>
+          <span className="font-mono font-bold text-sm">${avgTransaction.toFixed(2)}</span>
+        </div>
+      </CardContent>
+    </Card>
+  );
 }
 
 export default function KoopAdminPage() {
@@ -95,7 +126,35 @@ export default function KoopAdminPage() {
     return collection(firestore, 'sellers');
   }, [firestore]);
 
-  const { data: sellers, isLoading } = useCollection<Seller>(sellersQuery);
+  const ordersQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return collection(firestore, 'orders');
+  }, [firestore]);
+
+  const { data: sellers, isLoading: isSellersLoading } = useCollection<Seller>(sellersQuery);
+  const { data: orders, isLoading: isOrdersLoading } = useCollection<Order>(ordersQuery);
+
+  const salesStats = useMemo(() => {
+    if (!orders) return null;
+
+    const calculate = (filtered: Order[]) => {
+      const revenue = filtered.reduce((acc, o) => acc + (o.serviceFee || 0), 0);
+      const ordersCount = filtered.length;
+      const totalSales = filtered.reduce((acc, o) => acc + (o.total || 0), 0);
+      const avgTransaction = ordersCount > 0 ? totalSales / ordersCount : 0;
+      return { revenue, orders: ordersCount, avgTransaction };
+    };
+
+    const dailyOrders = orders.filter(o => o.createdAt && isToday(o.createdAt.toDate()));
+    const monthlyOrders = orders.filter(o => o.createdAt && isThisMonth(o.createdAt.toDate()));
+    const yearlyOrders = orders.filter(o => o.createdAt && isThisYear(o.createdAt.toDate()));
+
+    return {
+      daily: calculate(dailyOrders),
+      monthly: calculate(monthlyOrders),
+      yearly: calculate(yearlyOrders),
+    };
+  }, [orders]);
 
   const form = useForm<SellerFormData>({
     resolver: zodResolver(sellerSchema),
@@ -155,7 +214,6 @@ export default function KoopAdminPage() {
     let latitude = editingSeller?.latitude || 0;
     let longitude = editingSeller?.longitude || 0;
 
-    // Attempt to geocode the address automatically
     const fullAddress = `${data.streetAddress}, ${data.city}, ${data.state} ${data.zip}`;
     try {
       const response = await fetch(
@@ -172,7 +230,6 @@ export default function KoopAdminPage() {
           title: 'Geocoding Failed',
           description: 'Could not calculate coordinates. Please verify the address.'
         });
-        // We stop submission if we can't get coordinates for a NEW seller
         if (!editingSeller) {
           setIsSaving(false);
           return;
@@ -233,7 +290,7 @@ export default function KoopAdminPage() {
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
         <div>
           <h1 className="font-headline text-3xl font-bold text-foreground">Koop Admin</h1>
-          <p className="text-muted-foreground">Manage your seller network and service parameters.</p>
+          <p className="text-muted-foreground">Manage your seller network and monitor platform performance.</p>
         </div>
         <Button onClick={() => handleOpenForm()} className="shadow-md">
           <PlusCircle className="mr-2 h-4 w-4" />
@@ -241,12 +298,39 @@ export default function KoopAdminPage() {
         </Button>
       </header>
 
+      <section className="mb-10">
+        <h2 className="text-sm font-bold uppercase tracking-[0.2em] text-muted-foreground mb-4 flex items-center gap-2">
+            Global Sales Dashboard
+        </h2>
+        <div className="flex flex-wrap gap-4">
+            {isOrdersLoading ? (
+                <>
+                    <Skeleton className="h-40 flex-1 min-w-[280px]" />
+                    <Skeleton className="h-40 flex-1 min-w-[280px]" />
+                    <Skeleton className="h-40 flex-1 min-w-[280px]" />
+                </>
+            ) : salesStats ? (
+                <>
+                    <GlobalStatCard title="Daily" {...salesStats.daily} />
+                    <GlobalStatCard title="Monthly" {...salesStats.monthly} />
+                    <GlobalStatCard title="Yearly" {...salesStats.yearly} />
+                </>
+            ) : (
+                <Card className="w-full py-10 flex flex-col items-center justify-center text-muted-foreground">
+                    <BarChart3 className="h-10 w-10 opacity-10 mb-2" />
+                    <p>No order data available to generate stats.</p>
+                </Card>
+            )}
+        </div>
+      </section>
+
       <Card className="shadow-sm border-muted">
-        <CardHeader className="bg-muted/30">
+        <CardHeader className="bg-muted/30 flex flex-row items-center justify-between py-4">
           <CardTitle className="text-xl">Registered Sellers</CardTitle>
+          <Badge variant="outline" className="bg-background">{sellers?.length || 0} Total</Badge>
         </CardHeader>
         <CardContent className="p-0">
-          {isLoading ? (
+          {isSellersLoading ? (
             <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
                 <Loader2 className="h-8 w-8 animate-spin mb-4" />
                 <p>Loading sellers...</p>
@@ -289,7 +373,6 @@ export default function KoopAdminPage() {
                         <div className="flex flex-col text-xs text-muted-foreground space-y-0.5">
                           <span className="font-semibold text-foreground flex items-center gap-1"><MapPin className="h-3 w-3" /> {seller.streetAddress}</span>
                           <span>{seller.city}, {seller.state} {seller.zip}</span>
-                          <span className="font-mono text-[10px] opacity-60">GPS: {seller.latitude?.toFixed(4)}, {seller.longitude?.toFixed(4)}</span>
                         </div>
                       </TableCell>
                       <TableCell className="text-center align-top pt-5">
