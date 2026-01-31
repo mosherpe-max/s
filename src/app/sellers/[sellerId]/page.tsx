@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useMemo, useEffect, useRef, use } from 'react';
@@ -56,15 +57,16 @@ type MenuItemFormData = z.infer<typeof menuItemSchema>;
 const memberSchema = z.object({
   name: z.string().min(1, 'Member name is required'),
   memberNumber: z.string().min(1, 'Member ID number is required'),
+  status: z.enum(['Active', 'Inactive']),
 });
 
 type MemberFormData = z.infer<typeof memberSchema>;
 
 const sampleMembers = [
-  { name: 'Jane Doe', memberNumber: '1001' },
-  { name: 'John Smith', memberNumber: '1002' },
-  { name: 'Alice Johnson', memberNumber: '1003' },
-  { name: 'Robert Brown', memberNumber: '1004' }
+  { name: 'Jane Doe', memberNumber: '1001', status: 'Active' },
+  { name: 'John Smith', memberNumber: '1002', status: 'Active' },
+  { name: 'Alice Johnson', memberNumber: '1003', status: 'Active' },
+  { name: 'Robert Brown', memberNumber: '1004', status: 'Active' }
 ];
 
 function MenuItemForm({
@@ -133,11 +135,11 @@ function MemberForm({
 }) {
   const form = useForm<MemberFormData>({
     resolver: zodResolver(memberSchema),
-    defaultValues: member || { name: '', memberNumber: '' },
+    defaultValues: member || { name: '', memberNumber: '', status: 'Active' },
   });
 
   useEffect(() => {
-    form.reset(member || { name: '', memberNumber: '' });
+    form.reset(member || { name: '', memberNumber: '', status: 'Active' });
   }, [member, form]);
 
   return (
@@ -149,6 +151,21 @@ function MemberForm({
           )} />
           <FormField control={form.control} name="memberNumber" render={({ field }) => (
             <FormItem><FormLabel>Member ID Number</FormLabel><FormControl><Input {...field} placeholder="12345" /></FormControl><FormMessage /></FormItem>
+          )} />
+          <FormField control={form.control} name="status" render={({ field }) => (
+            <FormItem>
+              <FormLabel>Status</FormLabel>
+              <Select onValueChange={field.onChange} value={field.value}>
+                <FormControl>
+                  <SelectTrigger><SelectValue placeholder="Select status" /></SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  <SelectItem value="Active">Active</SelectItem>
+                  <SelectItem value="Inactive">Inactive</SelectItem>
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
           )} />
         </div>
         <div className="flex justify-end gap-2">
@@ -269,7 +286,7 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
       const batch = writeBatch(firestore);
       sampleMembers.forEach((member) => {
         const memberRef = doc(collection(firestore, 'sellers', sellerId, 'members'));
-        batch.set(memberRef, { ...member, id: memberRef.id });
+        batch.set(memberRef, { ...member, id: memberRef.id, status: 'Active' });
       });
       await batch.commit();
       toast({ title: "Members Seeded", description: "Sample member list added for testing." });
@@ -399,12 +416,17 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
             <CardContent>
               {areMembersLoading ? <Skeleton className="h-32 w-full" /> : members && members.length > 0 ? (
                 <Table>
-                  <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Member ID</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
+                  <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Member ID</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
                   <TableBody>
                     {members.map(m => (
                       <TableRow key={m.id}>
                         <TableCell className="font-medium">{m.name}</TableCell>
                         <TableCell className="font-mono text-xs">{m.memberNumber}</TableCell>
+                        <TableCell>
+                          <Badge variant={m.status === 'Active' ? 'default' : 'secondary'}>
+                            {m.status}
+                          </Badge>
+                        </TableCell>
                         <TableCell className="text-right">
                           <Button variant="ghost" size="icon" onClick={() => { setEditingMember(m); setIsMemberFormOpen(true); }}><Edit className="h-4 w-4" /></Button>
                           <Button variant="ghost" size="icon" className="text-destructive" onClick={() => setMemberToDelete(m)}><Trash2 className="h-4 w-4" /></Button>

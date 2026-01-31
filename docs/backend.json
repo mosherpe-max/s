@@ -127,9 +127,14 @@
       "properties": {
         "id": { "type": "string" },
         "name": { "type": "string" },
-        "memberNumber": { "type": "string" }
+        "memberNumber": { "type": "string" },
+        "status": {
+          "type": "string",
+          "enum": ["Active", "Inactive"],
+          "description": "Whether the member account is active and can be charged."
+        }
       },
-      "required": ["id", "name", "memberNumber"]
+      "required": ["id", "name", "memberNumber", "status"]
     },
     "Order": {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -156,6 +161,10 @@
         "memberId": {
           "type": "string",
           "description": "The ID of the member if paymentMethod is Member Account."
+        },
+        "memberLastName": {
+          "type": "string",
+          "description": "The last name of the member if paymentMethod is Member Account."
         },
         "deliveryLocation": {
           "type": "object",

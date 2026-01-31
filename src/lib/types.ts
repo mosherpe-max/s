@@ -47,6 +47,7 @@ export interface Member {
   id: string;
   name: string;
   memberNumber: string;
+  status: 'Active' | 'Inactive';
 }
 
 export interface OrderItem extends MenuItem {
