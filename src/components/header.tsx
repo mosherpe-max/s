@@ -5,6 +5,7 @@ import { Button } from './ui/button';
 import { usePathname } from 'next/navigation';
 import { ShoppingCart } from 'lucide-react';
 import { useCart } from '@/lib/cart-context';
+import { useState, useEffect } from 'react';
 
 const GolfBallIcon = (props: React.SVGProps<SVGSVGElement>) => (
     <svg
@@ -34,9 +35,16 @@ const GolfBallIcon = (props: React.SVGProps<SVGSVGElement>) => (
 export function AppHeader() {
   const pathname = usePathname();
   const { total, totalItems, setIsCartOpen } = useCart();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
   
-  const isOrderPage = pathname?.includes('/order') && !pathname?.includes('/track');
-  const isDriverPage = pathname === '/seller/bevcartdriver';
+  // Logic that depends on browser-only state (pathname) is deferred until after hydration
+  // to prevent server/client HTML mismatches.
+  const isOrderPage = mounted && pathname?.includes('/order') && !pathname?.includes('/track');
+  const isDriverPage = mounted && pathname === '/seller/bevcartdriver';
 
   // Hide the global header on the Driver Dashboard for a cleaner, focused interface.
   if (isDriverPage) return null;
@@ -51,7 +59,7 @@ export function AppHeader() {
                 Koop
             </span>
             </Link>
-            {!isOrderPage && (
+            {!isOrderPage && mounted && (
               <nav className="hidden lg:flex items-center gap-4 text-sm font-medium">
                   <Link href="/#features" className="text-foreground hover:text-primary transition-colors">Features</Link>
                   <Link href="/#pricing" className="text-foreground hover:text-primary transition-colors">Pricing</Link>
@@ -81,7 +89,7 @@ export function AppHeader() {
                 <span className="sm:hidden font-mono font-bold ml-1">${total.toFixed(2)}</span>
               </Button>
             ) : (
-              <>
+              <div className="flex items-center gap-2">
                 <Button variant="ghost" size="sm" asChild className="hidden sm:inline-flex">
                     <Link href="/admin">Admin</Link>
                 </Button>
@@ -91,7 +99,7 @@ export function AppHeader() {
                 <Button variant="ghost" size="sm" asChild>
                     <Link href="/sellers/demo-course">Seller Admin</Link>
                 </Button>
-              </>
+              </div>
             )}
         </div>
       </div>
