@@ -17,6 +17,10 @@ export interface Seller {
   ownerId?: string; // Made optional for prototyping
   courseName: string;
   type: SellerType;
+  menuType: string;
+  halfwayHouseCount?: number;
+  halfwayHouseNames?: string[];
+  laneCount?: number;
   streetAddress: string;
   city: string;
   state: string;

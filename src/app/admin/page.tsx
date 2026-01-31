@@ -1,11 +1,12 @@
+
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { collection, doc, setDoc, deleteDoc, query } from 'firebase/firestore';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { PlusCircle, Edit, Trash2, Loader2, MapPin, Mail, Phone, User, Building, DollarSign, ShoppingBag, BarChart3 } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { PlusCircle, Edit, Trash2, Loader2, MapPin, Mail, Phone, User, Building, DollarSign, ShoppingBag, BarChart3, ListChecks } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import {
   AlertDialog,
@@ -18,7 +19,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Input } from '@/components/ui/input';
-import { useForm } from 'react-hook-form';
+import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
@@ -49,6 +50,12 @@ const sellerSchema = z.object({
   type: z.enum(['Private Golf Course', 'Semi Private Golf Course', 'Public Golf Course', 'Bowling Alley', 'Brewery', 'Restaurant'], {
     required_error: "Please select a seller type",
   }),
+  menuType: z.string({
+    required_error: "Please select a menu type",
+  }),
+  halfwayHouseCount: z.coerce.number().min(0).optional(),
+  halfwayHouseNames: z.array(z.string()).optional(),
+  laneCount: z.coerce.number().min(0).optional(),
   streetAddress: z.string().min(1, 'Street address is required'),
   city: z.string().min(1, 'City is required'),
   state: z.string().min(2, 'State (e.g. CA) is required').max(2, 'Use 2-letter state code'),
@@ -73,6 +80,22 @@ function slugify(text: string): string {
     .replace(/^-+/, '')
     .replace(/-+$/, '');
 }
+
+const getMenuOptionsForType = (type: string) => {
+  switch (type) {
+    case 'Private Golf Course':
+    case 'Semi Private Golf Course':
+    case 'Public Golf Course':
+      return ["Beverage Cart", "Clubhouse", "Pool", "Take Out", "Halfway House"];
+    case 'Brewery':
+    case 'Restaurant':
+      return ["Take Out", "Dine-In"];
+    case 'Bowling Alley':
+      return ["Take Out", "Lane Delivery"];
+    default:
+      return [];
+  }
+};
 
 function GlobalStatCard({ title, revenue, orders, avgTransaction }: { title: string, revenue: number, orders: number, avgTransaction: number }) {
   return (
@@ -158,6 +181,10 @@ export default function KoopAdminPage() {
     defaultValues: {
       courseName: '',
       type: 'Public Golf Course',
+      menuType: '',
+      halfwayHouseCount: 0,
+      halfwayHouseNames: [],
+      laneCount: 0,
       streetAddress: '',
       city: '',
       state: '',
@@ -170,12 +197,44 @@ export default function KoopAdminPage() {
     },
   });
 
+  const { fields, append, remove } = useFieldArray({
+    control: form.control,
+    name: "halfwayHouseNames" as any,
+  });
+
+  const selectedType = form.watch('type');
+  const selectedMenuType = form.watch('menuType');
+  const halfwayCount = form.watch('halfwayHouseCount') || 0;
+
+  // Sync halfway house names fields with count
+  useEffect(() => {
+    if (selectedMenuType === 'Halfway House') {
+      const currentNames = form.getValues('halfwayHouseNames') || [];
+      if (halfwayCount > currentNames.length) {
+        for (let i = currentNames.length; i < halfwayCount; i++) {
+          append(`Halfway House ${i + 1}`);
+        }
+      } else if (halfwayCount < currentNames.length) {
+        for (let i = currentNames.length - 1; i >= halfwayCount; i--) {
+          remove(i);
+        }
+      }
+    } else {
+      form.setValue('halfwayHouseNames', []);
+      form.setValue('halfwayHouseCount', 0);
+    }
+  }, [halfwayCount, selectedMenuType, append, remove, form]);
+
   const handleOpenForm = (seller: Seller | null = null) => {
     setEditingSeller(seller);
     if (seller) {
       form.reset({
         courseName: seller.courseName,
         type: seller.type,
+        menuType: seller.menuType || '',
+        halfwayHouseCount: seller.halfwayHouseCount || 0,
+        halfwayHouseNames: seller.halfwayHouseNames || [],
+        laneCount: seller.laneCount || 0,
         streetAddress: seller.streetAddress,
         city: seller.city,
         state: seller.state,
@@ -190,6 +249,10 @@ export default function KoopAdminPage() {
       form.reset({
         courseName: '',
         type: 'Public Golf Course',
+        menuType: '',
+        halfwayHouseCount: 0,
+        halfwayHouseNames: [],
+        laneCount: 0,
         streetAddress: '',
         city: '',
         state: '',
@@ -449,6 +512,98 @@ export default function KoopAdminPage() {
                     </FormItem>
                   )}
                 />
+
+                <FormField
+                  control={form.control}
+                  name="menuType"
+                  render={({ field }) => (
+                    <FormItem className="space-y-3">
+                      <FormLabel className="flex items-center gap-2">
+                        <ListChecks className="h-4 w-4" /> Menu Type
+                      </FormLabel>
+                      <FormControl>
+                        <RadioGroup
+                          onValueChange={field.onChange}
+                          value={field.value}
+                          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pt-2"
+                        >
+                          {getMenuOptionsForType(selectedType).map((option) => (
+                            <FormItem key={option} className="flex items-center space-x-2 space-y-0 border rounded-md p-2 hover:bg-muted/50 cursor-pointer transition-colors">
+                              <FormControl>
+                                <RadioGroupItem value={option} />
+                              </FormControl>
+                              <FormLabel className="font-normal cursor-pointer flex-1">
+                                {option}
+                              </FormLabel>
+                            </FormItem>
+                          ))}
+                        </RadioGroup>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {selectedMenuType === 'Halfway House' && (
+                  <div className="space-y-4 bg-muted/30 p-4 rounded-lg border animate-in slide-in-from-top-2">
+                    <FormField
+                      control={form.control}
+                      name="halfwayHouseCount"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Number of Halfway Houses</FormLabel>
+                          <FormControl>
+                            <Input type="number" {...field} placeholder="e.g. 2" />
+                          </FormControl>
+                          <FormDescription>Specify how many delivery locations exist.</FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    {fields.length > 0 && (
+                      <div className="space-y-3 pt-2">
+                        <Label className="text-xs uppercase font-bold text-muted-foreground">Location Names</Label>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          {fields.map((field, index) => (
+                            <FormField
+                              key={field.id}
+                              control={form.control}
+                              name={`halfwayHouseNames.${index}` as any}
+                              render={({ field: inputField }) => (
+                                <FormItem>
+                                  <FormControl>
+                                    <Input {...inputField} placeholder={`Name for Location ${index + 1}`} />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {selectedMenuType === 'Lane Delivery' && (
+                  <div className="bg-muted/30 p-4 rounded-lg border animate-in slide-in-from-top-2">
+                    <FormField
+                      control={form.control}
+                      name="laneCount"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Total Number of Lanes</FormLabel>
+                          <FormControl>
+                            <Input type="number" {...field} placeholder="e.g. 24" />
+                          </FormControl>
+                          <FormDescription>Used for customers to specify their lane number at checkout.</FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                )}
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <FormField

@@ -20,6 +20,23 @@
           "enum": ["Private Golf Course", "Semi Private Golf Course", "Public Golf Course", "Bowling Alley", "Brewery", "Restaurant"],
           "description": "The type of establishment for the seller."
         },
+        "menuType": {
+          "type": "string",
+          "description": "The primary service type/menu category for this seller."
+        },
+        "halfwayHouseCount": {
+          "type": "number",
+          "description": "Number of halfway houses if applicable."
+        },
+        "halfwayHouseNames": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Names for each halfway house."
+        },
+        "laneCount": {
+          "type": "number",
+          "description": "Number of bowling lanes if applicable."
+        },
         "streetAddress": {
           "type": "string",
           "description": "The street address of the establishment."
