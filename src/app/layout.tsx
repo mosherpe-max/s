@@ -4,6 +4,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { AppHeader } from '@/components/header';
 import { cn } from '@/lib/utils';
 import { FirebaseClientProvider } from '@/firebase';
+import { CartProvider } from '@/lib/cart-context';
 
 export const metadata: Metadata = {
   title: 'Koop',
@@ -24,12 +25,14 @@ export default function RootLayout({
       </head>
       <body className={cn("font-body antialiased min-h-screen flex flex-col")}>
         <FirebaseClientProvider>
-          <div className="h-1.5 bg-red-600 w-full" />
-          <AppHeader />
-          <main className="flex-1">
-            {children}
-          </main>
-          <Toaster />
+          <CartProvider>
+            <div className="h-1.5 bg-red-600 w-full" />
+            <AppHeader />
+            <main className="flex-1">
+              {children}
+            </main>
+            <Toaster />
+          </CartProvider>
         </FirebaseClientProvider>
       </body>
     </html>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, use } from 'react';
+import { useState, use, useEffect } from 'react';
 import { collection, doc, addDoc, serverTimestamp } from 'firebase/firestore';
 import { useFirestore, useCollection, useMemoFirebase, useDoc, useUser } from '@/firebase';
 import type { Seller, OrderItem, MenuItem, Category, Order } from '@/lib/types';
@@ -18,15 +18,15 @@ import { mockBuyerLocation } from '@/lib/data';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetFooter } from '@/components/ui/sheet';
 import { Loader2 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { useCart } from '@/lib/cart-context';
 
 export default function BuyerMenuPage({ params }: { params: { sellerId: string } }) {
   const { sellerId } = use(params);
   const firestore = useFirestore();
-  const { user } = useUser();
   const router = useRouter();
   const { toast } = useToast();
+  const { orderItems, updateItem, isCartOpen, setIsCartOpen, total, totalItems, clearCart } = useCart();
 
-  const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<Category>(categories[0]);
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
 
@@ -42,21 +42,9 @@ export default function BuyerMenuPage({ params }: { params: { sellerId: string }
   );
   const { data: menuItems, isLoading: areItemsLoading } = useCollection<MenuItem>(menuItemsQuery);
 
-  const handleUpdateItem = (updatedItem: OrderItem) => {
-    setOrderItems((prevItems) => {
-      const existingItemIndex = prevItems.findIndex((i) => i.id === updatedItem.id);
-      if (updatedItem.quantity === 0) {
-        return prevItems.filter((i) => i.id !== updatedItem.id);
-      }
-      if (existingItemIndex > -1) {
-        const newItems = [...prevItems];
-        newItems[existingItemIndex] = updatedItem;
-        return newItems;
-      }
-      return [...prevItems, updatedItem];
-    });
-  };
-
+  // Clear cart when starting a new order session if needed, 
+  // though for prototyping it stays persistent.
+  
   const handlePlaceOrder = async () => {
     if (!firestore || !seller) {
       toast({
@@ -72,7 +60,6 @@ export default function BuyerMenuPage({ params }: { params: { sellerId: string }
 
     const createOrder = (latitude: number, longitude: number) => {
       const subtotal = activeOrderItems.reduce((acc, item) => acc + item.price * item.quantity, 0);
-      const total = subtotal + (seller.serviceFee || 0);
 
       const orderData: Omit<Order, 'id' | 'createdAt'> = {
         sellerId: sellerId,
@@ -96,6 +83,7 @@ export default function BuyerMenuPage({ params }: { params: { sellerId: string }
             title: 'Order Placed!',
             description: "We've sent your order to the cart.",
           });
+          clearCart();
           router.push('/order/track');
       })
       .catch(() => {
@@ -139,9 +127,6 @@ export default function BuyerMenuPage({ params }: { params: { sellerId: string }
 
   const isLoading = isSellerLoading || areItemsLoading;
   const activeOrderItems = orderItems.filter((item) => item.quantity > 0);
-  const totalItems = activeOrderItems.reduce((acc, item) => acc + item.quantity, 0);
-  const subtotal = activeOrderItems.reduce((acc, item) => acc + item.price * item.quantity, 0);
-  const total = subtotal + (seller?.serviceFee || 0);
 
   return (
     <div className="flex flex-col h-full">
@@ -175,7 +160,7 @@ export default function BuyerMenuPage({ params }: { params: { sellerId: string }
         </ScrollArea>
       </div>
       
-      <main className="flex-1 overflow-y-auto px-4 pt-4 pb-28"> {/* Padding-bottom for floating button */}
+      <main className="flex-1 overflow-y-auto px-4 pt-4 pb-28"> 
         {isLoading ? (
           <div className="space-y-4">
               <Skeleton className="h-20 w-full" />
@@ -185,7 +170,7 @@ export default function BuyerMenuPage({ params }: { params: { sellerId: string }
         ) : menuItems ? (
           <BuyerMenu
             orderItems={orderItems}
-            onUpdateItem={handleUpdateItem}
+            onUpdateItem={updateItem}
             selectedCategory={selectedCategory}
             menuItems={menuItems}
           />
@@ -194,9 +179,9 @@ export default function BuyerMenuPage({ params }: { params: { sellerId: string }
         )}
       </main>
 
-      {activeOrderItems.length > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 p-4 bg-background/90 backdrop-blur-sm border-t z-20">
-          <Sheet>
+      <Sheet open={isCartOpen} onOpenChange={setIsCartOpen}>
+        {activeOrderItems.length > 0 && (
+          <div className="fixed bottom-0 left-0 right-0 p-4 bg-background/90 backdrop-blur-sm border-t z-20">
             <SheetTrigger asChild>
               <Button size="lg" className="w-full text-lg h-14">
                 <div className="flex justify-between items-center w-full">
@@ -205,37 +190,37 @@ export default function BuyerMenuPage({ params }: { params: { sellerId: string }
                 </div>
               </Button>
             </SheetTrigger>
-            <SheetContent side="bottom" className="rounded-t-lg">
-              <SheetHeader>
-                 <SheetTitle className="text-center">Your Order</SheetTitle>
-              </SheetHeader>
-              <div className="py-4 max-h-[50vh] overflow-y-auto">
-                <OrderSummary
-                  items={activeOrderItems}
-                  serviceFee={seller?.serviceFee}
-                />
-              </div>
-              <SheetFooter>
-                <Button 
-                  size="lg" 
-                  className="w-full h-12 text-lg" 
-                  onClick={handlePlaceOrder}
-                  disabled={isPlacingOrder}
-                >
-                  {isPlacingOrder ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Placing Order...
-                    </>
-                  ) : (
-                    `Place Order - $${total.toFixed(2)}`
-                  )}
-                </Button>
-              </SheetFooter>
-            </SheetContent>
-          </Sheet>
-        </div>
-      )}
+          </div>
+        )}
+        <SheetContent side="bottom" className="rounded-t-lg">
+          <SheetHeader>
+             <SheetTitle className="text-center">Your Order</SheetTitle>
+          </SheetHeader>
+          <div className="py-4 max-h-[50vh] overflow-y-auto">
+            <OrderSummary
+              items={activeOrderItems}
+              serviceFee={seller?.serviceFee}
+            />
+          </div>
+          <SheetFooter>
+            <Button 
+              size="lg" 
+              className="w-full h-12 text-lg" 
+              onClick={handlePlaceOrder}
+              disabled={isPlacingOrder || totalItems === 0}
+            >
+              {isPlacingOrder ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Placing Order...
+                </>
+              ) : (
+                `Place Order - $${total.toFixed(2)}`
+              )}
+            </Button>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
