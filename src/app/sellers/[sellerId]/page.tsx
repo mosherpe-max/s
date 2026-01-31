@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useMemo, useEffect, useRef, use } from 'react';
@@ -529,8 +530,11 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
   return (
     <div className="container mx-auto px-4 py-8">
       <header className="mb-8">
-        <h1 className="font-headline text-2xl md:text-3xl font-bold text-foreground">Seller Admin - {seller?.courseName || sellerId}</h1>
-        {seller && <Badge variant="outline" className="mt-1">{seller.type}</Badge>}
+        <div className="flex items-center gap-3">
+            <h1 className="font-headline text-2xl md:text-3xl font-bold text-foreground">Seller Admin</h1>
+            {seller && <Badge variant="outline">{seller.type}</Badge>}
+        </div>
+        <p className="text-muted-foreground text-sm mt-1">Manage establishment settings, menu items, and sales reports.</p>
       </header>
 
       <section className="mb-12">

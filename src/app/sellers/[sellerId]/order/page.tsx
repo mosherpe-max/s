@@ -138,12 +138,6 @@ export default function BuyerMenuPage({ params }: { params: { sellerId: string }
 
   return (
     <div className="flex flex-col h-full bg-background">
-      <header className="px-4 pt-6 pb-2 text-center shrink-0">
-        <h1 className="font-headline text-3xl font-bold text-foreground">
-          {isLoading ? <Skeleton className="h-9 w-3/4 mx-auto" /> : seller?.courseName}
-        </h1>
-      </header>
-
       <div className="sticky top-0 bg-background/95 backdrop-blur-sm z-20 py-2 shrink-0 border-b">
         <ScrollArea className="w-full whitespace-nowrap">
           <div className="flex gap-2 px-4">
