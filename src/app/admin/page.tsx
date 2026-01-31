@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState } from 'react';
@@ -6,7 +5,7 @@ import { collection, doc, setDoc, deleteDoc } from 'firebase/firestore';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { PlusCircle, Edit, Trash2 } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, Plus, Minus } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
   AlertDialog,
@@ -324,7 +323,35 @@ export default function KoopAdminPage() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Service Fee ($)</FormLabel>
-                      <FormControl><Input type="number" step="0.01" {...field} /></FormControl>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          className="h-10 w-10 shrink-0"
+                          onClick={() => {
+                            const current = parseFloat(form.getValues('serviceFee').toString()) || 0;
+                            form.setValue('serviceFee', Math.max(0, current - 0.5), { shouldDirty: true, shouldValidate: true });
+                          }}
+                        >
+                          <Minus className="h-4 w-4" />
+                        </Button>
+                        <FormControl>
+                          <Input type="number" step="0.50" {...field} className="text-center" />
+                        </FormControl>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          className="h-10 w-10 shrink-0"
+                          onClick={() => {
+                            const current = parseFloat(form.getValues('serviceFee').toString()) || 0;
+                            form.setValue('serviceFee', current + 0.5, { shouldDirty: true, shouldValidate: true });
+                          }}
+                        >
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                      </div>
                       <FormMessage />
                     </FormItem>
                   )}
