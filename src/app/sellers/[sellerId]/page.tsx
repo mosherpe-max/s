@@ -519,7 +519,9 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
       <div className="container mx-auto px-4 py-8 max-w-7xl flex-1">
         <header className="mb-10">
           <div className="flex items-center gap-3">
-              <h1 className="font-headline text-3xl font-bold text-foreground">Seller Admin</h1>
+              <h1 className="font-headline text-3xl font-bold text-foreground">
+                Seller Admin: {seller?.courseName || 'Loading...'}
+              </h1>
               {seller && <Badge variant="outline">{seller.type}</Badge>}
           </div>
           <p className="text-muted-foreground text-sm mt-1">Configure your menus, monitor performance, and customize your brand.</p>
