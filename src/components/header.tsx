@@ -36,19 +36,17 @@ export function AppHeader() {
   const pathname = usePathname();
   const { total, totalItems, setIsCartOpen } = useCart();
   
-  // Hydration safety: Initialize states that depend on browser-only info to false/null
-  // This ensures the first render on the client matches the server.
-  const [isOrderPage, setIsOrderPage] = useState(false);
-  const [isDriverPage, setIsDriverPage] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
     setIsMounted(true);
-    setIsOrderPage(pathname?.includes('/order') && !pathname?.includes('/track'));
-    setIsDriverPage(pathname === '/seller/bevcartdriver');
-  }, [pathname]);
+  }, []);
 
-  // Hide the global header on the Driver Dashboard for a cleaner, focused interface.
+  // Compute values that depend on pathname. usePathname is safe for SSR.
+  const isOrderPage = pathname?.includes('/order') && !pathname?.includes('/track');
+  const isDriverPage = pathname === '/seller/bevcartdriver';
+
+  // Hide the global header on the Driver Dashboard.
   if (isDriverPage) return null;
 
   return (
@@ -70,6 +68,11 @@ export function AppHeader() {
             )}
         </div>
         <div className="flex items-center gap-2 md:gap-4">
+            {/* 
+              HYDRATION SAFETY: 
+              During initial render (isMounted === false), render the common 'guest' UI.
+              After mount (isMounted === true), we can render path-specific or state-specific UI like the cart.
+            */}
             {isMounted && isOrderPage ? (
               <Button 
                 variant="outline" 
