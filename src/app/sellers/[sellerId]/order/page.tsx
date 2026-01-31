@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, use, useEffect, useMemo } from 'react';
@@ -21,8 +22,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useCart } from '@/lib/cart-context';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
+import { Input } from '@/components/ui/input';
 import Link from 'next/link';
 
 export default function BuyerMenuPage({ params }: { params: { sellerId: string } }) {
@@ -35,7 +36,10 @@ export default function BuyerMenuPage({ params }: { params: { sellerId: string }
   const [selectedCategory, setSelectedCategory] = useState<Category>(categories[0]);
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<'Credit Card' | 'Member Account'>('Credit Card');
-  const [selectedMemberId, setSelectedMemberId] = useState<string>('');
+  
+  // Member authentication state
+  const [inputMemberId, setInputMemberId] = useState('');
+  const [inputMemberLastName, setInputMemberLastName] = useState('');
 
   const sellerRef = useMemoFirebase(() => (firestore ? doc(firestore, 'sellers', sellerId) : null), [firestore, sellerId]);
   const { data: seller, isLoading: isSellerLoading } = useDoc<Seller>(sellerRef);
@@ -43,10 +47,16 @@ export default function BuyerMenuPage({ params }: { params: { sellerId: string }
   const menuItemsQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'sellers', sellerId, 'menuItems') : null), [firestore, sellerId]);
   const { data: menuItems, isLoading: areItemsLoading } = useCollection<MenuItem>(menuItemsQuery);
 
-  const membersQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'sellers', sellerId, 'members') : null), [firestore, sellerId]);
-  const { data: members, isLoading: areMembersLoading } = useCollection<Member>(membersQuery);
+  const isPrivateCourse = seller?.type === 'Private Golf Course';
+  const isSemiPrivateCourse = seller?.type === 'Semi Private Golf Course';
+  const isClubSeller = isPrivateCourse || isSemiPrivateCourse;
 
-  const isClubSeller = seller?.type === 'Private Golf Course' || seller?.type === 'Semi Private Golf Course';
+  // Enforce payment method for Private Golf Courses
+  useEffect(() => {
+    if (isPrivateCourse) {
+      setPaymentMethod('Member Account');
+    }
+  }, [isPrivateCourse]);
 
   const handlePlaceOrder = async () => {
     if (!firestore || !seller) {
@@ -59,9 +69,15 @@ export default function BuyerMenuPage({ params }: { params: { sellerId: string }
       return;
     }
 
-    if (paymentMethod === 'Member Account' && !selectedMemberId) {
-      toast({ variant: 'destructive', title: 'Missing Member', description: 'Please select your member account.' });
-      return;
+    if (paymentMethod === 'Member Account') {
+      if (!inputMemberId.trim() || !inputMemberLastName.trim()) {
+        toast({ 
+          variant: 'destructive', 
+          title: 'Required Information', 
+          description: 'Please enter both your Member ID and Last Name.' 
+        });
+        return;
+      }
     }
 
     setIsPlacingOrder(true);
@@ -72,7 +88,9 @@ export default function BuyerMenuPage({ params }: { params: { sellerId: string }
       const orderData: Omit<Order, 'id' | 'createdAt'> = {
         sellerId,
         customerId: 'public-user',
-        customerName: paymentMethod === 'Member Account' ? members?.find(m => m.id === selectedMemberId)?.name || 'Guest Member' : 'Guest Golfer',
+        customerName: paymentMethod === 'Member Account' 
+          ? `Member ${inputMemberLastName}` 
+          : 'Guest Golfer',
         deliveryLocation: { latitude, longitude },
         items: activeOrderItems,
         subtotal,
@@ -80,7 +98,8 @@ export default function BuyerMenuPage({ params }: { params: { sellerId: string }
         total,
         status: 'Placed',
         paymentMethod,
-        memberId: paymentMethod === 'Member Account' ? selectedMemberId : undefined,
+        memberId: paymentMethod === 'Member Account' ? inputMemberId : undefined,
+        memberLastName: paymentMethod === 'Member Account' ? inputMemberLastName : undefined,
       };
 
       const ordersCol = collection(firestore, 'orders');
@@ -152,31 +171,53 @@ export default function BuyerMenuPage({ params }: { params: { sellerId: string }
 
             <div className="space-y-4">
               <h3 className="font-bold text-sm uppercase tracking-wider text-muted-foreground">Payment Method</h3>
-              <RadioGroup value={paymentMethod} onValueChange={(v: any) => setPaymentMethod(v)}>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="Credit Card" id="cc" />
-                  <Label htmlFor="cc" className="flex items-center gap-2 cursor-pointer"><CreditCard className="h-4 w-4" /> Credit Card</Label>
-                </div>
-                {isClubSeller && (
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="Member Account" id="member" />
-                    <Label htmlFor="member" className="flex items-center gap-2 cursor-pointer"><User className="h-4 w-4" /> Member Account</Label>
+              
+              {isPrivateCourse ? (
+                <div className="bg-muted/50 p-3 rounded-lg flex items-center gap-3">
+                  <User className="h-5 w-5 text-primary" />
+                  <div>
+                    <p className="text-sm font-bold">Member Account Only</p>
+                    <p className="text-xs text-muted-foreground">This is a private club establishment.</p>
                   </div>
-                )}
-              </RadioGroup>
+                </div>
+              ) : (
+                <RadioGroup value={paymentMethod} onValueChange={(v: any) => setPaymentMethod(v)}>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="Credit Card" id="cc" />
+                    <Label htmlFor="cc" className="flex items-center gap-2 cursor-pointer"><CreditCard className="h-4 w-4" /> Credit Card</Label>
+                  </div>
+                  {isSemiPrivateCourse && (
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="Member Account" id="member" />
+                      <Label htmlFor="member" className="flex items-center gap-2 cursor-pointer"><User className="h-4 w-4" /> Member Account</Label>
+                    </div>
+                  )}
+                </RadioGroup>
+              )}
 
               {paymentMethod === 'Member Account' && (
-                <div className="mt-4 animate-in fade-in slide-in-from-top-2">
-                  <Label className="mb-2 block">Select Member Account</Label>
-                  <Select value={selectedMemberId} onValueChange={setSelectedMemberId}>
-                    <SelectTrigger><SelectValue placeholder="Search for your account" /></SelectTrigger>
-                    <SelectContent>
-                      {members?.map(m => (
-                        <SelectItem key={m.id} value={m.id}>{m.name} ({m.memberNumber})</SelectItem>
-                      ))}
-                      {!members?.length && <div className="p-2 text-xs text-muted-foreground">No members found.</div>}
-                    </SelectContent>
-                  </Select>
+                <div className="mt-4 space-y-4 animate-in fade-in slide-in-from-top-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="memberId">Member ID Number</Label>
+                    <Input 
+                      id="memberId"
+                      placeholder="e.g. MEM-12345"
+                      value={inputMemberId}
+                      onChange={(e) => setInputMemberId(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="lastName">Member Last Name</Label>
+                    <Input 
+                      id="lastName"
+                      placeholder="e.g. Smith"
+                      value={inputMemberLastName}
+                      onChange={(e) => setInputMemberLastName(e.target.value)}
+                    />
+                  </div>
+                  <p className="text-[10px] text-muted-foreground italic">
+                    For security, both fields are required to verify your club account.
+                  </p>
                 </div>
               )}
             </div>

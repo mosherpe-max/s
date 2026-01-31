@@ -60,6 +60,7 @@ export interface Order {
   customerName: string;
   paymentMethod?: 'Credit Card' | 'Member Account';
   memberId?: string;
+  memberLastName?: string;
   deliveryLocation: {
     latitude: number;
     longitude: number;
