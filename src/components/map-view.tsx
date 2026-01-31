@@ -7,7 +7,12 @@ import { useEffect } from 'react';
 
 interface MapViewProps {
   buyerLocation?: { latitude: number; longitude: number };
-  sellerLocation: { latitude: number; longitude: number };
+  sellerLocation?: { latitude: number; longitude: number };
+  sellers?: {
+    id: string;
+    name: string;
+    location: { latitude: number; longitude: number };
+  }[];
   buyers?: { 
     id: string; 
     name: string; 
@@ -19,47 +24,51 @@ interface MapViewProps {
   interactive?: boolean;
 }
 
-function MapElements({ buyerLocation, sellerLocation, buyers, radius, zoomMode = 'all' }: Omit<MapViewProps, 'interactive'>) {
+function MapElements({ buyerLocation, sellerLocation, sellers, buyers, radius, zoomMode = 'all' }: Omit<MapViewProps, 'interactive'>) {
     const map = useMap();
 
     useEffect(() => {
         if (!map) return;
     
         const bounds = new window.google.maps.LatLngBounds();
-        const sellerLatLng = new window.google.maps.LatLng(sellerLocation.latitude, sellerLocation.longitude);
         const hasBuyers = buyers && buyers.length > 0;
+        const hasSellers = sellers && sellers.length > 0;
 
         // This component is used for both buyer tracking and the seller dashboard.
-        if (buyerLocation) {
+        if (buyerLocation && sellerLocation) {
             // --- Buyer Order Tracking View ---
-            // Always fit both the seller (driver) and the buyer.
-            bounds.extend(sellerLatLng);
+            bounds.extend(new window.google.maps.LatLng(sellerLocation.latitude, sellerLocation.longitude));
             bounds.extend(new window.google.maps.LatLng(buyerLocation.latitude, buyerLocation.longitude));
-            map.fitBounds(bounds, 50); // Reduced padding to zoom in further
+            map.fitBounds(bounds, 50);
 
-        } else {
-            // --- Seller Dashboard View ---
-            if (zoomMode === 'all' && hasBuyers) {
-                // 'All' mode: fit the driver and all buyers.
-                bounds.extend(sellerLatLng);
+        } else if (zoomMode === 'all' && (hasBuyers || hasSellers || sellerLocation)) {
+            // --- Global Ops View ---
+            if (sellerLocation) {
+                bounds.extend(new window.google.maps.LatLng(sellerLocation.latitude, sellerLocation.longitude));
+            }
+            if (sellers) {
+                sellers.forEach(s => {
+                    bounds.extend(new window.google.maps.LatLng(s.location.latitude, s.location.longitude));
+                });
+            }
+            if (buyers) {
                 buyers.forEach(buyer => {
                     bounds.extend(new window.google.maps.LatLng(buyer.location.latitude, buyer.location.longitude));
                 });
-                map.fitBounds(bounds, 100); // Add some padding
-
-            } else {
-                // 'Radius' mode OR 'All' mode with no buyers:
-                // Center on the driver with a fixed, close-up zoom level.
-                map.setCenter(sellerLatLng);
-                map.setZoom(17); // A zoom level of 17 is great for seeing course details like holes.
             }
+            map.fitBounds(bounds, 100);
+
+        } else if (sellerLocation) {
+            // --- Focus Mode ---
+            map.setCenter({ lat: sellerLocation.latitude, lng: sellerLocation.longitude });
+            map.setZoom(17);
         }
     
-    }, [map, buyerLocation, sellerLocation, buyers, zoomMode]); 
+    }, [map, buyerLocation, sellerLocation, sellers, buyers, zoomMode]); 
 
-    // Effect to draw the radius circle for the seller dashboard
+    // Effect to draw the radius circle around the primary seller location
     useEffect(() => {
-      if (!map || !radius) return;
+      if (!map || !radius || !sellerLocation) return;
 
       const circle = new window.google.maps.Circle({
           strokeColor: "hsl(var(--accent))",
@@ -82,8 +91,8 @@ function MapElements({ buyerLocation, sellerLocation, buyers, radius, zoomMode =
 }
 
 
-export function MapView({ buyerLocation, sellerLocation, buyers, radius, zoomMode, interactive = true }: MapViewProps) {
-    const center = buyerLocation ? { lat: buyerLocation.latitude, lng: buyerLocation.longitude } : { lat: sellerLocation.latitude, lng: sellerLocation.longitude };
+export function MapView({ buyerLocation, sellerLocation, sellers, buyers, radius, zoomMode, interactive = true }: MapViewProps) {
+    const center = buyerLocation ? { lat: buyerLocation.latitude, lng: buyerLocation.longitude } : (sellerLocation ? { lat: sellerLocation.latitude, lng: sellerLocation.longitude } : { lat: 0, lng: 0 });
     
   return (
     <div className="relative w-full h-full">
@@ -99,18 +108,33 @@ export function MapView({ buyerLocation, sellerLocation, buyers, radius, zoomMod
         streetViewControl={false}
         fullscreenControl={false}
       >
-        <MapElements sellerLocation={sellerLocation} buyerLocation={buyerLocation} buyers={buyers} radius={radius} zoomMode={zoomMode} />
-        {/* Seller Pin (Driver) - Uses Indigo to stand out from green/yellow/red order markers */}
-        <AdvancedMarker position={{ lat: sellerLocation.latitude, lng: sellerLocation.longitude }}>
-            <div className="flex flex-col items-center">
-                <div className="bg-indigo-600 p-2 rounded-full shadow-lg border-2 border-white">
-                    <Truck className="w-6 h-6 text-white" />
+        <MapElements sellerLocation={sellerLocation} buyerLocation={buyerLocation} sellers={sellers} buyers={buyers} radius={radius} zoomMode={zoomMode} />
+        
+        {/* Render all Sellers (Drivers) */}
+        {sellers && sellers.map(s => (
+            <AdvancedMarker key={s.id} position={{ lat: s.location.latitude, lng: s.location.longitude }}>
+                <div className="flex flex-col items-center">
+                    <div className="bg-indigo-600 p-2 rounded-full shadow-lg border-2 border-white">
+                        <Truck className="w-6 h-6 text-white" />
+                    </div>
+                    <div className="w-0 h-0 border-l-8 border-l-transparent border-r-8 border-r-transparent border-t-8 border-t-indigo-600"></div>
                 </div>
-                <div className="w-0 h-0 border-l-8 border-l-transparent border-r-8 border-r-transparent border-t-8 border-t-indigo-600"></div>
-            </div>
-        </AdvancedMarker>
+            </AdvancedMarker>
+        ))}
 
-        {/* Single Buyer Pin */}
+        {/* Primary Seller Pin (if not in sellers array) */}
+        {sellerLocation && (!sellers || !sellers.some(s => s.location.latitude === sellerLocation.latitude && s.location.longitude === sellerLocation.longitude)) && (
+             <AdvancedMarker position={{ lat: sellerLocation.latitude, lng: sellerLocation.longitude }}>
+                <div className="flex flex-col items-center">
+                    <div className="bg-indigo-600 p-2 rounded-full shadow-lg border-2 border-white">
+                        <Truck className="w-6 h-6 text-white" />
+                    </div>
+                    <div className="w-0 h-0 border-l-8 border-l-transparent border-r-8 border-r-transparent border-t-8 border-t-indigo-600"></div>
+                </div>
+            </AdvancedMarker>
+        )}
+
+        {/* Single Buyer Pin (for order tracking view) */}
         {buyerLocation && (
             <AdvancedMarker position={{ lat: buyerLocation.latitude, lng: buyerLocation.longitude }}>
                 <div className="flex flex-col items-center">
@@ -122,7 +146,7 @@ export function MapView({ buyerLocation, sellerLocation, buyers, radius, zoomMod
             </AdvancedMarker>
         )}
 
-        {/* Multiple Buyer Pins (for seller view) */}
+        {/* Multiple Buyer Pins (for ops view) */}
         {buyers && buyers.map((buyer, index) => {
             const colorClass = buyer.colorClass || "bg-accent";
             const arrowColorClass = colorClass.replace('bg-', 'border-t-');

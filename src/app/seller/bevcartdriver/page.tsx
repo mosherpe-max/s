@@ -36,27 +36,35 @@ export default function BevCartDriverDashboardPage() {
   const lastOrderIdsRef = useRef<Set<string>>(new Set());
   const initialLoadRef = useRef(true);
 
-  const sellerRef = useMemoFirebase(() => {
+  // Fetch current primary driver (demo-course)
+  const primarySellerRef = useMemoFirebase(() => {
     if (!firestore) return null;
     return doc(firestore, 'sellers', 'demo-course');
   }, [firestore]);
-  const { data: seller, isLoading: isSellerLoading } = useDoc<Seller>(sellerRef);
+  const { data: primarySeller, isLoading: isPrimaryLoading } = useDoc<Seller>(primarySellerRef);
 
-  const isActive = seller?.status === 'Active';
+  // Fetch all active sellers to show on map
+  const activeSellersQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return query(collection(firestore, 'sellers'), where('status', '==', 'Active'));
+  }, [firestore]);
+  const { data: activeSellers, isLoading: areSellersLoading } = useCollection<Seller>(activeSellersQuery);
 
+  const isPrimaryActive = primarySeller?.status === 'Active';
+
+  // Fetch all active orders globally
   const activeOrdersQuery = useMemoFirebase(() => {
-    if (!firestore || !isActive) return null;
+    if (!firestore) return null;
     return query(
       collection(firestore, 'orders'),
-      where('sellerId', '==', 'demo-course'),
       where('status', 'in', ['Placed', 'Preparing', 'Out for Delivery'])
     );
-  }, [firestore, isActive]);
+  }, [firestore]);
 
   const { data: activeOrders, isLoading: areActiveOrdersLoading } = useCollection<Order>(activeOrdersQuery);
 
   useEffect(() => {
-    if (!activeOrders || !isActive) return;
+    if (!activeOrders) return;
 
     const currentOrderIds = new Set(activeOrders.map(o => o.id));
     const newPlacedOrders = activeOrders.filter(o => o.status === 'Placed' && !lastOrderIdsRef.current.has(o.id));
@@ -72,13 +80,13 @@ export default function BevCartDriverDashboardPage() {
             <span className="font-headline font-bold text-lg">New Order Received!</span>
           </div>
         ),
-        description: `You have ${newPlacedOrders.length} new order(s) waiting for confirmation.`,
+        description: `There are ${newPlacedOrders.length} new order(s) waiting for confirmation.`,
       });
     }
 
     lastOrderIdsRef.current = currentOrderIds;
     initialLoadRef.current = false;
-  }, [activeOrders, isActive, toast]);
+  }, [activeOrders, toast]);
 
   useEffect(() => {
     setNow(Date.now());
@@ -117,7 +125,7 @@ export default function BevCartDriverDashboardPage() {
   }, []);
 
   useEffect(() => {
-    if (!firestore || !isActive) return;
+    if (!firestore || !isPrimaryActive) return;
 
     const syncLocation = async () => {
       if (sellerLocRef.current) {
@@ -131,7 +139,7 @@ export default function BevCartDriverDashboardPage() {
 
     const intervalId = setInterval(syncLocation, 15000);
     return () => clearInterval(intervalId);
-  }, [firestore, isActive]);
+  }, [firestore, isPrimaryActive]);
 
   const handleUpdateOrderStatus = (orderId: string, status: Order['status']) => {
     if (!firestore) return;
@@ -164,8 +172,17 @@ export default function BevCartDriverDashboardPage() {
       });
   };
 
-  const orders = isActive ? activeOrders || [] : [];
-  const isLoading = (areActiveOrdersLoading && isActive) || isSellerLoading;
+  const orders = activeOrders || [];
+  const isLoading = areActiveOrdersLoading || isPrimaryLoading || areSellersLoading;
+
+  const mappedSellers = useMemo(() => {
+    if (!activeSellers) return [];
+    return activeSellers.map(s => ({
+        id: s.id,
+        name: s.courseName,
+        location: { latitude: s.latitude, longitude: s.longitude }
+    }));
+  }, [activeSellers]);
 
   const mappedBuyers = useMemo(() => {
     if (!now) return [];
@@ -186,16 +203,16 @@ export default function BevCartDriverDashboardPage() {
     });
   }, [orders, now]);
 
-  if (!isSellerLoading && !seller) {
+  if (!isPrimaryLoading && !primarySeller) {
       return (
           <div className="flex flex-col items-center justify-center h-screen p-8 text-center space-y-6">
               <AlertCircle className="h-16 w-16 text-muted-foreground opacity-20" />
-              <h1 className="text-2xl font-headline font-bold">Demo Course Not Initialized</h1>
+              <h1 className="text-2xl font-headline font-bold">KOOP Driver Interface</h1>
               <p className="text-muted-foreground max-w-sm">
-                  The demo course seller profile is missing from the database.
+                  Initialize your seller profile to access driver tools.
               </p>
               <Button asChild>
-                  <Link href="/sellers/demo-course">Initialize Demo Course</Link>
+                  <Link href="/sellers/demo-course">Initialize Driver Profile</Link>
               </Button>
           </div>
       );
@@ -206,16 +223,16 @@ export default function BevCartDriverDashboardPage() {
       <div className="flex flex-col h-screen overflow-hidden">
         <header className="flex-shrink-0 px-4 h-16 flex items-center justify-between border-b bg-background z-20 shadow-sm">
           <h1 className="font-headline text-lg md:text-xl font-bold text-foreground">
-            {seller?.courseName || 'Demo Course'} - Driver Dashboard
+            KOOP Operational Dashboard
           </h1>
           <div className="flex items-center space-x-3">
             <Switch 
               id="active-mode" 
-              checked={isActive} 
+              checked={isPrimaryActive} 
               onCheckedChange={handleToggleActive} 
             />
             <Label htmlFor="active-mode" className="text-sm font-semibold whitespace-nowrap">
-              {isActive ? 'Active' : 'Inactive'}
+              {isPrimaryActive ? 'My Cart: Active' : 'My Cart: Inactive'}
             </Label>
           </div>
         </header>
@@ -233,6 +250,7 @@ export default function BevCartDriverDashboardPage() {
             {sellerLocation ? (
               <MapView
                 sellerLocation={sellerLocation}
+                sellers={mappedSellers}
                 buyers={mappedBuyers}
                 radius={1609.34}
                 zoomMode={zoomMode}
@@ -244,7 +262,7 @@ export default function BevCartDriverDashboardPage() {
           
           <div className="w-full md:w-1/3 flex flex-col bg-background border-t md:border-t-0 md:border-l overflow-hidden min-h-0">
             <h2 className="font-headline text-lg font-semibold px-4 pt-3 pb-2 shrink-0 border-b flex items-center justify-between">
-              <span>Active Orders</span>
+              <span>All Pending Orders</span>
               <span className="bg-primary text-primary-foreground text-xs rounded-full px-2 py-0.5">
                 {orders.length}
               </span>
@@ -261,7 +279,7 @@ export default function BevCartDriverDashboardPage() {
                   <div className="flex flex-col items-center justify-center text-muted-foreground py-20 text-center px-4">
                     <Package className="h-12 w-12 opacity-20 mb-2" />
                     <p className="italic">
-                      {isActive ? 'No active orders right now.' : 'Cart is currently inactive.'}
+                      No active orders globally.
                     </p>
                   </div>
                 ) : (
