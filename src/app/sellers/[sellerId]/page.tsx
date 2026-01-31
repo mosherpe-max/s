@@ -6,7 +6,7 @@ import { collection, doc, setDoc, deleteDoc, writeBatch, query, where } from 'fi
 import { useFirestore, useDoc, useCollection, useMemoFirebase } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { PlusCircle, Edit, Trash2, GripVertical, Filter, DollarSign, ShoppingBag, Clock, Database, Users, UserPlus, Sparkles } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, GripVertical, Filter, DollarSign, ShoppingBag, Clock, Database, Users, UserPlus, Sparkles, Download, Calendar as CalendarIcon, FileSpreadsheet } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
   AlertDialog,
@@ -36,7 +36,7 @@ import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
-import { isToday, isThisMonth, isThisYear } from 'date-fns';
+import { isToday, isThisMonth, isThisYear, format } from 'date-fns';
 
 import type { MenuItem, Seller, Category, Order, Member } from '@/lib/types';
 import { categories } from '@/lib/types';
@@ -215,6 +215,10 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
   const [activeFilter, setActiveFilter] = useState<Category | 'All'>('All');
   const [isSeeding, setIsSeeding] = useState(false);
 
+  // Export filters
+  const [startDate, setStartDate] = useState<string>('');
+  const [endDate, setEndDate] = useState<string>('');
+
   const sellerRef = useMemoFirebase(() => (firestore ? doc(firestore, 'sellers', sellerId) : null), [firestore, sellerId]);
   const { data: seller, isLoading: isSellerLoading } = useDoc<Seller>(sellerRef);
 
@@ -247,6 +251,56 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
     };
   }, [orders]);
 
+  const recentOrders = useMemo(() => {
+    if (!orders) return [];
+    return [...orders].sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis()).slice(0, 5);
+  }, [orders]);
+
+  const handleExportCSV = () => {
+    if (!orders) return;
+    
+    const start = startDate ? new Date(startDate) : new Date(0);
+    const end = endDate ? new Date(endDate) : new Date();
+    // End date should include the full day
+    end.setHours(23, 59, 59, 999);
+
+    const filtered = orders.filter(o => {
+      const date = o.createdAt.toDate();
+      return date >= start && date <= end;
+    });
+
+    if (filtered.length === 0) {
+      toast({ title: "No data", description: "No sales found for the selected date range.", variant: "destructive" });
+      return;
+    }
+
+    const headers = ["Order ID", "Date", "Customer", "Payment Method", "Items", "Subtotal", "Service Fee", "Total", "Status"];
+    const rows = filtered.map(o => [
+      o.id,
+      o.createdAt.toDate().toLocaleString(),
+      o.customerName,
+      o.paymentMethod || 'N/A',
+      o.items.map(i => `${i.name} (${i.quantity})`).join("; "),
+      o.subtotal.toFixed(2),
+      o.serviceFee.toFixed(2),
+      o.total.toFixed(2),
+      o.status
+    ]);
+
+    const csvContent = [headers, ...rows].map(e => e.join(",")).join("\n");
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `sales_report_${seller?.courseName || sellerId}_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    toast({ title: "Export Started", description: "Your sales report is downloading." });
+  };
+
   const handleSeedData = async () => {
     if (!firestore) return;
     setIsSeeding(true);
@@ -261,13 +315,11 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
         });
       }
 
-      // Seed Menu Items
       mockMenuItems.forEach((item, index) => {
         const newItemRef = doc(collection(firestore, 'sellers', sellerId, 'menuItems'));
         batch.set(newItemRef, { ...item, id: newItemRef.id, rank: index + 1 });
       });
 
-      // Seed Members for Private Courses
       sampleMembers.forEach((member) => {
         const memberRef = doc(collection(firestore, 'sellers', sellerId, 'members'));
         batch.set(memberRef, { ...member, id: memberRef.id });
@@ -357,6 +409,61 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
             <StatTile title="This Year" {...dashboardStats.yearly} />
           </>
         ) : <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full"><Skeleton className="h-40 w-full" /><Skeleton className="h-40 w-full" /><Skeleton className="h-40 w-full" /></div>}</div>
+      </section>
+
+      {/* NEW: Recent Sales and Export Tile */}
+      <section className="mb-12">
+        <Card>
+          <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div>
+              <CardTitle className="flex items-center gap-2"><FileSpreadsheet className="h-5 w-5" /> Recent Sales & Export</CardTitle>
+              <CardDescription>View latest activity or export historical data.</CardDescription>
+            </div>
+            <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+                <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="h-8 w-full sm:w-36 text-xs" />
+                <span className="text-muted-foreground">-</span>
+                <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="h-8 w-full sm:w-36 text-xs" />
+              </div>
+              <Button onClick={handleExportCSV} variant="outline" size="sm" className="w-full sm:w-auto">
+                <Download className="mr-2 h-4 w-4" /> Export CSV
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {areOrdersLoading ? <Skeleton className="h-32 w-full" /> : recentOrders && recentOrders.length > 0 ? (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Order #</TableHead>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Customer</TableHead>
+                      <TableHead>Total</TableHead>
+                      <TableHead>Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {recentOrders.map(order => (
+                      <TableRow key={order.id}>
+                        <TableCell className="font-mono text-xs">{order.id.slice(0, 8)}</TableCell>
+                        <TableCell className="text-xs">{order.createdAt && format(order.createdAt.toDate(), 'MMM d, h:mm a')}</TableCell>
+                        <TableCell className="text-sm font-medium">{order.customerName}</TableCell>
+                        <TableCell className="font-mono text-sm">${order.total.toFixed(2)}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="text-[10px]">{order.status}</Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground italic">No recent sales data available.</div>
+            )}
+          </CardContent>
+        </Card>
       </section>
 
       <div className="flex flex-col md:flex-row gap-4 mb-6">
