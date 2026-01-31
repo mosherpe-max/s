@@ -49,6 +49,7 @@ export interface MenuItem {
     price: number;
     category: Category;
     rank: number;
+    availableOn?: string[];
 }
 
 export interface Member {

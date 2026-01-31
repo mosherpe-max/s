@@ -143,6 +143,11 @@
         "rank": {
           "type": "number",
           "description": "The display order of the menu item within its category."
+        },
+        "availableOn": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "The specific menu types (e.g., 'Beverage Cart') this item is available for."
         }
       },
       "required": [

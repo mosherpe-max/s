@@ -6,7 +6,7 @@ import { collection, doc, setDoc, deleteDoc, writeBatch, query, where, updateDoc
 import { useFirestore, useDoc, useCollection, useMemoFirebase } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
-import { PlusCircle, Edit, Trash2, GripVertical, Filter, DollarSign, ShoppingBag, Clock, Database, Users, UserPlus, Sparkles, Download, Calendar as CalendarIcon, FileSpreadsheet, Palette, Save, Loader2, Upload, Smartphone, Beer, Martini, GlassWater, Cookie } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, GripVertical, Filter, DollarSign, ShoppingBag, Clock, Database, Users, UserPlus, Sparkles, Download, Calendar as CalendarIcon, FileSpreadsheet, Palette, Save, Loader2, Upload, Smartphone, Beer, Martini, GlassWater, Cookie, ListChecks } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
   AlertDialog,
@@ -31,6 +31,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -51,6 +52,7 @@ const menuItemSchema = z.object({
   description: z.string().optional(),
   price: z.coerce.number().min(0, 'Price must be a positive number'),
   category: z.enum(categories),
+  availableOn: z.array(z.string()).min(1, 'Select at least one menu type'),
 });
 
 type MenuItemFormData = z.infer<typeof menuItemSchema>;
@@ -82,11 +84,13 @@ function MenuItemForm({
   onClose,
   menuItem,
   disabled,
+  sellerMenuTypes,
 }: {
   onSave: (itemData: MenuItemFormData) => void;
   onClose: () => void;
   menuItem?: MenuItem | null;
   disabled?: boolean;
+  sellerMenuTypes: string[];
 }) {
   const form = useForm<MenuItemFormData>({
     resolver: zodResolver(menuItemSchema),
@@ -95,19 +99,26 @@ function MenuItemForm({
       description: '',
       price: 0,
       category: 'Beer',
+      availableOn: sellerMenuTypes,
     },
   });
 
   const isEditing = !!menuItem;
 
   useEffect(() => {
-    form.reset(menuItem || { name: '', description: '', price: 0, category: 'Beer' });
-  }, [menuItem, form]);
+    form.reset(menuItem || { 
+      name: '', 
+      description: '', 
+      price: 0, 
+      category: 'Beer', 
+      availableOn: sellerMenuTypes 
+    });
+  }, [menuItem, form, sellerMenuTypes]);
 
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSave)}>
-        <div className="grid gap-4 py-4">
+        <div className="grid gap-4 py-4 max-h-[70vh] overflow-y-auto pr-2">
           <FormField control={form.control} name="name" render={({ field }) => (
             <FormItem><FormLabel>Item Name</FormLabel><FormControl><Input {...field} placeholder="e.g., Craft IPA" /></FormControl><FormMessage /></FormItem>
           )} />
@@ -120,8 +131,56 @@ function MenuItemForm({
           <FormField control={form.control} name="category" render={({ field }) => (
             <FormItem><FormLabel>Category</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select a category" /></SelectTrigger></FormControl><SelectContent>{categories.map((cat) => (<SelectItem key={cat} value={cat}>{cat}</SelectItem>))}</SelectContent></Select><FormMessage /></FormItem>
           )} />
+
+          <FormField
+            control={form.control}
+            name="availableOn"
+            render={() => (
+              <FormItem className="space-y-3">
+                <FormLabel className="flex items-center gap-2">
+                  <ListChecks className="h-4 w-4" /> Available On
+                </FormLabel>
+                <div className="grid grid-cols-1 gap-2 border rounded-md p-3">
+                  {sellerMenuTypes.map((type) => (
+                    <FormField
+                      key={type}
+                      control={form.control}
+                      name="availableOn"
+                      render={({ field }) => {
+                        return (
+                          <FormItem
+                            key={type}
+                            className="flex flex-row items-start space-x-3 space-y-0"
+                          >
+                            <FormControl>
+                              <Checkbox
+                                checked={field.value?.includes(type)}
+                                onCheckedChange={(checked) => {
+                                  return checked
+                                    ? field.onChange([...field.value, type])
+                                    : field.onChange(
+                                        field.value?.filter(
+                                          (value) => value !== type
+                                        )
+                                      )
+                                }}
+                              />
+                            </FormControl>
+                            <FormLabel className="text-sm font-normal cursor-pointer">
+                              {type}
+                            </FormLabel>
+                          </FormItem>
+                        )
+                      }}
+                    />
+                  ))}
+                </div>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
         </div>
-        <div className="flex justify-end gap-2">
+        <div className="flex justify-end gap-2 pt-4 border-t">
           <Button type="button" variant="ghost" onClick={onClose}>Cancel</Button>
           <Button type="submit" disabled={disabled}>{isEditing ? 'Save Changes' : 'Add Item'}</Button>
         </div>
@@ -449,7 +508,12 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
 
       mockMenuItems.forEach((item, index) => {
         const newItemRef = doc(collection(firestore, 'sellers', sellerId, 'menuItems'));
-        batch.set(newItemRef, { ...item, id: newItemRef.id, rank: index + 1 });
+        batch.set(newItemRef, { 
+          ...item, 
+          id: newItemRef.id, 
+          rank: index + 1,
+          availableOn: ['Beverage Cart', 'Clubhouse', 'Pool', 'Take Out', 'Halfway House']
+        });
       });
 
       sampleMembers.forEach((member) => {
@@ -713,7 +777,7 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
             <Button key={filter} variant={activeFilter === filter ? 'default' : 'outline'} size="sm" onClick={() => setActiveFilter(filter as any)} className="h-8">{filter}</Button>
           ))}
         </div>
-        <Button onClick={() => { setEditingItem(null); setIsItemFormOpen(true); }} size="sm"><PlusCircle className="mr-2 h-4 w-4" /> Add Menu Item</Button>
+        <Button onClick={() => { setEditingItem(null); setIsItemFormOpen(true); }} size="sm" disabled={!seller}><PlusCircle className="mr-2 h-4 w-4" /> Add Menu Item</Button>
       </div>
 
       <Card className="mb-12">
@@ -728,8 +792,25 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
                   <div className="space-y-2 mt-4">
                     {groupedItems[category].sort((a,b) => a.rank - b.rank).map((item) => (
                       <div key={item.id} className="flex items-center justify-between gap-4 p-2 rounded-lg bg-muted/50 border border-transparent hover:border-border">
-                        <div className="flex items-center gap-4"><GripVertical className="h-5 w-5 text-muted-foreground" /><div><p className="font-medium">{item.name}</p><p className="text-sm text-muted-foreground">${item.price.toFixed(2)}</p></div></div>
-                        <div className="flex items-center gap-2"><Badge variant="secondary" className="hidden sm:inline-flex">{item.category}</Badge><Button variant="ghost" size="icon" onClick={() => { setEditingItem(item); setIsItemFormOpen(true); }}><Edit className="h-4 w-4" /></Button><Button variant="ghost" size="icon" className="text-destructive" onClick={() => { if (!firestore) return; deleteDoc(doc(firestore, 'sellers', sellerId, 'menuItems', item.id)); }}><Trash2 className="h-4 w-4" /></Button></div>
+                        <div className="flex items-center gap-4">
+                          <GripVertical className="h-5 w-5 text-muted-foreground" />
+                          <div>
+                            <p className="font-medium">{item.name}</p>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              <p className="text-sm text-muted-foreground">${item.price.toFixed(2)}</p>
+                              <div className="flex gap-1">
+                                {item.availableOn?.map(type => (
+                                  <Badge key={type} variant="outline" className="text-[9px] h-4 px-1">{type}</Badge>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="secondary" className="hidden sm:inline-flex">{item.category}</Badge>
+                          <Button variant="ghost" size="icon" onClick={() => { setEditingItem(item); setIsItemFormOpen(true); }}><Edit className="h-4 w-4" /></Button>
+                          <Button variant="ghost" size="icon" className="text-destructive" onClick={() => { if (!firestore) return; deleteDoc(doc(firestore, 'sellers', sellerId, 'menuItems', item.id)); }}><Trash2 className="h-4 w-4" /></Button>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -792,7 +873,17 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
         </section>
       )}
 
-      <Dialog open={isItemFormOpen} onOpenChange={setIsItemFormOpen}><DialogContent className="sm:max-w-[425px]"><DialogHeader><DialogTitle>{editingItem ? 'Edit Item' : 'Add Item'}</DialogTitle></DialogHeader><MenuItemForm onSave={handleSaveMenuItem} menuItem={editingItem} onClose={() => setIsItemFormOpen(false)} /></DialogContent></Dialog>
+      <Dialog open={isItemFormOpen} onOpenChange={setIsItemFormOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader><DialogTitle>{editingItem ? 'Edit Item' : 'Add Item'}</DialogTitle></DialogHeader>
+          <MenuItemForm 
+            onSave={handleSaveMenuItem} 
+            menuItem={editingItem} 
+            onClose={() => setIsItemFormOpen(false)} 
+            sellerMenuTypes={seller?.menuTypes || []}
+          />
+        </DialogContent>
+      </Dialog>
       <Dialog open={isMemberFormOpen} onOpenChange={setIsMemberFormOpen}><DialogContent className="sm:max-w-[425px]"><DialogHeader><DialogTitle>{editingMember ? 'Edit Member' : 'Add Member'}</DialogTitle></DialogHeader><MemberForm onSave={handleSaveMember} member={editingMember} onClose={() => setIsMemberFormOpen(false)} /></DialogContent></Dialog>
 
       <AlertDialog open={!!memberToDelete} onOpenChange={(open) => !open && setMemberToDelete(null)}>

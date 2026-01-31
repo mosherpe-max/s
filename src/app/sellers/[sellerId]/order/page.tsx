@@ -52,6 +52,15 @@ export default function BuyerOrderPage({ params }: { params: { sellerId: string 
   const menuItemsQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'sellers', sellerId, 'menuItems') : null), [firestore, sellerId]);
   const { data: menuItems, isLoading: areItemsLoading } = useCollection<MenuItem>(menuItemsQuery);
 
+  const filteredMenuItems = useMemo(() => {
+    if (!menuItems) return [];
+    if (!selectedMenuType) return menuItems;
+    // Filter items based on availability for the selected menu type
+    return menuItems.filter(item => 
+      !item.availableOn || item.availableOn.length === 0 || item.availableOn.includes(selectedMenuType)
+    );
+  }, [menuItems, selectedMenuType]);
+
   const isPrivateCourse = seller?.type === 'Private Golf Course';
   const isSemiPrivateCourse = seller?.type === 'Semi Private Golf Course';
 
@@ -237,7 +246,7 @@ export default function BuyerOrderPage({ params }: { params: { sellerId: string 
             orderItems={orderItems} 
             onUpdateItem={updateItem} 
             selectedCategory={selectedCategory} 
-            menuItems={menuItems || []} 
+            menuItems={filteredMenuItems} 
             accentColor={brandStyle.primaryColor}
           />
         )}
@@ -278,16 +287,16 @@ export default function BuyerOrderPage({ params }: { params: { sellerId: string 
                 {selectedMenuType === 'Halfway House' && (
                     <div className="space-y-2 animate-in slide-in-from-top-2">
                         <Label>Select Halfway House</Label>
-                        <Select value={menuTypeLocation} onValueChange={setMenuTypeLocation}>
-                            <SelectTrigger>
-                                <SelectValue placeholder="Which house are you at?" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {seller?.halfwayHouseNames?.map(name => (
-                                    <SelectItem key={name} value={name}>{name}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                        <select 
+                          className="w-full p-2 border rounded-md"
+                          value={menuTypeLocation} 
+                          onChange={(e) => setMenuTypeLocation(e.target.value)}
+                        >
+                          <option value="">Which house are you at?</option>
+                          {seller?.halfwayHouseNames?.map(name => (
+                              <option key={name} value={name}>{name}</option>
+                          ))}
+                        </select>
                     </div>
                 )}
 
