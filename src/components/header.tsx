@@ -6,7 +6,6 @@ import { usePathname } from 'next/navigation';
 import { ShoppingCart } from 'lucide-react';
 import { useCart } from '@/lib/cart-context';
 import { useState, useEffect } from 'react';
-import { useFirestore } from '@/firebase';
 
 const KoopLogo = () => (
   <div className="flex items-center gap-0.5 font-headline font-bold text-2xl tracking-tighter text-white">
@@ -36,7 +35,7 @@ export function AppHeader() {
   if (isDriverPage) return null;
 
   return (
-    <header className="sticky top-0 z-40 bg-[#213147] border-b border-[#E50000]">
+    <header className="sticky top-0 z-40 bg-[#213147] border-b-2 border-[#E50000]">
       <div className="container mx-auto flex h-16 items-center justify-between px-4">
         <div className="flex items-center gap-8">
           <Link href="/" className="flex items-center transition-opacity hover:opacity-90">
