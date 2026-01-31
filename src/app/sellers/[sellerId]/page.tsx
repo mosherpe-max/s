@@ -31,6 +31,8 @@ import type { MenuItem, Seller, Category, Order } from '@/lib/types';
 import { categories } from '@/lib/types';
 import { menuItems as mockMenuItems } from '@/lib/data';
 import { useToast } from '@/hooks/use-toast';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 const menuItemSchema = z.object({
   name: z.string().min(1, 'Item name is required'),
@@ -121,7 +123,7 @@ function MenuItemForm({
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Category</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <Select onValueChange={field.onChange} value={field.value}>
                   <FormControl>
                     <SelectTrigger>
                       <SelectValue placeholder="Select a category" />
@@ -250,7 +252,6 @@ export default function SellerAdminPage({
     try {
       const batch = writeBatch(firestore);
   
-      // If seller doesn't exist, create the demo seller doc
       if (!seller) {
         const sellerDoc = doc(firestore, 'sellers', sellerId);
         batch.set(sellerDoc, {
@@ -287,7 +288,6 @@ export default function SellerAdminPage({
         description: `Demo data has been seeded for ${sellerId}.`,
       });
     } catch (error) {
-      console.error(error);
       toast({
         variant: "destructive",
         title: "Seeding Failed",
@@ -312,22 +312,37 @@ export default function SellerAdminPage({
   const handleSaveMenuItem = (itemData: MenuItemFormData) => {
     if (!firestore) return;
     
-    if (editingItem) {
-      const itemRef = doc(firestore, 'sellers', sellerId, 'menuItems', editingItem.id);
-      setDoc(itemRef, itemData, { merge: true });
-    } else {
-      const newItemRef = doc(collection(firestore, 'sellers', sellerId, 'menuItems'));
-      const itemsInCategory = menuItems?.filter(item => item.category === itemData.category) || [];
-      const newRank = itemsInCategory.length > 0 ? Math.max(...itemsInCategory.map(item => item.rank)) + 1 : 1;
-      setDoc(newItemRef, { ...itemData, id: newItemRef.id, rank: newRank });
-    }
+    const itemRef = editingItem 
+      ? doc(firestore, 'sellers', sellerId, 'menuItems', editingItem.id)
+      : doc(collection(firestore, 'sellers', sellerId, 'menuItems'));
+
+    const itemsInCategory = menuItems?.filter(item => item.category === itemData.category) || [];
+    const newRank = editingItem ? editingItem.rank : (itemsInCategory.length > 0 ? Math.max(...itemsInCategory.map(item => item.rank)) + 1 : 1);
+    
+    const payload = editingItem ? itemData : { ...itemData, id: itemRef.id, rank: newRank };
+
+    setDoc(itemRef, payload, { merge: true })
+      .catch(async (error) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+          path: itemRef.path,
+          operation: editingItem ? 'update' : 'create',
+          requestResourceData: payload
+        }));
+      });
+
     handleCloseItemForm();
   };
 
   const handleDeleteMenuItem = (itemId: string) => {
     if (!firestore) return;
     const itemRef = doc(firestore, 'sellers', sellerId, 'menuItems', itemId);
-    deleteDoc(itemRef);
+    deleteDoc(itemRef)
+      .catch(async (error) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+          path: itemRef.path,
+          operation: 'delete'
+        }));
+      });
   };
 
   const isLoading = isSellerLoading || areItemsLoading || areOrdersLoading;

@@ -1,3 +1,4 @@
+
 'use client'
 
 import { collection, query, where, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
@@ -16,6 +17,8 @@ import { Button } from '@/components/ui/button';
 import { Focus, Bell, Package, AlertCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 type LatLng = {
   latitude: number;
@@ -118,7 +121,7 @@ export default function BevCartDriverDashboardPage() {
     const syncLocation = async () => {
       if (sellerLocRef.current) {
         const sellerDocRef = doc(firestore, 'sellers', 'demo-course');
-        await updateDoc(sellerDocRef, {
+        updateDoc(sellerDocRef, {
           latitude: sellerLocRef.current.latitude,
           longitude: sellerLocRef.current.longitude
         }).catch(() => {});
@@ -129,20 +132,35 @@ export default function BevCartDriverDashboardPage() {
     return () => clearInterval(intervalId);
   }, [firestore, isActive]);
 
-  const handleUpdateOrderStatus = async (orderId: string, status: Order['status']) => {
+  const handleUpdateOrderStatus = (orderId: string, status: Order['status']) => {
     if (!firestore) return;
     const orderRef = doc(firestore, 'orders', orderId);
     const updates: any = { status };
     if (status === 'Delivered') {
       updates.deliveredAt = serverTimestamp();
     }
-    await updateDoc(orderRef, updates);
+    updateDoc(orderRef, updates)
+      .catch(async (error) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+          path: orderRef.path,
+          operation: 'update',
+          requestResourceData: updates
+        }));
+      });
   };
 
-  const handleToggleActive = async (checked: boolean) => {
+  const handleToggleActive = (checked: boolean) => {
     if (!firestore) return;
     const sellerDocRef = doc(firestore, 'sellers', 'demo-course');
-    await updateDoc(sellerDocRef, { status: checked ? 'Active' : 'Inactive' });
+    const updates = { status: checked ? 'Active' : 'Inactive' };
+    updateDoc(sellerDocRef, updates)
+      .catch(async (error) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+          path: sellerDocRef.path,
+          operation: 'update',
+          requestResourceData: updates
+        }));
+      });
   };
 
   const orders = isActive ? activeOrders || [] : [];

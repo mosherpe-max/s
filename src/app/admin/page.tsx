@@ -32,6 +32,8 @@ import { Badge } from '@/components/ui/badge';
 import type { Seller } from '@/lib/types';
 import { sellerTypes } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 const sellerSchema = z.object({
   courseName: z.string().min(1, 'Course name is required'),
@@ -98,34 +100,46 @@ export default function KoopAdminPage() {
     setIsFormOpen(true);
   };
 
-  const onSave = async (data: SellerFormData) => {
+  const onSave = (data: SellerFormData) => {
     if (!firestore) return;
 
-    try {
-      if (editingSeller) {
-        const sellerRef = doc(firestore, 'sellers', editingSeller.id);
-        await setDoc(sellerRef, data, { merge: true });
-        toast({ title: 'Seller Updated', description: `${data.courseName} has been updated.` });
-      } else {
-        const newSellerRef = doc(collection(firestore, 'sellers'));
-        await setDoc(newSellerRef, { ...data, id: newSellerRef.id });
-        toast({ title: 'Seller Created', description: `${data.courseName} has been added.` });
-      }
-      setIsFormOpen(false);
-    } catch (error) {
-      toast({ variant: 'destructive', title: 'Error', description: 'Failed to save seller.' });
-    }
+    const sellerRef = editingSeller 
+      ? doc(firestore, 'sellers', editingSeller.id)
+      : doc(collection(firestore, 'sellers'));
+    
+    const payload = editingSeller ? data : { ...data, id: sellerRef.id };
+
+    setDoc(sellerRef, payload, { merge: true })
+      .then(() => {
+        toast({ 
+          title: editingSeller ? 'Seller Updated' : 'Seller Created', 
+          description: `${data.courseName} has been saved.` 
+        });
+        setIsFormOpen(false);
+      })
+      .catch(async (error) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+          path: sellerRef.path,
+          operation: editingSeller ? 'update' : 'create',
+          requestResourceData: payload
+        }));
+      });
   };
 
-  const onDelete = async (id: string, name: string) => {
+  const onDelete = (id: string, name: string) => {
     if (!firestore) return;
     if (confirm(`Are you sure you want to delete ${name}?`)) {
-      try {
-        await deleteDoc(doc(firestore, 'sellers', id));
-        toast({ title: 'Seller Deleted', description: `${name} has been removed.` });
-      } catch (error) {
-        toast({ variant: 'destructive', title: 'Error', description: 'Failed to delete seller.' });
-      }
+      const sellerRef = doc(firestore, 'sellers', id);
+      deleteDoc(sellerRef)
+        .then(() => {
+          toast({ title: 'Seller Deleted', description: `${name} has been removed.` });
+        })
+        .catch(async (error) => {
+          errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: sellerRef.path,
+            operation: 'delete'
+          }));
+        });
     }
   };
 
@@ -238,7 +252,7 @@ export default function KoopAdminPage() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Seller Type</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
                         </FormControl>
@@ -261,7 +275,7 @@ export default function KoopAdminPage() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Status</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger><SelectValue placeholder="Select status" /></SelectTrigger>
                         </FormControl>
