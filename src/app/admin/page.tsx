@@ -52,7 +52,7 @@ import { FirestorePermissionError } from '@/firebase/errors';
 const sellerSchema = z.object({
   courseName: z.string().min(2, 'Course name must be at least 2 characters'),
   type: z.enum(['Private Golf Course', 'Semi Private Golf Course', 'Public Golf Course', 'Bowling Alley', 'Brewery', 'Restaurant'], {
-    required_error: "Please select an establishment type",
+    required_error: "Please select a seller type",
   }),
   streetAddress: z.string().min(1, 'Street address is required'),
   city: z.string().min(1, 'City is required'),
@@ -172,7 +172,7 @@ export default function KoopAdminPage() {
           title: 'Geocoding Failed',
           description: 'Could not calculate coordinates. Please verify the address.'
         });
-        // We stop submission if we can't get coordinates for a NEW establishment
+        // We stop submission if we can't get coordinates for a NEW seller
         if (!editingSeller) {
           setIsSaving(false);
           return;
@@ -233,23 +233,23 @@ export default function KoopAdminPage() {
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
         <div>
           <h1 className="font-headline text-3xl font-bold text-foreground">Koop Admin</h1>
-          <p className="text-muted-foreground">Manage your establishment network and service parameters.</p>
+          <p className="text-muted-foreground">Manage your seller network and service parameters.</p>
         </div>
         <Button onClick={() => handleOpenForm()} className="shadow-md">
           <PlusCircle className="mr-2 h-4 w-4" />
-          Register New Establishment
+          Register New Seller
         </Button>
       </header>
 
       <Card className="shadow-sm border-muted">
         <CardHeader className="bg-muted/30">
-          <CardTitle className="text-xl">Registered Establishments</CardTitle>
+          <CardTitle className="text-xl">Registered Sellers</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
           {isLoading ? (
             <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
                 <Loader2 className="h-8 w-8 animate-spin mb-4" />
-                <p>Loading establishments...</p>
+                <p>Loading sellers...</p>
             </div>
           ) : sellers && sellers.length > 0 ? (
             <div className="overflow-x-auto">
@@ -257,7 +257,7 @@ export default function KoopAdminPage() {
                 <TableHeader>
                   <TableRow className="bg-muted/20">
                     <TableHead className="w-[120px]">ID</TableHead>
-                    <TableHead>Establishment</TableHead>
+                    <TableHead>Seller</TableHead>
                     <TableHead>Type</TableHead>
                     <TableHead>Contact</TableHead>
                     <TableHead>Location</TableHead>
@@ -315,7 +315,7 @@ export default function KoopAdminPage() {
           ) : (
             <div className="text-center py-24 text-muted-foreground border-2 border-dashed m-6 rounded-xl flex flex-col items-center gap-2">
               <Building className="h-12 w-12 opacity-10" />
-              <p className="text-lg font-medium">No establishments registered.</p>
+              <p className="text-lg font-medium">No sellers registered.</p>
               <p className="text-sm">Register your first partner to begin service.</p>
               <Button variant="outline" onClick={() => handleOpenForm()} className="mt-4">Register Now</Button>
             </div>
@@ -326,7 +326,7 @@ export default function KoopAdminPage() {
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
         <DialogContent className="sm:max-w-[700px] max-h-[95vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-2xl font-headline">{editingSeller ? 'Edit Establishment' : 'Register Establishment'}</DialogTitle>
+            <DialogTitle className="text-2xl font-headline">{editingSeller ? 'Edit Seller' : 'Register Seller'}</DialogTitle>
             <DialogDescription>
                 Ensure all details are accurate. Coordinates will be calculated automatically based on the address.
             </DialogDescription>
@@ -355,7 +355,7 @@ export default function KoopAdminPage() {
                     name="type"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Establishment Type</FormLabel>
+                        <FormLabel>Seller Type</FormLabel>
                         <Select onValueChange={field.onChange} value={field.value}>
                           <FormControl>
                             <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
@@ -483,7 +483,7 @@ export default function KoopAdminPage() {
                       <FormItem>
                         <FormLabel>Contact Email</FormLabel>
                         <FormControl>
-                          <Input type="email" placeholder="manager@establishment.com" {...field} />
+                          <Input type="email" placeholder="manager@seller.com" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -528,7 +528,7 @@ export default function KoopAdminPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Confirm Deletion</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to remove <strong>{sellerToDelete?.courseName}</strong>? This will permanently delete the establishment profile and all associated menu items. This action cannot be undone.
+              Are you sure you want to remove <strong>{sellerToDelete?.courseName}</strong>? This will permanently delete the seller profile and all associated menu items. This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
