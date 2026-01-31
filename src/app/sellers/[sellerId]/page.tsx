@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useMemo, useEffect, use } from 'react';
@@ -417,7 +418,7 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
           type: sellerId === 'demo-course' ? 'Public Golf Course' : 'Private Golf Course', 
           streetAddress: '123 Fairway Drive', city: 'Pebble Beach', state: 'CA', zip: '93953',
           latitude: 42.7748, longitude: -83.2139, contactName: 'Pro Shop Manager', contactEmail: 'manager@democourse.com',
-          contactPhone: '555-0100', serviceFee: 2.50, status: 'Active', menuTypes: ['Beverage Cart', 'Clubhouse']
+          contactPhone: '555-0100', serviceFee: 2.50, status: 'Inactive', menuTypes: ['Beverage Cart', 'Clubhouse']
         });
       }
       mockMenuItems.forEach((item, index) => {
@@ -522,7 +523,7 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
         <header className="mb-10">
           <div className="flex items-center gap-3">
               <h1 className="font-headline text-3xl font-bold text-foreground">
-                KOOP Seller Admin: {seller?.courseName || 'Loading...'}
+                Seller Admin: {seller?.courseName || 'Loading...'}
               </h1>
               {seller && <Badge variant="outline">{seller.type}</Badge>}
           </div>

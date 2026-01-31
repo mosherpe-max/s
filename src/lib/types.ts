@@ -36,6 +36,7 @@ export interface Seller {
   // Branding & Customization
   brandColor?: string;
   logoUrl?: string;
+  lastActive?: Timestamp;
 }
 
 export type Category = 'Beer' | 'Spirits' | 'Soft Drinks' | 'Snacks' | 'Entrees' | 'Appetizers' | 'Sandwiches' | 'Dessert';

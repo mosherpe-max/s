@@ -1,3 +1,4 @@
+
 'use client'
 
 import { collection, query, where, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
@@ -86,12 +87,10 @@ export default function BevCartDriverDashboardPage() {
     );
   }, [activeOrders]);
 
-  // Handle Tab Close / App Close (Best Effort)
   useEffect(() => {
     const handleUnload = () => {
       if (firestore && isPrimaryActive) {
         const sellerDocRef = doc(firestore, 'sellers', 'demo-course');
-        // We use updateDoc. Since this is non-blocking, we just fire it.
         updateDoc(sellerDocRef, { status: 'Inactive' }).catch(() => {});
       }
     };
@@ -170,12 +169,12 @@ export default function BevCartDriverDashboardPage() {
         updateDoc(sellerDocRef, {
           latitude: sellerLocRef.current.latitude,
           longitude: sellerLocRef.current.longitude,
-          status: 'Active' // Ensure status stays active while reporting
+          status: 'Active',
+          lastActive: serverTimestamp()
         }).catch(() => {});
       }
     };
 
-    // Reports driver location to Firestore every 30 seconds
     const intervalId = setInterval(syncLocation, 30000);
     return () => clearInterval(intervalId);
   }, [firestore, isPrimaryActive]);
@@ -200,7 +199,10 @@ export default function BevCartDriverDashboardPage() {
   const handleToggleActive = (checked: boolean) => {
     if (!firestore) return;
     const sellerDocRef = doc(firestore, 'sellers', 'demo-course');
-    const updates = { status: checked ? 'Active' : 'Inactive' };
+    const updates = { 
+      status: checked ? 'Active' : 'Inactive',
+      lastActive: checked ? serverTimestamp() : null
+    };
     updateDoc(sellerDocRef, updates)
       .catch(async () => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({
@@ -214,14 +216,28 @@ export default function BevCartDriverDashboardPage() {
   const isLoading = areActiveOrdersLoading || isPrimaryLoading || areSellersLoading;
 
   const mappedSellers = useMemo(() => {
-    if (!activeSellers) return [];
-    return activeSellers.map(s => ({
-        id: s.id,
-        name: s.courseName,
-        location: { latitude: s.latitude, longitude: s.longitude },
-        colorClass: getDriverColorClass(s.id)
-    }));
-  }, [activeSellers]);
+    if (!activeSellers || !now) return [];
+    
+    // Heartbeat Threshold: 2 minutes (120,000 ms)
+    const threshold = 120000;
+
+    return activeSellers
+        .filter(s => {
+            // Exclude self (already shown by primary pin)
+            if (s.id === 'demo-course') return false;
+            
+            // Filter by lastActive heartbeat to prevent ghost markers
+            if (!s.lastActive) return false;
+            const lastActiveTime = s.lastActive.toDate().getTime();
+            return (now - lastActiveTime) < threshold;
+        })
+        .map(s => ({
+            id: s.id,
+            name: s.courseName,
+            location: { latitude: s.latitude, longitude: s.longitude },
+            colorClass: getDriverColorClass(s.id)
+        }));
+  }, [activeSellers, now]);
 
   const mappedBuyers = useMemo(() => {
     if (!now || !activeOrders) return [];
