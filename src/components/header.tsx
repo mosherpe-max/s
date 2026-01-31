@@ -35,16 +35,18 @@ const GolfBallIcon = (props: React.SVGProps<SVGSVGElement>) => (
 export function AppHeader() {
   const pathname = usePathname();
   const { total, totalItems, setIsCartOpen } = useCart();
-  const [mounted, setMounted] = useState(false);
+  
+  // Hydration safety: Initialize states that depend on browser-only info to false/null
+  // This ensures the first render on the client matches the server.
+  const [isOrderPage, setIsOrderPage] = useState(false);
+  const [isDriverPage, setIsDriverPage] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
-    setMounted(true);
-  }, []);
-  
-  // Logic that depends on browser-only state (pathname) is deferred until after hydration
-  // to prevent server/client HTML mismatches.
-  const isOrderPage = mounted && pathname?.includes('/order') && !pathname?.includes('/track');
-  const isDriverPage = mounted && pathname === '/seller/bevcartdriver';
+    setIsMounted(true);
+    setIsOrderPage(pathname?.includes('/order') && !pathname?.includes('/track'));
+    setIsDriverPage(pathname === '/seller/bevcartdriver');
+  }, [pathname]);
 
   // Hide the global header on the Driver Dashboard for a cleaner, focused interface.
   if (isDriverPage) return null;
@@ -59,7 +61,7 @@ export function AppHeader() {
                 Koop
             </span>
             </Link>
-            {!isOrderPage && mounted && (
+            {!isOrderPage && (
               <nav className="hidden lg:flex items-center gap-4 text-sm font-medium">
                   <Link href="/#features" className="text-foreground hover:text-primary transition-colors">Features</Link>
                   <Link href="/#pricing" className="text-foreground hover:text-primary transition-colors">Pricing</Link>
@@ -68,7 +70,7 @@ export function AppHeader() {
             )}
         </div>
         <div className="flex items-center gap-2 md:gap-4">
-            {isOrderPage ? (
+            {isMounted && isOrderPage ? (
               <Button 
                 variant="outline" 
                 className="flex items-center gap-2 h-10 px-4"
