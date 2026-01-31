@@ -38,6 +38,10 @@
           "type": "number",
           "description": "Number of bowling lanes if applicable."
         },
+        "tableCount": {
+          "type": "number",
+          "description": "Number of dining tables if applicable."
+        },
         "streetAddress": {
           "type": "string",
           "description": "The street address of the establishment."

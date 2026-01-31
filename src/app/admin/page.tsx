@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -5,7 +6,7 @@ import { collection, doc, setDoc, deleteDoc, query } from 'firebase/firestore';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { PlusCircle, Edit, Trash2, Loader2, MapPin, Mail, Phone, User, Building, DollarSign, ShoppingBag, BarChart3, ListChecks } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, Loader2, MapPin, Mail, Phone, User, Building, DollarSign, ShoppingBag, BarChart3, ListChecks, Utensils } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import {
   AlertDialog,
@@ -55,6 +56,7 @@ const sellerSchema = z.object({
   halfwayHouseCount: z.coerce.number().min(0).optional(),
   halfwayHouseNames: z.array(z.string()).optional(),
   laneCount: z.coerce.number().min(0).optional(),
+  tableCount: z.coerce.number().min(0).optional(),
   streetAddress: z.string().min(1, 'Street address is required'),
   city: z.string().min(1, 'City is required'),
   state: z.string().min(2, 'State (e.g. CA) is required').max(2, 'Use 2-letter state code'),
@@ -185,6 +187,7 @@ export default function KoopAdminPage() {
       halfwayHouseCount: 0,
       halfwayHouseNames: [],
       laneCount: 0,
+      tableCount: 0,
       streetAddress: '',
       city: '',
       state: '',
@@ -208,6 +211,7 @@ export default function KoopAdminPage() {
 
   const isHalfwayHouseEnabled = selectedMenuTypes.includes('Halfway House');
   const isLaneDeliveryEnabled = selectedMenuTypes.includes('Lane Delivery');
+  const isDineInEnabled = selectedMenuTypes.includes('Dine-In');
 
   // Sync halfway house names fields with count
   useEffect(() => {
@@ -237,6 +241,11 @@ export default function KoopAdminPage() {
     if (filteredMenuTypes.length !== currentMenuTypes.length) {
       form.setValue('menuTypes', filteredMenuTypes);
     }
+
+    // Reset lane delivery or dine-in specific fields if their menu types are gone
+    if (!filteredMenuTypes.includes('Lane Delivery')) form.setValue('laneCount', 0);
+    if (!filteredMenuTypes.includes('Dine-In')) form.setValue('tableCount', 0);
+    
   }, [selectedType, form]);
 
   const handleOpenForm = (seller: Seller | null = null) => {
@@ -249,6 +258,7 @@ export default function KoopAdminPage() {
         halfwayHouseCount: seller.halfwayHouseCount || 0,
         halfwayHouseNames: seller.halfwayHouseNames || [],
         laneCount: seller.laneCount || 0,
+        tableCount: seller.tableCount || 0,
         streetAddress: seller.streetAddress,
         city: seller.city,
         state: seller.state,
@@ -267,6 +277,7 @@ export default function KoopAdminPage() {
         halfwayHouseCount: 0,
         halfwayHouseNames: [],
         laneCount: 0,
+        tableCount: 0,
         streetAddress: '',
         city: '',
         state: '',
@@ -629,6 +640,25 @@ export default function KoopAdminPage() {
                             <Input type="number" {...field} placeholder="e.g. 24" />
                           </FormControl>
                           <FormDescription>Used for customers to specify their lane number at checkout.</FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                )}
+
+                {isDineInEnabled && (
+                  <div className="bg-muted/30 p-4 rounded-lg border animate-in slide-in-from-top-2">
+                    <FormField
+                      control={form.control}
+                      name="tableCount"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="flex items-center gap-2"><Utensils className="h-4 w-4" /> Number of Tables</FormLabel>
+                          <FormControl>
+                            <Input type="number" {...field} placeholder="e.g. 15" />
+                          </FormControl>
+                          <FormDescription>Used for customers to specify their table number for dine-in orders.</FormDescription>
                           <FormMessage />
                         </FormItem>
                       )}

@@ -21,6 +21,7 @@ export interface Seller {
   halfwayHouseCount?: number;
   halfwayHouseNames?: string[];
   laneCount?: number;
+  tableCount?: number;
   streetAddress: string;
   city: string;
   state: string;
