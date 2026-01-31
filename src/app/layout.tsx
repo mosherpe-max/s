@@ -5,6 +5,7 @@ import { AppHeader } from '@/components/header';
 import { cn } from '@/lib/utils';
 import { FirebaseClientProvider } from '@/firebase';
 import { CartProvider } from '@/lib/cart-context';
+import { OrderNotificationListener } from '@/components/order-notification-listener';
 
 export const metadata: Metadata = {
   title: 'Koop',
@@ -26,6 +27,7 @@ export default function RootLayout({
       <body className={cn("font-body antialiased min-h-screen flex flex-col")}>
         <FirebaseClientProvider>
           <CartProvider>
+            <OrderNotificationListener />
             <div className="h-1.5 bg-red-600 w-full" />
             <AppHeader />
             <main className="flex-1">
