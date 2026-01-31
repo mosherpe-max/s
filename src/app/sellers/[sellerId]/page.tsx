@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useMemo, useEffect, useRef, use } from 'react';
@@ -433,7 +432,7 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
 
   const handleConfirmDeleteMember = () => {
     if (!firestore || !memberToDelete) return;
-    const ref = doc(firestore, 'sellers', sellerId, 'memberId', memberToDelete.id);
+    const ref = doc(firestore, 'sellers', sellerId, 'members', memberToDelete.id);
     deleteDoc(ref).catch(err => errorEmitter.emit('permission-error', new FirestorePermissionError({ path: ref.path, operation: 'delete' })));
     setMemberToDelete(null);
   };
@@ -520,8 +519,9 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
                           <TableCell className="font-mono text-sm">${order.total.toFixed(2)}</TableCell>
                           <TableCell>
                             <Badge variant="outline" className="text-[10px]">{order.status}</Badge>
-                          </TableRow>
-                        ))}
+                          </TableCell>
+                        </TableRow>
+                      ))}
                     </TableBody>
                   </Table>
                 </div>
