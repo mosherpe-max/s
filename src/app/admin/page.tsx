@@ -5,8 +5,8 @@ import { collection, doc, setDoc, deleteDoc } from 'firebase/firestore';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { PlusCircle, Edit, Trash2, Loader2 } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { PlusCircle, Edit, Trash2, Loader2, MapPin, Mail, Phone, User, Building } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,7 +21,7 @@ import { Input } from '@/components/ui/input';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import {
   Select,
   SelectContent,
@@ -38,41 +38,48 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
 import type { Seller } from '@/lib/types';
 import { sellerTypes } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 
+/**
+ * Validation schema for the Seller form.
+ * Ensures data integrity and correct formatting for the database.
+ */
 const sellerSchema = z.object({
-  courseName: z.string().min(1, 'Course name is required'),
-  type: z.enum(['Private Golf Course', 'Semi Private Golf Course', 'Public Golf Course', 'Bowling Alley', 'Brewery', 'Restaurant']),
+  courseName: z.string().min(2, 'Course name must be at least 2 characters'),
+  type: z.enum(['Private Golf Course', 'Semi Private Golf Course', 'Public Golf Course', 'Bowling Alley', 'Brewery', 'Restaurant'], {
+    required_error: "Please select an establishment type",
+  }),
   streetAddress: z.string().min(1, 'Street address is required'),
   city: z.string().min(1, 'City is required'),
-  state: z.string().min(1, 'State is required'),
-  zip: z.string().min(1, 'ZIP code is required'),
-  contactName: z.string().min(1, 'Contact name is required'),
-  contactEmail: z.string().email('Invalid email address'),
-  contactPhone: z.string().min(1, 'Phone number is required'),
-  serviceFee: z.coerce.number().min(0, 'Fee must be positive'),
+  state: z.string().min(2, 'State (e.g. CA) is required').max(2, 'Use 2-letter state code'),
+  zip: z.string().min(5, 'ZIP code must be at least 5 digits').max(10, 'Invalid ZIP code'),
+  contactName: z.string().min(2, 'Contact person name is required'),
+  contactEmail: z.string().email('Please enter a valid email address'),
+  contactPhone: z.string().min(10, 'Phone number must be at least 10 digits'),
+  serviceFee: z.coerce.number().min(0, 'Service fee cannot be negative').max(100, 'Fee seems too high'),
   status: z.enum(['Active', 'Inactive']),
 });
 
 type SellerFormData = z.infer<typeof sellerSchema>;
 
 /**
- * Converts a string into a URL-friendly slug.
+ * Converts a string into a URL-friendly slug for "Smart IDs".
  */
 function slugify(text: string): string {
   return text
     .toString()
     .toLowerCase()
     .trim()
-    .replace(/\s+/g, '-')     // Replace spaces with -
-    .replace(/[^\w-]+/g, '')  // Remove all non-word chars
-    .replace(/--+/g, '-')     // Replace multiple - with single -
-    .replace(/^-+/, '')       // Trim - from start of text
-    .replace(/-+$/, '');      // Trim - from end of text
+    .replace(/\s+/g, '-')
+    .replace(/[^\w-]+/g, '')
+    .replace(/--+/g, '-')
+    .replace(/^-+/, '')
+    .replace(/-+$/, '');
 }
 
 export default function KoopAdminPage() {
@@ -110,7 +117,19 @@ export default function KoopAdminPage() {
   const handleOpenForm = (seller: Seller | null = null) => {
     setEditingSeller(seller);
     if (seller) {
-      form.reset(seller);
+      form.reset({
+        courseName: seller.courseName,
+        type: seller.type,
+        streetAddress: seller.streetAddress,
+        city: seller.city,
+        state: seller.state,
+        zip: seller.zip,
+        contactName: seller.contactName,
+        contactEmail: seller.contactEmail,
+        contactPhone: seller.contactPhone,
+        serviceFee: seller.serviceFee,
+        status: seller.status,
+      });
     } else {
       form.reset({
         courseName: '',
@@ -136,7 +155,7 @@ export default function KoopAdminPage() {
     let latitude = editingSeller?.latitude || 0;
     let longitude = editingSeller?.longitude || 0;
 
-    // Attempt to geocode the address
+    // Attempt to geocode the address automatically
     const fullAddress = `${data.streetAddress}, ${data.city}, ${data.state} ${data.zip}`;
     try {
       const response = await fetch(
@@ -151,8 +170,13 @@ export default function KoopAdminPage() {
         toast({
           variant: 'destructive',
           title: 'Geocoding Failed',
-          description: 'Could not calculate coordinates for the address. Using existing or default values.'
+          description: 'Could not calculate coordinates. Please verify the address.'
         });
+        // We stop submission if we can't get coordinates for a NEW establishment
+        if (!editingSeller) {
+          setIsSaving(false);
+          return;
+        }
       }
     } catch (error) {
       console.error("Geocoding error:", error);
@@ -167,7 +191,7 @@ export default function KoopAdminPage() {
       .then(() => {
         toast({ 
           title: editingSeller ? 'Seller Updated' : 'Seller Created', 
-          description: `${data.courseName} has been saved with smart ID: ${sellerId}` 
+          description: `${data.courseName} has been saved with ID: ${sellerId}` 
         });
         setIsFormOpen(false);
       })
@@ -205,75 +229,80 @@ export default function KoopAdminPage() {
   };
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="container mx-auto px-4 py-8 max-w-7xl">
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
         <div>
           <h1 className="font-headline text-3xl font-bold text-foreground">Koop Admin</h1>
-          <p className="text-muted-foreground">Manage establishment sellers and partners.</p>
+          <p className="text-muted-foreground">Manage your establishment network and service parameters.</p>
         </div>
-        <Button onClick={() => handleOpenForm()}>
+        <Button onClick={() => handleOpenForm()} className="shadow-md">
           <PlusCircle className="mr-2 h-4 w-4" />
-          Add New Seller
+          Register New Establishment
         </Button>
       </header>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Registered Sellers</CardTitle>
+      <Card className="shadow-sm border-muted">
+        <CardHeader className="bg-muted/30">
+          <CardTitle className="text-xl">Registered Establishments</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-0">
           {isLoading ? (
-            <div className="text-center py-8 text-muted-foreground">Loading sellers...</div>
+            <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
+                <Loader2 className="h-8 w-8 animate-spin mb-4" />
+                <p>Loading establishments...</p>
+            </div>
           ) : sellers && sellers.length > 0 ? (
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow>
-                    <TableHead>Seller ID</TableHead>
-                    <TableHead>Course Name</TableHead>
+                  <TableRow className="bg-muted/20">
+                    <TableHead className="w-[120px]">ID</TableHead>
+                    <TableHead>Establishment</TableHead>
                     <TableHead>Type</TableHead>
                     <TableHead>Contact</TableHead>
                     <TableHead>Location</TableHead>
-                    <TableHead>Fee</TableHead>
-                    <TableHead>Status</TableHead>
+                    <TableHead className="text-center">Status</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {sellers.map((seller) => (
-                    <TableRow key={seller.id}>
-                      <TableCell className="font-mono text-xs text-muted-foreground">{seller.id}</TableCell>
-                      <TableCell className="font-medium">{seller.courseName}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className="text-[10px] uppercase">{seller.type}</Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-col text-xs">
-                          <span className="font-semibold">{seller.contactName}</span>
-                          <span className="text-muted-foreground">{seller.contactEmail}</span>
+                    <TableRow key={seller.id} className="hover:bg-muted/5 transition-colors">
+                      <TableCell className="font-mono text-[10px] text-muted-foreground align-top pt-5">{seller.id}</TableCell>
+                      <TableCell className="font-medium align-top pt-5">
+                        <div className="flex flex-col">
+                            <span>{seller.courseName}</span>
+                            <span className="text-[10px] text-muted-foreground font-mono mt-1">Fee: ${seller.serviceFee.toFixed(2)}</span>
                         </div>
                       </TableCell>
-                      <TableCell>
-                        <div className="flex flex-col text-xs text-muted-foreground">
-                          <span className="font-semibold text-foreground">{seller.streetAddress}</span>
+                      <TableCell className="align-top pt-5">
+                        <Badge variant="outline" className="text-[10px] uppercase font-bold tracking-tight">{seller.type}</Badge>
+                      </TableCell>
+                      <TableCell className="align-top pt-5">
+                        <div className="flex flex-col text-xs space-y-1">
+                          <span className="font-semibold flex items-center gap-1"><User className="h-3 w-3" /> {seller.contactName}</span>
+                          <span className="text-muted-foreground flex items-center gap-1"><Mail className="h-3 w-3" /> {seller.contactEmail}</span>
+                          <span className="text-muted-foreground flex items-center gap-1"><Phone className="h-3 w-3" /> {seller.contactPhone}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="align-top pt-5">
+                        <div className="flex flex-col text-xs text-muted-foreground space-y-0.5">
+                          <span className="font-semibold text-foreground flex items-center gap-1"><MapPin className="h-3 w-3" /> {seller.streetAddress}</span>
                           <span>{seller.city}, {seller.state} {seller.zip}</span>
-                          <span className="font-mono mt-1 opacity-70">
-                            {seller.latitude?.toFixed(4)}, {seller.longitude?.toFixed(4)}
-                          </span>
+                          <span className="font-mono text-[10px] opacity-60">GPS: {seller.latitude?.toFixed(4)}, {seller.longitude?.toFixed(4)}</span>
                         </div>
                       </TableCell>
-                      <TableCell className="font-mono text-xs">${seller.serviceFee.toFixed(2)}</TableCell>
-                      <TableCell>
-                        <Badge variant={seller.status === 'Active' ? 'default' : 'secondary'}>
+                      <TableCell className="text-center align-top pt-5">
+                        <Badge variant={seller.status === 'Active' ? 'default' : 'secondary'} className="w-16 justify-center">
                           {seller.status}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button variant="ghost" size="icon" onClick={() => handleOpenForm(seller)}>
+                      <TableCell className="text-right align-top pt-4">
+                        <div className="flex justify-end gap-1">
+                          <Button variant="ghost" size="icon" onClick={() => handleOpenForm(seller)} title="Edit">
                             <Edit className="h-4 w-4" />
                           </Button>
-                          <Button variant="ghost" size="icon" className="text-destructive" onClick={() => setSellerToDelete(seller)}>
+                          <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10" onClick={() => setSellerToDelete(seller)} title="Delete">
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
@@ -284,101 +313,112 @@ export default function KoopAdminPage() {
               </Table>
             </div>
           ) : (
-            <div className="text-center py-12 text-muted-foreground border-2 border-dashed rounded-lg">
-              No sellers found. Add your first establishment to get started.
+            <div className="text-center py-24 text-muted-foreground border-2 border-dashed m-6 rounded-xl flex flex-col items-center gap-2">
+              <Building className="h-12 w-12 opacity-10" />
+              <p className="text-lg font-medium">No establishments registered.</p>
+              <p className="text-sm">Register your first partner to begin service.</p>
+              <Button variant="outline" onClick={() => handleOpenForm()} className="mt-4">Register Now</Button>
             </div>
           )}
         </CardContent>
       </Card>
 
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
-        <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-[700px] max-h-[95vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{editingSeller ? 'Edit Seller' : 'Add New Seller'}</DialogTitle>
+            <DialogTitle className="text-2xl font-headline">{editingSeller ? 'Edit Establishment' : 'Register Establishment'}</DialogTitle>
+            <DialogDescription>
+                Ensure all details are accurate. Coordinates will be calculated automatically based on the address.
+            </DialogDescription>
           </DialogHeader>
+          <Separator className="my-2" />
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSave)} className="space-y-4 py-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="courseName"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Course/Establishment Name</FormLabel>
-                      <FormControl><Input {...field} placeholder="e.g. Pebble Beach" /></FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="type"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Seller Type</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
+            <form onSubmit={form.handleSubmit(onSave)} className="space-y-6 py-4">
+              <div className="space-y-4">
+                <h3 className="text-sm font-bold uppercase tracking-wider text-primary flex items-center gap-2">
+                    <Building className="h-4 w-4" /> Basic Information
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="courseName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Course / Business Name</FormLabel>
+                        <FormControl><Input {...field} placeholder="e.g. Pebble Beach Golf Links" /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="type"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Establishment Type</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {sellerTypes.map((type) => (
+                              <SelectItem key={type} value={type}>{type}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="status"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Account Status</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger><SelectValue placeholder="Select status" /></SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="Active">Active</SelectItem>
+                            <SelectItem value="Inactive">Inactive</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                   <FormField
+                    control={form.control}
+                    name="serviceFee"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Service Fee ($)</FormLabel>
                         <FormControl>
-                          <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
+                          <Input type="number" step="0.50" {...field} />
                         </FormControl>
-                        <SelectContent>
-                          {sellerTypes.map((type) => (
-                            <SelectItem key={type} value={type}>{type}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="status"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Status</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <FormControl>
-                          <SelectTrigger><SelectValue placeholder="Select status" /></SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="Active">Active</SelectItem>
-                          <SelectItem value="Inactive">Inactive</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                 <FormField
-                  control={form.control}
-                  name="serviceFee"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Service Fee ($)</FormLabel>
-                      <FormControl>
-                        <Input type="number" step="0.50" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                        <FormDescription>Charged per order to the customer.</FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
               </div>
 
               <div className="space-y-4 pt-4 border-t">
-                <div className="flex justify-between items-center">
-                   <h3 className="font-semibold text-sm">Location Address</h3>
-                   <span className="text-[10px] text-muted-foreground italic">Coordinates are calculated automatically</span>
-                </div>
+                <h3 className="text-sm font-bold uppercase tracking-wider text-primary flex items-center gap-2">
+                    <MapPin className="h-4 w-4" /> Service Location
+                </h3>
                 <FormField
                   control={form.control}
                   name="streetAddress"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Street Address</FormLabel>
-                      <FormControl><Input {...field} placeholder="123 Fairway Dr" /></FormControl>
+                      <FormControl><Input {...field} placeholder="1700 17-Mile Drive" /></FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -400,8 +440,8 @@ export default function KoopAdminPage() {
                     name="state"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>State</FormLabel>
-                        <FormControl><Input {...field} placeholder="CA" /></FormControl>
+                        <FormLabel>State (Code)</FormLabel>
+                        <FormControl><Input {...field} placeholder="CA" maxLength={2} className="uppercase" /></FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -421,14 +461,16 @@ export default function KoopAdminPage() {
               </div>
 
               <div className="space-y-4 pt-4 border-t">
-                <h3 className="font-semibold text-sm">Contact Information</h3>
+                <h3 className="text-sm font-bold uppercase tracking-wider text-primary flex items-center gap-2">
+                    <User className="h-4 w-4" /> Administrative Contact
+                </h3>
                 <FormField
                   control={form.control}
                   name="contactName"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Contact Person</FormLabel>
-                      <FormControl><Input {...field} placeholder="Primary contact name" /></FormControl>
+                      <FormLabel>Point of Contact</FormLabel>
+                      <FormControl><Input {...field} placeholder="Full name of manager" /></FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -441,7 +483,7 @@ export default function KoopAdminPage() {
                       <FormItem>
                         <FormLabel>Contact Email</FormLabel>
                         <FormControl>
-                          <Input type="email" placeholder="manager@course.com" {...field} />
+                          <Input type="email" placeholder="manager@establishment.com" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -463,11 +505,17 @@ export default function KoopAdminPage() {
                 </div>
               </div>
 
-              <div className="flex justify-end gap-2 pt-4">
-                <Button type="button" variant="outline" onClick={() => setIsFormOpen(false)} disabled={isSaving}>Cancel</Button>
-                <Button type="submit" disabled={isSaving}>
-                  {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  {editingSeller ? 'Save Changes' : 'Create Seller'}
+              <div className="flex justify-end gap-3 pt-6 border-t">
+                <Button type="button" variant="ghost" onClick={() => setIsFormOpen(false)} disabled={isSaving}>Cancel</Button>
+                <Button type="submit" disabled={isSaving} className="min-w-[140px]">
+                  {isSaving ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Validating...
+                    </>
+                  ) : (
+                    editingSeller ? 'Save Changes' : 'Register Seller'
+                  )}
                 </Button>
               </div>
             </form>
@@ -478,15 +526,15 @@ export default function KoopAdminPage() {
       <AlertDialog open={!!sellerToDelete} onOpenChange={(open) => !open && setSellerToDelete(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogTitle>Confirm Deletion</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete <strong>{sellerToDelete?.courseName}</strong> and all its associated data. This action cannot be undone.
+              Are you sure you want to remove <strong>{sellerToDelete?.courseName}</strong>? This will permanently delete the establishment profile and all associated menu items. This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Delete Seller
+              Delete Forever
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
