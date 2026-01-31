@@ -72,7 +72,7 @@ export default function BevCartDriverDashboardPage() {
 
   const isPrimaryActive = primarySeller?.status === 'Active';
 
-  // Fetch all active orders globally
+  // Fetch all active orders platform-wide for the map, but we'll filter the list for the driver
   const activeOrdersQuery = useMemoFirebase(() => {
     if (!firestore) return null;
     return query(
@@ -83,11 +83,20 @@ export default function BevCartDriverDashboardPage() {
 
   const { data: activeOrders, isLoading: areActiveOrdersLoading } = useCollection<Order>(activeOrdersQuery);
 
-  useEffect(() => {
-    if (!activeOrders) return;
+  // Filter orders specifically for this Beverage Cart driver at Demo Golf Course
+  const driverOrders = useMemo(() => {
+    if (!activeOrders) return [];
+    return activeOrders.filter(o => 
+      o.sellerId === 'demo-course' && 
+      o.menuType === 'Beverage Cart'
+    );
+  }, [activeOrders]);
 
-    const currentOrderIds = new Set(activeOrders.map(o => o.id));
-    const newPlacedOrders = activeOrders.filter(o => o.status === 'Placed' && !lastOrderIdsRef.current.has(o.id));
+  useEffect(() => {
+    if (!driverOrders) return;
+
+    const currentOrderIds = new Set(driverOrders.map(o => o.id));
+    const newPlacedOrders = driverOrders.filter(o => o.status === 'Placed' && !lastOrderIdsRef.current.has(o.id));
 
     if (newPlacedOrders.length > 0 && !initialLoadRef.current) {
       const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
@@ -100,13 +109,13 @@ export default function BevCartDriverDashboardPage() {
             <span className="font-headline font-bold text-lg">New Order Received!</span>
           </div>
         ),
-        description: `There are ${newPlacedOrders.length} new order(s) waiting for confirmation.`,
+        description: `There are ${newPlacedOrders.length} new order(s) for your Beverage Cart.`,
       });
     }
 
     lastOrderIdsRef.current = currentOrderIds;
     initialLoadRef.current = false;
-  }, [activeOrders, toast]);
+  }, [driverOrders, toast]);
 
   useEffect(() => {
     setNow(Date.now());
@@ -192,7 +201,6 @@ export default function BevCartDriverDashboardPage() {
       });
   };
 
-  const orders = activeOrders || [];
   const isLoading = areActiveOrdersLoading || isPrimaryLoading || areSellersLoading;
 
   const mappedSellers = useMemo(() => {
@@ -206,8 +214,8 @@ export default function BevCartDriverDashboardPage() {
   }, [activeSellers]);
 
   const mappedBuyers = useMemo(() => {
-    if (!now) return [];
-    return orders.map(o => {
+    if (!now || !activeOrders) return [];
+    return activeOrders.map(o => {
       let colorClass = "bg-green-600";
       if (o.createdAt) {
         const orderTime = o.createdAt.toDate().getTime();
@@ -222,7 +230,7 @@ export default function BevCartDriverDashboardPage() {
         colorClass
       };
     });
-  }, [orders, now]);
+  }, [activeOrders, now]);
 
   if (!isPrimaryLoading && !primarySeller) {
       return (
@@ -244,11 +252,11 @@ export default function BevCartDriverDashboardPage() {
       <div className="flex flex-col h-screen overflow-hidden">
         <header className="flex-shrink-0 px-4 h-16 flex items-center justify-between border-b bg-background z-20 shadow-sm">
           <div className="flex flex-col">
-            <h1 className="font-headline text-lg md:text-xl font-bold text-foreground">
-              KOOP Operational Dashboard
+            <h1 className="font-headline text-lg md:text-xl font-bold text-foreground uppercase">
+              Beverage Cart Driver Dashboard
             </h1>
             <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest leading-none">
-              Driver: {primarySeller?.courseName || 'Demo Golf Course - Public'}
+              DRIVER: Demo Golf Course - Public
             </span>
           </div>
           <div className="flex items-center space-x-3">
@@ -258,7 +266,7 @@ export default function BevCartDriverDashboardPage() {
               onCheckedChange={handleToggleActive} 
             />
             <Label htmlFor="active-mode" className="text-sm font-semibold whitespace-nowrap">
-              {isPrimaryActive ? 'My Cart: Active' : 'My Cart: Inactive'}
+              {isPrimaryActive ? 'CART: ACTIVE' : 'CART: INACTIVE'}
             </Label>
           </div>
         </header>
@@ -288,9 +296,9 @@ export default function BevCartDriverDashboardPage() {
           
           <div className="w-full md:w-1/3 flex flex-col bg-background border-t md:border-t-0 md:border-l overflow-hidden min-h-0">
             <h2 className="font-headline text-lg font-semibold px-4 pt-3 pb-2 shrink-0 border-b flex items-center justify-between">
-              <span>All Pending Orders</span>
+              <span>Your Active Orders</span>
               <span className="bg-primary text-primary-foreground text-xs rounded-full px-2 py-0.5">
-                {orders.length}
+                {driverOrders.length}
               </span>
             </h2>
             <ScrollArea className="flex-1 w-full">
@@ -301,15 +309,15 @@ export default function BevCartDriverDashboardPage() {
                       <Skeleton key={i} className="h-48 w-full" />
                     ))}
                   </div>
-                ) : orders.length === 0 ? (
+                ) : driverOrders.length === 0 ? (
                   <div className="flex flex-col items-center justify-center text-muted-foreground py-20 text-center px-4">
                     <Package className="h-12 w-12 opacity-20 mb-2" />
                     <p className="italic">
-                      No active orders globally.
+                      No active beverage cart orders.
                     </p>
                   </div>
                 ) : (
-                  orders.map((order, index) => (
+                  driverOrders.map((order, index) => (
                     <OrderCard 
                       key={order.id}
                       order={order} 
