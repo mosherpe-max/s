@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useMemo, useEffect, useRef, use } from 'react';
@@ -5,7 +6,7 @@ import { collection, doc, setDoc, deleteDoc, writeBatch, query, where, updateDoc
 import { useFirestore, useDoc, useCollection, useMemoFirebase } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
-import { PlusCircle, Edit, Trash2, GripVertical, Filter, DollarSign, ShoppingBag, Clock, Database, Users, UserPlus, Sparkles, Download, Calendar as CalendarIcon, FileSpreadsheet, Palette, Image as ImageIcon, MessageSquare, Save, Loader2, Upload } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, GripVertical, Filter, DollarSign, ShoppingBag, Clock, Database, Users, UserPlus, Sparkles, Download, Calendar as CalendarIcon, FileSpreadsheet, Palette, Save, Loader2, Upload } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
   AlertDialog,
@@ -65,8 +66,6 @@ type MemberFormData = z.infer<typeof memberSchema>;
 const customizationSchema = z.object({
   brandColor: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, 'Must be a valid HEX color (e.g. #22c55e)').optional().or(z.literal('')),
   logoUrl: z.string().optional().or(z.literal('')),
-  headerImageUrl: z.string().url('Must be a valid image URL').optional().or(z.literal('')),
-  welcomeMessage: z.string().max(200, 'Keep it brief (max 200 chars)').optional(),
 });
 
 type CustomizationFormData = z.infer<typeof customizationSchema>;
@@ -246,8 +245,6 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
     defaultValues: {
       brandColor: seller?.brandColor || '',
       logoUrl: seller?.logoUrl || '',
-      headerImageUrl: seller?.headerImageUrl || '',
-      welcomeMessage: seller?.welcomeMessage || '',
     },
   });
 
@@ -256,8 +253,6 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
       customizationForm.reset({
         brandColor: seller.brandColor || '',
         logoUrl: seller.logoUrl || '',
-        headerImageUrl: seller.headerImageUrl || '',
-        welcomeMessage: seller.welcomeMessage || '',
       });
     }
   }, [seller, customizationForm]);
@@ -593,33 +588,6 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
                     />
                   </div>
 
-                  <FormField
-                    control={customizationForm.control}
-                    name="headerImageUrl"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="flex items-center gap-2"><ImageIcon className="h-4 w-4" /> Header Image URL</FormLabel>
-                        <FormControl>
-                          <Input {...field} placeholder="https://images.unsplash.com/..." />
-                        </FormControl>
-                        <FormDescription>Custom photo at the top of the menu.</FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={customizationForm.control}
-                    name="welcomeMessage"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="flex items-center gap-2"><MessageSquare className="h-4 w-4" /> Welcome Message</FormLabel>
-                        <FormControl>
-                          <Textarea {...field} placeholder="Enjoy your round!" rows={2} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
                   <div className="flex justify-end pt-2">
                     <Button type="submit" disabled={isSavingCustomization}>
                       {isSavingCustomization ? (

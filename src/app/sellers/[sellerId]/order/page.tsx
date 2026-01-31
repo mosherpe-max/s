@@ -24,6 +24,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Input } from '@/components/ui/input';
+import { cn } from '@/lib/utils';
 import Image from 'next/image';
 
 export default function BuyerMenuPage({ params }: { params: { sellerId: string } }) {
@@ -132,44 +133,15 @@ export default function BuyerMenuPage({ params }: { params: { sellerId: string }
   if (!isLoading && !seller) return <div className="p-8 text-center"><h2 className="text-2xl font-bold">Course Not Found</h2></div>;
 
   const brandStyle = {
-    '--primary': seller?.brandColor ? `0 0% 0% / 0` : undefined, // We can't easily override HSL vars like this globally, but we'll use inline styles for buttons
     primaryColor: seller?.brandColor || 'hsl(var(--primary))',
   };
 
   return (
     <div className="flex flex-col h-full bg-background">
-      {/* Dynamic Header Image */}
-      {seller?.headerImageUrl && (
-        <div className="relative w-full h-40 shrink-0">
-          <Image 
-            src={seller.headerImageUrl} 
-            alt={seller.courseName} 
-            fill 
-            className="object-cover" 
-            priority
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-        </div>
-      )}
-
-      <header className={cn(
-        "px-4 pt-6 pb-2 text-center shrink-0",
-        seller?.headerImageUrl ? "relative -mt-10 z-10" : "pt-4"
-      )}>
-        <h1 className={cn(
-          "font-headline text-3xl font-bold",
-          seller?.headerImageUrl ? "text-white drop-shadow-lg" : "text-foreground"
-        )}>
+      <header className="px-4 pt-6 pb-2 text-center shrink-0">
+        <h1 className="font-headline text-3xl font-bold text-foreground">
           {isLoading ? <Skeleton className="h-9 w-3/4 mx-auto" /> : seller?.courseName}
         </h1>
-        {seller?.welcomeMessage && (
-          <p className={cn(
-            "text-sm mt-1 max-w-xs mx-auto",
-            seller?.headerImageUrl ? "text-white/90" : "text-muted-foreground"
-          )}>
-            {seller.welcomeMessage}
-          </p>
-        )}
       </header>
 
       <div className="sticky top-0 bg-background/95 backdrop-blur-sm z-20 py-2 shrink-0 border-b">
