@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, Suspense } from 'react';
 import { collection, query, orderBy, limit, doc, updateDoc } from 'firebase/firestore';
 import { useCollection, useDoc, useFirestore, useMemoFirebase } from '@/firebase';
 import type { Order, Seller } from '@/lib/types';
@@ -12,6 +12,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { PartyPopper } from 'lucide-react';
 import { BrandingFooter } from '@/components/branding-footer';
 
@@ -38,9 +39,19 @@ function OrderSummaryCard({ order }: { order: Order }) {
     );
 }
 
-export default function OrderTrackingPage() {
+function OrderTrackingContent() {
   const firestore = useFirestore();
+  const searchParams = useSearchParams();
+  const orderId = searchParams.get('id');
 
+  // 1. Fetch specific order if ID is provided
+  const specificOrderRef = useMemoFirebase(() => {
+    if (!firestore || !orderId) return null;
+    return doc(firestore, 'orders', orderId);
+  }, [firestore, orderId]);
+  const { data: specificOrder, isLoading: isLoadingSpecific } = useDoc<Order>(specificOrderRef);
+
+  // 2. Fallback to latest order if no ID (for general demo tracking)
   const latestOrderQuery = useMemoFirebase(() => {
     if (!firestore) return null;
     return query(
@@ -49,9 +60,10 @@ export default function OrderTrackingPage() {
       limit(1)
     );
   }, [firestore]);
+  const { data: latestOrders, isLoading: isLoadingLatest } = useCollection<Order>(latestOrderQuery);
 
-  const { data: orders, isLoading: isLoadingOrder } = useCollection<Order>(latestOrderQuery);
-  const order = orders?.[0];
+  const order = specificOrder || latestOrders?.[0];
+  const isLoadingOrder = isLoadingSpecific || isLoadingLatest;
   
   useEffect(() => {
     if (!firestore || !order) return;
@@ -98,66 +110,74 @@ export default function OrderTrackingPage() {
 
   const { data: seller, isLoading: isLoadingSeller } = useDoc<Seller>(sellerRef);
 
-  const isLoading = isLoadingOrder || (orders && orders.length > 0 && isLoadingSeller);
+  const isLoading = isLoadingOrder || (order && isLoadingSeller);
   const isDelivered = order?.status === 'Delivered';
 
   return (
-    <APIProvider apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!}>
-      <div className="flex flex-col min-h-[calc(100vh-4rem)] bg-muted/20">
-        
-        {!isDelivered && (
-          <div className="h-[50vh] bg-muted">
-            {isLoading ? (
-              <Skeleton className="w-full h-full" />
-            ) : seller && order ? (
-              <MapView
-                sellerLocation={{ latitude: seller.latitude, longitude: seller.longitude }}
-                buyerLocation={order.deliveryLocation}
-                interactive={false}
-              />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center">
-                  <p className="text-muted-foreground">Waiting for order data...</p>
-              </div>
-            )}
-          </div>
-        )}
-
-        <div className="flex-1 p-4 space-y-4">
+    <div className="flex flex-col min-h-[calc(100vh-4rem)] bg-muted/20">
+      
+      {!isDelivered && (
+        <div className="h-[50vh] bg-muted">
           {isLoading ? (
-            <div className="space-y-4">
-              <Skeleton className="h-8 w-full" />
-              <Skeleton className="h-32 w-full" />
-            </div>
-          ) : order ? (
-            <>
-              {isDelivered && (
-                  <Card className="text-center shadow-lg bg-green-50 border-green-200">
-                      <CardContent className="p-6">
-                          <PartyPopper className="h-12 w-12 text-green-600 mx-auto mb-2" />
-                          <h2 className="font-headline text-2xl font-bold text-green-800">Order Delivered!</h2>
-                          <p className="text-muted-foreground mt-1 mb-4">Enjoy your refreshments.</p>
-                          <Button asChild>
-                              <Link href={`/sellers/${order.sellerId}/order`}>Place Another Order</Link>
-                          </Button>
-                      </CardContent>
-                  </Card>
-              )}
-              <div className='py-2'>
-                <OrderStatus currentStatus={order.status} />
-              </div>
-              <OrderSummaryCard order={order} />
-            </>
+            <Skeleton className="w-full h-full" />
+          ) : seller && order ? (
+            <MapView
+              sellerLocation={{ latitude: seller.latitude, longitude: seller.longitude }}
+              buyerLocation={order.deliveryLocation}
+              interactive={false}
+            />
           ) : (
-             <Card>
-                <CardContent className="pt-6 text-center text-muted-foreground">
-                    <p>No active order found.</p>
-                </CardContent>
-             </Card>
+            <div className="w-full h-full flex items-center justify-center">
+                <p className="text-muted-foreground">Waiting for order data...</p>
+            </div>
           )}
         </div>
-        <BrandingFooter />
+      )}
+
+      <div className="flex-1 p-4 space-y-4">
+        {isLoading ? (
+          <div className="space-y-4">
+            <Skeleton className="h-8 w-full" />
+            <Skeleton className="h-32 w-full" />
+          </div>
+        ) : order ? (
+          <>
+            {isDelivered && (
+                <Card className="text-center shadow-lg bg-green-50 border-green-200">
+                    <CardContent className="p-6">
+                        <PartyPopper className="h-12 w-12 text-green-600 mx-auto mb-2" />
+                        <h2 className="font-headline text-2xl font-bold text-green-800">Order Delivered!</h2>
+                        <p className="text-muted-foreground mt-1 mb-4">Enjoy your refreshments.</p>
+                        <Button asChild>
+                            <Link href={`/sellers/${order.sellerId}/order`}>Place Another Order</Link>
+                        </Button>
+                    </CardContent>
+                </Card>
+            )}
+            <div className='py-2'>
+              <OrderStatus currentStatus={order.status} />
+            </div>
+            <OrderSummaryCard order={order} />
+          </>
+        ) : (
+           <Card>
+              <CardContent className="pt-6 text-center text-muted-foreground">
+                  <p>No active order found.</p>
+              </CardContent>
+           </Card>
+        )}
       </div>
+      <BrandingFooter />
+    </div>
+  );
+}
+
+export default function OrderTrackingPage() {
+  return (
+    <APIProvider apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!}>
+      <Suspense fallback={<div className="flex-1 flex items-center justify-center"><Loader2 className="animate-spin" /></div>}>
+        <OrderTrackingContent />
+      </Suspense>
     </APIProvider>
   );
 }

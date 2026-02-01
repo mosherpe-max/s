@@ -144,10 +144,10 @@ export default function BuyerOrderPage({ params }: { params: { sellerId: string 
 
       const ordersCol = collection(firestore, 'orders');
       addDoc(ordersCol, { ...orderData, createdAt: serverTimestamp() })
-        .then(() => {
+        .then((docRef) => {
           toast({ title: 'Order Placed!', description: "Your order has been received." });
           clearCart();
-          router.push('/order/track');
+          router.push(`/order/track?id=${docRef.id}`);
         })
         .catch((err) => {
           errorEmitter.emit('permission-error', new FirestorePermissionError({ 
