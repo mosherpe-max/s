@@ -175,18 +175,6 @@ function OrderTrackingContent() {
                 </Link>
              </Button>
           </div>
-          
-          {isTrackingActive && (
-            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 w-[90%] max-w-sm">
-              <Alert className="bg-primary/95 text-white border-none shadow-xl backdrop-blur-md py-2.5">
-                <Satellite className="h-4 w-4 text-white animate-pulse" />
-                <AlertTitle className="text-[10px] font-bold uppercase tracking-[0.2em] mb-0">Live Location Active</AlertTitle>
-                <AlertDescription className="text-[9px] opacity-90 leading-tight">
-                  Driver is using your GPS to find you on the course.
-                </AlertDescription>
-              </Alert>
-            </div>
-          )}
         </div>
       )}
 
@@ -207,10 +195,13 @@ function OrderTrackingContent() {
 
         {isTrackingActive && !isDelivered && (
           <div className="px-1">
-             <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.3em] text-primary bg-primary/5 p-3 rounded-lg border border-primary/20">
-                <ShieldCheck className="h-4 w-4" />
-                GPS LOCATION TRACKING ACTIVE
-             </div>
+             <Alert className="bg-primary/95 text-white border-none shadow-xl backdrop-blur-md py-3 rounded-xl">
+                <Satellite className="h-5 w-5 text-white animate-pulse" />
+                <AlertTitle className="text-xs font-bold uppercase tracking-[0.2em] mb-0.5">Live Location Active</AlertTitle>
+                <AlertDescription className="text-[11px] opacity-90 leading-tight">
+                  Driver is using your GPS to find you on the course.
+                </AlertDescription>
+              </Alert>
           </div>
         )}
 
