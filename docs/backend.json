@@ -86,7 +86,15 @@
         "status": {
           "type": "string",
           "enum": ["Active", "Inactive"],
-          "description": "The current status of the seller."
+          "description": "The general status of the seller."
+        },
+        "bevcartActive": {
+          "type": "boolean",
+          "description": "Whether the Beverage Cart service is active."
+        },
+        "clubhouseActive": {
+          "type": "boolean",
+          "description": "Whether the Clubhouse service is active."
         },
         "brandColor": {
           "type": "string",
@@ -200,7 +208,7 @@
         },
         "menuType": {
           "type": "string",
-          "description": "The specific service mode selected (e.g., 'Beverage Cart', 'Halfway House')."
+          "description": "The specific service mode selected (e.g., 'Beverage Cart', 'Clubhouse')."
         },
         "menuTypeLocation": {
           "type": "string",
@@ -208,7 +216,7 @@
         },
         "paymentMethod": {
           "type": "string",
-          "enum": ["Credit Card", "Member Account", "Pay with Cash or Credit Card to Beverage Cart Operator"]
+          "enum": ["Credit Card", "Member Account", "Pay at Delivery", "Pay with Cash or Credit Card to Beverage Cart Operator"]
         },
         "memberId": {
           "type": "string",

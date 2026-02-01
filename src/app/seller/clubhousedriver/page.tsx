@@ -1,3 +1,4 @@
+
 'use client';
 
 import { collection, query, where, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
@@ -40,6 +41,8 @@ export default function ClubhouseDriverDashboardPage() {
     return doc(firestore, 'sellers', 'demo-course');
   }, [firestore]);
   const { data: primarySeller, isLoading: isPrimaryLoading } = useDoc<Seller>(primarySellerRef);
+
+  const isClubhouseActive = primarySeller?.clubhouseActive === true;
 
   const activeOrdersQuery = useMemoFirebase(() => {
     if (!firestore) return null;
@@ -131,6 +134,22 @@ export default function ClubhouseDriverDashboardPage() {
       });
   };
 
+  const handleToggleActive = (checked: boolean) => {
+    if (!firestore) return;
+    const sellerDocRef = doc(firestore, 'sellers', 'demo-course');
+    const updates = { 
+      clubhouseActive: checked
+    };
+    updateDoc(sellerDocRef, updates)
+      .catch(async () => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+          path: sellerDocRef.path,
+          operation: 'update',
+          requestResourceData: updates
+        }));
+      });
+  };
+
   const mappedBuyers = useMemo(() => {
     if (!now || !activeOrders) return [];
     return activeOrders.map(o => {
@@ -179,10 +198,16 @@ export default function ClubhouseDriverDashboardPage() {
               CLUBHOUSE: Demo Golf Course - Public
             </span>
           </div>
-          <div className="flex items-center gap-4">
-            <Button asChild variant="ghost" className="text-white hover:bg-white/10 text-xs font-bold uppercase tracking-widest h-8 px-3">
-              <Link href="/seller/bevcartdriver">SWITCH TO BEVCART</Link>
-            </Button>
+          <div className="flex items-center space-x-3">
+            <Switch 
+              id="clubhouse-active" 
+              checked={isClubhouseActive} 
+              onCheckedChange={handleToggleActive} 
+              className="data-[state=checked]:bg-[#E50000]"
+            />
+            <Label htmlFor="clubhouse-active" className="text-sm font-semibold whitespace-nowrap text-white">
+              {isClubhouseActive ? 'SERVICE: ACTIVE' : 'SERVICE: INACTIVE'}
+            </Label>
           </div>
         </header>
 

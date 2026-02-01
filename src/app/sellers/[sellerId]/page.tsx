@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useMemo, useEffect, use } from 'react';
@@ -420,6 +421,8 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
         streetAddress: '123 Fairway Drive', city: 'Pebble Beach', state: 'CA', zip: '93953',
         latitude: 42.7748, longitude: -83.2139, contactName: 'Pro Shop Manager', contactEmail: 'manager@democourse.com',
         contactPhone: '555-0100', serviceFee: 2.50, status: 'Inactive', 
+        bevcartActive: false,
+        clubhouseActive: false,
         lastActive: null,
         menuTypes: ['Beverage Cart', 'Clubhouse']
       }, { merge: true });

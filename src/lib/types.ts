@@ -33,6 +33,8 @@ export interface Seller {
   contactPhone: string;
   serviceFee: number;
   status: 'Active' | 'Inactive';
+  bevcartActive?: boolean;
+  clubhouseActive?: boolean;
   brandColor?: string;
   logoUrl?: string;
   lastActive?: Timestamp;

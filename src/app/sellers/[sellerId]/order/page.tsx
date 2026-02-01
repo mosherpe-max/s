@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, use, useEffect, useMemo } from 'react';
@@ -74,12 +75,12 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
 
   const isServiceActive = useMemo(() => {
     if (!seller) return true;
-    // For now, seller.status represents the availability of the Beverage Cart
-    // In a more complex app, we might have per-service status fields.
     if (selectedMenuType === 'Beverage Cart') {
-      return seller.status === 'Active';
+      return seller.bevcartActive === true;
     }
-    // Clubhouse is assumed active unless the seller is manually disabled
+    if (selectedMenuType === 'Clubhouse') {
+      return seller.clubhouseActive === true;
+    }
     return seller.status === 'Active';
   }, [seller, selectedMenuType]);
 
@@ -111,9 +112,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
         try {
           const subtotal = activeOrderItems.reduce((acc, item) => acc + item.price * item.quantity, 0);
           
-          const paymentMethod: PaymentMethod = selectedMenuType === 'Beverage Cart' 
-            ? 'Pay with Cash or Credit Card to Beverage Cart Operator'
-            : 'Pay at Delivery';
+          const paymentMethod: PaymentMethod = 'Pay at Delivery';
 
           const orderData: Omit<Order, 'id' | 'createdAt'> = {
             sellerId,

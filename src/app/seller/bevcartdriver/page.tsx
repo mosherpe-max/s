@@ -1,3 +1,4 @@
+
 'use client'
 
 import { collection, query, where, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
@@ -66,7 +67,7 @@ export default function BevCartDriverDashboardPage() {
   }, [firestore]);
   const { data: activeSellers, isLoading: areSellersLoading } = useCollection<Seller>(activeSellersQuery);
 
-  const isPrimaryActive = primarySeller?.status === 'Active';
+  const isBevCartActive = primarySeller?.bevcartActive === true;
 
   const activeOrdersQuery = useMemoFirebase(() => {
     if (!firestore) return null;
@@ -88,15 +89,15 @@ export default function BevCartDriverDashboardPage() {
 
   useEffect(() => {
     const handleUnload = () => {
-      if (firestore && isPrimaryActive) {
+      if (firestore && isBevCartActive) {
         const sellerDocRef = doc(firestore, 'sellers', 'demo-course');
-        updateDoc(sellerDocRef, { status: 'Inactive' }).catch(() => {});
+        updateDoc(sellerDocRef, { bevcartActive: false }).catch(() => {});
       }
     };
 
     window.addEventListener('beforeunload', handleUnload);
     return () => window.removeEventListener('beforeunload', handleUnload);
-  }, [firestore, isPrimaryActive]);
+  }, [firestore, isBevCartActive]);
 
   useEffect(() => {
     if (!driverOrders) return;
@@ -160,7 +161,7 @@ export default function BevCartDriverDashboardPage() {
   }, []);
 
   useEffect(() => {
-    if (!firestore || !isPrimaryActive) return;
+    if (!firestore || !isBevCartActive) return;
 
     const syncLocation = async () => {
       if (sellerLocRef.current) {
@@ -168,7 +169,6 @@ export default function BevCartDriverDashboardPage() {
         updateDoc(sellerDocRef, {
           latitude: sellerLocRef.current.latitude,
           longitude: sellerLocRef.current.longitude,
-          status: 'Active',
           lastActive: serverTimestamp()
         }).catch(() => {});
       }
@@ -176,7 +176,7 @@ export default function BevCartDriverDashboardPage() {
 
     const intervalId = setInterval(syncLocation, 30000);
     return () => clearInterval(intervalId);
-  }, [firestore, isPrimaryActive]);
+  }, [firestore, isBevCartActive]);
 
   const handleUpdateOrderStatus = (orderId: string, status: Order['status']) => {
     if (!firestore) return;
@@ -199,7 +199,7 @@ export default function BevCartDriverDashboardPage() {
     if (!firestore) return;
     const sellerDocRef = doc(firestore, 'sellers', 'demo-course');
     const updates = { 
-      status: checked ? 'Active' : 'Inactive',
+      bevcartActive: checked,
       lastActive: checked ? serverTimestamp() : null
     };
     updateDoc(sellerDocRef, updates)
@@ -287,12 +287,12 @@ export default function BevCartDriverDashboardPage() {
           <div className="flex items-center space-x-3">
             <Switch 
               id="active-mode" 
-              checked={isPrimaryActive} 
+              checked={isBevCartActive} 
               onCheckedChange={handleToggleActive} 
               className="data-[state=checked]:bg-[#E50000]"
             />
             <Label htmlFor="active-mode" className="text-sm font-semibold whitespace-nowrap text-white">
-              {isPrimaryActive ? 'CART: ACTIVE' : 'CART: INACTIVE'}
+              {isBevCartActive ? 'CART: ACTIVE' : 'CART: INACTIVE'}
             </Label>
           </div>
         </header>
@@ -314,7 +314,7 @@ export default function BevCartDriverDashboardPage() {
                 buyers={mappedBuyers}
                 radius={1609.34}
                 zoomMode={zoomMode}
-                showPrimaryMarker={isPrimaryActive}
+                showPrimaryMarker={isBevCartActive}
               />
             ) : (
               <Skeleton className="w-full h-full" />
