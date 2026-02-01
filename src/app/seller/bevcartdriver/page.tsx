@@ -109,7 +109,7 @@ export default function BevCartDriverDashboardPage() {
     setNow(Date.now());
     const interval = setInterval(() => {
       setNow(Date.now());
-    }, 10000); // Check every 10 seconds for fresher color updates
+    }, 10000);
     return () => clearInterval(interval);
   }, []);
 
@@ -196,8 +196,6 @@ export default function BevCartDriverDashboardPage() {
       });
   };
 
-  const isLoading = areActiveOrdersLoading || isPrimaryLoading || areSellersLoading;
-
   const mappedSellers = useMemo(() => {
     if (!activeSellers || !now) return [];
     
@@ -220,7 +218,7 @@ export default function BevCartDriverDashboardPage() {
   const mappedBuyers = useMemo(() => {
     if (!now || !activeOrders) return [];
     return activeOrders.map(o => {
-      let colorClass = "bg-green-600"; // Default < 7 mins
+      let colorClass = "bg-green-600";
       if (o.createdAt) {
         const orderTime = o.createdAt.toDate().getTime();
         const minutesElapsed = (now - orderTime) / (1000 * 60);
@@ -240,6 +238,8 @@ export default function BevCartDriverDashboardPage() {
       };
     });
   }, [activeOrders, now]);
+
+  const isLoading = areActiveOrdersLoading || isPrimaryLoading || areSellersLoading;
 
   if (!isPrimaryLoading && !primarySeller) {
       return (
@@ -299,6 +299,7 @@ export default function BevCartDriverDashboardPage() {
                 radius={1609.34}
                 zoomMode={zoomMode}
                 showPrimaryMarker={isBevCartActive}
+                primaryDriverId="demo-course"
               />
             ) : (
               <Skeleton className="w-full h-full" />
