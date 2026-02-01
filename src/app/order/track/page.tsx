@@ -1,7 +1,7 @@
 'use client';
 
-import { Suspense } from 'react';
-import { collection, query, orderBy, limit, doc } from 'firebase/firestore';
+import { Suspense, useEffect, useRef, useState } from 'react';
+import { collection, query, orderBy, limit, doc, updateDoc } from 'firebase/firestore';
 import { useCollection, useDoc, useFirestore, useMemoFirebase } from '@/firebase';
 import type { Order, Seller } from '@/lib/types';
 import { APIProvider } from '@vis.gl/react-google-maps';
@@ -14,8 +14,9 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { PartyPopper, ShoppingBag, MapPin, Loader2, ArrowLeft, Store, ClipboardList } from 'lucide-react';
+import { PartyPopper, ShoppingBag, MapPin, Loader2, ArrowLeft, Store, ClipboardList, Satellite, ShieldCheck } from 'lucide-react';
 import { BrandingFooter } from '@/components/branding-footer';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 
 function getNumericOrderId(id: string) {
   let hash = 0;
@@ -29,6 +30,10 @@ function OrderTrackingContent() {
   const firestore = useFirestore();
   const searchParams = useSearchParams();
   const orderId = searchParams.get('id');
+  const [isTrackingActive, setIsTrackingActive] = useState(false);
+  
+  const wakeLockRef = useRef<any>(null);
+  const locationIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const orderRef = useMemoFirebase(() => {
     if (!firestore || !orderId) return null;
@@ -53,6 +58,75 @@ function OrderTrackingContent() {
 
   const { data: seller, isLoading: isLoadingSeller } = useDoc<Seller>(sellerRef);
 
+  // Wake Lock Management
+  useEffect(() => {
+    const requestWakeLock = async () => {
+      if ('wakeLock' in navigator && !wakeLockRef.current) {
+        try {
+          wakeLockRef.current = await (navigator as any).wakeLock.request('screen');
+        } catch (err) {
+          console.warn('Wake Lock request failed:', err);
+        }
+      }
+    };
+
+    const releaseWakeLock = async () => {
+      if (wakeLockRef.current) {
+        await wakeLockRef.current.release();
+        wakeLockRef.current = null;
+      }
+    };
+
+    if (order && order.status !== 'Delivered' && order.status !== 'Cancelled') {
+      requestWakeLock();
+    } else {
+      releaseWakeLock();
+    }
+
+    return () => {
+      releaseWakeLock();
+    };
+  }, [order?.status]);
+
+  // GPS Tracking Management
+  useEffect(() => {
+    const updateLocation = () => {
+      if (!navigator.geolocation || !order || !firestore) return;
+
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const newLocation = {
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+          };
+          const orderDocRef = doc(firestore, 'orders', order.id);
+          updateDoc(orderDocRef, { deliveryLocation: newLocation }).catch(() => {});
+        },
+        (error) => console.warn('GPS Update Failed:', error),
+        { enableHighAccuracy: true }
+      );
+    };
+
+    if (order?.status === 'Out for Delivery') {
+      setIsTrackingActive(true);
+      // Update immediately then every 15s
+      updateLocation();
+      locationIntervalRef.current = setInterval(updateLocation, 15000);
+    } else {
+      setIsTrackingActive(false);
+      if (locationIntervalRef.current) {
+        clearInterval(locationIntervalRef.current);
+        locationIntervalRef.current = null;
+      }
+    }
+
+    return () => {
+      if (locationIntervalRef.current) {
+        clearInterval(locationIntervalRef.current);
+      }
+    };
+  }, [order?.status, order?.id, firestore]);
+
   if (isLoading || (order && isLoadingSeller)) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center p-8 space-y-4">
@@ -67,7 +141,7 @@ function OrderTrackingContent() {
       <div className="flex-1 flex flex-col items-center justify-center p-8 text-center space-y-6">
         <div className="p-4 bg-muted rounded-full"><ShoppingBag className="h-12 w-12 opacity-20" /></div>
         <div className="space-y-2">
-            <h2 className="text-2xl font-headline font-bold uppercase">NO ACTIVE ORDER</h2>
+            <h2 className="text-2xl font-headline text-bold uppercase">NO ACTIVE ORDER</h2>
             <p className="text-muted-foreground">We couldn't find your order. Try placing a new one!</p>
         </div>
         <Button asChild><Link href="/">GO BACK HOME</Link></Button>
@@ -101,6 +175,18 @@ function OrderTrackingContent() {
                 </Link>
              </Button>
           </div>
+          
+          {isTrackingActive && (
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 w-[90%] max-w-sm">
+              <Alert className="bg-primary/95 text-white border-none shadow-xl backdrop-blur-md py-2.5">
+                <Satellite className="h-4 w-4 text-white animate-pulse" />
+                <AlertTitle className="text-[10px] font-bold uppercase tracking-[0.2em] mb-0">Live Location Active</AlertTitle>
+                <AlertDescription className="text-[9px] opacity-90 leading-tight">
+                  Driver is using your GPS to find you on the course.
+                </AlertDescription>
+              </Alert>
+            </div>
+          )}
         </div>
       )}
 
@@ -117,6 +203,15 @@ function OrderTrackingContent() {
                     </Button>
                 </CardContent>
             </Card>
+        )}
+
+        {isTrackingActive && !isDelivered && (
+          <div className="px-1">
+             <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.3em] text-primary bg-primary/5 p-3 rounded-lg border border-primary/20">
+                <ShieldCheck className="h-4 w-4" />
+                GPS LOCATION TRACKING ACTIVE
+             </div>
+          </div>
         )}
 
         <Card className="shadow-lg border-primary/10">

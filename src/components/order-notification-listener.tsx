@@ -45,6 +45,15 @@ export function OrderNotificationListener() {
     // Only toast if the status has actually changed to 'Out for Delivery' for the same order
     if (order.status !== prevStatusRef.current) {
       if (order.status === 'Out for Delivery') {
+        // Attempt to re-initiate wake lock if browser supports it
+        if ('wakeLock' in navigator) {
+          try {
+            (navigator as any).wakeLock.request('screen');
+          } catch (e) {
+            console.warn('Wake Lock re-initiation failed from background');
+          }
+        }
+
         toast({
           title: (
             <div className="flex items-center gap-2">
