@@ -25,7 +25,7 @@ import { Separator } from '@/components/ui/separator';
 import { Input } from '@/components/ui/input';
 import { BrandingFooter } from '@/components/branding-footer';
 
-export default function BuyerOrderPage({ params }: { params: { sellerId: string } }) {
+export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId: string }> }) {
   const { sellerId } = use(params);
   const firestore = useFirestore();
   const router = useRouter();
@@ -88,7 +88,7 @@ export default function BuyerOrderPage({ params }: { params: { sellerId: string 
     }
 
     if (!selectedMenuType) {
-        toast({ variant: 'destructive', title: 'Menu Selection Required', description: 'Please select where you are ordering from.' });
+        toast({ variant: 'destructive', title: 'Selection Required', description: 'Please select where you are ordering from.' });
         return;
     }
 
@@ -98,12 +98,12 @@ export default function BuyerOrderPage({ params }: { params: { sellerId: string 
     }
 
     if (selectedMenuType === 'Lane Delivery' && !menuTypeLocation) {
-        toast({ variant: 'destructive', title: 'Lane Number Required', description: 'Please enter your lane number.' });
+        toast({ variant: 'destructive', title: 'Lane Required', description: 'Please enter your lane number.' });
         return;
     }
 
     if (selectedMenuType === 'Dine-In' && !menuTypeLocation) {
-        toast({ variant: 'destructive', title: 'Table Number Required', description: 'Please enter your table number.' });
+        toast({ variant: 'destructive', title: 'Table Required', description: 'Please enter your table number.' });
         return;
     }
 
@@ -111,8 +111,8 @@ export default function BuyerOrderPage({ params }: { params: { sellerId: string 
       if (!inputMemberId.trim() || !inputMemberLastName.trim()) {
         toast({ 
           variant: 'destructive', 
-          title: 'Required Information', 
-          description: 'Please enter both your Member ID and Last Name.' 
+          title: 'Required Info', 
+          description: 'Please enter both Member ID and Last Name.' 
         });
         return;
       }
@@ -121,7 +121,7 @@ export default function BuyerOrderPage({ params }: { params: { sellerId: string 
     setIsPlacingOrder(true);
     const activeOrderItems = orderItems.filter((item) => item.quantity > 0);
 
-    const createOrder = (latitude: number, longitude: number) => {
+    const submitToFirestore = (latitude: number, longitude: number) => {
       const subtotal = activeOrderItems.reduce((acc, item) => acc + item.price * item.quantity, 0);
       const orderData: Omit<Order, 'id' | 'createdAt'> = {
         sellerId,
@@ -155,20 +155,21 @@ export default function BuyerOrderPage({ params }: { params: { sellerId: string 
             operation: 'create', 
             requestResourceData: orderData 
           }));
-        })
-        .finally(() => setIsPlacingOrder(false));
+          setIsPlacingOrder(false);
+        });
     };
 
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
-        (p) => createOrder(p.coords.latitude, p.coords.longitude),
+        (p) => submitToFirestore(p.coords.latitude, p.coords.longitude),
         () => {
-          toast({ title: 'Location Fallback', description: 'Using estimated location.' });
-          createOrder(mockBuyerLocation.latitude, mockBuyerLocation.longitude);
-        }
+          toast({ title: 'Location Fallback', description: 'Using default location.' });
+          submitToFirestore(mockBuyerLocation.latitude, mockBuyerLocation.longitude);
+        },
+        { timeout: 10000 }
       );
     } else {
-      createOrder(mockBuyerLocation.latitude, mockBuyerLocation.longitude);
+      submitToFirestore(mockBuyerLocation.latitude, mockBuyerLocation.longitude);
     }
   };
 
