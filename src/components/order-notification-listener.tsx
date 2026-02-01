@@ -50,17 +50,17 @@ export function OrderNotificationListener() {
 
       switch (order.status) {
         case 'Preparing':
-          title = 'Order Confirmed!';
-          description = 'The cart is now preparing your items.';
+          title = 'Order Received';
+          description = 'The Clubhouse is now preparing your items.';
           Icon = CookingPot;
           break;
         case 'Out for Delivery':
-          title = 'Order is on the way!';
+          title = 'Order Out for Delivery';
           description = 'The driver is heading to your location.';
           Icon = Navigation;
           break;
         case 'Delivered':
-          title = 'Order Delivered!';
+          title = 'Order Complete';
           description = 'Enjoy your refreshments.';
           Icon = PartyPopper;
           break;
@@ -71,14 +71,14 @@ export function OrderNotificationListener() {
           title: (
             <div className="flex items-center gap-2">
               <Icon className="h-5 w-5 text-primary" />
-              <span className="font-headline font-bold">{title}</span>
+              <span className="font-headline font-bold uppercase">{title}</span>
             </div>
           ),
           description: description,
           action: (
             <ToastAction 
               altText="Track Order" 
-              onClick={() => router.push('/order/track')}
+              onClick={() => router.push(`/order/track?id=${order.id}`)}
             >
               Track Order
             </ToastAction>

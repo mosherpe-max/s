@@ -110,7 +110,7 @@ function OrderTrackingContent() {
                 <div className="h-2 bg-green-500 w-full" />
                 <CardContent className="p-8">
                     <PartyPopper className="h-16 w-16 text-green-600 mx-auto mb-4" />
-                    <h2 className="font-headline text-3xl font-bold text-green-800 uppercase tracking-tight">DELIVERED!</h2>
+                    <h2 className="font-headline text-3xl font-bold text-green-800 uppercase tracking-tight">ORDER COMPLETE!</h2>
                     <p className="text-green-700/80 mt-2 mb-8 font-medium">Your refreshments have arrived. Enjoy!</p>
                     <Button asChild size="lg" className="rounded-full px-8 bg-green-600 hover:bg-green-700 font-headline font-bold uppercase">
                         <Link href={`/sellers/${order.sellerId}/order`}>ORDER AGAIN</Link>

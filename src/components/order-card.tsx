@@ -10,12 +10,30 @@ import { Check, Navigation, Package, CookingPot, Send, PartyPopper, ClipboardLis
 import { formatDistanceToNow } from 'date-fns';
 import { Badge } from './ui/badge';
 
-const statusConfig: Record<Order['status'], { icon: React.ElementType, label: string, badgeVariant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
-    'Placed': { icon: Package, label: 'PLACED', badgeVariant: 'default' },
-    'Preparing': { icon: CookingPot, label: 'PREPARING', badgeVariant: 'secondary' },
-    'Out for Delivery': { icon: Navigation, label: 'EN ROUTE', badgeVariant: 'outline' },
-    'Delivered': { icon: Check, label: 'DELIVERED', badgeVariant: 'default' },
-    'Cancelled': { icon: Check, label: 'CANCELLED', badgeVariant: 'destructive' },
+const getStatusConfig = (status: Order['status'], isBevCart: boolean) => {
+    const config: Record<Order['status'], { label: string, badgeVariant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
+        'Placed': { 
+            label: isBevCart ? 'ORDER CONFIRMED' : 'PLACED', 
+            badgeVariant: 'default' 
+        },
+        'Preparing': { 
+            label: 'PREPARING', 
+            badgeVariant: 'secondary' 
+        },
+        'Out for Delivery': { 
+            label: 'OUT FOR DELIVERY', 
+            badgeVariant: 'outline' 
+        },
+        'Delivered': { 
+            label: isBevCart ? 'ORDER DELIVERED' : 'DELIVERED', 
+            badgeVariant: 'default' 
+        },
+        'Cancelled': { 
+            label: 'CANCELLED', 
+            badgeVariant: 'destructive' 
+        },
+    };
+    return config[status];
 };
 
 function getNumericOrderId(id: string) {
@@ -26,20 +44,18 @@ function getNumericOrderId(id: string) {
   return (Math.abs(hash) % 10000).toString().padStart(4, '0');
 }
 
-export function OrderCard({ order, orderNumber, onUpdateStatus }: OrderCardProps) {
-    const statusInfo = statusConfig[order.status];
+export function OrderCard({ order, orderNumber, onUpdateStatus }: { order: Order; orderNumber: number; onUpdateStatus: (id: string, status: Order['status']) => void }) {
     const [mounted, setMounted] = useState(false);
+    const isBevCart = order.menuType === 'Beverage Cart';
+    const statusInfo = getStatusConfig(order.status, isBevCart);
 
     useEffect(() => {
         setMounted(true);
     }, []);
 
-    const isBevCart = order.menuType === 'Beverage Cart';
-
     const renderAction = () => {
         switch (order.status) {
             case 'Placed':
-                // For Bev Cart, we skip Preparing and go straight to Out for Delivery
                 if (isBevCart) {
                   return (
                     <Button className="w-full font-headline font-bold uppercase text-xs h-12" onClick={() => onUpdateStatus(order.id, 'Out for Delivery')}>
