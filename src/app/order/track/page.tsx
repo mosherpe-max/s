@@ -67,10 +67,10 @@ function OrderTrackingContent() {
       <div className="flex-1 flex flex-col items-center justify-center p-8 text-center space-y-6">
         <div className="p-4 bg-muted rounded-full"><ShoppingBag className="h-12 w-12 opacity-20" /></div>
         <div className="space-y-2">
-            <h2 className="text-2xl font-headline font-bold uppercase">No Active Order</h2>
+            <h2 className="text-2xl font-headline font-bold uppercase">NO ACTIVE ORDER</h2>
             <p className="text-muted-foreground">We couldn't find your order. Try placing a new one!</p>
         </div>
-        <Button asChild><Link href="/">Go Back Home</Link></Button>
+        <Button asChild><Link href="/">GO BACK HOME</Link></Button>
       </div>
     );
   }
@@ -97,7 +97,7 @@ function OrderTrackingContent() {
              <Button variant="secondary" size="sm" asChild className="rounded-full shadow-lg h-9 border-2 border-primary/20 bg-background/95 backdrop-blur-sm">
                 <Link href={`/sellers/${order.sellerId}/order`} className="flex items-center">
                   <ArrowLeft className="mr-2 h-4 w-4" /> 
-                  <span className="text-[10px] font-bold uppercase tracking-wider">Back to Menu</span>
+                  <span className="text-[10px] font-bold uppercase tracking-wider">BACK TO MENU</span>
                 </Link>
              </Button>
           </div>
@@ -113,7 +113,7 @@ function OrderTrackingContent() {
                     <h2 className="font-headline text-3xl font-bold text-green-800 uppercase tracking-tight">DELIVERED!</h2>
                     <p className="text-green-700/80 mt-2 mb-8 font-medium">Your refreshments have arrived. Enjoy!</p>
                     <Button asChild size="lg" className="rounded-full px-8 bg-green-600 hover:bg-green-700 font-headline font-bold uppercase">
-                        <Link href={`/sellers/${order.sellerId}/order`}>Order Again</Link>
+                        <Link href={`/sellers/${order.sellerId}/order`}>ORDER AGAIN</Link>
                     </Button>
                 </CardContent>
             </Card>
@@ -125,28 +125,27 @@ function OrderTrackingContent() {
                     <h3 className="font-headline text-lg font-bold uppercase tracking-wider text-muted-foreground">ORDER TRACKING</h3>
                     <Badge variant="outline" className="font-mono text-[10px] h-6 px-3 border-primary/20 bg-primary/5">#{numericId}</Badge>
                 </div>
-                <OrderStatus currentStatus={order.status} />
+                <OrderStatus currentStatus={order.status} menuType={order.menuType} />
             </CardHeader>
             <Separator />
             <CardContent className="pt-6 space-y-6">
-                {/* Placement Details */}
                 <div className="grid grid-cols-2 gap-4 py-3 px-4 bg-muted/30 rounded-xl border border-dashed">
                   <div className="space-y-1">
                     <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-1.5">
-                      <Store className="w-3 h-3" /> Establishment
+                      <Store className="w-3 h-3" /> ESTABLISHMENT
                     </p>
                     <p className="text-xs font-bold truncate">{seller?.courseName || 'Loading...'}</p>
                   </div>
                   <div className="space-y-1">
                     <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-1.5">
-                      <ClipboardList className="w-3 h-3" /> Service Mode
+                      <ClipboardList className="w-3 h-3" /> SERVICE MODE
                     </p>
                     <p className="text-xs font-bold">{order.menuType}</p>
                   </div>
                 </div>
 
                 <div className="space-y-3">
-                    <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground"><ShoppingBag className="w-3.5 h-3.5" /> Order Items</div>
+                    <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground"><ShoppingBag className="w-3.5 h-3.5" /> ORDER ITEMS</div>
                     <div className="space-y-2">
                         {order.items.map(item => (
                             <div key={item.id} className="flex justify-between items-center text-sm">
@@ -161,21 +160,21 @@ function OrderTrackingContent() {
                 
                 <div className="space-y-1.5 pt-2">
                     <div className="flex justify-between text-[11px] text-muted-foreground">
-                        <span>Subtotal</span>
+                        <span>SUBTOTAL</span>
                         <span className="font-mono">${order.subtotal.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between text-[11px] text-muted-foreground">
-                        <span>Service Fee</span>
+                        <span>SERVICE FEE</span>
                         <span className="font-mono">${order.serviceFee.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between items-center pt-2 font-bold text-lg">
-                        <span className="font-headline uppercase tracking-tight text-base">Order Total</span>
+                        <span className="font-headline uppercase tracking-tight text-base">ORDER TOTAL</span>
                         <span className="font-mono" style={{ color: brandColor }}>${order.total.toFixed(2)}</span>
                     </div>
                 </div>
 
                 <div className="p-4 bg-muted/30 rounded-xl border flex flex-col gap-2">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Payment Method</p>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">PAYMENT METHOD</p>
                     <p className="text-xs font-medium text-foreground italic">"{order.paymentMethod}"</p>
                 </div>
             </CardContent>

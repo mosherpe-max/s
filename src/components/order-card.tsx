@@ -10,12 +10,6 @@ import { Check, Navigation, Package, CookingPot, Send, PartyPopper, ClipboardLis
 import { formatDistanceToNow } from 'date-fns';
 import { Badge } from './ui/badge';
 
-interface OrderCardProps {
-  order: Order;
-  orderNumber: number;
-  onUpdateStatus: (orderId: string, status: Order['status']) => void;
-}
-
 const statusConfig: Record<Order['status'], { icon: React.ElementType, label: string, badgeVariant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
     'Placed': { icon: Package, label: 'PLACED', badgeVariant: 'default' },
     'Preparing': { icon: CookingPot, label: 'PREPARING', badgeVariant: 'secondary' },
@@ -40,9 +34,20 @@ export function OrderCard({ order, orderNumber, onUpdateStatus }: OrderCardProps
         setMounted(true);
     }, []);
 
+    const isBevCart = order.menuType === 'Beverage Cart';
+
     const renderAction = () => {
         switch (order.status) {
             case 'Placed':
+                // For Bev Cart, we skip Preparing and go straight to Out for Delivery
+                if (isBevCart) {
+                  return (
+                    <Button className="w-full font-headline font-bold uppercase text-xs h-12" onClick={() => onUpdateStatus(order.id, 'Out for Delivery')}>
+                        <Navigation className="mr-2 h-4 w-4" />
+                        Start Delivery
+                    </Button>
+                  );
+                }
                 return (
                     <Button className="w-full font-headline font-bold uppercase text-xs h-12" onClick={() => onUpdateStatus(order.id, 'Preparing')}>
                         <Send className="mr-2 h-4 w-4" />
