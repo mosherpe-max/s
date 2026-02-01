@@ -516,7 +516,8 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
 
   const quickLinks = [
     { label: 'Performance Overview', id: 'performance-overview', icon: <BarChart3 className="w-3 h-3" /> },
-    { label: 'Sales & Branding', id: 'sales-branding', icon: <Palette className="w-3 h-3" /> },
+    { label: 'Sales Data', id: 'sales-data', icon: <FileSpreadsheet className="w-3 h-3" /> },
+    { label: 'App Branding', id: 'app-branding', icon: <Palette className="w-3 h-3" /> },
     { label: 'Menu Library', id: 'menu-library', icon: <Database className="w-3 h-3" /> },
     { label: 'Service Menu Management', id: 'service-management', icon: <ListChecks className="w-3 h-3" /> },
     ...(isClubSeller ? [{ label: 'Member List', id: 'member-list', icon: <Users className="w-3 h-3" /> }] : []),
@@ -558,7 +559,7 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
         </nav>
 
         <section id="performance-overview" className="mb-8 scroll-mt-24">
-          <h2 className="font-headline text-xl font-bold mb-6 flex items-center gap-2"><DollarSign className="h-6 w-6 text-primary" /> Performance Overview</h2>
+          <h2 className="font-headline text-xl font-bold mb-6 flex items-center gap-2"><BarChart3 className="h-6 w-6 text-primary" /> Performance Overview</h2>
           <div className="flex flex-wrap gap-4">
               {dashboardStats ? (
                   <>
@@ -570,10 +571,10 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
           </div>
         </section>
 
-        <div id="sales-branding" className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12 scroll-mt-24">
-            <Card className="shadow-sm border-muted h-full flex flex-col">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
+            <Card id="sales-data" className="shadow-sm border-muted h-full flex flex-col scroll-mt-24">
               <CardHeader className="bg-muted/30">
-                <CardTitle className="flex items-center gap-2 text-lg"><FileSpreadsheet className="h-5 w-5" /> Recent Sales</CardTitle>
+                <CardTitle className="flex items-center gap-2 text-lg"><FileSpreadsheet className="h-5 w-5" /> Sales Data</CardTitle>
               </CardHeader>
               <CardContent className="flex-1 pt-6">
                 <div className="flex flex-wrap gap-2 mb-6">
@@ -600,9 +601,9 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
               </CardContent>
             </Card>
 
-            <Card className="shadow-sm border-muted h-full flex flex-col">
+            <Card id="app-branding" className="shadow-sm border-muted h-full flex flex-col scroll-mt-24">
               <CardHeader className="bg-muted/30">
-                <CardTitle className="flex items-center gap-2 text-lg"><Palette className="h-5 w-5" /> Menu Branding</CardTitle>
+                <CardTitle className="flex items-center gap-2 text-lg"><Palette className="h-5 w-5" /> App Branding</CardTitle>
               </CardHeader>
               <CardContent className="flex-1 pt-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
