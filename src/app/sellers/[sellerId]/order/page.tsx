@@ -77,117 +77,124 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
   }, [seller, selectedMenuType]);
 
   const handlePlaceOrder = async () => {
-    if (!firestore || !seller) {
-      toast({ variant: 'destructive', title: 'Error', description: 'Service connection failed. Please try again.' });
-      return;
-    }
-
-    if (seller.status === 'Inactive' && selectedMenuType === 'Beverage Cart') {
-      toast({ variant: 'destructive', title: 'Service Unavailable', description: 'The beverage cart is currently offline.' });
-      return;
-    }
-
-    if (!selectedMenuType) {
-        toast({ variant: 'destructive', title: 'Selection Required', description: 'Please select where you are ordering from.' });
-        return;
-    }
-
-    // Validation for specific location modes
-    if (selectedMenuType === 'Halfway House' && !menuTypeLocation) {
-        toast({ variant: 'destructive', title: 'Location Required', description: 'Please select which Halfway House you are at.' });
-        return;
-    }
-
-    if (selectedMenuType === 'Lane Delivery' && !menuTypeLocation) {
-        toast({ variant: 'destructive', title: 'Lane Required', description: 'Please enter your lane number.' });
-        return;
-    }
-
-    if (selectedMenuType === 'Dine-In' && !menuTypeLocation) {
-        toast({ variant: 'destructive', title: 'Table Required', description: 'Please enter your table number.' });
-        return;
-    }
-
-    if (paymentMethod === 'Member Account') {
-      if (!inputMemberId.trim() || !inputMemberLastName.trim()) {
-        toast({ 
-          variant: 'destructive', 
-          title: 'Required Info', 
-          description: 'Please enter both Member ID and Last Name.' 
-        });
+    try {
+      if (!firestore || !seller) {
+        toast({ variant: 'destructive', title: 'Error', description: 'Service connection failed. Please try again.' });
         return;
       }
-    }
 
-    const activeOrderItems = orderItems.filter((item) => item.quantity > 0);
-    if (activeOrderItems.length === 0) {
-      toast({ variant: 'destructive', title: 'Empty Cart', description: 'Please add items to your order.' });
-      return;
-    }
-
-    setIsPlacingOrder(true);
-
-    const submitToFirestore = async (latitude: number, longitude: number) => {
-      try {
-        const subtotal = activeOrderItems.reduce((acc, item) => acc + item.price * item.quantity, 0);
-        const orderData: Omit<Order, 'id' | 'createdAt'> = {
-          sellerId,
-          customerId: 'public-user',
-          customerName: paymentMethod === 'Member Account' 
-            ? `Member ${inputMemberLastName}` 
-            : 'Guest Golfer',
-          deliveryLocation: { latitude, longitude },
-          items: activeOrderItems,
-          subtotal,
-          serviceFee: seller.serviceFee || 0,
-          total: subtotal + (seller.serviceFee || 0),
-          status: 'Placed',
-          paymentMethod,
-          menuType: selectedMenuType,
-          menuTypeLocation: menuTypeLocation || undefined,
-          memberId: paymentMethod === 'Member Account' ? inputMemberId : undefined,
-          memberLastName: paymentMethod === 'Member Account' ? inputMemberLastName : undefined,
-        };
-
-        const ordersCol = collection(firestore, 'orders');
-        const docRef = await addDoc(ordersCol, { ...orderData, createdAt: serverTimestamp() });
-        
-        toast({ title: 'Order Placed!', description: "Your order has been received." });
-        clearCart();
-        router.push(`/order/track?id=${docRef.id}`);
-      } catch (err: any) {
-        console.error("Order submission failed:", err);
-        errorEmitter.emit('permission-error', new FirestorePermissionError({ 
-          path: 'orders', 
-          operation: 'create', 
-          requestResourceData: { sellerId } 
-        }));
-        setIsPlacingOrder(false);
+      if (seller.status === 'Inactive' && selectedMenuType === 'Beverage Cart') {
+        toast({ variant: 'destructive', title: 'Service Unavailable', description: 'The beverage cart is currently offline.' });
+        return;
       }
-    };
 
-    // Geolocation handling with timeout and fallback
-    if (navigator.geolocation) {
-      const geoTimeout = setTimeout(() => {
-        toast({ title: 'Location Fallback', description: 'Using default location due to slow GPS.' });
-        submitToFirestore(mockBuyerLocation.latitude, mockBuyerLocation.longitude);
-      }, 10000);
+      if (!selectedMenuType) {
+          toast({ variant: 'destructive', title: 'Selection Required', description: 'Please select where you are ordering from.' });
+          return;
+      }
 
-      navigator.geolocation.getCurrentPosition(
-        (p) => {
-          clearTimeout(geoTimeout);
-          submitToFirestore(p.coords.latitude, p.coords.longitude);
-        },
-        (error) => {
-          console.warn("Geolocation error:", error);
-          clearTimeout(geoTimeout);
-          toast({ title: 'Location Fallback', description: 'Using default location.' });
+      // Validation for specific location modes
+      if (selectedMenuType === 'Halfway House' && !menuTypeLocation) {
+          toast({ variant: 'destructive', title: 'Location Required', description: 'Please select which Halfway House you are at.' });
+          return;
+      }
+
+      if (selectedMenuType === 'Lane Delivery' && !menuTypeLocation) {
+          toast({ variant: 'destructive', title: 'Lane Required', description: 'Please enter your lane number.' });
+          return;
+      }
+
+      if (selectedMenuType === 'Dine-In' && !menuTypeLocation) {
+          toast({ variant: 'destructive', title: 'Table Required', description: 'Please enter your table number.' });
+          return;
+      }
+
+      if (paymentMethod === 'Member Account') {
+        if (!inputMemberId.trim() || !inputMemberLastName.trim()) {
+          toast({ 
+            variant: 'destructive', 
+            title: 'Required Info', 
+            description: 'Please enter both Member ID and Last Name.' 
+          });
+          return;
+        }
+      }
+
+      const activeOrderItems = orderItems.filter((item) => item.quantity > 0);
+      if (activeOrderItems.length === 0) {
+        toast({ variant: 'destructive', title: 'Empty Cart', description: 'Please add items to your order.' });
+        return;
+      }
+
+      setIsPlacingOrder(true);
+
+      const submitToFirestore = async (latitude: number, longitude: number) => {
+        try {
+          const subtotal = activeOrderItems.reduce((acc, item) => acc + item.price * item.quantity, 0);
+          const orderData: Omit<Order, 'id' | 'createdAt'> = {
+            sellerId,
+            customerId: 'public-user',
+            customerName: paymentMethod === 'Member Account' 
+              ? `Member ${inputMemberLastName}` 
+              : 'Guest Golfer',
+            deliveryLocation: { latitude, longitude },
+            items: activeOrderItems,
+            subtotal,
+            serviceFee: seller.serviceFee || 0,
+            total: subtotal + (seller.serviceFee || 0),
+            status: 'Placed',
+            paymentMethod,
+            menuType: selectedMenuType,
+            menuTypeLocation: menuTypeLocation || undefined,
+            memberId: paymentMethod === 'Member Account' ? inputMemberId : undefined,
+            memberLastName: paymentMethod === 'Member Account' ? inputMemberLastName : undefined,
+          };
+
+          const ordersCol = collection(firestore, 'orders');
+          const docRef = await addDoc(ordersCol, { ...orderData, createdAt: serverTimestamp() });
+          
+          toast({ title: 'Order Placed!', description: "Your order has been received." });
+          clearCart();
+          setIsPlacingOrder(false);
+          router.push(`/order/track?id=${docRef.id}`);
+        } catch (err: any) {
+          console.error("Order submission failed:", err);
+          errorEmitter.emit('permission-error', new FirestorePermissionError({ 
+            path: 'orders', 
+            operation: 'create', 
+            requestResourceData: { sellerId } 
+          }));
+          setIsPlacingOrder(false);
+        }
+      };
+
+      // Geolocation handling with timeout and fallback
+      if (navigator.geolocation) {
+        const geoTimeout = setTimeout(() => {
+          toast({ title: 'Location Fallback', description: 'Using default location due to slow GPS.' });
           submitToFirestore(mockBuyerLocation.latitude, mockBuyerLocation.longitude);
-        },
-        { timeout: 9500, enableHighAccuracy: true }
-      );
-    } else {
-      submitToFirestore(mockBuyerLocation.latitude, mockBuyerLocation.longitude);
+        }, 10000);
+
+        navigator.geolocation.getCurrentPosition(
+          (p) => {
+            clearTimeout(geoTimeout);
+            submitToFirestore(p.coords.latitude, p.coords.longitude);
+          },
+          (error) => {
+            console.warn("Geolocation error:", error);
+            clearTimeout(geoTimeout);
+            toast({ title: 'Location Fallback', description: 'Using default location.' });
+            submitToFirestore(mockBuyerLocation.latitude, mockBuyerLocation.longitude);
+          },
+          { timeout: 9500, enableHighAccuracy: true }
+        );
+      } else {
+        submitToFirestore(mockBuyerLocation.latitude, mockBuyerLocation.longitude);
+      }
+    } catch (error) {
+      console.error("Critical error in handlePlaceOrder:", error);
+      setIsPlacingOrder(false);
+      toast({ variant: 'destructive', title: 'Error', description: 'An unexpected error occurred. Please try again.' });
     }
   };
 
@@ -206,7 +213,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
         <div className="px-4 py-3 space-y-3">
             <div className="flex flex-col gap-1.5">
                 <Label className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest flex items-center gap-1">
-                    <Store className="w-3 h-3" /> Service Mode
+                    <Store className="w-3 h-3" /> SERVICE MODE
                 </Label>
                 <ScrollArea className="w-full whitespace-nowrap">
                     <div className="flex gap-2 pb-1">
@@ -290,7 +297,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
         )}
         <SheetContent side="bottom" className="rounded-t-lg max-h-[90vh] flex flex-col p-0">
           <SheetHeader className="px-6 py-4 border-b">
-            <SheetTitle>Review Order</SheetTitle>
+            <SheetTitle>REVIEW ORDER</SheetTitle>
           </SheetHeader>
           <ScrollArea className="flex-1 px-6">
             <div className="py-6 space-y-6">
@@ -300,17 +307,17 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
 
               <div className="space-y-4">
                   <h3 className="font-bold text-sm uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-                      <MapPin className="w-4 h-4" /> Delivery Location
+                      <MapPin className="w-4 h-4" /> DELIVERY LOCATION
                   </h3>
                   
                   <div className="p-3 bg-muted/50 rounded-lg border flex flex-col gap-1">
-                      <p className="text-xs font-bold text-primary" style={{ color: brandStyle.primaryColor }}>Ordering From</p>
+                      <p className="text-xs font-bold text-primary" style={{ color: brandStyle.primaryColor }}>ORDERING FROM</p>
                       <p className="text-sm font-medium">{selectedMenuType}</p>
                   </div>
 
                   {selectedMenuType === 'Halfway House' && (
                       <div className="space-y-2 animate-in slide-in-from-top-2">
-                          <Label>Select Halfway House</Label>
+                          <Label>SELECT HALFWAY HOUSE</Label>
                           <select 
                             className="w-full p-2 border rounded-md bg-background"
                             value={menuTypeLocation} 
@@ -326,7 +333,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
 
                   {selectedMenuType === 'Lane Delivery' && (
                       <div className="space-y-2 animate-in slide-in-from-top-2">
-                          <Label>Bowling Lane Number</Label>
+                          <Label>BOWLING LANE NUMBER</Label>
                           <Input 
                               type="number" 
                               placeholder={`1 - ${seller?.laneCount || 24}`}
@@ -338,7 +345,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
 
                   {selectedMenuType === 'Dine-In' && (
                       <div className="space-y-2 animate-in slide-in-from-top-2">
-                          <Label>Table Number</Label>
+                          <Label>TABLE NUMBER</Label>
                           <Input 
                               type="number" 
                               placeholder={`1 - ${seller?.tableCount || 50}`}
@@ -352,7 +359,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
               <Separator />
 
               <div className="space-y-4">
-                <h3 className="font-bold text-sm uppercase tracking-wider text-muted-foreground">Payment Method</h3>
+                <h3 className="font-bold text-sm uppercase tracking-wider text-muted-foreground">PAYMENT METHOD</h3>
                 
                 {isPublicCourse && isBevCart ? (
                   <div className="bg-muted/50 p-4 rounded-lg flex items-center gap-4 border border-primary/20 animate-in fade-in slide-in-from-top-2">
@@ -388,7 +395,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
                 {paymentMethod === 'Member Account' && (
                   <div className="mt-4 space-y-4 animate-in fade-in slide-in-from-top-2">
                     <div className="space-y-2">
-                      <Label htmlFor="memberId">Member ID Number</Label>
+                      <Label htmlFor="memberId">MEMBER ID NUMBER</Label>
                       <Input 
                         id="memberId"
                         placeholder="e.g. 12345"
@@ -397,7 +404,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="lastName">Member Last Name</Label>
+                      <Label htmlFor="lastName">MEMBER LAST NAME</Label>
                       <Input 
                         id="lastName"
                         placeholder="e.g. Smith"
@@ -422,10 +429,10 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
               {isPlacingOrder ? (
                 <>
                   <Loader2 className="animate-spin h-5 w-5 mr-2" />
-                  Placing Order...
+                  PLACING ORDER...
                 </>
               ) : (
-                `Place Order`
+                `PLACE ORDER`
               )}
             </Button>
           </SheetFooter>

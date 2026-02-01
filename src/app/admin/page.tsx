@@ -410,7 +410,7 @@ export default function KOOPAdminPage() {
     <div className="container mx-auto px-4 py-8 max-w-7xl">
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 text-center md:text-left">
         <div>
-          <h1 className="font-headline text-3xl font-bold text-foreground uppercase tracking-tight">KOOP Admin</h1>
+          <h1 className="font-headline text-3xl font-bold text-foreground uppercase tracking-tight">KOOP ADMIN</h1>
           <p className="text-muted-foreground">Manage your seller network and monitor platform performance.</p>
         </div>
         <div className="flex items-center gap-3 self-center md:self-auto">

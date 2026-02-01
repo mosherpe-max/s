@@ -1,4 +1,3 @@
-
 'use client'
 
 import { collection, query, where, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
@@ -262,7 +261,7 @@ export default function BevCartDriverDashboardPage() {
       return (
           <div className="flex flex-col items-center justify-center h-screen p-8 text-center space-y-6">
               <AlertCircle className="h-16 w-16 text-muted-foreground opacity-20" />
-              <h1 className="text-2xl font-headline font-bold uppercase">KOOP Driver Interface</h1>
+              <h1 className="text-2xl font-headline font-bold uppercase">KOOP DRIVER INTERFACE</h1>
               <p className="text-muted-foreground max-w-sm">
                   Initialize your seller profile to access driver tools.
               </p>
@@ -278,8 +277,8 @@ export default function BevCartDriverDashboardPage() {
       <div className="flex flex-col h-screen overflow-hidden">
         <header className="flex-shrink-0 px-4 h-16 flex items-center justify-between border-b-2 border-[#E50000] bg-[#213147] z-20 shadow-sm">
           <div className="flex flex-col">
-            <h1 className="font-headline text-lg md:text-xl font-bold text-white uppercase">
-              Beverage Cart Driver Dashboard
+            <h1 className="font-headline text-lg md:text-xl font-bold text-white uppercase tracking-tight">
+              BEVERAGE CART DRIVER DASHBOARD
             </h1>
             <span className="text-[10px] uppercase font-bold text-white/60 tracking-widest leading-none">
               DRIVER: Demo Golf Course - Public
