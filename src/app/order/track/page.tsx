@@ -17,6 +17,14 @@ import { useSearchParams } from 'next/navigation';
 import { PartyPopper, ShoppingBag, MapPin, Loader2, ArrowLeft } from 'lucide-react';
 import { BrandingFooter } from '@/components/branding-footer';
 
+function getNumericOrderId(id: string) {
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) {
+    hash = id.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return (Math.abs(hash) % 10000).toString().padStart(4, '0');
+}
+
 function OrderTrackingContent() {
   const firestore = useFirestore();
   const searchParams = useSearchParams();
@@ -69,6 +77,7 @@ function OrderTrackingContent() {
 
   const isDelivered = order.status === 'Delivered';
   const brandColor = seller?.brandColor || 'hsl(var(--primary))';
+  const numericId = getNumericOrderId(order.id);
 
   return (
     <div className="flex flex-col min-h-[calc(100vh-4rem)] bg-muted/10">
@@ -111,7 +120,7 @@ function OrderTrackingContent() {
             <CardHeader className="pb-4">
                 <div className="flex justify-between items-center mb-6">
                     <h3 className="font-headline text-lg font-bold uppercase tracking-wider text-muted-foreground">Order Tracking</h3>
-                    <Badge variant="outline" className="font-mono text-[10px]">{order.id.slice(-6).toUpperCase()}</Badge>
+                    <Badge variant="outline" className="font-mono text-[10px]">Order #{numericId}</Badge>
                 </div>
                 <OrderStatus currentStatus={order.status} />
             </CardHeader>

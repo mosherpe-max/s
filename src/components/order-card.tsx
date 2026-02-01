@@ -24,6 +24,13 @@ const statusConfig: Record<Order['status'], { icon: React.ElementType, label: st
     'Cancelled': { icon: Check, label: 'Cancelled', badgeVariant: 'destructive' },
 };
 
+function getNumericOrderId(id: string) {
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) {
+    hash = id.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return (Math.abs(hash) % 10000).toString().padStart(4, '0');
+}
 
 export function OrderCard({ order, orderNumber, onUpdateStatus }: OrderCardProps) {
     const statusInfo = statusConfig[order.status];
@@ -61,12 +68,13 @@ export function OrderCard({ order, orderNumber, onUpdateStatus }: OrderCardProps
         }
     }
 
+    const numericId = getNumericOrderId(order.id);
 
     return (
         <Card className='overflow-hidden shadow-md flex flex-col h-full'>
             <CardHeader className='flex flex-row items-start gap-4 p-4 bg-muted/50'>
                 <Avatar className="w-10 h-10">
-                    <AvatarFallback className="font-bold text-lg bg-accent text-accent-foreground">{orderNumber}</AvatarFallback>
+                    <AvatarFallback className="font-bold text-sm bg-accent text-accent-foreground">#{numericId}</AvatarFallback>
                 </Avatar>
                 <div className='flex-1'>
                     <CardTitle className='text-lg font-semibold'>{order.customerName}</CardTitle>

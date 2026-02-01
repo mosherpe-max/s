@@ -8,7 +8,7 @@ import { CartProvider } from '@/lib/cart-context';
 import { OrderNotificationListener } from '@/components/order-notification-listener';
 
 export const metadata: Metadata = {
-  title: 'Koop',
+  title: 'KOOP',
   description: 'On-course refreshment delivery.',
 };
 
