@@ -168,8 +168,11 @@ export function MapView({ buyerLocation, sellerLocation, showPrimaryMarker = tru
 
           const assignedStyles = assignedDriverColor ? colorMap[assignedDriverColor] : null;
 
+          // The inside (background) uses the time-based color (green/yellow/red)
+          const bgClass = statusColorClass;
+          
+          // The outline (border) and number (text) match the driver color if assigned, else white/accent
           const borderClass = assignedStyles ? `border-4 ${assignedStyles.border}` : 'border-4 border-white';
-          const bgClass = assignedStyles ? 'bg-white' : statusColorClass;
           const textClass = assignedStyles ? assignedStyles.text : 'text-white';
           const arrowClass = assignedStyles ? assignedStyles.arrow : statusColorClass.replace('bg-', 'border-t-');
 

@@ -1,4 +1,3 @@
-
 'use client';
 
 import { collection, query, where, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
@@ -20,7 +19,6 @@ import Link from 'next/link';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { BrandingFooter } from '@/components/branding-footer';
-import { getDriverColor } from '@/lib/utils';
 
 type LatLng = {
   latitude: number;
@@ -90,7 +88,7 @@ export default function ClubhouseDriverDashboardPage() {
     setNow(Date.now());
     const interval = setInterval(() => {
       setNow(Date.now());
-    }, 30000);
+    }, 10000); // Check every 10 seconds for fresher color updates
     return () => clearInterval(interval);
   }, []);
 
@@ -157,12 +155,16 @@ export default function ClubhouseDriverDashboardPage() {
   const mappedBuyers = useMemo(() => {
     if (!now || !activeOrders) return [];
     return activeOrders.map(o => {
-      let colorClass = "bg-green-600";
+      let colorClass = "bg-green-600"; // Default < 7 mins
       if (o.createdAt) {
         const orderTime = o.createdAt.toDate().getTime();
         const minutesElapsed = (now - orderTime) / (1000 * 60);
-        if (minutesElapsed > 15) colorClass = "bg-red-600";
-        else if (minutesElapsed > 10) colorClass = "bg-yellow-500";
+        
+        if (minutesElapsed > 10) {
+          colorClass = "bg-red-600";
+        } else if (minutesElapsed >= 7) {
+          colorClass = "bg-yellow-500";
+        }
       }
       return {
         id: o.id,
