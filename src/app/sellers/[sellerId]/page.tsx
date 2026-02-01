@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useMemo, useEffect, use } from 'react';
@@ -6,7 +5,7 @@ import { collection, doc, setDoc, deleteDoc, writeBatch, query, where, updateDoc
 import { useFirestore, useDoc, useCollection, useMemoFirebase } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { PlusCircle, Edit, Trash2, Filter, DollarSign, ShoppingBag, Clock, Database, Users, UserPlus, Sparkles, Download, Calendar as CalendarIcon, FileSpreadsheet, Palette, Save, Loader2, Upload, Smartphone, Beer, ListChecks, ChevronUp, ChevronDown, Check } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, Filter, DollarSign, ShoppingBag, Clock, Database, Users, UserPlus, Sparkles, Download, Calendar as CalendarIcon, FileSpreadsheet, Palette, Save, Loader2, Upload, Smartphone, Beer, ListChecks, ChevronUp, ChevronDown, Check, MousePointer2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import {
   AlertDialog,
@@ -38,6 +37,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
 import { isToday, isThisMonth, isThisYear, format } from 'date-fns';
+import Link from 'next/link';
 
 import type { MenuItem, Seller, Category, Order, Member } from '@/lib/types';
 import { categories } from '@/lib/types';
@@ -212,7 +212,7 @@ function StatTile({ title, revenue, orders, longWait }: { title: string, revenue
           <span className="font-mono font-bold">{orders}</span>
         </div>
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2"><Clock className="h-4 w-4 text-destructive" /><span className="text-sm font-medium">Orders {'>'} 10m</span></div>
+          <div className="flex items-center gap-2"><Clock className="h-4 w-4 text-destructive" /><span className="text-sm font-medium">Orders &gt; 10m</span></div>
           <span className="font-mono font-bold text-destructive">{longWait}</span>
         </div>
       </CardContent>
@@ -532,6 +532,13 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
     );
   }
 
+  const quickLinks = [
+    { label: 'Sales &amp; Branding', id: 'sales-branding', icon: <Palette className="w-3 h-3" /> },
+    { label: 'Master Library', id: 'item-library', icon: <Database className="w-3 h-3" /> },
+    { label: 'Service Menus', id: 'service-menus', icon: <ListChecks className="w-3 h-3" /> },
+    ...(isClubSeller ? [{ label: 'Member List', id: 'member-list', icon: <Users className="w-3 h-3" /> }] : []),
+  ];
+
   return (
     <div className="flex flex-col min-h-screen">
       <div className="container mx-auto px-4 py-8 max-w-7xl flex-1">
@@ -553,7 +560,7 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
           </div>
         </header>
 
-        <section className="mb-12">
+        <section className="mb-8">
           <h2 className="font-headline text-xl font-bold mb-6 flex items-center gap-2"><DollarSign className="h-6 w-6 text-primary" /> Performance Overview</h2>
           <div className="flex flex-wrap gap-4">
               {dashboardStats ? (
@@ -566,7 +573,21 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
           </div>
         </section>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
+        <nav className="mb-12 bg-muted/30 p-4 rounded-xl border border-dashed flex flex-wrap items-center gap-3">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mr-2 flex items-center gap-1.5">
+                <MousePointer2 className="w-3 h-3" /> Quick Navigation:
+            </span>
+            {quickLinks.map((link) => (
+                <Button key={link.id} variant="secondary" size="sm" asChild className="h-8 text-xs rounded-full">
+                    <Link href={`#${link.id}`}>
+                        {link.icon}
+                        <span className="ml-2">{link.label}</span>
+                    </Link>
+                </Button>
+            ))}
+        </nav>
+
+        <div id="sales-branding" className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12 scroll-mt-24">
             <Card className="shadow-sm border-muted h-full flex flex-col">
               <CardHeader className="bg-muted/30">
                 <CardTitle className="flex items-center gap-2 text-lg"><FileSpreadsheet className="h-5 w-5" /> Recent Sales</CardTitle>
@@ -654,7 +675,7 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
 
         <Separator className="my-10" />
 
-        <Card className="mb-12 shadow-md border-primary/20 bg-primary/5">
+        <Card id="item-library" className="mb-12 shadow-md border-primary/20 bg-primary/5 scroll-mt-24">
           <CardHeader className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
               <CardTitle className="flex items-center gap-2"><Database className="h-5 w-5 text-primary" /> Master Item Library</CardTitle>
@@ -718,7 +739,7 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
           </CardContent>
         </Card>
 
-        <h2 className="font-headline text-2xl font-bold mb-6 mt-16 flex items-center gap-2"><ListChecks className="h-6 w-6 text-primary" /> Active Service Menus</h2>
+        <h2 id="service-menus" className="font-headline text-2xl font-bold mb-6 mt-16 flex items-center gap-2 scroll-mt-24"><ListChecks className="h-6 w-6 text-primary" /> Active Service Menus</h2>
         <div className="grid grid-cols-1 gap-12">
           {seller?.menuTypes?.map(menuType => {
               const itemsInThisMenu = menuItems?.filter(i => i.availableOn?.includes(menuType)) || [];
@@ -780,7 +801,7 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
         </div>
 
         {isClubSeller && (
-          <section className="mt-20 mb-12">
+          <section id="member-list" className="mt-20 mb-12 scroll-mt-24">
             <Card className="shadow-sm">
               <CardHeader className="flex flex-row items-center justify-between">
                 <div>
