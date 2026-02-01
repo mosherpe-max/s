@@ -648,8 +648,8 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
                 <CardDescription>Customize your customer's mobile experience and branding.</CardDescription>
               </CardHeader>
               <CardContent className="flex-1 pt-8">
-                <div className="grid grid-cols-1 xl:grid-cols-2 gap-10 items-start">
-                  <div className="space-y-8 animate-in fade-in slide-in-from-left-4">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-start">
+                  <div className="order-2 lg:order-1 space-y-8 animate-in fade-in slide-in-from-left-4">
                     <Form {...customizationForm}>
                       <form onSubmit={customizationForm.handleSubmit(handleSaveCustomization)} className="space-y-6">
                         <div className="bg-white p-6 rounded-2xl border shadow-sm space-y-6">
@@ -754,7 +754,7 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
                       </form>
                     </Form>
                   </div>
-                  <div className="flex flex-col items-center justify-center p-6 animate-in fade-in slide-in-from-right-4">
+                  <div className="order-1 lg:order-2 flex flex-col items-center justify-center p-6 animate-in fade-in slide-in-from-right-4">
                      <div className="mb-4 text-center">
                         <Badge variant="secondary" className="mb-2 uppercase tracking-widest text-[10px] font-black">LIVE APP PREVIEW</Badge>
                         <p className="text-[10px] text-muted-foreground font-medium italic">Changes appear here instantly</p>
