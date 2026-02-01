@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, use, useEffect, useMemo } from 'react';
@@ -17,12 +16,13 @@ import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { mockBuyerLocation } from '@/lib/data';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetFooter } from '@/components/ui/sheet';
-import { Loader2, AlertCircle, CreditCard, User, MapPin, Store, Banknote } from 'lucide-react';
+import { Loader2, AlertCircle, CreditCard, Store, Banknote, ShieldAlert } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useCart } from '@/lib/cart-context';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { BrandingFooter } from '@/components/branding-footer';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
 
 export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId: string }> }) {
@@ -50,20 +50,16 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
     );
   }, [menuItems, selectedMenuType]);
 
-  // Dynamic categories based on service mode
   const currentCategories = useMemo(() => {
     if (selectedMenuType === 'Beverage Cart') {
-      // Remove heavy food for Bev Cart
       return ['Beer', 'Spirits', 'Soft Drinks', 'Snacks'] as Category[];
     }
     if (selectedMenuType === 'Clubhouse') {
-      // Reorder Clubhouse to show food first
       return ['Sandwiches', 'Appetizers', 'Entrees', 'Dessert', 'Beer', 'Spirits', 'Soft Drinks', 'Snacks'] as Category[];
     }
     return categories as unknown as Category[];
   }, [selectedMenuType]);
 
-  // Ensure selectedCategory is always valid when switching service modes
   useEffect(() => {
     if (currentCategories.length > 0 && !currentCategories.includes(selectedCategory)) {
       setSelectedCategory(currentCategories[0]);
@@ -76,6 +72,17 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
     }
   }, [seller, selectedMenuType]);
 
+  const isServiceActive = useMemo(() => {
+    if (!seller) return true;
+    // For now, seller.status represents the availability of the Beverage Cart
+    // In a more complex app, we might have per-service status fields.
+    if (selectedMenuType === 'Beverage Cart') {
+      return seller.status === 'Active';
+    }
+    // Clubhouse is assumed active unless the seller is manually disabled
+    return seller.status === 'Active';
+  }, [seller, selectedMenuType]);
+
   const handlePlaceOrder = async () => {
     try {
       if (!firestore || !seller) {
@@ -83,8 +90,12 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
         return;
       }
 
-      if (seller.status === 'Inactive' && selectedMenuType === 'Beverage Cart') {
-        toast({ variant: 'destructive', title: 'Service Offline', description: 'The beverage cart is currently not taking orders.' });
+      if (!isServiceActive) {
+        toast({ 
+          variant: 'destructive', 
+          title: 'Service Offline', 
+          description: `The ${selectedMenuType} is currently not taking orders.` 
+        });
         return;
       }
 
@@ -186,6 +197,21 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
                     </div>
                 </ScrollArea>
             </div>
+            
+            {!isLoading && !isServiceActive && (
+              <Alert variant="destructive" className="bg-destructive/5 border-destructive/20 py-2">
+                <div className="flex items-center gap-3">
+                  <ShieldAlert className="h-4 w-4 text-destructive" />
+                  <div>
+                    <AlertTitle className="text-[10px] font-bold uppercase tracking-widest leading-none mb-0.5">Service Offline</AlertTitle>
+                    <AlertDescription className="text-[10px] opacity-80 leading-tight">
+                      The {selectedMenuType} is currently not accepting orders.
+                    </AlertDescription>
+                  </div>
+                </div>
+              </Alert>
+            )}
+
             <Separator />
             <ScrollArea className="w-full whitespace-nowrap">
                 <div className="flex gap-2 pb-1">
@@ -275,10 +301,10 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
               size="lg" 
               className="w-full text-lg font-bold h-14 font-headline shadow-lg" 
               onClick={handlePlaceOrder} 
-              disabled={isPlacingOrder}
+              disabled={isPlacingOrder || !isServiceActive}
               style={{ backgroundColor: brandColor }}
             >
-              {isPlacingOrder ? <><Loader2 className="animate-spin mr-2" /> Placing...</> : "PLACE ORDER"}
+              {!isServiceActive ? "SERVICE OFFLINE" : (isPlacingOrder ? <><Loader2 className="animate-spin mr-2" /> Placing...</> : "PLACE ORDER")}
             </Button>
           </SheetFooter>
         </SheetContent>
