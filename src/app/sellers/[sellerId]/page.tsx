@@ -5,7 +5,7 @@ import { collection, doc, setDoc, deleteDoc, writeBatch, query, where, updateDoc
 import { useFirestore, useDoc, useCollection, useMemoFirebase } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { PlusCircle, Edit, Trash2, Filter, DollarSign, ShoppingBag, Clock, Database, Users, UserPlus, Sparkles, Download, Calendar as CalendarIcon, FileSpreadsheet, Palette, Save, Loader2, Upload, Smartphone, Beer, ListChecks, ChevronUp, ChevronDown, Check, MousePointer2, BarChart3 } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, Filter, DollarSign, ShoppingBag, Clock, Database, Users, UserPlus, Sparkles, Download, Calendar as CalendarIcon, FileSpreadsheet, Palette, Save, Loader2, Upload, Smartphone, Beer, ListChecks, ChevronUp, ChevronDown, Check, MousePointer2, BarChart3, ArrowUp } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import {
   AlertDialog,
@@ -295,9 +295,21 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
 
+  // Scroll to top visibility state
+  const [showTopButton, setShowTopButton] = useState(false);
+
   useEffect(() => {
     setIsMounted(true);
+    const handleScroll = () => {
+      setShowTopButton(window.scrollY > 400);
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   const sellerRef = useMemoFirebase(() => (firestore ? doc(firestore, 'sellers', sellerId) : null), [firestore, sellerId]);
   const { data: seller, isLoading: isSellerLoading } = useDoc<Seller>(sellerRef);
@@ -541,7 +553,7 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
   ];
 
   return (
-    <div className="flex flex-col min-h-screen">
+    <div className="flex flex-col min-h-screen relative">
       <div className="container mx-auto px-4 py-8 max-w-7xl flex-1">
         <header className="mb-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
@@ -892,6 +904,18 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
           </AlertDialogContent>
         </AlertDialog>
       </div>
+
+      {showTopButton && (
+        <Button
+          variant="default"
+          size="icon"
+          className="fixed bottom-10 right-10 rounded-full shadow-2xl z-50 animate-in fade-in slide-in-from-bottom-4 transition-all hover:scale-110 h-12 w-12"
+          onClick={scrollToTop}
+        >
+          <ArrowUp className="h-6 w-6" />
+        </Button>
+      )}
+
       <BrandingFooter />
     </div>
   );
