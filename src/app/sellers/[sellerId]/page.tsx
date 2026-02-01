@@ -426,17 +426,27 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
       
       mockMenuItems.forEach((item, index) => {
         const newItemRef = doc(collection(firestore, 'sellers', sellerId, 'menuItems'));
-        const availableOn = ['Beverage Cart', 'Clubhouse'];
-        const menuRanks = {
-          'Beverage Cart': index + 1,
+        
+        // Logical availability: Beverage cart shouldn't have Entrees or Desserts
+        const isBevCartFriendly = ['Beer', 'Spirits', 'Soft Drinks', 'Snacks'].includes(item.category);
+        const availableOn = isBevCartFriendly ? ['Beverage Cart', 'Clubhouse'] : ['Clubhouse'];
+        
+        const menuRanks: Record<string, number> = {
           'Clubhouse': index + 1
         };
+        if (isBevCartFriendly) {
+            menuRanks['Beverage Cart'] = index + 1;
+        }
+
         batch.set(newItemRef, { 
-          ...item, id: newItemRef.id, rank: index + 1, 
+          ...item, 
+          id: newItemRef.id, 
+          rank: index + 1, 
           availableOn,
           menuRanks
         });
       });
+
       sampleMembers.forEach((member) => {
         const memberRef = doc(collection(firestore, 'sellers', sellerId, 'members'));
         batch.set(memberRef, { ...member, id: memberRef.id });
