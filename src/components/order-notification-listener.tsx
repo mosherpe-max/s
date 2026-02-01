@@ -5,13 +5,13 @@ import { collection, query, orderBy, limit } from 'firebase/firestore';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import type { Order } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
-import { Package, CookingPot, Navigation, PartyPopper } from 'lucide-react';
+import { Navigation } from 'lucide-react';
 import { ToastAction } from '@/components/ui/toast';
 import { useRouter } from 'next/navigation';
 
 /**
  * A global listener that monitors the most recent order status for the buyer.
- * Displays toast notifications when the status changes.
+ * Displays toast notifications only when the status changes to 'Out for Delivery'.
  */
 export function OrderNotificationListener() {
   const firestore = useFirestore();
@@ -42,39 +42,17 @@ export function OrderNotificationListener() {
       return;
     }
 
-    // Only toast if the status has actually changed for the same order
+    // Only toast if the status has actually changed to 'Out for Delivery' for the same order
     if (order.status !== prevStatusRef.current) {
-      let title = '';
-      let description = '';
-      let Icon: React.ElementType = Package;
-
-      switch (order.status) {
-        case 'Preparing':
-          title = 'Order Received';
-          description = 'The Clubhouse is now preparing your items.';
-          Icon = CookingPot;
-          break;
-        case 'Out for Delivery':
-          title = 'Order Out for Delivery';
-          description = 'The BevCart driver is heading to your location.';
-          Icon = Navigation;
-          break;
-        case 'Delivered':
-          title = 'Order Complete';
-          description = 'Enjoy your refreshments.';
-          Icon = PartyPopper;
-          break;
-      }
-
-      if (title) {
+      if (order.status === 'Out for Delivery') {
         toast({
           title: (
             <div className="flex items-center gap-2">
-              <Icon className="h-5 w-5 text-primary" />
-              <span className="font-headline font-bold uppercase">{title}</span>
+              <Navigation className="h-5 w-5 text-primary" />
+              <span className="font-headline font-bold uppercase">Order Out for Delivery</span>
             </div>
           ),
-          description: description,
+          description: 'The driver is heading to your location with your refreshments.',
           action: (
             <ToastAction 
               altText="Track Order" 
