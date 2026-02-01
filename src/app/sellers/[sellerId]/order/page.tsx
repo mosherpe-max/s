@@ -78,7 +78,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
 
   const handlePlaceOrder = async () => {
     if (!firestore || !seller) {
-      toast({ variant: 'destructive', title: 'Error', description: 'Service connection failed.' });
+      toast({ variant: 'destructive', title: 'Error', description: 'Service connection failed. Please try again.' });
       return;
     }
 
@@ -92,6 +92,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
         return;
     }
 
+    // Validation for specific location modes
     if (selectedMenuType === 'Halfway House' && !menuTypeLocation) {
         toast({ variant: 'destructive', title: 'Location Required', description: 'Please select which Halfway House you are at.' });
         return;
@@ -118,55 +119,72 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
       }
     }
 
-    setIsPlacingOrder(true);
     const activeOrderItems = orderItems.filter((item) => item.quantity > 0);
+    if (activeOrderItems.length === 0) {
+      toast({ variant: 'destructive', title: 'Empty Cart', description: 'Please add items to your order.' });
+      return;
+    }
 
-    const submitToFirestore = (latitude: number, longitude: number) => {
-      const subtotal = activeOrderItems.reduce((acc, item) => acc + item.price * item.quantity, 0);
-      const orderData: Omit<Order, 'id' | 'createdAt'> = {
-        sellerId,
-        customerId: 'public-user',
-        customerName: paymentMethod === 'Member Account' 
-          ? `Member ${inputMemberLastName}` 
-          : 'Guest Golfer',
-        deliveryLocation: { latitude, longitude },
-        items: activeOrderItems,
-        subtotal,
-        serviceFee: seller.serviceFee || 0,
-        total: subtotal + (seller.serviceFee || 0),
-        status: 'Placed',
-        paymentMethod,
-        menuType: selectedMenuType,
-        menuTypeLocation: menuTypeLocation || undefined,
-        memberId: paymentMethod === 'Member Account' ? inputMemberId : undefined,
-        memberLastName: paymentMethod === 'Member Account' ? inputMemberLastName : undefined,
-      };
+    setIsPlacingOrder(true);
 
-      const ordersCol = collection(firestore, 'orders');
-      addDoc(ordersCol, { ...orderData, createdAt: serverTimestamp() })
-        .then((docRef) => {
-          toast({ title: 'Order Placed!', description: "Your order has been received." });
-          clearCart();
-          router.push(`/order/track?id=${docRef.id}`);
-        })
-        .catch((err) => {
-          errorEmitter.emit('permission-error', new FirestorePermissionError({ 
-            path: ordersCol.path, 
-            operation: 'create', 
-            requestResourceData: orderData 
-          }));
-          setIsPlacingOrder(false);
-        });
+    const submitToFirestore = async (latitude: number, longitude: number) => {
+      try {
+        const subtotal = activeOrderItems.reduce((acc, item) => acc + item.price * item.quantity, 0);
+        const orderData: Omit<Order, 'id' | 'createdAt'> = {
+          sellerId,
+          customerId: 'public-user',
+          customerName: paymentMethod === 'Member Account' 
+            ? `Member ${inputMemberLastName}` 
+            : 'Guest Golfer',
+          deliveryLocation: { latitude, longitude },
+          items: activeOrderItems,
+          subtotal,
+          serviceFee: seller.serviceFee || 0,
+          total: subtotal + (seller.serviceFee || 0),
+          status: 'Placed',
+          paymentMethod,
+          menuType: selectedMenuType,
+          menuTypeLocation: menuTypeLocation || undefined,
+          memberId: paymentMethod === 'Member Account' ? inputMemberId : undefined,
+          memberLastName: paymentMethod === 'Member Account' ? inputMemberLastName : undefined,
+        };
+
+        const ordersCol = collection(firestore, 'orders');
+        const docRef = await addDoc(ordersCol, { ...orderData, createdAt: serverTimestamp() });
+        
+        toast({ title: 'Order Placed!', description: "Your order has been received." });
+        clearCart();
+        router.push(`/order/track?id=${docRef.id}`);
+      } catch (err: any) {
+        console.error("Order submission failed:", err);
+        errorEmitter.emit('permission-error', new FirestorePermissionError({ 
+          path: 'orders', 
+          operation: 'create', 
+          requestResourceData: { sellerId } 
+        }));
+        setIsPlacingOrder(false);
+      }
     };
 
+    // Geolocation handling with timeout and fallback
     if (navigator.geolocation) {
+      const geoTimeout = setTimeout(() => {
+        toast({ title: 'Location Fallback', description: 'Using default location due to slow GPS.' });
+        submitToFirestore(mockBuyerLocation.latitude, mockBuyerLocation.longitude);
+      }, 10000);
+
       navigator.geolocation.getCurrentPosition(
-        (p) => submitToFirestore(p.coords.latitude, p.coords.longitude),
-        () => {
+        (p) => {
+          clearTimeout(geoTimeout);
+          submitToFirestore(p.coords.latitude, p.coords.longitude);
+        },
+        (error) => {
+          console.warn("Geolocation error:", error);
+          clearTimeout(geoTimeout);
           toast({ title: 'Location Fallback', description: 'Using default location.' });
           submitToFirestore(mockBuyerLocation.latitude, mockBuyerLocation.longitude);
         },
-        { timeout: 10000 }
+        { timeout: 9500, enableHighAccuracy: true }
       );
     } else {
       submitToFirestore(mockBuyerLocation.latitude, mockBuyerLocation.longitude);
@@ -270,133 +288,145 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
             </SheetTrigger>
           </div>
         )}
-        <SheetContent side="bottom" className="rounded-t-lg max-h-[90vh] overflow-y-auto">
-          <SheetHeader><SheetTitle>Review Order</SheetTitle></SheetHeader>
-          <div className="py-4 space-y-6">
-            <OrderSummary items={activeOrderItems} serviceFee={seller?.serviceFee} />
+        <SheetContent side="bottom" className="rounded-t-lg max-h-[90vh] flex flex-col p-0">
+          <SheetHeader className="px-6 py-4 border-b">
+            <SheetTitle>Review Order</SheetTitle>
+          </SheetHeader>
+          <ScrollArea className="flex-1 px-6">
+            <div className="py-6 space-y-6">
+              <OrderSummary items={activeOrderItems} serviceFee={seller?.serviceFee} />
 
-            <Separator />
+              <Separator />
 
-            <div className="space-y-4">
-                <h3 className="font-bold text-sm uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-                    <MapPin className="w-4 h-4" /> Delivery Location
-                </h3>
-                
-                <div className="p-3 bg-muted/50 rounded-lg border flex flex-col gap-1">
-                    <p className="text-xs font-bold text-primary" style={{ color: brandStyle.primaryColor }}>Ordering From</p>
-                    <p className="text-sm font-medium">{selectedMenuType}</p>
-                </div>
+              <div className="space-y-4">
+                  <h3 className="font-bold text-sm uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                      <MapPin className="w-4 h-4" /> Delivery Location
+                  </h3>
+                  
+                  <div className="p-3 bg-muted/50 rounded-lg border flex flex-col gap-1">
+                      <p className="text-xs font-bold text-primary" style={{ color: brandStyle.primaryColor }}>Ordering From</p>
+                      <p className="text-sm font-medium">{selectedMenuType}</p>
+                  </div>
 
-                {selectedMenuType === 'Halfway House' && (
-                    <div className="space-y-2 animate-in slide-in-from-top-2">
-                        <Label>Select Halfway House</Label>
-                        <select 
-                          className="w-full p-2 border rounded-md bg-background"
-                          value={menuTypeLocation} 
-                          onChange={(e) => setMenuTypeLocation(e.target.value)}
-                        >
-                          <option value="">Which house are you at?</option>
-                          {seller?.halfwayHouseNames?.map(name => (
-                              <option key={name} value={name}>{name}</option>
-                          ))}
-                        </select>
-                    </div>
-                )}
-
-                {selectedMenuType === 'Lane Delivery' && (
-                    <div className="space-y-2 animate-in slide-in-from-top-2">
-                        <Label>Bowling Lane Number</Label>
-                        <Input 
-                            type="number" 
-                            placeholder={`1 - ${seller?.laneCount || 24}`}
-                            value={menuTypeLocation}
+                  {selectedMenuType === 'Halfway House' && (
+                      <div className="space-y-2 animate-in slide-in-from-top-2">
+                          <Label>Select Halfway House</Label>
+                          <select 
+                            className="w-full p-2 border rounded-md bg-background"
+                            value={menuTypeLocation} 
                             onChange={(e) => setMenuTypeLocation(e.target.value)}
-                        />
-                    </div>
-                )}
-
-                {selectedMenuType === 'Dine-In' && (
-                    <div className="space-y-2 animate-in slide-in-from-top-2">
-                        <Label>Table Number</Label>
-                        <Input 
-                            type="number" 
-                            placeholder={`1 - ${seller?.tableCount || 50}`}
-                            value={menuTypeLocation}
-                            onChange={(e) => setMenuTypeLocation(e.target.value)}
-                        />
-                    </div>
-                )}
-            </div>
-
-            <Separator />
-
-            <div className="space-y-4">
-              <h3 className="font-bold text-sm uppercase tracking-wider text-muted-foreground">Payment Method</h3>
-              
-              {isPublicCourse && isBevCart ? (
-                <div className="bg-muted/50 p-4 rounded-lg flex items-center gap-4 border border-primary/20 animate-in fade-in slide-in-from-top-2">
-                  <Banknote className="h-6 w-6 text-primary shrink-0" style={{ color: brandStyle.primaryColor }} />
-                  <div>
-                    <p className="text-sm font-bold">Pay At Delivery</p>
-                    <p className="text-xs text-muted-foreground">Cash or Credit Card to Beverage Cart Operator</p>
-                  </div>
-                </div>
-              ) : isPrivateCourse ? (
-                <div className="bg-muted/50 p-3 rounded-lg flex items-center gap-3 border border-primary/10">
-                  <User className="h-5 w-5 text-primary" style={{ color: brandStyle.primaryColor }} />
-                  <div>
-                    <p className="text-sm font-bold">Member Account Only</p>
-                    <p className="text-xs text-muted-foreground">This is a private club establishment.</p>
-                  </div>
-                </div>
-              ) : (
-                <RadioGroup value={paymentMethod as any} onValueChange={(v: any) => setPaymentMethod(v)}>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="Credit Card" id="cc" style={{ borderColor: brandStyle.primaryColor }} />
-                    <Label htmlFor="cc" className="flex items-center gap-2 cursor-pointer"><CreditCard className="h-4 w-4" /> Credit Card</Label>
-                  </div>
-                  {isSemiPrivateCourse && (
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="Member Account" id="member" style={{ borderColor: brandStyle.primaryColor }} />
-                      <Label htmlFor="member" className="flex items-center gap-2 cursor-pointer"><User className="h-4 w-4" /> Member Account</Label>
-                    </div>
+                          >
+                            <option value="">Which house are you at?</option>
+                            {seller?.halfwayHouseNames?.map(name => (
+                                <option key={name} value={name}>{name}</option>
+                            ))}
+                          </select>
+                      </div>
                   )}
-                </RadioGroup>
-              )}
 
-              {paymentMethod === 'Member Account' && (
-                <div className="mt-4 space-y-4 animate-in fade-in slide-in-from-top-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="memberId">Member ID Number</Label>
-                    <Input 
-                      id="memberId"
-                      placeholder="e.g. 12345"
-                      value={inputMemberId}
-                      onChange={(e) => setInputMemberId(e.target.value)}
-                    />
+                  {selectedMenuType === 'Lane Delivery' && (
+                      <div className="space-y-2 animate-in slide-in-from-top-2">
+                          <Label>Bowling Lane Number</Label>
+                          <Input 
+                              type="number" 
+                              placeholder={`1 - ${seller?.laneCount || 24}`}
+                              value={menuTypeLocation}
+                              onChange={(e) => setMenuTypeLocation(e.target.value)}
+                          />
+                      </div>
+                  )}
+
+                  {selectedMenuType === 'Dine-In' && (
+                      <div className="space-y-2 animate-in slide-in-from-top-2">
+                          <Label>Table Number</Label>
+                          <Input 
+                              type="number" 
+                              placeholder={`1 - ${seller?.tableCount || 50}`}
+                              value={menuTypeLocation}
+                              onChange={(e) => setMenuTypeLocation(e.target.value)}
+                          />
+                      </div>
+                  )}
+              </div>
+
+              <Separator />
+
+              <div className="space-y-4">
+                <h3 className="font-bold text-sm uppercase tracking-wider text-muted-foreground">Payment Method</h3>
+                
+                {isPublicCourse && isBevCart ? (
+                  <div className="bg-muted/50 p-4 rounded-lg flex items-center gap-4 border border-primary/20 animate-in fade-in slide-in-from-top-2">
+                    <Banknote className="h-6 w-6 text-primary shrink-0" style={{ color: brandStyle.primaryColor }} />
+                    <div>
+                      <p className="text-sm font-bold">Pay At Delivery</p>
+                      <p className="text-xs text-muted-foreground">Cash or Credit Card to Beverage Cart Operator</p>
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="lastName">Member Last Name</Label>
-                    <Input 
-                      id="lastName"
-                      placeholder="e.g. Smith"
-                      value={inputMemberLastName}
-                      onChange={(e) => setInputMemberLastName(e.target.value)}
-                    />
+                ) : isPrivateCourse ? (
+                  <div className="bg-muted/50 p-3 rounded-lg flex items-center gap-3 border border-primary/10">
+                    <User className="h-5 w-5 text-primary" style={{ color: brandStyle.primaryColor }} />
+                    <div>
+                      <p className="text-sm font-bold">Member Account Only</p>
+                      <p className="text-xs text-muted-foreground">This is a private club establishment.</p>
+                    </div>
                   </div>
-                </div>
-              )}
+                ) : (
+                  <RadioGroup value={paymentMethod as any} onValueChange={(v: any) => setPaymentMethod(v)}>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="Credit Card" id="cc" style={{ borderColor: brandStyle.primaryColor }} />
+                      <Label htmlFor="cc" className="flex items-center gap-2 cursor-pointer"><CreditCard className="h-4 w-4" /> Credit Card</Label>
+                    </div>
+                    {isSemiPrivateCourse && (
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="Member Account" id="member" style={{ borderColor: brandStyle.primaryColor }} />
+                        <Label htmlFor="member" className="flex items-center gap-2 cursor-pointer"><User className="h-4 w-4" /> Member Account</Label>
+                      </div>
+                    )}
+                  </RadioGroup>
+                )}
+
+                {paymentMethod === 'Member Account' && (
+                  <div className="mt-4 space-y-4 animate-in fade-in slide-in-from-top-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="memberId">Member ID Number</Label>
+                      <Input 
+                        id="memberId"
+                        placeholder="e.g. 12345"
+                        value={inputMemberId}
+                        onChange={(e) => setInputMemberId(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="lastName">Member Last Name</Label>
+                      <Input 
+                        id="lastName"
+                        placeholder="e.g. Smith"
+                        value={inputMemberLastName}
+                        onChange={(e) => setInputMemberLastName(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+              <div className="h-8" /> 
             </div>
-          </div>
-          <SheetFooter className="mt-6">
+          </ScrollArea>
+          <SheetFooter className="p-6 bg-background border-t">
             <Button 
               size="lg" 
-              className="w-full text-lg font-bold" 
+              className="w-full text-lg font-bold h-14" 
               onClick={handlePlaceOrder} 
               disabled={isPlacingOrder}
               style={{ backgroundColor: brandStyle.primaryColor }}
             >
-              {isPlacingOrder ? <Loader2 className="animate-spin h-5 w-5 mr-2" /> : `Place Order`}
+              {isPlacingOrder ? (
+                <>
+                  <Loader2 className="animate-spin h-5 w-5 mr-2" />
+                  Placing Order...
+                </>
+              ) : (
+                `Place Order`
+              )}
             </Button>
           </SheetFooter>
         </SheetContent>
