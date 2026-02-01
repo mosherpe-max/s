@@ -171,9 +171,10 @@ export function MapView({ buyerLocation, sellerLocation, showPrimaryMarker = tru
           // The inside (background) uses the time-based color (green/yellow/red)
           const bgClass = statusColorClass;
           
-          // The outline (border) and number (text) match the driver color if assigned, else white/accent
+          // The outline (border) matches the driver color if assigned, else white/accent
+          // The number (text) is ALWAYS white as requested.
           const borderClass = assignedStyles ? `border-4 ${assignedStyles.border}` : 'border-4 border-white';
-          const textClass = assignedStyles ? assignedStyles.text : 'text-white';
+          const textClass = 'text-white';
           const arrowClass = assignedStyles ? assignedStyles.arrow : statusColorClass.replace('bg-', 'border-t-');
 
           return (
