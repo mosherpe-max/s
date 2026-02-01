@@ -295,7 +295,6 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
 
-  // Scroll to top visibility state
   const [showTopButton, setShowTopButton] = useState(false);
 
   useEffect(() => {
@@ -423,9 +422,7 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
     setIsSeeding(true);
     try {
       const batch = writeBatch(firestore);
-      
       const isDemo = sellerId === 'demo-course';
-      
       batch.set(doc(firestore, 'sellers', sellerId), {
         id: sellerId, 
         courseName: isDemo ? 'Demo Golf Course - Public' : 'Sample Course',
@@ -438,30 +435,14 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
         lastActive: null,
         menuTypes: ['Beverage Cart', 'Clubhouse']
       }, { merge: true });
-      
       mockMenuItems.forEach((item, index) => {
         const newItemRef = doc(collection(firestore, 'sellers', sellerId, 'menuItems'));
-        
-        // Logical availability: Beverage cart shouldn't have Entrees or Desserts
         const isBevCartFriendly = ['Beer', 'Spirits', 'Soft Drinks', 'Snacks'].includes(item.category);
         const availableOn = isBevCartFriendly ? ['Beverage Cart', 'Clubhouse'] : ['Clubhouse'];
-        
-        const menuRanks: Record<string, number> = {
-          'Clubhouse': index + 1
-        };
-        if (isBevCartFriendly) {
-            menuRanks['Beverage Cart'] = index + 1;
-        }
-
-        batch.set(newItemRef, { 
-          ...item, 
-          id: newItemRef.id, 
-          rank: index + 1, 
-          availableOn,
-          menuRanks
-        });
+        const menuRanks: Record<string, number> = { 'Clubhouse': index + 1 };
+        if (isBevCartFriendly) { menuRanks['Beverage Cart'] = index + 1; }
+        batch.set(newItemRef, { ...item, id: newItemRef.id, rank: index + 1, availableOn, menuRanks });
       });
-
       sampleMembers.forEach((member) => {
         const memberRef = doc(collection(firestore, 'sellers', sellerId, 'members'));
         batch.set(memberRef, { ...member, id: memberRef.id });
@@ -484,9 +465,7 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
     const currentAvailable = item.availableOn || [];
     const isAvailable = currentAvailable.includes(menuType);
     const nextAvailable = isAvailable ? currentAvailable.filter(t => t !== menuType) : [...currentAvailable, menuType];
-    
     const updates: Partial<MenuItem> = { availableOn: nextAvailable };
-    
     if (!isAvailable) {
         const menuRanks = item.menuRanks || {};
         if (!menuRanks[menuType]) {
@@ -495,32 +474,23 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
             updates.menuRanks = menuRanks;
         }
     }
-
     updateDoc(doc(firestore, 'sellers', sellerId, 'menuItems', item.id), updates);
   };
 
   const handleRerank = (item: MenuItem, menuType: string, direction: 'up' | 'down') => {
     if (!firestore || !menuItems) return;
-    
     const itemsInMenu = menuItems
         .filter(i => i.availableOn?.includes(menuType) && i.category === item.category)
         .sort((a, b) => (a.menuRanks?.[menuType] || 0) - (b.menuRanks?.[menuType] || 0));
-    
     const currentIndex = itemsInMenu.findIndex(i => i.id === item.id);
     const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
-
     if (targetIndex >= 0 && targetIndex < itemsInMenu.length) {
         const targetItem = itemsInMenu[targetIndex];
         const currentRank = item.menuRanks?.[menuType] || currentIndex + 1;
         const targetRank = targetItem.menuRanks?.[menuType] || targetIndex + 1;
-
         const batch = writeBatch(firestore);
-        batch.update(doc(firestore, 'sellers', sellerId, 'menuItems', item.id), {
-            [`menuRanks.${menuType}`]: targetRank
-        });
-        batch.update(doc(firestore, 'sellers', sellerId, 'menuItems', targetItem.id), {
-            [`menuRanks.${menuType}`]: currentRank
-        });
+        batch.update(doc(firestore, 'sellers', sellerId, 'menuItems', item.id), { [`menuRanks.${menuType}`]: targetRank });
+        batch.update(doc(firestore, 'sellers', sellerId, 'menuItems', targetItem.id), { [`menuRanks.${menuType}`]: currentRank });
         batch.commit();
     }
   };
@@ -547,8 +517,8 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
   const quickLinks = [
     { label: 'Performance Overview', id: 'performance-overview', icon: <BarChart3 className="w-3 h-3" /> },
     { label: 'Sales & Branding', id: 'sales-branding', icon: <Palette className="w-3 h-3" /> },
-    { label: 'Master Library', id: 'item-library', icon: <Database className="w-3 h-3" /> },
-    { label: 'Service Menus', id: 'service-menus', icon: <ListChecks className="w-3 h-3" /> },
+    { label: 'Menu Library', id: 'menu-library', icon: <Database className="w-3 h-3" /> },
+    { label: 'Service Menu Management', id: 'service-management', icon: <ListChecks className="w-3 h-3" /> },
     ...(isClubSeller ? [{ label: 'Member List', id: 'member-list', icon: <Users className="w-3 h-3" /> }] : []),
   ];
 
@@ -688,13 +658,13 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
 
         <Separator className="my-10" />
 
-        <Card id="item-library" className="mb-12 shadow-md border-primary/20 bg-primary/5 scroll-mt-24">
+        <Card id="menu-library" className="mb-12 shadow-md border-primary/20 bg-primary/5 scroll-mt-24">
           <CardHeader className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
-              <CardTitle className="flex items-center gap-2"><Database className="h-5 w-5 text-primary" /> Master Item Library</CardTitle>
+              <CardTitle className="flex items-center gap-2"><Database className="h-5 w-5 text-primary" /> Menu Library</CardTitle>
               <CardDescription>Maintain your global catalog. Use the filters below to browse categories.</CardDescription>
             </div>
-            <Button onClick={() => { setEditingItem(null); setIsMasterFormOpen(true); }} size="sm" className="shadow-lg"><PlusCircle className="mr-2 h-4 w-4" /> New Master Item</Button>
+            <Button onClick={() => { setEditingItem(null); setIsMasterFormOpen(true); }} size="sm" className="shadow-lg"><PlusCircle className="mr-2 h-4 w-4" /> New Menu Item</Button>
           </CardHeader>
           <CardContent>
             <div className="flex flex-wrap items-center gap-2 mb-8 bg-background/50 p-2 rounded-lg border">
@@ -752,7 +722,7 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
           </CardContent>
         </Card>
 
-        <h2 id="service-menus" className="font-headline text-2xl font-bold mb-6 mt-16 flex items-center gap-2 scroll-mt-24"><ListChecks className="h-6 w-6 text-primary" /> Active Service Menus</h2>
+        <h2 id="service-management" className="font-headline text-2xl font-bold mb-6 mt-16 flex items-center gap-2 scroll-mt-24"><ListChecks className="h-6 w-6 text-primary" /> Service Menu Management</h2>
         <div className="grid grid-cols-1 gap-12">
           {seller?.menuTypes?.map(menuType => {
               const itemsInThisMenu = menuItems?.filter(i => i.availableOn?.includes(menuType)) || [];
@@ -764,7 +734,7 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
                               <CardDescription>Customize the selection and order of items specifically for {menuType}.</CardDescription>
                           </div>
                           <Button variant="outline" onClick={() => { setPickingMenuType(menuType); setIsPickingOpen(true); }} className="bg-background">
-                              <PlusCircle className="mr-2 h-4 w-4" /> Pick Master Items
+                              <PlusCircle className="mr-2 h-4 w-4" /> Pick Menu Items
                           </Button>
                       </CardHeader>
                       <CardContent className="pt-6">
@@ -849,7 +819,7 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
 
         <Dialog open={isMasterFormOpen} onOpenChange={setIsMasterFormOpen}>
           <DialogContent className="sm:max-w-[500px]">
-            <DialogHeader><DialogTitle>{editingItem ? 'Edit Master Item' : 'Create Master Item'}</DialogTitle></DialogHeader>
+            <DialogHeader><DialogTitle>{editingItem ? 'Edit Menu Item' : 'Create Menu Item'}</DialogTitle></DialogHeader>
             <MasterItemForm onSave={handleSaveMasterItem} menuItem={editingItem} onClose={() => setIsMasterFormOpen(false)} />
           </DialogContent>
         </Dialog>
@@ -858,7 +828,7 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
           <DialogContent className="sm:max-w-[600px] max-h-[85vh] flex flex-col">
               <DialogHeader>
                   <DialogTitle>Select Items for {pickingMenuType}</DialogTitle>
-                  <CardDescription>Pick which items from your Master Library should be available on the {pickingMenuType} menu.</CardDescription>
+                  <CardDescription>Pick which items from your Menu Library should be available on the {pickingMenuType} menu.</CardDescription>
               </DialogHeader>
               <Separator className="my-2" />
               <div className="flex-1 overflow-y-auto pr-2">
