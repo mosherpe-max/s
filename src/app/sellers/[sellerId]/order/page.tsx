@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, use, useEffect, useMemo } from 'react';
@@ -131,7 +130,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
           const ordersCol = collection(firestore, 'orders');
           const docRef = await addDoc(ordersCol, { ...orderData, createdAt: serverTimestamp() });
           
-          toast({ title: 'Order Placed!', description: "Redirecting to tracking..." });
+          toast({ title: 'Order Placed!', description: "Thank you for your order" });
           clearCart();
           setIsPlacingOrder(false);
           router.push(`/order/track?id=${docRef.id}`);
