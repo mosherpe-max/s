@@ -1,4 +1,3 @@
-
 'use client'
 
 import { Truck, User } from 'lucide-react';
@@ -153,26 +152,31 @@ export function MapView({ buyerLocation, sellerLocation, showPrimaryMarker = tru
 
         {/* Multiple Buyer Pins (for ops view) */}
         {buyers && buyers.map((buyer, index) => {
-            const colorClass = buyer.colorClass || "bg-accent";
-            const arrowColorClass = colorClass.replace('bg-', 'border-t-');
-            
-            // Assign outline color if a driver is assigned
+            const statusColorClass = buyer.colorClass || "bg-accent";
             const assignedDriverColor = buyer.assignedDriverId ? getDriverColor(buyer.assignedDriverId) : null;
-            const borderClass = assignedDriverColor ? `border-${assignedDriverColor}` : 'border-white';
+            
+            // Layout logic for visibility:
+            // If assigned: thick colored border, white background, colored text number
+            // If not assigned: white border, status color background, white text number
+            const borderClass = assignedDriverColor ? `border-${assignedDriverColor} border-[6px]` : 'border-white border-4';
+            const bgClass = assignedDriverColor ? 'bg-white' : statusColorClass;
+            const textClass = assignedDriverColor ? `text-${assignedDriverColor}` : 'text-white';
+            const finalArrowColorClass = assignedDriverColor ? `border-t-${assignedDriverColor}` : statusColorClass.replace('bg-', 'border-t-');
 
             return (
                 <AdvancedMarker key={buyer.id} position={{ lat: buyer.location.latitude, lng: buyer.location.longitude }}>
                     <div className="flex flex-col items-center">
                         <div className={cn(
-                            "flex items-center justify-center w-10 h-10 rounded-full shadow-lg font-bold text-white border-4 transition-colors duration-500",
-                            colorClass,
-                            borderClass
+                            "flex items-center justify-center w-11 h-11 rounded-full shadow-2xl font-black transition-all duration-500",
+                            bgClass,
+                            borderClass,
+                            textClass
                         )}>
                             {index + 1}
                         </div>
                         <div className={cn(
-                            "w-0 h-0 border-l-8 border-l-transparent border-r-8 border-r-transparent border-t-8 transition-colors duration-500",
-                            arrowColorClass
+                            "w-0 h-0 border-l-[10px] border-l-transparent border-r-[10px] border-r-transparent border-t-[10px] transition-all duration-500 -mt-1",
+                            finalArrowColorClass
                         )}></div>
                     </div>
                 </AdvancedMarker>

@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -96,12 +95,13 @@ export function OrderCard({ order, orderNumber, onUpdateStatus, currentDriverId 
     const assignedDriverColor = order.assignedDriverId ? getDriverColor(order.assignedDriverId) : null;
     
     // Determine card styling based on assignment
+    // Use a very thick border and prominent shadow for visibility as requested
     const borderClass = isAssignedToMe && assignedDriverColor 
-        ? `border-4 border-${assignedDriverColor}` 
-        : 'border-2 border-muted';
+        ? `border-[6px] border-${assignedDriverColor} shadow-2xl` 
+        : 'border-2 border-muted opacity-80';
 
     return (
-        <Card className={cn('overflow-hidden shadow-md flex flex-col h-full transition-all', borderClass, !isAssignedToMe && 'hover:border-primary/20')}>
+        <Card className={cn('overflow-hidden flex flex-col h-full transition-all duration-300', borderClass, !isAssignedToMe && 'hover:border-primary/20')}>
             <CardHeader className='flex flex-row items-start gap-4 p-4 bg-muted/50'>
                 <Avatar className="w-10 h-10 border-2 border-primary/10">
                     <AvatarFallback className="font-bold text-xs bg-primary text-primary-foreground">#{numericId}</AvatarFallback>
