@@ -13,7 +13,7 @@ import { mockSellerLocation } from '@/lib/data';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
-import { Focus, Bell, Package, AlertCircle } from 'lucide-react';
+import { Focus, Bell, Package, AlertCircle, Clock } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import { errorEmitter } from '@/firebase/error-emitter';
@@ -34,6 +34,7 @@ export default function BevCartDriverDashboardPage() {
   const [now, setNow] = useState<number | null>(null);
   
   const lastOrderIdsRef = useRef<Set<string>>(new Set());
+  const notifiedOverdueRef = useRef<Set<string>>(new Set());
   const initialLoadRef = useRef(true);
 
   const primarySellerRef = useMemoFirebase(() => {
@@ -81,12 +82,13 @@ export default function BevCartDriverDashboardPage() {
   }, [firestore, isBevCartActive]);
 
   useEffect(() => {
-    if (!driverOrders) return;
+    if (!driverOrders || !now) return;
 
+    // 1. New Order Notification
     const currentOrderIds = new Set(driverOrders.map(o => o.id));
-    const newPlacedOrders = driverOrders.filter(o => o.status === 'Placed' && !lastOrderIdsRef.current.has(o.id));
+    const newOrders = driverOrders.filter(o => !lastOrderIdsRef.current.has(o.id));
 
-    if (newPlacedOrders.length > 0 && !initialLoadRef.current) {
+    if (newOrders.length > 0 && !initialLoadRef.current) {
       const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
       audio.play().catch(() => {});
 
@@ -94,16 +96,42 @@ export default function BevCartDriverDashboardPage() {
         title: (
           <div className="flex items-center gap-2">
             <Bell className="h-5 w-5 text-primary animate-bounce" />
-            <span className="font-headline font-bold text-lg text-primary uppercase">New Order Received!</span>
+            <span className="font-headline font-bold text-lg text-primary uppercase">NEW ORDER RECEIVED!</span>
           </div>
         ),
-        description: `There are ${newPlacedOrders.length} new order(s) for your Beverage Cart.`,
+        description: `You have ${newOrders.length} new order(s).`,
+      });
+    }
+    lastOrderIdsRef.current = currentOrderIds;
+
+    // 2. Overdue Order Notification (10 mins for BevCart)
+    const overdueOrders = driverOrders.filter(o => {
+      if (!o.createdAt || notifiedOverdueRef.current.has(o.id)) return false;
+      const minutesElapsed = (now - o.createdAt.toDate().getTime()) / (1000 * 60);
+      return minutesElapsed > 10;
+    });
+
+    if (overdueOrders.length > 0) {
+      const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+      audio.play().catch(() => {});
+
+      overdueOrders.forEach(o => {
+        notifiedOverdueRef.current.add(o.id);
+        toast({
+          variant: "destructive",
+          title: (
+            <div className="flex items-center gap-2 text-white">
+              <Clock className="h-5 w-5 animate-pulse" />
+              <span className="font-headline font-bold text-lg uppercase">OVERDUE ORDER!</span>
+            </div>
+          ),
+          description: `Order for ${o.customerName} has exceeded 10 minutes.`,
+        });
       });
     }
 
-    lastOrderIdsRef.current = currentOrderIds;
     initialLoadRef.current = false;
-  }, [driverOrders, toast]);
+  }, [driverOrders, now, toast]);
 
   useEffect(() => {
     setNow(Date.now());

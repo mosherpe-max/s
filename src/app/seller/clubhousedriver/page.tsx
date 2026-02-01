@@ -13,7 +13,7 @@ import { mockSellerLocation } from '@/lib/data';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
-import { Focus, Bell, Package, AlertCircle } from 'lucide-react';
+import { Focus, Bell, Package, AlertCircle, Clock } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import { errorEmitter } from '@/firebase/error-emitter';
@@ -33,6 +33,7 @@ export default function ClubhouseDriverDashboardPage() {
   const [now, setNow] = useState<number | null>(null);
   
   const lastOrderIdsRef = useRef<Set<string>>(new Set());
+  const notifiedOverdueRef = useRef<Set<string>>(new Set());
   const initialLoadRef = useRef(true);
 
   const primarySellerRef = useMemoFirebase(() => {
@@ -60,12 +61,13 @@ export default function ClubhouseDriverDashboardPage() {
   }, [activeOrders]);
 
   useEffect(() => {
-    if (!clubhouseOrders) return;
+    if (!clubhouseOrders || !now) return;
 
+    // 1. New Order Notification
     const currentOrderIds = new Set(clubhouseOrders.map(o => o.id));
-    const newPlacedOrders = clubhouseOrders.filter(o => o.status === 'Placed' && !lastOrderIdsRef.current.has(o.id));
+    const newOrders = clubhouseOrders.filter(o => !lastOrderIdsRef.current.has(o.id));
 
-    if (newPlacedOrders.length > 0 && !initialLoadRef.current) {
+    if (newOrders.length > 0 && !initialLoadRef.current) {
       const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
       audio.play().catch(() => {});
 
@@ -73,16 +75,42 @@ export default function ClubhouseDriverDashboardPage() {
         title: (
           <div className="flex items-center gap-2">
             <Bell className="h-5 w-5 text-primary animate-bounce" />
-            <span className="font-headline font-bold text-lg text-primary uppercase">New Clubhouse Order!</span>
+            <span className="font-headline font-bold text-lg text-primary uppercase">NEW CLUBHOUSE ORDER!</span>
           </div>
         ),
-        description: `There are ${newPlacedOrders.length} new order(s) for the Clubhouse.`,
+        description: `You have ${newOrders.length} new order(s).`,
+      });
+    }
+    lastOrderIdsRef.current = currentOrderIds;
+
+    // 2. Overdue Order Notification (20 mins for Clubhouse)
+    const overdueOrders = clubhouseOrders.filter(o => {
+      if (!o.createdAt || notifiedOverdueRef.current.has(o.id)) return false;
+      const minutesElapsed = (now - o.createdAt.toDate().getTime()) / (1000 * 60);
+      return minutesElapsed > 20;
+    });
+
+    if (overdueOrders.length > 0) {
+      const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+      audio.play().catch(() => {});
+
+      overdueOrders.forEach(o => {
+        notifiedOverdueRef.current.add(o.id);
+        toast({
+          variant: "destructive",
+          title: (
+            <div className="flex items-center gap-2 text-white">
+              <Clock className="h-5 w-5 animate-pulse" />
+              <span className="font-headline font-bold text-lg uppercase">OVERDUE CLUBHOUSE ORDER!</span>
+            </div>
+          ),
+          description: `Order for ${o.customerName} has exceeded 20 minutes.`,
+        });
       });
     }
 
-    lastOrderIdsRef.current = currentOrderIds;
     initialLoadRef.current = false;
-  }, [clubhouseOrders, toast]);
+  }, [clubhouseOrders, now, toast]);
 
   useEffect(() => {
     setNow(Date.now());
@@ -160,7 +188,6 @@ export default function ClubhouseDriverDashboardPage() {
         const orderTime = o.createdAt.toDate().getTime();
         const minutesElapsed = (now - orderTime) / (1000 * 60);
         
-        // Clubhouse specific thresholds: 15m and 20m
         if (minutesElapsed > 20) {
           colorClass = "bg-red-600";
         } else if (minutesElapsed >= 15) {
