@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useMemo, useEffect, use } from 'react';
@@ -21,7 +22,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
+import { z } from 'z';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import {
   Select,
@@ -68,6 +69,9 @@ type MemberFormData = z.infer<typeof memberSchema>;
 
 const customizationSchema = z.object({
   brandColor: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, 'Must be a valid HEX color').optional().or(z.literal('')),
+  headerColor: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, 'Must be a valid HEX color').optional().or(z.literal('')),
+  bottomBarColor: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, 'Must be a valid HEX color').optional().or(z.literal('')),
+  bodyBackgroundColor: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, 'Must be a valid HEX color').optional().or(z.literal('')),
   logoUrl: z.string().optional().or(z.literal('')),
 });
 
@@ -220,53 +224,75 @@ function StatTile({ title, revenue, orders, longWait }: { title: string, revenue
   );
 }
 
-function MobilePreview({ logoUrl, brandColor, sellerName, menuType }: { logoUrl?: string, brandColor?: string, sellerName: string, menuType: string }) {
-  const color = brandColor || 'hsl(var(--primary))';
+function MobilePreview({ logoUrl, headerColor, bottomBarColor, bodyBackgroundColor, brandColor, sellerName, menuType }: { logoUrl?: string, headerColor?: string, bottomBarColor?: string, bodyBackgroundColor?: string, brandColor?: string, sellerName: string, menuType: string }) {
+  const hColor = headerColor || '#213147';
+  const bColor = bottomBarColor || brandColor || '#22c55e';
+  const bgBody = bodyBackgroundColor || '#fdfcf0';
   
   return (
-    <div className="relative mx-auto border-[8px] border-slate-900 rounded-[2.5rem] h-[550px] w-[280px] bg-background shadow-2xl overflow-hidden flex flex-col font-body">
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-6 bg-slate-900 rounded-b-2xl z-30"></div>
-      <div className="px-4 pt-8 pb-3 border-b bg-background/95 flex items-center gap-2 shrink-0">
+    <div className="relative mx-auto border-[12px] border-slate-900 rounded-[3rem] h-[600px] w-[300px] shadow-2xl overflow-hidden flex flex-col font-body transition-all duration-300" style={{ backgroundColor: bgBody }}>
+      {/* Phone Notch */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-7 bg-slate-900 rounded-b-2xl z-40"></div>
+      
+      {/* App Header */}
+      <div className="px-4 pt-10 pb-3 flex items-center gap-2 shrink-0 z-30 transition-colors duration-300" style={{ backgroundColor: hColor }}>
         {logoUrl ? (
-          <div className="relative w-8 h-8 rounded-md overflow-hidden shrink-0">
-            <Image src={logoUrl} alt="logo" fill className="object-contain" unoptimized />
+          <div className="relative w-8 h-8 rounded-md overflow-hidden shrink-0 bg-white">
+            <Image src={logoUrl} alt="logo" fill className="object-contain p-1" unoptimized />
           </div>
         ) : (
-          <div className="w-8 h-8 bg-muted rounded-md flex items-center justify-center shrink-0">
-            <Smartphone className="w-4 h-4 text-muted-foreground" />
+          <div className="w-8 h-8 bg-white/20 rounded-md flex items-center justify-center shrink-0">
+            <Smartphone className="w-4 h-4 text-white/60" />
           </div>
         )}
-        <span className="text-xs font-bold truncate font-headline">{sellerName}</span>
+        <span className="text-[11px] font-bold truncate font-headline text-white uppercase tracking-tight">{sellerName}</span>
       </div>
-      <div className="flex-1 overflow-hidden p-3 space-y-4">
+
+      {/* App Content */}
+      <div className="flex-1 overflow-hidden p-4 space-y-5">
         <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
           {['Beer', 'Spirits', 'Soft Drinks'].map((cat, i) => (
-            <div key={cat} className={cn("px-3 py-1 rounded-full text-[10px] whitespace-nowrap border", i === 0 ? "text-white" : "bg-muted")} style={i === 0 ? { backgroundColor: color } : {}}>
+            <div 
+              key={cat} 
+              className={cn(
+                "px-3 py-1 rounded-full text-[10px] whitespace-nowrap border shadow-sm transition-all duration-300", 
+                i === 0 ? "text-white font-bold" : "bg-white text-muted-foreground"
+              )} 
+              style={i === 0 ? { backgroundColor: brandColor || '#22c55e', borderColor: brandColor || '#22c55e' } : {}}
+            >
               {cat}
             </div>
           ))}
         </div>
-        <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
-          <Beer className="w-3 h-3" style={{ color }} /> BEER MENU
-        </div>
-        <div className="space-y-2">
+
+        <div className="space-y-3">
+          <div className="text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground/60 flex items-center gap-1.5">
+             SELECTED CATEGORY
+          </div>
           {[1, 2].map(i => (
-            <div key={i} className="p-3 rounded-xl border bg-card shadow-sm flex justify-between items-start">
-              <div>
-                <p className="text-[11px] font-bold">Item {i}</p>
-                <p className="text-[10px] font-mono font-bold" style={{ color }}>$8.50</p>
+            <div key={i} className="p-4 rounded-2xl border bg-white shadow-sm flex justify-between items-center animate-in fade-in slide-in-from-bottom-2">
+              <div className="space-y-1">
+                <p className="text-[11px] font-bold">Premium Item {i}</p>
+                <p className="text-[10px] font-mono font-black" style={{ color: brandColor || '#22c55e' }}>$8.50</p>
               </div>
-              <div className="w-6 h-6 rounded-full border flex items-center justify-center text-xs">+</div>
+              <div className="w-7 h-7 rounded-full border-2 flex items-center justify-center text-xs font-bold transition-colors" style={{ borderColor: brandColor || '#22c55e', color: brandColor || '#22c55e' }}>+</div>
             </div>
           ))}
         </div>
       </div>
-      <div className="p-3 bg-background border-t shrink-0">
-        <div className="w-full h-10 rounded-lg flex items-center justify-center text-sm font-bold text-white shadow-lg" style={{ backgroundColor: color }}>
-          Place Order ({menuType})
+
+      {/* App Bottom Bar */}
+      <div className="p-4 border-t shrink-0 z-30 transition-colors duration-300 shadow-[0_-4px_10px_rgba(0,0,0,0.05)]" style={{ backgroundColor: 'white' }}>
+        <div 
+          className="w-full h-12 rounded-xl flex items-center justify-center text-xs font-black text-white shadow-lg uppercase tracking-widest transition-all duration-300 transform active:scale-95" 
+          style={{ backgroundColor: bColor }}
+        >
+          View Order ({menuType})
         </div>
       </div>
-      <div className="h-1.5 w-24 bg-slate-300 rounded-full mx-auto mb-2 mt-auto"></div>
+
+      {/* Home Indicator */}
+      <div className="h-1.5 w-28 bg-slate-300/50 rounded-full mx-auto mb-2 mt-auto z-40"></div>
     </div>
   );
 }
@@ -325,8 +351,11 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
   const customizationForm = useForm<CustomizationFormData>({
     resolver: zodResolver(customizationSchema),
     defaultValues: {
-      brandColor: seller?.brandColor || '#22c55e',
-      logoUrl: seller?.logoUrl || '',
+      brandColor: '#22c55e',
+      headerColor: '#213147',
+      bottomBarColor: '#22c55e',
+      bodyBackgroundColor: '#fdfcf0',
+      logoUrl: '',
     },
   });
 
@@ -336,6 +365,9 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
     if (seller) {
       customizationForm.reset({
         brandColor: seller.brandColor || '#22c55e',
+        headerColor: seller.headerColor || '#213147',
+        bottomBarColor: seller.bottomBarColor || seller.brandColor || '#22c55e',
+        bodyBackgroundColor: seller.bodyBackgroundColor || '#fdfcf0',
         logoUrl: seller.logoUrl || '',
       });
       if (seller.menuTypes && seller.menuTypes.length > 0) {
@@ -405,7 +437,11 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
     if (!firestore || !sellerId) return;
     setIsSavingCustomization(true);
     const ref = doc(firestore, 'sellers', sellerId);
-    updateDoc(ref, data).finally(() => setIsSavingCustomization(false));
+    updateDoc(ref, data)
+      .then(() => {
+        toast({ title: 'Branding Saved', description: 'Your app appearance has been updated.' });
+      })
+      .finally(() => setIsSavingCustomization(false));
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, onChange: (val: string) => void) => {
@@ -433,7 +469,11 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
         bevcartActive: false,
         clubhouseActive: false,
         lastActive: null,
-        menuTypes: ['Beverage Cart', 'Clubhouse']
+        menuTypes: ['Beverage Cart', 'Clubhouse'],
+        brandColor: '#22c55e',
+        headerColor: '#213147',
+        bottomBarColor: '#22c55e',
+        bodyBackgroundColor: '#fdfcf0'
       }, { merge: true });
       mockMenuItems.forEach((item, index) => {
         const newItemRef = doc(collection(firestore, 'sellers', sellerId, 'menuItems'));
@@ -601,56 +641,134 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
               </CardContent>
             </Card>
 
-            <Card id="app-branding" className="shadow-sm border-muted h-full flex flex-col scroll-mt-24">
-              <CardHeader className="bg-muted/30">
-                <CardTitle className="flex items-center gap-2 text-lg"><Palette className="h-5 w-5" /> App Branding</CardTitle>
+            <Card id="app-branding" className="shadow-lg border-primary/20 h-full flex flex-col scroll-mt-24 bg-gradient-to-br from-white to-primary/5">
+              <CardHeader className="bg-primary/5 border-b">
+                <CardTitle className="flex items-center gap-2 text-xl font-headline uppercase tracking-tight">
+                  <Palette className="h-6 w-6 text-primary" /> App Branding Dashboard
+                </CardTitle>
+                <CardDescription>Customize your customer's mobile experience and branding.</CardDescription>
               </CardHeader>
-              <CardContent className="flex-1 pt-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  <div className="space-y-6">
+              <CardContent className="flex-1 pt-8">
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-10 items-start">
+                  <div className="space-y-8 animate-in fade-in slide-in-from-left-4">
                     <Form {...customizationForm}>
-                      <form onSubmit={customizationForm.handleSubmit(handleSaveCustomization)} className="space-y-5">
-                        <FormField
-                          control={customizationForm.control}
-                          name="brandColor"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-muted-foreground"><Palette className="h-3.5 w-3.5" /> Brand Color</FormLabel>
-                              <div className="flex gap-2">
-                                <FormControl><Input {...field} placeholder="#22c55e" className="h-9" /></FormControl>
-                                <div className="w-9 h-9 rounded-md border shadow-sm shrink-0" style={{ backgroundColor: field.value || watchedValues.brandColor }} />
-                              </div>
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={customizationForm.control}
-                          name="logoUrl"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-muted-foreground"><Upload className="h-3.5 w-3.5" /> Logo (JPEG/PNG)</FormLabel>
-                              <FormControl><Input type="file" accept="image/*" onChange={(e) => handleFileChange(e, field.onChange)} className="h-9" /></FormControl>
-                            </FormItem>
-                          )}
-                        />
-                        <div className="space-y-2">
-                          <FormLabel className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Preview Menu Type</FormLabel>
-                          <Select value={previewMenuType} onValueChange={setPreviewMenuType}>
-                            <SelectTrigger className="h-9"><SelectValue placeholder="Select type" /></SelectTrigger>
-                            <SelectContent>
-                              {seller?.menuTypes?.map(type => <SelectItem key={type} value={type}>{type}</SelectItem>)}
-                            </SelectContent>
-                          </Select>
+                      <form onSubmit={customizationForm.handleSubmit(handleSaveCustomization)} className="space-y-6">
+                        <div className="bg-white p-6 rounded-2xl border shadow-sm space-y-6">
+                          <h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
+                             IDENTITY & ACCENTS
+                          </h3>
+                          
+                          <FormField
+                            control={customizationForm.control}
+                            name="logoUrl"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="flex items-center gap-2 text-xs font-bold text-foreground">
+                                  <Upload className="h-3.5 w-3.5" /> Course Logo
+                                </FormLabel>
+                                <FormControl>
+                                  <div className="flex items-center gap-4">
+                                    <Input type="file" accept="image/*" onChange={(e) => handleFileChange(e, field.onChange)} className="h-10 text-xs" />
+                                    {field.value && (
+                                      <div className="relative w-10 h-10 rounded border overflow-hidden bg-white shrink-0">
+                                        <Image src={field.value} alt="logo preview" fill className="object-contain p-1" unoptimized />
+                                      </div>
+                                    )}
+                                  </div>
+                                </FormControl>
+                                <FormDescription className="text-[10px]">Recommended: Transparent PNG or JPEG.</FormDescription>
+                              </FormItem>
+                            )}
+                          />
+
+                          <div className="grid grid-cols-2 gap-4">
+                            <FormField
+                              control={customizationForm.control}
+                              name="brandColor"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel className="text-xs font-bold text-foreground">Accent Color</FormLabel>
+                                  <div className="flex gap-2">
+                                    <FormControl><Input {...field} type="color" className="h-10 p-1 w-full" /></FormControl>
+                                  </div>
+                                </FormItem>
+                              )}
+                            />
+                            <FormField
+                              control={customizationForm.control}
+                              name="headerColor"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel className="text-xs font-bold text-foreground">Header Bar</FormLabel>
+                                  <div className="flex gap-2">
+                                    <FormControl><Input {...field} type="color" className="h-10 p-1 w-full" /></FormControl>
+                                  </div>
+                                </FormItem>
+                              )}
+                            />
+                            <FormField
+                              control={customizationForm.control}
+                              name="bottomBarColor"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel className="text-xs font-bold text-foreground">Bottom Bar</FormLabel>
+                                  <div className="flex gap-2">
+                                    <FormControl><Input {...field} type="color" className="h-10 p-1 w-full" /></FormControl>
+                                  </div>
+                                </FormItem>
+                              )}
+                            />
+                            <FormField
+                              control={customizationForm.control}
+                              name="bodyBackgroundColor"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel className="text-xs font-bold text-foreground">Body BG</FormLabel>
+                                  <div className="flex gap-2">
+                                    <FormControl><Input {...field} type="color" className="h-10 p-1 w-full" /></FormControl>
+                                  </div>
+                                </FormItem>
+                              )}
+                            />
+                          </div>
                         </div>
-                        <Button type="submit" disabled={isSavingCustomization} className="w-full">
-                          {isSavingCustomization ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : <Save className="mr-2 h-4 w-4" />}
-                          Save Branding
+
+                        <div className="bg-white p-6 rounded-2xl border shadow-sm space-y-4">
+                          <h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
+                             PREVIEW MODE
+                          </h3>
+                          <div className="space-y-2">
+                            <FormLabel className="text-xs font-bold text-foreground">Preview Menu Type</FormLabel>
+                            <Select value={previewMenuType} onValueChange={setPreviewMenuType}>
+                              <SelectTrigger className="h-10 shadow-sm"><SelectValue placeholder="Select type" /></SelectTrigger>
+                              <SelectContent>
+                                {seller?.menuTypes?.map(type => <SelectItem key={type} value={type}>{type}</SelectItem>)}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+
+                        <Button type="submit" disabled={isSavingCustomization} className="w-full h-12 shadow-xl hover:scale-[1.02] transition-transform font-headline font-bold uppercase tracking-wider">
+                          {isSavingCustomization ? <Loader2 className="animate-spin h-5 w-5 mr-2" /> : <Save className="mr-2 h-5 w-5" />}
+                          Publish Branding
                         </Button>
                       </form>
                     </Form>
                   </div>
-                  <div className="flex flex-col items-center justify-center bg-muted/20 p-4 rounded-xl border border-dashed">
-                     <MobilePreview logoUrl={watchedValues.logoUrl} brandColor={watchedValues.brandColor} sellerName={seller?.courseName || 'Demo Establishment'} menuType={previewMenuType || 'Order'} />
+                  <div className="flex flex-col items-center justify-center p-6 animate-in fade-in slide-in-from-right-4">
+                     <div className="mb-4 text-center">
+                        <Badge variant="secondary" className="mb-2 uppercase tracking-widest text-[10px] font-black">LIVE APP PREVIEW</Badge>
+                        <p className="text-[10px] text-muted-foreground font-medium italic">Changes appear here instantly</p>
+                     </div>
+                     <MobilePreview 
+                        logoUrl={watchedValues.logoUrl} 
+                        headerColor={watchedValues.headerColor}
+                        bottomBarColor={watchedValues.bottomBarColor}
+                        bodyBackgroundColor={watchedValues.bodyBackgroundColor}
+                        brandColor={watchedValues.brandColor} 
+                        sellerName={seller?.courseName || 'Demo Establishment'} 
+                        menuType={previewMenuType || 'Order'} 
+                     />
                   </div>
                 </div>
               </CardContent>

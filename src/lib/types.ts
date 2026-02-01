@@ -36,6 +36,9 @@ export interface Seller {
   bevcartActive?: boolean;
   clubhouseActive?: boolean;
   brandColor?: string;
+  headerColor?: string;
+  bottomBarColor?: string;
+  bodyBackgroundColor?: string;
   logoUrl?: string;
   lastActive?: Timestamp;
 }
