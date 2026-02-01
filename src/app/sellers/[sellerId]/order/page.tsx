@@ -50,6 +50,26 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
     );
   }, [menuItems, selectedMenuType]);
 
+  // Dynamic categories based on service mode
+  const currentCategories = useMemo(() => {
+    if (selectedMenuType === 'Beverage Cart') {
+      // Remove heavy food for Bev Cart
+      return ['Beer', 'Spirits', 'Soft Drinks', 'Snacks'] as Category[];
+    }
+    if (selectedMenuType === 'Clubhouse') {
+      // Reorder Clubhouse to show food first
+      return ['Sandwiches', 'Appetizers', 'Entrees', 'Dessert', 'Beer', 'Spirits', 'Soft Drinks', 'Snacks'] as Category[];
+    }
+    return categories as unknown as Category[];
+  }, [selectedMenuType]);
+
+  // Ensure selectedCategory is always valid when switching service modes
+  useEffect(() => {
+    if (currentCategories.length > 0 && !currentCategories.includes(selectedCategory)) {
+      setSelectedCategory(currentCategories[0]);
+    }
+  }, [currentCategories, selectedCategory]);
+
   useEffect(() => {
     if (seller?.menuTypes && seller.menuTypes.length > 0 && !selectedMenuType) {
       setSelectedMenuType(seller.menuTypes[0]);
@@ -169,7 +189,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
             <Separator />
             <ScrollArea className="w-full whitespace-nowrap">
                 <div className="flex gap-2 pb-1">
-                    {categories.map((cat) => {
+                    {currentCategories.map((cat) => {
                         const Icon = categoryIcons[cat];
                         const isSelected = selectedCategory === cat;
                         return (
