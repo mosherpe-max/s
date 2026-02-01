@@ -56,7 +56,7 @@ export function OrderNotificationListener() {
           break;
         case 'Out for Delivery':
           title = 'Order Out for Delivery';
-          description = 'The driver is heading to your location.';
+          description = 'The BevCart driver is heading to your location.';
           Icon = Navigation;
           break;
         case 'Delivered':

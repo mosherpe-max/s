@@ -66,7 +66,7 @@ export function AppHeader() {
                 <Link href="/admin">KOOP ADMIN</Link>
               </Button>
               <Button variant="ghost" size="sm" asChild className="text-white hover:bg-white/10 text-xs font-headline uppercase tracking-wider">
-                <Link href="/seller/bevcartdriver">DRIVER</Link>
+                <Link href="/seller/bevcartdriver">BEVCART DRIVER</Link>
               </Button>
               <Button variant="ghost" size="sm" asChild className="hidden sm:inline-flex text-white hover:bg-white/10 text-xs font-headline uppercase tracking-wider">
                 <Link href="/sellers/demo-course">SELLER ADMIN</Link>

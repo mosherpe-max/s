@@ -261,12 +261,12 @@ export default function BevCartDriverDashboardPage() {
       return (
           <div className="flex flex-col items-center justify-center h-screen p-8 text-center space-y-6">
               <AlertCircle className="h-16 w-16 text-muted-foreground opacity-20" />
-              <h1 className="text-2xl font-headline font-bold uppercase">KOOP DRIVER INTERFACE</h1>
+              <h1 className="text-2xl font-headline font-bold uppercase">KOOP BEVCART DRIVER INTERFACE</h1>
               <p className="text-muted-foreground max-w-sm">
-                  Initialize your seller profile to access driver tools.
+                  Initialize your seller profile to access BevCart driver tools.
               </p>
               <Button asChild>
-                  <Link href="/sellers/demo-course">Initialize Driver Profile</Link>
+                  <Link href="/sellers/demo-course">Initialize BevCart Driver Profile</Link>
               </Button>
           </div>
       );
@@ -278,10 +278,10 @@ export default function BevCartDriverDashboardPage() {
         <header className="flex-shrink-0 px-4 h-16 flex items-center justify-between border-b-2 border-[#E50000] bg-[#213147] z-20 shadow-sm">
           <div className="flex flex-col">
             <h1 className="font-headline text-lg md:text-xl font-bold text-white uppercase tracking-tight">
-              BEVERAGE CART DRIVER DASHBOARD
+              BEVCART DRIVER DASHBOARD
             </h1>
             <span className="text-[10px] uppercase font-bold text-white/60 tracking-widest leading-none">
-              DRIVER: Demo Golf Course - Public
+              BEVCART DRIVER: Demo Golf Course - Public
             </span>
           </div>
           <div className="flex items-center space-x-3">
@@ -340,7 +340,7 @@ export default function BevCartDriverDashboardPage() {
                   <div className="flex flex-col items-center justify-center text-muted-foreground py-20 text-center px-4">
                     <Package className="h-12 w-12 opacity-20 mb-2" />
                     <p className="italic">
-                      No active beverage cart orders.
+                      No active BevCart orders.
                     </p>
                   </div>
                 ) : (

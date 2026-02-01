@@ -314,7 +314,7 @@ export default function KOOPAdminPage() {
       await batch.commit();
       toast({
         title: "System Reset Complete",
-        description: "All orders have been cleared and drivers disconnected.",
+        description: "All orders have been cleared and BevCart drivers disconnected.",
       });
     } catch (error) {
       console.error("Reset failed:", error);
