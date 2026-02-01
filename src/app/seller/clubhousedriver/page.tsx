@@ -160,9 +160,10 @@ export default function ClubhouseDriverDashboardPage() {
         const orderTime = o.createdAt.toDate().getTime();
         const minutesElapsed = (now - orderTime) / (1000 * 60);
         
-        if (minutesElapsed > 10) {
+        // Clubhouse specific thresholds: 15m and 20m
+        if (minutesElapsed > 20) {
           colorClass = "bg-red-600";
-        } else if (minutesElapsed >= 7) {
+        } else if (minutesElapsed >= 15) {
           colorClass = "bg-yellow-500";
         }
       }
