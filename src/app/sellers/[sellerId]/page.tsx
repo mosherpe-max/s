@@ -5,7 +5,7 @@ import { collection, doc, setDoc, deleteDoc, writeBatch, query, where, updateDoc
 import { useFirestore, useDoc, useCollection, useMemoFirebase } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { PlusCircle, Edit, Trash2, Filter, DollarSign, ShoppingBag, Clock, Database, Users, UserPlus, Sparkles, Download, Calendar as CalendarIcon, FileSpreadsheet, Palette, Save, Loader2, Upload, Smartphone, Beer, ListChecks, ChevronUp, ChevronDown, Check, MousePointer2 } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, Filter, DollarSign, ShoppingBag, Clock, Database, Users, UserPlus, Sparkles, Download, Calendar as CalendarIcon, FileSpreadsheet, Palette, Save, Loader2, Upload, Smartphone, Beer, ListChecks, ChevronUp, ChevronDown, Check, MousePointer2, BarChart3 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import {
   AlertDialog,
@@ -533,7 +533,8 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
   }
 
   const quickLinks = [
-    { label: 'Sales &amp; Branding', id: 'sales-branding', icon: <Palette className="w-3 h-3" /> },
+    { label: 'Performance Overview', id: 'performance-overview', icon: <BarChart3 className="w-3 h-3" /> },
+    { label: 'Sales & Branding', id: 'sales-branding', icon: <Palette className="w-3 h-3" /> },
     { label: 'Master Library', id: 'item-library', icon: <Database className="w-3 h-3" /> },
     { label: 'Service Menus', id: 'service-menus', icon: <ListChecks className="w-3 h-3" /> },
     ...(isClubSeller ? [{ label: 'Member List', id: 'member-list', icon: <Users className="w-3 h-3" /> }] : []),
@@ -560,19 +561,6 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
           </div>
         </header>
 
-        <section className="mb-8">
-          <h2 className="font-headline text-xl font-bold mb-6 flex items-center gap-2"><DollarSign className="h-6 w-6 text-primary" /> Performance Overview</h2>
-          <div className="flex flex-wrap gap-4">
-              {dashboardStats ? (
-                  <>
-                      <StatTile title="Daily" {...dashboardStats.daily} />
-                      <StatTile title="Monthly" {...dashboardStats.monthly} />
-                      <StatTile title="Yearly" {...dashboardStats.yearly} />
-                  </>
-              ) : <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full"><Skeleton className="h-40 w-full" /><Skeleton className="h-40 w-full" /><Skeleton className="h-40 w-full" /></div>}
-          </div>
-        </section>
-
         <nav className="mb-12 bg-muted/30 p-4 rounded-xl border border-dashed flex flex-wrap items-center gap-3">
             <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mr-2 flex items-center gap-1.5">
                 <MousePointer2 className="w-3 h-3" /> Quick Navigation:
@@ -586,6 +574,19 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
                 </Button>
             ))}
         </nav>
+
+        <section id="performance-overview" className="mb-8 scroll-mt-24">
+          <h2 className="font-headline text-xl font-bold mb-6 flex items-center gap-2"><DollarSign className="h-6 w-6 text-primary" /> Performance Overview</h2>
+          <div className="flex flex-wrap gap-4">
+              {dashboardStats ? (
+                  <>
+                      <StatTile title="Daily" {...dashboardStats.daily} />
+                      <StatTile title="Monthly" {...dashboardStats.monthly} />
+                      <StatTile title="Yearly" {...dashboardStats.yearly} />
+                  </>
+              ) : <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full"><Skeleton className="h-40 w-full" /><Skeleton className="h-40 w-full" /><Skeleton className="h-40 w-full" /></div>}
+          </div>
+        </section>
 
         <div id="sales-branding" className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12 scroll-mt-24">
             <Card className="shadow-sm border-muted h-full flex flex-col">
