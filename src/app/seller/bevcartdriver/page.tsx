@@ -20,28 +20,11 @@ import Link from 'next/link';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { BrandingFooter } from '@/components/branding-footer';
+import { getDriverColor } from '@/lib/utils';
 
 type LatLng = {
   latitude: number;
   longitude: number;
-};
-
-const getDriverColorClass = (id: string) => {
-  const driverColors = [
-    'bg-indigo-600',
-    'bg-blue-600',
-    'bg-purple-600',
-    'bg-pink-600',
-    'bg-cyan-600',
-    'bg-slate-700',
-  ];
-  
-  let hash = 0;
-  for (let i = 0; i < id.length; i++) {
-    hash = id.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  const index = Math.abs(hash) % driverColors.length;
-  return driverColors[index];
 };
 
 export default function BevCartDriverDashboardPage() {
@@ -113,7 +96,7 @@ export default function BevCartDriverDashboardPage() {
         title: (
           <div className="flex items-center gap-2">
             <Bell className="h-5 w-5 text-primary animate-bounce" />
-            <span className="font-headline font-bold text-lg text-primary">New Order Received!</span>
+            <span className="font-headline font-bold text-lg text-primary uppercase">New Order Received!</span>
           </div>
         ),
         description: `There are ${newPlacedOrders.length} new order(s) for your Beverage Cart.`,
@@ -178,10 +161,13 @@ export default function BevCartDriverDashboardPage() {
     return () => clearInterval(intervalId);
   }, [firestore, isBevCartActive]);
 
-  const handleUpdateOrderStatus = (orderId: string, status: Order['status']) => {
+  const handleUpdateOrderStatus = (orderId: string, status: Order['status'], driverId?: string) => {
     if (!firestore) return;
     const orderRef = doc(firestore, 'orders', orderId);
     const updates: any = { status };
+    if (driverId) {
+        updates.assignedDriverId = driverId;
+    }
     if (status === 'Delivered') {
       updates.deliveredAt = serverTimestamp();
     }
@@ -217,15 +203,12 @@ export default function BevCartDriverDashboardPage() {
   const mappedSellers = useMemo(() => {
     if (!activeSellers || !now) return [];
     
-    // Heartbeat Threshold: 2 minutes (120,000 ms)
+    // Heartbeat Threshold: 2 minutes
     const threshold = 120000;
 
     return activeSellers
         .filter(s => {
-            // Exclude self (already shown by primary pin)
             if (s.id === 'demo-course') return false;
-            
-            // Filter by lastActive heartbeat to prevent ghost markers
             if (!s.lastActive) return false;
             const lastActiveTime = s.lastActive.toDate().getTime();
             return (now - lastActiveTime) < threshold;
@@ -233,8 +216,7 @@ export default function BevCartDriverDashboardPage() {
         .map(s => ({
             id: s.id,
             name: s.courseName,
-            location: { latitude: s.latitude, longitude: s.longitude },
-            colorClass: getDriverColorClass(s.id)
+            location: { latitude: s.latitude, longitude: s.longitude }
         }));
   }, [activeSellers, now]);
 
@@ -252,7 +234,8 @@ export default function BevCartDriverDashboardPage() {
         id: o.id,
         name: o.customerName,
         location: o.deliveryLocation,
-        colorClass
+        colorClass,
+        assignedDriverId: o.assignedDriverId
       };
     });
   }, [activeOrders, now]);
@@ -291,7 +274,7 @@ export default function BevCartDriverDashboardPage() {
               onCheckedChange={handleToggleActive} 
               className="data-[state=checked]:bg-[#E50000]"
             />
-            <Label htmlFor="active-mode" className="text-sm font-semibold whitespace-nowrap text-white">
+            <Label htmlFor="active-mode" className="text-sm font-semibold whitespace-nowrap text-white uppercase">
               {isBevCartActive ? 'CART: ACTIVE' : 'CART: INACTIVE'}
             </Label>
           </div>
@@ -322,7 +305,7 @@ export default function BevCartDriverDashboardPage() {
           </div>
           
           <div className="w-full md:w-1/3 flex flex-col bg-background border-t md:border-t-0 md:border-l overflow-hidden min-h-0">
-            <h2 className="font-headline text-lg font-semibold px-4 pt-3 pb-2 shrink-0 border-b flex items-center justify-between">
+            <h2 className="font-headline text-lg font-semibold px-4 pt-3 pb-2 shrink-0 border-b flex items-center justify-between uppercase">
               <span>Your Active Orders</span>
               <span className="bg-[#E50000] text-white text-xs rounded-full px-2 py-0.5">
                 {driverOrders.length}
@@ -350,6 +333,7 @@ export default function BevCartDriverDashboardPage() {
                       order={order} 
                       orderNumber={index + 1}
                       onUpdateStatus={handleUpdateOrderStatus}
+                      currentDriverId="demo-course"
                     />
                   ))
                 )}

@@ -1,7 +1,8 @@
+
 'use client'
 
 import { Truck, User } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, getDriverColor } from '@/lib/utils';
 import { Map, AdvancedMarker, useMap } from '@vis.gl/react-google-maps';
 import { useEffect } from 'react';
 
@@ -9,17 +10,18 @@ interface MapViewProps {
   buyerLocation?: { latitude: number; longitude: number };
   sellerLocation?: { latitude: number; longitude: number };
   showPrimaryMarker?: boolean;
+  primaryDriverId?: string;
   sellers?: {
     id: string;
     name: string;
     location: { latitude: number; longitude: number };
-    colorClass?: string;
   }[];
   buyers?: { 
     id: string; 
     name: string; 
     location: { latitude: number; longitude: number };
     colorClass?: string;
+    assignedDriverId?: string;
   }[];
   radius?: number; // in meters
   zoomMode?: 'radius' | 'all';
@@ -36,15 +38,12 @@ function MapElements({ buyerLocation, sellerLocation, sellers, buyers, radius, z
         const hasBuyers = buyers && buyers.length > 0;
         const hasSellers = sellers && sellers.length > 0;
 
-        // This component is used for both buyer tracking and the seller dashboard.
         if (buyerLocation && sellerLocation) {
-            // --- Buyer Order Tracking View ---
             bounds.extend(new window.google.maps.LatLng(sellerLocation.latitude, sellerLocation.longitude));
             bounds.extend(new window.google.maps.LatLng(buyerLocation.latitude, buyerLocation.longitude));
             map.fitBounds(bounds, 50);
 
         } else if (zoomMode === 'all' && (hasBuyers || hasSellers || sellerLocation)) {
-            // --- Global Ops View ---
             if (sellerLocation) {
                 bounds.extend(new window.google.maps.LatLng(sellerLocation.latitude, sellerLocation.longitude));
             }
@@ -61,14 +60,12 @@ function MapElements({ buyerLocation, sellerLocation, sellers, buyers, radius, z
             map.fitBounds(bounds, 100);
 
         } else if (sellerLocation) {
-            // --- Focus Mode ---
             map.setCenter({ lat: sellerLocation.latitude, lng: sellerLocation.longitude });
             map.setZoom(17);
         }
     
     }, [map, buyerLocation, sellerLocation, sellers, buyers, zoomMode]); 
 
-    // Effect to draw the radius circle around the primary seller location
     useEffect(() => {
       if (!map || !radius || !sellerLocation) return;
 
@@ -93,7 +90,7 @@ function MapElements({ buyerLocation, sellerLocation, sellers, buyers, radius, z
 }
 
 
-export function MapView({ buyerLocation, sellerLocation, showPrimaryMarker = true, sellers, buyers, radius, zoomMode, interactive = true }: MapViewProps) {
+export function MapView({ buyerLocation, sellerLocation, showPrimaryMarker = true, primaryDriverId = 'demo-course', sellers, buyers, radius, zoomMode, interactive = true }: MapViewProps) {
     const center = buyerLocation ? { lat: buyerLocation.latitude, lng: buyerLocation.longitude } : (sellerLocation ? { lat: sellerLocation.latitude, lng: sellerLocation.longitude } : { lat: 0, lng: 0 });
     
   return (
@@ -114,8 +111,9 @@ export function MapView({ buyerLocation, sellerLocation, showPrimaryMarker = tru
         
         {/* Render all Sellers (Drivers) */}
         {sellers && sellers.map(s => {
-            const colorClass = s.colorClass || "bg-indigo-600";
-            const arrowColorClass = colorClass.replace('bg-', 'border-t-');
+            const driverColor = getDriverColor(s.id);
+            const colorClass = `bg-${driverColor}`;
+            const arrowColorClass = `border-t-${driverColor}`;
             
             return (
               <AdvancedMarker key={s.id} position={{ lat: s.location.latitude, lng: s.location.longitude }}>
@@ -129,14 +127,14 @@ export function MapView({ buyerLocation, sellerLocation, showPrimaryMarker = tru
             );
         })}
 
-        {/* Primary Seller Pin (if not in sellers array and shown) */}
+        {/* Primary Seller Pin */}
         {showPrimaryMarker && sellerLocation && (!sellers || !sellers.some(s => s.location.latitude === sellerLocation.latitude && s.location.longitude === sellerLocation.longitude)) && (
              <AdvancedMarker position={{ lat: sellerLocation.latitude, lng: sellerLocation.longitude }}>
                 <div className="flex flex-col items-center">
-                    <div className="bg-indigo-600 p-2 rounded-full shadow-lg border-2 border-white">
+                    <div className={cn("p-2 rounded-full shadow-lg border-2 border-white", `bg-${getDriverColor(primaryDriverId)}`)}>
                         <Truck className="w-6 h-6 text-white" />
                     </div>
-                    <div className="w-0 h-0 border-l-8 border-l-transparent border-r-8 border-r-transparent border-t-8 border-t-indigo-600"></div>
+                    <div className={cn("w-0 h-0 border-l-8 border-l-transparent border-r-8 border-r-transparent border-t-8", `border-t-${getDriverColor(primaryDriverId)}`)}></div>
                 </div>
             </AdvancedMarker>
         )}
@@ -157,13 +155,18 @@ export function MapView({ buyerLocation, sellerLocation, showPrimaryMarker = tru
         {buyers && buyers.map((buyer, index) => {
             const colorClass = buyer.colorClass || "bg-accent";
             const arrowColorClass = colorClass.replace('bg-', 'border-t-');
+            
+            // Assign outline color if a driver is assigned
+            const assignedDriverColor = buyer.assignedDriverId ? getDriverColor(buyer.assignedDriverId) : null;
+            const borderClass = assignedDriverColor ? `border-${assignedDriverColor}` : 'border-white';
 
             return (
                 <AdvancedMarker key={buyer.id} position={{ lat: buyer.location.latitude, lng: buyer.location.longitude }}>
                     <div className="flex flex-col items-center">
                         <div className={cn(
-                            "flex items-center justify-center w-10 h-10 rounded-full shadow-lg font-bold text-white border-2 border-white transition-colors duration-500",
-                            colorClass
+                            "flex items-center justify-center w-10 h-10 rounded-full shadow-lg font-bold text-white border-4 transition-colors duration-500",
+                            colorClass,
+                            borderClass
                         )}>
                             {index + 1}
                         </div>

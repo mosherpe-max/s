@@ -20,6 +20,7 @@ import Link from 'next/link';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { BrandingFooter } from '@/components/branding-footer';
+import { getDriverColor } from '@/lib/utils';
 
 type LatLng = {
   latitude: number;
@@ -117,10 +118,13 @@ export default function ClubhouseDriverDashboardPage() {
     }
   }, []);
 
-  const handleUpdateOrderStatus = (orderId: string, status: Order['status']) => {
+  const handleUpdateOrderStatus = (orderId: string, status: Order['status'], driverId?: string) => {
     if (!firestore) return;
     const orderRef = doc(firestore, 'orders', orderId);
     const updates: any = { status };
+    if (driverId) {
+        updates.assignedDriverId = driverId;
+    }
     if (status === 'Delivered') {
       updates.deliveredAt = serverTimestamp();
     }
@@ -164,7 +168,8 @@ export default function ClubhouseDriverDashboardPage() {
         id: o.id,
         name: o.customerName,
         location: o.deliveryLocation,
-        colorClass
+        colorClass,
+        assignedDriverId: o.assignedDriverId
       };
     });
   }, [activeOrders, now]);
@@ -228,6 +233,7 @@ export default function ClubhouseDriverDashboardPage() {
                 radius={1609.34}
                 zoomMode={zoomMode}
                 showPrimaryMarker={isClubhouseActive}
+                primaryDriverId="demo-course"
               />
             ) : (
               <Skeleton className="w-full h-full" />
@@ -263,6 +269,7 @@ export default function ClubhouseDriverDashboardPage() {
                       order={order} 
                       orderNumber={index + 1}
                       onUpdateStatus={handleUpdateOrderStatus}
+                      currentDriverId="demo-course"
                     />
                   ))
                 )}

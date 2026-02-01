@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -6,9 +7,10 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { Separator } from './ui/separator';
 import { Button } from './ui/button';
-import { Check, Navigation, Package, CookingPot, Send, PartyPopper, ClipboardList } from 'lucide-react';
+import { Navigation, PartyPopper, ClipboardList, Send } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { Badge } from './ui/badge';
+import { cn, getDriverColor } from '@/lib/utils';
 
 const getStatusConfig = (status: Order['status'], isBevCart: boolean) => {
     const config: Record<Order['status'], { label: string, badgeVariant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
@@ -44,7 +46,7 @@ function getNumericOrderId(id: string) {
   return (Math.abs(hash) % 10000).toString().padStart(4, '0');
 }
 
-export function OrderCard({ order, orderNumber, onUpdateStatus }: { order: Order; orderNumber: number; onUpdateStatus: (id: string, status: Order['status']) => void }) {
+export function OrderCard({ order, orderNumber, onUpdateStatus, currentDriverId = 'demo-course' }: { order: Order; orderNumber: number; onUpdateStatus: (id: string, status: Order['status'], driverId?: string) => void; currentDriverId?: string }) {
     const [mounted, setMounted] = useState(false);
     const isBevCart = order.menuType === 'Beverage Cart';
     const statusInfo = getStatusConfig(order.status, isBevCart);
@@ -58,21 +60,21 @@ export function OrderCard({ order, orderNumber, onUpdateStatus }: { order: Order
             case 'Placed':
                 if (isBevCart) {
                   return (
-                    <Button className="w-full font-headline font-bold uppercase text-xs h-12" onClick={() => onUpdateStatus(order.id, 'Out for Delivery')}>
+                    <Button className="w-full font-headline font-bold uppercase text-xs h-12" onClick={() => onUpdateStatus(order.id, 'Out for Delivery', currentDriverId)}>
                         <Navigation className="mr-2 h-4 w-4" />
                         Start Delivery
                     </Button>
                   );
                 }
                 return (
-                    <Button className="w-full font-headline font-bold uppercase text-xs h-12" onClick={() => onUpdateStatus(order.id, 'Preparing')}>
+                    <Button className="w-full font-headline font-bold uppercase text-xs h-12" onClick={() => onUpdateStatus(order.id, 'Preparing', currentDriverId)}>
                         <Send className="mr-2 h-4 w-4" />
                         Confirm Order
                     </Button>
                 );
             case 'Preparing':
                 return (
-                    <Button className="w-full font-headline font-bold uppercase text-xs h-12" onClick={() => onUpdateStatus(order.id, 'Out for Delivery')}>
+                    <Button className="w-full font-headline font-bold uppercase text-xs h-12" onClick={() => onUpdateStatus(order.id, 'Out for Delivery', currentDriverId)}>
                         <Navigation className="mr-2 h-4 w-4" />
                         Start Delivery
                     </Button>
@@ -90,9 +92,16 @@ export function OrderCard({ order, orderNumber, onUpdateStatus }: { order: Order
     }
 
     const numericId = getNumericOrderId(order.id);
+    const isAssignedToMe = order.assignedDriverId === currentDriverId;
+    const assignedDriverColor = order.assignedDriverId ? getDriverColor(order.assignedDriverId) : null;
+    
+    // Determine card styling based on assignment
+    const borderClass = isAssignedToMe && assignedDriverColor 
+        ? `border-4 border-${assignedDriverColor}` 
+        : 'border-2 border-muted';
 
     return (
-        <Card className='overflow-hidden shadow-md flex flex-col h-full border-2 border-muted hover:border-primary/20 transition-all'>
+        <Card className={cn('overflow-hidden shadow-md flex flex-col h-full transition-all', borderClass, !isAssignedToMe && 'hover:border-primary/20')}>
             <CardHeader className='flex flex-row items-start gap-4 p-4 bg-muted/50'>
                 <Avatar className="w-10 h-10 border-2 border-primary/10">
                     <AvatarFallback className="font-bold text-xs bg-primary text-primary-foreground">#{numericId}</AvatarFallback>

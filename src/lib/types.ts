@@ -78,6 +78,7 @@ export interface Order {
   paymentMethod?: PaymentMethod;
   memberId?: string;
   memberLastName?: string;
+  assignedDriverId?: string;
   deliveryLocation: {
     latitude: number;
     longitude: number;
