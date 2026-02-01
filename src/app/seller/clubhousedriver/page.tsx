@@ -74,7 +74,7 @@ export default function ClubhouseDriverDashboardPage() {
         title: (
           <div className="flex items-center gap-2">
             <Bell className="h-5 w-5 text-primary animate-bounce" />
-            <span className="font-headline font-bold text-lg text-primary">New Clubhouse Order!</span>
+            <span className="font-headline font-bold text-lg text-primary uppercase">New Clubhouse Order!</span>
           </div>
         ),
         description: `There are ${newPlacedOrders.length} new order(s) for the Clubhouse.`,
@@ -205,7 +205,7 @@ export default function ClubhouseDriverDashboardPage() {
               onCheckedChange={handleToggleActive} 
               className="data-[state=checked]:bg-[#E50000]"
             />
-            <Label htmlFor="clubhouse-active" className="text-sm font-semibold whitespace-nowrap text-white">
+            <Label htmlFor="clubhouse-active" className="text-sm font-semibold whitespace-nowrap text-white uppercase">
               {isClubhouseActive ? 'SERVICE: ACTIVE' : 'SERVICE: INACTIVE'}
             </Label>
           </div>
@@ -227,7 +227,7 @@ export default function ClubhouseDriverDashboardPage() {
                 buyers={mappedBuyers}
                 radius={1609.34}
                 zoomMode={zoomMode}
-                showPrimaryMarker={true}
+                showPrimaryMarker={isClubhouseActive}
               />
             ) : (
               <Skeleton className="w-full h-full" />
@@ -235,7 +235,7 @@ export default function ClubhouseDriverDashboardPage() {
           </div>
           
           <div className="w-full md:w-1/3 flex flex-col bg-background border-t md:border-t-0 md:border-l overflow-hidden min-h-0">
-            <h2 className="font-headline text-lg font-semibold px-4 pt-3 pb-2 shrink-0 border-b flex items-center justify-between">
+            <h2 className="font-headline text-lg font-semibold px-4 pt-3 pb-2 shrink-0 border-b flex items-center justify-between uppercase">
               <span>Clubhouse Orders</span>
               <span className="bg-[#E50000] text-white text-xs rounded-full px-2 py-0.5">
                 {clubhouseOrders.length}
