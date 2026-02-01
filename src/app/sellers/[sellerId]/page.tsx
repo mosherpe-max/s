@@ -547,7 +547,7 @@ export default function SellerAdminPage({ params }: { params: { sellerId: string
           <div>
             <div className="flex items-center gap-3">
                 <h1 className="font-headline text-3xl font-bold text-foreground">
-                  KOOP SELLER ADMIN: {seller?.courseName || 'Loading...'}
+                  SELLER ADMIN: {seller?.courseName || 'Loading...'}
                 </h1>
                 {seller && <Badge variant="outline">{seller.type}</Badge>}
             </div>
