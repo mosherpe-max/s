@@ -94,10 +94,8 @@ export function OrderCard({ order, orderNumber, onUpdateStatus, currentDriverId 
     const isAssignedToMe = order.assignedDriverId === currentDriverId;
     const assignedDriverColor = order.assignedDriverId ? getDriverColor(order.assignedDriverId) : null;
     
-    // Determine card styling based on assignment
-    // Use a very thick border and prominent shadow for visibility as requested
     const borderClass = isAssignedToMe && assignedDriverColor 
-        ? `border-[6px] border-${assignedDriverColor} shadow-2xl` 
+        ? `border-2 border-${assignedDriverColor} shadow-md` 
         : 'border-2 border-muted opacity-80';
 
     return (

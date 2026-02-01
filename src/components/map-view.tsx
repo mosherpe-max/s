@@ -155,12 +155,9 @@ export function MapView({ buyerLocation, sellerLocation, showPrimaryMarker = tru
             const statusColorClass = buyer.colorClass || "bg-accent";
             const assignedDriverColor = buyer.assignedDriverId ? getDriverColor(buyer.assignedDriverId) : null;
             
-            // Layout logic for visibility:
-            // If assigned: thick colored border, white background, colored text number
-            // If not assigned: white border, status color background, white text number
-            const borderClass = assignedDriverColor ? `border-${assignedDriverColor} border-[6px]` : 'border-white border-4';
-            const bgClass = assignedDriverColor ? 'bg-white' : statusColorClass;
-            const textClass = assignedDriverColor ? `text-${assignedDriverColor}` : 'text-white';
+            const borderClass = assignedDriverColor ? `border-${assignedDriverColor} border-4` : 'border-white border-4';
+            const bgClass = statusColorClass;
+            const textClass = 'text-white';
             const finalArrowColorClass = assignedDriverColor ? `border-t-${assignedDriverColor}` : statusColorClass.replace('bg-', 'border-t-');
 
             return (
