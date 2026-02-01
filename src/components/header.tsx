@@ -29,7 +29,7 @@ export function AppHeader() {
   }, []);
 
   const isOrderPage = pathname?.includes('/order') && !pathname?.includes('/track');
-  const isDriverPage = pathname === '/seller/bevcartdriver';
+  const isDriverPage = pathname === '/seller/bevcartdriver' || pathname === '/seller/clubhousedriver';
 
   if (isDriverPage) return null;
 
@@ -67,6 +67,9 @@ export function AppHeader() {
               </Button>
               <Button variant="ghost" size="sm" asChild className="text-white hover:bg-white/10 text-xs font-headline uppercase tracking-wider">
                 <Link href="/seller/bevcartdriver">BEVCART DRIVER</Link>
+              </Button>
+              <Button variant="ghost" size="sm" asChild className="text-white hover:bg-white/10 text-xs font-headline uppercase tracking-wider">
+                <Link href="/seller/clubhousedriver">CLUBHOUSE DRIVER</Link>
               </Button>
               <Button variant="ghost" size="sm" asChild className="hidden sm:inline-flex text-white hover:bg-white/10 text-xs font-headline uppercase tracking-wider">
                 <Link href="/sellers/demo-course">SELLER ADMIN</Link>
