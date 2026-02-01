@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, use, useEffect, useMemo } from 'react';
@@ -19,11 +20,10 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetFooter
 import { Loader2, AlertCircle, CreditCard, User, MapPin, Store, Banknote } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useCart } from '@/lib/cart-context';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
-import { Input } from '@/components/ui/input';
 import { BrandingFooter } from '@/components/branding-footer';
+import { cn } from '@/lib/utils';
 
 export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId: string }> }) {
   const { sellerId } = use(params);
@@ -35,11 +35,6 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
   const [selectedCategory, setSelectedCategory] = useState<Category>(categories[0]);
   const [selectedMenuType, setSelectedMenuType] = useState<string>('');
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('Credit Card');
-  
-  const [inputMemberId, setInputMemberId] = useState('');
-  const [inputMemberLastName, setInputMemberLastName] = useState('');
-  const [menuTypeLocation, setMenuTypeLocation] = useState<string>('');
 
   const sellerRef = useMemoFirebase(() => (firestore ? doc(firestore, 'sellers', sellerId) : null), [firestore, sellerId]);
   const { data: seller, isLoading: isSellerLoading } = useDoc<Seller>(sellerRef);
@@ -55,21 +50,6 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
     );
   }, [menuItems, selectedMenuType]);
 
-  const isPublicCourse = seller?.type === 'Public Golf Course';
-  const isPrivateCourse = seller?.type === 'Private Golf Course';
-  const isSemiPrivateCourse = seller?.type === 'Semi Private Golf Course';
-  const isBevCart = selectedMenuType === 'Beverage Cart';
-
-  useEffect(() => {
-    if (isPublicCourse && isBevCart) {
-      setPaymentMethod('Pay with Cash or Credit Card to Beverage Cart Operator');
-    } else if (isPrivateCourse) {
-      setPaymentMethod('Member Account');
-    } else if (paymentMethod === 'Pay with Cash or Credit Card to Beverage Cart Operator') {
-      setPaymentMethod('Credit Card');
-    }
-  }, [isPublicCourse, isBevCart, isPrivateCourse, paymentMethod]);
-
   useEffect(() => {
     if (seller?.menuTypes && seller.menuTypes.length > 0 && !selectedMenuType) {
       setSelectedMenuType(seller.menuTypes[0]);
@@ -84,40 +64,8 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
       }
 
       if (seller.status === 'Inactive' && selectedMenuType === 'Beverage Cart') {
-        toast({ variant: 'destructive', title: 'Service Unavailable', description: 'The beverage cart is currently offline.' });
+        toast({ variant: 'destructive', title: 'Service Offline', description: 'The beverage cart is currently not taking orders.' });
         return;
-      }
-
-      if (!selectedMenuType) {
-          toast({ variant: 'destructive', title: 'Selection Required', description: 'Please select where you are ordering from.' });
-          return;
-      }
-
-      // Validation for specific location modes
-      if (selectedMenuType === 'Halfway House' && !menuTypeLocation) {
-          toast({ variant: 'destructive', title: 'Location Required', description: 'Please select which Halfway House you are at.' });
-          return;
-      }
-
-      if (selectedMenuType === 'Lane Delivery' && !menuTypeLocation) {
-          toast({ variant: 'destructive', title: 'Lane Required', description: 'Please enter your lane number.' });
-          return;
-      }
-
-      if (selectedMenuType === 'Dine-In' && !menuTypeLocation) {
-          toast({ variant: 'destructive', title: 'Table Required', description: 'Please enter your table number.' });
-          return;
-      }
-
-      if (paymentMethod === 'Member Account') {
-        if (!inputMemberId.trim() || !inputMemberLastName.trim()) {
-          toast({ 
-            variant: 'destructive', 
-            title: 'Required Info', 
-            description: 'Please enter both Member ID and Last Name.' 
-          });
-          return;
-        }
       }
 
       const activeOrderItems = orderItems.filter((item) => item.quantity > 0);
@@ -131,12 +79,15 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
       const submitToFirestore = async (latitude: number, longitude: number) => {
         try {
           const subtotal = activeOrderItems.reduce((acc, item) => acc + item.price * item.quantity, 0);
+          
+          const paymentMethod: PaymentMethod = selectedMenuType === 'Beverage Cart' 
+            ? 'Pay with Cash or Credit Card to Beverage Cart Operator'
+            : 'Pay at Delivery';
+
           const orderData: Omit<Order, 'id' | 'createdAt'> = {
             sellerId,
             customerId: 'public-user',
-            customerName: paymentMethod === 'Member Account' 
-              ? `Member ${inputMemberLastName}` 
-              : 'Guest Golfer',
+            customerName: 'Guest Golfer',
             deliveryLocation: { latitude, longitude },
             items: activeOrderItems,
             subtotal,
@@ -145,15 +96,12 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
             status: 'Placed',
             paymentMethod,
             menuType: selectedMenuType,
-            menuTypeLocation: menuTypeLocation || undefined,
-            memberId: paymentMethod === 'Member Account' ? inputMemberId : undefined,
-            memberLastName: paymentMethod === 'Member Account' ? inputMemberLastName : undefined,
           };
 
           const ordersCol = collection(firestore, 'orders');
           const docRef = await addDoc(ordersCol, { ...orderData, createdAt: serverTimestamp() });
           
-          toast({ title: 'Order Placed!', description: "Your order has been received." });
+          toast({ title: 'Order Placed!', description: "Redirecting to tracking..." });
           clearCart();
           setIsPlacingOrder(false);
           router.push(`/order/track?id=${docRef.id}`);
@@ -168,25 +116,14 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
         }
       };
 
-      // Geolocation handling with timeout and fallback
       if (navigator.geolocation) {
-        const geoTimeout = setTimeout(() => {
-          toast({ title: 'Location Fallback', description: 'Using default location due to slow GPS.' });
-          submitToFirestore(mockBuyerLocation.latitude, mockBuyerLocation.longitude);
-        }, 10000);
-
         navigator.geolocation.getCurrentPosition(
-          (p) => {
-            clearTimeout(geoTimeout);
-            submitToFirestore(p.coords.latitude, p.coords.longitude);
-          },
+          (p) => submitToFirestore(p.coords.latitude, p.coords.longitude),
           (error) => {
-            console.warn("Geolocation error:", error);
-            clearTimeout(geoTimeout);
-            toast({ title: 'Location Fallback', description: 'Using default location.' });
+            console.warn("Geolocation fallback used:", error);
             submitToFirestore(mockBuyerLocation.latitude, mockBuyerLocation.longitude);
           },
-          { timeout: 9500, enableHighAccuracy: true }
+          { timeout: 10000, enableHighAccuracy: true }
         );
       } else {
         submitToFirestore(mockBuyerLocation.latitude, mockBuyerLocation.longitude);
@@ -194,26 +131,23 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
     } catch (error) {
       console.error("Critical error in handlePlaceOrder:", error);
       setIsPlacingOrder(false);
-      toast({ variant: 'destructive', title: 'Error', description: 'An unexpected error occurred. Please try again.' });
+      toast({ variant: 'destructive', title: 'Error', description: 'An unexpected error occurred.' });
     }
   };
 
   const isLoading = isSellerLoading || areItemsLoading;
   const activeOrderItems = orderItems.filter((item) => item.quantity > 0);
+  const brandColor = seller?.brandColor || 'hsl(var(--primary))';
 
-  if (!isLoading && !seller) return <div className="p-8 text-center"><h2 className="text-2xl font-bold">Seller Not Found</h2></div>;
-
-  const brandStyle = {
-    primaryColor: seller?.brandColor || 'hsl(var(--primary))',
-  };
+  if (!isLoading && !seller) return <div className="p-8 text-center"><h2>Seller Not Found</h2></div>;
 
   return (
-    <div className="flex flex-col h-full bg-background min-h-screen">
-      <div className="sticky top-0 bg-background/95 backdrop-blur-sm z-20 shrink-0 border-b">
+    <div className="flex flex-col min-h-screen bg-background">
+      <div className="sticky top-0 bg-background/95 backdrop-blur-sm z-20 border-b">
         <div className="px-4 py-3 space-y-3">
             <div className="flex flex-col gap-1.5">
                 <Label className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest flex items-center gap-1">
-                    <Store className="w-3 h-3" /> SERVICE MODE
+                    <Store className="w-3 h-3" /> SELECT SERVICE
                 </Label>
                 <ScrollArea className="w-full whitespace-nowrap">
                     <div className="flex gap-2 pb-1">
@@ -222,12 +156,9 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
                                 key={type} 
                                 variant={selectedMenuType === type ? 'default' : 'outline'} 
                                 size="sm"
-                                onClick={() => {
-                                    setSelectedMenuType(type);
-                                    setMenuTypeLocation('');
-                                }} 
-                                className="shrink-0 h-8 text-xs px-3"
-                                style={selectedMenuType === type ? { backgroundColor: brandStyle.primaryColor } : {}}
+                                onClick={() => setSelectedMenuType(type)} 
+                                className="h-8 text-xs px-4 rounded-full"
+                                style={selectedMenuType === type ? { backgroundColor: brandColor } : {}}
                             >
                                 {type}
                             </Button>
@@ -235,9 +166,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
                     </div>
                 </ScrollArea>
             </div>
-
             <Separator />
-
             <ScrollArea className="w-full whitespace-nowrap">
                 <div className="flex gap-2 pb-1">
                     {categories.map((cat) => {
@@ -249,8 +178,8 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
                                 variant={isSelected ? 'default' : 'outline'} 
                                 size="sm"
                                 onClick={() => setSelectedCategory(cat)} 
-                                className="shrink-0 h-8 text-xs px-3"
-                                style={isSelected ? { backgroundColor: brandStyle.primaryColor } : {}}
+                                className="h-8 text-xs px-4 rounded-full"
+                                style={isSelected ? { backgroundColor: brandColor } : {}}
                             >
                                 <Icon className="mr-2 h-3.5 w-3.5" />
                                 {cat}
@@ -262,11 +191,11 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
         </div>
       </div>
 
-      <main className="flex-1 overflow-y-auto px-4 pt-4 pb-12">
+      <main className="flex-1 px-4 pt-4 pb-24">
         {isLoading ? (
           <div className="space-y-4">
-            <Skeleton className="h-20 w-full" />
-            <Skeleton className="h-20 w-full" />
+            <Skeleton className="h-24 w-full rounded-xl" />
+            <Skeleton className="h-24 w-full rounded-xl" />
           </div>
         ) : (
           <BuyerMenu 
@@ -274,170 +203,67 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
             onUpdateItem={updateItem} 
             selectedCategory={selectedCategory} 
             menuItems={filteredMenuItems} 
-            accentColor={brandStyle.primaryColor}
+            accentColor={brandColor}
           />
         )}
       </main>
 
-      <BrandingFooter />
-
       <Sheet open={isCartOpen} onOpenChange={setIsCartOpen}>
         {activeOrderItems.length > 0 && (
-          <div className="fixed bottom-0 left-0 right-0 p-4 bg-background/90 backdrop-blur-sm border-t z-20">
+          <div className="fixed bottom-0 left-0 right-0 p-4 bg-background/90 backdrop-blur-sm border-t z-30">
             <SheetTrigger asChild>
               <Button 
                 size="lg" 
-                className="w-full text-lg h-14 shadow-lg"
-                style={{ backgroundColor: brandStyle.primaryColor }}
+                className="w-full text-lg h-14 shadow-xl font-headline"
+                style={{ backgroundColor: brandColor }}
               >
-                View Order ({totalItems}) - ${(total || totalItems > 0 ? total : 0).toFixed(2)}
+                View Order ({totalItems}) • ${(total || 0).toFixed(2)}
               </Button>
             </SheetTrigger>
           </div>
         )}
-        <SheetContent side="bottom" className="rounded-t-lg max-h-[90vh] flex flex-col p-0">
+        <SheetContent side="bottom" className="rounded-t-2xl max-h-[90vh] flex flex-col p-0 border-t-2">
           <SheetHeader className="px-6 py-4 border-b">
-            <SheetTitle>REVIEW ORDER</SheetTitle>
+            <SheetTitle className="font-headline uppercase text-center">Review Your Order</SheetTitle>
           </SheetHeader>
           <ScrollArea className="flex-1 px-6">
             <div className="py-6 space-y-6">
               <OrderSummary items={activeOrderItems} serviceFee={seller?.serviceFee} />
-
-              <Separator />
-
+              
               <div className="space-y-4">
-                  <h3 className="font-bold text-sm uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-                      <MapPin className="w-4 h-4" /> DELIVERY LOCATION
+                  <h3 className="font-bold text-xs uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                      <Banknote className="w-4 h-4" /> Payment Info
                   </h3>
-                  
-                  <div className="p-3 bg-muted/50 rounded-lg border flex flex-col gap-1">
-                      <p className="text-xs font-bold text-primary" style={{ color: brandStyle.primaryColor }}>ORDERING FROM</p>
-                      <p className="text-sm font-medium">{selectedMenuType}</p>
-                  </div>
-
-                  {selectedMenuType === 'Halfway House' && (
-                      <div className="space-y-2 animate-in slide-in-from-top-2">
-                          <Label>SELECT HALFWAY HOUSE</Label>
-                          <select 
-                            className="w-full p-2 border rounded-md bg-background"
-                            value={menuTypeLocation} 
-                            onChange={(e) => setMenuTypeLocation(e.target.value)}
-                          >
-                            <option value="">Which house are you at?</option>
-                            {seller?.halfwayHouseNames?.map(name => (
-                                <option key={name} value={name}>{name}</option>
-                            ))}
-                          </select>
-                      </div>
-                  )}
-
-                  {selectedMenuType === 'Lane Delivery' && (
-                      <div className="space-y-2 animate-in slide-in-from-top-2">
-                          <Label>BOWLING LANE NUMBER</Label>
-                          <Input 
-                              type="number" 
-                              placeholder={`1 - ${seller?.laneCount || 24}`}
-                              value={menuTypeLocation}
-                              onChange={(e) => setMenuTypeLocation(e.target.value)}
-                          />
-                      </div>
-                  )}
-
-                  {selectedMenuType === 'Dine-In' && (
-                      <div className="space-y-2 animate-in slide-in-from-top-2">
-                          <Label>TABLE NUMBER</Label>
-                          <Input 
-                              type="number" 
-                              placeholder={`1 - ${seller?.tableCount || 50}`}
-                              value={menuTypeLocation}
-                              onChange={(e) => setMenuTypeLocation(e.target.value)}
-                          />
-                      </div>
-                  )}
-              </div>
-
-              <Separator />
-
-              <div className="space-y-4">
-                <h3 className="font-bold text-sm uppercase tracking-wider text-muted-foreground">PAYMENT METHOD</h3>
-                
-                {isPublicCourse && isBevCart ? (
-                  <div className="bg-muted/50 p-4 rounded-lg flex items-center gap-4 border border-primary/20 animate-in fade-in slide-in-from-top-2">
-                    <Banknote className="h-6 w-6 text-primary shrink-0" style={{ color: brandStyle.primaryColor }} />
+                  <div className="p-4 bg-primary/5 rounded-xl border-2 border-primary/10 flex items-center gap-4">
+                    <div className="p-2 bg-primary/10 rounded-full">
+                        <CreditCard className="w-5 h-5 text-primary" style={{ color: brandColor }} />
+                    </div>
                     <div>
-                      <p className="text-sm font-bold">Pay At Delivery</p>
-                      <p className="text-xs text-muted-foreground">Cash or Credit Card to Beverage Cart Operator</p>
+                        <p className="text-sm font-bold">Pay at Delivery</p>
+                        <p className="text-xs text-muted-foreground">
+                            {selectedMenuType === 'Beverage Cart' 
+                                ? 'Cash or Card to Cart Operator' 
+                                : 'Pay at pickup/delivery location'}
+                        </p>
                     </div>
                   </div>
-                ) : isPrivateCourse ? (
-                  <div className="bg-muted/50 p-3 rounded-lg flex items-center gap-3 border border-primary/10">
-                    <User className="h-5 w-5 text-primary" style={{ color: brandStyle.primaryColor }} />
-                    <div>
-                      <p className="text-sm font-bold">Member Account Only</p>
-                      <p className="text-xs text-muted-foreground">This is a private club establishment.</p>
-                    </div>
-                  </div>
-                ) : (
-                  <RadioGroup value={paymentMethod as any} onValueChange={(v: any) => setPaymentMethod(v)}>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="Credit Card" id="cc" style={{ borderColor: brandStyle.primaryColor }} />
-                      <Label htmlFor="cc" className="flex items-center gap-2 cursor-pointer"><CreditCard className="h-4 w-4" /> Credit Card</Label>
-                    </div>
-                    {isSemiPrivateCourse && (
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="Member Account" id="member" style={{ borderColor: brandStyle.primaryColor }} />
-                        <Label htmlFor="member" className="flex items-center gap-2 cursor-pointer"><User className="h-4 w-4" /> Member Account</Label>
-                      </div>
-                    )}
-                  </RadioGroup>
-                )}
-
-                {paymentMethod === 'Member Account' && (
-                  <div className="mt-4 space-y-4 animate-in fade-in slide-in-from-top-2">
-                    <div className="space-y-2">
-                      <Label htmlFor="memberId">MEMBER ID NUMBER</Label>
-                      <Input 
-                        id="memberId"
-                        placeholder="e.g. 12345"
-                        value={inputMemberId}
-                        onChange={(e) => setInputMemberId(e.target.value)}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="lastName">MEMBER LAST NAME</Label>
-                      <Input 
-                        id="lastName"
-                        placeholder="e.g. Smith"
-                        value={inputMemberLastName}
-                        onChange={(e) => setInputMemberLastName(e.target.value)}
-                      />
-                    </div>
-                  </div>
-                )}
               </div>
-              <div className="h-8" /> 
             </div>
           </ScrollArea>
           <SheetFooter className="p-6 bg-background border-t">
             <Button 
               size="lg" 
-              className="w-full text-lg font-bold h-14" 
+              className="w-full text-lg font-bold h-14 font-headline shadow-lg" 
               onClick={handlePlaceOrder} 
               disabled={isPlacingOrder}
-              style={{ backgroundColor: brandStyle.primaryColor }}
+              style={{ backgroundColor: brandColor }}
             >
-              {isPlacingOrder ? (
-                <>
-                  <Loader2 className="animate-spin h-5 w-5 mr-2" />
-                  PLACING ORDER...
-                </>
-              ) : (
-                `PLACE ORDER`
-              )}
+              {isPlacingOrder ? <><Loader2 className="animate-spin mr-2" /> Placing...</> : "PLACE ORDER"}
             </Button>
           </SheetFooter>
         </SheetContent>
       </Sheet>
+      <BrandingFooter />
     </div>
   );
 }

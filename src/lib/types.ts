@@ -14,7 +14,7 @@ export const sellerTypes: readonly SellerType[] = [
 
 export interface Seller {
   id: string;
-  ownerId?: string; // Made optional for prototyping
+  ownerId?: string;
   courseName: string;
   type: SellerType;
   menuTypes: string[];
@@ -33,7 +33,6 @@ export interface Seller {
   contactPhone: string;
   serviceFee: number;
   status: 'Active' | 'Inactive';
-  // Branding & Customization
   brandColor?: string;
   logoUrl?: string;
   lastActive?: Timestamp;
@@ -51,7 +50,6 @@ export interface MenuItem {
     category: Category;
     rank: number;
     availableOn?: string[];
-    // Per-menu ranking: map of menuType to rank value
     menuRanks?: Record<string, number>;
 }
 
@@ -66,7 +64,7 @@ export interface OrderItem extends MenuItem {
   quantity: number;
 }
 
-export type PaymentMethod = 'Credit Card' | 'Member Account' | 'Pay with Cash or Credit Card to Beverage Cart Operator';
+export type PaymentMethod = 'Credit Card' | 'Member Account' | 'Pay at Delivery' | 'Pay with Cash or Credit Card to Beverage Cart Operator';
 
 export interface Order {
   id: string;

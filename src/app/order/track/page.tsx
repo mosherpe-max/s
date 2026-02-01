@@ -1,7 +1,8 @@
+
 'use client';
 
-import { useEffect, Suspense } from 'react';
-import { collection, query, orderBy, limit, doc, updateDoc } from 'firebase/firestore';
+import { Suspense, useMemo } from 'react';
+import { collection, query, orderBy, limit, doc } from 'firebase/firestore';
 import { useCollection, useDoc, useFirestore, useMemoFirebase } from '@/firebase';
 import type { Order, Seller } from '@/lib/types';
 import { APIProvider } from '@vis.gl/react-google-maps';
@@ -13,95 +14,29 @@ import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { PartyPopper } from 'lucide-react';
+import { PartyPopper, ShoppingBag, MapPin, Loader2, ArrowLeft } from 'lucide-react';
 import { BrandingFooter } from '@/components/branding-footer';
-
-function OrderSummaryCard({ order }: { order: Order }) {
-    return (
-        <Card className="shadow-lg">
-            <CardHeader className="pb-2">
-                <CardTitle className="text-lg font-headline">Order Summary</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2 text-sm">
-                 {order.items.map(item => (
-                    <div key={item.id} className="flex justify-between items-center">
-                        <span>{item.name} <span className='text-muted-foreground'>x{item.quantity}</span></span>
-                        <span className='font-mono'>${(item.price * item.quantity).toFixed(2)}</span>
-                    </div>
-                ))}
-                <Separator />
-                <div className='flex justify-between items-center font-bold'>
-                    <span>Total</span>
-                    <span className='font-mono'>${order.total.toFixed(2)}</span>
-                </div>
-            </CardContent>
-        </Card>
-    );
-}
 
 function OrderTrackingContent() {
   const firestore = useFirestore();
   const searchParams = useSearchParams();
   const orderId = searchParams.get('id');
 
-  // 1. Fetch specific order if ID is provided
-  const specificOrderRef = useMemoFirebase(() => {
+  const orderRef = useMemoFirebase(() => {
     if (!firestore || !orderId) return null;
     return doc(firestore, 'orders', orderId);
   }, [firestore, orderId]);
-  const { data: specificOrder, isLoading: isLoadingSpecific } = useDoc<Order>(specificOrderRef);
+  
+  const latestQuery = useMemoFirebase(() => {
+    if (!firestore || orderId) return null;
+    return query(collection(firestore, 'orders'), orderBy('createdAt', 'desc'), limit(1));
+  }, [firestore, orderId]);
 
-  // 2. Fallback to latest order if no ID (for general demo tracking)
-  const latestOrderQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
-    return query(
-      collection(firestore, 'orders'),
-      orderBy('createdAt', 'desc'),
-      limit(1)
-    );
-  }, [firestore]);
-  const { data: latestOrders, isLoading: isLoadingLatest } = useCollection<Order>(latestOrderQuery);
+  const { data: specificOrder, isLoading: isLoadingSpecific } = useDoc<Order>(orderRef);
+  const { data: latestOrders, isLoading: isLoadingLatest } = useCollection<Order>(latestQuery);
 
   const order = specificOrder || latestOrders?.[0];
-  const isLoadingOrder = isLoadingSpecific || isLoadingLatest;
-  
-  useEffect(() => {
-    if (!firestore || !order) return;
-
-    let intervalTime: number | null = null;
-    if (order.status === 'Preparing') {
-      intervalTime = 60000;
-    } else if (order.status === 'Out for Delivery') {
-      intervalTime = 15000;
-    }
-
-    if (!intervalTime) return;
-
-    const trackLocation = () => {
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-          (position) => {
-            const { latitude, longitude } = position.coords;
-            const orderRef = doc(firestore, 'orders', order.id);
-            updateDoc(orderRef, {
-              deliveryLocation: { latitude, longitude }
-            }).catch(() => {});
-          },
-          () => {},
-          {
-            enableHighAccuracy: true,
-            timeout: 10000,
-            maximumAge: 0
-          }
-        );
-      }
-    };
-
-    trackLocation();
-    const intervalId = setInterval(trackLocation, intervalTime);
-    return () => clearInterval(intervalId);
-  }, [firestore, order?.id, order?.status]);
-
+  const isLoading = isLoadingSpecific || isLoadingLatest;
 
   const sellerRef = useMemoFirebase(() => {
     if (!firestore || !order?.sellerId) return null;
@@ -110,64 +45,112 @@ function OrderTrackingContent() {
 
   const { data: seller, isLoading: isLoadingSeller } = useDoc<Seller>(sellerRef);
 
-  const isLoading = isLoadingOrder || (order && isLoadingSeller);
-  const isDelivered = order?.status === 'Delivered';
+  if (isLoading || (order && isLoadingSeller)) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center p-8 space-y-4">
+        <Loader2 className="h-10 w-10 animate-spin text-primary" />
+        <p className="text-muted-foreground font-medium">Tracking your order...</p>
+      </div>
+    );
+  }
+
+  if (!order) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center p-8 text-center space-y-6">
+        <div className="p-4 bg-muted rounded-full"><ShoppingBag className="h-12 w-12 opacity-20" /></div>
+        <div className="space-y-2">
+            <h2 className="text-2xl font-headline font-bold uppercase">No Active Order</h2>
+            <p className="text-muted-foreground">We couldn't find your order. Try placing a new one!</p>
+        </div>
+        <Button asChild><Link href="/">Go Back Home</Link></Button>
+      </div>
+    );
+  }
+
+  const isDelivered = order.status === 'Delivered';
+  const brandColor = seller?.brandColor || 'hsl(var(--primary))';
 
   return (
-    <div className="flex flex-col min-h-[calc(100vh-4rem)] bg-muted/20">
+    <div className="flex flex-col min-h-[calc(100vh-4rem)] bg-muted/10">
       
       {!isDelivered && (
-        <div className="h-[50vh] bg-muted">
-          {isLoading ? (
-            <Skeleton className="w-full h-full" />
-          ) : seller && order ? (
+        <div className="h-[45vh] relative shadow-inner overflow-hidden border-b-2">
+          {seller && order ? (
             <MapView
               sellerLocation={{ latitude: seller.latitude, longitude: seller.longitude }}
               buyerLocation={order.deliveryLocation}
               interactive={false}
             />
           ) : (
-            <div className="w-full h-full flex items-center justify-center">
-                <p className="text-muted-foreground">Waiting for order data...</p>
-            </div>
+            <div className="w-full h-full flex items-center justify-center bg-muted"><MapPin className="animate-bounce h-8 w-8 text-muted-foreground" /></div>
           )}
+          <div className="absolute top-4 left-4 z-10">
+             <Button variant="secondary" size="sm" asChild className="rounded-full shadow-lg">
+                <Link href={`/sellers/${order.sellerId}/order`}><ArrowLeft className="mr-2 h-4 w-4" /> Back to Menu</Link>
+             </Button>
+          </div>
         </div>
       )}
 
-      <div className="flex-1 p-4 space-y-4">
-        {isLoading ? (
-          <div className="space-y-4">
-            <Skeleton className="h-8 w-full" />
-            <Skeleton className="h-32 w-full" />
-          </div>
-        ) : order ? (
-          <>
-            {isDelivered && (
-                <Card className="text-center shadow-lg bg-green-50 border-green-200">
-                    <CardContent className="p-6">
-                        <PartyPopper className="h-12 w-12 text-green-600 mx-auto mb-2" />
-                        <h2 className="font-headline text-2xl font-bold text-green-800">Order Delivered!</h2>
-                        <p className="text-muted-foreground mt-1 mb-4">Enjoy your refreshments.</p>
-                        <Button asChild>
-                            <Link href={`/sellers/${order.sellerId}/order`}>Place Another Order</Link>
-                        </Button>
-                    </CardContent>
-                </Card>
-            )}
-            <div className='py-2'>
-              <OrderStatus currentStatus={order.status} />
-            </div>
-            <OrderSummaryCard order={order} />
-          </>
-        ) : (
-           <Card>
-              <CardContent className="pt-6 text-center text-muted-foreground">
-                  <p>No active order found.</p>
-              </CardContent>
-           </Card>
+      <div className="flex-1 p-4 space-y-4 max-w-2xl mx-auto w-full">
+        {isDelivered && (
+            <Card className="text-center shadow-xl border-green-200 bg-green-50 overflow-hidden">
+                <div className="h-2 bg-green-500 w-full" />
+                <CardContent className="p-8">
+                    <PartyPopper className="h-16 w-16 text-green-600 mx-auto mb-4" />
+                    <h2 className="font-headline text-3xl font-bold text-green-800 uppercase tracking-tight">Delivered!</h2>
+                    <p className="text-green-700/80 mt-2 mb-8 font-medium">Your refreshments have arrived. Enjoy!</p>
+                    <Button asChild size="lg" className="rounded-full px-8 bg-green-600 hover:bg-green-700">
+                        <Link href={`/sellers/${order.sellerId}/order`}>Order Again</Link>
+                    </Button>
+                </CardContent>
+            </Card>
         )}
+
+        <Card className="shadow-lg border-primary/10">
+            <CardHeader className="pb-4">
+                <div className="flex justify-between items-center mb-6">
+                    <h3 className="font-headline text-lg font-bold uppercase tracking-wider text-muted-foreground">Order Tracking</h3>
+                    <Badge variant="outline" className="font-mono text-[10px]">{order.id.slice(-6).toUpperCase()}</Badge>
+                </div>
+                <OrderStatus currentStatus={order.status} />
+            </CardHeader>
+            <Separator />
+            <CardContent className="pt-6 space-y-4">
+                <div className="space-y-3">
+                    <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-muted-foreground"><ShoppingBag className="w-3.5 h-3.5" /> Items</div>
+                    <div className="space-y-2">
+                        {order.items.map(item => (
+                            <div key={item.id} className="flex justify-between items-center text-sm">
+                                <span className="font-medium">{item.name} <span className="text-muted-foreground font-normal ml-1">x{item.quantity}</span></span>
+                                <span className="font-mono font-bold">${(item.price * item.quantity).toFixed(2)}</span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+                <Separator className="border-dashed" />
+                <div className="space-y-1.5 pt-2">
+                    <div className="flex justify-between text-sm text-muted-foreground">
+                        <span>Subtotal</span>
+                        <span className="font-mono">${order.subtotal.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm text-muted-foreground">
+                        <span>Service Fee</span>
+                        <span className="font-mono">${order.serviceFee.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between items-center pt-2 font-bold text-lg">
+                        <span className="font-headline uppercase">Total</span>
+                        <span className="font-mono" style={{ color: brandColor }}>${order.total.toFixed(2)}</span>
+                    </div>
+                </div>
+                <div className="mt-6 p-4 bg-muted/30 rounded-xl border flex flex-col gap-2">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Payment Method</p>
+                    <p className="text-xs font-medium text-foreground italic">"{order.paymentMethod}"</p>
+                </div>
+            </CardContent>
+        </Card>
       </div>
-      <BrandingFooter />
+      <BrandingFooter className="mt-8" />
     </div>
   );
 }
@@ -175,7 +158,7 @@ function OrderTrackingContent() {
 export default function OrderTrackingPage() {
   return (
     <APIProvider apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!}>
-      <Suspense fallback={<div className="flex-1 flex items-center justify-center"><Loader2 className="animate-spin" /></div>}>
+      <Suspense fallback={<div className="flex-1 flex items-center justify-center"><Loader2 className="animate-spin h-10 w-10 text-primary" /></div>}>
         <OrderTrackingContent />
       </Suspense>
     </APIProvider>
