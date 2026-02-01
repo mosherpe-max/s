@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { PartyPopper, ShoppingBag, MapPin, Loader2, ArrowLeft } from 'lucide-react';
+import { PartyPopper, ShoppingBag, MapPin, Loader2, ArrowLeft, Store, ClipboardList } from 'lucide-react';
 import { BrandingFooter } from '@/components/branding-footer';
 
 function getNumericOrderId(id: string) {
@@ -57,7 +57,7 @@ function OrderTrackingContent() {
     return (
       <div className="flex-1 flex flex-col items-center justify-center p-8 space-y-4">
         <Loader2 className="h-10 w-10 animate-spin text-primary" />
-        <p className="text-muted-foreground font-medium">Tracking your order...</p>
+        <p className="text-muted-foreground font-medium text-sm uppercase tracking-widest">TRACKING YOUR ORDER...</p>
       </div>
     );
   }
@@ -83,7 +83,7 @@ function OrderTrackingContent() {
     <div className="flex flex-col min-h-[calc(100vh-4rem)] bg-muted/10">
       
       {!isDelivered && (
-        <div className="h-[45vh] relative shadow-inner overflow-hidden border-b-2">
+        <div className="h-[40vh] relative shadow-inner overflow-hidden border-b-2">
           {seller && order ? (
             <MapView
               sellerLocation={{ latitude: seller.latitude, longitude: seller.longitude }}
@@ -94,8 +94,11 @@ function OrderTrackingContent() {
             <div className="w-full h-full flex items-center justify-center bg-muted"><MapPin className="animate-bounce h-8 w-8 text-muted-foreground" /></div>
           )}
           <div className="absolute top-4 left-4 z-10">
-             <Button variant="secondary" size="sm" asChild className="rounded-full shadow-lg">
-                <Link href={`/sellers/${order.sellerId}/order`}><ArrowLeft className="mr-2 h-4 w-4" /> Back to Menu</Link>
+             <Button variant="secondary" size="sm" asChild className="rounded-full shadow-lg h-9 border-2 border-primary/20 bg-background/95 backdrop-blur-sm">
+                <Link href={`/sellers/${order.sellerId}/order`} className="flex items-center">
+                  <ArrowLeft className="mr-2 h-4 w-4" /> 
+                  <span className="text-[10px] font-bold uppercase tracking-wider">Back to Menu</span>
+                </Link>
              </Button>
           </div>
         </div>
@@ -107,9 +110,9 @@ function OrderTrackingContent() {
                 <div className="h-2 bg-green-500 w-full" />
                 <CardContent className="p-8">
                     <PartyPopper className="h-16 w-16 text-green-600 mx-auto mb-4" />
-                    <h2 className="font-headline text-3xl font-bold text-green-800 uppercase tracking-tight">Delivered!</h2>
+                    <h2 className="font-headline text-3xl font-bold text-green-800 uppercase tracking-tight">DELIVERED!</h2>
                     <p className="text-green-700/80 mt-2 mb-8 font-medium">Your refreshments have arrived. Enjoy!</p>
-                    <Button asChild size="lg" className="rounded-full px-8 bg-green-600 hover:bg-green-700">
+                    <Button asChild size="lg" className="rounded-full px-8 bg-green-600 hover:bg-green-700 font-headline font-bold uppercase">
                         <Link href={`/sellers/${order.sellerId}/order`}>Order Again</Link>
                     </Button>
                 </CardContent>
@@ -119,40 +122,59 @@ function OrderTrackingContent() {
         <Card className="shadow-lg border-primary/10">
             <CardHeader className="pb-4">
                 <div className="flex justify-between items-center mb-6">
-                    <h3 className="font-headline text-lg font-bold uppercase tracking-wider text-muted-foreground">Order Tracking</h3>
-                    <Badge variant="outline" className="font-mono text-[10px]">Order #{numericId}</Badge>
+                    <h3 className="font-headline text-lg font-bold uppercase tracking-wider text-muted-foreground">ORDER TRACKING</h3>
+                    <Badge variant="outline" className="font-mono text-[10px] h-6 px-3 border-primary/20 bg-primary/5">#{numericId}</Badge>
                 </div>
                 <OrderStatus currentStatus={order.status} />
             </CardHeader>
             <Separator />
-            <CardContent className="pt-6 space-y-4">
+            <CardContent className="pt-6 space-y-6">
+                {/* Placement Details */}
+                <div className="grid grid-cols-2 gap-4 py-3 px-4 bg-muted/30 rounded-xl border border-dashed">
+                  <div className="space-y-1">
+                    <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-1.5">
+                      <Store className="w-3 h-3" /> Establishment
+                    </p>
+                    <p className="text-xs font-bold truncate">{seller?.courseName || 'Loading...'}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-1.5">
+                      <ClipboardList className="w-3 h-3" /> Service Mode
+                    </p>
+                    <p className="text-xs font-bold">{order.menuType}</p>
+                  </div>
+                </div>
+
                 <div className="space-y-3">
-                    <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-muted-foreground"><ShoppingBag className="w-3.5 h-3.5" /> Items</div>
+                    <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground"><ShoppingBag className="w-3.5 h-3.5" /> Order Items</div>
                     <div className="space-y-2">
                         {order.items.map(item => (
                             <div key={item.id} className="flex justify-between items-center text-sm">
-                                <span className="font-medium">{item.name} <span className="text-muted-foreground font-normal ml-1">x{item.quantity}</span></span>
-                                <span className="font-mono font-bold">${(item.price * item.quantity).toFixed(2)}</span>
+                                <span className="font-medium text-xs">{item.name} <span className="text-muted-foreground font-normal ml-1">x{item.quantity}</span></span>
+                                <span className="font-mono font-bold text-xs">${(item.price * item.quantity).toFixed(2)}</span>
                             </div>
                         ))}
                     </div>
                 </div>
+                
                 <Separator className="border-dashed" />
+                
                 <div className="space-y-1.5 pt-2">
-                    <div className="flex justify-between text-sm text-muted-foreground">
+                    <div className="flex justify-between text-[11px] text-muted-foreground">
                         <span>Subtotal</span>
                         <span className="font-mono">${order.subtotal.toFixed(2)}</span>
                     </div>
-                    <div className="flex justify-between text-sm text-muted-foreground">
+                    <div className="flex justify-between text-[11px] text-muted-foreground">
                         <span>Service Fee</span>
                         <span className="font-mono">${order.serviceFee.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between items-center pt-2 font-bold text-lg">
-                        <span className="font-headline uppercase">Total</span>
+                        <span className="font-headline uppercase tracking-tight text-base">Order Total</span>
                         <span className="font-mono" style={{ color: brandColor }}>${order.total.toFixed(2)}</span>
                     </div>
                 </div>
-                <div className="mt-6 p-4 bg-muted/30 rounded-xl border flex flex-col gap-2">
+
+                <div className="p-4 bg-muted/30 rounded-xl border flex flex-col gap-2">
                     <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Payment Method</p>
                     <p className="text-xs font-medium text-foreground italic">"{order.paymentMethod}"</p>
                 </div>
