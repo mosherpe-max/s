@@ -15,9 +15,9 @@ interface MapViewProps {
     name: string;
     location: { latitude: number; longitude: number };
   }[];
-  buyers?: { 
-    id: string; 
-    name: string; 
+  buyers?: {
+    id: string;
+    name: string;
     location: { latitude: number; longitude: number };
     colorClass?: string;
     assignedDriverId?: string;
@@ -28,70 +28,70 @@ interface MapViewProps {
 }
 
 function MapElements({ buyerLocation, sellerLocation, sellers, buyers, radius, zoomMode = 'all' }: Omit<MapViewProps, 'interactive'>) {
-    const map = useMap();
+  const map = useMap();
 
-    useEffect(() => {
-        if (!map) return;
-    
-        const bounds = new window.google.maps.LatLngBounds();
-        const hasBuyers = buyers && buyers.length > 0;
-        const hasSellers = sellers && sellers.length > 0;
+  useEffect(() => {
+    if (!map) return;
 
-        if (buyerLocation && sellerLocation) {
-            bounds.extend(new window.google.maps.LatLng(sellerLocation.latitude, sellerLocation.longitude));
-            bounds.extend(new window.google.maps.LatLng(buyerLocation.latitude, buyerLocation.longitude));
-            map.fitBounds(bounds, 50);
+    const bounds = new window.google.maps.LatLngBounds();
+    const hasBuyers = buyers && buyers.length > 0;
+    const hasSellers = sellers && sellers.length > 0;
 
-        } else if (zoomMode === 'all' && (hasBuyers || hasSellers || sellerLocation)) {
-            if (sellerLocation) {
-                bounds.extend(new window.google.maps.LatLng(sellerLocation.latitude, sellerLocation.longitude));
-            }
-            if (sellers) {
-                sellers.forEach(s => {
-                    bounds.extend(new window.google.maps.LatLng(s.location.latitude, s.location.longitude));
-                });
-            }
-            if (buyers) {
-                buyers.forEach(buyer => {
-                    bounds.extend(new window.google.maps.LatLng(buyer.location.latitude, buyer.location.longitude));
-                });
-            }
-            map.fitBounds(bounds, 100);
+    if (buyerLocation && sellerLocation) {
+      bounds.extend(new window.google.maps.LatLng(sellerLocation.latitude, sellerLocation.longitude));
+      bounds.extend(new window.google.maps.LatLng(buyerLocation.latitude, buyerLocation.longitude));
+      map.fitBounds(bounds, 50);
 
-        } else if (sellerLocation) {
-            map.setCenter({ lat: sellerLocation.latitude, lng: sellerLocation.longitude });
-            map.setZoom(17);
-        }
-    
-    }, [map, buyerLocation, sellerLocation, sellers, buyers, zoomMode]); 
+    } else if (zoomMode === 'all' && (hasBuyers || hasSellers || sellerLocation)) {
+      if (sellerLocation) {
+        bounds.extend(new window.google.maps.LatLng(sellerLocation.latitude, sellerLocation.longitude));
+      }
+      if (sellers) {
+        sellers.forEach(s => {
+          bounds.extend(new window.google.maps.LatLng(s.location.latitude, s.location.longitude));
+        });
+      }
+      if (buyers) {
+        buyers.forEach(buyer => {
+          bounds.extend(new window.google.maps.LatLng(buyer.location.latitude, buyer.location.longitude));
+        });
+      }
+      map.fitBounds(bounds, 100);
 
-    useEffect(() => {
-      if (!map || !radius || !sellerLocation) return;
+    } else if (sellerLocation) {
+      map.setCenter({ lat: sellerLocation.latitude, lng: sellerLocation.longitude });
+      map.setZoom(17);
+    }
 
-      const circle = new window.google.maps.Circle({
-          strokeColor: "hsl(var(--accent))",
-          strokeOpacity: 0.8,
-          strokeWeight: 2,
-          fillColor: "hsl(var(--accent))",
-          fillOpacity: 0.2,
-          map,
-          center: { lat: sellerLocation.latitude, lng: sellerLocation.longitude },
-          radius: radius,
-      });
+  }, [map, buyerLocation, sellerLocation, sellers, buyers, zoomMode]);
 
-      return () => {
-          circle.setMap(null);
-      };
-    }, [map, sellerLocation, radius]);
+  useEffect(() => {
+    if (!map || !radius || !sellerLocation) return;
+
+    const circle = new window.google.maps.Circle({
+      strokeColor: "hsl(var(--accent))",
+      strokeOpacity: 0.8,
+      strokeWeight: 2,
+      fillColor: "hsl(var(--accent))",
+      fillOpacity: 0.2,
+      map,
+      center: { lat: sellerLocation.latitude, lng: sellerLocation.longitude },
+      radius: radius,
+    });
+
+    return () => {
+      circle.setMap(null);
+    };
+  }, [map, sellerLocation, radius]);
 
 
-    return null;
+  return null;
 }
 
 
 export function MapView({ buyerLocation, sellerLocation, showPrimaryMarker = true, primaryDriverId = 'demo-course', sellers, buyers, radius, zoomMode, interactive = true }: MapViewProps) {
-    const center = buyerLocation ? { lat: buyerLocation.latitude, lng: buyerLocation.longitude } : (sellerLocation ? { lat: sellerLocation.latitude, lng: sellerLocation.longitude } : { lat: 0, lng: 0 });
-    
+  const center = buyerLocation ? { lat: buyerLocation.latitude, lng: buyerLocation.longitude } : (sellerLocation ? { lat: sellerLocation.latitude, lng: sellerLocation.longitude } : { lat: 0, lng: 0 });
+
   return (
     <div className="relative w-full h-full">
       <Map
@@ -107,77 +107,90 @@ export function MapView({ buyerLocation, sellerLocation, showPrimaryMarker = tru
         fullscreenControl={false}
       >
         <MapElements sellerLocation={sellerLocation} buyerLocation={buyerLocation} sellers={sellers} buyers={buyers} radius={radius} zoomMode={zoomMode} />
-        
+
         {/* Render all Sellers (Drivers) */}
         {sellers && sellers.map(s => {
-            const driverColor = getDriverColor(s.id);
-            const colorClass = `bg-${driverColor}`;
-            const arrowColorClass = `border-t-${driverColor}`;
-            
-            return (
-              <AdvancedMarker key={s.id} position={{ lat: s.location.latitude, lng: s.location.longitude }}>
-                  <div className="flex flex-col items-center">
-                      <div className={cn("p-2 rounded-full shadow-lg border-2 border-white", colorClass)}>
-                          <Truck className="w-6 h-6 text-white" />
-                      </div>
-                      <div className={cn("w-0 h-0 border-l-8 border-l-transparent border-r-8 border-r-transparent border-t-8", arrowColorClass)}></div>
-                  </div>
-              </AdvancedMarker>
-            );
+          const driverColor = getDriverColor(s.id);
+          const colorClass = `bg-${driverColor}`;
+          const arrowColorClass = `border-t-${driverColor}`;
+
+          return (
+            <AdvancedMarker key={s.id} position={{ lat: s.location.latitude, lng: s.location.longitude }}>
+              <div className="flex flex-col items-center">
+                <div className={cn("p-2 rounded-full shadow-lg border-2 border-white", colorClass)}>
+                  <Truck className="w-6 h-6 text-white" />
+                </div>
+                <div className={cn("w-0 h-0 border-l-8 border-l-transparent border-r-8 border-r-transparent border-t-8", arrowColorClass)}></div>
+              </div>
+            </AdvancedMarker>
+          );
         })}
 
         {/* Primary Seller Pin */}
         {showPrimaryMarker && sellerLocation && (!sellers || !sellers.some(s => s.location.latitude === sellerLocation.latitude && s.location.longitude === sellerLocation.longitude)) && (
-             <AdvancedMarker position={{ lat: sellerLocation.latitude, lng: sellerLocation.longitude }}>
-                <div className="flex flex-col items-center">
-                    <div className={cn("p-2 rounded-full shadow-lg border-2 border-white", `bg-${getDriverColor(primaryDriverId)}`)}>
-                        <Truck className="w-6 h-6 text-white" />
-                    </div>
-                    <div className={cn("w-0 h-0 border-l-8 border-l-transparent border-r-8 border-r-transparent border-t-8", `border-t-${getDriverColor(primaryDriverId)}`)}></div>
-                </div>
-            </AdvancedMarker>
+          <AdvancedMarker position={{ lat: sellerLocation.latitude, lng: sellerLocation.longitude }}>
+            <div className="flex flex-col items-center">
+              <div className={cn("p-2 rounded-full shadow-lg border-2 border-white", `bg-${getDriverColor(primaryDriverId)}`)}>
+                <Truck className="w-6 h-6 text-white" />
+              </div>
+              <div className={cn("w-0 h-0 border-l-8 border-l-transparent border-r-8 border-r-transparent border-t-8", `border-t-${getDriverColor(primaryDriverId)}`)}></div>
+            </div>
+          </AdvancedMarker>
         )}
 
         {/* Single Buyer Pin (for order tracking view) */}
         {buyerLocation && (
-            <AdvancedMarker position={{ lat: buyerLocation.latitude, lng: buyerLocation.longitude }}>
-                <div className="flex flex-col items-center">
-                    <div className="bg-accent p-2 rounded-full shadow-lg">
-                        <User className="w-5 h-5 text-accent-foreground" />
-                    </div>
-                    <div className="w-0 h-0 border-l-8 border-l-transparent border-r-8 border-r-transparent border-t-8 border-t-accent"></div>
-                </div>
-            </AdvancedMarker>
+          <AdvancedMarker position={{ lat: buyerLocation.latitude, lng: buyerLocation.longitude }}>
+            <div className="flex flex-col items-center">
+              <div className="bg-accent p-2 rounded-full shadow-lg">
+                <User className="w-5 h-5 text-accent-foreground" />
+              </div>
+              <div className="w-0 h-0 border-l-8 border-l-transparent border-r-8 border-r-transparent border-t-8 border-t-accent"></div>
+            </div>
+          </AdvancedMarker>
         )}
 
         {/* Multiple Buyer Pins (for ops view) */}
         {buyers && buyers.map((buyer, index) => {
-            const statusColorClass = buyer.colorClass || "bg-accent";
-            const assignedDriverColor = buyer.assignedDriverId ? getDriverColor(buyer.assignedDriverId) : null;
-            
-            const borderClass = assignedDriverColor ? `border-${assignedDriverColor} border-4` : 'border-white border-4';
-            const bgClass = statusColorClass;
-            const textClass = 'text-white';
-            const finalArrowColorClass = assignedDriverColor ? `border-t-${assignedDriverColor}` : statusColorClass.replace('bg-', 'border-t-');
+          const statusColorClass = buyer.colorClass || "bg-accent";
+          const assignedDriverColor = buyer.assignedDriverId ? getDriverColor(buyer.assignedDriverId) : null;
 
-            return (
-                <AdvancedMarker key={buyer.id} position={{ lat: buyer.location.latitude, lng: buyer.location.longitude }}>
-                    <div className="flex flex-col items-center">
-                        <div className={cn(
-                            "flex items-center justify-center w-11 h-11 rounded-full shadow-2xl font-black transition-all duration-500",
-                            bgClass,
-                            borderClass,
-                            textClass
-                        )}>
-                            {index + 1}
-                        </div>
-                        <div className={cn(
-                            "w-0 h-0 border-l-[10px] border-l-transparent border-r-[10px] border-r-transparent border-t-[10px] transition-all duration-500 -mt-1",
-                            finalArrowColorClass
-                        )}></div>
-                    </div>
-                </AdvancedMarker>
-            );
+          // Mapping for border and text colors to ensure Tailwind picks them up
+          const colorMap: Record<string, { border: string, text: string, arrow: string }> = {
+            'indigo-600': { border: 'border-indigo-600', text: 'text-indigo-600', arrow: 'border-t-indigo-600' },
+            'blue-600': { border: 'border-blue-600', text: 'text-blue-600', arrow: 'border-t-blue-600' },
+            'purple-600': { border: 'border-purple-600', text: 'text-purple-600', arrow: 'border-t-purple-600' },
+            'pink-600': { border: 'border-pink-600', text: 'text-pink-600', arrow: 'border-t-pink-600' },
+            'cyan-600': { border: 'border-cyan-600', text: 'text-cyan-600', arrow: 'border-t-cyan-600' },
+            'orange-600': { border: 'border-orange-600', text: 'text-orange-600', arrow: 'border-t-orange-600' },
+            'emerald-600': { border: 'border-emerald-600', text: 'text-emerald-600', arrow: 'border-t-emerald-600' },
+          };
+
+          const assignedStyles = assignedDriverColor ? colorMap[assignedDriverColor] : null;
+
+          const borderClass = assignedStyles ? `border-4 ${assignedStyles.border}` : 'border-4 border-white';
+          const bgClass = assignedStyles ? 'bg-white' : statusColorClass;
+          const textClass = assignedStyles ? assignedStyles.text : 'text-white';
+          const arrowClass = assignedStyles ? assignedStyles.arrow : statusColorClass.replace('bg-', 'border-t-');
+
+          return (
+            <AdvancedMarker key={buyer.id} position={{ lat: buyer.location.latitude, lng: buyer.location.longitude }}>
+              <div className="flex flex-col items-center">
+                <div className={cn(
+                  "flex items-center justify-center w-11 h-11 rounded-full shadow-2xl font-black transition-all duration-500",
+                  bgClass,
+                  borderClass,
+                  textClass
+                )}>
+                  {index + 1}
+                </div>
+                <div className={cn(
+                  "w-0 h-0 border-l-[10px] border-l-transparent border-r-[10px] border-r-transparent border-t-[10px] transition-all duration-500 -mt-1",
+                  arrowClass
+                )}></div>
+              </div>
+            </AdvancedMarker>
+          );
         })}
       </Map>
     </div>

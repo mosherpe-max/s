@@ -12,29 +12,29 @@ import { Badge } from './ui/badge';
 import { cn, getDriverColor } from '@/lib/utils';
 
 const getStatusConfig = (status: Order['status'], isBevCart: boolean) => {
-    const config: Record<Order['status'], { label: string, badgeVariant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
-        'Placed': { 
-            label: isBevCart ? 'ORDER CONFIRMED' : 'PLACED', 
-            badgeVariant: 'default' 
-        },
-        'Preparing': { 
-            label: 'PREPARING', 
-            badgeVariant: 'secondary' 
-        },
-        'Out for Delivery': { 
-            label: 'OUT FOR DELIVERY', 
-            badgeVariant: 'outline' 
-        },
-        'Delivered': { 
-            label: isBevCart ? 'ORDER DELIVERED' : 'DELIVERED', 
-            badgeVariant: 'default' 
-        },
-        'Cancelled': { 
-            label: 'CANCELLED', 
-            badgeVariant: 'destructive' 
-        },
-    };
-    return config[status];
+  const config: Record<Order['status'], { label: string, badgeVariant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
+    'Placed': {
+      label: isBevCart ? 'ORDER CONFIRMED' : 'PLACED',
+      badgeVariant: 'default'
+    },
+    'Preparing': {
+      label: 'PREPARING',
+      badgeVariant: 'secondary'
+    },
+    'Out for Delivery': {
+      label: 'OUT FOR DELIVERY',
+      badgeVariant: 'outline'
+    },
+    'Delivered': {
+      label: isBevCart ? 'ORDER DELIVERED' : 'DELIVERED',
+      badgeVariant: 'default'
+    },
+    'Cancelled': {
+      label: 'CANCELLED',
+      badgeVariant: 'destructive'
+    },
+  };
+  return config[status];
 };
 
 function getNumericOrderId(id: string) {
@@ -46,101 +46,119 @@ function getNumericOrderId(id: string) {
 }
 
 export function OrderCard({ order, orderNumber, onUpdateStatus, currentDriverId = 'demo-course' }: { order: Order; orderNumber: number; onUpdateStatus: (id: string, status: Order['status'], driverId?: string) => void; currentDriverId?: string }) {
-    const [mounted, setMounted] = useState(false);
-    const isBevCart = order.menuType === 'Beverage Cart';
-    const statusInfo = getStatusConfig(order.status, isBevCart);
+  const [mounted, setMounted] = useState(false);
+  const isBevCart = order.menuType === 'Beverage Cart';
+  const statusInfo = getStatusConfig(order.status, isBevCart);
 
-    useEffect(() => {
-        setMounted(true);
-    }, []);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
-    const renderAction = () => {
-        switch (order.status) {
-            case 'Placed':
-                if (isBevCart) {
-                  return (
-                    <Button className="w-full font-headline font-bold uppercase text-xs h-12" onClick={() => onUpdateStatus(order.id, 'Out for Delivery', currentDriverId)}>
-                        <Navigation className="mr-2 h-4 w-4" />
-                        Start Delivery
-                    </Button>
-                  );
-                }
-                return (
-                    <Button className="w-full font-headline font-bold uppercase text-xs h-12" onClick={() => onUpdateStatus(order.id, 'Preparing', currentDriverId)}>
-                        <Send className="mr-2 h-4 w-4" />
-                        Confirm Order
-                    </Button>
-                );
-            case 'Preparing':
-                return (
-                    <Button className="w-full font-headline font-bold uppercase text-xs h-12" onClick={() => onUpdateStatus(order.id, 'Out for Delivery', currentDriverId)}>
-                        <Navigation className="mr-2 h-4 w-4" />
-                        Start Delivery
-                    </Button>
-                );
-            case 'Out for Delivery':
-                 return (
-                    <Button className="w-full font-headline font-bold uppercase text-xs h-12" onClick={() => onUpdateStatus(order.id, 'Delivered')}>
-                        <PartyPopper className="mr-2 h-4 w-4" />
-                        Complete Order
-                    </Button>
-                );
-            default:
-                return null;
+  const renderAction = () => {
+    switch (order.status) {
+      case 'Placed':
+        if (isBevCart) {
+          return (
+            <Button className="w-full font-headline font-bold uppercase text-xs h-12" onClick={() => onUpdateStatus(order.id, 'Out for Delivery', currentDriverId)}>
+              <Navigation className="mr-2 h-4 w-4" />
+              Start Delivery
+            </Button>
+          );
         }
+        return (
+          <Button className="w-full font-headline font-bold uppercase text-xs h-12" onClick={() => onUpdateStatus(order.id, 'Preparing', currentDriverId)}>
+            <Send className="mr-2 h-4 w-4" />
+            Confirm Order
+          </Button>
+        );
+      case 'Preparing':
+        return (
+          <Button className="w-full font-headline font-bold uppercase text-xs h-12" onClick={() => onUpdateStatus(order.id, 'Out for Delivery', currentDriverId)}>
+            <Navigation className="mr-2 h-4 w-4" />
+            Start Delivery
+          </Button>
+        );
+      case 'Out for Delivery':
+        return (
+          <Button className="w-full font-headline font-bold uppercase text-xs h-12" onClick={() => onUpdateStatus(order.id, 'Delivered')}>
+            <PartyPopper className="mr-2 h-4 w-4" />
+            Complete Order
+          </Button>
+        );
+      default:
+        return null;
     }
+  }
 
-    const numericId = getNumericOrderId(order.id);
-    const isAssignedToMe = order.assignedDriverId === currentDriverId;
-    const assignedDriverColor = order.assignedDriverId ? getDriverColor(order.assignedDriverId) : null;
-    
-    const borderClass = isAssignedToMe && assignedDriverColor 
-        ? `border-2 border-${assignedDriverColor} shadow-md` 
-        : 'border-2 border-muted opacity-80';
+  const numericId = getNumericOrderId(order.id);
+  const assignedDriverId = order.assignedDriverId;
+  const driverColor = assignedDriverId ? getDriverColor(assignedDriverId) : null;
+  const isAssignedToMe = assignedDriverId === currentDriverId;
 
-    return (
-        <Card className={cn('overflow-hidden flex flex-col h-full transition-all duration-300', borderClass, !isAssignedToMe && 'hover:border-primary/20')}>
-            <CardHeader className='flex flex-row items-start gap-4 p-4 bg-muted/50'>
-                <Avatar className="w-10 h-10 border-2 border-primary/10">
-                    <AvatarFallback className="font-bold text-xs bg-primary text-primary-foreground">#{numericId}</AvatarFallback>
-                </Avatar>
-                <div className='flex-1 min-w-0'>
-                    <CardTitle className='text-sm font-bold uppercase tracking-tight truncate'>{order.customerName}</CardTitle>
-                    <div className="flex flex-col gap-1 mt-1">
-                      <CardDescription className="text-[10px] flex items-center gap-1 font-medium">
-                        {mounted && order.createdAt?.toDate ? formatDistanceToNow(order.createdAt.toDate(), { addSuffix: true }) : 'Processing...'}
-                      </CardDescription>
-                      <div className="flex items-center gap-1.5">
-                        <Badge variant="outline" className="text-[8px] h-4 px-1.5 uppercase font-bold tracking-widest bg-background border-primary/20 flex items-center gap-1">
-                          <ClipboardList className="w-2 h-2" /> {order.menuType}
-                        </Badge>
-                      </div>
-                    </div>
-                </div>
-                {statusInfo && (
-                     <Badge variant={statusInfo.badgeVariant} className="text-[8px] font-bold tracking-widest h-5">{statusInfo.label}</Badge>
-                )}
-            </CardHeader>
-            <CardContent className='p-4 space-y-3 flex-1'>
-                <div className="space-y-1.5">
-                    {order.items.map(item => (
-                        <div key={item.id} className="flex justify-between items-center text-xs">
-                            <span className="font-medium">{item.name} <span className='text-muted-foreground font-normal ml-0.5'>x{item.quantity}</span></span>
-                            <span className='font-mono font-bold text-[11px]'>${(item.price * item.quantity).toFixed(2)}</span>
-                        </div>
-                    ))}
-                </div>
-                <Separator className="border-dashed" />
-                <div className='flex justify-between items-center'>
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Order Total</span>
-                    <span className='font-mono font-bold text-sm'>${order.total.toFixed(2)}</span>
-                </div>
-            </CardContent>
-            {renderAction() && (
-                <CardFooter className='p-2 bg-muted/30 mt-auto border-t'>
-                    {renderAction()}
-                </CardFooter>
-            )}
-        </Card>
-    );
+  // Use dynamic tailwind classes for the colored border
+  // Note: We use string literals for Tailwind to pick up the classes
+  const colorMap: Record<string, string> = {
+    'indigo-600': 'border-indigo-600',
+    'blue-600': 'border-blue-600',
+    'purple-600': 'border-purple-600',
+    'pink-600': 'border-pink-600',
+    'cyan-600': 'border-cyan-600',
+    'orange-600': 'border-orange-600',
+    'emerald-600': 'border-emerald-600',
+  };
+
+  const borderColorClass = driverColor ? colorMap[driverColor] : 'border-muted';
+  const borderThickness = assignedDriverId ? 'border-4' : 'border-2';
+
+  return (
+    <Card className={cn(
+      'overflow-hidden flex flex-col h-full transition-all duration-300',
+      borderThickness,
+      borderColorClass,
+      !assignedDriverId && 'opacity-80 hover:opacity-100',
+      isAssignedToMe && 'shadow-lg'
+    )}>
+      <CardHeader className='flex flex-row items-start gap-4 p-4 bg-muted/50'>
+        <Avatar className="w-10 h-10 border-2 border-primary/10">
+          <AvatarFallback className="font-bold text-xs bg-primary text-primary-foreground">#{numericId}</AvatarFallback>
+        </Avatar>
+        <div className='flex-1 min-w-0'>
+          <CardTitle className='text-sm font-bold uppercase tracking-tight truncate'>{order.customerName}</CardTitle>
+          <div className="flex flex-col gap-1 mt-1">
+            <CardDescription className="text-[10px] flex items-center gap-1 font-medium">
+              {mounted && order.createdAt?.toDate ? formatDistanceToNow(order.createdAt.toDate(), { addSuffix: true }) : 'Processing...'}
+            </CardDescription>
+            <div className="flex items-center gap-1.5">
+              <Badge variant="outline" className="text-[8px] h-4 px-1.5 uppercase font-bold tracking-widest bg-background border-primary/20 flex items-center gap-1">
+                <ClipboardList className="w-2 h-2" /> {order.menuType}
+              </Badge>
+            </div>
+          </div>
+        </div>
+        {statusInfo && (
+          <Badge variant={statusInfo.badgeVariant} className="text-[8px] font-bold tracking-widest h-5">{statusInfo.label}</Badge>
+        )}
+      </CardHeader>
+      <CardContent className='p-4 space-y-3 flex-1'>
+        <div className="space-y-1.5">
+          {order.items.map(item => (
+            <div key={item.id} className="flex justify-between items-center text-xs">
+              <span className="font-medium">{item.name} <span className='text-muted-foreground font-normal ml-0.5'>x{item.quantity}</span></span>
+              <span className='font-mono font-bold text-[11px]'>${(item.price * item.quantity).toFixed(2)}</span>
+            </div>
+          ))}
+        </div>
+        <Separator className="border-dashed" />
+        <div className='flex justify-between items-center'>
+          <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Order Total</span>
+          <span className='font-mono font-bold text-sm'>${order.total.toFixed(2)}</span>
+        </div>
+      </CardContent>
+      {renderAction() && (
+        <CardFooter className='p-2 bg-muted/30 mt-auto border-t'>
+          {renderAction()}
+        </CardFooter>
+      )}
+    </Card>
+  );
 }
