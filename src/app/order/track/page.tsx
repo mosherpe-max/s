@@ -1,7 +1,6 @@
-
 'use client';
 
-import { Suspense, useMemo } from 'react';
+import { Suspense } from 'react';
 import { collection, query, orderBy, limit, doc } from 'firebase/firestore';
 import { useCollection, useDoc, useFirestore, useMemoFirebase } from '@/firebase';
 import type { Order, Seller } from '@/lib/types';
@@ -12,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { PartyPopper, ShoppingBag, MapPin, Loader2, ArrowLeft } from 'lucide-react';
