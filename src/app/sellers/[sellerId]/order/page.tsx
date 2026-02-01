@@ -55,9 +55,9 @@ export default function BuyerOrderPage({ params }: { params: { sellerId: string 
     );
   }, [menuItems, selectedMenuType]);
 
+  const isPublicCourse = seller?.type === 'Public Golf Course';
   const isPrivateCourse = seller?.type === 'Private Golf Course';
   const isSemiPrivateCourse = seller?.type === 'Semi Private Golf Course';
-  const isPublicCourse = seller?.type === 'Public Golf Course';
   const isBevCart = selectedMenuType === 'Beverage Cart';
 
   useEffect(() => {
@@ -68,7 +68,7 @@ export default function BuyerOrderPage({ params }: { params: { sellerId: string 
     } else if (paymentMethod === 'Pay with Cash or Credit Card to Beverage Cart Operator') {
       setPaymentMethod('Credit Card');
     }
-  }, [isPublicCourse, isBevCart, isPrivateCourse]);
+  }, [isPublicCourse, isBevCart, isPrivateCourse, paymentMethod]);
 
   useEffect(() => {
     if (seller?.menuTypes && seller.menuTypes.length > 0 && !selectedMenuType) {
@@ -82,8 +82,8 @@ export default function BuyerOrderPage({ params }: { params: { sellerId: string 
       return;
     }
 
-    if (seller.status === 'Inactive') {
-      toast({ variant: 'destructive', title: 'Service Unavailable', description: 'The beverage cart is offline.' });
+    if (seller.status === 'Inactive' && selectedMenuType === 'Beverage Cart') {
+      toast({ variant: 'destructive', title: 'Service Unavailable', description: 'The beverage cart is currently offline.' });
       return;
     }
 
@@ -133,7 +133,7 @@ export default function BuyerOrderPage({ params }: { params: { sellerId: string 
         items: activeOrderItems,
         subtotal,
         serviceFee: seller.serviceFee || 0,
-        total,
+        total: subtotal + (seller.serviceFee || 0),
         status: 'Placed',
         paymentMethod,
         menuType: selectedMenuType,
@@ -149,7 +149,13 @@ export default function BuyerOrderPage({ params }: { params: { sellerId: string 
           clearCart();
           router.push('/order/track');
         })
-        .catch(() => errorEmitter.emit('permission-error', new FirestorePermissionError({ path: ordersCol.path, operation: 'create', requestResourceData: orderData })))
+        .catch((err) => {
+          errorEmitter.emit('permission-error', new FirestorePermissionError({ 
+            path: ordersCol.path, 
+            operation: 'create', 
+            requestResourceData: orderData 
+          }));
+        })
         .finally(() => setIsPlacingOrder(false));
     };
 
@@ -258,7 +264,7 @@ export default function BuyerOrderPage({ params }: { params: { sellerId: string 
                 className="w-full text-lg h-14 shadow-lg"
                 style={{ backgroundColor: brandStyle.primaryColor }}
               >
-                View Order ({totalItems}) - ${total.toFixed(2)}
+                View Order ({totalItems}) - ${(total || totalItems > 0 ? total : 0).toFixed(2)}
               </Button>
             </SheetTrigger>
           </div>
@@ -284,7 +290,7 @@ export default function BuyerOrderPage({ params }: { params: { sellerId: string 
                     <div className="space-y-2 animate-in slide-in-from-top-2">
                         <Label>Select Halfway House</Label>
                         <select 
-                          className="w-full p-2 border rounded-md"
+                          className="w-full p-2 border rounded-md bg-background"
                           value={menuTypeLocation} 
                           onChange={(e) => setMenuTypeLocation(e.target.value)}
                         >
@@ -381,15 +387,15 @@ export default function BuyerOrderPage({ params }: { params: { sellerId: string 
               )}
             </div>
           </div>
-          <SheetFooter>
+          <SheetFooter className="mt-6">
             <Button 
               size="lg" 
-              className="w-full" 
+              className="w-full text-lg font-bold" 
               onClick={handlePlaceOrder} 
               disabled={isPlacingOrder}
               style={{ backgroundColor: brandStyle.primaryColor }}
             >
-              {isPlacingOrder ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : `Place Order`}
+              {isPlacingOrder ? <Loader2 className="animate-spin h-5 w-5 mr-2" /> : `Place Order`}
             </Button>
           </SheetFooter>
         </SheetContent>

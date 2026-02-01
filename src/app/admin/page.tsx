@@ -46,6 +46,7 @@ import { useToast } from '@/hooks/use-toast';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { isToday, isThisMonth, isThisYear } from 'date-fns';
+import { cn } from '@/lib/utils';
 
 const sellerSchema = z.object({
   courseName: z.string().min(2, 'Course name must be at least 2 characters'),
@@ -558,7 +559,7 @@ export default function KOOPAdminPage() {
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
         <DialogContent className="sm:max-w-[700px] max-h-[95vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-2xl font-headline">
+            <DialogTitle className="text-2xl font-headline text-primary uppercase">
               {editingSeller ? 'Edit Seller Profile' : 'Register New Seller'}
             </DialogTitle>
             <DialogDescription>
