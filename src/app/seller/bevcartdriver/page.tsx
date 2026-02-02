@@ -288,23 +288,23 @@ export default function BevCartDriverDashboardPage() {
     <APIProvider apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!}>
       <div className="flex flex-col h-screen overflow-hidden">
         <header className="flex-shrink-0 px-4 h-16 flex items-center justify-between border-b-2 border-[#E50000] bg-[#213147] z-20 shadow-sm">
-          <div className="flex flex-col">
-            <h1 className="font-headline text-lg md:text-xl font-bold text-white uppercase tracking-tight">
+          <div className="flex flex-col min-w-0 flex-1 mr-4">
+            <h1 className="font-headline text-sm sm:text-base md:text-xl font-bold text-white uppercase tracking-tight truncate">
               BEVCART DRIVER DASHBOARD
             </h1>
-            <span className="text-[10px] uppercase font-bold text-white/60 tracking-widest leading-none">
-              BEVCART DRIVER: Demo Golf Course - Public
+            <span className="text-[9px] sm:text-[10px] uppercase font-bold text-white/60 tracking-widest leading-none truncate">
+              BEVCART: {primarySeller?.courseName || 'Demo Golf Course'}
             </span>
           </div>
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-3 shrink-0">
             <Switch 
               id="active-mode" 
               checked={isBevCartActive} 
               onCheckedChange={handleToggleActive} 
               className="data-[state=checked]:bg-[#E50000]"
             />
-            <Label htmlFor="active-mode" className="text-sm font-semibold whitespace-nowrap text-white uppercase">
-              {isBevCartActive ? 'CART: ACTIVE' : 'CART: INACTIVE'}
+            <Label htmlFor="active-mode" className="text-[10px] sm:text-sm font-semibold whitespace-nowrap text-white uppercase">
+              {isBevCartActive ? 'ACTIVE' : 'INACTIVE'}
             </Label>
           </div>
         </header>
