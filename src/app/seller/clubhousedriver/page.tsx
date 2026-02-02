@@ -238,7 +238,7 @@ export default function ClubhouseDriverDashboardPage() {
               id="clubhouse-active" 
               checked={isClubhouseActive} 
               onCheckedChange={handleToggleActive} 
-              className="data-[state=checked]:bg-[#E50000]"
+              className="data-[state=checked]:bg-green-600"
             />
             <Label htmlFor="clubhouse-active" className="text-[10px] sm:text-sm font-semibold whitespace-nowrap text-white uppercase">
               {isClubhouseActive ? 'ACTIVE' : 'INACTIVE'}

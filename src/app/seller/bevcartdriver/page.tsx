@@ -301,7 +301,7 @@ export default function BevCartDriverDashboardPage() {
               id="active-mode" 
               checked={isBevCartActive} 
               onCheckedChange={handleToggleActive} 
-              className="data-[state=checked]:bg-[#E50000]"
+              className="data-[state=checked]:bg-green-600"
             />
             <Label htmlFor="active-mode" className="text-[10px] sm:text-sm font-semibold whitespace-nowrap text-white uppercase">
               {isBevCartActive ? 'ACTIVE' : 'INACTIVE'}
