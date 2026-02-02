@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, use, useEffect, useMemo } from 'react';
@@ -17,7 +16,7 @@ import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { mockBuyerLocation } from '@/lib/data';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetFooter } from '@/components/ui/sheet';
-import { Loader2, AlertCircle, CreditCard, Store, Banknote, ShieldAlert } from 'lucide-react';
+import { Loader2, CreditCard, Store, Banknote, ShieldAlert } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useCart } from '@/lib/cart-context';
 import { Label } from '@/components/ui/label';
@@ -168,17 +167,11 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
   const isLoading = isSellerLoading || areItemsLoading;
   const activeOrderItems = orderItems.filter((item) => item.quantity > 0);
   
-  // Custom Branding Colors
-  const headerColor = seller?.headerColor || '#213147';
-  const bottomBarColor = seller?.bottomBarColor || seller?.brandColor || 'hsl(var(--primary))';
-  const bodyBgColor = seller?.bodyBackgroundColor || 'hsl(var(--background))';
-  const brandColor = seller?.brandColor || 'hsl(var(--primary))';
-
   if (!isLoading && !seller) return <div className="p-8 text-center"><h2>Seller Not Found</h2></div>;
 
   return (
-    <div className="flex flex-col min-h-screen" style={{ backgroundColor: bodyBgColor }}>
-      <div className="sticky top-0 z-20 border-b shadow-sm transition-colors duration-500" style={{ backgroundColor: headerColor }}>
+    <div className="flex flex-col min-h-screen bg-background">
+      <div className="sticky top-0 z-20 border-b shadow-sm bg-[#213147]">
         <div className="px-4 py-3 space-y-3">
             <div className="flex flex-col gap-1.5">
                 <Label className="text-[10px] uppercase font-bold text-white/60 tracking-widest flex items-center gap-1">
@@ -194,9 +187,8 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
                                 onClick={() => setSelectedMenuType(type)} 
                                 className={cn(
                                   "h-8 text-xs px-4 rounded-full border-white/20 transition-all duration-300",
-                                  selectedMenuType === type ? "text-white shadow-lg" : "text-white/70 hover:bg-white/10"
+                                  selectedMenuType === type ? "bg-primary text-white shadow-lg" : "text-white/70 hover:bg-white/10"
                                 )}
-                                style={selectedMenuType === type ? { backgroundColor: brandColor, borderColor: brandColor } : {}}
                             >
                                 {type}
                             </Button>
@@ -233,9 +225,8 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
                                 onClick={() => setSelectedCategory(cat)} 
                                 className={cn(
                                   "h-8 text-xs px-4 rounded-full border-white/20 transition-all duration-300",
-                                  isSelected ? "text-white shadow-lg" : "text-white/70 hover:bg-white/10"
+                                  isSelected ? "bg-primary text-white shadow-lg" : "text-white/70 hover:bg-white/10"
                                 )}
-                                style={isSelected ? { backgroundColor: brandColor, borderColor: brandColor } : {}}
                             >
                                 <Icon className="mr-2 h-3.5 w-3.5" />
                                 {cat}
@@ -259,7 +250,6 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
             onUpdateItem={updateItem} 
             selectedCategory={selectedCategory} 
             menuItems={filteredMenuItems} 
-            accentColor={brandColor}
           />
         )}
       </main>
@@ -270,8 +260,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
             <SheetTrigger asChild>
               <Button 
                 size="lg" 
-                className="w-full text-lg h-14 shadow-2xl font-headline font-black uppercase tracking-widest transition-all duration-300 hover:scale-[1.02]"
-                style={{ backgroundColor: bottomBarColor }}
+                className="w-full text-lg h-14 shadow-2xl font-headline font-black uppercase tracking-widest transition-all duration-300 hover:scale-[1.02] bg-primary"
               >
                 View Order ({totalItems}) • ${(total || 0).toFixed(2)}
               </Button>
@@ -292,7 +281,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
                   </h3>
                   <div className="p-5 bg-muted/30 rounded-2xl border-2 border-dashed flex items-center gap-4">
                     <div className="p-3 bg-white rounded-full shadow-sm">
-                        <CreditCard className="w-5 h-5 text-primary" style={{ color: brandColor }} />
+                        <CreditCard className="w-5 h-5 text-primary" />
                     </div>
                     <div>
                         <p className="text-sm font-black uppercase">Pay at Delivery</p>
@@ -309,10 +298,9 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
           <SheetFooter className="p-6 bg-white border-t">
             <Button 
               size="lg" 
-              className="w-full text-lg font-black h-16 font-headline shadow-2xl uppercase tracking-widest transition-all duration-300 hover:scale-[1.02]" 
+              className="w-full text-lg font-black h-16 font-headline shadow-2xl uppercase tracking-widest transition-all duration-300 hover:scale-[1.02] bg-primary" 
               onClick={handlePlaceOrder} 
               disabled={isPlacingOrder || !isServiceActive}
-              style={{ backgroundColor: bottomBarColor }}
             >
               {!isServiceActive ? "SERVICE OFFLINE" : (isPlacingOrder ? <><Loader2 className="animate-spin mr-2" /> PROCESSING...</> : "PLACE ORDER")}
             </Button>
