@@ -285,7 +285,7 @@ export default function BevCartDriverDashboardPage() {
 
   return (
     <APIProvider apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!}>
-      <div className="flex flex-col h-screen overflow-hidden">
+      <div className="flex flex-col h-screen overflow-hidden bg-muted/20">
         <header className="flex-shrink-0 px-4 h-16 flex items-center justify-between border-b-2 border-[#E50000] bg-[#213147] z-20 shadow-sm">
           <div className="flex flex-col min-w-0 flex-1 mr-4">
             <h1 className="font-headline text-sm sm:text-base md:text-xl font-bold text-white uppercase tracking-tight truncate">
@@ -308,8 +308,8 @@ export default function BevCartDriverDashboardPage() {
           </div>
         </header>
 
-        <div className="flex-1 flex flex-col md:flex-row overflow-hidden min-h-0">
-          <div className="relative w-full md:w-2/3 h-[40vh] md:h-full bg-muted shrink-0 md:shrink">
+        <div className="flex-1 flex flex-col md:flex-row overflow-hidden min-h-0 p-4 gap-4">
+          <div className="relative w-full md:w-2/3 h-[40vh] md:h-full bg-muted shrink-0 md:shrink rounded-xl overflow-hidden border-2 shadow-sm">
            <Button
               variant="outline"
               size="icon"
@@ -333,8 +333,8 @@ export default function BevCartDriverDashboardPage() {
             )}
           </div>
           
-          <div className="w-full md:w-1/3 flex flex-col bg-background border-t md:border-t-0 md:border-l overflow-hidden min-h-0">
-            <h2 className="font-headline text-lg font-semibold px-4 pt-3 pb-2 shrink-0 border-b flex items-center justify-between uppercase">
+          <div className="w-full md:w-1/3 flex flex-col bg-background border-2 rounded-xl overflow-hidden min-h-0 shadow-sm">
+            <h2 className="font-headline text-lg font-semibold px-4 pt-3 pb-2 shrink-0 border-b flex items-center justify-between uppercase bg-muted/10">
               <span>Your Active Orders</span>
               <span className="bg-[#E50000] text-white text-xs rounded-full px-2 py-0.5">
                 {driverOrders.length}
