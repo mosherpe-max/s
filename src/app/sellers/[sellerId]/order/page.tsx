@@ -16,7 +16,7 @@ import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { mockBuyerLocation } from '@/lib/data';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetFooter } from '@/components/ui/sheet';
-import { Loader2, CreditCard, Store, Banknote, ShieldAlert } from 'lucide-react';
+import { Loader2, CreditCard, Store, Banknote, ShieldAlert, Info, MapPin, ShoppingBasket } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useCart } from '@/lib/cart-context';
 import { Label } from '@/components/ui/label';
@@ -82,6 +82,32 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
     }
     return seller.status === 'Active';
   }, [seller, selectedMenuType]);
+
+  const serviceInstructions = useMemo(() => {
+    switch (selectedMenuType) {
+      case 'Beverage Cart':
+      case 'Clubhouse':
+        return {
+          text: "Your order will be delivered directly to you on the course.",
+          icon: <MapPin className="h-4 w-4" />
+        };
+      case 'Take Out':
+        return {
+          text: "Your order will be available for pickup at the Clubhouse.",
+          icon: <ShoppingBasket className="h-4 w-4" />
+        };
+      case 'Pool':
+        return {
+          text: "Your order will be delivered to your poolside location.",
+          icon: <Info className="h-4 w-4" />
+        };
+      default:
+        return {
+          text: `Ordering from ${selectedMenuType}.`,
+          icon: <Store className="h-4 w-4" />
+        };
+    }
+  }, [selectedMenuType]);
 
   const handlePlaceOrder = async () => {
     try {
@@ -171,74 +197,94 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
-      <div className="sticky top-0 z-20 border-b shadow-sm bg-[#213147]">
-        <div className="px-4 py-3 space-y-3">
-            <div className="flex flex-col gap-1.5">
-                <Label className="text-[10px] uppercase font-bold text-white/60 tracking-widest flex items-center gap-1">
-                    <Store className="w-3 h-3" /> SELECT SERVICE
-                </Label>
-                <ScrollArea className="w-full whitespace-nowrap">
-                    <div className="flex gap-2 pb-1">
-                        {seller?.menuTypes?.map((type) => (
-                            <Button 
-                                key={type} 
-                                variant={selectedMenuType === type ? 'default' : 'outline'} 
-                                size="sm"
-                                onClick={() => setSelectedMenuType(type)} 
-                                className={cn(
-                                  "h-8 text-xs px-4 rounded-full border-white/20 transition-all duration-300",
-                                  selectedMenuType === type ? "bg-primary text-white shadow-lg" : "text-white/70 hover:bg-white/10"
-                                )}
-                            >
-                                {type}
-                            </Button>
-                        ))}
-                    </div>
-                </ScrollArea>
+      {/* Service Selection Bar - Distinct from Header */}
+      <div className="bg-muted/50 border-b shadow-inner">
+        <div className="px-4 py-4 space-y-4 max-w-2xl mx-auto">
+          <div className="flex flex-col gap-2">
+            <Label className="text-[10px] uppercase font-bold text-muted-foreground tracking-[0.2em] flex items-center gap-1.5 px-1">
+              <Store className="w-3 h-3" /> CHOOSE YOUR SERVICE
+            </Label>
+            <div className="flex flex-wrap gap-2">
+              {seller?.menuTypes?.map((type) => (
+                <Button 
+                  key={type} 
+                  variant={selectedMenuType === type ? 'default' : 'secondary'} 
+                  size="sm"
+                  onClick={() => setSelectedMenuType(type)} 
+                  className={cn(
+                    "h-10 text-xs px-5 rounded-xl font-bold transition-all duration-300 shadow-sm",
+                    selectedMenuType === type 
+                      ? "bg-primary text-white scale-105 shadow-md" 
+                      : "bg-white text-muted-foreground hover:bg-white hover:shadow"
+                  )}
+                >
+                  {type}
+                </Button>
+              ))}
             </div>
-            
-            {!isLoading && !isServiceActive && (
-              <Alert variant="destructive" className="bg-destructive/10 border-destructive/20 py-2 text-white">
-                <div className="flex items-center gap-3">
-                  <ShieldAlert className="h-4 w-4 text-white" />
-                  <div>
-                    <AlertTitle className="text-[10px] font-bold uppercase tracking-widest leading-none mb-0.5">Service Offline</AlertTitle>
-                    <AlertDescription className="text-[10px] opacity-80 leading-tight">
-                      The {selectedMenuType} is currently not accepting orders.
-                    </AlertDescription>
-                  </div>
-                </div>
-              </Alert>
-            )}
+          </div>
 
-            <Separator className="bg-white/10" />
-            <ScrollArea className="w-full whitespace-nowrap">
-                <div className="flex gap-2 pb-1">
-                    {currentCategories.map((cat) => {
-                        const Icon = categoryIcons[cat];
-                        const isSelected = selectedCategory === cat;
-                        return (
-                            <Button 
-                                key={cat} 
-                                variant={isSelected ? 'default' : 'outline'} 
-                                size="sm"
-                                onClick={() => setSelectedCategory(cat)} 
-                                className={cn(
-                                  "h-8 text-xs px-4 rounded-full border-white/20 transition-all duration-300",
-                                  isSelected ? "bg-primary text-white shadow-lg" : "text-white/70 hover:bg-white/10"
-                                )}
-                            >
-                                <Icon className="mr-2 h-3.5 w-3.5" />
-                                {cat}
-                            </Button>
-                        );
-                    })}
-                </div>
-            </ScrollArea>
+          <div className="bg-white rounded-xl p-3 border border-primary/10 shadow-sm flex items-center gap-3 animate-in fade-in slide-in-from-top-1">
+            <div className="bg-primary/10 p-2 rounded-full text-primary">
+              {serviceInstructions.icon}
+            </div>
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-primary/70 leading-none mb-1">Service Instructions</p>
+              <p className="text-xs font-medium text-foreground">{serviceInstructions.text}</p>
+            </div>
+          </div>
         </div>
       </div>
 
-      <main className="flex-1 px-4 pt-4 pb-24">
+      {/* Category Selection Bar - Sticky */}
+      <div className="sticky top-16 z-20 bg-background/95 backdrop-blur-md border-b shadow-sm">
+        <div className="px-4 py-3 max-w-2xl mx-auto">
+          {!isLoading && !isServiceActive && (
+            <Alert variant="destructive" className="bg-destructive/10 border-destructive/20 py-2 mb-3">
+              <div className="flex items-center gap-3">
+                <ShieldAlert className="h-4 w-4" />
+                <div>
+                  <AlertTitle className="text-[10px] font-bold uppercase tracking-widest leading-none mb-0.5">Service Currently Offline</AlertTitle>
+                  <AlertDescription className="text-[10px] opacity-80 leading-tight">
+                    The {selectedMenuType} is not accepting orders right now.
+                  </AlertDescription>
+                </div>
+              </div>
+            </Alert>
+          )}
+
+          <ScrollArea className="w-full whitespace-nowrap">
+            <div className="flex gap-2 pb-1">
+              {currentCategories.map((cat) => {
+                const Icon = categoryIcons[cat];
+                const isSelected = selectedCategory === cat;
+                return (
+                  <Button 
+                    key={cat} 
+                    variant={isSelected ? 'default' : 'ghost'} 
+                    size="sm"
+                    onClick={() => setSelectedCategory(cat)} 
+                    className={cn(
+                      "h-8 text-xs px-4 rounded-full transition-all duration-300",
+                      isSelected ? "bg-[#213147] text-white" : "text-muted-foreground hover:bg-muted"
+                    )}
+                  >
+                    <Icon className="mr-2 h-3.5 w-3.5" />
+                    {cat}
+                  </Button>
+                );
+              })}
+            </div>
+          </ScrollArea>
+        </div>
+      </div>
+
+      <main className="flex-1 px-4 pt-4 pb-24 max-w-2xl mx-auto w-full">
+        <div className="flex items-center gap-2 mb-6 px-1">
+          <h2 className="font-headline text-xl font-bold uppercase tracking-tight text-foreground">{selectedMenuType} Menu</h2>
+          <div className="h-px bg-muted flex-1" />
+        </div>
+
         {isLoading ? (
           <div className="space-y-4">
             <Skeleton className="h-24 w-full rounded-xl" />
