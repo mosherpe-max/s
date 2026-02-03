@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils';
 import { FirebaseClientProvider } from '@/firebase';
 import { CartProvider } from '@/lib/cart-context';
 import { OrderNotificationListener } from '@/components/order-notification-listener';
+import { BrandingFooter } from '@/components/branding-footer';
 
 export const metadata: Metadata = {
   title: 'KOOP',
@@ -24,7 +25,7 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&family=PT+Sans:wght@400;700&display=swap" rel="stylesheet" />
       </head>
-      <body className={cn("font-body antialiased min-h-screen flex flex-col")}>
+      <body className={cn("font-body antialiased min-h-screen flex flex-col pb-7")}>
         <FirebaseClientProvider>
           <CartProvider>
             <OrderNotificationListener />
@@ -33,6 +34,7 @@ export default function RootLayout({
               {children}
             </main>
             <Toaster />
+            <BrandingFooter />
           </CartProvider>
         </FirebaseClientProvider>
       </body>

@@ -21,7 +21,6 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useCart } from '@/lib/cart-context';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
-import { BrandingFooter } from '@/components/branding-footer';
 import { cn } from '@/lib/utils';
 
 export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId: string }> }) {
@@ -193,7 +192,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
   const isLoading = isSellerLoading || areItemsLoading;
   const activeOrderItems = orderItems.filter((item) => item.quantity > 0);
   
-  if (!isLoading && !seller) return <div className="p-8 text-center"><h2>Seller Not Found</h2></div>;
+  if (!isLoading && !seller) return <div className="p-8 text-center text-muted-foreground"><h2>Seller Not Found</h2></div>;
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
@@ -266,7 +265,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
         </div>
       )}
 
-      <main className="flex-1 px-4 pt-3 pb-24 max-w-2xl mx-auto w-full">
+      <main className="flex-1 px-4 pt-3 pb-32 max-w-2xl mx-auto w-full">
         {isLoading ? (
           <div className="space-y-3">
             <Skeleton className="h-20 w-full rounded-lg" />
@@ -313,7 +312,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
 
       <Sheet open={isCartOpen} onOpenChange={setIsCartOpen}>
         {isServiceActive && activeOrderItems.length > 0 && (
-          <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/10 backdrop-blur-md border-t z-30 shadow-lg">
+          <div className="fixed bottom-7 left-0 right-0 p-4 bg-white/10 backdrop-blur-md border-t z-30 shadow-lg">
             <SheetTrigger asChild>
               <Button 
                 size="lg" 
@@ -364,7 +363,6 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
           </SheetFooter>
         </SheetContent>
       </Sheet>
-      <BrandingFooter />
     </div>
   );
 }

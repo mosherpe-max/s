@@ -15,7 +15,6 @@ import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { PartyPopper, ShoppingBag, MapPin, Loader2, ArrowLeft, Store, ClipboardList, Satellite, ShieldCheck } from 'lucide-react';
-import { BrandingFooter } from '@/components/branding-footer';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 
 function getNumericOrderId(id: string) {
@@ -266,7 +265,6 @@ function OrderTrackingContent() {
             </CardContent>
         </Card>
       </div>
-      <BrandingFooter className="mt-8" />
     </div>
   );
 }

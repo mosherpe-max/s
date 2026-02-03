@@ -18,7 +18,6 @@ import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
-import { BrandingFooter } from '@/components/branding-footer';
 
 type LatLng = {
   latitude: number;
@@ -271,10 +270,10 @@ export default function BevCartDriverDashboardPage() {
 
   if (!isPrimaryLoading && !primarySeller) {
       return (
-          <div className="flex flex-col items-center justify-center h-screen p-8 text-center space-y-6">
-              <AlertCircle className="h-16 w-16 text-muted-foreground opacity-20" />
+          <div className="flex flex-col items-center justify-center h-screen p-8 text-center space-y-6 text-muted-foreground">
+              <AlertCircle className="h-16 w-16 opacity-20" />
               <h1 className="text-2xl font-headline font-bold uppercase">KOOP BEVCART DRIVER INTERFACE</h1>
-              <p className="text-muted-foreground max-w-sm">
+              <p className="max-w-sm">
                   Initialize your seller profile to access BevCart driver tools.
               </p>
               <Button asChild>
@@ -371,8 +370,6 @@ export default function BevCartDriverDashboardPage() {
             </ScrollArea>
           </div>
         </div>
-
-        <BrandingFooter />
       </div>
     </APIProvider>
   );

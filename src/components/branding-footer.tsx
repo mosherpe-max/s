@@ -9,7 +9,7 @@ interface BrandingFooterProps {
 
 export function BrandingFooter({ className }: BrandingFooterProps) {
   return (
-    <footer className={cn("h-7 bg-[#213147] text-white flex items-center justify-between px-6 shrink-0 z-30 w-full", className)}>
+    <footer className={cn("fixed bottom-0 left-0 right-0 h-7 bg-[#213147] text-white flex items-center justify-between px-6 z-50 w-full", className)}>
       <span className="text-[10px] font-medium text-white">Copyright 2026</span>
       <div className="flex items-center gap-2">
         <span className="text-[10px] font-medium text-white">Powered by</span>

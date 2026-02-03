@@ -22,7 +22,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/form';
 import {
   Select,
   SelectContent,
@@ -42,7 +42,6 @@ import type { MenuItem, Seller, Category, Order, Member } from '@/lib/types';
 import { categories } from '@/lib/types';
 import { menuItems as mockMenuItems } from '@/lib/data';
 import { useToast } from '@/hooks/use-toast';
-import { BrandingFooter } from '@/components/branding-footer';
 
 const menuItemSchema = z.object({
   name: z.string().min(1, 'Item name is required'),
@@ -732,8 +731,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
           <ArrowUp className="h-6 w-6" />
         </Button>
       )}
-
-      <BrandingFooter />
     </div>
   );
 }
