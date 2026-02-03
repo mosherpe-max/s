@@ -56,7 +56,8 @@ export default function ClubhouseDriverDashboardPage() {
 
   const clubhouseOrders = useMemo(() => {
     if (!activeOrders) return [];
-    return clubhouseOrders.filter(o => o.sellerId === 'demo-course');
+    // Fix: Filter activeOrders, not clubhouseOrders
+    return activeOrders.filter(o => o.sellerId === 'demo-course');
   }, [activeOrders]);
 
   useEffect(() => {
