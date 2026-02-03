@@ -5,7 +5,9 @@ import { Button } from './ui/button';
 import { usePathname } from 'next/navigation';
 import { ShoppingCart } from 'lucide-react';
 import { useCart } from '@/lib/cart-context';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import { doc } from 'firebase/firestore';
+import { useFirestore, useDoc, useMemoFirebase } from '@/firebase';
 
 const KoopLogo = () => (
   <div className="flex items-center gap-0.5 font-headline font-bold text-2xl tracking-tighter text-white">
@@ -21,12 +23,31 @@ const KoopLogo = () => (
 
 export function AppHeader() {
   const pathname = usePathname();
+  const firestore = useFirestore();
   const { total, totalItems, setIsCartOpen } = useCart();
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
     setIsMounted(true);
   }, []);
+
+  // Extract sellerId from path if available (e.g., /sellers/demo-course/order)
+  const sellerId = useMemo(() => {
+    if (!pathname) return null;
+    const parts = pathname.split('/');
+    const sellerIndex = parts.indexOf('sellers');
+    if (sellerIndex !== -1 && parts[sellerIndex + 1]) {
+      return parts[sellerIndex + 1];
+    }
+    return null;
+  }, [pathname]);
+
+  const sellerRef = useMemoFirebase(() => {
+    if (!firestore || !sellerId) return null;
+    return doc(firestore, 'sellers', sellerId);
+  }, [firestore, sellerId]);
+
+  const { data: seller } = useDoc(sellerRef);
 
   const isOrderPage = pathname?.includes('/order') && !pathname?.includes('/track');
   const isDriverPage = pathname === '/seller/bevcartdriver' || pathname === '/seller/clubhousedriver';
@@ -36,11 +57,24 @@ export function AppHeader() {
   return (
     <header className="sticky top-0 z-40 bg-[#213147] border-b-2 border-[#E50000] shadow-md">
       <div className="container mx-auto flex h-16 items-center justify-between px-4">
-        <Link href="/" className="flex items-center transition-opacity hover:opacity-90 shrink-0">
-          <KoopLogo />
-        </Link>
+        <div className="flex items-center min-w-0">
+          {isOrderPage && seller ? (
+            <div className="flex flex-col min-w-0">
+               <span className="font-headline text-lg font-bold text-white uppercase tracking-tight truncate">
+                {seller.courseName}
+              </span>
+              <span className="text-[10px] uppercase font-bold text-white/60 tracking-widest leading-none">
+                REFRESHMENTS
+              </span>
+            </div>
+          ) : (
+            <Link href="/" className="flex items-center transition-opacity hover:opacity-90 shrink-0">
+              <KoopLogo />
+            </Link>
+          )}
+        </div>
         
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 shrink-0">
           {isMounted && isOrderPage ? (
             <Button 
               variant="outline" 
