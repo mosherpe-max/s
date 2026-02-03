@@ -293,26 +293,26 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
           </div>
         </header>
 
-        <div className="flex-1 flex flex-col md:flex-row overflow-hidden min-h-0 p-4 gap-4">
+        <div className="flex-1 flex flex-col md:flex-row overflow-hidden min-h-0 p-3 gap-3">
           <div className="relative w-full md:w-2/3 h-[40vh] md:h-full bg-muted shrink-0 md:shrink rounded-xl overflow-hidden border-2 shadow-sm">
-           <Button variant="outline" size="icon" className="absolute top-2 right-2 z-10 bg-background/80 hover:bg-background" onClick={() => setZoomMode(current => (current === 'radius' ? 'all' : 'radius'))}><Focus className="h-5 w-5" /></Button>
+           <Button variant="outline" size="icon" className="absolute top-2 right-2 z-10 bg-background/80 hover:bg-background h-8 w-8" onClick={() => setZoomMode(current => (current === 'radius' ? 'all' : 'radius'))}><Focus className="h-4 w-4" /></Button>
             {sellerLocation ? (
               <MapView sellerLocation={sellerLocation} sellers={mappedSellers} buyers={mappedBuyers} radius={1609.34} zoomMode={zoomMode} showPrimaryMarker={isBevCartActive} primaryDriverId={sellerId} />
             ) : <Skeleton className="w-full h-full" />}
           </div>
           <div className="w-full md:w-1/3 flex flex-col bg-background border-2 rounded-xl overflow-hidden min-h-0 shadow-sm">
-            <h2 className="font-headline text-lg font-semibold px-4 pt-3 pb-2 shrink-0 border-b flex items-center justify-between uppercase bg-muted/10">
-              <span>Your Active Orders</span>
-              <span className="bg-[#E50000] text-white text-xs rounded-full px-2 py-0.5">{driverOrders.length}</span>
+            <h2 className="font-headline text-base font-semibold px-4 pt-3 pb-2 shrink-0 border-b flex items-center justify-between uppercase bg-muted/10">
+              <span className="truncate mr-2">Your Active Orders</span>
+              <span className="bg-[#E50000] text-white text-[10px] rounded-full px-2 py-0.5 shrink-0">{driverOrders.length}</span>
             </h2>
             <ScrollArea className="flex-1 w-full">
-              <div className="p-4 space-y-4 pb-12">
+              <div className="p-2.5 space-y-3 pb-12">
                 {isLoading ? (
-                  <div className="space-y-4">{[...Array(3)].map((_, i) => <Skeleton key={i} className="h-48 w-full" />)}</div>
+                  <div className="space-y-3">{[...Array(3)].map((_, i) => <Skeleton key={i} className="h-40 w-full" />)}</div>
                 ) : driverOrders.length === 0 ? (
                   <div className="flex flex-col items-center justify-center text-muted-foreground py-20 text-center px-4">
-                    <Package className="h-12 w-12 opacity-20 mb-2" />
-                    <p className="italic">No active BevCart orders.</p>
+                    <Package className="h-10 w-10 opacity-20 mb-2" />
+                    <p className="italic text-sm">No active BevCart orders.</p>
                   </div>
                 ) : (
                   driverOrders.map((order, index) => <OrderCard key={order.id} order={order} orderNumber={index + 1} onUpdateStatus={handleUpdateOrderStatus} currentDriverId={sellerId} />)
