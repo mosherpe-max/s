@@ -96,15 +96,14 @@ export function OrderCard({ order, orderNumber, onUpdateStatus, currentDriverId 
   const isAssignedToMe = assignedDriverId === currentDriverId;
 
   // Use dynamic tailwind classes for the colored border
-  // Note: We use string literals for Tailwind to pick up the classes
   const colorMap: Record<string, string> = {
     'indigo-600': 'border-indigo-600',
     'blue-600': 'border-blue-600',
     'purple-600': 'border-purple-600',
     'pink-600': 'border-pink-600',
     'cyan-600': 'border-cyan-600',
-    'orange-600': 'border-orange-600',
-    'emerald-600': 'border-emerald-600',
+    'fuchsia-600': 'border-fuchsia-600',
+    'violet-600': 'border-violet-600',
   };
 
   const borderColorClass = driverColor ? colorMap[driverColor] : 'border-muted';

@@ -5,6 +5,17 @@ import { cn, getDriverColor } from '@/lib/utils';
 import { Map, AdvancedMarker, useMap } from '@vis.gl/react-google-maps';
 import { useEffect } from 'react';
 
+// Static mapping for Tailwind JIT to pick up dynamic classes
+const DRIVER_COLOR_CONFIG: Record<string, { bg: string, border: string, text: string, arrow: string }> = {
+  'indigo-600': { bg: 'bg-indigo-600', border: 'border-indigo-600', text: 'text-indigo-600', arrow: 'border-t-indigo-600' },
+  'blue-600': { bg: 'bg-blue-600', border: 'border-blue-600', text: 'text-blue-600', arrow: 'border-t-blue-600' },
+  'purple-600': { bg: 'bg-purple-600', border: 'border-purple-600', text: 'text-purple-600', arrow: 'border-t-purple-600' },
+  'pink-600': { bg: 'bg-pink-600', border: 'border-pink-600', text: 'text-pink-600', arrow: 'border-t-pink-600' },
+  'cyan-600': { bg: 'bg-cyan-600', border: 'border-cyan-600', text: 'text-cyan-600', arrow: 'border-t-cyan-600' },
+  'fuchsia-600': { bg: 'bg-fuchsia-600', border: 'border-fuchsia-600', text: 'text-fuchsia-600', arrow: 'border-t-fuchsia-600' },
+  'violet-600': { bg: 'bg-violet-600', border: 'border-violet-600', text: 'text-violet-600', arrow: 'border-t-violet-600' },
+};
+
 interface MapViewProps {
   buyerLocation?: { latitude: number; longitude: number };
   sellerLocation?: { latitude: number; longitude: number };
@@ -111,16 +122,16 @@ export function MapView({ buyerLocation, sellerLocation, showPrimaryMarker = tru
         {/* Render all Sellers (Drivers) */}
         {sellers && sellers.map(s => {
           const driverColor = getDriverColor(s.id);
-          const colorClass = `bg-${driverColor}`;
-          const arrowColorClass = `border-t-${driverColor}`;
+          const config = DRIVER_COLOR_CONFIG[driverColor];
+          if (!config) return null;
 
           return (
             <AdvancedMarker key={s.id} position={{ lat: s.location.latitude, lng: s.location.longitude }}>
               <div className="flex flex-col items-center">
-                <div className={cn("p-2 rounded-full shadow-lg border-2 border-white", colorClass)}>
+                <div className={cn("p-2 rounded-full shadow-lg border-2 border-white", config.bg)}>
                   <Truck className="w-6 h-6 text-white" />
                 </div>
-                <div className={cn("w-0 h-0 border-l-8 border-l-transparent border-r-8 border-r-transparent border-t-8", arrowColorClass)}></div>
+                <div className={cn("w-0 h-0 border-l-8 border-l-transparent border-r-8 border-r-transparent border-t-8", config.arrow)}></div>
               </div>
             </AdvancedMarker>
           );
@@ -129,12 +140,19 @@ export function MapView({ buyerLocation, sellerLocation, showPrimaryMarker = tru
         {/* Primary Seller Pin */}
         {showPrimaryMarker && sellerLocation && (!sellers || !sellers.some(s => s.location.latitude === sellerLocation.latitude && s.location.longitude === sellerLocation.longitude)) && (
           <AdvancedMarker position={{ lat: sellerLocation.latitude, lng: sellerLocation.longitude }}>
-            <div className="flex flex-col items-center">
-              <div className={cn("p-2 rounded-full shadow-lg border-2 border-white", `bg-${getDriverColor(primaryDriverId)}`)}>
-                <Truck className="w-6 h-6 text-white" />
-              </div>
-              <div className={cn("w-0 h-0 border-l-8 border-l-transparent border-r-8 border-r-transparent border-t-8", `border-t-${getDriverColor(primaryDriverId)}`)}></div>
-            </div>
+            {(() => {
+              const driverColor = getDriverColor(primaryDriverId);
+              const config = DRIVER_COLOR_CONFIG[driverColor];
+              if (!config) return null;
+              return (
+                <div className="flex flex-col items-center">
+                  <div className={cn("p-2 rounded-full shadow-lg border-2 border-white", config.bg)}>
+                    <Truck className="w-6 h-6 text-white" />
+                  </div>
+                  <div className={cn("w-0 h-0 border-l-8 border-l-transparent border-r-8 border-r-transparent border-t-8", config.arrow)}></div>
+                </div>
+              );
+            })()}
           </AdvancedMarker>
         )}
 
@@ -154,25 +172,12 @@ export function MapView({ buyerLocation, sellerLocation, showPrimaryMarker = tru
         {buyers && buyers.map((buyer, index) => {
           const statusColorClass = buyer.colorClass || "bg-accent";
           const assignedDriverColor = buyer.assignedDriverId ? getDriverColor(buyer.assignedDriverId) : null;
-
-          // Mapping for border and text colors to ensure Tailwind picks them up
-          const colorMap: Record<string, { border: string, text: string, arrow: string }> = {
-            'indigo-600': { border: 'border-indigo-600', text: 'text-indigo-600', arrow: 'border-t-indigo-600' },
-            'blue-600': { border: 'border-blue-600', text: 'text-blue-600', arrow: 'border-t-blue-600' },
-            'purple-600': { border: 'border-purple-600', text: 'text-purple-600', arrow: 'border-t-purple-600' },
-            'pink-600': { border: 'border-pink-600', text: 'text-pink-600', arrow: 'border-t-pink-600' },
-            'cyan-600': { border: 'border-cyan-600', text: 'text-cyan-600', arrow: 'border-t-cyan-600' },
-            'orange-600': { border: 'border-orange-600', text: 'text-orange-600', arrow: 'border-t-orange-600' },
-            'emerald-600': { border: 'border-emerald-600', text: 'text-emerald-600', arrow: 'border-t-emerald-600' },
-          };
-
-          const assignedStyles = assignedDriverColor ? colorMap[assignedDriverColor] : null;
+          const assignedStyles = assignedDriverColor ? DRIVER_COLOR_CONFIG[assignedDriverColor] : null;
 
           // The inside (background) uses the time-based color (green/yellow/red)
           const bgClass = statusColorClass;
           
           // The outline (border) matches the driver color if assigned, else white/accent
-          // The number (text) is ALWAYS white as requested.
           const borderClass = assignedStyles ? `border-4 ${assignedStyles.border}` : 'border-4 border-white';
           const textClass = 'text-white';
           const arrowClass = assignedStyles ? assignedStyles.arrow : statusColorClass.replace('bg-', 'border-t-');

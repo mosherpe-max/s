@@ -1,4 +1,3 @@
-
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
 
@@ -13,8 +12,8 @@ export function getDriverColor(id: string): string {
     'purple-600',
     'pink-600',
     'cyan-600',
-    'orange-600',
-    'emerald-600',
+    'fuchsia-600',
+    'violet-600',
   ];
   
   let hash = 0;
