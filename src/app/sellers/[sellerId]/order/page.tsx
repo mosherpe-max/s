@@ -16,13 +16,12 @@ import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { mockBuyerLocation } from '@/lib/data';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetFooter } from '@/components/ui/sheet';
-import { Loader2, CreditCard, Store, Banknote, ShieldAlert, Info, MapPin, ShoppingBasket } from 'lucide-react';
+import { Loader2, CreditCard, Store, Banknote, ShieldAlert, Info, MapPin, ShoppingBasket, Clock } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useCart } from '@/lib/cart-context';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { BrandingFooter } from '@/components/branding-footer';
-import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
 
 export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId: string }> }) {
@@ -73,14 +72,15 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
   }, [seller, selectedMenuType]);
 
   const isServiceActive = useMemo(() => {
-    if (!seller) return true;
+    if (!seller) return false;
+    if (seller.status !== 'Active') return false;
     if (selectedMenuType === 'Beverage Cart') {
       return seller.bevcartActive === true;
     }
     if (selectedMenuType === 'Clubhouse') {
       return seller.clubhouseActive === true;
     }
-    return seller.status === 'Active';
+    return true; // Other services default to active if the seller is active
   }, [seller, selectedMenuType]);
 
   const serviceInstructions = useMemo(() => {
@@ -236,42 +236,35 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
       </div>
 
       {/* Sticky Category Bar - Thin Profile */}
-      <div className="sticky top-16 z-20 bg-background/90 backdrop-blur-md border-b">
-        <div className="px-4 py-2 max-w-2xl mx-auto">
-          {!isLoading && !isServiceActive && (
-            <div className="bg-destructive/10 border-destructive/20 p-1 rounded-md mb-2 flex items-center gap-2">
-                <ShieldAlert className="h-3 w-3 text-destructive" />
-                <p className="text-[9px] font-bold text-destructive uppercase tracking-widest">
-                  {selectedMenuType} OFFLINE
-                </p>
-            </div>
-          )}
-
-          <ScrollArea className="w-full whitespace-nowrap">
-            <div className="flex gap-1.5">
-              {currentCategories.map((cat) => {
-                const Icon = categoryIcons[cat];
-                const isSelected = selectedCategory === cat;
-                return (
-                  <Button 
-                    key={cat} 
-                    variant={isSelected ? 'default' : 'ghost'} 
-                    size="sm"
-                    onClick={() => setSelectedCategory(cat)} 
-                    className={cn(
-                      "h-7 text-[9px] px-2.5 rounded-full font-bold uppercase tracking-wider",
-                      isSelected ? "bg-[#213147] text-white" : "text-muted-foreground"
-                    )}
-                  >
-                    <Icon className="mr-1 h-3 w-3" />
-                    {cat}
-                  </Button>
-                );
-              })}
-            </div>
-          </ScrollArea>
+      {isServiceActive && (
+        <div className="sticky top-16 z-20 bg-background/90 backdrop-blur-md border-b">
+          <div className="px-4 py-2 max-w-2xl mx-auto">
+            <ScrollArea className="w-full whitespace-nowrap">
+              <div className="flex gap-1.5">
+                {currentCategories.map((cat) => {
+                  const Icon = categoryIcons[cat];
+                  const isSelected = selectedCategory === cat;
+                  return (
+                    <Button 
+                      key={cat} 
+                      variant={isSelected ? 'default' : 'ghost'} 
+                      size="sm"
+                      onClick={() => setSelectedCategory(cat)} 
+                      className={cn(
+                        "h-7 text-[9px] px-2.5 rounded-full font-bold uppercase tracking-wider",
+                        isSelected ? "bg-[#213147] text-white" : "text-muted-foreground"
+                      )}
+                    >
+                      <Icon className="mr-1 h-3 w-3" />
+                      {cat}
+                    </Button>
+                  );
+                })}
+              </div>
+            </ScrollArea>
+          </div>
         </div>
-      </div>
+      )}
 
       <main className="flex-1 px-4 pt-3 pb-24 max-w-2xl mx-auto w-full">
         {isLoading ? (
@@ -279,6 +272,34 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
             <Skeleton className="h-20 w-full rounded-lg" />
             <Skeleton className="h-20 w-full rounded-lg" />
             <Skeleton className="h-20 w-full rounded-lg" />
+          </div>
+        ) : !isServiceActive ? (
+          <div className="flex flex-col items-center justify-center py-20 px-6 text-center space-y-6 animate-in fade-in slide-in-from-bottom-4">
+            <div className="bg-muted p-8 rounded-full">
+              <ShieldAlert className="h-16 w-16 text-muted-foreground opacity-30" />
+            </div>
+            <div className="space-y-3">
+              <h2 className="font-headline text-3xl font-bold uppercase tracking-tight text-[#213147]">{selectedMenuType} IS OFFLINE</h2>
+              <div className="flex items-center justify-center gap-2 text-muted-foreground">
+                <Clock className="w-4 h-4" />
+                <p className="text-sm font-medium">Service is currently unavailable</p>
+              </div>
+              <p className="text-muted-foreground text-xs max-w-xs mx-auto leading-relaxed">
+                The {selectedMenuType} is not currently accepting orders. Please try another service or check back later during active hours.
+              </p>
+            </div>
+            {seller?.menuTypes && seller.menuTypes.length > 1 && (
+              <div className="pt-4">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">Try another service:</p>
+                <div className="flex flex-wrap justify-center gap-2">
+                  {seller.menuTypes.filter(t => t !== selectedMenuType).map(type => (
+                    <Button key={type} variant="outline" size="sm" onClick={() => setSelectedMenuType(type)} className="text-xs font-bold uppercase">
+                      {type}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         ) : (
           <BuyerMenu 
@@ -291,7 +312,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
       </main>
 
       <Sheet open={isCartOpen} onOpenChange={setIsCartOpen}>
-        {activeOrderItems.length > 0 && (
+        {isServiceActive && activeOrderItems.length > 0 && (
           <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/10 backdrop-blur-md border-t z-30 shadow-lg">
             <SheetTrigger asChild>
               <Button 
