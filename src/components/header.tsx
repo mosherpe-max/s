@@ -63,9 +63,6 @@ export function AppHeader() {
                <span className="font-headline text-lg font-bold text-white uppercase tracking-tight truncate">
                 {seller.courseName}
               </span>
-              <span className="text-[10px] uppercase font-bold text-white/60 tracking-widest leading-none">
-                REFRESHMENTS
-              </span>
             </div>
           ) : (
             <Link href="/" className="flex items-center transition-opacity hover:opacity-90 shrink-0">
