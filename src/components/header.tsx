@@ -31,7 +31,6 @@ export function AppHeader() {
     setIsMounted(true);
   }, []);
 
-  // Extract sellerId from path if available (e.g., /sellers/demo-course/order)
   const sellerId = useMemo(() => {
     if (!pathname) return null;
     const parts = pathname.split('/');
@@ -50,7 +49,7 @@ export function AppHeader() {
   const { data: seller } = useDoc(sellerRef);
 
   const isOrderPage = pathname?.includes('/order') && !pathname?.includes('/track');
-  const isDriverPage = pathname === '/seller/bevcartdriver' || pathname === '/seller/clubhousedriver';
+  const isDriverPage = pathname?.includes('/bevcart') || pathname?.includes('/clubhouse');
 
   if (isDriverPage) return null;
 
@@ -97,10 +96,10 @@ export function AppHeader() {
                 <Link href="/admin">KOOP ADMIN</Link>
               </Button>
               <Button variant="ghost" size="sm" asChild className="text-white hover:bg-white/10 text-xs font-headline uppercase tracking-wider">
-                <Link href="/seller/bevcartdriver">BEVCART DRIVER</Link>
+                <Link href="/sellers/demo-course/bevcart">BEVCART DRIVER</Link>
               </Button>
               <Button variant="ghost" size="sm" asChild className="text-white hover:bg-white/10 text-xs font-headline uppercase tracking-wider">
-                <Link href="/seller/clubhousedriver">CLUBHOUSE DRIVER</Link>
+                <Link href="/sellers/demo-course/clubhouse">CLUBHOUSE DRIVER</Link>
               </Button>
               <Button variant="ghost" size="sm" asChild className="hidden sm:inline-flex text-white hover:bg-white/10 text-xs font-headline uppercase tracking-wider">
                 <Link href="/sellers/demo-course">SELLER ADMIN</Link>
