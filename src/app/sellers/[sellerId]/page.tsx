@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useMemo, useEffect, use, useRef } from 'react';
@@ -5,7 +6,7 @@ import { collection, doc, setDoc, deleteDoc, writeBatch, query, where, updateDoc
 import { useFirestore, useDoc, useCollection, useMemoFirebase } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { PlusCircle, Edit, Trash2, Filter, DollarSign, ShoppingBag, Clock, Database, Users, UserPlus, Sparkles, Download, FileSpreadsheet, Save, Loader2, ListChecks, ChevronUp, ChevronDown, Check, MousePointer2, BarChart3, ArrowUp, Upload } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, Filter, DollarSign, ShoppingBag, Clock, Database, Users, UserPlus, Sparkles, Download, FileSpreadsheet, Save, Loader2, ListChecks, ChevronUp, ChevronDown, Check, MousePointer2, BarChart3, ArrowUp, Upload, FileText } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import {
   AlertDialog,
@@ -37,6 +38,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { cn } from '@/lib/utils';
 import { isToday, isThisMonth, isThisYear, format } from 'date-fns';
 import Link from 'next/link';
+import * as XLSX from 'xlsx';
 
 import type { MenuItem, Seller, Category, Order, Member } from '@/lib/types';
 import { categories } from '@/lib/types';
@@ -355,7 +357,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     } finally { setIsSeeding(false); }
   };
 
-  const handleCSVImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleExcelImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file || !firestore) return;
 
@@ -363,10 +365,16 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     const reader = new FileReader();
     reader.onload = async (e) => {
       try {
-        const text = e.target?.result as string;
-        const rows = text.split('\n').filter(row => row.trim().length > 0);
-        if (rows.length < 2) {
-          toast({ variant: 'destructive', title: 'Import Failed', description: 'CSV file must contain a header row and at least one data row.' });
+        const data = new Uint8Array(e.target?.result as ArrayBuffer);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const firstSheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[firstSheetName];
+        
+        // Use JSON format to make it easier to process
+        const jsonData = XLSX.utils.sheet_to_json(worksheet);
+
+        if (jsonData.length === 0) {
+          toast({ variant: 'destructive', title: 'Import Failed', description: 'Spreadsheet is empty. Ensure headers match: Name, Description, Price, Category.' });
           setIsImporting(false);
           return;
         }
@@ -375,16 +383,14 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
         const menuItemsCol = collection(firestore, 'sellers', sellerId, 'menuItems');
         let importCount = 0;
 
-        // Skip header row
-        for (let i = 1; i < rows.length; i++) {
-          const columns = rows[i].split(',').map(col => col.trim().replace(/^"(.*)"$/, '$1'));
-          if (columns.length < 4) continue;
+        jsonData.forEach((row: any, index: number) => {
+          const name = row['Name'] || row['name'];
+          const description = row['Description'] || row['description'] || '';
+          const price = parseFloat(row['Price'] || row['price']);
+          const category = row['Category'] || row['category'];
 
-          const [name, description, priceStr, category] = columns;
-          const price = parseFloat(priceStr);
-
-          if (isNaN(price)) continue;
-          if (!categories.includes(category as Category)) continue;
+          if (!name || isNaN(price)) return;
+          if (!categories.includes(category as Category)) return;
 
           const newItemRef = doc(menuItemsCol);
           batch.set(newItemRef, {
@@ -393,28 +399,28 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
             description,
             price,
             category: category as Category,
-            rank: (menuItems?.length || 0) + i,
+            rank: (menuItems?.length || 0) + index + 1,
             availableOn: ['Clubhouse'], // Default availability
-            menuRanks: { 'Clubhouse': (menuItems?.length || 0) + i }
+            menuRanks: { 'Clubhouse': (menuItems?.length || 0) + index + 1 }
           });
           importCount++;
-        }
+        });
 
         if (importCount > 0) {
           await batch.commit();
           toast({ title: 'Import Successful', description: `Imported ${importCount} items to your Menu Library.` });
         } else {
-          toast({ variant: 'destructive', title: 'Import Failed', description: 'No valid menu items found in the CSV. Ensure headers match: Name, Description, Price, Category.' });
+          toast({ variant: 'destructive', title: 'Import Failed', description: 'No valid menu items found. Ensure headers match: Name, Description, Price, Category.' });
         }
       } catch (err) {
-        console.error('CSV Import Error:', err);
-        toast({ variant: 'destructive', title: 'Import Error', description: 'Failed to process the CSV file.' });
+        console.error('Excel Import Error:', err);
+        toast({ variant: 'destructive', title: 'Import Error', description: 'Failed to process the spreadsheet.' });
       } finally {
         setIsImporting(false);
         if (fileInputRef.current) fileInputRef.current.value = '';
       }
     };
-    reader.readAsText(file);
+    reader.readAsArrayBuffer(file);
   };
 
   const handleSaveMasterItem = (data: MenuItemFormData) => {
@@ -500,16 +506,23 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
             </div>
             <p className="text-muted-foreground text-sm mt-1">Configure your menus, monitor performance, and manage your inventory.</p>
           </div>
-          <div className="flex gap-2">
-             <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} disabled={isImporting}>
-                {isImporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
-                Import Menu CSV
-             </Button>
+          <div className="flex flex-col sm:flex-row gap-2">
+             <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} disabled={isImporting} className="bg-primary/5 border-primary/20 hover:bg-primary/10">
+                    {isImporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileSpreadsheet className="mr-2 h-4 w-4" />}
+                    Import Excel Menu
+                </Button>
+                <Button variant="ghost" size="sm" asChild className="text-muted-foreground">
+                  <a href="/menu_upload_template.csv" download>
+                    <Download className="mr-1 h-4 w-4" /> Template
+                  </a>
+                </Button>
+             </div>
              <input 
                 type="file" 
                 ref={fileInputRef} 
-                onChange={handleCSVImport} 
-                accept=".csv" 
+                onChange={handleExcelImport} 
+                accept=".xlsx, .xls" 
                 className="hidden" 
              />
              <Button variant="outline" size="sm" onClick={handleSeedData} disabled={isSeeding}>
