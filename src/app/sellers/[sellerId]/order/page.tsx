@@ -16,12 +16,37 @@ import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { mockBuyerLocation } from '@/lib/data';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetFooter } from '@/components/ui/sheet';
-import { Loader2, CreditCard, Store, Banknote, ShieldAlert, Info, MapPin, ShoppingBasket, Clock } from 'lucide-react';
+import { 
+  Loader2, 
+  CreditCard, 
+  Store, 
+  Banknote, 
+  ShieldAlert, 
+  Info, 
+  MapPin, 
+  ShoppingBasket, 
+  Clock,
+  Truck,
+  Building,
+  Waves,
+  Home,
+  Utensils
+} from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useCart } from '@/lib/cart-context';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
+
+const serviceTypeIcons: Record<string, any> = {
+  'Beverage Cart': Truck,
+  'Clubhouse': Building,
+  'Pool': Waves,
+  'Take Out': ShoppingBasket,
+  'Halfway House': Home,
+  'Dine-In': Utensils,
+  'Lane Delivery': MapPin,
+};
 
 export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId: string }> }) {
   const { sellerId } = use(params);
@@ -79,31 +104,33 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
     if (selectedMenuType === 'Clubhouse') {
       return seller.clubhouseActive === true;
     }
-    return true; // Other services default to active if the seller is active
+    return true;
   }, [seller, selectedMenuType]);
 
   const serviceInstructions = useMemo(() => {
+    const Icon = serviceTypeIcons[selectedMenuType] || Store;
+    
     switch (selectedMenuType) {
       case 'Beverage Cart':
       case 'Clubhouse':
         return {
           text: "Delivery to your location on the course.",
-          icon: <MapPin className="h-3 w-3" />
+          icon: <Icon className="h-3 w-3" />
         };
       case 'Take Out':
         return {
           text: "Pickup at the Clubhouse.",
-          icon: <ShoppingBasket className="h-3 w-3" />
+          icon: <Icon className="h-3 w-3" />
         };
       case 'Pool':
         return {
           text: "Delivery to your poolside location.",
-          icon: <Info className="h-3 w-3" />
+          icon: <Icon className="h-3 w-3" />
         };
       default:
         return {
           text: `Ordering from ${selectedMenuType}.`,
-          icon: <Store className="h-3 w-3" />
+          icon: <Icon className="h-3 w-3" />
         };
     }
   }, [selectedMenuType]);
@@ -135,7 +162,6 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
       const submitToFirestore = async (latitude: number, longitude: number) => {
         try {
           const subtotal = activeOrderItems.reduce((acc, item) => acc + item.price * item.quantity, 0);
-          
           const paymentMethod: PaymentMethod = 'Pay at Delivery';
 
           const orderData: Omit<Order, 'id' | 'createdAt'> = {
@@ -196,31 +222,35 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
-      {/* Tight Service Selection Bar */}
       <div className="bg-muted/30 border-b">
         <div className="px-4 py-2.5 space-y-2 max-w-2xl mx-auto">
           <div className="flex flex-col gap-1.5">
             <Label className="text-[9px] uppercase font-bold text-muted-foreground tracking-widest flex items-center gap-1 px-1">
-              <Store className="w-2.5 h-2.5" /> SERVICE
+              <Store className="w-2.5 h-2.5" /> SERVICE MODE
             </Label>
             <ScrollArea className="w-full whitespace-nowrap">
               <div className="flex gap-2 pb-1">
-                {seller?.menuTypes?.map((type) => (
-                  <Button 
-                    key={type} 
-                    variant={selectedMenuType === type ? 'default' : 'secondary'} 
-                    size="sm"
-                    onClick={() => setSelectedMenuType(type)} 
-                    className={cn(
-                      "h-8 text-[10px] px-3 rounded-lg font-bold transition-all shadow-sm",
-                      selectedMenuType === type 
-                        ? "bg-primary text-white" 
-                        : "bg-white text-muted-foreground"
-                    )}
-                  >
-                    {type}
-                  </Button>
-                ))}
+                {seller?.menuTypes?.map((type) => {
+                  const Icon = serviceTypeIcons[type] || Store;
+                  const isSelected = selectedMenuType === type;
+                  return (
+                    <Button 
+                      key={type} 
+                      variant={isSelected ? 'default' : 'secondary'} 
+                      size="sm"
+                      onClick={() => setSelectedMenuType(type)} 
+                      className={cn(
+                        "h-8 text-[10px] px-3 rounded-lg font-bold transition-all shadow-sm flex items-center gap-1.5",
+                        isSelected 
+                          ? "bg-primary text-white" 
+                          : "bg-white text-muted-foreground"
+                      )}
+                    >
+                      <Icon className="h-3.5 w-3.5" />
+                      {type}
+                    </Button>
+                  );
+                })}
               </div>
             </ScrollArea>
           </div>
@@ -234,7 +264,6 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
         </div>
       </div>
 
-      {/* Sticky Category Bar - Thin Profile */}
       {isServiceActive && (
         <div className="sticky top-16 z-20 bg-background/90 backdrop-blur-md border-b">
           <div className="px-4 py-2 max-w-2xl mx-auto">
