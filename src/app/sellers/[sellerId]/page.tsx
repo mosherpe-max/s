@@ -1,11 +1,11 @@
 'use client';
 
-import React, { useState, useMemo, useEffect, use } from 'react';
+import React, { useState, useMemo, useEffect, use, useRef } from 'react';
 import { collection, doc, setDoc, deleteDoc, writeBatch, query, where, updateDoc } from 'firebase/firestore';
 import { useFirestore, useDoc, useCollection, useMemoFirebase } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { PlusCircle, Edit, Trash2, Filter, DollarSign, ShoppingBag, Clock, Database, Users, UserPlus, Sparkles, Download, FileSpreadsheet, Save, Loader2, ListChecks, ChevronUp, ChevronDown, Check, MousePointer2, BarChart3, ArrowUp } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, Filter, DollarSign, ShoppingBag, Clock, Database, Users, UserPlus, Sparkles, Download, FileSpreadsheet, Save, Loader2, ListChecks, ChevronUp, ChevronDown, Check, MousePointer2, BarChart3, ArrowUp, Upload } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import {
   AlertDialog,
@@ -212,6 +212,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   const { sellerId } = use(params);
   const firestore = useFirestore();
   const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [isMounted, setIsMounted] = useState(false);
   const [isMasterFormOpen, setIsMasterFormOpen] = useState(false);
@@ -224,6 +225,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   const [editingMember, setEditingMember] = useState<Member | null>(null);
   const [memberToDelete, setMemberToDelete] = useState<Member | null>(null);
   const [isSeeding, setIsSeeding] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
   
   const [masterCategoryFilter, setMasterCategoryFilter] = useState<string>('All');
 
@@ -353,6 +355,68 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     } finally { setIsSeeding(false); }
   };
 
+  const handleCSVImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !firestore) return;
+
+    setIsImporting(true);
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      try {
+        const text = e.target?.result as string;
+        const rows = text.split('\n').filter(row => row.trim().length > 0);
+        if (rows.length < 2) {
+          toast({ variant: 'destructive', title: 'Import Failed', description: 'CSV file must contain a header row and at least one data row.' });
+          setIsImporting(false);
+          return;
+        }
+
+        const batch = writeBatch(firestore);
+        const menuItemsCol = collection(firestore, 'sellers', sellerId, 'menuItems');
+        let importCount = 0;
+
+        // Skip header row
+        for (let i = 1; i < rows.length; i++) {
+          const columns = rows[i].split(',').map(col => col.trim().replace(/^"(.*)"$/, '$1'));
+          if (columns.length < 4) continue;
+
+          const [name, description, priceStr, category] = columns;
+          const price = parseFloat(priceStr);
+
+          if (isNaN(price)) continue;
+          if (!categories.includes(category as Category)) continue;
+
+          const newItemRef = doc(menuItemsCol);
+          batch.set(newItemRef, {
+            id: newItemRef.id,
+            name,
+            description,
+            price,
+            category: category as Category,
+            rank: (menuItems?.length || 0) + i,
+            availableOn: ['Clubhouse'], // Default availability
+            menuRanks: { 'Clubhouse': (menuItems?.length || 0) + i }
+          });
+          importCount++;
+        }
+
+        if (importCount > 0) {
+          await batch.commit();
+          toast({ title: 'Import Successful', description: `Imported ${importCount} items to your Menu Library.` });
+        } else {
+          toast({ variant: 'destructive', title: 'Import Failed', description: 'No valid menu items found in the CSV. Ensure headers match: Name, Description, Price, Category.' });
+        }
+      } catch (err) {
+        console.error('CSV Import Error:', err);
+        toast({ variant: 'destructive', title: 'Import Error', description: 'Failed to process the CSV file.' });
+      } finally {
+        setIsImporting(false);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+      }
+    };
+    reader.readAsText(file);
+  };
+
   const handleSaveMasterItem = (data: MenuItemFormData) => {
     if (!firestore) return;
     const itemRef = editingItem ? doc(firestore, 'sellers', sellerId, 'menuItems', editingItem.id) : doc(collection(firestore, 'sellers', sellerId, 'menuItems'));
@@ -437,6 +501,17 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
             <p className="text-muted-foreground text-sm mt-1">Configure your menus, monitor performance, and manage your inventory.</p>
           </div>
           <div className="flex gap-2">
+             <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} disabled={isImporting}>
+                {isImporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
+                Import Menu CSV
+             </Button>
+             <input 
+                type="file" 
+                ref={fileInputRef} 
+                onChange={handleCSVImport} 
+                accept=".csv" 
+                className="hidden" 
+             />
              <Button variant="outline" size="sm" onClick={handleSeedData} disabled={isSeeding}>
                 <Sparkles className="mr-2 h-4 w-4" />
                 Reset Demo Data
