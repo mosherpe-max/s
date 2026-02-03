@@ -6,27 +6,27 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { Separator } from './ui/separator';
 import { Button } from './ui/button';
-import { Navigation, PartyPopper, ClipboardList, Send } from 'lucide-react';
+import { Navigation, PartyPopper, ClipboardList, Send, CheckCircle2 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { Badge } from './ui/badge';
 import { cn, getDriverColor } from '@/lib/utils';
 
-const getStatusConfig = (status: Order['status'], isBevCart: boolean) => {
+const getStatusConfig = (status: Order['status']) => {
   const config: Record<Order['status'], { label: string, badgeVariant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
     'Placed': {
-      label: isBevCart ? 'ORDER CONFIRMED' : 'PLACED',
-      badgeVariant: 'default'
+      label: 'PENDING',
+      badgeVariant: 'secondary'
     },
     'Preparing': {
-      label: 'PREPARING',
-      badgeVariant: 'secondary'
+      label: 'CONFIRMED',
+      badgeVariant: 'default'
     },
     'Out for Delivery': {
       label: 'OUT FOR DELIVERY',
       badgeVariant: 'outline'
     },
     'Delivered': {
-      label: isBevCart ? 'ORDER DELIVERED' : 'DELIVERED',
+      label: 'DELIVERED',
       badgeVariant: 'default'
     },
     'Cancelled': {
@@ -47,8 +47,7 @@ function getNumericOrderId(id: string) {
 
 export function OrderCard({ order, orderNumber, onUpdateStatus, currentDriverId = 'demo-course' }: { order: Order; orderNumber: number; onUpdateStatus: (id: string, status: Order['status'], driverId?: string) => void; currentDriverId?: string }) {
   const [mounted, setMounted] = useState(false);
-  const isBevCart = order.menuType === 'Beverage Cart';
-  const statusInfo = getStatusConfig(order.status, isBevCart);
+  const statusInfo = getStatusConfig(order.status);
 
   useEffect(() => {
     setMounted(true);
@@ -57,14 +56,6 @@ export function OrderCard({ order, orderNumber, onUpdateStatus, currentDriverId 
   const renderAction = () => {
     switch (order.status) {
       case 'Placed':
-        if (isBevCart) {
-          return (
-            <Button className="w-full font-headline font-bold uppercase text-xs h-12" onClick={() => onUpdateStatus(order.id, 'Out for Delivery', currentDriverId)}>
-              <Navigation className="mr-2 h-4 w-4" />
-              Start Delivery
-            </Button>
-          );
-        }
         return (
           <Button className="w-full font-headline font-bold uppercase text-xs h-12" onClick={() => onUpdateStatus(order.id, 'Preparing', currentDriverId)}>
             <Send className="mr-2 h-4 w-4" />
