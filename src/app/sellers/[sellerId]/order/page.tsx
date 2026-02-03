@@ -88,23 +88,23 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
       case 'Beverage Cart':
       case 'Clubhouse':
         return {
-          text: "Your order will be delivered directly to you on the course.",
-          icon: <MapPin className="h-4 w-4" />
+          text: "Delivery to your location on the course.",
+          icon: <MapPin className="h-3 w-3" />
         };
       case 'Take Out':
         return {
-          text: "Your order will be available for pickup at the Clubhouse.",
-          icon: <ShoppingBasket className="h-4 w-4" />
+          text: "Pickup at the Clubhouse.",
+          icon: <ShoppingBasket className="h-3 w-3" />
         };
       case 'Pool':
         return {
-          text: "Your order will be delivered to your poolside location.",
-          icon: <Info className="h-4 w-4" />
+          text: "Delivery to your poolside location.",
+          icon: <Info className="h-3 w-3" />
         };
       default:
         return {
           text: `Ordering from ${selectedMenuType}.`,
-          icon: <Store className="h-4 w-4" />
+          icon: <Store className="h-3 w-3" />
         };
     }
   }, [selectedMenuType]);
@@ -197,64 +197,58 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
-      {/* Service Selection Bar - Distinct from Header */}
-      <div className="bg-muted/50 border-b shadow-inner">
-        <div className="px-4 py-4 space-y-4 max-w-2xl mx-auto">
-          <div className="flex flex-col gap-2">
-            <Label className="text-[10px] uppercase font-bold text-muted-foreground tracking-[0.2em] flex items-center gap-1.5 px-1">
-              <Store className="w-3 h-3" /> CHOOSE YOUR SERVICE
+      {/* Tight Service Selection Bar */}
+      <div className="bg-muted/30 border-b">
+        <div className="px-4 py-2.5 space-y-2 max-w-2xl mx-auto">
+          <div className="flex flex-col gap-1.5">
+            <Label className="text-[9px] uppercase font-bold text-muted-foreground tracking-widest flex items-center gap-1 px-1">
+              <Store className="w-2.5 h-2.5" /> SERVICE
             </Label>
-            <div className="flex flex-wrap gap-2">
-              {seller?.menuTypes?.map((type) => (
-                <Button 
-                  key={type} 
-                  variant={selectedMenuType === type ? 'default' : 'secondary'} 
-                  size="sm"
-                  onClick={() => setSelectedMenuType(type)} 
-                  className={cn(
-                    "h-10 text-xs px-5 rounded-xl font-bold transition-all duration-300 shadow-sm",
-                    selectedMenuType === type 
-                      ? "bg-primary text-white scale-105 shadow-md" 
-                      : "bg-white text-muted-foreground hover:bg-white hover:shadow"
-                  )}
-                >
-                  {type}
-                </Button>
-              ))}
-            </div>
+            <ScrollArea className="w-full whitespace-nowrap">
+              <div className="flex gap-2 pb-1">
+                {seller?.menuTypes?.map((type) => (
+                  <Button 
+                    key={type} 
+                    variant={selectedMenuType === type ? 'default' : 'secondary'} 
+                    size="sm"
+                    onClick={() => setSelectedMenuType(type)} 
+                    className={cn(
+                      "h-8 text-[10px] px-3 rounded-lg font-bold transition-all shadow-sm",
+                      selectedMenuType === type 
+                        ? "bg-primary text-white" 
+                        : "bg-white text-muted-foreground"
+                    )}
+                  >
+                    {type}
+                  </Button>
+                ))}
+              </div>
+            </ScrollArea>
           </div>
 
-          <div className="bg-white rounded-xl p-3 border border-primary/10 shadow-sm flex items-center gap-3 animate-in fade-in slide-in-from-top-1">
-            <div className="bg-primary/10 p-2 rounded-full text-primary">
+          <div className="bg-white/80 rounded-md p-1.5 border border-primary/5 flex items-center gap-2 animate-in fade-in">
+            <div className="text-primary">
               {serviceInstructions.icon}
             </div>
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-wider text-primary/70 leading-none mb-1">Service Instructions</p>
-              <p className="text-xs font-medium text-foreground">{serviceInstructions.text}</p>
-            </div>
+            <p className="text-[10px] font-medium text-foreground leading-tight">{serviceInstructions.text}</p>
           </div>
         </div>
       </div>
 
-      {/* Category Selection Bar - Sticky */}
-      <div className="sticky top-16 z-20 bg-background/95 backdrop-blur-md border-b shadow-sm">
-        <div className="px-4 py-3 max-w-2xl mx-auto">
+      {/* Sticky Category Bar - Thin Profile */}
+      <div className="sticky top-16 z-20 bg-background/90 backdrop-blur-md border-b">
+        <div className="px-4 py-2 max-w-2xl mx-auto">
           {!isLoading && !isServiceActive && (
-            <Alert variant="destructive" className="bg-destructive/10 border-destructive/20 py-2 mb-3">
-              <div className="flex items-center gap-3">
-                <ShieldAlert className="h-4 w-4" />
-                <div>
-                  <AlertTitle className="text-[10px] font-bold uppercase tracking-widest leading-none mb-0.5">Service Currently Offline</AlertTitle>
-                  <AlertDescription className="text-[10px] opacity-80 leading-tight">
-                    The {selectedMenuType} is not accepting orders right now.
-                  </AlertDescription>
-                </div>
-              </div>
-            </Alert>
+            <div className="bg-destructive/10 border-destructive/20 p-1 rounded-md mb-2 flex items-center gap-2">
+                <ShieldAlert className="h-3 w-3 text-destructive" />
+                <p className="text-[9px] font-bold text-destructive uppercase tracking-widest">
+                  {selectedMenuType} OFFLINE
+                </p>
+            </div>
           )}
 
           <ScrollArea className="w-full whitespace-nowrap">
-            <div className="flex gap-2 pb-1">
+            <div className="flex gap-1.5">
               {currentCategories.map((cat) => {
                 const Icon = categoryIcons[cat];
                 const isSelected = selectedCategory === cat;
@@ -265,11 +259,11 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
                     size="sm"
                     onClick={() => setSelectedCategory(cat)} 
                     className={cn(
-                      "h-8 text-xs px-4 rounded-full transition-all duration-300",
-                      isSelected ? "bg-[#213147] text-white" : "text-muted-foreground hover:bg-muted"
+                      "h-7 text-[9px] px-2.5 rounded-full font-bold uppercase tracking-wider",
+                      isSelected ? "bg-[#213147] text-white" : "text-muted-foreground"
                     )}
                   >
-                    <Icon className="mr-2 h-3.5 w-3.5" />
+                    <Icon className="mr-1 h-3 w-3" />
                     {cat}
                   </Button>
                 );
@@ -279,16 +273,12 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
         </div>
       </div>
 
-      <main className="flex-1 px-4 pt-4 pb-24 max-w-2xl mx-auto w-full">
-        <div className="flex items-center gap-2 mb-6 px-1">
-          <h2 className="font-headline text-xl font-bold uppercase tracking-tight text-foreground">{selectedMenuType} Menu</h2>
-          <div className="h-px bg-muted flex-1" />
-        </div>
-
+      <main className="flex-1 px-4 pt-3 pb-24 max-w-2xl mx-auto w-full">
         {isLoading ? (
-          <div className="space-y-4">
-            <Skeleton className="h-24 w-full rounded-xl" />
-            <Skeleton className="h-24 w-full rounded-xl" />
+          <div className="space-y-3">
+            <Skeleton className="h-20 w-full rounded-lg" />
+            <Skeleton className="h-20 w-full rounded-lg" />
+            <Skeleton className="h-20 w-full rounded-lg" />
           </div>
         ) : (
           <BuyerMenu 
@@ -302,49 +292,49 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
 
       <Sheet open={isCartOpen} onOpenChange={setIsCartOpen}>
         {activeOrderItems.length > 0 && (
-          <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/10 backdrop-blur-md border-t z-30 shadow-[0_-4px_20px_rgba(0,0,0,0.1)]">
+          <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/10 backdrop-blur-md border-t z-30 shadow-lg">
             <SheetTrigger asChild>
               <Button 
                 size="lg" 
-                className="w-full text-lg h-14 shadow-2xl font-headline font-black uppercase tracking-widest transition-all duration-300 hover:scale-[1.02] bg-primary"
+                className="w-full text-base h-12 shadow-xl font-headline font-black uppercase tracking-widest bg-primary"
               >
-                View Order ({totalItems}) • ${(total || 0).toFixed(2)}
+                Order ({totalItems}) • ${(total || 0).toFixed(2)}
               </Button>
             </SheetTrigger>
           </div>
         )}
-        <SheetContent side="bottom" className="rounded-t-3xl max-h-[90vh] flex flex-col p-0 border-t-2 shadow-2xl overflow-hidden">
-          <SheetHeader className="px-6 py-5 border-b bg-muted/20">
-            <SheetTitle className="font-headline font-black uppercase text-center tracking-tighter">Review Your Order</SheetTitle>
+        <SheetContent side="bottom" className="rounded-t-2xl max-h-[85vh] flex flex-col p-0 border-t-2 shadow-2xl overflow-hidden">
+          <SheetHeader className="px-6 py-4 border-b bg-muted/20">
+            <SheetTitle className="font-headline font-black uppercase text-center text-sm tracking-tight">Review Your Order</SheetTitle>
           </SheetHeader>
           <ScrollArea className="flex-1 px-6">
-            <div className="py-8 space-y-8">
+            <div className="py-6 space-y-6">
               <OrderSummary items={activeOrderItems} serviceFee={seller?.serviceFee} />
               
-              <div className="space-y-4">
-                  <h3 className="font-black text-[10px] uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
-                      <Banknote className="w-4 h-4" /> PAYMENT INFORMATION
+              <div className="space-y-3">
+                  <h3 className="font-black text-[9px] uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                      <Banknote className="w-3 h-3" /> PAYMENT
                   </h3>
-                  <div className="p-5 bg-muted/30 rounded-2xl border-2 border-dashed flex items-center gap-4">
-                    <div className="p-3 bg-white rounded-full shadow-sm">
-                        <CreditCard className="w-5 h-5 text-primary" />
+                  <div className="p-4 bg-muted/30 rounded-xl border-2 border-dashed flex items-center gap-3">
+                    <div className="p-2 bg-white rounded-full shadow-sm">
+                        <CreditCard className="w-4 h-4 text-primary" />
                     </div>
                     <div>
-                        <p className="text-sm font-black uppercase">Pay at Delivery</p>
-                        <p className="text-xs text-muted-foreground font-medium">
+                        <p className="text-xs font-black uppercase">Pay at Delivery</p>
+                        <p className="text-[10px] text-muted-foreground font-medium">
                             {selectedMenuType === 'Beverage Cart' 
                                 ? 'Cash or Card to Cart Operator' 
-                                : 'Pay at pickup/delivery location'}
+                                : 'Pay at delivery location'}
                         </p>
                     </div>
                   </div>
               </div>
             </div>
           </ScrollArea>
-          <SheetFooter className="p-6 bg-white border-t">
+          <SheetFooter className="p-4 bg-white border-t">
             <Button 
               size="lg" 
-              className="w-full text-lg font-black h-16 font-headline shadow-2xl uppercase tracking-widest transition-all duration-300 hover:scale-[1.02] bg-primary" 
+              className="w-full text-base font-black h-14 font-headline shadow-xl uppercase tracking-widest bg-primary" 
               onClick={handlePlaceOrder} 
               disabled={isPlacingOrder || !isServiceActive}
             >
