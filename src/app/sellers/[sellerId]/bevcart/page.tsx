@@ -1,3 +1,4 @@
+
 'use client';
 
 import { collection, query, where, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
@@ -180,7 +181,7 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
       }
     };
 
-    const intervalId = setInterval(syncLocation, 30000);
+    const intervalId = setInterval(syncLocation, 15000); // Updated to 15s for more responsive tracking
     return () => clearInterval(intervalId);
   }, [firestore, isBevCartActive, sellerId]);
 

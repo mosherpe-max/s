@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Suspense, useEffect, useRef, useState } from 'react';
@@ -108,9 +109,9 @@ function OrderTrackingContent() {
 
     if (order?.status === 'Out for Delivery') {
       setIsTrackingActive(true);
-      // Update immediately then every 15s
+      // Update immediately then every 10s (Optimized from 15s)
       updateLocation();
-      locationIntervalRef.current = setInterval(updateLocation, 15000);
+      locationIntervalRef.current = setInterval(updateLocation, 10000);
     } else {
       setIsTrackingActive(false);
       if (locationIntervalRef.current) {

@@ -1,3 +1,4 @@
+
 'use client';
 
 import { collection, query, where, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
@@ -29,6 +30,7 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
   const firestore = useFirestore();
   const { toast } = useToast();
   const [sellerLocation, setSellerLocation] = useState<LatLng | null>(null);
+  const sellerLocRef = useRef<LatLng | null>(null);
   const [zoomMode, setZoomMode] = useState<'radius' | 'all'>('radius');
   const [fitTrigger, setFitTrigger] = useState<number>(0);
   const [now, setNow] = useState<number | null>(null);
@@ -121,6 +123,10 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
   }, []);
 
   useEffect(() => {
+    sellerLocRef.current = sellerLocation;
+  }, [sellerLocation]);
+
+  useEffect(() => {
     if (navigator.geolocation) {
       const watchId = navigator.geolocation.watchPosition(
         (position) => {
@@ -143,6 +149,24 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
       setSellerLocation(mockSellerLocation);
     }
   }, []);
+
+  useEffect(() => {
+    if (!firestore || !isClubhouseActive || !sellerId) return;
+
+    const syncLocation = async () => {
+      if (sellerLocRef.current) {
+        const sellerDocRef = doc(firestore, 'sellers', sellerId);
+        updateDoc(sellerDocRef, {
+          latitude: sellerLocRef.current.latitude,
+          longitude: sellerLocRef.current.longitude,
+          lastActive: serverTimestamp()
+        }).catch(() => {});
+      }
+    };
+
+    const intervalId = setInterval(syncLocation, 15000); // Sync every 15s
+    return () => clearInterval(intervalId);
+  }, [firestore, isClubhouseActive, sellerId]);
 
   const handleUpdateOrderStatus = (orderId: string, status: Order['status'], driverId?: string) => {
     if (!firestore) return;
@@ -167,7 +191,10 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
   const handleToggleActive = (checked: boolean) => {
     if (!firestore || !sellerId) return;
     const sellerDocRef = doc(firestore, 'sellers', sellerId);
-    const updates = { clubhouseActive: checked };
+    const updates = { 
+        clubhouseActive: checked,
+        lastActive: checked ? serverTimestamp() : null
+    };
     updateDoc(sellerDocRef, updates)
       .catch(async () => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({
