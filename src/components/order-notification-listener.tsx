@@ -5,13 +5,13 @@ import { collection, query, orderBy, limit } from 'firebase/firestore';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import type { Order } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
-import { Navigation, CheckCircle2, PartyPopper, BellRing } from 'lucide-react';
+import { Navigation, CheckCircle2 } from 'lucide-react';
 import { ToastAction } from '@/components/ui/toast';
 import { useRouter } from 'next/navigation';
 
 /**
  * A global listener that monitors the most recent order status for the buyer.
- * Displays toast notifications for key milestones: Confirmed, Out for Delivery, and Delivered.
+ * Displays toast notifications for key milestones: Confirmed and Out for Delivery.
  */
 export function OrderNotificationListener() {
   const firestore = useFirestore();
@@ -85,19 +85,6 @@ export function OrderNotificationListener() {
               </div>
             ),
             description: 'The driver is out for delivery. Watch the map for their live location.',
-            action: trackAction,
-          });
-          break;
-
-        case 'Delivered':
-          toast({
-            title: (
-              <div className="flex items-center gap-2">
-                <PartyPopper className="h-5 w-5 text-orange-500" />
-                <span className="font-headline font-bold uppercase">Order Arrived</span>
-              </div>
-            ),
-            description: 'Your refreshments have been delivered. Enjoy your round!',
             action: trackAction,
           });
           break;
