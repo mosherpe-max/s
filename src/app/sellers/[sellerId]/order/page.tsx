@@ -22,7 +22,6 @@ import {
   Store, 
   Banknote, 
   ShieldAlert, 
-  Info, 
   MapPin, 
   ShoppingBasket, 
   Clock,
@@ -30,12 +29,12 @@ import {
   Building,
   Waves,
   Home,
-  Utensils
+  Utensils,
+  ArrowUp
 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useCart } from '@/lib/cart-context';
 import { Label } from '@/components/ui/label';
-import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 
 const serviceTypeIcons: Record<string, any> = {
@@ -55,15 +54,27 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
   const { toast } = useToast();
   const { orderItems, updateItem, isCartOpen, setIsCartOpen, total, totalItems, clearCart } = useCart();
 
-  const [selectedCategory, setSelectedCategory] = useState<Category>(categories[0]);
   const [selectedMenuType, setSelectedMenuType] = useState<string>('');
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
+  const [showBackToTop, setShowBackToTop] = useState(false);
 
   const sellerRef = useMemoFirebase(() => (firestore ? doc(firestore, 'sellers', sellerId) : null), [firestore, sellerId]);
   const { data: seller, isLoading: isSellerLoading } = useDoc<Seller>(sellerRef);
 
   const menuItemsQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'sellers', sellerId, 'menuItems') : null), [firestore, sellerId]);
   const { data: menuItems, isLoading: areItemsLoading } = useCollection<MenuItem>(menuItemsQuery);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setShowBackToTop(window.scrollY > 400);
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   const filteredMenuItems = useMemo(() => {
     if (!menuItems) return [];
@@ -82,12 +93,6 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
     }
     return categories as unknown as Category[];
   }, [selectedMenuType]);
-
-  useEffect(() => {
-    if (currentCategories.length > 0 && !currentCategories.includes(selectedCategory)) {
-      setSelectedCategory(currentCategories[0]);
-    }
-  }, [currentCategories, selectedCategory]);
 
   useEffect(() => {
     if (seller?.menuTypes && seller.menuTypes.length > 0 && !selectedMenuType) {
@@ -134,6 +139,14 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
         };
     }
   }, [selectedMenuType]);
+
+  const handleJumpToCategory = (cat: string) => {
+    const id = cat.toLowerCase().replace(/\s+/g, '-');
+    const element = document.getElementById(id);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
 
   const handlePlaceOrder = async () => {
     try {
@@ -221,7 +234,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
   if (!isLoading && !seller) return <div className="p-8 text-center text-muted-foreground"><h2>Seller Not Found</h2></div>;
 
   return (
-    <div className="flex flex-col min-h-screen bg-background">
+    <div className="flex flex-col min-h-screen bg-background relative">
       <div className="bg-muted/30 border-b">
         <div className="px-4 py-2.5 space-y-2 max-w-2xl mx-auto">
           <div className="flex flex-col gap-1.5">
@@ -265,23 +278,19 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
       </div>
 
       {isServiceActive && (
-        <div className="sticky top-16 z-20 bg-background/90 backdrop-blur-md border-b">
+        <div className="sticky top-16 z-20 bg-background/95 backdrop-blur-md border-b shadow-sm">
           <div className="px-4 py-2 max-w-2xl mx-auto">
             <ScrollArea className="w-full whitespace-nowrap">
               <div className="flex gap-1.5">
                 {currentCategories.map((cat) => {
                   const Icon = categoryIcons[cat];
-                  const isSelected = selectedCategory === cat;
                   return (
                     <Button 
                       key={cat} 
-                      variant={isSelected ? 'default' : 'ghost'} 
+                      variant="ghost" 
                       size="sm"
-                      onClick={() => setSelectedCategory(cat)} 
-                      className={cn(
-                        "h-7 text-[9px] px-2.5 rounded-full font-bold uppercase tracking-wider",
-                        isSelected ? "bg-[#213147] text-white" : "text-muted-foreground"
-                      )}
+                      onClick={() => handleJumpToCategory(cat)} 
+                      className="h-7 text-[9px] px-2.5 rounded-full font-bold uppercase tracking-wider text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors"
                     >
                       <Icon className="mr-1 h-3 w-3" />
                       {cat}
@@ -294,7 +303,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
         </div>
       )}
 
-      <main className="flex-1 px-4 pt-3 pb-32 max-w-2xl mx-auto w-full">
+      <main className="flex-1 px-4 pt-6 pb-32 max-w-2xl mx-auto w-full">
         {isLoading ? (
           <div className="space-y-3">
             <Skeleton className="h-20 w-full rounded-lg" />
@@ -333,11 +342,23 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
           <BuyerMenu 
             orderItems={orderItems} 
             onUpdateItem={updateItem} 
-            selectedCategory={selectedCategory} 
+            currentCategories={currentCategories} 
             menuItems={filteredMenuItems} 
           />
         )}
       </main>
+
+      {/* Floating Back to Top Button */}
+      {showBackToTop && (
+        <Button
+          variant="secondary"
+          size="icon"
+          className="fixed bottom-32 right-6 rounded-full shadow-lg z-30 animate-in fade-in slide-in-from-bottom-4 border-2 border-primary/20 h-10 w-10 bg-background/90 backdrop-blur-sm hover:scale-110 transition-transform"
+          onClick={scrollToTop}
+        >
+          <ArrowUp className="h-5 w-5 text-primary" />
+        </Button>
+      )}
 
       <Sheet open={isCartOpen} onOpenChange={setIsCartOpen}>
         {isServiceActive && activeOrderItems.length > 0 && (
