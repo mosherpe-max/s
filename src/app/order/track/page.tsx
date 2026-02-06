@@ -15,7 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { PartyPopper, ShoppingBag, MapPin, Loader2, ArrowLeft, Store, ClipboardList, Satellite, ShieldCheck } from 'lucide-react';
+import { PartyPopper, ShoppingBag, MapPin, Loader2, ArrowLeft, Store, ClipboardList, Satellite } from 'lucide-react';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 
 function getNumericOrderId(id: string) {
@@ -58,7 +58,7 @@ function OrderTrackingContent() {
 
   const { data: seller, isLoading: isLoadingSeller } = useDoc<Seller>(sellerRef);
 
-  // Wake Lock Management
+  // Wake Lock Management - Optimized for battery
   useEffect(() => {
     const requestWakeLock = async () => {
       if ('wakeLock' in navigator && !wakeLockRef.current) {
@@ -77,7 +77,7 @@ function OrderTrackingContent() {
       }
     };
 
-    if (order && order.status !== 'Delivered' && order.status !== 'Cancelled') {
+    if (order && order.status === 'Out for Delivery') {
       requestWakeLock();
     } else {
       releaseWakeLock();
@@ -88,7 +88,7 @@ function OrderTrackingContent() {
     };
   }, [order?.status]);
 
-  // GPS Tracking Management
+  // GPS Tracking Management - Balanced 15s interval for battery
   useEffect(() => {
     const updateLocation = () => {
       if (!navigator.geolocation || !order || !firestore) return;
@@ -100,18 +100,19 @@ function OrderTrackingContent() {
             longitude: position.coords.longitude,
           };
           const orderDocRef = doc(firestore, 'orders', order.id);
+          // Non-blocking update
           updateDoc(orderDocRef, { deliveryLocation: newLocation }).catch(() => {});
         },
         (error) => console.warn('GPS Update Failed:', error),
-        { enableHighAccuracy: true }
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
       );
     };
 
     if (order?.status === 'Out for Delivery') {
       setIsTrackingActive(true);
-      // Update immediately then every 10s (Optimized from 15s)
       updateLocation();
-      locationIntervalRef.current = setInterval(updateLocation, 10000);
+      // Balanced at 15s to prevent buyer phone battery drain
+      locationIntervalRef.current = setInterval(updateLocation, 15000);
     } else {
       setIsTrackingActive(false);
       if (locationIntervalRef.current) {
@@ -162,7 +163,7 @@ function OrderTrackingContent() {
             <MapView
               sellerLocation={{ latitude: seller.latitude, longitude: seller.longitude }}
               buyerLocation={order.deliveryLocation}
-              interactive={false}
+              interactive={true}
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center bg-muted"><MapPin className="animate-bounce h-8 w-8 text-muted-foreground" /></div>
@@ -199,7 +200,7 @@ function OrderTrackingContent() {
                 <Satellite className="h-5 w-5 text-white animate-pulse" />
                 <AlertTitle className="text-xs font-bold uppercase tracking-[0.2em] mb-0.5">Live Location Active</AlertTitle>
                 <AlertDescription className="text-[11px] opacity-90 leading-tight">
-                  Driver is using your GPS to find you on the course.
+                  The driver is using your location to find you on the course.
                 </AlertDescription>
               </Alert>
           </div>
