@@ -1,4 +1,3 @@
-
 'use client';
 
 import { Suspense, useEffect, useRef, useState } from 'react';
@@ -17,6 +16,7 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { PartyPopper, ShoppingBag, MapPin, Loader2, ArrowLeft, Store, ClipboardList, Satellite } from 'lucide-react';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
+import { IosInstallPrompt } from '@/components/ios-install-prompt';
 
 function getNumericOrderId(id: string) {
   let hash = 0;
@@ -121,6 +121,7 @@ function OrderTrackingContent() {
     if (order?.status === 'Out for Delivery') {
       setIsTrackingActive(true);
       updateLocation();
+      // Reduced interval to 15s as discussed for battery/performance balance
       locationIntervalRef.current = setInterval(updateLocation, 15000);
     } else {
       setIsTrackingActive(false);
@@ -170,7 +171,9 @@ function OrderTrackingContent() {
 
   return (
     <div className="flex flex-col min-h-[calc(100vh-4rem)] bg-muted/10">
-      
+      {/* iOS Safari specific install prompt */}
+      <IosInstallPrompt />
+
       {!isDelivered && (
         <div className="h-[40vh] relative shadow-inner overflow-hidden border-b-2">
           {mapSellerLocation && mapBuyerLocation ? (
