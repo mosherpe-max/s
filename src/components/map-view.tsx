@@ -71,7 +71,8 @@ function MapElements({ buyerLocation, sellerLocation, sellers, buyers, radius, z
 
     } else if (sellerLocation) {
       map.setCenter({ lat: sellerLocation.latitude, lng: sellerLocation.longitude });
-      map.setZoom(17);
+      // Zoom 15 is roughly a 1-mile radius view on satellite maps
+      map.setZoom(15);
     }
 
   }, [map, buyerLocation, sellerLocation, sellers, buyers, zoomMode]);
@@ -80,11 +81,11 @@ function MapElements({ buyerLocation, sellerLocation, sellers, buyers, radius, z
     if (!map || !radius || !sellerLocation) return;
 
     const circle = new window.google.maps.Circle({
-      strokeColor: "hsl(var(--accent))",
-      strokeOpacity: 0.8,
-      strokeWeight: 2,
-      fillColor: "hsl(var(--accent))",
-      fillOpacity: 0.2,
+      strokeColor: "#E50000",
+      strokeOpacity: 0.6,
+      strokeWeight: 1,
+      fillColor: "#E50000",
+      fillOpacity: 0.1,
       map,
       center: { lat: sellerLocation.latitude, lng: sellerLocation.longitude },
       radius: radius,

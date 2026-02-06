@@ -30,7 +30,7 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
   const { toast } = useToast();
   const [sellerLocation, setSellerLocation] = useState<LatLng | null>(null);
   const sellerLocRef = useRef<LatLng | null>(null);
-  const [zoomMode, setZoomMode] = useState<'radius' | 'all'>('all');
+  const [zoomMode, setZoomMode] = useState<'radius' | 'all'>('radius');
   const [now, setNow] = useState<number | null>(null);
   
   const lastOrderIdsRef = useRef<Set<string>>(new Set());
@@ -305,8 +305,8 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
               <span className="truncate mr-2">Your Active Orders</span>
               <span className="bg-[#E50000] text-white text-[10px] rounded-full px-2 py-0.5 shrink-0">{driverOrders.length}</span>
             </h2>
-            <ScrollArea className="flex-1 w-full">
-              <div className="p-2.5 space-y-3 pb-12">
+            <ScrollArea className="flex-1 w-full px-2">
+              <div className="py-2.5 space-y-3 pb-12">
                 {isLoading ? (
                   <div className="space-y-3">{[...Array(3)].map((_, i) => <Skeleton key={i} className="h-40 w-full" />)}</div>
                 ) : driverOrders.length === 0 ? (
