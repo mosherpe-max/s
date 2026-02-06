@@ -36,9 +36,10 @@ interface MapViewProps {
   radius?: number; // in meters
   zoomMode?: 'radius' | 'all';
   interactive?: boolean;
+  fitTrigger?: number; // A value that triggers a re-fit when changed
 }
 
-function MapElements({ buyerLocation, sellerLocation, sellers, buyers, radius, zoomMode = 'all' }: Omit<MapViewProps, 'interactive'>) {
+function MapElements({ buyerLocation, sellerLocation, sellers, buyers, radius, zoomMode = 'all', fitTrigger }: Omit<MapViewProps, 'interactive'>) {
   const map = useMap();
 
   useEffect(() => {
@@ -75,7 +76,7 @@ function MapElements({ buyerLocation, sellerLocation, sellers, buyers, radius, z
       map.setZoom(15);
     }
 
-  }, [map, buyerLocation, sellerLocation, sellers, buyers, zoomMode]);
+  }, [map, zoomMode, fitTrigger]); // Only re-fit camera when map is ready, mode changes, or explicit trigger
 
   useEffect(() => {
     if (!map || !radius || !sellerLocation) return;
@@ -94,14 +95,14 @@ function MapElements({ buyerLocation, sellerLocation, sellers, buyers, radius, z
     return () => {
       circle.setMap(null);
     };
-  }, [map, sellerLocation, radius]);
+  }, [map, sellerLocation, radius]); // Circle follows location, but doesn't move camera
 
 
   return null;
 }
 
 
-export function MapView({ buyerLocation, sellerLocation, showPrimaryMarker = true, primaryDriverId = 'demo-course', sellers, buyers, radius, zoomMode, interactive = true }: MapViewProps) {
+export function MapView({ buyerLocation, sellerLocation, showPrimaryMarker = true, primaryDriverId = 'demo-course', sellers, buyers, radius, zoomMode, interactive = true, fitTrigger }: MapViewProps) {
   const center = buyerLocation ? { lat: buyerLocation.latitude, lng: buyerLocation.longitude } : (sellerLocation ? { lat: sellerLocation.latitude, lng: sellerLocation.longitude } : { lat: 0, lng: 0 });
 
   return (
@@ -118,7 +119,15 @@ export function MapView({ buyerLocation, sellerLocation, showPrimaryMarker = tru
         streetViewControl={false}
         fullscreenControl={false}
       >
-        <MapElements sellerLocation={sellerLocation} buyerLocation={buyerLocation} sellers={sellers} buyers={buyers} radius={radius} zoomMode={zoomMode} />
+        <MapElements 
+          sellerLocation={sellerLocation} 
+          buyerLocation={buyerLocation} 
+          sellers={sellers} 
+          buyers={buyers} 
+          radius={radius} 
+          zoomMode={zoomMode} 
+          fitTrigger={fitTrigger}
+        />
 
         {/* Render all Sellers (Drivers) */}
         {sellers && sellers.map(s => {

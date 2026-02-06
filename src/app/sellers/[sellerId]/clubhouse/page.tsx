@@ -30,6 +30,7 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
   const { toast } = useToast();
   const [sellerLocation, setSellerLocation] = useState<LatLng | null>(null);
   const [zoomMode, setZoomMode] = useState<'radius' | 'all'>('radius');
+  const [fitTrigger, setFitTrigger] = useState<number>(0);
   const [now, setNow] = useState<number | null>(null);
   
   const lastOrderIdsRef = useRef<Set<string>>(new Set());
@@ -200,6 +201,11 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
     });
   }, [activeOrders, now]);
 
+  const handleFocusClick = () => {
+    setZoomMode(current => (current === 'radius' ? 'all' : 'radius'));
+    setFitTrigger(prev => prev + 1);
+  };
+
   const isLoading = areActiveOrdersLoading || isPrimaryLoading;
 
   if (!isPrimaryLoading && !primarySeller) {
@@ -233,11 +239,19 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
           </div>
         </header>
 
-        <div className="flex-1 flex flex-col md:flex-row overflow-hidden min-h-0 p-3 gap-3">
+        <div className="flex-1 flex flex-col md:flex-row overflow-hidden min-h-0 p-4 gap-4">
           <div className="relative w-full md:w-2/3 h-[40vh] md:h-full bg-muted shrink-0 md:shrink rounded-xl overflow-hidden border-2 shadow-sm">
-           <Button variant="outline" size="icon" className="absolute top-2 right-2 z-10 bg-background/80 hover:bg-background h-8 w-8" onClick={() => setZoomMode(current => (current === 'radius' ? 'all' : 'radius'))}><Focus className="h-4 w-4" /></Button>
+           <Button variant="outline" size="icon" className="absolute top-2 right-2 z-10 bg-background/80 hover:bg-background h-8 w-8" onClick={handleFocusClick}><Focus className="h-4 w-4" /></Button>
             {sellerLocation ? (
-              <MapView sellerLocation={sellerLocation} buyers={mappedBuyers} radius={1609.34} zoomMode={zoomMode} showPrimaryMarker={isClubhouseActive} primaryDriverId={sellerId} />
+              <MapView 
+                sellerLocation={sellerLocation} 
+                buyers={mappedBuyers} 
+                radius={1609.34} 
+                zoomMode={zoomMode} 
+                fitTrigger={fitTrigger}
+                showPrimaryMarker={isClubhouseActive} 
+                primaryDriverId={sellerId} 
+              />
             ) : <Skeleton className="w-full h-full" />}
           </div>
           <div className="w-full md:w-1/3 flex flex-col bg-background border-2 rounded-xl overflow-hidden min-h-0 shadow-sm">
