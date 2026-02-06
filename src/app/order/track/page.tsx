@@ -31,6 +31,7 @@ function OrderTrackingContent() {
   const searchParams = useSearchParams();
   const orderId = searchParams.get('id');
   const [isTrackingActive, setIsTrackingActive] = useState(false);
+  const [initialLocations, setInitialLocations] = useState<{ buyer: { latitude: number, longitude: number }, seller: { latitude: number, longitude: number } } | null>(null);
   
   const wakeLockRef = useRef<any>(null);
   const locationIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -58,7 +59,17 @@ function OrderTrackingContent() {
 
   const { data: seller, isLoading: isLoadingSeller } = useDoc<Seller>(sellerRef);
 
-  // Wake Lock Management - Optimized for battery
+  // Capture initial locations for the "frozen" state
+  useEffect(() => {
+    if (order && seller && !initialLocations) {
+      setInitialLocations({
+        buyer: order.deliveryLocation,
+        seller: { latitude: seller.latitude, longitude: seller.longitude }
+      });
+    }
+  }, [order, seller, initialLocations]);
+
+  // Wake Lock Management
   useEffect(() => {
     const requestWakeLock = async () => {
       if ('wakeLock' in navigator && !wakeLockRef.current) {
@@ -88,7 +99,7 @@ function OrderTrackingContent() {
     };
   }, [order?.status]);
 
-  // GPS Tracking Management - Balanced 15s interval for battery
+  // GPS Tracking Management - Only active when "Out for Delivery"
   useEffect(() => {
     const updateLocation = () => {
       if (!navigator.geolocation || !order || !firestore) return;
@@ -100,7 +111,6 @@ function OrderTrackingContent() {
             longitude: position.coords.longitude,
           };
           const orderDocRef = doc(firestore, 'orders', order.id);
-          // Non-blocking update
           updateDoc(orderDocRef, { deliveryLocation: newLocation }).catch(() => {});
         },
         (error) => console.warn('GPS Update Failed:', error),
@@ -111,7 +121,6 @@ function OrderTrackingContent() {
     if (order?.status === 'Out for Delivery') {
       setIsTrackingActive(true);
       updateLocation();
-      // Balanced at 15s to prevent buyer phone battery drain
       locationIntervalRef.current = setInterval(updateLocation, 15000);
     } else {
       setIsTrackingActive(false);
@@ -151,18 +160,23 @@ function OrderTrackingContent() {
   }
 
   const isDelivered = order.status === 'Delivered';
+  const isOutForDelivery = order.status === 'Out for Delivery';
   const brandColor = seller?.brandColor || 'hsl(var(--primary))';
   const numericId = getNumericOrderId(order.id);
+
+  // Decide whether to show live or static (frozen) locations
+  const mapBuyerLocation = isOutForDelivery ? order.deliveryLocation : initialLocations?.buyer;
+  const mapSellerLocation = isOutForDelivery ? { latitude: seller?.latitude || 0, longitude: seller?.longitude || 0 } : initialLocations?.seller;
 
   return (
     <div className="flex flex-col min-h-[calc(100vh-4rem)] bg-muted/10">
       
       {!isDelivered && (
         <div className="h-[40vh] relative shadow-inner overflow-hidden border-b-2">
-          {seller && order ? (
+          {mapSellerLocation && mapBuyerLocation ? (
             <MapView
-              sellerLocation={{ latitude: seller.latitude, longitude: seller.longitude }}
-              buyerLocation={order.deliveryLocation}
+              sellerLocation={mapSellerLocation}
+              buyerLocation={mapBuyerLocation}
               interactive={true}
             />
           ) : (
@@ -194,7 +208,7 @@ function OrderTrackingContent() {
             </Card>
         )}
 
-        {isTrackingActive && !isDelivered && (
+        {isTrackingActive && isOutForDelivery && (
           <div className="px-1">
              <Alert className="bg-primary/95 text-white border-none shadow-xl backdrop-blur-md py-3 rounded-xl">
                 <Satellite className="h-5 w-5 text-white animate-pulse" />
