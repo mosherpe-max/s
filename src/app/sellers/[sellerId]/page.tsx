@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useMemo, useEffect, use, useRef } from 'react';
@@ -5,18 +6,8 @@ import { collection, doc, setDoc, deleteDoc, writeBatch, query, where, updateDoc
 import { useFirestore, useDoc, useCollection, useMemoFirebase } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { PlusCircle, Edit, Trash2, DollarSign, ShoppingBag, Clock, Database, Users, Sparkles, FileSpreadsheet, Loader2, ListChecks, Check, BarChart3, ArrowUp, Settings2, UserPlus, ShieldCheck } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, Database, Users, Sparkles, FileSpreadsheet, Loader2, ListChecks, Check, BarChart3, ArrowUp, Settings2, UserPlus, GripVertical } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useForm } from 'react-hook-form';
@@ -38,6 +29,23 @@ import { cn } from '@/lib/utils';
 import { isToday, isThisMonth, isThisYear } from 'date-fns';
 import * as XLSX from 'xlsx';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { 
+  DndContext, 
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 import type { MenuItem, Seller, Category, Order, Member } from '@/lib/types';
 import { categories } from '@/lib/types';
@@ -65,8 +73,7 @@ type MemberFormData = z.infer<typeof memberSchema>;
 const getCategoriesForMenu = (menuType: string): Category[] => {
   const bevCartCats: Category[] = ['Beer', 'Spirits', 'Soft Drinks', 'Snacks', 'Other'];
   if (menuType === 'Beverage Cart') return bevCartCats;
-  if (menuType === 'Clubhouse') return ['Beer', 'Spirits', 'Soft Drinks', 'Snacks', 'Other', 'Appetizers', 'Handhelds', 'Pizza', 'Salad', 'Entrees', 'Dessert'];
-  return [...categories];
+  return ['Beer', 'Spirits', 'Soft Drinks', 'Snacks', 'Other', 'Appetizers', 'Handhelds', 'Pizza', 'Salad', 'Entrees', 'Dessert'];
 };
 
 function MasterItemForm({
@@ -201,6 +208,44 @@ function StatTile({ title, revenue, orders, longWait }: { title: string, revenue
   );
 }
 
+function SortableItem({ item, onDelete, menuType }: { item: MenuItem; onDelete: () => void; menuType: string }) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging
+  } = useSortable({ id: item.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 10 : 0
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        "flex items-center justify-between p-2 rounded-lg bg-card border group",
+        isDragging && "opacity-50 shadow-lg border-primary"
+      )}
+    >
+      <div className="flex items-center gap-2 min-w-0">
+        <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-primary">
+          <GripVertical className="h-4 w-4" />
+        </div>
+        <span className="text-xs font-medium truncate">{item.name}</span>
+      </div>
+      <Button variant="ghost" size="icon" className="text-destructive h-7 w-7" onClick={onDelete}>
+        <Trash2 className="h-3 w-3" />
+      </Button>
+    </div>
+  );
+}
+
 export default function SellerAdminPage({ params }: { params: Promise<{ sellerId: string }> }) {
   const { sellerId } = use(params);
   const firestore = useFirestore();
@@ -226,6 +271,13 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   
   const [masterCategoryFilter, setMasterCategoryFilter] = useState<string>('All');
   const [showTopButton, setShowTopButton] = useState(false);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   useEffect(() => {
     setIsMounted(true);
@@ -387,6 +439,35 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     });
   };
 
+  const handleDragEnd = async (event: DragEndEvent, menuType: string, category: Category) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id || !firestore || !menuItems) return;
+
+    const itemsInCategory = menuItems
+      .filter(i => i.category === category && i.availableOn?.includes(menuType))
+      .sort((a, b) => (a.menuRanks?.[menuType] ?? a.rank) - (b.menuRanks?.[menuType] ?? b.rank));
+
+    const oldIndex = itemsInCategory.findIndex(i => i.id === active.id);
+    const newIndex = itemsInCategory.findIndex(i => i.id === over.id);
+
+    const newOrder = arrayMove(itemsInCategory, oldIndex, newIndex);
+    
+    const batch = writeBatch(firestore);
+    newOrder.forEach((item, index) => {
+      const itemRef = doc(firestore, 'sellers', sellerId, 'menuItems', item.id);
+      batch.update(itemRef, {
+        [`menuRanks.${menuType}`]: index + 1
+      });
+    });
+
+    try {
+      await batch.commit();
+    } catch (error) {
+      console.error("Reorder failed:", error);
+      toast({ variant: 'destructive', title: 'Reorder Failed' });
+    }
+  };
+
   if (!isMounted) return null;
 
   return (
@@ -493,7 +574,10 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                           ) : (
                               <div className="space-y-8">
                                   {allowedCategories.map(category => {
-                                      const itemsInCategory = itemsInThisMenu.filter(i => i.category === category);
+                                      const itemsInCategory = itemsInThisMenu
+                                        .filter(i => i.category === category)
+                                        .sort((a, b) => (a.menuRanks?.[menuType] ?? a.rank) - (b.menuRanks?.[menuType] ?? b.rank));
+
                                       const isCatHidden = !enabledCats.includes(category);
                                       if (itemsInCategory.length === 0) return null;
 
@@ -503,14 +587,28 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                                                 <h4 className="font-bold text-sm uppercase tracking-widest">{category}</h4>
                                                 {isCatHidden && <Badge variant="secondary" className="uppercase text-[9px]">Hidden from Golfer</Badge>}
                                               </div>
-                                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                                  {itemsInCategory.map(item => (
-                                                      <div key={item.id} className="flex items-center justify-between p-2 rounded-lg bg-card border">
-                                                          <span className="text-xs font-medium">{item.name}</span>
-                                                          <Button variant="ghost" size="icon" className="text-destructive h-7 w-7" onClick={() => handleToggleItemAvailability(item, menuType)}><Trash2 className="h-3 w-3" /></Button>
-                                                      </div>
-                                                  ))}
-                                              </div>
+                                              
+                                              <DndContext
+                                                sensors={sensors}
+                                                collisionDetection={closestCenter}
+                                                onDragEnd={(event) => handleDragEnd(event, menuType, category)}
+                                              >
+                                                <SortableContext
+                                                  items={itemsInCategory.map(i => i.id)}
+                                                  strategy={verticalListSortingStrategy}
+                                                >
+                                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                                      {itemsInCategory.map(item => (
+                                                          <SortableItem 
+                                                            key={item.id} 
+                                                            item={item} 
+                                                            menuType={menuType}
+                                                            onDelete={() => handleToggleItemAvailability(item, menuType)} 
+                                                          />
+                                                      ))}
+                                                  </div>
+                                                </SortableContext>
+                                              </DndContext>
                                           </div>
                                       );
                                   })}

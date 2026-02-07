@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Button } from '@/components/ui/button';
@@ -11,9 +12,10 @@ interface BuyerMenuProps {
   onUpdateItem: (item: OrderItem) => void;
   currentCategories: Category[];
   accentColor?: string;
+  selectedMenuType?: string;
 }
 
-export function BuyerMenu({ orderItems, onUpdateItem, currentCategories, menuItems, accentColor }: BuyerMenuProps) {
+export function BuyerMenu({ orderItems, onUpdateItem, currentCategories, menuItems, accentColor, selectedMenuType }: BuyerMenuProps) {
   const handleQuantityChange = (item: MenuItem, change: number) => {
     const existingItem = orderItems.find(i => i.id === item.id);
     const currentQuantity = existingItem ? existingItem.quantity : 0;
@@ -27,7 +29,14 @@ export function BuyerMenu({ orderItems, onUpdateItem, currentCategories, menuIte
         const CategoryIcon = categoryIcons[category];
         const itemsInCategory = menuItems
           .filter((item) => item.category === category)
-          .sort((a, b) => (a.rank || 0) - (b.rank || 0));
+          .sort((a, b) => {
+            if (selectedMenuType) {
+              const rankA = a.menuRanks?.[selectedMenuType] ?? a.rank ?? 0;
+              const rankB = b.menuRanks?.[selectedMenuType] ?? b.rank ?? 0;
+              return rankA - rankB;
+            }
+            return (a.rank || 0) - (b.rank || 0);
+          });
         
         if (itemsInCategory.length === 0) return null;
 

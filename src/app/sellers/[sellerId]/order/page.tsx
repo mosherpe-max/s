@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, use, useEffect, useMemo } from 'react';
@@ -373,6 +374,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
             onUpdateItem={updateItem} 
             currentCategories={currentCategories} 
             menuItems={filteredMenuItems} 
+            selectedMenuType={selectedMenuType}
           />
         )}
       </main>
