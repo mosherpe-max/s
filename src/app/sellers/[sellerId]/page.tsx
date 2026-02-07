@@ -393,17 +393,24 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     <div className="flex flex-col min-h-screen relative">
       <div className="container mx-auto px-4 py-8 max-w-7xl flex-1">
         
-        {/* Quick Management Actions */}
-        <div className="flex flex-wrap items-center justify-end gap-3 mb-8">
-           <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} disabled={isImporting} className="bg-background">
-              {isImporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileSpreadsheet className="mr-2 h-4 w-4" />}
-              Import Excel Menu
-           </Button>
-           <input type="file" ref={fileInputRef} onChange={handleExcelImport} accept=".xlsx, .xls" className="hidden" />
-           <Button variant="outline" size="sm" onClick={handleSeedData} disabled={isSeeding} className="bg-background">
-              <Sparkles className="mr-2 h-4 w-4" /> Reset Demo
-           </Button>
-        </div>
+        <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 text-center md:text-left">
+          <div className="flex-1">
+            <div className="flex items-center gap-3 justify-center md:justify-start">
+              <h1 className="font-headline text-3xl font-bold text-foreground uppercase tracking-tight">SELLER ADMIN</h1>
+            </div>
+            <p className="text-muted-foreground">{isSellerLoading ? 'Loading...' : seller?.courseName}</p>
+          </div>
+          <div className="flex items-center gap-3 self-center md:self-auto">
+             <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} disabled={isImporting} className="bg-background">
+                {isImporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileSpreadsheet className="mr-2 h-4 w-4" />}
+                Import Excel Menu
+             </Button>
+             <input type="file" ref={fileInputRef} onChange={handleExcelImport} accept=".xlsx, .xls" className="hidden" />
+             <Button variant="outline" size="sm" onClick={handleSeedData} disabled={isSeeding} className="bg-background">
+                <Sparkles className="mr-2 h-4 w-4" /> Reset Demo
+             </Button>
+          </div>
+        </header>
 
         <section id="performance-overview" className="mb-12 scroll-mt-24">
           <h2 className="font-headline text-xl font-bold mb-6 flex items-center gap-2 text-primary uppercase tracking-wider"><BarChart3 className="h-6 w-6" /> Performance Overview</h2>
