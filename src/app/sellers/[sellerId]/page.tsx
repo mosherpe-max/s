@@ -834,8 +834,8 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                 <DialogTitle className="uppercase tracking-tight">Add to {pickingMenuType}</DialogTitle>
                 <CardDescription>Select items from your library to include in this menu.</CardDescription>
               </DialogHeader>
-              <ScrollArea className="flex-1 px-6 min-h-0">
-                <div className="py-4 space-y-6">
+              <div className="flex-1 overflow-y-auto px-6 py-4">
+                <div className="space-y-6">
                     {getCategoriesForMenu(pickingMenuType).map(category => {
                         const itemsInCategory = menuItems?.filter(i => i.category === category) || [];
                         if (itemsInCategory.length === 0) return null;
@@ -860,7 +860,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                         );
                     })}
                 </div>
-              </ScrollArea>
+              </div>
               <DialogFooter className="px-6 py-4 border-t bg-muted/20">
                 <Button onClick={() => setIsPickingOpen(false)} className="w-full sm:w-auto font-bold uppercase text-xs tracking-widest">Done</Button>
               </DialogFooter>
@@ -873,8 +873,8 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
               <DialogTitle className="uppercase tracking-tight">Enabled Categories: {configMenuType}</DialogTitle>
               <CardDescription>Choose which categories should appear to golfers using this service.</CardDescription>
             </DialogHeader>
-            <ScrollArea className="flex-1 px-6 min-h-0">
-              <div className="grid grid-cols-1 gap-3 py-6">
+            <div className="flex-1 overflow-y-auto px-6 py-4">
+              <div className="grid grid-cols-1 gap-3">
                 {getCategoriesForMenu(configMenuType).map(category => {
                   const isVisible = seller?.categoryVisibility?.[configMenuType]?.includes(category);
                   return (
@@ -892,7 +892,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                   );
                 })}
               </div>
-            </ScrollArea>
+            </div>
             <DialogFooter className="px-6 py-4 border-t bg-muted/20">
               <Button onClick={() => setIsCategoryConfigOpen(false)} className="w-full sm:w-auto font-bold uppercase text-xs tracking-widest">Save Settings</Button>
             </DialogFooter>
