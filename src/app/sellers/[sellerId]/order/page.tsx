@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, use, useEffect, useMemo } from 'react';
-import { collection, doc, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, doc, addDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
 import type { Seller, MenuItem, Category, Order, PaymentMethod } from '@/lib/types';
 import { categories } from '@/lib/types';
@@ -30,7 +30,9 @@ import {
   Waves,
   Home,
   Utensils,
-  ArrowUp
+  ArrowUp,
+  XCircle,
+  AlertTriangle
 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useCart } from '@/lib/cart-context';
@@ -52,7 +54,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
   const firestore = useFirestore();
   const router = useRouter();
   const { toast } = useToast();
-  const { orderItems, updateItem, isCartOpen, setIsCartOpen, total, totalItems, clearCart } = useCart();
+  const { orderItems, updateItem, isCartOpen, setIsCartOpen, total, totalItems, clearCart, editingOrderId, cancelEditing } = useCart();
 
   const [selectedMenuType, setSelectedMenuType] = useState<string>('');
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
@@ -177,7 +179,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
           const subtotal = activeOrderItems.reduce((acc, item) => acc + item.price * item.quantity, 0);
           const paymentMethod: PaymentMethod = 'Pay at Delivery';
 
-          const orderData: Omit<Order, 'id' | 'createdAt'> = {
+          const orderData: any = {
             sellerId,
             customerId: 'public-user',
             customerName: 'Guest Golfer',
@@ -189,21 +191,28 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
             status: 'Placed',
             paymentMethod,
             menuType: selectedMenuType,
+            modifiedAt: serverTimestamp(),
           };
 
-          const ordersCol = collection(firestore, 'orders');
-          const docRef = await addDoc(ordersCol, { ...orderData, createdAt: serverTimestamp() });
+          if (editingOrderId) {
+            const orderDocRef = doc(firestore, 'orders', editingOrderId);
+            await updateDoc(orderDocRef, orderData);
+            toast({ title: 'Order Updated', description: "Your modifications have been saved." });
+            router.push(`/order/track?id=${editingOrderId}&sellerId=${sellerId}`);
+          } else {
+            const ordersCol = collection(firestore, 'orders');
+            const docRef = await addDoc(ordersCol, { ...orderData, createdAt: serverTimestamp() });
+            toast({ title: 'Order Placed!', description: "Thank you for your order" });
+            router.push(`/order/track?id=${docRef.id}&sellerId=${sellerId}`);
+          }
           
-          toast({ title: 'Order Placed!', description: "Thank you for your order" });
           clearCart();
           setIsPlacingOrder(false);
-          // Include sellerId in tracking URL to maintain header context
-          router.push(`/order/track?id=${docRef.id}&sellerId=${sellerId}`);
         } catch (err: any) {
           console.error("Order submission failed:", err);
           errorEmitter.emit('permission-error', new FirestorePermissionError({ 
             path: 'orders', 
-            operation: 'create', 
+            operation: editingOrderId ? 'update' : 'create', 
             requestResourceData: { sellerId } 
           }));
           setIsPlacingOrder(false);
@@ -229,6 +238,11 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
     }
   };
 
+  const handleCancelEdit = () => {
+    cancelEditing();
+    router.back();
+  };
+
   const isLoading = isSellerLoading || areItemsLoading;
   const activeOrderItems = orderItems.filter((item) => item.quantity > 0);
   
@@ -236,6 +250,23 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
 
   return (
     <div className="flex flex-col min-h-screen bg-background relative">
+      {editingOrderId && (
+        <div className="bg-primary px-4 py-2 flex items-center justify-between shadow-md">
+          <div className="flex items-center gap-2 text-white">
+            <AlertTriangle className="h-4 w-4" />
+            <span className="text-[10px] font-bold uppercase tracking-widest">Modifying Existing Order</span>
+          </div>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={handleCancelEdit}
+            className="h-6 text-[9px] text-white hover:bg-white/10 font-bold uppercase border border-white/20"
+          >
+            <XCircle className="mr-1 h-3 w-3" /> Cancel
+          </Button>
+        </div>
+      )}
+
       <div className="bg-muted/30 border-b">
         <div className="px-4 py-2.5 space-y-2 max-w-2xl mx-auto">
           <div className="flex flex-col gap-1.5">
@@ -369,14 +400,16 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
                 size="lg" 
                 className="w-full text-base h-12 shadow-xl font-headline font-black uppercase tracking-widest bg-primary"
               >
-                Order ({totalItems}) • ${(total || 0).toFixed(2)}
+                {editingOrderId ? "Update Order" : "Order"} ({totalItems}) • ${(total || 0).toFixed(2)}
               </Button>
             </SheetTrigger>
           </div>
         )}
         <SheetContent side="bottom" className="rounded-t-2xl max-h-[85vh] flex flex-col p-0 border-t-2 shadow-2xl overflow-hidden">
           <SheetHeader className="px-6 py-4 border-b bg-muted/20">
-            <SheetTitle className="font-headline font-black uppercase text-center text-sm tracking-tight">Review Your Order</SheetTitle>
+            <SheetTitle className="font-headline font-black uppercase text-center text-sm tracking-tight">
+              {editingOrderId ? "Updating Your Order" : "Review Your Order"}
+            </SheetTitle>
           </SheetHeader>
           <ScrollArea className="flex-1 px-6">
             <div className="py-6 space-y-6">
@@ -409,7 +442,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
               onClick={handlePlaceOrder} 
               disabled={isPlacingOrder || !isServiceActive}
             >
-              {!isServiceActive ? "SERVICE OFFLINE" : (isPlacingOrder ? <><Loader2 className="animate-spin mr-2" /> PROCESSING...</> : "PLACE ORDER")}
+              {!isServiceActive ? "SERVICE OFFLINE" : (isPlacingOrder ? <><Loader2 className="animate-spin mr-2" /> PROCESSING...</> : (editingOrderId ? "UPDATE ORDER" : "PLACE ORDER"))}
             </Button>
           </SheetFooter>
         </SheetContent>

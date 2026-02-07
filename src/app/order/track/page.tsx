@@ -4,7 +4,6 @@ import { Suspense, useEffect, useRef, useState } from 'react';
 import { collection, query, orderBy, limit, doc, updateDoc } from 'firebase/firestore';
 import { useCollection, useDoc, useFirestore, useMemoFirebase } from '@/firebase';
 import type { Order, Seller } from '@/lib/types';
-import { APIProvider } from '@vis.gl/react-google-maps';
 import { MapView } from '@/components/map-view';
 import { OrderStatus } from '@/components/order-status';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -13,16 +12,21 @@ import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
-import { PartyPopper, ShoppingBag, MapPin, Loader2, ArrowLeft, Store, ClipboardList, Satellite } from 'lucide-react';
+import { useSearchParams, useRouter } from 'next/navigation';
+import { PartyPopper, ShoppingBag, MapPin, Loader2, ArrowLeft, Store, ClipboardList, Satellite, Edit2 } from 'lucide-react';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { IosInstallPrompt } from '@/components/ios-install-prompt';
 import { getNumericOrderId } from '@/lib/utils';
+import { useCart } from '@/lib/cart-context';
+import { APIProvider } from '@vis.gl/react-google-maps';
 
 function OrderTrackingContent() {
   const firestore = useFirestore();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const orderId = searchParams.get('id');
+  const { loadOrder } = useCart();
+  
   const [isTrackingActive, setIsTrackingActive] = useState(false);
   const [initialLocations, setInitialLocations] = useState<{ buyer: { latitude: number, longitude: number }, seller: { latitude: number, longitude: number } } | null>(null);
   
@@ -127,6 +131,13 @@ function OrderTrackingContent() {
     };
   }, [order?.status, order?.id, firestore]);
 
+  const handleModifyOrder = () => {
+    if (order) {
+      loadOrder(order);
+      router.push(`/sellers/${order.sellerId}/order`);
+    }
+  };
+
   if (isLoading || (order && isLoadingSeller)) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center p-8 space-y-4">
@@ -151,6 +162,7 @@ function OrderTrackingContent() {
 
   const isDelivered = order.status === 'Delivered';
   const isOutForDelivery = order.status === 'Out for Delivery';
+  const isEditable = order.status === 'Placed' || order.status === 'Preparing';
   const brandColor = seller?.brandColor || 'hsl(var(--primary))';
   const numericId = getNumericOrderId(order.id);
 
@@ -172,13 +184,25 @@ function OrderTrackingContent() {
           ) : (
             <div className="w-full h-full flex items-center justify-center bg-muted"><MapPin className="animate-bounce h-8 w-8 text-muted-foreground" /></div>
           )}
-          <div className="absolute top-4 left-4 z-10">
+          <div className="absolute top-4 left-4 z-10 flex flex-col gap-2">
              <Button variant="secondary" size="sm" asChild className="rounded-full shadow-lg h-9 border-2 border-primary/20 bg-background/95 backdrop-blur-sm">
                 <Link href={`/sellers/${order.sellerId}/order`} className="flex items-center">
                   <ArrowLeft className="mr-2 h-4 w-4" /> 
                   <span className="text-[10px] font-bold uppercase tracking-wider">BACK TO MENU</span>
                 </Link>
              </Button>
+             
+             {isEditable && (
+               <Button 
+                variant="default" 
+                size="sm" 
+                onClick={handleModifyOrder}
+                className="rounded-full shadow-lg h-9 bg-primary text-white font-bold uppercase text-[10px] tracking-widest px-4 border-2 border-white/20"
+               >
+                 <Edit2 className="mr-2 h-3 w-3" />
+                 Modify Order
+               </Button>
+             )}
           </div>
         </div>
       )}
