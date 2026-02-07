@@ -9,7 +9,7 @@ import { Button } from './ui/button';
 import { Navigation, PartyPopper, ClipboardList, Send, MoveHorizontal, User } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { Badge } from './ui/badge';
-import { cn, getDriverColor } from '@/lib/utils';
+import { cn, getDriverColor, getNumericOrderId } from '@/lib/utils';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -45,14 +45,6 @@ const getStatusConfig = (status: Order['status']) => {
   return config[status];
 };
 
-function getNumericOrderId(id: string) {
-  let hash = 0;
-  for (let i = 0; i < id.length; i++) {
-    hash = id.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  return (Math.abs(hash) % 10000).toString().padStart(4, '0');
-}
-
 interface AvailableDriver {
   id: string;
   name: string;
@@ -82,7 +74,7 @@ export function OrderCard({
 
   const assignedDriverId = order.assignedDriverId;
   const driverColor = assignedDriverId ? getDriverColor(assignedDriverId) : null;
-  const isAssignedToMe = assignedDriverId === currentDriverId;
+  const isAssignedTo Me = assignedDriverId === currentDriverId;
   const canHandoff = (order.status === 'Preparing' || order.status === 'Out for Delivery') && availableDrivers.length > 0;
 
   const renderAction = () => {

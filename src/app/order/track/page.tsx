@@ -17,14 +17,7 @@ import { useSearchParams } from 'next/navigation';
 import { PartyPopper, ShoppingBag, MapPin, Loader2, ArrowLeft, Store, ClipboardList, Satellite } from 'lucide-react';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { IosInstallPrompt } from '@/components/ios-install-prompt';
-
-function getNumericOrderId(id: string) {
-  let hash = 0;
-  for (let i = 0; i < id.length; i++) {
-    hash = id.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  return (Math.abs(hash) % 10000).toString().padStart(4, '0');
-}
+import { getNumericOrderId } from '@/lib/utils';
 
 function OrderTrackingContent() {
   const firestore = useFirestore();
@@ -59,7 +52,6 @@ function OrderTrackingContent() {
 
   const { data: seller, isLoading: isLoadingSeller } = useDoc<Seller>(sellerRef);
 
-  // Capture initial locations for the "frozen" state
   useEffect(() => {
     if (order && seller && !initialLocations) {
       setInitialLocations({
@@ -69,7 +61,6 @@ function OrderTrackingContent() {
     }
   }, [order, seller, initialLocations]);
 
-  // Wake Lock Management
   useEffect(() => {
     const requestWakeLock = async () => {
       if ('wakeLock' in navigator && !wakeLockRef.current) {
@@ -99,7 +90,6 @@ function OrderTrackingContent() {
     };
   }, [order?.status]);
 
-  // GPS Tracking Management - Only active when "Out for Delivery"
   useEffect(() => {
     const updateLocation = () => {
       if (!navigator.geolocation || !order || !firestore) return;
@@ -121,7 +111,6 @@ function OrderTrackingContent() {
     if (order?.status === 'Out for Delivery') {
       setIsTrackingActive(true);
       updateLocation();
-      // Reduced interval to 15s as discussed for battery/performance balance
       locationIntervalRef.current = setInterval(updateLocation, 15000);
     } else {
       setIsTrackingActive(false);
@@ -165,13 +154,11 @@ function OrderTrackingContent() {
   const brandColor = seller?.brandColor || 'hsl(var(--primary))';
   const numericId = getNumericOrderId(order.id);
 
-  // Decide whether to show live or static (frozen) locations
   const mapBuyerLocation = isOutForDelivery ? order.deliveryLocation : initialLocations?.buyer;
   const mapSellerLocation = isOutForDelivery ? { latitude: seller?.latitude || 0, longitude: seller?.longitude || 0 } : initialLocations?.seller;
 
   return (
     <div className="flex flex-col min-h-[calc(100vh-4rem)] bg-muted/10">
-      {/* iOS Safari specific install prompt */}
       <IosInstallPrompt />
 
       {!isDelivered && (

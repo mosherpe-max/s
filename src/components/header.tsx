@@ -3,11 +3,12 @@
 import Link from 'next/link';
 import { Button } from './ui/button';
 import { usePathname, useSearchParams } from 'next/navigation';
-import { ShoppingCart } from 'lucide-react';
+import { ShoppingCart, Hash } from 'lucide-react';
 import { useCart } from '@/lib/cart-context';
 import { useState, useEffect, useMemo } from 'react';
 import { doc } from 'firebase/firestore';
 import { useFirestore, useDoc, useMemoFirebase } from '@/firebase';
+import { getNumericOrderId } from '@/lib/utils';
 
 const KoopLogo = () => (
   <div className="flex items-center gap-0.5 font-headline font-bold text-2xl tracking-tighter text-white">
@@ -33,7 +34,6 @@ export function AppHeader() {
   }, []);
 
   const sellerId = useMemo(() => {
-    // 1. Try to get from pathname (e.g., /sellers/demo-course/...)
     if (pathname) {
       const parts = pathname.split('/');
       const sellerIndex = parts.indexOf('sellers');
@@ -41,10 +41,11 @@ export function AppHeader() {
         return parts[sellerIndex + 1];
       }
     }
-    
-    // 2. Fallback to search params (e.g., /order/track?sellerId=demo-course)
     return searchParams.get('sellerId');
   }, [pathname, searchParams]);
+
+  const orderId = searchParams.get('id');
+  const numericOrderId = useMemo(() => orderId ? getNumericOrderId(orderId) : null, [orderId]);
 
   const sellerRef = useMemoFirebase(() => {
     if (!firestore || !sellerId) return null;
@@ -54,7 +55,7 @@ export function AppHeader() {
   const { data: seller } = useDoc(sellerRef);
 
   const isDriverPage = pathname?.includes('/bevcart') || pathname?.includes('/clubhouse');
-  // Order View logic: include order/track or sellers/[id]/order
+  const isTrackingPage = pathname?.includes('/order/track');
   const isOrderView = (pathname?.includes('/order') || pathname?.includes('/sellers')) && !isDriverPage;
 
   if (isDriverPage) return null;
@@ -77,7 +78,15 @@ export function AppHeader() {
         </div>
         
         <div className="flex items-center gap-3 shrink-0">
-          {isMounted && isOrderView ? (
+          {isMounted && isTrackingPage && numericOrderId ? (
+            <div className="flex items-center gap-3 bg-white/10 px-4 py-1.5 rounded-full border border-white/20">
+              <div className="flex flex-col items-end leading-none">
+                <span className="text-[9px] uppercase font-bold text-white/50 tracking-widest">Order ID</span>
+                <span className="text-sm font-mono font-bold text-white">#{numericOrderId}</span>
+              </div>
+              <Hash className="h-4 w-4 text-primary" />
+            </div>
+          ) : isMounted && isOrderView ? (
             <Button 
               variant="outline" 
               className="flex items-center gap-2 h-10 px-4 border-white/20 text-white hover:bg-white/10 hover:text-white bg-transparent rounded-full"

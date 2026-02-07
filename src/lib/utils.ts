@@ -23,3 +23,12 @@ export function getDriverColor(id: string): string {
   const index = Math.abs(hash) % colors.length;
   return colors[index];
 }
+
+export function getNumericOrderId(id: string) {
+  if (!id) return '0000';
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) {
+    hash = id.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return (Math.abs(hash) % 10000).toString().padStart(4, '0');
+}
