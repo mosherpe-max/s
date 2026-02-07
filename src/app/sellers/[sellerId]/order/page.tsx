@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, use, useEffect, useMemo } from 'react';
@@ -88,23 +87,26 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
   }, [menuItems, selectedMenuType]);
 
   const currentCategories = useMemo(() => {
-    if (!seller) return categories as unknown as Category[];
+    if (!seller || !filteredMenuItems.length) return [];
 
-    // If the seller has specific visibility settings for this menu type, use them
+    // 1. Get explicitly enabled categories from Seller Admin
+    let enabledCategories: Category[] = [];
     if (seller.categoryVisibility?.[selectedMenuType]) {
-      return seller.categoryVisibility[selectedMenuType];
+      enabledCategories = seller.categoryVisibility[selectedMenuType];
+    } else {
+      // Default Fallbacks if not configured
+      if (selectedMenuType === 'Beverage Cart') {
+        enabledCategories = ['Beer', 'Spirits', 'Soft Drinks', 'Snacks', 'Other'];
+      } else {
+        enabledCategories = [...categories];
+      }
     }
 
-    // Default Fallbacks
-    if (selectedMenuType === 'Beverage Cart') {
-      return ['Beer', 'Spirits', 'Soft Drinks', 'Snacks', 'Other'] as Category[];
-    }
-    if (selectedMenuType === 'Clubhouse') {
-      return ['Beer', 'Spirits', 'Soft Drinks', 'Snacks', 'Other', 'Appetizers', 'Handhelds', 'Pizza', 'Salad', 'Entrees', 'Dessert'] as Category[];
-    }
+    // 2. Filter out categories that have no items for this specific menu
+    const availableCategories = new Set(filteredMenuItems.map(item => item.category));
     
-    return categories as unknown as Category[];
-  }, [selectedMenuType, seller]);
+    return enabledCategories.filter(cat => availableCategories.has(cat));
+  }, [selectedMenuType, seller, filteredMenuItems]);
 
   useEffect(() => {
     if (seller?.menuTypes && seller.menuTypes.length > 0 && !selectedMenuType) {
@@ -319,7 +321,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
         </div>
       </div>
 
-      {isServiceActive && (
+      {isServiceActive && currentCategories.length > 0 && (
         <div className="sticky top-16 z-20 bg-background/95 backdrop-blur-md border-b shadow-sm">
           <div className="px-4 py-2 max-w-2xl mx-auto">
             <ScrollArea className="w-full whitespace-nowrap">
