@@ -144,7 +144,6 @@ export default function KOOPAdminPage() {
   const [isResetting, setIsResetting] = useState(false);
   const [editingSeller, setEditingSeller] = useState<Seller | null>(null);
   const [sellerToDelete, setSellerToDelete] = useState<Seller | null>(null);
-  const [maintenanceRunning, setMaintenanceRunning] = useState(false);
 
   const sellersQuery = useMemoFirebase(() => {
     if (!firestore) return null;
@@ -158,56 +157,6 @@ export default function KOOPAdminPage() {
 
   const { data: sellers, isLoading: isSellersLoading } = useCollection<Seller>(sellersQuery);
   const { data: orders, isLoading: isOrdersLoading } = useCollection<Order>(ordersQuery);
-
-  // Auto-Midnight Reset Logic
-  useEffect(() => {
-    const runMidnightMaintenance = async () => {
-      if (!firestore) return;
-      
-      const maintenanceRef = doc(firestore, 'system', 'maintenance');
-      const todayStr = format(new Date(), 'yyyy-MM-dd');
-      
-      try {
-        setMaintenanceRunning(true);
-        const maintenanceDoc = await getDoc(maintenanceRef);
-        const lastReset = maintenanceDoc.exists() ? maintenanceDoc.data().lastGlobalReset : null;
-        
-        if (lastReset !== todayStr) {
-          console.log("New day detected. Performing global reset...");
-          const batch = writeBatch(firestore);
-          
-          // Clear all orders
-          const ordersSnap = await getDocs(collection(firestore, 'orders'));
-          ordersSnap.forEach(d => batch.delete(d.ref));
-          
-          // Deactivate all drivers
-          const sellersSnap = await getDocs(collection(firestore, 'sellers'));
-          sellersSnap.forEach(d => {
-            batch.update(d.ref, {
-              bevcartActive: false,
-              clubhouseActive: false,
-              lastActive: null
-            });
-          });
-          
-          // Update last reset date
-          batch.set(maintenanceRef, { lastGlobalReset: todayStr }, { merge: true });
-          
-          await batch.commit();
-          toast({
-            title: "Midnight Cleanup Complete",
-            description: "System reset for the new day. All drivers cleared.",
-          });
-        }
-      } catch (e) {
-        console.error("Maintenance failed:", e);
-      } finally {
-        setMaintenanceRunning(false);
-      }
-    };
-
-    runMidnightMaintenance();
-  }, [firestore, toast]);
 
   const salesStats = useMemo(() => {
     if (!orders) return null;
@@ -464,11 +413,6 @@ export default function KOOPAdminPage() {
         <div className="flex-1">
           <div className="flex items-center gap-3 justify-center md:justify-start">
             <h1 className="font-headline text-3xl font-bold text-foreground uppercase tracking-tight">KOOP ADMIN</h1>
-            {maintenanceRunning && (
-              <Badge variant="outline" className="animate-pulse bg-primary/10 text-primary border-primary/20">
-                <ShieldCheck className="w-3 h-3 mr-1" /> Maintenance
-              </Badge>
-            )}
           </div>
           <p className="text-muted-foreground">Manage your seller network and monitor platform performance.</p>
         </div>
