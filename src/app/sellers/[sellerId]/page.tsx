@@ -602,8 +602,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
               <ScrollArea className="flex-1 px-6">
                 <div className="py-4 space-y-6">
                     {categories.map(category => {
-                        if (pickingMenuType === 'Beverage Cart' && (category === 'Pizza' || category === 'Salad')) return null;
-
                         const itemsInCategory = menuItems?.filter(i => i.category === category) || [];
                         if (itemsInCategory.length === 0) return null;
                         return (
@@ -643,8 +641,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
             <ScrollArea className="flex-1 px-6">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 py-6">
                 {categories.map(category => {
-                  if (configMenuType === 'Beverage Cart' && (category === 'Pizza' || category === 'Salad')) return null;
-
                   const isVisible = seller?.categoryVisibility?.[configMenuType]?.includes(category);
                   return (
                     <div 
