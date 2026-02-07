@@ -1,5 +1,6 @@
 import type {Metadata} from 'next';
 import './globals.css';
+import { Suspense } from 'react';
 import { Toaster } from "@/components/ui/toaster";
 import { AppHeader } from '@/components/header';
 import { cn } from '@/lib/utils';
@@ -29,7 +30,9 @@ export default function RootLayout({
         <FirebaseClientProvider>
           <CartProvider>
             <OrderNotificationListener />
-            <AppHeader />
+            <Suspense fallback={<div className="h-16 bg-[#213147] border-b-2 border-[#E50000]" />}>
+              <AppHeader />
+            </Suspense>
             <main className="flex-1">
               {children}
             </main>

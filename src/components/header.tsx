@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { Button } from './ui/button';
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { ShoppingCart } from 'lucide-react';
 import { useCart } from '@/lib/cart-context';
 import { useState, useEffect, useMemo } from 'react';
@@ -23,6 +23,7 @@ const KoopLogo = () => (
 
 export function AppHeader() {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const firestore = useFirestore();
   const { total, totalItems, setIsCartOpen } = useCart();
   const [isMounted, setIsMounted] = useState(false);
@@ -32,14 +33,18 @@ export function AppHeader() {
   }, []);
 
   const sellerId = useMemo(() => {
-    if (!pathname) return null;
-    const parts = pathname.split('/');
-    const sellerIndex = parts.indexOf('sellers');
-    if (sellerIndex !== -1 && parts[sellerIndex + 1]) {
-      return parts[sellerIndex + 1];
+    // 1. Try to get from pathname (e.g., /sellers/demo-course/...)
+    if (pathname) {
+      const parts = pathname.split('/');
+      const sellerIndex = parts.indexOf('sellers');
+      if (sellerIndex !== -1 && parts[sellerIndex + 1]) {
+        return parts[sellerIndex + 1];
+      }
     }
-    return null;
-  }, [pathname]);
+    
+    // 2. Fallback to search params (e.g., /order/track?sellerId=demo-course)
+    return searchParams.get('sellerId');
+  }, [pathname, searchParams]);
 
   const sellerRef = useMemoFirebase(() => {
     if (!firestore || !sellerId) return null;
@@ -48,8 +53,9 @@ export function AppHeader() {
 
   const { data: seller } = useDoc(sellerRef);
 
-  const isOrderPage = pathname?.includes('/order') && !pathname?.includes('/track');
   const isDriverPage = pathname?.includes('/bevcart') || pathname?.includes('/clubhouse');
+  // Order View logic: include order/track or sellers/[id]/order
+  const isOrderView = (pathname?.includes('/order') || pathname?.includes('/sellers')) && !isDriverPage;
 
   if (isDriverPage) return null;
 
@@ -57,7 +63,7 @@ export function AppHeader() {
     <header className="sticky top-0 z-40 bg-[#213147] border-b-2 border-[#E50000] shadow-md">
       <div className="container mx-auto flex h-16 items-center justify-between px-4">
         <div className="flex items-center min-w-0">
-          {isOrderPage && seller ? (
+          {isOrderView && seller ? (
             <div className="flex flex-col min-w-0">
                <span className="font-headline text-lg font-bold text-white uppercase tracking-tight truncate">
                 {seller.courseName}
@@ -71,7 +77,7 @@ export function AppHeader() {
         </div>
         
         <div className="flex items-center gap-3 shrink-0">
-          {isMounted && isOrderPage ? (
+          {isMounted && isOrderView ? (
             <Button 
               variant="outline" 
               className="flex items-center gap-2 h-10 px-4 border-white/20 text-white hover:bg-white/10 hover:text-white bg-transparent rounded-full"

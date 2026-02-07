@@ -197,7 +197,8 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
           toast({ title: 'Order Placed!', description: "Thank you for your order" });
           clearCart();
           setIsPlacingOrder(false);
-          router.push(`/order/track?id=${docRef.id}`);
+          // Include sellerId in tracking URL to maintain header context
+          router.push(`/order/track?id=${docRef.id}&sellerId=${sellerId}`);
         } catch (err: any) {
           console.error("Order submission failed:", err);
           errorEmitter.emit('permission-error', new FirestorePermissionError({ 
