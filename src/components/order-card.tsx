@@ -6,10 +6,18 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { Separator } from './ui/separator';
 import { Button } from './ui/button';
-import { Navigation, PartyPopper, ClipboardList, Send } from 'lucide-react';
+import { Navigation, PartyPopper, ClipboardList, Send, MoveHorizontal, User } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { Badge } from './ui/badge';
 import { cn, getDriverColor } from '@/lib/utils';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const getStatusConfig = (status: Order['status']) => {
   const config: Record<Order['status'], { label: string, badgeVariant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
@@ -45,13 +53,37 @@ function getNumericOrderId(id: string) {
   return (Math.abs(hash) % 10000).toString().padStart(4, '0');
 }
 
-export function OrderCard({ order, orderNumber, onUpdateStatus, currentDriverId = 'demo-course' }: { order: Order; orderNumber: number; onUpdateStatus: (id: string, status: Order['status'], driverId?: string) => void; currentDriverId?: string }) {
+interface AvailableDriver {
+  id: string;
+  name: string;
+}
+
+export function OrderCard({ 
+  order, 
+  orderNumber, 
+  onUpdateStatus, 
+  onHandoff,
+  availableDrivers = [],
+  currentDriverId = 'demo-course' 
+}: { 
+  order: Order; 
+  orderNumber: number; 
+  onUpdateStatus: (id: string, status: Order['status'], driverId?: string) => void; 
+  onHandoff?: (orderId: string, targetDriverId: string) => void;
+  availableDrivers?: AvailableDriver[];
+  currentDriverId?: string 
+}) {
   const [mounted, setMounted] = useState(false);
   const statusInfo = getStatusConfig(order.status);
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  const assignedDriverId = order.assignedDriverId;
+  const driverColor = assignedDriverId ? getDriverColor(assignedDriverId) : null;
+  const isAssignedToMe = assignedDriverId === currentDriverId;
+  const canHandoff = (order.status === 'Preparing' || order.status === 'Out for Delivery') && availableDrivers.length > 0;
 
   const renderAction = () => {
     switch (order.status) {
@@ -64,27 +96,54 @@ export function OrderCard({ order, orderNumber, onUpdateStatus, currentDriverId 
         );
       case 'Preparing':
         return (
-          <Button className="w-full font-headline font-bold uppercase text-[10px] h-10" onClick={() => onUpdateStatus(order.id, 'Out for Delivery', currentDriverId)}>
-            <Navigation className="mr-2 h-3.5 w-3.5" />
-            Start Delivery
-          </Button>
+          <div className="flex gap-1.5 w-full">
+            <Button className="flex-1 font-headline font-bold uppercase text-[10px] h-10" onClick={() => onUpdateStatus(order.id, 'Out for Delivery', currentDriverId)}>
+              <Navigation className="mr-2 h-3.5 w-3.5" />
+              Start Delivery
+            </Button>
+            {canHandoff && renderHandoffButton()}
+          </div>
         );
       case 'Out for Delivery':
         return (
-          <Button className="w-full font-headline font-bold uppercase text-[10px] h-10" onClick={() => onUpdateStatus(order.id, 'Delivered')}>
-            <PartyPopper className="mr-2 h-3.5 w-3.5" />
-            Complete Order
-          </Button>
+          <div className="flex gap-1.5 w-full">
+            <Button className="flex-1 font-headline font-bold uppercase text-[10px] h-10" onClick={() => onUpdateStatus(order.id, 'Delivered')}>
+              <PartyPopper className="mr-2 h-3.5 w-3.5" />
+              Complete Order
+            </Button>
+            {canHandoff && renderHandoffButton()}
+          </div>
         );
       default:
         return null;
     }
   }
 
+  const renderHandoffButton = () => (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="outline" size="icon" className="h-10 w-10 shrink-0 border-primary/20 hover:bg-primary/10">
+          <MoveHorizontal className="h-4 w-4 text-primary" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-56">
+        <DropdownMenuLabel className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Handoff Order To:</DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        {availableDrivers.map(driver => (
+          <DropdownMenuItem 
+            key={driver.id} 
+            className="flex items-center gap-2 cursor-pointer"
+            onClick={() => onHandoff?.(order.id, driver.id)}
+          >
+            <div className={cn("w-2 h-2 rounded-full bg-primary", `bg-${getDriverColor(driver.id)}`)} />
+            <span className="font-medium text-sm">{driver.name}</span>
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+
   const numericId = getNumericOrderId(order.id);
-  const assignedDriverId = order.assignedDriverId;
-  const driverColor = assignedDriverId ? getDriverColor(assignedDriverId) : null;
-  const isAssignedToMe = assignedDriverId === currentDriverId;
 
   const colorMap: Record<string, string> = {
     'indigo-600': 'border-indigo-600',
@@ -121,6 +180,11 @@ export function OrderCard({ order, orderNumber, onUpdateStatus, currentDriverId 
               <Badge variant="outline" className="text-[7px] h-3.5 px-1 uppercase font-bold tracking-widest bg-background border-primary/20 flex items-center gap-1 shrink-0">
                 <ClipboardList className="w-2 h-2" /> {order.menuType}
               </Badge>
+              {assignedDriverId && !isAssignedToMe && (
+                <Badge variant="secondary" className="text-[7px] h-3.5 px-1 uppercase font-bold truncate">
+                  <User className="w-2 h-2 mr-1" /> Other Driver
+                </Badge>
+              )}
             </div>
           </div>
         </div>

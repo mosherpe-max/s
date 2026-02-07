@@ -1,4 +1,3 @@
-
 'use client';
 
 import { collection, query, where, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
@@ -181,7 +180,7 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
       }
     };
 
-    const intervalId = setInterval(syncLocation, 15000); // Updated to 15s for more responsive tracking
+    const intervalId = setInterval(syncLocation, 15000);
     return () => clearInterval(intervalId);
   }, [firestore, isBevCartActive, sellerId]);
 
@@ -196,6 +195,27 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
       updates.deliveredAt = serverTimestamp();
     }
     updateDoc(orderRef, updates)
+      .catch(async () => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+          path: orderRef.path,
+          operation: 'update',
+          requestResourceData: updates
+        }));
+      });
+  };
+
+  const handleHandoff = (orderId: string, targetDriverId: string) => {
+    if (!firestore) return;
+    const orderRef = doc(firestore, 'orders', orderId);
+    const updates = { assignedDriverId: targetDriverId };
+    
+    updateDoc(orderRef, updates)
+      .then(() => {
+        toast({
+          title: "Order Handed Off",
+          description: "Responsibility for the order has been transferred.",
+        });
+      })
       .catch(async () => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({
           path: orderRef.path,
@@ -222,9 +242,9 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
       });
   };
 
-  const mappedSellers = useMemo(() => {
+  const otherActiveDrivers = useMemo(() => {
     if (!activeSellers || !now) return [];
-    const threshold = 120000;
+    const threshold = 120000; // 2 minutes heartbeat
     return activeSellers
         .filter(s => {
             if (s.id === sellerId) return false;
@@ -234,10 +254,20 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
         })
         .map(s => ({
             id: s.id,
-            name: s.courseName,
-            location: { latitude: s.latitude, longitude: s.longitude }
+            name: s.courseName
         }));
   }, [activeSellers, now, sellerId]);
+
+  const mappedSellers = useMemo(() => {
+    return otherActiveDrivers.map(d => {
+      const seller = activeSellers?.find(s => s.id === d.id);
+      return {
+        id: d.id,
+        name: d.name,
+        location: { latitude: seller?.latitude || 0, longitude: seller?.longitude || 0 }
+      };
+    });
+  }, [otherActiveDrivers, activeSellers]);
 
   const mappedBuyers = useMemo(() => {
     if (!now || !activeOrders) return [];
@@ -331,7 +361,17 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
                     <p className="italic text-sm">No active BevCart orders.</p>
                   </div>
                 ) : (
-                  driverOrders.map((order, index) => <OrderCard key={order.id} order={order} orderNumber={index + 1} onUpdateStatus={handleUpdateOrderStatus} currentDriverId={sellerId} />)
+                  driverOrders.map((order, index) => (
+                    <OrderCard 
+                      key={order.id} 
+                      order={order} 
+                      orderNumber={index + 1} 
+                      onUpdateStatus={handleUpdateOrderStatus} 
+                      onHandoff={handleHandoff}
+                      availableDrivers={otherActiveDrivers}
+                      currentDriverId={sellerId} 
+                    />
+                  ))
                 )}
               </div>
             </ScrollArea>

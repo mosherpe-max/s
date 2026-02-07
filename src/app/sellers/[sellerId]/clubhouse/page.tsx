@@ -1,4 +1,3 @@
-
 'use client';
 
 import { collection, query, where, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
@@ -44,6 +43,12 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
     return doc(firestore, 'sellers', sellerId);
   }, [firestore, sellerId]);
   const { data: primarySeller, isLoading: isPrimaryLoading } = useDoc<Seller>(primarySellerRef);
+
+  const activeSellersQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return query(collection(firestore, 'sellers'), where('status', '==', 'Active'));
+  }, [firestore]);
+  const { data: activeSellers, isLoading: areSellersLoading } = useCollection<Seller>(activeSellersQuery);
 
   const isClubhouseActive = primarySeller?.clubhouseActive === true;
 
@@ -164,7 +169,7 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
       }
     };
 
-    const intervalId = setInterval(syncLocation, 15000); // Sync every 15s
+    const intervalId = setInterval(syncLocation, 15000);
     return () => clearInterval(intervalId);
   }, [firestore, isClubhouseActive, sellerId]);
 
@@ -179,6 +184,27 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
       updates.deliveredAt = serverTimestamp();
     }
     updateDoc(orderRef, updates)
+      .catch(async () => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+          path: orderRef.path,
+          operation: 'update',
+          requestResourceData: updates
+        }));
+      });
+  };
+
+  const handleHandoff = (orderId: string, targetDriverId: string) => {
+    if (!firestore) return;
+    const orderRef = doc(firestore, 'orders', orderId);
+    const updates = { assignedDriverId: targetDriverId };
+    
+    updateDoc(orderRef, updates)
+      .then(() => {
+        toast({
+          title: "Order Handed Off",
+          description: "Responsibility for the order has been transferred.",
+        });
+      })
       .catch(async () => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({
           path: orderRef.path,
@@ -204,6 +230,22 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
         }));
       });
   };
+
+  const otherActiveDrivers = useMemo(() => {
+    if (!activeSellers || !now) return [];
+    const threshold = 120000; // 2 minutes heartbeat
+    return activeSellers
+        .filter(s => {
+            if (s.id === sellerId) return false;
+            if (!s.lastActive) return false;
+            const lastActiveTime = s.lastActive.toDate().getTime();
+            return (now - lastActiveTime) < threshold;
+        })
+        .map(s => ({
+            id: s.id,
+            name: s.courseName
+        }));
+  }, [activeSellers, now, sellerId]);
 
   const mappedBuyers = useMemo(() => {
     if (!now || !activeOrders) return [];
@@ -233,7 +275,7 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
     setFitTrigger(prev => prev + 1);
   };
 
-  const isLoading = areActiveOrdersLoading || isPrimaryLoading;
+  const isLoading = areActiveOrdersLoading || isPrimaryLoading || areSellersLoading;
 
   if (!isPrimaryLoading && !primarySeller) {
       return (
@@ -296,7 +338,17 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
                     <p className="italic text-sm">No active Clubhouse orders.</p>
                   </div>
                 ) : (
-                  clubhouseOrders.map((order, index) => <OrderCard key={order.id} order={order} orderNumber={index + 1} onUpdateStatus={handleUpdateOrderStatus} currentDriverId={sellerId} />)
+                  clubhouseOrders.map((order, index) => (
+                    <OrderCard 
+                      key={order.id} 
+                      order={order} 
+                      orderNumber={index + 1} 
+                      onUpdateStatus={handleUpdateOrderStatus} 
+                      onHandoff={handleHandoff}
+                      availableDrivers={otherActiveDrivers}
+                      currentDriverId={sellerId} 
+                    />
+                  ))
                 )}
               </div>
             </ScrollArea>
