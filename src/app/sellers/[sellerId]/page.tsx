@@ -94,10 +94,14 @@ const memberSchema = z.object({
 
 type MemberFormData = z.infer<typeof memberSchema>;
 
+/**
+ * Returns the subset of categories allowed for a specific menu type.
+ */
 const getCategoriesForMenu = (menuType: string): Category[] => {
   if (menuType === 'Beverage Cart') {
     return ['Beer', 'Spirits', 'Soft Drinks', 'Snacks', 'Other'];
   }
+  // Clubhouse and others include everything
   return [...categories] as Category[];
 };
 
@@ -386,7 +390,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
         location: { latitude: seller.latitude, longitude: seller.longitude }
       });
     }
-    // Note: In this MVP, clubhouse location is static unless updated by driver
     return drivers;
   }, [seller]);
 
