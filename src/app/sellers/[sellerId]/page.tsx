@@ -5,7 +5,7 @@ import { collection, doc, setDoc, deleteDoc, writeBatch, query, where, updateDoc
 import { useFirestore, useDoc, useCollection, useMemoFirebase } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { PlusCircle, Edit, Trash2, Filter, DollarSign, ShoppingBag, Clock, Database, Users, UserPlus, Sparkles, Download, FileSpreadsheet, Save, Loader2, ListChecks, ChevronUp, ChevronDown, Check, MousePointer2, BarChart3, ArrowUp, LayoutGrid, Settings2, X } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, DollarSign, ShoppingBag, Clock, Database, Users, Sparkles, FileSpreadsheet, Loader2, ListChecks, Check, BarChart3, ArrowUp, Settings2, UserPlus, ShieldCheck } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import {
   AlertDialog,
@@ -31,13 +31,11 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/table';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
-import { isToday, isThisMonth, isThisYear, format } from 'date-fns';
-import Link from 'next/link';
+import { isToday, isThisMonth, isThisYear } from 'date-fns';
 import * as XLSX from 'xlsx';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
@@ -124,6 +122,53 @@ function MasterItemForm({
   );
 }
 
+function MemberForm({
+  onSave,
+  onClose,
+  member,
+  disabled,
+}: {
+  onSave: (memberData: MemberFormData) => void;
+  onClose: () => void;
+  member?: Member | null;
+  disabled?: boolean;
+}) {
+  const form = useForm<MemberFormData>({
+    resolver: zodResolver(memberSchema),
+    defaultValues: member || {
+      name: '',
+      memberNumber: '',
+      status: 'Active',
+    },
+  });
+
+  useEffect(() => {
+    form.reset(member || { name: '', memberNumber: '', status: 'Active' });
+  }, [member, form]);
+
+  return (
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSave)}>
+        <div className="grid gap-4 py-4 pr-2">
+          <FormField control={form.control} name="name" render={({ field }) => (
+            <FormItem><FormLabel>Member Name</FormLabel><FormControl><Input {...field} placeholder="Full Name" /></FormControl><FormMessage /></FormItem>
+          )} />
+          <FormField control={form.control} name="memberNumber" render={({ field }) => (
+            <FormItem><FormLabel>Member ID / Number</FormLabel><FormControl><Input {...field} placeholder="e.g. 12345" /></FormControl><FormMessage /></FormItem>
+          )} />
+          <FormField control={form.control} name="status" render={({ field }) => (
+            <FormItem><FormLabel>Account Status</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select status" /></SelectTrigger></FormControl><SelectContent><SelectItem value="Active">Active</SelectItem><SelectItem value="Inactive">Inactive</SelectItem></SelectContent></Select><FormMessage /></FormItem>
+          )} />
+        </div>
+        <div className="flex justify-end gap-2 pt-4 border-t">
+          <Button type="button" variant="ghost" onClick={onClose}>Cancel</Button>
+          <Button type="submit" disabled={disabled}>{member ? 'Update Member' : 'Add Member'}</Button>
+        </div>
+      </form>
+    </Form>
+  );
+}
+
 function StatTile({ title, revenue, orders, longWait }: { title: string, revenue: number, orders: number, longWait: number }) {
   return (
     <Card className="flex-1 min-w-[300px] shadow-sm">
@@ -159,6 +204,9 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   const [isMasterFormOpen, setIsMasterFormOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
   
+  const [isMemberFormOpen, setIsMemberFormOpen] = useState(false);
+  const [editingMember, setEditingMember] = useState<Member | null>(null);
+  
   const [isPickingOpen, setIsPickingOpen] = useState(false);
   const [pickingMenuType, setPickingMenuType] = useState<string>('');
   
@@ -167,6 +215,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
 
   const [isSeeding, setIsSeeding] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   
   const [masterCategoryFilter, setMasterCategoryFilter] = useState<string>('All');
   const [showTopButton, setShowTopButton] = useState(false);
@@ -192,6 +241,9 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
 
   const ordersQuery = useMemoFirebase(() => (firestore ? query(collection(firestore, 'orders'), where('sellerId', '==', sellerId)) : null), [firestore, sellerId]);
   const { data: orders, isLoading: areOrdersLoading } = useCollection<Order>(ordersQuery);
+
+  const membersQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'sellers', sellerId, 'members') : null), [firestore, sellerId]);
+  const { data: members, isLoading: areMembersLoading } = useCollection<Member>(membersQuery);
 
   const isClubSeller = seller?.type === 'Private Golf Course' || seller?.type === 'Semi Private Golf Course';
 
@@ -301,6 +353,13 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     setEditingItem(null); setIsMasterFormOpen(false);
   };
 
+  const handleSaveMember = (data: MemberFormData) => {
+    if (!firestore) return;
+    const memberRef = editingMember ? doc(firestore, 'sellers', sellerId, 'members', editingMember.id) : doc(collection(firestore, 'sellers', sellerId, 'members'));
+    setDoc(memberRef, { ...data, id: memberRef.id }, { merge: true });
+    setEditingMember(null); setIsMemberFormOpen(false);
+  };
+
   const handleToggleItemAvailability = (item: MenuItem, menuType: string) => {
     if (!firestore) return;
     const currentAvailable = item.availableOn || [];
@@ -326,16 +385,17 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   return (
     <div className="flex flex-col min-h-screen relative">
       <div className="container mx-auto px-4 py-8 max-w-7xl flex-1">
-        <header className="mb-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-3">
-                <h1 className="font-headline text-3xl font-bold text-foreground">
-                  SELLER ADMIN: {seller?.courseName || 'Loading...'}
-                </h1>
-                {seller && <Badge variant="outline">{seller.type}</Badge>}
+        <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 text-center md:text-left">
+          <div className="flex-1">
+            <div className="flex items-center gap-3 justify-center md:justify-start">
+              <h1 className="font-headline text-3xl font-bold text-foreground uppercase tracking-tight">
+                SELLER ADMIN: {seller?.courseName || 'Loading...'}
+              </h1>
+              {seller && <Badge variant="outline" className="uppercase font-bold tracking-tight">{seller.type}</Badge>}
             </div>
+            <p className="text-muted-foreground">Manage your menu library, configure service modes, and track your establishment's performance.</p>
           </div>
-          <div className="flex flex-col sm:flex-row gap-2">
+          <div className="flex items-center gap-3 self-center md:self-auto">
              <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} disabled={isImporting}>
                 {isImporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileSpreadsheet className="mr-2 h-4 w-4" />}
                 Import Excel Menu
@@ -348,7 +408,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
         </header>
 
         <section id="performance-overview" className="mb-12 scroll-mt-24">
-          <h2 className="font-headline text-xl font-bold mb-6 flex items-center gap-2"><BarChart3 className="h-6 w-6 text-primary" /> Performance Overview</h2>
+          <h2 className="font-headline text-xl font-bold mb-6 flex items-center gap-2 text-primary uppercase tracking-wider"><BarChart3 className="h-6 w-6" /> Performance Overview</h2>
           <div className="flex flex-wrap gap-4">
               {dashboardStats ? (
                   <>
@@ -363,7 +423,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
         <Card id="menu-library" className="mb-12 shadow-md border-primary/20 bg-primary/5 scroll-mt-24">
           <CardHeader className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
-              <CardTitle className="flex items-center gap-2"><Database className="h-5 w-5 text-primary" /> Menu Library</CardTitle>
+              <CardTitle className="flex items-center gap-2 uppercase tracking-tight text-primary"><Database className="h-5 w-5" /> Menu Library</CardTitle>
               <CardDescription>Your global catalog of all items available to the establishment.</CardDescription>
             </div>
             <Button onClick={() => { setEditingItem(null); setIsMasterFormOpen(true); }} size="sm"><PlusCircle className="mr-2 h-4 w-4" /> New Item</Button>
@@ -383,7 +443,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                 {filteredMasterItems.map(item => (
                   <div key={item.id} className="p-4 rounded-xl bg-background border shadow-sm group hover:border-primary/50 transition-all">
                     <div className="flex justify-between items-start mb-2">
-                      <Badge variant="secondary" className="text-[10px]">{item.category}</Badge>
+                      <Badge variant="secondary" className="text-[10px] uppercase font-bold tracking-widest">{item.category}</Badge>
                       <div className="flex gap-1">
                         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setEditingItem(item); setIsMasterFormOpen(true); }}><Edit className="h-3.5 w-3.5" /></Button>
                       </div>
@@ -397,7 +457,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
           </CardContent>
         </Card>
 
-        <h2 id="service-management" className="font-headline text-2xl font-bold mb-6 mt-16 flex items-center gap-2 scroll-mt-24"><ListChecks className="h-6 w-6 text-primary" /> Service Menus</h2>
+        <h2 id="service-management" className="font-headline text-xl font-bold mb-6 mt-16 flex items-center gap-2 text-primary uppercase tracking-wider scroll-mt-24"><ListChecks className="h-6 w-6" /> Service Menus</h2>
         <div className="grid grid-cols-1 gap-12">
           {seller?.menuTypes?.map(menuType => {
               const itemsInThisMenu = menuItems?.filter(i => i.availableOn?.includes(menuType)) || [];
@@ -407,7 +467,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                   <Card key={menuType} className="shadow-lg">
                       <CardHeader className="flex flex-row items-center justify-between border-b bg-muted/20">
                           <div>
-                              <CardTitle className="text-xl">{menuType} Menu</CardTitle>
+                              <CardTitle className="text-xl uppercase tracking-tight">{menuType} Menu</CardTitle>
                               <CardDescription>Manage visibility and selection for {menuType}.</CardDescription>
                           </div>
                           <div className="flex gap-2">
@@ -435,7 +495,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                                           <div key={category} className={cn("space-y-3", isCatHidden && "opacity-50 grayscale")}>
                                               <div className="flex items-center gap-2">
                                                 <h4 className="font-bold text-sm uppercase tracking-widest">{category}</h4>
-                                                {isCatHidden && <Badge variant="secondary">Hidden from Golfer</Badge>}
+                                                {isCatHidden && <Badge variant="secondary" className="uppercase text-[9px]">Hidden from Golfer</Badge>}
                                               </div>
                                               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                                   {itemsInCategory.map(item => (
@@ -456,6 +516,69 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
           })}
         </div>
 
+        {isClubSeller && (
+          <section id="member-management" className="mt-16 scroll-mt-24">
+            <h2 className="font-headline text-xl font-bold mb-6 flex items-center gap-2 text-primary uppercase tracking-wider">
+              <Users className="h-6 w-6" /> Member Directory
+            </h2>
+            <Card className="shadow-md">
+              <CardHeader className="flex flex-row items-center justify-between bg-muted/20 border-b">
+                <div>
+                  <CardTitle className="text-lg uppercase tracking-tight">Active Members</CardTitle>
+                  <CardDescription>Directory of members authorized for account charges.</CardDescription>
+                </div>
+                <Button onClick={() => { setEditingMember(null); setIsMemberFormOpen(true); }} size="sm">
+                  <UserPlus className="mr-2 h-4 w-4" /> New Member
+                </Button>
+              </CardHeader>
+              <CardContent className="p-0">
+                {areMembersLoading ? (
+                  <div className="p-8 text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto text-muted-foreground" /></div>
+                ) : members && members.length > 0 ? (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Member Name</TableHead>
+                        <TableHead>Member #</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {members.map(member => (
+                        <TableRow key={member.id}>
+                          <TableCell className="font-medium">{member.name}</TableCell>
+                          <TableCell className="font-mono text-xs">{member.memberNumber}</TableCell>
+                          <TableCell>
+                            <Badge variant={member.status === 'Active' ? 'default' : 'secondary'} className="uppercase text-[9px] px-2">
+                              {member.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex justify-end gap-1">
+                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setEditingMember(member); setIsMemberFormOpen(true); }}>
+                                <Edit className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => deleteDoc(doc(firestore, 'sellers', sellerId, 'members', member.id))}>
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                ) : (
+                  <div className="text-center py-20 text-muted-foreground border-2 border-dashed m-6 rounded-xl">
+                    <Users className="h-12 w-12 opacity-10 mx-auto mb-2" />
+                    <p>No members registered.</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </section>
+        )}
+
         <Dialog open={isMasterFormOpen} onOpenChange={setIsMasterFormOpen}>
           <DialogContent className="sm:max-w-[500px]">
             <DialogHeader><DialogTitle>{editingItem ? 'Edit Item' : 'New Item'}</DialogTitle></DialogHeader>
@@ -463,16 +586,22 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
           </DialogContent>
         </Dialog>
 
+        <Dialog open={isMemberFormOpen} onOpenChange={setIsMemberFormOpen}>
+          <DialogContent className="sm:max-w-[500px]">
+            <DialogHeader><DialogTitle>{editingMember ? 'Edit Member' : 'New Member'}</DialogTitle></DialogHeader>
+            <MemberForm onSave={handleSaveMember} member={editingMember} onClose={() => setIsMemberFormOpen(false)} />
+          </DialogContent>
+        </Dialog>
+
         <Dialog open={isPickingOpen} onOpenChange={setIsPickingOpen}>
           <DialogContent className="sm:max-w-[600px] max-h-[90vh] flex flex-col p-0 overflow-hidden">
               <DialogHeader className="px-6 py-4 border-b">
-                <DialogTitle>Add to {pickingMenuType}</DialogTitle>
+                <DialogTitle className="uppercase tracking-tight">Add to {pickingMenuType}</DialogTitle>
                 <CardDescription>Select items from your library to include in this menu.</CardDescription>
               </DialogHeader>
               <ScrollArea className="flex-1 px-6">
                 <div className="py-4 space-y-6">
                     {categories.map(category => {
-                        // Restriction: Pizza/Salad only for Clubhouse
                         if (pickingMenuType === 'Beverage Cart' && (category === 'Pizza' || category === 'Salad')) return null;
 
                         const itemsInCategory = menuItems?.filter(i => i.category === category) || [];
@@ -508,13 +637,12 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
         <Dialog open={isCategoryConfigOpen} onOpenChange={setIsCategoryConfigOpen}>
           <DialogContent className="sm:max-w-[500px] max-h-[90vh] flex flex-col p-0 overflow-hidden">
             <DialogHeader className="px-6 py-4 border-b">
-              <DialogTitle>Enabled Categories: {configMenuType}</DialogTitle>
+              <DialogTitle className="uppercase tracking-tight">Enabled Categories: {configMenuType}</DialogTitle>
               <CardDescription>Choose which categories should appear to golfers using this service.</CardDescription>
             </DialogHeader>
             <ScrollArea className="flex-1 px-6">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 py-6">
                 {categories.map(category => {
-                  // Restriction: Pizza/Salad only for Clubhouse
                   if (configMenuType === 'Beverage Cart' && (category === 'Pizza' || category === 'Salad')) return null;
 
                   const isVisible = seller?.categoryVisibility?.[configMenuType]?.includes(category);
