@@ -29,7 +29,7 @@ export const menuItems: (Omit<MenuItem, 'id' | 'rank'> & { id?: string, rank?: n
     category: 'Spirits',
   },
 
-  // SOFT DRINKS
+  // SOFT DRINK
   {
     name: 'Classic Cola',
     description: 'Chilled 12oz can of classic cola.',
@@ -43,7 +43,7 @@ export const menuItems: (Omit<MenuItem, 'id' | 'rank'> & { id?: string, rank?: n
     category: 'Soft Drinks',
   },
 
-  // SNACKS
+  // SNACK
   {
     name: 'Kettle-Cooked Chips',
     description: 'Hand-cooked sea salt potato chips.',

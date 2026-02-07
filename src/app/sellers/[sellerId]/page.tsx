@@ -65,7 +65,7 @@ type MemberFormData = z.infer<typeof memberSchema>;
 const getCategoriesForMenu = (menuType: string): Category[] => {
   const bevCartCats: Category[] = ['Beer', 'Spirits', 'Soft Drinks', 'Snacks', 'Other'];
   if (menuType === 'Beverage Cart') return bevCartCats;
-  if (menuType === 'Clubhouse') return [...bevCartCats, 'Appetizers', 'Handhelds', 'Pizza', 'Salad', 'Entrees', 'Dessert'];
+  if (menuType === 'Clubhouse') return ['Beer', 'Spirits', 'Soft Drinks', 'Snacks', 'Other', 'Appetizers', 'Handhelds', 'Pizza', 'Salad', 'Entrees', 'Dessert'];
   return [...categories];
 };
 
