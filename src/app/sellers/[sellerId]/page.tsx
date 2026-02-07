@@ -23,7 +23,11 @@ import {
   GripVertical,
   DollarSign,
   ShoppingBag,
-  Clock
+  Clock,
+  Activity,
+  Map as MapIcon,
+  Navigation,
+  ChevronRight
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -44,7 +48,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
-import { isToday, isThisMonth, isThisYear } from 'date-fns';
+import { isToday, isThisMonth, isThisYear, formatDistanceToNow } from 'date-fns';
 import * as XLSX from 'xlsx';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { 
@@ -64,6 +68,8 @@ import {
   useSortable
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { MapView } from '@/components/map-view';
+import { APIProvider } from '@vis.gl/react-google-maps';
 
 import type { MenuItem, Seller, Category, Order, Member } from '@/lib/types';
 import { categories } from '@/lib/types';
@@ -89,8 +95,9 @@ const memberSchema = z.object({
 type MemberFormData = z.infer<typeof memberSchema>;
 
 const getCategoriesForMenu = (menuType: string): Category[] => {
-  const bevCartCats: Category[] = ['Beer', 'Spirits', 'Soft Drinks', 'Snacks', 'Other'];
-  if (menuType === 'Beverage Cart') return bevCartCats;
+  if (menuType === 'Beverage Cart') {
+    return ['Beer', 'Spirits', 'Soft Drinks', 'Snacks', 'Other'];
+  }
   return [...categories] as Category[];
 };
 
@@ -283,6 +290,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   
   const [masterCategoryFilter, setMasterCategoryFilter] = useState<string>('All');
   const [showTopButton, setShowTopButton] = useState(false);
+  const [now, setNow] = useState(Date.now());
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -297,7 +305,13 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
       setShowTopButton(window.scrollY > 400);
     };
     window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
+    
+    const interval = setInterval(() => setNow(Date.now()), 10000);
+    
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      clearInterval(interval);
+    };
   }, []);
 
   const scrollToTop = () => {
@@ -318,6 +332,10 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
 
   const isClubSeller = seller?.type === 'Private Golf Course' || seller?.type === 'Semi Private Golf Course';
 
+  const activeOrders = useMemo(() => {
+    return orders?.filter(o => ['Placed', 'Preparing', 'Out for Delivery'].includes(o.status)) || [];
+  }, [orders]);
+
   const dashboardStats = useMemo(() => {
     if (!orders) return null;
     const calculate = (filtered: Order[]) => {
@@ -335,6 +353,42 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
       yearly: calculate(orders.filter(o => o.createdAt && isThisYear(o.createdAt.toDate()))),
     };
   }, [orders]);
+
+  const mappedBuyers = useMemo(() => {
+    return activeOrders.map(o => {
+      let colorClass = "bg-green-600";
+      if (o.createdAt) {
+        const orderTime = o.createdAt.toDate().getTime();
+        const minutesElapsed = (now - orderTime) / (1000 * 60);
+        const waitThreshold = o.menuType === 'Beverage Cart' ? 10 : 20;
+        if (minutesElapsed > waitThreshold) {
+          colorClass = "bg-red-600";
+        } else if (minutesElapsed >= (waitThreshold * 0.75)) {
+          colorClass = "bg-yellow-500";
+        }
+      }
+      return {
+        id: o.id,
+        name: o.customerName,
+        location: o.deliveryLocation,
+        colorClass,
+        assignedDriverId: o.assignedDriverId
+      };
+    });
+  }, [activeOrders, now]);
+
+  const liveDrivers = useMemo(() => {
+    const drivers = [];
+    if (seller?.bevcartActive) {
+      drivers.push({
+        id: seller.id,
+        name: `${seller.courseName} BevCart`,
+        location: { latitude: seller.latitude, longitude: seller.longitude }
+      });
+    }
+    // Note: In this MVP, clubhouse location is static unless updated by driver
+    return drivers;
+  }, [seller]);
 
   const filteredMasterItems = useMemo(() => {
     if (!menuItems) return [];
@@ -513,6 +567,74 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                       <StatTile title="Yearly" {...dashboardStats.yearly} />
                   </>
               ) : <Skeleton className="h-40 w-full" />}
+          </div>
+        </section>
+
+        <section id="ops-monitor" className="mb-12 scroll-mt-24">
+          <h2 className="font-headline text-xl font-bold mb-6 flex items-center gap-2 text-primary uppercase tracking-wider">
+            <Activity className="h-6 w-6" /> Live Operations Monitor
+          </h2>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <Card className="lg:col-span-2 h-[400px] overflow-hidden shadow-md">
+              <APIProvider apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!}>
+                {seller ? (
+                  <MapView 
+                    sellerLocation={{ latitude: seller.latitude, longitude: seller.longitude }}
+                    sellers={liveDrivers}
+                    buyers={mappedBuyers}
+                    zoomMode="all"
+                    interactive={true}
+                  />
+                ) : <Skeleton className="w-full h-full" />}
+              </APIProvider>
+            </Card>
+
+            <Card className="shadow-md flex flex-col max-h-[400px]">
+              <CardHeader className="py-4 border-b bg-muted/20">
+                <CardTitle className="text-sm font-bold uppercase flex items-center justify-between">
+                  Active Orders
+                  <Badge variant="secondary" className="font-mono">{activeOrders.length}</Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-0 overflow-hidden flex-1">
+                <ScrollArea className="h-full">
+                  <div className="p-4 space-y-3">
+                    {areOrdersLoading ? (
+                      [...Array(3)].map((_, i) => <Skeleton key={i} className="h-20 w-full" />)
+                    ) : activeOrders.length === 0 ? (
+                      <div className="text-center py-12 text-muted-foreground flex flex-col items-center gap-2">
+                        <ShoppingBag className="h-8 w-8 opacity-10" />
+                        <p className="text-xs font-medium italic">No active orders right now.</p>
+                      </div>
+                    ) : (
+                      activeOrders.map(order => (
+                        <div key={order.id} className="p-3 rounded-lg border bg-background hover:border-primary/50 transition-colors shadow-sm">
+                          <div className="flex justify-between items-start mb-1.5">
+                            <span className="text-xs font-bold truncate pr-2">{order.customerName}</span>
+                            <Badge variant="outline" className="text-[9px] h-4 px-1 uppercase font-bold tracking-tight">
+                              {order.status}
+                            </Badge>
+                          </div>
+                          <div className="flex items-center gap-2 text-[10px] text-muted-foreground font-medium">
+                            <Clock className="w-3 h-3" />
+                            {order.createdAt ? formatDistanceToNow(order.createdAt.toDate(), { addSuffix: true }) : 'Just now'}
+                            <span className="mx-1">•</span>
+                            <Navigation className="w-3 h-3" />
+                            {order.menuType}
+                          </div>
+                          <div className="mt-2 flex justify-between items-end">
+                            <p className="text-[10px] font-mono font-bold text-primary">${order.total.toFixed(2)}</p>
+                            <Button variant="ghost" size="sm" asChild className="h-6 text-[9px] uppercase font-bold tracking-widest px-2">
+                              <a href={`/order/track?id=${order.id}`}>View Map <ChevronRight className="ml-0.5 h-2.5 w-2.5" /></a>
+                            </Button>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </ScrollArea>
+              </CardContent>
+            </Card>
           </div>
         </section>
 
