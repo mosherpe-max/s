@@ -91,14 +91,13 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
       const storedDate = localStorage.getItem('last-clubhouse-session-date');
       
       if (storedDate && storedDate !== todayStr && isClubhouseActive) {
-        console.log("Midnight passed. Resetting local driver state.");
         handleToggleActive(false);
       }
       localStorage.setItem('last-clubhouse-session-date', todayStr);
     };
 
-    const interval = setInterval(checkMidnight, 60000); // Check every minute
-    checkMidnight(); // Initial check
+    const interval = setInterval(checkMidnight, 60000);
+    checkMidnight();
     
     return () => clearInterval(interval);
   }, [isClubhouseActive]);
@@ -108,8 +107,7 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
     return query(
       collection(firestore, 'orders'),
       where('sellerId', '==', sellerId),
-      where('status', 'in', ['Placed', 'Preparing', 'Out for Delivery']),
-      where('menuType', '==', 'Clubhouse')
+      where('status', 'in', ['Placed', 'Preparing', 'Out for Delivery'])
     );
   }, [firestore, sellerId]);
 
@@ -117,7 +115,8 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
 
   const clubhouseOrders = useMemo(() => {
     if (!activeOrders) return [];
-    return activeOrders;
+    // Clubhouse driver handles all orders that are NOT specifically Beverage Cart
+    return activeOrders.filter(o => o.menuType !== 'Beverage Cart');
   }, [activeOrders]);
 
   useEffect(() => {
@@ -146,7 +145,7 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
         title: (
           <div className="flex items-center gap-2">
             <Bell className="h-5 w-5 text-primary animate-bounce" />
-            <span className="font-headline font-bold text-lg text-primary uppercase">NEW CLUBHOUSE ORDER!</span>
+            <span className="font-headline font-bold text-lg text-primary uppercase">NEW SERVICE ORDER!</span>
           </div>
         ),
         description: `You have ${newOrders.length} new order(s).`,
@@ -171,7 +170,7 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
           title: (
             <div className="flex items-center gap-2 text-white">
               <Clock className="h-5 w-5 animate-pulse" />
-              <span className="font-headline font-bold text-lg uppercase">OVERDUE CLUBHOUSE ORDER!</span>
+              <span className="font-headline font-bold text-lg uppercase">OVERDUE SERVICE ORDER!</span>
             </div>
           ),
           description: `Order for ${o.customerName} has exceeded 20 minutes.`,
@@ -296,7 +295,7 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
 
   const otherActiveDrivers = useMemo(() => {
     if (!activeSellers || !now) return [];
-    const threshold = 120000; // 2 minutes heartbeat
+    const threshold = 120000;
     return activeSellers
         .filter(s => {
             if (s.id === sellerId) return false;
@@ -312,7 +311,7 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
 
   const mappedBuyers = useMemo(() => {
     if (!now || !activeOrders) return [];
-    return activeOrders.map(o => {
+    return activeOrders.filter(o => o.menuType !== 'Beverage Cart').map(o => {
       let colorClass = "bg-green-600";
       if (o.createdAt) {
         const orderTime = o.createdAt.toDate().getTime();
@@ -344,8 +343,8 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
       return (
           <div className="flex flex-col items-center justify-center h-screen p-8 text-center space-y-6 text-muted-foreground">
               <AlertCircle className="h-16 w-16 opacity-20" />
-              <h1 className="text-2xl font-headline font-bold uppercase text-[#213147]">KOOP CLUBHOUSE DRIVER INTERFACE</h1>
-              <p className="max-w-sm">Initialize your seller profile to access Clubhouse driver tools.</p>
+              <h1 className="text-2xl font-headline font-bold uppercase text-[#213147]">KOOP CLUBHOUSE INTERFACE</h1>
+              <p className="max-w-sm">Initialize your seller profile to access driver tools.</p>
               <Button asChild><Link href={`/sellers/${sellerId}`}>Initialize Seller Profile</Link></Button>
           </div>
       );
@@ -357,10 +356,10 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
         <header className="flex-shrink-0 px-4 h-16 flex items-center justify-between border-b-2 border-[#E50000] bg-[#213147] z-20 shadow-sm">
           <div className="flex flex-col min-w-0 flex-1 mr-4">
             <h1 className="font-headline text-sm sm:text-base md:text-xl font-bold text-white uppercase tracking-tight truncate">
-              CLUBHOUSE DRIVER DASHBOARD
+              CLUBHOUSE DASHBOARD
             </h1>
             <span className="text-[9px] sm:text-[10px] uppercase font-bold text-white/60 tracking-widest leading-none truncate">
-              CLUBHOUSE: {primarySeller?.courseName || 'Loading...'}
+              ESTABLISHMENT: {primarySeller?.courseName || 'Loading...'}
             </span>
           </div>
           <div className="flex items-center space-x-3 shrink-0">
@@ -388,7 +387,7 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
           </div>
           <div className="w-full md:w-1/3 flex flex-col bg-background border-2 rounded-xl overflow-hidden min-h-0 shadow-sm">
             <h2 className="font-headline text-base font-semibold px-4 pt-3 pb-2 shrink-0 border-b flex items-center justify-between uppercase bg-muted/10">
-              <span className="truncate mr-2">Clubhouse Orders</span>
+              <span className="truncate mr-2">Service Orders</span>
               <span className="bg-[#E50000] text-white text-[10px] rounded-full px-2 py-0.5 shrink-0">{clubhouseOrders.length}</span>
             </h2>
             <ScrollArea className="flex-1 w-full px-2">
@@ -398,7 +397,7 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
                 ) : clubhouseOrders.length === 0 ? (
                   <div className="flex flex-col items-center justify-center text-muted-foreground py-20 text-center px-4">
                     <Package className="h-10 w-10 opacity-20 mb-2" />
-                    <p className="italic text-sm">No active Clubhouse orders.</p>
+                    <p className="italic text-sm">No active service orders.</p>
                   </div>
                 ) : (
                   clubhouseOrders.map((order, index) => (

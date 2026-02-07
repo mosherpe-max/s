@@ -74,7 +74,7 @@ export function OrderCard({
 
   const assignedDriverId = order.assignedDriverId;
   const driverColor = assignedDriverId ? getDriverColor(assignedDriverId) : null;
-  const isAssignedTo Me = assignedDriverId === currentDriverId;
+  const isAssignedToMe = assignedDriverId === currentDriverId;
   const canHandoff = (order.status === 'Preparing' || order.status === 'Out for Delivery') && availableDrivers.length > 0;
 
   const renderAction = () => {

@@ -91,7 +91,6 @@ type MemberFormData = z.infer<typeof memberSchema>;
 const getCategoriesForMenu = (menuType: string): Category[] => {
   const bevCartCats: Category[] = ['Beer', 'Spirits', 'Soft Drinks', 'Snacks', 'Other'];
   if (menuType === 'Beverage Cart') return bevCartCats;
-  // Clubhouse gets everything
   return [...categories] as Category[];
 };
 
@@ -116,16 +115,6 @@ function MasterItemForm({
       availableOn: [],
     },
   });
-
-  useEffect(() => {
-    form.reset(menuItem || { 
-      name: '', 
-      description: '', 
-      price: 0, 
-      category: 'Beer' as Category, 
-      availableOn: [] 
-    });
-  }, [menuItem, form]);
 
   return (
     <Form {...form}>
@@ -174,10 +163,6 @@ function MemberForm({
       status: 'Active',
     },
   });
-
-  useEffect(() => {
-    form.reset(member || { name: '', memberNumber: '', status: 'Active' });
-  }, [member, form]);
 
   return (
     <Form {...form}>
