@@ -11,15 +11,17 @@ import { useFirestore, useDoc, useMemoFirebase } from '@/firebase';
 import { getNumericOrderId } from '@/lib/utils';
 
 const KoopLogo = () => (
-  <div className="flex items-center gap-0.5 font-headline font-bold text-2xl tracking-tighter text-white">
-    <span>KO</span>
-    <div className="relative flex items-center justify-center w-6 h-6">
-      <div className="absolute inset-0 border-[2px] border-red-600 rounded-full"></div>
-      <div className="absolute w-[14px] h-[14px] border-[1.5px] border-red-600 rounded-full"></div>
-      <div className="w-[4px] h-[4px] bg-red-600 rounded-full"></div>
+  <Link href="/" className="flex items-center transition-opacity hover:opacity-90 shrink-0">
+    <div className="flex items-center gap-0.5 font-headline font-bold text-2xl tracking-tighter text-white">
+      <span>KO</span>
+      <div className="relative flex items-center justify-center w-6 h-6">
+        <div className="absolute inset-0 border-[2px] border-red-600 rounded-full"></div>
+        <div className="absolute w-[14px] h-[14px] border-[1.5px] border-red-600 rounded-full"></div>
+        <div className="w-[4px] h-[4px] bg-red-600 rounded-full"></div>
+      </div>
+      <span>P</span>
     </div>
-    <span>P</span>
-  </div>
+  </Link>
 );
 
 export function AppHeader() {
@@ -56,7 +58,10 @@ export function AppHeader() {
 
   const isDriverPage = pathname?.includes('/bevcart') || pathname?.includes('/clubhouse');
   const isTrackingPage = pathname?.includes('/order/track');
-  const isOrderView = (pathname?.includes('/order') || pathname?.includes('/sellers')) && !isDriverPage;
+  const isBuyerView = pathname?.includes('/order') && !isDriverPage;
+  
+  // Only show seller name in header for buyer-facing order flows
+  const showSellerName = (isBuyerView || isTrackingPage) && !isDriverPage;
 
   if (isDriverPage) return null;
 
@@ -64,16 +69,14 @@ export function AppHeader() {
     <header className="sticky top-0 z-40 bg-[#213147] border-b-2 border-[#E50000] shadow-md">
       <div className="container mx-auto flex h-16 items-center justify-between px-4">
         <div className="flex items-center min-w-0">
-          {isOrderView && seller ? (
+          {showSellerName && seller ? (
             <div className="flex flex-col min-w-0">
                <span className="font-headline text-lg font-bold text-white uppercase tracking-tight truncate">
                 {seller.courseName}
               </span>
             </div>
           ) : (
-            <Link href="/" className="flex items-center transition-opacity hover:opacity-90 shrink-0">
-              <KoopLogo />
-            </Link>
+            <KoopLogo />
           )}
         </div>
         
@@ -86,7 +89,7 @@ export function AppHeader() {
               </div>
               <Hash className="h-4 w-4 text-primary" />
             </div>
-          ) : isMounted && isOrderView ? (
+          ) : isMounted && isBuyerView ? (
             <Button 
               variant="outline" 
               className="flex items-center gap-2 h-10 px-4 border-white/20 text-white hover:bg-white/10 hover:text-white bg-transparent rounded-full"
