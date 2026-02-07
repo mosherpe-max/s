@@ -1,7 +1,4 @@
-import type { ImagePlaceholder } from './placeholder-images';
-import { PlaceHolderImages } from './placeholder-images';
 import type { Order, Category, OrderItem, MenuItem, Seller } from './types';
-
 
 export const menuItems: (Omit<MenuItem, 'id' | 'rank'> & { id?: string, rank?: number })[] = [
   // BEER
@@ -17,36 +14,12 @@ export const menuItems: (Omit<MenuItem, 'id' | 'rank'> & { id?: string, rank?: n
     price: 6.50,
     category: 'Beer',
   },
-  {
-    name: 'Amber Ale',
-    description: 'Medium-bodied with a toasted malt character and low bitterness.',
-    price: 7.50,
-    category: 'Beer',
-  },
-  {
-    name: 'Oatmeal Stout',
-    description: 'Dark, smooth, and creamy with hints of chocolate and coffee.',
-    price: 9.00,
-    category: 'Beer',
-  },
-
+  
   // SPIRITS
   {
     name: "Golfers' Gin & Tonic",
     description: 'Premium botanical gin mixed with crisp tonic and lime.',
     price: 12.00,
-    category: 'Spirits',
-  },
-  {
-    name: 'Fairway Vodka Soda',
-    description: 'Triple-distilled vodka with sparkling club soda and lemon.',
-    price: 11.50,
-    category: 'Spirits',
-  },
-  {
-    name: 'Classic Margarita',
-    description: '100% blue agave tequila, fresh lime juice, and agave nectar.',
-    price: 13.00,
     category: 'Spirits',
   },
   {
@@ -64,20 +37,8 @@ export const menuItems: (Omit<MenuItem, 'id' | 'rank'> & { id?: string, rank?: n
     category: 'Soft Drinks',
   },
   {
-    name: 'Spring Water',
-    description: 'Pure, chilled natural spring water.',
-    price: 2.50,
-    category: 'Soft Drinks',
-  },
-  {
     name: 'Arnold Palmer',
     description: 'The perfect 50/50 blend of iced tea and lemonade.',
-    price: 4.50,
-    category: 'Soft Drinks',
-  },
-  {
-    name: 'Ginger Beer',
-    description: 'Extra spicy, non-alcoholic ginger brew.',
     price: 4.50,
     category: 'Soft Drinks',
   },
@@ -95,18 +56,6 @@ export const menuItems: (Omit<MenuItem, 'id' | 'rank'> & { id?: string, rank?: n
     price: 5.00,
     category: 'Snacks',
   },
-  {
-    name: 'Honey Roasted Peanuts',
-    description: 'Sweet and salty crunch for the back nine.',
-    price: 4.50,
-    category: 'Snacks',
-  },
-  {
-    name: 'Beef Jerky',
-    description: 'Original hickory smoked premium beef strips.',
-    price: 7.00,
-    category: 'Snacks',
-  },
 
   // ENTREES
   {
@@ -121,17 +70,33 @@ export const menuItems: (Omit<MenuItem, 'id' | 'rank'> & { id?: string, rank?: n
     price: 38.00,
     category: 'Entrees',
   },
+
+  // PIZZA & SALAD (New)
   {
-    name: 'Chicken Marsala',
-    description: 'Pan-seared chicken breast with mushroom marsala wine sauce.',
-    price: 22.00,
-    category: 'Entrees',
+    name: 'Pepperoni Pizza',
+    description: 'Classic 12-inch pepperoni pizza with mozzarella.',
+    price: 18.00,
+    category: 'Pizza',
   },
   {
-    name: 'Ribeye Steak',
-    description: '12oz marble-rich cut, seasoned and grilled to perfection.',
-    price: 36.00,
-    category: 'Entrees',
+    name: 'Caesar Salad',
+    description: 'Romaine lettuce, croutons, parmesan cheese, and Caesar dressing.',
+    price: 12.00,
+    category: 'Salad',
+  },
+
+  // HANDHELDS (Renamed from Sandwiches)
+  {
+    name: 'Turkey Club',
+    description: 'Triple-decker with roasted turkey, bacon, lettuce, and tomato.',
+    price: 15.00,
+    category: 'Handhelds',
+  },
+  {
+    name: 'Classic Burger',
+    description: 'Half-pound Angus beef on a brioche bun with fries.',
+    price: 16.50,
+    category: 'Handhelds',
   },
 
   // APPETIZERS
@@ -141,51 +106,7 @@ export const menuItems: (Omit<MenuItem, 'id' | 'rank'> & { id?: string, rank?: n
     price: 16.00,
     category: 'Appetizers',
   },
-  {
-    name: 'Mozzarella Sticks',
-    description: 'Six breaded sticks served with warm marinara.',
-    price: 10.00,
-    category: 'Appetizers',
-  },
-  {
-    name: 'Spinach Artichoke Dip',
-    description: 'Creamy blend of cheeses, served with warm tortilla chips.',
-    price: 13.00,
-    category: 'Appetizers',
-  },
-  {
-    name: 'Crispy Calamari',
-    description: 'Lightly breaded and served with spicy aioli.',
-    price: 15.00,
-    category: 'Appetizers',
-  },
-
-  // SANDWICHES
-  {
-    name: 'Turkey Club Sandwich',
-    description: 'Triple-decker with roasted turkey, bacon, lettuce, and tomato.',
-    price: 15.00,
-    category: 'Sandwiches',
-  },
-  {
-    name: 'Classic Burger',
-    description: 'Half-pound Angus beef on a brioche bun with fries.',
-    price: 16.50,
-    category: 'Sandwiches',
-  },
-  {
-    name: 'Grilled Chicken Panini',
-    description: 'Pesto, mozzarella, and roasted peppers on sourdough.',
-    price: 14.50,
-    category: 'Sandwiches',
-  },
-  {
-    name: 'Roast Beef Dip',
-    description: 'Thinly sliced roast beef on a baguette with au jus.',
-    price: 17.00,
-    category: 'Sandwiches',
-  },
-
+  
   // DESSERT
   {
     name: 'NY Cheesecake',
@@ -193,26 +114,15 @@ export const menuItems: (Omit<MenuItem, 'id' | 'rank'> & { id?: string, rank?: n
     price: 9.00,
     category: 'Dessert',
   },
-  {
-    name: 'Chocolate Lava Cake',
-    description: 'Warm dark chocolate cake with a molten center.',
-    price: 11.00,
-    category: 'Dessert',
-  },
-  {
-    name: 'Apple Tart',
-    description: 'Warm caramelized apples in a flaky crust with vanilla bean gelato.',
-    price: 10.00,
-    category: 'Dessert',
-  },
-  {
-    name: 'Creme Brulee',
-    description: 'Classic vanilla bean custard with a burnt sugar crust.',
-    price: 12.00,
-    category: 'Dessert',
-  },
-];
 
+  // OTHER
+  {
+    name: 'Logo Golf Balls (3-pack)',
+    description: 'Sleeve of premium golf balls.',
+    price: 15.00,
+    category: 'Other',
+  }
+];
 
 export const mockSellerLocation = {
   latitude: 42.7748,

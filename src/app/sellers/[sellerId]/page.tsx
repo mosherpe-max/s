@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useMemo, useEffect, use, useRef } from 'react';
@@ -6,7 +5,7 @@ import { collection, doc, setDoc, deleteDoc, writeBatch, query, where, updateDoc
 import { useFirestore, useDoc, useCollection, useMemoFirebase } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { PlusCircle, Edit, Trash2, Filter, DollarSign, ShoppingBag, Clock, Database, Users, UserPlus, Sparkles, Download, FileSpreadsheet, Save, Loader2, ListChecks, ChevronUp, ChevronDown, Check, MousePointer2, BarChart3, ArrowUp, Upload, FileText } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, Filter, DollarSign, ShoppingBag, Clock, Database, Users, UserPlus, Sparkles, Download, FileSpreadsheet, Save, Loader2, ListChecks, ChevronUp, ChevronDown, Check, MousePointer2, BarChart3, ArrowUp, LayoutGrid, Settings2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import {
   AlertDialog,
@@ -35,6 +34,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
 import { isToday, isThisMonth, isThisYear, format } from 'date-fns';
 import Link from 'next/link';
@@ -62,13 +62,6 @@ const memberSchema = z.object({
 });
 
 type MemberFormData = z.infer<typeof memberSchema>;
-
-const sampleMembers = [
-  { name: 'Jane Doe', memberNumber: '1001', status: 'Active' },
-  { name: 'John Smith', memberNumber: '1002', status: 'Active' },
-  { name: 'Alice Johnson', memberNumber: '1003', status: 'Active' },
-  { name: 'Robert Brown', memberNumber: '1004', status: 'Active' }
-];
 
 function MasterItemForm({
   onSave,
@@ -130,61 +123,6 @@ function MasterItemForm({
   );
 }
 
-function MemberForm({
-  onSave,
-  onClose,
-  member,
-  disabled,
-}: {
-  onSave: (data: MemberFormData) => void;
-  onClose: () => void;
-  member?: Member | null;
-  disabled?: boolean;
-}) {
-  const form = useForm<MemberFormData>({
-    resolver: zodResolver(memberSchema),
-    defaultValues: member || { name: '', memberNumber: '', status: 'Active' },
-  });
-
-  useEffect(() => {
-    form.reset(member || { name: '', memberNumber: '', status: 'Active' });
-  }, [member, form]);
-
-  return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSave)}>
-        <div className="grid gap-4 py-4">
-          <FormField control={form.control} name="name" render={({ field }) => (
-            <FormItem><FormLabel>Member Name</FormLabel><FormControl><Input {...field} placeholder="Jane Doe" /></FormControl><FormMessage /></FormItem>
-          )} />
-          <FormField control={form.control} name="memberNumber" render={({ field }) => (
-            <FormItem><FormLabel>Member ID Number</FormLabel><FormControl><Input {...field} placeholder="12345" /></FormControl><FormMessage /></FormItem>
-          )} />
-          <FormField control={form.control} name="status" render={({ field }) => (
-            <FormItem>
-              <FormLabel>Status</FormLabel>
-              <Select onValueChange={field.onChange} value={field.value}>
-                <FormControl>
-                  <SelectTrigger><SelectValue placeholder="Select status" /></SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  <SelectItem value="Active">Active</SelectItem>
-                  <SelectItem value="Inactive">Inactive</SelectItem>
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )} />
-        </div>
-        <div className="flex justify-end gap-2">
-          <Button type="button" variant="ghost" onClick={onClose}>Cancel</Button>
-          <Button type="submit" disabled={disabled}>{member ? 'Update' : 'Add Member'}</Button>
-        </div>
-      </form>
-    </Form>
-  );
-}
-
 function StatTile({ title, revenue, orders, longWait }: { title: string, revenue: number, orders: number, longWait: number }) {
   return (
     <Card className="flex-1 min-w-[300px] shadow-sm">
@@ -222,18 +160,14 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   
   const [isPickingOpen, setIsPickingOpen] = useState(false);
   const [pickingMenuType, setPickingMenuType] = useState<string>('');
+  
+  const [isCategoryConfigOpen, setIsCategoryConfigOpen] = useState(false);
+  const [configMenuType, setConfigMenuType] = useState<string>('');
 
-  const [isMemberFormOpen, setIsMemberFormOpen] = useState(false);
-  const [editingMember, setEditingMember] = useState<Member | null>(null);
-  const [memberToDelete, setMemberToDelete] = useState<Member | null>(null);
   const [isSeeding, setIsSeeding] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   
   const [masterCategoryFilter, setMasterCategoryFilter] = useState<string>('All');
-
-  const [startDate, setStartDate] = useState<string>('');
-  const [endDate, setEndDate] = useState<string>('');
-
   const [showTopButton, setShowTopButton] = useState(false);
 
   useEffect(() => {
@@ -254,9 +188,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
 
   const menuItemsQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'sellers', sellerId, 'menuItems') : null), [firestore, sellerId]);
   const { data: menuItems, isLoading: areItemsLoading } = useCollection<MenuItem>(menuItemsQuery);
-
-  const membersQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'sellers', sellerId, 'members') : null), [firestore, sellerId]);
-  const { data: members, isLoading: areMembersLoading } = useCollection<Member>(membersQuery);
 
   const ordersQuery = useMemoFirebase(() => (firestore ? query(collection(firestore, 'orders'), where('sellerId', '==', sellerId)) : null), [firestore, sellerId]);
   const { data: orders, isLoading: areOrdersLoading } = useCollection<Order>(ordersQuery);
@@ -281,11 +212,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     };
   }, [orders]);
 
-  const recentOrders = useMemo(() => {
-    if (!orders) return [];
-    return [...orders].sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis()).slice(0, 5);
-  }, [orders]);
-  
   const filteredMasterItems = useMemo(() => {
     if (!menuItems) return [];
     if (masterCategoryFilter === 'All') return [...menuItems].sort((a,b) => a.name.localeCompare(b.name));
@@ -293,30 +219,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
       .filter(item => item.category === masterCategoryFilter)
       .sort((a,b) => a.name.localeCompare(b.name));
   }, [menuItems, masterCategoryFilter]);
-
-  const handleExportCSV = () => {
-    if (!orders) return;
-    const start = startDate ? new Date(startDate) : new Date(0);
-    const end = endDate ? new Date(endDate) : new Date();
-    end.setHours(23, 59, 59, 999);
-    const filtered = orders.filter(o => {
-      const date = o.createdAt.toDate();
-      return date >= start && date <= end;
-    });
-    if (filtered.length === 0) {
-      toast({ title: "No data", description: "No sales found for the selected range.", variant: "destructive" });
-      return;
-    }
-    const headers = ["Order ID", "Date", "Customer", "Items", "Total", "Status"];
-    const rows = filtered.map(o => [o.id, o.createdAt.toDate().toLocaleString(), o.customerName, o.items.map(i => `${i.name} (${i.quantity})`).join("; "), o.total.toFixed(2), o.status]);
-    const csvContent = [headers, ...rows].map(e => e.join(",")).join("\n");
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute("download", `sales_${sellerId}.csv`);
-    link.click();
-  };
 
   const handleSeedData = async () => {
     if (!firestore) return;
@@ -326,34 +228,26 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
       const isDemo = sellerId === 'demo-course';
       batch.set(doc(firestore, 'sellers', sellerId), {
         id: sellerId, 
-        courseName: isDemo ? 'Demo Golf Course - Public' : 'Sample Course',
+        courseName: isDemo ? 'Demo Golf Course' : 'Sample Course',
         type: isDemo ? 'Public Golf Course' : 'Private Golf Course', 
         streetAddress: '123 Fairway Drive', city: 'Pebble Beach', state: 'CA', zip: '93953',
         latitude: 42.7748, longitude: -83.2139, contactName: 'Pro Shop Manager', contactEmail: 'manager@democourse.com',
         contactPhone: '555-0100', serviceFee: 2.50, status: 'Inactive', 
         bevcartActive: false,
         clubhouseActive: false,
-        lastActive: null,
         menuTypes: ['Beverage Cart', 'Clubhouse'],
         brandColor: '#22c55e',
-        headerColor: '#213147',
-        bottomBarColor: '#22c55e',
-        bodyBackgroundColor: '#fdfcf0'
+        categoryVisibility: {
+          'Beverage Cart': ['Beer', 'Spirits', 'Soft Drinks', 'Snacks', 'Other'],
+          'Clubhouse': ['Handhelds', 'Appetizers', 'Entrees', 'Pizza', 'Salad', 'Dessert', 'Beer', 'Spirits', 'Soft Drinks', 'Snacks', 'Other']
+        }
       }, { merge: true });
       mockMenuItems.forEach((item, index) => {
         const newItemRef = doc(collection(firestore, 'sellers', sellerId, 'menuItems'));
-        const isBevCartFriendly = ['Beer', 'Spirits', 'Soft Drinks', 'Snacks'].includes(item.category);
-        const availableOn = isBevCartFriendly ? ['Beverage Cart', 'Clubhouse'] : ['Clubhouse'];
-        const menuRanks: Record<string, number> = { 'Clubhouse': index + 1 };
-        if (isBevCartFriendly) { menuRanks['Beverage Cart'] = index + 1; }
-        batch.set(newItemRef, { ...item, id: newItemRef.id, rank: index + 1, availableOn, menuRanks });
-      });
-      sampleMembers.forEach((member) => {
-        const memberRef = doc(collection(firestore, 'sellers', sellerId, 'members'));
-        batch.set(memberRef, { ...member, id: memberRef.id });
+        batch.set(newItemRef, { ...item, id: newItemRef.id, rank: index + 1 });
       });
       await batch.commit();
-      toast({ title: "Demo Ready", description: "Sample data loaded and status set to Inactive." });
+      toast({ title: "Demo Ready", description: "Sample data loaded." });
     } finally { setIsSeeding(false); }
   };
 
@@ -367,57 +261,33 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
       try {
         const data = new Uint8Array(e.target?.result as ArrayBuffer);
         const workbook = XLSX.read(data, { type: 'array' });
-        const firstSheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[firstSheetName];
-        
-        // Use JSON format to make it easier to process
+        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
         const jsonData = XLSX.utils.sheet_to_json(worksheet);
-
-        if (jsonData.length === 0) {
-          toast({ variant: 'destructive', title: 'Import Failed', description: 'Spreadsheet is empty. Ensure headers match: Name, Description, Price, Category.' });
-          setIsImporting(false);
-          return;
-        }
 
         const batch = writeBatch(firestore);
         const menuItemsCol = collection(firestore, 'sellers', sellerId, 'menuItems');
-        let importCount = 0;
-
         jsonData.forEach((row: any, index: number) => {
           const name = row['Name'] || row['name'];
-          const description = row['Description'] || row['description'] || '';
           const price = parseFloat(row['Price'] || row['price']);
           const category = row['Category'] || row['category'];
-
           if (!name || isNaN(price)) return;
-          if (!categories.includes(category as Category)) return;
-
           const newItemRef = doc(menuItemsCol);
           batch.set(newItemRef, {
             id: newItemRef.id,
             name,
-            description,
+            description: row['Description'] || '',
             price,
             category: category as Category,
-            rank: (menuItems?.length || 0) + index + 1,
-            availableOn: ['Clubhouse'], // Default availability
-            menuRanks: { 'Clubhouse': (menuItems?.length || 0) + index + 1 }
+            rank: index + 1,
+            availableOn: ['Clubhouse']
           });
-          importCount++;
         });
-
-        if (importCount > 0) {
-          await batch.commit();
-          toast({ title: 'Import Successful', description: `Imported ${importCount} items to your Menu Library.` });
-        } else {
-          toast({ variant: 'destructive', title: 'Import Failed', description: 'No valid menu items found. Ensure headers match: Name, Description, Price, Category.' });
-        }
+        await batch.commit();
+        toast({ title: 'Import Successful', description: 'Menu items added.' });
       } catch (err) {
-        console.error('Excel Import Error:', err);
-        toast({ variant: 'destructive', title: 'Import Error', description: 'Failed to process the spreadsheet.' });
+        toast({ variant: 'destructive', title: 'Import Failed' });
       } finally {
         setIsImporting(false);
-        if (fileInputRef.current) fileInputRef.current.value = '';
       }
     };
     reader.readAsArrayBuffer(file);
@@ -426,8 +296,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   const handleSaveMasterItem = (data: MenuItemFormData) => {
     if (!firestore) return;
     const itemRef = editingItem ? doc(firestore, 'sellers', sellerId, 'menuItems', editingItem.id) : doc(collection(firestore, 'sellers', sellerId, 'menuItems'));
-    const payload = { ...data, id: itemRef.id, rank: editingItem?.rank || (menuItems?.length || 0) + 1 };
-    setDoc(itemRef, payload, { merge: true });
+    setDoc(itemRef, { ...data, id: itemRef.id, rank: editingItem?.rank || (menuItems?.length || 0) + 1 }, { merge: true });
     setEditingItem(null); setIsMasterFormOpen(false);
   };
 
@@ -436,62 +305,22 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     const currentAvailable = item.availableOn || [];
     const isAvailable = currentAvailable.includes(menuType);
     const nextAvailable = isAvailable ? currentAvailable.filter(t => t !== menuType) : [...currentAvailable, menuType];
-    const updates: Partial<MenuItem> = { availableOn: nextAvailable };
-    if (!isAvailable) {
-        const menuRanks = item.menuRanks || {};
-        if (!menuRanks[menuType]) {
-            const currentMax = menuItems?.filter(i => i.availableOn?.includes(menuType)).length || 0;
-            menuRanks[menuType] = currentMax + 1;
-            updates.menuRanks = menuRanks;
-        }
-    }
-    updateDoc(doc(firestore, 'sellers', sellerId, 'menuItems', item.id), updates);
+    updateDoc(doc(firestore, 'sellers', sellerId, 'menuItems', item.id), { availableOn: nextAvailable });
   };
 
-  const handleRerank = (item: MenuItem, menuType: string, direction: 'up' | 'down') => {
-    if (!firestore || !menuItems) return;
-    const itemsInMenu = menuItems
-        .filter(i => i.availableOn?.includes(menuType) && i.category === item.category)
-        .sort((a, b) => (a.menuRanks?.[menuType] || 0) - (b.menuRanks?.[menuType] || 0));
-    const currentIndex = itemsInMenu.findIndex(i => i.id === item.id);
-    const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
-    if (targetIndex >= 0 && targetIndex < itemsInMenu.length) {
-        const targetItem = itemsInMenu[targetIndex];
-        const currentRank = item.menuRanks?.[menuType] || currentIndex + 1;
-        const targetRank = targetItem.menuRanks?.[menuType] || targetIndex + 1;
-        const batch = writeBatch(firestore);
-        batch.update(doc(firestore, 'sellers', sellerId, 'menuItems', item.id), { [`menuRanks.${menuType}`]: targetRank });
-        batch.update(doc(firestore, 'sellers', sellerId, 'menuItems', targetItem.id), { [`menuRanks.${menuType}`]: currentRank });
-        batch.commit();
-    }
-  };
-
-  const handleSaveMember = (data: MemberFormData) => {
-    if (!firestore) return;
-    const memberRef = editingMember ? doc(firestore, 'sellers', sellerId, 'members', editingMember.id) : doc(collection(firestore, 'sellers', sellerId, 'members'));
-    setDoc(memberRef, { ...data, id: memberRef.id }, { merge: true });
-    setEditingMember(null); setIsMemberFormOpen(false);
+  const handleToggleCategoryVisibility = (menuType: string, category: Category) => {
+    if (!firestore || !seller) return;
+    const visibility = seller.categoryVisibility || {};
+    const currentCategories = visibility[menuType] || [];
+    const isVisible = currentCategories.includes(category);
+    const nextCategories = isVisible ? currentCategories.filter(c => c !== category) : [...currentCategories, category];
+    
+    updateDoc(doc(firestore, 'sellers', sellerId), {
+      [`categoryVisibility.${menuType}`]: nextCategories
+    });
   };
 
   if (!isMounted) return null;
-
-  if (!isSellerLoading && !seller && sellerId === 'demo-course') {
-    return (
-      <div className="container mx-auto px-4 py-20 flex flex-col items-center justify-center text-center">
-        <Database className="h-16 w-16 text-muted-foreground mb-4 opacity-20" />
-        <h1 className="font-headline text-3xl font-bold mb-2">Initialize KOOP Demo Course</h1>
-        <Button size="lg" onClick={handleSeedData} disabled={isSeeding}>{isSeeding ? 'Initializing...' : 'Set Up Demo Course'}</Button>
-      </div>
-    );
-  }
-
-  const quickLinks = [
-    { label: 'Performance Overview', id: 'performance-overview', icon: <BarChart3 className="w-3 h-3" /> },
-    { label: 'Sales Data', id: 'sales-data', icon: <FileSpreadsheet className="w-3 h-3" /> },
-    { label: 'Menu Library', id: 'menu-library', icon: <Database className="w-3 h-3" /> },
-    { label: 'Service Menu Management', id: 'service-management', icon: <ListChecks className="w-3 h-3" /> },
-    ...(isClubSeller ? [{ label: 'Member List', id: 'member-list', icon: <Users className="w-3 h-3" /> }] : []),
-  ];
 
   return (
     <div className="flex flex-col min-h-screen relative">
@@ -504,49 +333,20 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                 </h1>
                 {seller && <Badge variant="outline">{seller.type}</Badge>}
             </div>
-            <p className="text-muted-foreground text-sm mt-1">Configure your menus, monitor performance, and manage your inventory.</p>
           </div>
           <div className="flex flex-col sm:flex-row gap-2">
-             <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} disabled={isImporting} className="bg-primary/5 border-primary/20 hover:bg-primary/10">
-                    {isImporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileSpreadsheet className="mr-2 h-4 w-4" />}
-                    Import Excel Menu
-                </Button>
-                <Button variant="ghost" size="sm" asChild className="text-muted-foreground">
-                  <a href="/menu_upload_template.csv" download>
-                    <Download className="mr-1 h-4 w-4" /> Template
-                  </a>
-                </Button>
-             </div>
-             <input 
-                type="file" 
-                ref={fileInputRef} 
-                onChange={handleExcelImport} 
-                accept=".xlsx, .xls" 
-                className="hidden" 
-             />
+             <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} disabled={isImporting}>
+                {isImporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileSpreadsheet className="mr-2 h-4 w-4" />}
+                Import Excel Menu
+             </Button>
+             <input type="file" ref={fileInputRef} onChange={handleExcelImport} accept=".xlsx, .xls" className="hidden" />
              <Button variant="outline" size="sm" onClick={handleSeedData} disabled={isSeeding}>
-                <Sparkles className="mr-2 h-4 w-4" />
-                Reset Demo Data
+                <Sparkles className="mr-2 h-4 w-4" /> Reset Demo
              </Button>
           </div>
         </header>
 
-        <nav className="mb-12 bg-muted/30 p-4 rounded-xl border border-dashed flex flex-wrap items-center gap-3">
-            <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mr-2 flex items-center gap-1.5">
-                <MousePointer2 className="w-3 h-3" /> Quick Navigation:
-            </span>
-            {quickLinks.map((link) => (
-                <Button key={link.id} variant="secondary" size="sm" asChild className="h-8 text-xs rounded-full">
-                    <Link href={`#${link.id}`}>
-                        {link.icon}
-                        <span className="ml-2">{link.label}</span>
-                    </Link>
-                </Button>
-            ))}
-        </nav>
-
-        <section id="performance-overview" className="mb-8 scroll-mt-24">
+        <section id="performance-overview" className="mb-12 scroll-mt-24">
           <h2 className="font-headline text-xl font-bold mb-6 flex items-center gap-2"><BarChart3 className="h-6 w-6 text-primary" /> Performance Overview</h2>
           <div className="flex flex-wrap gap-4">
               {dashboardStats ? (
@@ -555,80 +355,29 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                       <StatTile title="Monthly" {...dashboardStats.monthly} />
                       <StatTile title="Yearly" {...dashboardStats.yearly} />
                   </>
-              ) : <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full"><Skeleton className="h-40 w-full" /><Skeleton className="h-40 w-full" /><Skeleton className="h-40 w-full" /></div>}
+              ) : <Skeleton className="h-40 w-full" />}
           </div>
         </section>
-
-        <div className="grid grid-cols-1 gap-8 mb-12">
-            <Card id="sales-data" className="shadow-sm border-muted scroll-mt-24">
-              <CardHeader className="bg-muted/30">
-                <CardTitle className="flex items-center gap-2 text-lg"><FileSpreadsheet className="h-5 w-5" /> Sales Data</CardTitle>
-              </CardHeader>
-              <CardContent className="pt-6">
-                <div className="flex flex-wrap gap-2 mb-6">
-                    <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="h-9 w-36 text-xs" />
-                    <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="h-9 w-36 text-xs" />
-                    <Button onClick={handleExportCSV} variant="outline" size="sm" className="h-9"><Download className="mr-2 h-4 w-4" /> Export CSV</Button>
-                </div>
-                {areOrdersLoading ? <Skeleton className="h-32 w-full" /> : recentOrders && recentOrders.length > 0 ? (
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader><TableRow><TableHead>Date</TableHead><TableHead>Customer</TableHead><TableHead>Total</TableHead></TableRow></TableHeader>
-                      <TableBody>
-                        {recentOrders.map(order => (
-                          <TableRow key={order.id}>
-                            <TableCell className="text-xs">{order.createdAt && format(order.createdAt.toDate(), 'MMM d, h:mm a')}</TableCell>
-                            <TableCell className="text-sm font-medium">{order.customerName}</TableCell>
-                            <TableCell className="font-mono text-sm">${order.total.toFixed(2)}</TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                ) : <div className="text-center py-10 text-muted-foreground italic">No recent sales.</div>}
-              </CardContent>
-            </Card>
-        </div>
-
-        <Separator className="my-10" />
 
         <Card id="menu-library" className="mb-12 shadow-md border-primary/20 bg-primary/5 scroll-mt-24">
           <CardHeader className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
               <CardTitle className="flex items-center gap-2"><Database className="h-5 w-5 text-primary" /> Menu Library</CardTitle>
-              <CardDescription>Maintain your global catalog. Use the filters below to browse categories.</CardDescription>
+              <CardDescription>Your global catalog of all items available to the establishment.</CardDescription>
             </div>
-            <Button onClick={() => { setEditingItem(null); setIsMasterFormOpen(true); }} size="sm" className="shadow-lg"><PlusCircle className="mr-2 h-4 w-4" /> New Menu Item</Button>
+            <Button onClick={() => { setEditingItem(null); setIsMasterFormOpen(true); }} size="sm"><PlusCircle className="mr-2 h-4 w-4" /> New Item</Button>
           </CardHeader>
           <CardContent>
             <div className="flex flex-wrap items-center gap-2 mb-8 bg-background/50 p-2 rounded-lg border">
-              <div className="flex items-center gap-2 text-muted-foreground text-xs font-bold uppercase tracking-widest px-2 mr-2">
-                <Filter className="h-3 w-3" /> Filter
-              </div>
-              <Button 
-                variant={masterCategoryFilter === 'All' ? 'default' : 'ghost'} 
-                size="sm" 
-                onClick={() => setMasterCategoryFilter('All')}
-                className="h-8 text-xs"
-              >
-                All
-              </Button>
+              <Button variant={masterCategoryFilter === 'All' ? 'default' : 'ghost'} size="sm" onClick={() => setMasterCategoryFilter('All')}>All</Button>
               {categories.map(cat => (
-                <Button 
-                  key={cat}
-                  variant={masterCategoryFilter === cat ? 'default' : 'ghost'} 
-                  size="sm" 
-                  onClick={() => setMasterCategoryFilter(cat)}
-                  className="h-8 text-xs"
-                >
-                  {cat}
-                </Button>
+                <Button key={cat} variant={masterCategoryFilter === cat ? 'default' : 'ghost'} size="sm" onClick={() => setMasterCategoryFilter(cat)}>{cat}</Button>
               ))}
             </div>
 
             {areItemsLoading ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"><Skeleton className="h-40 w-full" /><Skeleton className="h-40 w-full" /><Skeleton className="h-40 w-full" /></div>
-            ) : filteredMasterItems.length > 0 ? (
+              <Skeleton className="h-40 w-full" />
+            ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {filteredMasterItems.map(item => (
                   <div key={item.id} className="p-4 rounded-xl bg-background border shadow-sm group hover:border-primary/50 transition-all">
@@ -636,73 +385,62 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                       <Badge variant="secondary" className="text-[10px]">{item.category}</Badge>
                       <div className="flex gap-1">
                         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setEditingItem(item); setIsMasterFormOpen(true); }}><Edit className="h-3.5 w-3.5" /></Button>
-                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => deleteDoc(doc(firestore!, 'sellers', sellerId, 'menuItems', item.id))}><Trash2 className="h-3.5 w-3.5" /></Button>
                       </div>
                     </div>
                     <h4 className="font-bold">{item.name}</h4>
-                    <p className="text-xs text-muted-foreground line-clamp-2 mt-1 mb-2">{item.description}</p>
                     <p className="font-mono font-bold text-sm text-primary">${item.price.toFixed(2)}</p>
                   </div>
                 ))}
-              </div>
-            ) : (
-              <div className="text-center py-16 text-muted-foreground italic border-2 border-dashed rounded-xl">
-                <p>No items found in {masterCategoryFilter === 'All' ? 'the library' : `the ${masterCategoryFilter} category`}.</p>
-                {masterCategoryFilter !== 'All' && (
-                  <Button variant="link" onClick={() => setMasterCategoryFilter('All')}>Clear filter</Button>
-                )}
               </div>
             )}
           </CardContent>
         </Card>
 
-        <h2 id="service-management" className="font-headline text-2xl font-bold mb-6 mt-16 flex items-center gap-2 scroll-mt-24"><ListChecks className="h-6 w-6 text-primary" /> Service Menu Management</h2>
+        <h2 id="service-management" className="font-headline text-2xl font-bold mb-6 mt-16 flex items-center gap-2 scroll-mt-24"><ListChecks className="h-6 w-6 text-primary" /> Service Menus</h2>
         <div className="grid grid-cols-1 gap-12">
           {seller?.menuTypes?.map(menuType => {
               const itemsInThisMenu = menuItems?.filter(i => i.availableOn?.includes(menuType)) || [];
+              const enabledCats = seller.categoryVisibility?.[menuType] || [];
+
               return (
                   <Card key={menuType} className="shadow-lg">
                       <CardHeader className="flex flex-row items-center justify-between border-b bg-muted/20">
                           <div>
                               <CardTitle className="text-xl">{menuType} Menu</CardTitle>
-                              <CardDescription>Customize the selection and order of items specifically for {menuType}.</CardDescription>
+                              <CardDescription>Manage visibility and selection for {menuType}.</CardDescription>
                           </div>
-                          <Button variant="outline" onClick={() => { setPickingMenuType(menuType); setIsPickingOpen(true); }} className="bg-background">
-                              <PlusCircle className="mr-2 h-4 w-4" /> Pick Menu Items
-                          </Button>
+                          <div className="flex gap-2">
+                            <Button variant="outline" onClick={() => { setConfigMenuType(menuType); setIsCategoryConfigOpen(true); }} className="bg-background">
+                                <Settings2 className="mr-2 h-4 w-4" /> Manage Categories
+                            </Button>
+                            <Button variant="default" onClick={() => { setPickingMenuType(menuType); setIsPickingOpen(true); }}>
+                                <PlusCircle className="mr-2 h-4 w-4" /> Add Items
+                            </Button>
+                          </div>
                       </CardHeader>
                       <CardContent className="pt-6">
                           {itemsInThisMenu.length === 0 ? (
                               <div className="text-center py-12 border-2 border-dashed rounded-xl">
-                                  <p className="text-muted-foreground italic">No items picked for this menu yet.</p>
-                                  <Button variant="link" onClick={() => { setPickingMenuType(menuType); setIsPickingOpen(true); }}>Choose items from library</Button>
+                                  <p className="text-muted-foreground italic">No items added to this menu.</p>
                               </div>
                           ) : (
-                              <div className="space-y-10">
+                              <div className="space-y-8">
                                   {categories.map(category => {
-                                      const itemsInCategory = itemsInThisMenu
-                                          .filter(i => i.category === category)
-                                          .sort((a, b) => (a.menuRanks?.[menuType] || 0) - (b.menuRanks?.[menuType] || 0));
-                                      
+                                      const itemsInCategory = itemsInThisMenu.filter(i => i.category === category);
+                                      const isCatHidden = !enabledCats.includes(category);
                                       if (itemsInCategory.length === 0) return null;
 
                                       return (
-                                          <div key={category} className="space-y-4">
-                                              <h4 className="font-bold text-sm uppercase tracking-[0.2em] text-muted-foreground border-l-4 border-primary pl-3">{category}</h4>
-                                              <div className="space-y-2">
-                                                  {itemsInCategory.map((item, idx) => (
-                                                      <div key={item.id} className="flex items-center justify-between p-3 rounded-lg bg-card border group">
-                                                          <div className="flex items-center gap-4">
-                                                              <div className="flex flex-col gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                                  <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleRerank(item, menuType, 'up')} disabled={idx === 0}><ChevronUp className="h-4 w-4" /></Button>
-                                                                  <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleRerank(item, menuType, 'down')} disabled={idx === itemsInCategory.length - 1}><ChevronDown className="h-4 w-4" /></Button>
-                                                              </div>
-                                                              <div>
-                                                                  <p className="font-medium text-sm">{item.name}</p>
-                                                                  <p className="text-xs text-muted-foreground font-mono">${item.price.toFixed(2)}</p>
-                                                              </div>
-                                                          </div>
-                                                          <Button variant="ghost" size="icon" className="text-destructive h-8 w-8" onClick={() => handleToggleItemAvailability(item, menuType)}><Trash2 className="h-4 w-4" /></Button>
+                                          <div key={category} className={cn("space-y-3", isCatHidden && "opacity-50 grayscale")}>
+                                              <div className="flex items-center gap-2">
+                                                <h4 className="font-bold text-sm uppercase tracking-widest">{category}</h4>
+                                                {isCatHidden && <Badge variant="secondary">Hidden from Golfer</Badge>}
+                                              </div>
+                                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                                  {itemsInCategory.map(item => (
+                                                      <div key={item.id} className="flex items-center justify-between p-2 rounded-lg bg-card border">
+                                                          <span className="text-xs font-medium">{item.name}</span>
+                                                          <Button variant="ghost" size="icon" className="text-destructive h-7 w-7" onClick={() => handleToggleItemAvailability(item, menuType)}><Trash2 className="h-3 w-3" /></Button>
                                                       </div>
                                                   ))}
                                               </div>
@@ -717,74 +455,36 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
           })}
         </div>
 
-        {isClubSeller && (
-          <section id="member-list" className="mt-20 mb-12 scroll-mt-24">
-            <Card className="shadow-sm">
-              <CardHeader className="flex flex-row items-center justify-between">
-                <div>
-                  <CardTitle className="flex items-center gap-2"><Users className="h-5 w-5" /> Member List</CardTitle>
-                  <CardDescription>Club accounts available for member charging.</CardDescription>
-                </div>
-                <Button onClick={() => { setEditingMember(null); setIsMemberFormOpen(true); }} size="sm" variant="outline"><UserPlus className="mr-2 h-4 w-4" /> Add Member</Button>
-              </CardHeader>
-              <CardContent>
-                {areMembersLoading ? <Skeleton className="h-32 w-full" /> : members && members.length > 0 ? (
-                  <Table>
-                    <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Member ID</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
-                    <TableBody>
-                      {members.map(m => (
-                        <TableRow key={m.id}>
-                          <TableCell className="font-medium">{m.name}</TableCell>
-                          <TableCell className="font-mono text-xs">{m.memberNumber}</TableCell>
-                          <TableCell><Badge variant={m.status === 'Active' ? 'default' : 'secondary'}>{m.status}</Badge></TableCell>
-                          <TableCell className="text-right">
-                            <Button variant="ghost" size="icon" onClick={() => { setEditingMember(m); setIsMemberFormOpen(true); }}><Edit className="h-4 w-4" /></Button>
-                            <Button variant="ghost" size="icon" className="text-destructive" onClick={() => setMemberToDelete(m)}><Trash2 className="h-4 w-4" /></Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                ) : <div className="text-center py-10 text-muted-foreground italic">No members registered.</div>}
-              </CardContent>
-            </Card>
-          </section>
-        )}
-
         <Dialog open={isMasterFormOpen} onOpenChange={setIsMasterFormOpen}>
           <DialogContent className="sm:max-w-[500px]">
-            <DialogHeader><DialogTitle>{editingItem ? 'Edit Menu Item' : 'Create Menu Item'}</DialogTitle></DialogHeader>
+            <DialogHeader><DialogTitle>{editingItem ? 'Edit Item' : 'New Item'}</DialogTitle></DialogHeader>
             <MasterItemForm onSave={handleSaveMasterItem} menuItem={editingItem} onClose={() => setIsMasterFormOpen(false)} />
           </DialogContent>
         </Dialog>
 
         <Dialog open={isPickingOpen} onOpenChange={setIsPickingOpen}>
           <DialogContent className="sm:max-w-[600px] max-h-[85vh] flex flex-col">
-              <DialogHeader>
-                  <DialogTitle>Select Items for {pickingMenuType}</DialogTitle>
-                  <CardDescription>Pick which items from your Menu Library should be available on the {pickingMenuType} menu.</CardDescription>
-              </DialogHeader>
-              <Separator className="my-2" />
-              <div className="flex-1 overflow-y-auto pr-2">
+              <DialogHeader><DialogTitle>Add to {pickingMenuType}</DialogTitle></DialogHeader>
+              <div className="flex-1 overflow-y-auto pr-2 py-4">
                   {categories.map(category => {
+                      // Restriction: Pizza/Salad only for Clubhouse
+                      if (pickingMenuType === 'Beverage Cart' && (category === 'Pizza' || category === 'Salad')) return null;
+
                       const itemsInCategory = menuItems?.filter(i => i.category === category) || [];
                       if (itemsInCategory.length === 0) return null;
                       return (
                           <div key={category} className="mb-6">
                               <h5 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">{category}</h5>
-                              <div className="space-y-2">
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                   {itemsInCategory.map(item => {
                                       const isSelected = item.availableOn?.includes(pickingMenuType);
                                       return (
                                           <div key={item.id} onClick={() => handleToggleItemAvailability(item, pickingMenuType)} className={cn(
-                                              "flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-all",
-                                              isSelected ? "border-primary bg-primary/5 shadow-inner" : "hover:bg-muted/50"
+                                              "p-3 rounded-lg border cursor-pointer transition-all flex justify-between items-center",
+                                              isSelected ? "border-primary bg-primary/5" : "hover:bg-muted/50"
                                           )}>
-                                              <div>
-                                                  <p className="text-sm font-bold">{item.name}</p>
-                                                  <p className="text-xs text-muted-foreground">${item.price.toFixed(2)}</p>
-                                              </div>
-                                              {isSelected && <Check className="h-5 w-5 text-primary" />}
+                                              <span className="text-sm font-bold">{item.name}</span>
+                                              {isSelected && <Check className="h-4 w-4 text-primary" />}
                                           </div>
                                       );
                                   })}
@@ -793,29 +493,37 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                       );
                   })}
               </div>
-              <DialogFooter className="mt-4 border-t pt-4">
-                  <Button onClick={() => setIsPickingOpen(false)}>Done</Button>
-              </DialogFooter>
+              <DialogFooter><Button onClick={() => setIsPickingOpen(false)}>Done</Button></DialogFooter>
           </DialogContent>
         </Dialog>
 
-        <Dialog open={isMemberFormOpen} onOpenChange={setIsMemberFormOpen}><DialogContent className="sm:max-w-[425px]"><DialogHeader><DialogTitle>{editingMember ? 'Edit Member' : 'Add Member'}</DialogTitle></DialogHeader><MemberForm onSave={handleSaveMember} member={editingMember} onClose={() => setIsMemberFormOpen(false)} /></DialogContent></Dialog>
+        <Dialog open={isCategoryConfigOpen} onOpenChange={setIsCategoryConfigOpen}>
+          <DialogContent className="sm:max-w-[500px]">
+            <DialogHeader>
+              <DialogTitle>Enabled Categories: {configMenuType}</DialogTitle>
+              <CardDescription>Choose which categories should appear to golfers using this service.</CardDescription>
+            </DialogHeader>
+            <div className="grid grid-cols-2 gap-4 py-6">
+              {categories.map(category => {
+                // Restriction: Pizza/Salad only for Clubhouse
+                if (configMenuType === 'Beverage Cart' && (category === 'Pizza' || category === 'Salad')) return null;
 
-        <AlertDialog open={!!memberToDelete} onOpenChange={(open) => !open && setMemberToDelete(null)}>
-          <AlertDialogContent>
-            <AlertDialogHeader><AlertDialogTitle>Delete Member?</AlertDialogTitle><AlertDialogDescription>This will remove <strong>{memberToDelete?.name}</strong> from the club list.</AlertDialogDescription></AlertDialogHeader>
-            <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => { if (!firestore || !memberToDelete) return; deleteDoc(doc(firestore, 'sellers', sellerId, 'members', memberToDelete.id)); setMemberToDelete(null); }} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Delete Member</AlertDialogAction></AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+                const isVisible = seller?.categoryVisibility?.[configMenuType]?.includes(category);
+                return (
+                  <div key={category} className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-muted/30 cursor-pointer" onClick={() => handleToggleCategoryVisibility(configMenuType, category)}>
+                    <Checkbox checked={isVisible} />
+                    <span className="text-sm font-medium">{category}</span>
+                  </div>
+                );
+              })}
+            </div>
+            <DialogFooter><Button onClick={() => setIsCategoryConfigOpen(false)}>Save Settings</Button></DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
 
       {showTopButton && (
-        <Button
-          variant="default"
-          size="icon"
-          className="fixed bottom-10 right-10 rounded-full shadow-2xl z-50 animate-in fade-in slide-in-from-bottom-4 transition-all hover:scale-110 h-12 w-12"
-          onClick={scrollToTop}
-        >
+        <Button variant="default" size="icon" className="fixed bottom-10 right-10 rounded-full shadow-2xl z-50 h-12 w-12" onClick={scrollToTop}>
           <ArrowUp className="h-6 w-6" />
         </Button>
       )}

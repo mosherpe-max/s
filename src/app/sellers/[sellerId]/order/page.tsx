@@ -87,14 +87,23 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
   }, [menuItems, selectedMenuType]);
 
   const currentCategories = useMemo(() => {
+    if (!seller) return categories as unknown as Category[];
+
+    // If the seller has specific visibility settings for this menu type, use them
+    if (seller.categoryVisibility?.[selectedMenuType]) {
+      return seller.categoryVisibility[selectedMenuType];
+    }
+
+    // Default Fallbacks
     if (selectedMenuType === 'Beverage Cart') {
-      return ['Beer', 'Spirits', 'Soft Drinks', 'Snacks'] as Category[];
+      return ['Beer', 'Spirits', 'Soft Drinks', 'Snacks', 'Other'] as Category[];
     }
     if (selectedMenuType === 'Clubhouse') {
-      return ['Sandwiches', 'Appetizers', 'Entrees', 'Dessert', 'Beer', 'Spirits', 'Soft Drinks', 'Snacks'] as Category[];
+      return ['Handhelds', 'Appetizers', 'Entrees', 'Pizza', 'Salad', 'Dessert', 'Beer', 'Spirits', 'Soft Drinks', 'Snacks', 'Other'] as Category[];
     }
+    
     return categories as unknown as Category[];
-  }, [selectedMenuType]);
+  }, [selectedMenuType, seller]);
 
   useEffect(() => {
     if (seller?.menuTypes && seller.menuTypes.length > 0 && !selectedMenuType) {
@@ -357,18 +366,6 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
                 The {selectedMenuType} is not currently accepting orders. Please try another service or check back later during active hours.
               </p>
             </div>
-            {seller?.menuTypes && seller.menuTypes.length > 1 && (
-              <div className="pt-4">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">Try another service:</p>
-                <div className="flex flex-wrap justify-center gap-2">
-                  {seller.menuTypes.filter(t => t !== selectedMenuType).map(type => (
-                    <Button key={type} variant="outline" size="sm" onClick={() => setSelectedMenuType(type)} className="text-xs font-bold uppercase">
-                      {type}
-                    </Button>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
         ) : (
           <BuyerMenu 
@@ -380,7 +377,6 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
         )}
       </main>
 
-      {/* Floating Back to Top Button */}
       {showBackToTop && (
         <Button
           variant="secondary"

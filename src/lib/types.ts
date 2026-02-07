@@ -1,4 +1,3 @@
-
 import { Timestamp } from "firebase/firestore";
 
 export type SellerType = 'Private Golf Course' | 'Semi Private Golf Course' | 'Public Golf Course' | 'Bowling Alley' | 'Brewery' | 'Restaurant';
@@ -41,11 +40,13 @@ export interface Seller {
   bodyBackgroundColor?: string;
   logoUrl?: string;
   lastActive?: Timestamp;
+  // Category visibility per menu type: { 'Beverage Cart': ['Beer', 'Snacks'], 'Clubhouse': [...] }
+  categoryVisibility?: Record<string, Category[]>;
 }
 
-export type Category = 'Beer' | 'Spirits' | 'Soft Drinks' | 'Snacks' | 'Entrees' | 'Appetizers' | 'Sandwiches' | 'Dessert';
+export type Category = 'Beer' | 'Spirits' | 'Soft Drinks' | 'Snacks' | 'Handhelds' | 'Appetizers' | 'Entrees' | 'Pizza' | 'Salad' | 'Dessert' | 'Other';
 
-export const categories: readonly Category[] = ['Beer', 'Spirits', 'Soft Drinks', 'Snacks', 'Entrees', 'Appetizers', 'Sandwiches', 'Dessert'];
+export const categories: readonly Category[] = ['Beer', 'Spirits', 'Soft Drinks', 'Snacks', 'Handhelds', 'Appetizers', 'Entrees', 'Pizza', 'Salad', 'Dessert', 'Other'];
 
 export interface MenuItem {
     id: string;
