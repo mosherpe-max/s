@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, use, useEffect, useMemo } from 'react';
@@ -92,7 +93,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
     // 1. Get explicitly enabled categories from Seller Admin
     let enabledCategories: Category[] = [];
     if (seller.categoryVisibility?.[selectedMenuType]) {
-      enabledCategories = seller.categoryVisibility[selectedMenuType];
+      enabledCategories = [...seller.categoryVisibility[selectedMenuType]];
     } else {
       // Default Fallbacks if not configured
       if (selectedMenuType === 'Beverage Cart') {
@@ -102,7 +103,12 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
       }
     }
 
-    // 2. Filter out categories that have no items for this specific menu
+    // 2. Sort categories based on the master list defined in types.ts
+    // This ensures BevCart is [Beer, Spirits, Soft Drinks, Snacks, Other]
+    // and Clubhouse follows the same logic plus the others.
+    enabledCategories.sort((a, b) => categories.indexOf(a) - categories.indexOf(b));
+
+    // 3. Filter out categories that have no items for this specific menu
     const availableCategories = new Set(filteredMenuItems.map(item => item.category));
     
     return enabledCategories.filter(cat => availableCategories.has(cat));

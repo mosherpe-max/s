@@ -45,9 +45,21 @@ export interface Seller {
   categoryVisibility?: Record<string, Category[]>;
 }
 
-export type Category = 'Beer' | 'Spirits' | 'Soft Drinks' | 'Snacks' | 'Handhelds' | 'Appetizers' | 'Entrees' | 'Pizza' | 'Salad' | 'Dessert' | 'Other';
+export type Category = 'Beer' | 'Spirits' | 'Soft Drinks' | 'Snacks' | 'Other' | 'Handhelds' | 'Appetizers' | 'Entrees' | 'Pizza' | 'Salad' | 'Dessert';
 
-export const categories: readonly Category[] = ['Beer', 'Spirits', 'Soft Drinks', 'Snacks', 'Handhelds', 'Appetizers', 'Entrees', 'Pizza', 'Salad', 'Dessert', 'Other'];
+export const categories: readonly Category[] = [
+  'Beer', 
+  'Spirits', 
+  'Soft Drinks', 
+  'Snacks', 
+  'Other', 
+  'Handhelds', 
+  'Appetizers', 
+  'Entrees', 
+  'Pizza', 
+  'Salad', 
+  'Dessert'
+];
 
 export interface MenuItem {
     id: string;
