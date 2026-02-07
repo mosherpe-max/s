@@ -5,7 +5,7 @@ import { collection, doc, setDoc, deleteDoc, writeBatch, query, where, updateDoc
 import { useFirestore, useDoc, useCollection, useMemoFirebase } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { PlusCircle, Edit, Trash2, Filter, DollarSign, ShoppingBag, Clock, Database, Users, UserPlus, Sparkles, Download, FileSpreadsheet, Save, Loader2, ListChecks, ChevronUp, ChevronDown, Check, MousePointer2, BarChart3, ArrowUp, LayoutGrid, Settings2 } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, Filter, DollarSign, ShoppingBag, Clock, Database, Users, UserPlus, Sparkles, Download, FileSpreadsheet, Save, Loader2, ListChecks, ChevronUp, ChevronDown, Check, MousePointer2, BarChart3, ArrowUp, LayoutGrid, Settings2, X } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import {
   AlertDialog,
@@ -33,12 +33,13 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/table';
 import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
 import { isToday, isThisMonth, isThisYear, format } from 'date-fns';
 import Link from 'next/link';
 import * as XLSX from 'xlsx';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 import type { MenuItem, Seller, Category, Order, Member } from '@/lib/types';
 import { categories } from '@/lib/types';
@@ -80,7 +81,7 @@ function MasterItemForm({
       name: '',
       description: '',
       price: 0,
-      category: 'Beer',
+      category: 'Beer' as Category,
       availableOn: [],
     },
   });
@@ -90,7 +91,7 @@ function MasterItemForm({
       name: '', 
       description: '', 
       price: 0, 
-      category: 'Beer', 
+      category: 'Beer' as Category, 
       availableOn: [] 
     });
   }, [menuItem, form]);
@@ -463,61 +464,79 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
         </Dialog>
 
         <Dialog open={isPickingOpen} onOpenChange={setIsPickingOpen}>
-          <DialogContent className="sm:max-w-[600px] max-h-[85vh] flex flex-col">
-              <DialogHeader><DialogTitle>Add to {pickingMenuType}</DialogTitle></DialogHeader>
-              <div className="flex-1 overflow-y-auto pr-2 py-4">
-                  {categories.map(category => {
-                      // Restriction: Pizza/Salad only for Clubhouse
-                      if (pickingMenuType === 'Beverage Cart' && (category === 'Pizza' || category === 'Salad')) return null;
+          <DialogContent className="sm:max-w-[600px] max-h-[90vh] flex flex-col p-0 overflow-hidden">
+              <DialogHeader className="px-6 py-4 border-b">
+                <DialogTitle>Add to {pickingMenuType}</DialogTitle>
+                <CardDescription>Select items from your library to include in this menu.</CardDescription>
+              </DialogHeader>
+              <ScrollArea className="flex-1 px-6">
+                <div className="py-4 space-y-6">
+                    {categories.map(category => {
+                        // Restriction: Pizza/Salad only for Clubhouse
+                        if (pickingMenuType === 'Beverage Cart' && (category === 'Pizza' || category === 'Salad')) return null;
 
-                      const itemsInCategory = menuItems?.filter(i => i.category === category) || [];
-                      if (itemsInCategory.length === 0) return null;
-                      return (
-                          <div key={category} className="mb-6">
-                              <h5 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">{category}</h5>
-                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                  {itemsInCategory.map(item => {
-                                      const isSelected = item.availableOn?.includes(pickingMenuType);
-                                      return (
-                                          <div key={item.id} onClick={() => handleToggleItemAvailability(item, pickingMenuType)} className={cn(
-                                              "p-3 rounded-lg border cursor-pointer transition-all flex justify-between items-center",
-                                              isSelected ? "border-primary bg-primary/5" : "hover:bg-muted/50"
-                                          )}>
-                                              <span className="text-sm font-bold">{item.name}</span>
-                                              {isSelected && <Check className="h-4 w-4 text-primary" />}
-                                          </div>
-                                      );
-                                  })}
-                              </div>
-                          </div>
-                      );
-                  })}
-              </div>
-              <DialogFooter><Button onClick={() => setIsPickingOpen(false)}>Done</Button></DialogFooter>
+                        const itemsInCategory = menuItems?.filter(i => i.category === category) || [];
+                        if (itemsInCategory.length === 0) return null;
+                        return (
+                            <div key={category} className="mb-6">
+                                <h5 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">{category}</h5>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                    {itemsInCategory.map(item => {
+                                        const isSelected = item.availableOn?.includes(pickingMenuType);
+                                        return (
+                                            <div key={item.id} onClick={() => handleToggleItemAvailability(item, pickingMenuType)} className={cn(
+                                                "p-3 rounded-lg border cursor-pointer transition-all flex justify-between items-center",
+                                                isSelected ? "border-primary bg-primary/5 shadow-sm" : "hover:bg-muted/50"
+                                            )}>
+                                                <span className="text-sm font-bold">{item.name}</span>
+                                                {isSelected && <Check className="h-4 w-4 text-primary" />}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+              </ScrollArea>
+              <DialogFooter className="px-6 py-4 border-t bg-muted/20">
+                <Button onClick={() => setIsPickingOpen(false)} className="w-full sm:w-auto font-bold uppercase text-xs tracking-widest">Done</Button>
+              </DialogFooter>
           </DialogContent>
         </Dialog>
 
         <Dialog open={isCategoryConfigOpen} onOpenChange={setIsCategoryConfigOpen}>
-          <DialogContent className="sm:max-w-[500px]">
-            <DialogHeader>
+          <DialogContent className="sm:max-w-[500px] max-h-[90vh] flex flex-col p-0 overflow-hidden">
+            <DialogHeader className="px-6 py-4 border-b">
               <DialogTitle>Enabled Categories: {configMenuType}</DialogTitle>
               <CardDescription>Choose which categories should appear to golfers using this service.</CardDescription>
             </DialogHeader>
-            <div className="grid grid-cols-2 gap-4 py-6">
-              {categories.map(category => {
-                // Restriction: Pizza/Salad only for Clubhouse
-                if (configMenuType === 'Beverage Cart' && (category === 'Pizza' || category === 'Salad')) return null;
+            <ScrollArea className="flex-1 px-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 py-6">
+                {categories.map(category => {
+                  // Restriction: Pizza/Salad only for Clubhouse
+                  if (configMenuType === 'Beverage Cart' && (category === 'Pizza' || category === 'Salad')) return null;
 
-                const isVisible = seller?.categoryVisibility?.[configMenuType]?.includes(category);
-                return (
-                  <div key={category} className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-muted/30 cursor-pointer" onClick={() => handleToggleCategoryVisibility(configMenuType, category)}>
-                    <Checkbox checked={isVisible} />
-                    <span className="text-sm font-medium">{category}</span>
-                  </div>
-                );
-              })}
-            </div>
-            <DialogFooter><Button onClick={() => setIsCategoryConfigOpen(false)}>Save Settings</Button></DialogFooter>
+                  const isVisible = seller?.categoryVisibility?.[configMenuType]?.includes(category);
+                  return (
+                    <div 
+                      key={category} 
+                      className={cn(
+                        "flex items-center space-x-3 p-4 border-2 rounded-xl cursor-pointer transition-all",
+                        isVisible ? "border-primary bg-primary/5" : "border-muted hover:border-muted-foreground/20"
+                      )} 
+                      onClick={() => handleToggleCategoryVisibility(configMenuType, category)}
+                    >
+                      <Checkbox checked={isVisible} />
+                      <span className="text-sm font-black uppercase tracking-tight">{category}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </ScrollArea>
+            <DialogFooter className="px-6 py-4 border-t bg-muted/20">
+              <Button onClick={() => setIsCategoryConfigOpen(false)} className="w-full sm:w-auto font-bold uppercase text-xs tracking-widest">Save Settings</Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
       </div>
