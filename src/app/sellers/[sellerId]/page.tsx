@@ -62,6 +62,13 @@ const memberSchema = z.object({
 
 type MemberFormData = z.infer<typeof memberSchema>;
 
+const getCategoriesForMenu = (menuType: string): Category[] => {
+  const bevCartCats: Category[] = ['Beer', 'Spirits', 'Soft Drinks', 'Snacks', 'Other'];
+  if (menuType === 'Beverage Cart') return bevCartCats;
+  if (menuType === 'Clubhouse') return [...bevCartCats, 'Appetizers', 'Handhelds', 'Pizza', 'Salad', 'Entrees', 'Dessert'];
+  return [...categories];
+};
+
 function MasterItemForm({
   onSave,
   onClose,
@@ -292,7 +299,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
         brandColor: '#22c55e',
         categoryVisibility: {
           'Beverage Cart': ['Beer', 'Spirits', 'Soft Drinks', 'Snacks', 'Other'],
-          'Clubhouse': ['Handhelds', 'Appetizers', 'Entrees', 'Pizza', 'Salad', 'Dessert', 'Beer', 'Spirits', 'Soft Drinks', 'Snacks', 'Other']
+          'Clubhouse': ['Beer', 'Spirits', 'Soft Drinks', 'Snacks', 'Other', 'Appetizers', 'Handhelds', 'Pizza', 'Salad', 'Entrees', 'Dessert']
         }
       }, { merge: true });
       mockMenuItems.forEach((item, index) => {
@@ -462,6 +469,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
           {seller?.menuTypes?.map(menuType => {
               const itemsInThisMenu = menuItems?.filter(i => i.availableOn?.includes(menuType)) || [];
               const enabledCats = seller.categoryVisibility?.[menuType] || [];
+              const allowedCategories = getCategoriesForMenu(menuType);
 
               return (
                   <Card key={menuType} className="shadow-lg">
@@ -486,7 +494,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                               </div>
                           ) : (
                               <div className="space-y-8">
-                                  {categories.map(category => {
+                                  {allowedCategories.map(category => {
                                       const itemsInCategory = itemsInThisMenu.filter(i => i.category === category);
                                       const isCatHidden = !enabledCats.includes(category);
                                       if (itemsInCategory.length === 0) return null;
@@ -601,7 +609,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
               </DialogHeader>
               <ScrollArea className="flex-1 px-6">
                 <div className="py-4 space-y-6">
-                    {categories.map(category => {
+                    {getCategoriesForMenu(pickingMenuType).map(category => {
                         const itemsInCategory = menuItems?.filter(i => i.category === category) || [];
                         if (itemsInCategory.length === 0) return null;
                         return (
@@ -640,7 +648,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
             </DialogHeader>
             <ScrollArea className="flex-1 px-6">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 py-6">
-                {categories.map(category => {
+                {getCategoriesForMenu(configMenuType).map(category => {
                   const isVisible = seller?.categoryVisibility?.[configMenuType]?.includes(category);
                   return (
                     <div 

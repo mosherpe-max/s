@@ -99,7 +99,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
       return ['Beer', 'Spirits', 'Soft Drinks', 'Snacks', 'Other'] as Category[];
     }
     if (selectedMenuType === 'Clubhouse') {
-      return ['Handhelds', 'Appetizers', 'Entrees', 'Pizza', 'Salad', 'Dessert', 'Beer', 'Spirits', 'Soft Drinks', 'Snacks', 'Other'] as Category[];
+      return ['Beer', 'Spirits', 'Soft Drinks', 'Snacks', 'Other', 'Appetizers', 'Handhelds', 'Pizza', 'Salad', 'Entrees', 'Dessert'] as Category[];
     }
     
     return categories as unknown as Category[];

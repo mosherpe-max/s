@@ -57,35 +57,7 @@ export const menuItems: (Omit<MenuItem, 'id' | 'rank'> & { id?: string, rank?: n
     category: 'Snacks',
   },
 
-  // ENTREES
-  {
-    name: 'Grilled Salmon',
-    description: 'Atlantic salmon with wild rice and seasonal vegetables.',
-    price: 24.00,
-    category: 'Entrees',
-  },
-  {
-    name: 'Filet Mignon',
-    description: '8oz center-cut filet with garlic mashed potatoes.',
-    price: 38.00,
-    category: 'Entrees',
-  },
-
-  // PIZZA & SALAD (New)
-  {
-    name: 'Pepperoni Pizza',
-    description: 'Classic 12-inch pepperoni pizza with mozzarella.',
-    price: 18.00,
-    category: 'Pizza',
-  },
-  {
-    name: 'Caesar Salad',
-    description: 'Romaine lettuce, croutons, parmesan cheese, and Caesar dressing.',
-    price: 12.00,
-    category: 'Salad',
-  },
-
-  // HANDHELDS (Renamed from Sandwiches)
+  // HANDHELDS
   {
     name: 'Turkey Club',
     description: 'Triple-decker with roasted turkey, bacon, lettuce, and tomato.',
@@ -105,6 +77,30 @@ export const menuItems: (Omit<MenuItem, 'id' | 'rank'> & { id?: string, rank?: n
     description: 'Five chilled jumbo shrimp with zesty cocktail sauce.',
     price: 16.00,
     category: 'Appetizers',
+  },
+
+  // PIZZA
+  {
+    name: 'Pepperoni Pizza',
+    description: 'Classic 12-inch pepperoni pizza with mozzarella.',
+    price: 18.00,
+    category: 'Pizza',
+  },
+
+  // SALAD
+  {
+    name: 'Caesar Salad',
+    description: 'Romaine lettuce, croutons, parmesan cheese, and Caesar dressing.',
+    price: 12.00,
+    category: 'Salad',
+  },
+
+  // ENTREES
+  {
+    name: 'Grilled Salmon',
+    description: 'Atlantic salmon with wild rice and seasonal vegetables.',
+    price: 24.00,
+    category: 'Entrees',
   },
   
   // DESSERT
