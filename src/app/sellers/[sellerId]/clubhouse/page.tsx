@@ -18,6 +18,7 @@ import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
+import { format } from 'date-fns';
 
 type LatLng = {
   latitude: number;
@@ -37,6 +38,7 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
   const lastOrderIdsRef = useRef<Set<string>>(new Set());
   const notifiedOverdueRef = useRef<Set<string>>(new Set());
   const initialLoadRef = useRef(true);
+  const wakeLockRef = useRef<any>(null);
 
   const primarySellerRef = useMemoFirebase(() => {
     if (!firestore || !sellerId) return null;
@@ -51,6 +53,55 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
   const { data: activeSellers, isLoading: areSellersLoading } = useCollection<Seller>(activeSellersQuery);
 
   const isClubhouseActive = primarySeller?.clubhouseActive === true;
+
+  // Persistence: Wake Lock Management
+  useEffect(() => {
+    const requestWakeLock = async () => {
+      if ('wakeLock' in navigator && isClubhouseActive && !wakeLockRef.current) {
+        try {
+          wakeLockRef.current = await (navigator as any).wakeLock.request('screen');
+        } catch (err) {
+          console.warn('Wake Lock request failed:', err);
+        }
+      }
+    };
+
+    const releaseWakeLock = async () => {
+      if (wakeLockRef.current) {
+        await wakeLockRef.current.release();
+        wakeLockRef.current = null;
+      }
+    };
+
+    if (isClubhouseActive) {
+      requestWakeLock();
+    } else {
+      releaseWakeLock();
+    }
+
+    return () => {
+      releaseWakeLock();
+    };
+  }, [isClubhouseActive]);
+
+  // Midnight Auto-Reset Logic (Internal)
+  useEffect(() => {
+    const checkMidnight = () => {
+      const todayStr = format(new Date(), 'yyyy-MM-dd');
+      const storedDate = localStorage.getItem('last-clubhouse-session-date');
+      
+      if (storedDate && storedDate !== todayStr && isClubhouseActive) {
+        console.log("Midnight passed. Resetting local driver state.");
+        handleToggleActive(false);
+      }
+      localStorage.setItem('last-clubhouse-session-date', todayStr);
+    };
+
+    const interval = setInterval(checkMidnight, 60000); // Check every minute
+    checkMidnight(); // Initial check
+    
+    return () => clearInterval(interval);
+  }, [isClubhouseActive]);
 
   const activeOrdersQuery = useMemoFirebase(() => {
     if (!firestore || !sellerId) return null;
@@ -68,6 +119,18 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
     if (!activeOrders) return [];
     return activeOrders;
   }, [activeOrders]);
+
+  useEffect(() => {
+    const handleUnload = () => {
+      if (firestore && isClubhouseActive && sellerId) {
+        const sellerDocRef = doc(firestore, 'sellers', sellerId);
+        updateDoc(sellerDocRef, { clubhouseActive: false }).catch(() => {});
+      }
+    };
+
+    window.addEventListener('beforeunload', handleUnload);
+    return () => window.removeEventListener('beforeunload', handleUnload);
+  }, [firestore, isClubhouseActive, sellerId]);
 
   useEffect(() => {
     if (!clubhouseOrders || !now) return;

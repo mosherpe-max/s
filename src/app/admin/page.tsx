@@ -1,11 +1,11 @@
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { collection, doc, setDoc, deleteDoc, query, writeBatch, getDocs } from 'firebase/firestore';
+import { collection, doc, setDoc, deleteDoc, query, writeBatch, getDocs, getDoc } from 'firebase/firestore';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { PlusCircle, Edit, Trash2, Loader2, MapPin, Mail, Phone, User, Building, DollarSign, ShoppingBag, BarChart3, ListChecks, Utensils, RefreshCw, AlertTriangle } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, Loader2, MapPin, Mail, Phone, User, Building, DollarSign, ShoppingBag, BarChart3, ListChecks, Utensils, RefreshCw, AlertTriangle, ShieldCheck } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import {
   AlertDialog,
@@ -45,7 +45,7 @@ import { sellerTypes } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
-import { isToday, isThisMonth, isThisYear } from 'date-fns';
+import { isToday, isThisMonth, isThisYear, format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
 const sellerSchema = z.object({
@@ -144,6 +144,7 @@ export default function KOOPAdminPage() {
   const [isResetting, setIsResetting] = useState(false);
   const [editingSeller, setEditingSeller] = useState<Seller | null>(null);
   const [sellerToDelete, setSellerToDelete] = useState<Seller | null>(null);
+  const [maintenanceRunning, setMaintenanceRunning] = useState(false);
 
   const sellersQuery = useMemoFirebase(() => {
     if (!firestore) return null;
@@ -157,6 +158,56 @@ export default function KOOPAdminPage() {
 
   const { data: sellers, isLoading: isSellersLoading } = useCollection<Seller>(sellersQuery);
   const { data: orders, isLoading: isOrdersLoading } = useCollection<Order>(ordersQuery);
+
+  // Auto-Midnight Reset Logic
+  useEffect(() => {
+    const runMidnightMaintenance = async () => {
+      if (!firestore) return;
+      
+      const maintenanceRef = doc(firestore, 'system', 'maintenance');
+      const todayStr = format(new Date(), 'yyyy-MM-dd');
+      
+      try {
+        setMaintenanceRunning(true);
+        const maintenanceDoc = await getDoc(maintenanceRef);
+        const lastReset = maintenanceDoc.exists() ? maintenanceDoc.data().lastGlobalReset : null;
+        
+        if (lastReset !== todayStr) {
+          console.log("New day detected. Performing global reset...");
+          const batch = writeBatch(firestore);
+          
+          // Clear all orders
+          const ordersSnap = await getDocs(collection(firestore, 'orders'));
+          ordersSnap.forEach(d => batch.delete(d.ref));
+          
+          // Deactivate all drivers
+          const sellersSnap = await getDocs(collection(firestore, 'sellers'));
+          sellersSnap.forEach(d => {
+            batch.update(d.ref, {
+              bevcartActive: false,
+              clubhouseActive: false,
+              lastActive: null
+            });
+          });
+          
+          // Update last reset date
+          batch.set(maintenanceRef, { lastGlobalReset: todayStr }, { merge: true });
+          
+          await batch.commit();
+          toast({
+            title: "Midnight Cleanup Complete",
+            description: "System reset for the new day. All drivers cleared.",
+          });
+        }
+      } catch (e) {
+        console.error("Maintenance failed:", e);
+      } finally {
+        setMaintenanceRunning(false);
+      }
+    };
+
+    runMidnightMaintenance();
+  }, [firestore, toast]);
 
   const salesStats = useMemo(() => {
     if (!orders) return null;
@@ -306,7 +357,8 @@ export default function KOOPAdminPage() {
       const sellersSnapshot = await getDocs(collection(firestore, 'sellers'));
       sellersSnapshot.forEach((sellerDoc) => {
         batch.update(sellerDoc.ref, { 
-          status: 'Inactive', 
+          bevcartActive: false,
+          clubhouseActive: false,
           lastActive: null 
         });
       });
@@ -314,7 +366,7 @@ export default function KOOPAdminPage() {
       await batch.commit();
       toast({
         title: "System Reset Complete",
-        description: "All orders have been cleared and BevCart drivers disconnected.",
+        description: "All orders have been cleared and drivers disconnected.",
       });
     } catch (error) {
       console.error("Reset failed:", error);
@@ -409,8 +461,15 @@ export default function KOOPAdminPage() {
   return (
     <div className="container mx-auto px-4 py-8 max-w-7xl">
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 text-center md:text-left">
-        <div>
-          <h1 className="font-headline text-3xl font-bold text-foreground uppercase tracking-tight">KOOP ADMIN</h1>
+        <div className="flex-1">
+          <div className="flex items-center gap-3 justify-center md:justify-start">
+            <h1 className="font-headline text-3xl font-bold text-foreground uppercase tracking-tight">KOOP ADMIN</h1>
+            {maintenanceRunning && (
+              <Badge variant="outline" className="animate-pulse bg-primary/10 text-primary border-primary/20">
+                <ShieldCheck className="w-3 h-3 mr-1" /> Maintenance
+              </Badge>
+            )}
+          </div>
           <p className="text-muted-foreground">Manage your seller network and monitor platform performance.</p>
         </div>
         <div className="flex items-center gap-3 self-center md:self-auto">
@@ -418,7 +477,7 @@ export default function KOOPAdminPage() {
             <AlertDialogTrigger asChild>
               <Button variant="outline" className="border-destructive text-destructive hover:bg-destructive/10">
                 <RefreshCw className={cn("mr-2 h-4 w-4", isResetting && "animate-spin")} />
-                System Reset
+                Manual System Reset
               </Button>
             </AlertDialogTrigger>
             <AlertDialogContent>
@@ -428,7 +487,7 @@ export default function KOOPAdminPage() {
                   Hard Platform Reset
                 </AlertDialogTitle>
                 <AlertDialogDescription>
-                  This action will <strong>delete all active orders</strong> and set <strong>all sellers to Inactive</strong>. This is used to clear ghost markers and stale data during prototyping.
+                  This action will <strong>delete all active orders</strong> and set <strong>all drivers to Inactive</strong>. This is used to clear ghost markers and stale data during prototyping.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>

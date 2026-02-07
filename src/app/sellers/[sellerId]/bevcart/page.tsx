@@ -18,6 +18,7 @@ import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
+import { format } from 'date-fns';
 
 type LatLng = {
   latitude: number;
@@ -37,6 +38,7 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
   const lastOrderIdsRef = useRef<Set<string>>(new Set());
   const notifiedOverdueRef = useRef<Set<string>>(new Set());
   const initialLoadRef = useRef(true);
+  const wakeLockRef = useRef<any>(null);
 
   const primarySellerRef = useMemoFirebase(() => {
     if (!firestore || !sellerId) return null;
@@ -51,6 +53,55 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
   const { data: activeSellers, isLoading: areSellersLoading } = useCollection<Seller>(activeSellersQuery);
 
   const isBevCartActive = primarySeller?.bevcartActive === true;
+
+  // Persistence: Wake Lock Management
+  useEffect(() => {
+    const requestWakeLock = async () => {
+      if ('wakeLock' in navigator && isBevCartActive && !wakeLockRef.current) {
+        try {
+          wakeLockRef.current = await (navigator as any).wakeLock.request('screen');
+        } catch (err) {
+          console.warn('Wake Lock request failed:', err);
+        }
+      }
+    };
+
+    const releaseWakeLock = async () => {
+      if (wakeLockRef.current) {
+        await wakeLockRef.current.release();
+        wakeLockRef.current = null;
+      }
+    };
+
+    if (isBevCartActive) {
+      requestWakeLock();
+    } else {
+      releaseWakeLock();
+    }
+
+    return () => {
+      releaseWakeLock();
+    };
+  }, [isBevCartActive]);
+
+  // Midnight Auto-Reset Logic (Internal)
+  useEffect(() => {
+    const checkMidnight = () => {
+      const todayStr = format(new Date(), 'yyyy-MM-dd');
+      const storedDate = localStorage.getItem('last-driver-session-date');
+      
+      if (storedDate && storedDate !== todayStr && isBevCartActive) {
+        console.log("Midnight passed. Resetting local driver state.");
+        handleToggleActive(false);
+      }
+      localStorage.setItem('last-driver-session-date', todayStr);
+    };
+
+    const interval = setInterval(checkMidnight, 60000); // Check every minute
+    checkMidnight(); // Initial check
+    
+    return () => clearInterval(interval);
+  }, [isBevCartActive]);
 
   const activeOrdersQuery = useMemoFirebase(() => {
     if (!firestore || !sellerId) return null;
