@@ -88,7 +88,7 @@ export function IosInstallPrompt() {
           <div className="flex flex-col items-center animate-bounce">
             <ArrowDown className="h-8 w-8 text-primary" />
           </div>
-          <p className="text-[10px] font-black uppercase tracking-[0.3em] text-primary/80">Click the share button below</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.3em] text-primary/80 text-center">Tap the browser menu button below</p>
         </div>
 
         <DialogFooter className="px-6 pb-6 pt-0 sm:justify-center">
