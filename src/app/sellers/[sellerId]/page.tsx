@@ -94,14 +94,10 @@ const memberSchema = z.object({
 
 type MemberFormData = z.infer<typeof memberSchema>;
 
-/**
- * Returns the subset of categories allowed for a specific menu type.
- */
 const getCategoriesForMenu = (menuType: string): Category[] => {
   if (menuType === 'Beverage Cart') {
     return ['Beer', 'Spirits', 'Soft Drinks', 'Snacks', 'Other'];
   }
-  // Clubhouse and others include everything
   return [...categories] as Category[];
 };
 
@@ -838,7 +834,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                 <DialogTitle className="uppercase tracking-tight">Add to {pickingMenuType}</DialogTitle>
                 <CardDescription>Select items from your library to include in this menu.</CardDescription>
               </DialogHeader>
-              <ScrollArea className="flex-1 px-6">
+              <ScrollArea className="flex-1 px-6 min-h-0">
                 <div className="py-4 space-y-6">
                     {getCategoriesForMenu(pickingMenuType).map(category => {
                         const itemsInCategory = menuItems?.filter(i => i.category === category) || [];
@@ -877,8 +873,8 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
               <DialogTitle className="uppercase tracking-tight">Enabled Categories: {configMenuType}</DialogTitle>
               <CardDescription>Choose which categories should appear to golfers using this service.</CardDescription>
             </DialogHeader>
-            <ScrollArea className="flex-1 px-6">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 py-6">
+            <ScrollArea className="flex-1 px-6 min-h-0">
+              <div className="grid grid-cols-1 gap-3 py-6">
                 {getCategoriesForMenu(configMenuType).map(category => {
                   const isVisible = seller?.categoryVisibility?.[configMenuType]?.includes(category);
                   return (
