@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useMemo, useEffect, use, useRef } from 'react';
@@ -6,7 +5,26 @@ import { collection, doc, setDoc, deleteDoc, writeBatch, query, where, updateDoc
 import { useFirestore, useDoc, useCollection, useMemoFirebase } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { PlusCircle, Edit, Trash2, Database, Users, Sparkles, FileSpreadsheet, Loader2, ListChecks, Check, BarChart3, ArrowUp, Settings2, UserPlus, GripVertical } from 'lucide-react';
+import { 
+  PlusCircle, 
+  Edit, 
+  Trash2, 
+  Database, 
+  Users, 
+  Sparkles, 
+  FileSpreadsheet, 
+  Loader2, 
+  ListChecks, 
+  Check, 
+  BarChart3, 
+  ArrowUp, 
+  Settings2, 
+  UserPlus, 
+  GripVertical,
+  DollarSign,
+  ShoppingBag,
+  Clock
+} from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -73,7 +91,8 @@ type MemberFormData = z.infer<typeof memberSchema>;
 const getCategoriesForMenu = (menuType: string): Category[] => {
   const bevCartCats: Category[] = ['Beer', 'Spirits', 'Soft Drinks', 'Snacks', 'Other'];
   if (menuType === 'Beverage Cart') return bevCartCats;
-  return ['Beer', 'Spirits', 'Soft Drinks', 'Snacks', 'Other', 'Appetizers', 'Handhelds', 'Pizza', 'Salad', 'Entrees', 'Dessert'];
+  // Clubhouse gets everything
+  return [...categories] as Category[];
 };
 
 function MasterItemForm({
@@ -192,15 +211,24 @@ function StatTile({ title, revenue, orders, longWait }: { title: string, revenue
       </CardHeader>
       <CardContent className="space-y-4 pt-4">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2"><DollarSign className="h-4 w-4 text-primary" /><span className="text-sm font-medium">Total Revenue</span></div>
+          <div className="flex items-center gap-2">
+            <DollarSign className="h-4 w-4 text-primary" />
+            <span className="text-sm font-medium">Total Revenue</span>
+          </div>
           <span className="font-mono font-bold">${revenue.toFixed(2)}</span>
         </div>
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2"><ShoppingBag className="h-4 w-4 text-primary" /><span className="text-sm font-medium">Total Orders</span></div>
+          <div className="flex items-center gap-2">
+            <ShoppingBag className="h-4 w-4 text-primary" />
+            <span className="text-sm font-medium">Total Orders</span>
+          </div>
           <span className="font-mono font-bold">{orders}</span>
         </div>
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2"><Clock className="h-4 w-4 text-destructive" /><span className="text-sm font-medium">Orders &gt; 10m</span></div>
+          <div className="flex items-center gap-2">
+            <Clock className="h-4 w-4 text-destructive" />
+            <span className="text-sm font-medium">Orders &gt; 10m</span>
+          </div>
           <span className="font-mono font-bold text-destructive">{longWait}</span>
         </div>
       </CardContent>
@@ -267,7 +295,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
 
   const [isSeeding, setIsSeeding] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
   
   const [masterCategoryFilter, setMasterCategoryFilter] = useState<string>('All');
   const [showTopButton, setShowTopButton] = useState(false);
@@ -476,9 +503,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
         
         <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 text-center md:text-left">
           <div className="flex-1">
-            <div className="flex items-center gap-3 justify-center md:justify-start">
-              <h1 className="font-headline text-3xl font-bold text-foreground uppercase tracking-tight">SELLER ADMIN</h1>
-            </div>
+            <h1 className="font-headline text-3xl font-bold text-foreground uppercase tracking-tight">SELLER ADMIN</h1>
             <p className="text-muted-foreground">{isSellerLoading ? 'Loading...' : seller?.courseName}</p>
           </div>
           <div className="flex items-center gap-3 self-center md:self-auto">
