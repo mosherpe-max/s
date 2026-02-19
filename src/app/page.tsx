@@ -24,19 +24,31 @@ export default function Home() {
             Turn Convenience into Revenue
           </h1>
           <p className="mt-4 max-w-2xl mx-auto text-lg text-neutral-200">
-            Provide immediate food and beverage service to your golfers anywhere
-            on your golf course, never miss a sales opportunity again
+            Provide immediate food and beverage service to your customers anywhere
+            at your establishment, never miss a sales opportunity again.
           </p>
-          <div className="mt-8 flex justify-center gap-4">
-            <Button asChild size="lg">
+          <div className="mt-10 flex flex-wrap justify-center gap-4">
+            <Button asChild size="lg" className="h-12 px-8 font-headline font-bold uppercase tracking-wider">
               <Link href="/sellers/demo-course/order">
-                View Sample Menu
+                View BevCart Sample Menu
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Link>
             </Button>
-            <Button asChild variant="secondary" size="lg">
-              <Link href="/#features">Learn More</Link>
+            <Button asChild size="lg" variant="outline" className="h-12 px-8 font-headline font-bold uppercase tracking-wider bg-white/10 text-white border-white/20 hover:bg-white/20 hover:text-white">
+              <Link href="/sellers/demo-course/order">
+                View Clubhouse Sample Menu
+              </Link>
             </Button>
+            <Button asChild size="lg" variant="outline" className="h-12 px-8 font-headline font-bold uppercase tracking-wider bg-white/10 text-white border-white/20 hover:bg-white/20 hover:text-white">
+              <Link href="/sellers/demo-bowling-alley/order">
+                View LaneSide Sample Menu
+              </Link>
+            </Button>
+          </div>
+          <div className="mt-8">
+             <Button asChild variant="link" className="text-white/60 hover:text-white uppercase text-xs font-bold tracking-[0.2em]">
+                <Link href="#features">Learn More About Koop</Link>
+             </Button>
           </div>
         </div>
       </section>
@@ -73,7 +85,7 @@ export default function Home() {
             <Card className="shadow-lg hover:shadow-xl transition-shadow duration-300">
               <CardHeader className="flex flex-row items-center gap-4">
                 <UserCheck className="h-8 w-8 text-primary" />
-                <CardTitle className="font-headline">For Golf Courses</CardTitle>
+                <CardTitle className="font-headline">For Course Operators</CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-muted-foreground">
@@ -130,10 +142,10 @@ export default function Home() {
               For Course Operators
             </div>
             <h2 className="text-3xl font-bold tracking-tighter md:text-4xl/tight font-headline">
-              Drive Revenue and Delight Golfers
+              Drive Revenue and Delight Customers
             </h2>
             <p className="max-w-[600px] text-muted-foreground md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
-              Equip your beverage carts with Koop to increase order volume,
+              Equip your service staff with Koop to increase order volume,
               optimize routes, and manage your menu with ease. Our seller
               dashboard provides all the tools you need to succeed.
             </p>
