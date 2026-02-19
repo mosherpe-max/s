@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, use, useEffect, useMemo } from 'react';
@@ -393,14 +394,14 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
             </SheetTrigger>
           </div>
         )}
-        <SheetContent side="bottom" className="rounded-t-2xl max-h-[90vh] flex flex-col p-0 border-t-2 overflow-hidden">
-          <SheetHeader className="px-6 py-4 border-b bg-muted/20">
+        <SheetContent side="bottom" className="rounded-t-2xl max-h-[95vh] flex flex-col p-0 border-t-2 overflow-hidden bg-background">
+          <SheetHeader className="px-6 py-4 border-b bg-muted/20 shrink-0">
             <SheetTitle className="font-headline font-black uppercase text-center text-sm tracking-tight">
               {editingOrderId ? "Update Your Order" : "Final Order Review"}
             </SheetTitle>
           </SheetHeader>
-          <ScrollArea className="flex-1">
-            <div className="px-6 py-6 space-y-8 pb-12">
+          <ScrollArea className="flex-1 w-full">
+            <div className="px-6 py-6 space-y-8 pb-32">
               
               {/* Service Context Section */}
               <div className="grid grid-cols-2 gap-4 py-4 px-4 bg-muted/30 rounded-xl border border-dashed">
@@ -445,14 +446,14 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
                   </div>
               </div>
 
-              <div className="text-center">
+              <div className="text-center opacity-60">
                 <p className="text-[10px] text-muted-foreground font-medium italic">
                   By placing this order, you agree to the service terms of {seller?.courseName}.
                 </p>
               </div>
             </div>
           </ScrollArea>
-          <SheetFooter className="p-4 bg-white border-t flex flex-col gap-3">
+          <SheetFooter className="p-4 bg-white border-t flex flex-col gap-3 shrink-0 relative z-10 shadow-[0_-4px_10px_rgba(0,0,0,0.05)]">
             <div className="flex justify-between items-center mb-1">
               <span className="font-black text-xs uppercase tracking-widest text-muted-foreground">Final Total</span>
               <span className="font-headline font-black text-2xl text-primary">${(total || 0).toFixed(2)}</span>
