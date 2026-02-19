@@ -33,13 +33,15 @@ import {
   ArrowUp,
   XCircle,
   AlertTriangle,
-  Info
+  Info,
+  ClipboardList
 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useCart } from '@/lib/cart-context';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
+import { Separator } from '@/components/ui/separator';
 
 const serviceTypeIcons: Record<string, any> = {
   'Beverage Cart': Truck,
@@ -394,16 +396,34 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
         <SheetContent side="bottom" className="rounded-t-2xl max-h-[90vh] flex flex-col p-0 border-t-2 overflow-hidden">
           <SheetHeader className="px-6 py-4 border-b bg-muted/20">
             <SheetTitle className="font-headline font-black uppercase text-center text-sm tracking-tight">
-              {editingOrderId ? "Update Your Order" : "Delivery Details"}
+              {editingOrderId ? "Update Your Order" : "Final Order Review"}
             </SheetTitle>
           </SheetHeader>
           <ScrollArea className="flex-1">
             <div className="px-6 py-6 space-y-8 pb-12">
               
+              {/* Service Context Section */}
+              <div className="grid grid-cols-2 gap-4 py-4 px-4 bg-muted/30 rounded-xl border border-dashed">
+                <div className="space-y-1">
+                  <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-1.5">
+                    <Store className="w-3 h-3" /> ESTABLISHMENT
+                  </p>
+                  <p className="text-xs font-bold truncate">{seller?.courseName || 'Loading...'}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-1.5">
+                    <ClipboardList className="w-3 h-3" /> SERVICE MODE
+                  </p>
+                  <p className="text-xs font-bold">{selectedMenuType}</p>
+                </div>
+              </div>
+
+              {/* Location Picker Section */}
               <div className="bg-primary/5 p-4 rounded-xl border-2 border-primary/20">
                 {renderLocationPicker()}
               </div>
 
+              {/* Item Summary Section */}
               <div className="space-y-4">
                 <h3 className="font-black text-[10px] uppercase tracking-widest text-muted-foreground flex items-center gap-2">
                   <ShoppingBasket className="w-3.5 h-3.5" /> ORDER SUMMARY
@@ -411,6 +431,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
                 <OrderSummary items={activeOrderItems} serviceFee={seller?.serviceFee} />
               </div>
 
+              {/* Payment Section */}
               <div className="space-y-4">
                   <h3 className="font-black text-[10px] uppercase tracking-widest text-muted-foreground flex items-center gap-2">
                     <Banknote className="w-3.5 h-3.5" /> PAYMENT METHOD
