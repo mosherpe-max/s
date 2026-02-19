@@ -3,12 +3,30 @@
 import Link from 'next/link';
 import { Button } from './ui/button';
 import { usePathname, useSearchParams } from 'next/navigation';
-import { ShoppingCart, Hash } from 'lucide-react';
+import { 
+  ShoppingCart, 
+  Hash, 
+  ChevronDown, 
+  ShieldCheck, 
+  Building, 
+  Truck, 
+  LayoutDashboard,
+  Store,
+  Users
+} from 'lucide-react';
 import { useCart } from '@/lib/cart-context';
 import { useState, useEffect, useMemo } from 'react';
 import { doc } from 'firebase/firestore';
 import { useFirestore, useDoc, useMemoFirebase } from '@/firebase';
 import { getNumericOrderId } from '@/lib/utils';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const KoopLogo = () => (
   <Link href="/" className="flex items-center transition-opacity hover:opacity-90 shrink-0">
@@ -79,7 +97,7 @@ export function AppHeader() {
           )}
         </div>
         
-        <div className="flex items-center gap-3 shrink-0 overflow-x-auto no-scrollbar">
+        <div className="flex items-center gap-3 shrink-0">
           {isMounted && isTrackingPage && numericOrderId ? (
             <div className="flex items-center gap-3 bg-white/10 px-4 py-1.5 rounded-full border border-white/20">
               <div className="flex flex-col items-end leading-none">
@@ -108,28 +126,96 @@ export function AppHeader() {
               </div>
             </Button>
           ) : (
-            <div className="flex items-center gap-1.5 whitespace-nowrap">
-              <Button variant="ghost" size="sm" asChild className="text-white hover:bg-white/10 text-[9px] font-headline font-bold uppercase tracking-wider px-2">
-                <Link href="/admin">KOOP ADMIN</Link>
-              </Button>
-              <Button variant="ghost" size="sm" asChild className="text-white hover:bg-white/10 text-[9px] font-headline font-bold uppercase tracking-wider px-2">
-                <Link href="/sellers/demo-course">Seller Admin Public GC</Link>
-              </Button>
-              <Button variant="ghost" size="sm" asChild className="text-white hover:bg-white/10 text-[9px] font-headline font-bold uppercase tracking-wider px-2">
-                <Link href="/sellers/demo-bowling-alley">Seller Admin Bowling</Link>
-              </Button>
-              <Button variant="ghost" size="sm" asChild className="text-white hover:bg-white/10 text-[9px] font-headline font-bold uppercase tracking-wider px-2">
-                <Link href="/sellers/demo-golf-course-private">Seller Admin Private GC</Link>
-              </Button>
-              <Button variant="ghost" size="sm" asChild className="text-white hover:bg-white/10 text-[9px] font-headline font-bold uppercase tracking-wider px-2">
-                <Link href="/sellers/demo-course/bevcart">BEVCART</Link>
-              </Button>
-              <Button variant="ghost" size="sm" asChild className="text-white hover:bg-white/10 text-[9px] font-headline font-bold uppercase tracking-wider px-2">
-                <Link href="/sellers/demo-course/clubhouse">CLUBHOUSE</Link>
-              </Button>
-              <Button variant="ghost" size="sm" asChild className="text-white hover:bg-white/10 text-[9px] font-headline font-bold uppercase tracking-wider px-2">
-                <Link href="/sellers/demo-bowling-alley/laneside">LANESIDE</Link>
-              </Button>
+            <div className="flex items-center gap-2">
+              {/* Platform Admin Dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" className="text-white hover:bg-white/10 text-[10px] font-headline font-bold uppercase tracking-wider px-3 h-9">
+                    Platform <ChevronDown className="ml-1 h-3 w-3" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuLabel className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Internal Tools</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link href="/admin" className="flex items-center gap-2 cursor-pointer py-2">
+                      <ShieldCheck className="h-4 w-4 text-primary" />
+                      <span className="font-bold text-xs uppercase tracking-tight">KOOP ADMIN</span>
+                    </Link>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              {/* Seller Environments Dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" className="text-white hover:bg-white/10 text-[10px] font-headline font-bold uppercase tracking-wider px-3 h-9">
+                    Sellers <ChevronDown className="ml-1 h-3 w-3" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuLabel className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Manage Environments</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link href="/sellers/demo-course" className="flex items-center gap-2 cursor-pointer py-2">
+                      <Building className="h-4 w-4 text-primary" />
+                      <div className="flex flex-col">
+                        <span className="font-bold text-xs uppercase tracking-tight">Public GC Admin</span>
+                        <span className="text-[9px] text-muted-foreground">demo-course</span>
+                      </div>
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/sellers/demo-bowling-alley" className="flex items-center gap-2 cursor-pointer py-2">
+                      <Store className="h-4 w-4 text-primary" />
+                      <div className="flex flex-col">
+                        <span className="font-bold text-xs uppercase tracking-tight">Bowling Admin</span>
+                        <span className="text-[9px] text-muted-foreground">demo-bowling-alley</span>
+                      </div>
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/sellers/demo-golf-course-private" className="flex items-center gap-2 cursor-pointer py-2">
+                      <Building className="h-4 w-4 text-primary" />
+                      <div className="flex flex-col">
+                        <span className="font-bold text-xs uppercase tracking-tight">Private GC Admin</span>
+                        <span className="text-[9px] text-muted-foreground">private-demo</span>
+                      </div>
+                    </Link>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              {/* Services Dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" className="text-white hover:bg-white/10 text-[10px] font-headline font-bold uppercase tracking-wider px-3 h-9">
+                    Services <ChevronDown className="ml-1 h-3 w-3" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuLabel className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Driver Interfaces</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link href="/sellers/demo-course/bevcart" className="flex items-center gap-2 cursor-pointer py-2">
+                      <Truck className="h-4 w-4 text-primary" />
+                      <span className="font-bold text-xs uppercase tracking-tight">BEVCART DRIVER</span>
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/sellers/demo-course/clubhouse" className="flex items-center gap-2 cursor-pointer py-2">
+                      <LayoutDashboard className="h-4 w-4 text-primary" />
+                      <span className="font-bold text-xs uppercase tracking-tight">CLUBHOUSE PORTAL</span>
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/sellers/demo-bowling-alley/laneside" className="flex items-center gap-2 cursor-pointer py-2">
+                      <Users className="h-4 w-4 text-primary" />
+                      <span className="font-bold text-xs uppercase tracking-tight">LANESIDE SERVER</span>
+                    </Link>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           )}
         </div>
