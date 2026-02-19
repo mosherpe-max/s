@@ -113,13 +113,13 @@ export function AppHeader() {
                 <Link href="/admin">KOOP ADMIN</Link>
               </Button>
               <Button variant="ghost" size="sm" asChild className="text-white hover:bg-white/10 text-[9px] font-headline font-bold uppercase tracking-wider px-2">
-                <Link href="/sellers/demo-course">Public GC</Link>
+                <Link href="/sellers/demo-course">Seller Admin Public GC</Link>
               </Button>
               <Button variant="ghost" size="sm" asChild className="text-white hover:bg-white/10 text-[9px] font-headline font-bold uppercase tracking-wider px-2">
-                <Link href="/sellers/demo-bowling-alley">Bowling</Link>
+                <Link href="/sellers/demo-bowling-alley">Seller Admin Bowling</Link>
               </Button>
               <Button variant="ghost" size="sm" asChild className="text-white hover:bg-white/10 text-[9px] font-headline font-bold uppercase tracking-wider px-2">
-                <Link href="/sellers/demo-golf-course-private">Private GC</Link>
+                <Link href="/sellers/demo-golf-course-private">Seller Admin Private GC</Link>
               </Button>
               <Button variant="ghost" size="sm" asChild className="text-white hover:bg-white/10 text-[9px] font-headline font-bold uppercase tracking-wider px-2">
                 <Link href="/sellers/demo-course/bevcart">BEVCART</Link>
