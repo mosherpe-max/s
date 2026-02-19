@@ -87,7 +87,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
   const sortedMenuTypes = useMemo(() => {
     if (!seller?.menuTypes) return [];
     const types = [...seller.menuTypes];
-    // Prioritize Lane Delivery as requested
+    // Prioritize Lane Delivery
     const laneIndex = types.indexOf('Lane Delivery');
     if (laneIndex > -1) {
       types.splice(laneIndex, 1);
@@ -123,7 +123,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
     if (seller.status !== 'Active') return false;
     if (selectedMenuType === 'Beverage Cart') return seller.bevcartActive === true;
     if (selectedMenuType === 'Clubhouse') return seller.clubhouseActive === true;
-    return true; // Default to active for other types like Lane Delivery
+    return true; 
   }, [seller, selectedMenuType]);
 
   const handleJumpToCategory = (cat: string) => {
@@ -141,7 +141,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
 
       const locationLabel = serviceLocationLabels[selectedMenuType];
       if (locationLabel && !locationValue.trim()) {
-        toast({ variant: 'destructive', title: 'Missing Location', description: `Please enter your ${locationLabel}.` });
+        toast({ variant: 'destructive', title: 'Selection Required', description: `Please select your ${locationLabel}.` });
         return;
       }
 
@@ -215,6 +215,76 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
   const activeOrderItems = orderItems.filter((item) => item.quantity > 0);
   const locationLabel = serviceLocationLabels[selectedMenuType];
 
+  const renderLocationPicker = () => {
+    if (!locationLabel) return null;
+
+    // Use buttons for Lane Delivery and Dine-In if counts are available
+    if (selectedMenuType === 'Lane Delivery' && seller?.laneCount) {
+      return (
+        <div className="space-y-3">
+          <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+            <MapPin className="h-3 w-3" /> SELECT YOUR LANE
+          </Label>
+          <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
+            {Array.from({ length: seller.laneCount }, (_, i) => (i + 1).toString()).map((num) => (
+              <Button
+                key={num}
+                variant={locationValue === num ? 'default' : 'outline'}
+                onClick={() => setLocationValue(num)}
+                className={cn(
+                  "h-12 font-bold text-sm",
+                  locationValue === num ? "bg-primary text-white shadow-md scale-105" : "bg-white hover:bg-primary/5"
+                )}
+              >
+                {num}
+              </Button>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    if (selectedMenuType === 'Dine-In' && seller?.tableCount) {
+      return (
+        <div className="space-y-3">
+          <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+            <Utensils className="h-3 w-3" /> SELECT YOUR TABLE
+          </Label>
+          <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
+            {Array.from({ length: seller.tableCount }, (_, i) => (i + 1).toString()).map((num) => (
+              <Button
+                key={num}
+                variant={locationValue === num ? 'default' : 'outline'}
+                onClick={() => setLocationValue(num)}
+                className={cn(
+                  "h-12 font-bold text-sm",
+                  locationValue === num ? "bg-primary text-white shadow-md scale-105" : "bg-white hover:bg-primary/5"
+                )}
+              >
+                {num}
+              </Button>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    // Default to text input for other location types
+    return (
+      <div className="space-y-3">
+        <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+          <MapPin className="h-3 w-3" /> {locationLabel}
+        </Label>
+        <Input 
+          placeholder={`Enter your ${locationLabel}...`}
+          value={locationValue}
+          onChange={(e) => setLocationValue(e.target.value)}
+          className="h-12 text-base font-bold border-2 focus-visible:ring-primary"
+        />
+      </div>
+    );
+  };
+
   return (
     <div className="flex flex-col min-h-screen bg-background relative">
       {editingOrderId && (
@@ -259,21 +329,6 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
               </div>
             </ScrollArea>
           </div>
-
-          {locationLabel && (
-            <div className="bg-white p-3 rounded-xl border-2 border-primary/20 animate-in slide-in-from-top-2">
-              <div className="flex items-center gap-2 mb-2">
-                <MapPin className="h-3.5 w-3.5 text-primary" />
-                <span className="text-[10px] font-black uppercase tracking-tight text-foreground">Specify Delivery Location</span>
-              </div>
-              <Input 
-                placeholder={`Enter ${locationLabel} (e.g. ${selectedMenuType === 'Lane Delivery' ? '14' : 'A1'})`}
-                value={locationValue}
-                onChange={(e) => setLocationValue(e.target.value)}
-                className="h-10 text-sm font-bold border-muted-foreground/20 focus-visible:ring-primary"
-              />
-            </div>
-          )}
         </div>
       </div>
 
@@ -331,44 +386,63 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
           <div className="fixed bottom-7 left-0 right-0 p-4 bg-white/10 backdrop-blur-md border-t z-30 shadow-lg">
             <SheetTrigger asChild>
               <Button size="lg" className="w-full text-base h-12 shadow-xl font-headline font-black uppercase tracking-widest bg-primary">
-                {editingOrderId ? "Update Order" : "Order"} ({totalItems}) • ${(total || 0).toFixed(2)}
+                {editingOrderId ? "Update Order" : "Review & Place Order"} ({totalItems})
               </Button>
             </SheetTrigger>
           </div>
         )}
-        <SheetContent side="bottom" className="rounded-t-2xl max-h-[85vh] flex flex-col p-0 border-t-2 overflow-hidden">
+        <SheetContent side="bottom" className="rounded-t-2xl max-h-[90vh] flex flex-col p-0 border-t-2 overflow-hidden">
           <SheetHeader className="px-6 py-4 border-b bg-muted/20">
             <SheetTitle className="font-headline font-black uppercase text-center text-sm tracking-tight">
-              {editingOrderId ? "Updating Your Order" : "Review Your Order"}
+              {editingOrderId ? "Update Your Order" : "Delivery Details"}
             </SheetTitle>
           </SheetHeader>
           <ScrollArea className="flex-1 px-6">
-            <div className="py-6 space-y-6">
-              {locationLabel && locationValue && (
-                <div className="bg-primary/5 p-3 rounded-xl border border-primary/20 flex items-center gap-3">
-                  <div className="p-2 bg-white rounded-full"><MapPin className="h-4 w-4 text-primary" /></div>
-                  <div>
-                    <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Deliver To</p>
-                    <p className="text-sm font-black uppercase">{locationLabel}: {locationValue}</p>
-                  </div>
-                </div>
-              )}
-              <OrderSummary items={activeOrderItems} serviceFee={seller?.serviceFee} />
-              <div className="space-y-3">
-                  <h3 className="font-black text-[9px] uppercase tracking-widest text-muted-foreground flex items-center gap-2"><Banknote className="w-3 h-3" /> PAYMENT</h3>
+            <div className="py-6 space-y-8">
+              
+              <div className="bg-primary/5 p-4 rounded-xl border-2 border-primary/20 animate-in slide-in-from-bottom-2">
+                {renderLocationPicker()}
+              </div>
+
+              <div className="space-y-4">
+                <h3 className="font-black text-[10px] uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                  <ShoppingBasket className="w-3.5 h-3.5" /> ORDER SUMMARY
+                </h3>
+                <OrderSummary items={activeOrderItems} serviceFee={seller?.serviceFee} />
+              </div>
+
+              <div className="space-y-4">
+                  <h3 className="font-black text-[10px] uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                    <Banknote className="w-3.5 h-3.5" /> PAYMENT METHOD
+                  </h3>
                   <div className="p-4 bg-muted/30 rounded-xl border-2 border-dashed flex items-center gap-3">
-                    <div className="p-2 bg-white rounded-full shadow-sm"><CreditCard className="w-4 h-4 text-primary" /></div>
+                    <div className="p-2 bg-white rounded-full shadow-sm"><CreditCard className="w-5 h-5 text-primary" /></div>
                     <div>
-                        <p className="text-xs font-black uppercase">Pay at Delivery</p>
-                        <p className="text-[10px] text-muted-foreground font-medium">Cash or Card to Server</p>
+                        <p className="text-sm font-black uppercase">Pay at Delivery</p>
+                        <p className="text-[10px] text-muted-foreground font-medium">Card or Cash accepted by staff</p>
                     </div>
                   </div>
               </div>
+
+              <div className="pt-2 text-center">
+                <p className="text-[10px] text-muted-foreground font-medium italic">
+                  By placing this order, you agree to the service terms of {seller?.courseName}.
+                </p>
+              </div>
             </div>
           </ScrollArea>
-          <SheetFooter className="p-4 bg-white border-t">
-            <Button size="lg" className="w-full text-base font-black h-14 font-headline uppercase tracking-widest bg-primary" onClick={handlePlaceOrder} disabled={isPlacingOrder}>
-              {isPlacingOrder ? <><Loader2 className="animate-spin mr-2" /> PROCESSING...</> : (editingOrderId ? "UPDATE ORDER" : "PLACE ORDER")}
+          <SheetFooter className="p-4 bg-white border-t flex flex-col gap-3">
+            <div className="flex justify-between items-center mb-1">
+              <span className="font-black text-xs uppercase tracking-widest text-muted-foreground">Final Total</span>
+              <span className="font-headline font-black text-2xl text-primary">${(total || 0).toFixed(2)}</span>
+            </div>
+            <Button 
+              size="lg" 
+              className="w-full text-base font-black h-14 font-headline uppercase tracking-widest bg-primary shadow-xl" 
+              onClick={handlePlaceOrder} 
+              disabled={isPlacingOrder || (locationLabel && !locationValue)}
+            >
+              {isPlacingOrder ? <><Loader2 className="animate-spin mr-2" /> PROCESSING...</> : (editingOrderId ? "UPDATE ORDER" : "PLACE ORDER NOW")}
             </Button>
           </SheetFooter>
         </SheetContent>
