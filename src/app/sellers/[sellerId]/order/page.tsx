@@ -218,22 +218,22 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
   const renderLocationPicker = () => {
     if (!locationLabel) return null;
 
-    // Use buttons for Lane Delivery and Dine-In if counts are available
+    // Use smaller buttons for Lane Delivery and Dine-In grids
     if (selectedMenuType === 'Lane Delivery' && seller?.laneCount) {
       return (
         <div className="space-y-3">
           <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
             <MapPin className="h-3 w-3" /> SELECT YOUR LANE
           </Label>
-          <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
+          <div className="grid grid-cols-5 sm:grid-cols-8 gap-1.5">
             {Array.from({ length: seller.laneCount }, (_, i) => (i + 1).toString()).map((num) => (
               <Button
                 key={num}
                 variant={locationValue === num ? 'default' : 'outline'}
                 onClick={() => setLocationValue(num)}
                 className={cn(
-                  "h-12 font-bold text-sm",
-                  locationValue === num ? "bg-primary text-white shadow-md scale-105" : "bg-white hover:bg-primary/5"
+                  "h-9 px-0 font-bold text-xs rounded-md",
+                  locationValue === num ? "bg-primary text-white shadow-md" : "bg-white hover:bg-primary/5"
                 )}
               >
                 {num}
@@ -250,15 +250,15 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
           <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
             <Utensils className="h-3 w-3" /> SELECT YOUR TABLE
           </Label>
-          <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
+          <div className="grid grid-cols-5 sm:grid-cols-8 gap-1.5">
             {Array.from({ length: seller.tableCount }, (_, i) => (i + 1).toString()).map((num) => (
               <Button
                 key={num}
                 variant={locationValue === num ? 'default' : 'outline'}
                 onClick={() => setLocationValue(num)}
                 className={cn(
-                  "h-12 font-bold text-sm",
-                  locationValue === num ? "bg-primary text-white shadow-md scale-105" : "bg-white hover:bg-primary/5"
+                  "h-9 px-0 font-bold text-xs rounded-md",
+                  locationValue === num ? "bg-primary text-white shadow-md" : "bg-white hover:bg-primary/5"
                 )}
               >
                 {num}
@@ -397,10 +397,10 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
               {editingOrderId ? "Update Your Order" : "Delivery Details"}
             </SheetTitle>
           </SheetHeader>
-          <ScrollArea className="flex-1 px-6">
-            <div className="py-6 space-y-8">
+          <ScrollArea className="flex-1">
+            <div className="px-6 py-6 space-y-8 pb-12">
               
-              <div className="bg-primary/5 p-4 rounded-xl border-2 border-primary/20 animate-in slide-in-from-bottom-2">
+              <div className="bg-primary/5 p-4 rounded-xl border-2 border-primary/20">
                 {renderLocationPicker()}
               </div>
 
@@ -424,7 +424,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
                   </div>
               </div>
 
-              <div className="pt-2 text-center">
+              <div className="text-center">
                 <p className="text-[10px] text-muted-foreground font-medium italic">
                   By placing this order, you agree to the service terms of {seller?.courseName}.
                 </p>
