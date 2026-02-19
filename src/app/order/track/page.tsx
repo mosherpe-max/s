@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { PartyPopper, ShoppingBag, MapPin, Loader2, ArrowLeft, Store, ClipboardList, Satellite, Edit2 } from 'lucide-react';
+import { PartyPopper, ShoppingBag, MapPin, Loader2, ArrowLeft, Store, ClipboardList, Satellite, Edit2, ChevronLeft } from 'lucide-react';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { IosInstallPrompt } from '@/components/ios-install-prompt';
 import { getNumericOrderId } from '@/lib/utils';
@@ -165,6 +165,7 @@ function OrderTrackingContent() {
   const isEditable = order.status === 'Placed' || order.status === 'Preparing';
   const brandColor = seller?.brandColor || 'hsl(var(--primary))';
   const numericId = getNumericOrderId(order.id);
+  const isBowlingAlley = seller?.type === 'Bowling Alley';
 
   const mapBuyerLocation = isOutForDelivery ? order.deliveryLocation : initialLocations?.buyer;
   const mapSellerLocation = isOutForDelivery ? { latitude: seller?.latitude || 0, longitude: seller?.longitude || 0 } : initialLocations?.seller;
@@ -173,7 +174,7 @@ function OrderTrackingContent() {
     <div className="flex flex-col min-h-[calc(100vh-4rem)] bg-muted/10">
       <IosInstallPrompt />
 
-      {!isDelivered && (
+      {!isDelivered && !isBowlingAlley && (
         <div className="h-[40vh] relative shadow-inner overflow-hidden border-b-2">
           {mapSellerLocation && mapBuyerLocation ? (
             <MapView
@@ -207,6 +208,29 @@ function OrderTrackingContent() {
         </div>
       )}
 
+      {/* Alternative Header for Bowling Alleys or No Map Views */}
+      {!isDelivered && isBowlingAlley && (
+        <div className="bg-background border-b px-4 py-3 flex items-center justify-between sticky top-0 z-10 shadow-sm">
+           <Button variant="ghost" size="sm" asChild className="rounded-full h-8 px-3">
+              <Link href={`/sellers/${order.sellerId}/order`} className="flex items-center">
+                <ChevronLeft className="mr-1 h-4 w-4" /> 
+                <span className="text-[10px] font-bold uppercase tracking-wider">Back to Menu</span>
+              </Link>
+           </Button>
+           {isEditable && (
+             <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleModifyOrder}
+              className="rounded-full h-8 text-[9px] font-bold uppercase tracking-widest border-primary/20 text-primary hover:bg-primary/5"
+             >
+               <Edit2 className="mr-1.5 h-3 w-3" />
+               Modify Order
+             </Button>
+           )}
+        </div>
+      )}
+
       <div className="flex-1 p-4 space-y-4 max-w-2xl mx-auto w-full">
         {isDelivered && (
             <Card className="text-center shadow-xl border-green-200 bg-green-50 overflow-hidden">
@@ -222,7 +246,7 @@ function OrderTrackingContent() {
             </Card>
         )}
 
-        {isTrackingActive && isOutForDelivery && (
+        {isTrackingActive && isOutForDelivery && !isBowlingAlley && (
           <div className="px-1">
              <Alert className="bg-primary/95 text-white border-none shadow-xl backdrop-blur-md py-3 rounded-xl">
                 <Satellite className="h-5 w-5 text-white animate-pulse" />
@@ -258,6 +282,13 @@ function OrderTrackingContent() {
                     <p className="text-xs font-bold">{order.menuType}</p>
                   </div>
                 </div>
+
+                {order.menuTypeLocation && (
+                  <div className="px-4 py-3 bg-primary/5 rounded-xl border border-primary/10 flex items-center justify-between">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Location Detail</span>
+                    <span className="text-sm font-black text-primary uppercase">{order.menuTypeLocation}</span>
+                  </div>
+                )}
 
                 <div className="space-y-3">
                     <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground"><ShoppingBag className="w-3.5 h-3.5" /> ORDER ITEMS</div>
