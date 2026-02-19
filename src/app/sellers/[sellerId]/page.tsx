@@ -410,10 +410,29 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
         menuTypes: ['Clubhouse']
       };
 
+      let itemsToSeed = [...mockMenuItems];
+
       if (sellerId === 'demo-course') {
         config = { name: 'Demo Public Golf Links', type: 'Public Golf Course', menuTypes: ['Beverage Cart', 'Clubhouse'] };
       } else if (sellerId === 'demo-bowling-alley') {
         config = { name: 'Demo Bowling Lanes', type: 'Bowling Alley', menuTypes: ['Take Out', 'Lane Delivery'] };
+        itemsToSeed = [
+          { name: 'Pitcher of Domestic Light', description: 'Perfect for sharing while bowling.', price: 15.00, category: 'Beer' },
+          { name: 'Bucket of Domestic (6)', description: 'Mix and match your favorites.', price: 25.00, category: 'Beer' },
+          { name: 'Fountain Soda', description: 'Refillable cup. Choice of Cola, Diet, Lemon-Lime.', price: 3.50, category: 'Soft Drinks' },
+          { name: 'Pitcher of Soda', description: 'Great for the whole lane!', price: 9.00, category: 'Soft Drinks' },
+          { name: 'Bowl of Popcorn', description: 'Buttery, salted, and fresh.', price: 4.50, category: 'Snacks' },
+          { name: 'Loaded Nachos', description: 'Corn chips topped with cheese, jalapeños, and sour cream.', price: 10.50, category: 'Appetizers' },
+          { name: 'Buffalo Wings (10pc)', description: 'Crispy wings tossed in buffalo sauce.', price: 14.50, category: 'Appetizers' },
+          { name: 'Mozzarella Sticks', description: 'Served with zesty marinara sauce.', price: 8.00, category: 'Appetizers' },
+          { name: 'Strike Burger', description: 'Cheeseburger with secret sauce and fries.', price: 13.50, category: 'Handhelds' },
+          { name: 'Classic Hot Dog', description: 'Grilled all-beef frank on a toasted bun.', price: 7.00, category: 'Handhelds' },
+          { name: 'Chicken Tenders & Fries', description: 'Breaded chicken breast strips with honey mustard.', price: 12.00, category: 'Handhelds' },
+          { name: 'Large Pepperoni Pizza', description: '16-inch classic with extra pepperoni.', price: 21.00, category: 'Pizza' },
+          { name: 'Large Cheese Pizza', description: 'Thin crust with a four-cheese blend.', price: 18.00, category: 'Pizza' },
+          { name: 'Ice Cream Sundae', description: 'Vanilla ice cream with chocolate syrup and a cherry.', price: 6.50, category: 'Dessert' },
+          { name: 'Glow Bowl Wristband', description: 'Access to special lighting events.', price: 5.00, category: 'Other' },
+        ];
       } else if (sellerId === 'demo-golf-course-private') {
         config = { name: 'Demo Private Country Club', type: 'Private Golf Course', menuTypes: ['Beverage Cart', 'Clubhouse', 'Pool', 'Halfway House'] };
       }
@@ -429,13 +448,14 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
         clubhouseActive: false,
         menuTypes: config.menuTypes,
         brandColor: '#22c55e',
+        laneCount: sellerId === 'demo-bowling-alley' ? 24 : 0,
         categoryVisibility: config.menuTypes.reduce((acc, mt) => ({
           ...acc,
           [mt]: getCategoriesForMenu(mt)
         }), {})
       }, { merge: true });
 
-      mockMenuItems.forEach((item, index) => {
+      itemsToSeed.forEach((item, index) => {
         const newItemRef = doc(collection(firestore, 'sellers', sellerId, 'menuItems'));
         batch.set(newItemRef, { 
           ...item, 
@@ -571,7 +591,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                 {isImporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileSpreadsheet className="mr-2 h-4 w-4" />}
                 Import Excel Menu
              </Button>
-             <input type="file" ref={fileInputRef} onChange={handleExcelImport} accept=".xlsx, .xls" className="hidden" />
+             <input type="file" handleExcelImport={handleExcelImport} accept=".xlsx, .xls" className="hidden" />
              <Button variant="outline" size="sm" onClick={handleSeedData} disabled={isSeeding} className="bg-background">
                 <Sparkles className="mr-2 h-4 w-4" /> Reset Demo
              </Button>
