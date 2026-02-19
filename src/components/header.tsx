@@ -79,7 +79,7 @@ export function AppHeader() {
           )}
         </div>
         
-        <div className="flex items-center gap-3 shrink-0">
+        <div className="flex items-center gap-3 shrink-0 overflow-x-auto no-scrollbar">
           {isMounted && isTrackingPage && numericOrderId ? (
             <div className="flex items-center gap-3 bg-white/10 px-4 py-1.5 rounded-full border border-white/20">
               <div className="flex flex-col items-end leading-none">
@@ -108,21 +108,27 @@ export function AppHeader() {
               </div>
             </Button>
           ) : (
-            <div className="flex items-center gap-2">
-              <Button variant="ghost" size="sm" asChild className="hidden md:inline-flex text-white hover:bg-white/10 text-xs font-headline uppercase tracking-wider">
+            <div className="flex items-center gap-1.5 whitespace-nowrap">
+              <Button variant="ghost" size="sm" asChild className="text-white hover:bg-white/10 text-[9px] font-headline font-bold uppercase tracking-wider px-2">
                 <Link href="/admin">KOOP ADMIN</Link>
               </Button>
-              <Button variant="ghost" size="sm" asChild className="text-white hover:bg-white/10 text-xs font-headline uppercase tracking-wider">
-                <Link href="/sellers/demo-course/bevcart">BEVCART DRIVER</Link>
+              <Button variant="ghost" size="sm" asChild className="text-white hover:bg-white/10 text-[9px] font-headline font-bold uppercase tracking-wider px-2">
+                <Link href="/sellers/demo-course">Public GC</Link>
               </Button>
-              <Button variant="ghost" size="sm" asChild className="text-white hover:bg-white/10 text-xs font-headline uppercase tracking-wider">
-                <Link href="/sellers/demo-course/clubhouse">CLUBHOUSE DRIVER</Link>
+              <Button variant="ghost" size="sm" asChild className="text-white hover:bg-white/10 text-[9px] font-headline font-bold uppercase tracking-wider px-2">
+                <Link href="/sellers/demo-bowling-alley">Bowling</Link>
               </Button>
-              <Button variant="ghost" size="sm" asChild className="text-white hover:bg-white/10 text-xs font-headline uppercase tracking-wider">
-                <Link href="/sellers/demo-bowling-alley/laneside">LANESIDE SERVER</Link>
+              <Button variant="ghost" size="sm" asChild className="text-white hover:bg-white/10 text-[9px] font-headline font-bold uppercase tracking-wider px-2">
+                <Link href="/sellers/demo-golf-course-private">Private GC</Link>
               </Button>
-              <Button variant="ghost" size="sm" asChild className="hidden sm:inline-flex text-white hover:bg-white/10 text-xs font-headline uppercase tracking-wider">
-                <Link href="/sellers/demo-course">SELLER ADMIN</Link>
+              <Button variant="ghost" size="sm" asChild className="text-white hover:bg-white/10 text-[9px] font-headline font-bold uppercase tracking-wider px-2">
+                <Link href="/sellers/demo-course/bevcart">BEVCART</Link>
+              </Button>
+              <Button variant="ghost" size="sm" asChild className="text-white hover:bg-white/10 text-[9px] font-headline font-bold uppercase tracking-wider px-2">
+                <Link href="/sellers/demo-course/clubhouse">CLUBHOUSE</Link>
+              </Button>
+              <Button variant="ghost" size="sm" asChild className="text-white hover:bg-white/10 text-[9px] font-headline font-bold uppercase tracking-wider px-2">
+                <Link href="/sellers/demo-bowling-alley/laneside">LANESIDE</Link>
               </Button>
             </div>
           )}

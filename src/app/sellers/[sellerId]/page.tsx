@@ -71,7 +71,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { MapView } from '@/components/map-view';
 import { APIProvider } from '@vis.gl/react-google-maps';
 
-import type { MenuItem, Seller, Category, Order, Member } from '@/lib/types';
+import type { MenuItem, Seller, Category, Order, Member, SellerType } from '@/lib/types';
 import { categories } from '@/lib/types';
 import { menuItems as mockMenuItems } from '@/lib/data';
 import { useToast } from '@/hooks/use-toast';
@@ -402,29 +402,50 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     setIsSeeding(true);
     try {
       const batch = writeBatch(firestore);
-      const isDemo = sellerId === 'demo-course';
+      
+      let config = {
+        name: 'Sample Establishment',
+        type: 'Public Golf Course' as SellerType,
+        menuTypes: ['Clubhouse']
+      };
+
+      if (sellerId === 'demo-course') {
+        config = { name: 'Demo Public Golf Links', type: 'Public Golf Course', menuTypes: ['Beverage Cart', 'Clubhouse'] };
+      } else if (sellerId === 'demo-bowling-alley') {
+        config = { name: 'Demo Bowling Lanes', type: 'Bowling Alley', menuTypes: ['Take Out', 'Lane Delivery'] };
+      } else if (sellerId === 'demo-golf-course-private') {
+        config = { name: 'Demo Private Country Club', type: 'Private Golf Course', menuTypes: ['Beverage Cart', 'Clubhouse', 'Pool', 'Halfway House'] };
+      }
+
       batch.set(doc(firestore, 'sellers', sellerId), {
         id: sellerId, 
-        courseName: isDemo ? 'Demo Golf Course' : 'Sample Course',
-        type: isDemo ? 'Public Golf Course' : 'Private Golf Course', 
-        streetAddress: '123 Fairway Drive', city: 'Pebble Beach', state: 'CA', zip: '93953',
-        latitude: 42.7748, longitude: -83.2139, contactName: 'Pro Shop Manager', contactEmail: 'manager@democourse.com',
-        contactPhone: '555-0100', serviceFee: 2.50, status: 'Inactive', 
+        courseName: config.name,
+        type: config.type, 
+        streetAddress: '123 Prototyping Way', city: 'Pebble Beach', state: 'CA', zip: '93953',
+        latitude: 42.7748, longitude: -83.2139, contactName: 'Service Manager', contactEmail: 'manager@demo.com',
+        contactPhone: '555-0100', serviceFee: 2.50, status: 'Active', 
         bevcartActive: false,
         clubhouseActive: false,
-        menuTypes: ['Beverage Cart', 'Clubhouse'],
+        menuTypes: config.menuTypes,
         brandColor: '#22c55e',
-        categoryVisibility: {
-          'Beverage Cart': ['Beer', 'Spirits', 'Soft Drinks', 'Snacks', 'Other'],
-          'Clubhouse': ['Beer', 'Spirits', 'Soft Drinks', 'Snacks', 'Other', 'Appetizers', 'Handhelds', 'Pizza', 'Salad', 'Entrees', 'Dessert']
-        }
+        categoryVisibility: config.menuTypes.reduce((acc, mt) => ({
+          ...acc,
+          [mt]: getCategoriesForMenu(mt)
+        }), {})
       }, { merge: true });
+
       mockMenuItems.forEach((item, index) => {
         const newItemRef = doc(collection(firestore, 'sellers', sellerId, 'menuItems'));
-        batch.set(newItemRef, { ...item, id: newItemRef.id, rank: index + 1 });
+        batch.set(newItemRef, { 
+          ...item, 
+          id: newItemRef.id, 
+          rank: index + 1,
+          availableOn: config.menuTypes
+        });
       });
+      
       await batch.commit();
-      toast({ title: "Demo Ready", description: "Sample data loaded." });
+      toast({ title: "Environment Seeded", description: `Data loaded for ${config.name}.` });
     } finally { setIsSeeding(false); }
   };
 
