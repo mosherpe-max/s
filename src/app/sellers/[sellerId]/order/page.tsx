@@ -84,6 +84,18 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
 
   const scrollToTop = () => window.scrollTo({ top: 0, behavior: 'smooth' });
 
+  const sortedMenuTypes = useMemo(() => {
+    if (!seller?.menuTypes) return [];
+    const types = [...seller.menuTypes];
+    // Prioritize Lane Delivery as requested
+    const laneIndex = types.indexOf('Lane Delivery');
+    if (laneIndex > -1) {
+      types.splice(laneIndex, 1);
+      types.unshift('Lane Delivery');
+    }
+    return types;
+  }, [seller?.menuTypes]);
+
   const filteredMenuItems = useMemo(() => {
     if (!menuItems) return [];
     if (!selectedMenuType) return menuItems;
@@ -101,17 +113,17 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
   }, [selectedMenuType, seller, filteredMenuItems]);
 
   useEffect(() => {
-    if (seller?.menuTypes && seller.menuTypes.length > 0 && !selectedMenuType) {
-      setSelectedMenuType(seller.menuTypes[0]);
+    if (sortedMenuTypes.length > 0 && !selectedMenuType) {
+      setSelectedMenuType(sortedMenuTypes[0]);
     }
-  }, [seller, selectedMenuType]);
+  }, [sortedMenuTypes, selectedMenuType]);
 
   const isServiceActive = useMemo(() => {
     if (!seller) return false;
     if (seller.status !== 'Active') return false;
     if (selectedMenuType === 'Beverage Cart') return seller.bevcartActive === true;
     if (selectedMenuType === 'Clubhouse') return seller.clubhouseActive === true;
-    return true; // Default to active for other types like Lane Delivery for now
+    return true; // Default to active for other types like Lane Delivery
   }, [seller, selectedMenuType]);
 
   const handleJumpToCategory = (cat: string) => {
@@ -225,7 +237,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
             </Label>
             <ScrollArea className="w-full whitespace-nowrap">
               <div className="flex gap-2 pb-1">
-                {seller?.menuTypes?.map((type) => {
+                {sortedMenuTypes.map((type) => {
                   const Icon = serviceTypeIcons[type] || Store;
                   const isSelected = selectedMenuType === type;
                   return (
