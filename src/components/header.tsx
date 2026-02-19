@@ -56,11 +56,10 @@ export function AppHeader() {
 
   const { data: seller } = useDoc(sellerRef);
 
-  const isDriverPage = pathname?.includes('/bevcart') || pathname?.includes('/clubhouse');
+  const isDriverPage = pathname?.includes('/bevcart') || pathname?.includes('/clubhouse') || pathname?.includes('/laneside');
   const isTrackingPage = pathname?.includes('/order/track');
   const isBuyerView = pathname?.includes('/order') && !isDriverPage;
   
-  // Only show seller name in header for buyer-facing order flows
   const showSellerName = (isBuyerView || isTrackingPage) && !isDriverPage;
 
   if (isDriverPage) return null;
@@ -118,6 +117,9 @@ export function AppHeader() {
               </Button>
               <Button variant="ghost" size="sm" asChild className="text-white hover:bg-white/10 text-xs font-headline uppercase tracking-wider">
                 <Link href="/sellers/demo-course/clubhouse">CLUBHOUSE DRIVER</Link>
+              </Button>
+              <Button variant="ghost" size="sm" asChild className="text-white hover:bg-white/10 text-xs font-headline uppercase tracking-wider">
+                <Link href="/sellers/demo-bowling-alley/laneside">LANESIDE SERVER</Link>
               </Button>
               <Button variant="ghost" size="sm" asChild className="hidden sm:inline-flex text-white hover:bg-white/10 text-xs font-headline uppercase tracking-wider">
                 <Link href="/sellers/demo-course">SELLER ADMIN</Link>

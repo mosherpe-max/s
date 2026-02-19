@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { Separator } from './ui/separator';
 import { Button } from './ui/button';
-import { Navigation, PartyPopper, ClipboardList, Send, MoveHorizontal, User } from 'lucide-react';
+import { Navigation, PartyPopper, ClipboardList, Send, MoveHorizontal, User, MapPin } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { Badge } from './ui/badge';
 import { cn, getDriverColor, getNumericOrderId } from '@/lib/utils';
@@ -91,7 +91,7 @@ export function OrderCard({
           <div className="flex gap-1.5 w-full">
             <Button className="flex-1 font-headline font-bold uppercase text-[10px] h-10" onClick={() => onUpdateStatus(order.id, 'Out for Delivery', currentDriverId)}>
               <Navigation className="mr-2 h-3.5 w-3.5" />
-              Start Delivery
+              {order.menuType === 'Lane Delivery' ? 'Serving Now' : 'Start Delivery'}
             </Button>
             {canHandoff && renderHandoffButton()}
           </div>
@@ -163,7 +163,14 @@ export function OrderCard({
           <AvatarFallback className="font-bold text-[10px] bg-primary text-primary-foreground">#{numericId}</AvatarFallback>
         </Avatar>
         <div className='flex-1 min-w-0'>
-          <CardTitle className='text-xs font-bold uppercase tracking-tight truncate leading-tight'>{order.customerName}</CardTitle>
+          <div className="flex items-center gap-2 mb-0.5">
+            <CardTitle className='text-xs font-bold uppercase tracking-tight truncate leading-tight'>{order.customerName}</CardTitle>
+            {order.menuTypeLocation && (
+              <Badge className="bg-primary text-white text-[9px] font-black uppercase tracking-tight px-1.5 h-4">
+                {order.menuTypeLocation}
+              </Badge>
+            )}
+          </div>
           <div className="flex flex-col gap-0.5 mt-0.5">
             <CardDescription className="text-[9px] flex items-center gap-1 font-medium truncate">
               {mounted && order.createdAt?.toDate ? formatDistanceToNow(order.createdAt.toDate(), { addSuffix: true }) : 'Processing...'}
