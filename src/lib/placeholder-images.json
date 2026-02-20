@@ -9,7 +9,7 @@
     {
       "id": "beer-2",
       "description": "A can of light lager",
-      "imageUrl": "https://images.unsplash.com/photo-1609729048422-34ef39ad5465?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw1fHxsYWdlciUyMGNhbnxlbnwwfHx8fDE3NjczNzQyMzN8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageUrl": "https://images.unsplash.com/photo-1609729048422-34ef39ad5465?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxsYWdlciUyMGNhbnxlbnwwfHx8fDE3NjczNzQyMzN8MA&ixlib=rb-4.1.0&q=80&w=1080",
       "imageHint": "lager can"
     },
     {
@@ -33,13 +33,13 @@
     {
       "id": "soft-drink-2",
       "description": "A bottle of water",
-      "imageUrl": "https://images.unsplash.com/photo-1561041695-d2fadf9f318c?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw1fHx3YXRlciUyMGJvdHRsZXxlbnwwfHx8fDE3NjczNDgzNjB8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageUrl": "https://images.unsplash.com/photo-1561041695-d2fadf9f318c?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHx3YXRlciUyMGJvdHRsZXxlbnwwfHx8fDE3NjczNDgzNjB8MA&ixlib=rb-4.1.0&q=80&w=1080",
       "imageHint": "water bottle"
     },
     {
       "id": "snack-1",
       "description": "A bag of potato chips",
-      "imageUrl": "https://images.unsplash.com/photo-1599490659213-e2b9527bd087?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw1fHxwb3RhdG8lMjBjaGlwc3xlbnwwfHx8fDE3NjczNjAzMTh8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageUrl": "https://images.unsplash.com/photo-1599490659213-e2b9527bd087?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxwb3RhdG8lMjBjaGlwc3xlbnwwfHx8fDE3NjczNjAzMTh8MA&ixlib=rb-4.1.0&q=80&w=1080",
       "imageHint": "potato chips"
     },
     {
@@ -63,13 +63,13 @@
     {
       "id": "avatar-2",
       "description": "User avatar 2",
-      "imageUrl": "https://images.unsplash.com/photo-1600180758890-6b94519a8ba6?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw1fHxwZXJzb24lMjBwb3J0cmFpdHxlbnwwfHx8fDE3NjcyOTI1NDF8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageUrl": "https://images.unsplash.com/photo-1600180758890-6b94519a8ba6?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxwZXJzb24lMjBwb3J0cmFpdHxlbnwwfHx8fDE3NjcyOTI1NDF8MA&ixlib=rb-4.1.0&q=80&w=1080",
       "imageHint": "person portrait"
     },
     {
       "id": "avatar-3",
       "description": "User avatar 3",
-      "imageUrl": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw3fHxwZXJzb24lMjBwb3J0cmFpdHxlbnwwfHx8fDE3NjcyOTI1NDF8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageUrl": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwzfHxwZXJzb24lMjBwb3J0cmFpdHxlbnwwfHx8fDE3NjcyOTI1NDF8MA&ixlib=rb-4.1.0&q=80&w=1080",
       "imageHint": "person portrait"
     },
     {
@@ -77,6 +77,42 @@
       "description": "Seller avatar",
       "imageUrl": "https://images.unsplash.com/photo-1531123414780-f74242c2b052?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxMHx8cGVyc29uJTIwcG9ydHJhaXR8ZW58MHx8fHwxNzY3MjkyNTQxfDA&ixlib=rb-4.1.0&q=80&w=1080",
       "imageHint": "person portrait"
+    },
+    {
+      "id": "hero-golf",
+      "description": "Beautiful golf course on a sunny day",
+      "imageUrl": "https://images.unsplash.com/photo-1623567341691-1f47b5cf949e?auto=format&fit=crop&q=80&w=1080",
+      "imageHint": "golf course"
+    },
+    {
+      "id": "hero-pool",
+      "description": "Cocktails and relaxation by the pool",
+      "imageUrl": "https://images.unsplash.com/photo-1572331165267-854da2b10ccc?auto=format&fit=crop&q=80&w=1080",
+      "imageHint": "pool drink"
+    },
+    {
+      "id": "hero-bowling",
+      "description": "Vibrant bowling alley atmosphere",
+      "imageUrl": "https://images.unsplash.com/photo-1528543606282-286c44ef3b22?auto=format&fit=crop&q=80&w=1080",
+      "imageHint": "bowling drink"
+    },
+    {
+      "id": "hero-brewery",
+      "description": "Draft beers inside a local brewery",
+      "imageUrl": "https://images.unsplash.com/photo-1518176258769-f227c798150e?auto=format&fit=crop&q=80&w=1080",
+      "imageHint": "brewery beer"
+    },
+    {
+      "id": "feature-golfer-phone",
+      "description": "Golfer using their phone on the course",
+      "imageUrl": "https://images.unsplash.com/photo-1741518401564-6c3ea0d461ae?auto=format&fit=crop&q=80&w=1080",
+      "imageHint": "golfer phone"
+    },
+    {
+      "id": "feature-bev-cart",
+      "description": "Beverage cart on a golf course path",
+      "imageUrl": "https://images.unsplash.com/photo-1650553451549-61606be7ef0b?auto=format&fit=crop&q=80&w=1080",
+      "imageHint": "beverage cart"
     }
   ]
 }

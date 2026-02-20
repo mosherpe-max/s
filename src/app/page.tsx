@@ -5,20 +5,57 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ShoppingCart, ArrowRight, UserCheck } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { PlaceHolderImages } from '@/lib/placeholder-images';
 
 export default function Home() {
+  const getImageUrl = (id: string) => PlaceHolderImages.find(img => i.id === id)?.imageUrl || '';
+
   return (
     <div className="flex flex-col min-h-screen">
-      <section className="relative w-full py-20 md:py-32 lg:py-40">
-        <Image
-          alt="A beautiful golf course on a sunny day."
-          data-ai-hint="golf course"
-          priority
-          fill
-          className="object-cover"
-          src="https://images.unsplash.com/photo-1623567341691-1f47b5cf949e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw2fHxnb2xmJTIwY291cnNlfGVufDB8fHx8MTc2MzAyNDQ5Mnww&ixlib=rb-4.1.0&q=80&w=1080"
-        />
-        <div className="absolute inset-0 bg-black/50"></div>
+      <section className="relative w-full py-20 md:py-32 lg:py-40 overflow-hidden">
+        <div className="absolute inset-0 grid grid-cols-2 grid-rows-2">
+          <div className="relative">
+            <Image
+              alt="Golf course"
+              data-ai-hint="golf course"
+              priority
+              fill
+              className="object-cover"
+              src={PlaceHolderImages.find(i => i.id === 'hero-golf')?.imageUrl || ''}
+            />
+          </div>
+          <div className="relative">
+            <Image
+              alt="Pool drinks"
+              data-ai-hint="pool drink"
+              priority
+              fill
+              className="object-cover"
+              src={PlaceHolderImages.find(i => i.id === 'hero-pool')?.imageUrl || ''}
+            />
+          </div>
+          <div className="relative">
+            <Image
+              alt="Bowling lane service"
+              data-ai-hint="bowling drink"
+              priority
+              fill
+              className="object-cover"
+              src={PlaceHolderImages.find(i => i.id === 'hero-bowling')?.imageUrl || ''}
+            />
+          </div>
+          <div className="relative">
+            <Image
+              alt="Brewery interior"
+              data-ai-hint="brewery drink"
+              priority
+              fill
+              className="object-cover"
+              src={PlaceHolderImages.find(i => i.id === 'hero-brewery')?.imageUrl || ''}
+            />
+          </div>
+        </div>
+        <div className="absolute inset-0 bg-black/65"></div>
         <div className="container relative mx-auto px-4 text-center text-white">
           <h1 className="text-4xl font-bold tracking-tight sm:text-5xl md:text-6xl font-headline">
             Turn Convenience into Revenue
@@ -64,8 +101,7 @@ export default function Home() {
                 How Koop Works
               </h2>
               <p className="max-w-[900px] text-muted-foreground md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
-                We connect hungry and thirsty golfers with on-course beverage
-                carts for a seamless experience.
+                We connect hungry and thirsty patrons with specialized service teams for a seamless experience.
               </p>
             </div>
           </div>
@@ -77,15 +113,14 @@ export default function Home() {
               </CardHeader>
               <CardContent>
                 <p className="text-muted-foreground">
-                  Browse menus from on-course carts and order directly from your
-                  phone. No more waiting or waving down the cart.
+                  Browse menus and order directly from your phone. No more waiting or waving down busy staff.
                 </p>
               </CardContent>
             </Card>
             <Card className="shadow-lg hover:shadow-xl transition-shadow duration-300">
               <CardHeader className="flex flex-row items-center gap-4">
                 <UserCheck className="h-8 w-8 text-primary" />
-                <CardTitle className="font-headline">For Course Operators</CardTitle>
+                <CardTitle className="font-headline">For Operators</CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-muted-foreground">
@@ -106,19 +141,19 @@ export default function Home() {
             </h2>
             <p className="max-w-[600px] text-muted-foreground md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
               Our mobile-friendly design means you can place an order in
-              seconds without disrupting your round. Track your delivery in
+              seconds without disrupting your experience. Track your delivery in
               real-time and know exactly when it will arrive.
             </p>
           </div>
           <div className="flex justify-center">
             <Image
-              alt="A golfer using their phone on the course."
+              alt="Patron using their phone to order"
               data-ai-hint="golfer phone"
               loading="lazy"
               width="600"
               height="400"
-              className="overflow-hidden rounded-xl object-cover"
-              src="https://images.unsplash.com/photo-1741518401564-6c3ea0d461ae?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw3fHxnb2xmZXIlMjBwaG9uZXxlbnwwfHx8fDE3NjMwNjA3MDZ8MA&ixlib=rb-4.1.0&q=80&w=1080"
+              className="overflow-hidden rounded-xl object-cover shadow-2xl"
+              src={PlaceHolderImages.find(i => i.id === 'feature-golfer-phone')?.imageUrl || ''}
             />
           </div>
         </div>
@@ -128,18 +163,18 @@ export default function Home() {
         <div className="container grid items-center gap-6 px-4 md:px-6 lg:grid-cols-2 lg:gap-10">
           <div className="flex justify-center lg:order-last">
             <Image
-              alt="A beverage cart on a golf course path."
+              alt="Service staff ready to deliver"
               data-ai-hint="beverage cart"
               loading="lazy"
               width="600"
               height="400"
-              className="overflow-hidden rounded-xl object-cover"
-              src="https://images.unsplash.com/photo-1650553451549-61606be7ef0b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw0fHxiZXZlcmFnZSUyMGNhcnR8ZW58MHx8fHwxNzYzMDYwNzA2fDA&ixlib=rb-4.1.0&q=80&w=1080"
+              className="overflow-hidden rounded-xl object-cover shadow-2xl"
+              src={PlaceHolderImages.find(i => i.id === 'feature-bev-cart')?.imageUrl || ''}
             />
           </div>
           <div className="space-y-4">
             <div className="inline-block rounded-lg bg-background px-3 py-1 text-sm">
-              For Course Operators
+              For Business Owners
             </div>
             <h2 className="text-3xl font-bold tracking-tighter md:text-4xl/tight font-headline">
               Drive Revenue and Delight Customers
