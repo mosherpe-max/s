@@ -104,6 +104,10 @@
           "type": "string",
           "description": "URL for the seller's logo image."
         },
+        "categoryVisibility": {
+          "type": "object",
+          "description": "Map of menu types to enabled categories."
+        },
         "welcomeMessage": {
           "type": "string",
           "description": "A welcome message displayed to buyers."
@@ -156,6 +160,10 @@
         "rank": {
           "type": "number",
           "description": "The display order of the menu item within its category."
+        },
+        "imageUrl": {
+          "type": "string",
+          "description": "URL for the item's display image."
         },
         "availableOn": {
           "type": "array",
