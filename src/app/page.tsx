@@ -8,7 +8,7 @@ import Image from 'next/image';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 
 export default function Home() {
-  const getImageUrl = (id: string) => PlaceHolderImages.find(img => i.id === id)?.imageUrl || '';
+  const getImageUrl = (id: string) => PlaceHolderImages.find(img => img.id === id)?.imageUrl || '';
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -21,7 +21,7 @@ export default function Home() {
               priority
               fill
               className="object-cover"
-              src={PlaceHolderImages.find(i => i.id === 'hero-golf')?.imageUrl || ''}
+              src={getImageUrl('hero-golf')}
             />
           </div>
           <div className="relative">
@@ -31,7 +31,7 @@ export default function Home() {
               priority
               fill
               className="object-cover"
-              src={PlaceHolderImages.find(i => i.id === 'hero-pool')?.imageUrl || ''}
+              src={getImageUrl('hero-pool')}
             />
           </div>
           <div className="relative">
@@ -41,7 +41,7 @@ export default function Home() {
               priority
               fill
               className="object-cover"
-              src={PlaceHolderImages.find(i => i.id === 'hero-bowling')?.imageUrl || ''}
+              src={getImageUrl('hero-bowling')}
             />
           </div>
           <div className="relative">
@@ -51,7 +51,7 @@ export default function Home() {
               priority
               fill
               className="object-cover"
-              src={PlaceHolderImages.find(i => i.id === 'hero-brewery')?.imageUrl || ''}
+              src={getImageUrl('hero-brewery')}
             />
           </div>
         </div>
@@ -153,7 +153,7 @@ export default function Home() {
               width="600"
               height="400"
               className="overflow-hidden rounded-xl object-cover shadow-2xl"
-              src={PlaceHolderImages.find(i => i.id === 'feature-golfer-phone')?.imageUrl || ''}
+              src={getImageUrl('feature-golfer-phone')}
             />
           </div>
         </div>
@@ -169,7 +169,7 @@ export default function Home() {
               width="600"
               height="400"
               className="overflow-hidden rounded-xl object-cover shadow-2xl"
-              src={PlaceHolderImages.find(i => i.id === 'feature-bev-cart')?.imageUrl || ''}
+              src={getImageUrl('feature-bev-cart')}
             />
           </div>
           <div className="space-y-4">
