@@ -591,7 +591,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                 {isImporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileSpreadsheet className="mr-2 h-4 w-4" />}
                 Import Excel Menu
              </Button>
-             <input type="file" handleExcelImport={handleExcelImport} accept=".xlsx, .xls" className="hidden" />
+             <input type="file" ref={fileInputRef} onChange={handleExcelImport} accept=".xlsx, .xls" className="hidden" />
              <Button variant="outline" size="sm" onClick={handleSeedData} disabled={isSeeding} className="bg-background">
                 <Sparkles className="mr-2 h-4 w-4" /> Reset Demo
              </Button>
@@ -820,7 +820,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                       <TableRow>
                         <TableHead>Member Name</TableHead>
                         <TableHead>Member #</TableHead>
-                        <TableHead>Status</TableHead>
+                        <Status>Status</Status>
                         <TableHead className="text-right">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
