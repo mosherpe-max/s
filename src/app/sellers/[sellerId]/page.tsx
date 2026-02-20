@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useMemo, useEffect, use, useRef } from 'react';
@@ -60,15 +59,15 @@ import {
   useSensor,
   useSensors,
   DragEndEvent
-} from '@get-dnd/core';
+} from '@dnd-kit/core';
 import {
   arrayMove,
   SortableContext,
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
   useSortable
-} from '@get-dnd/sortable';
-import { CSS } from '@get-dnd/utilities';
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { MapView } from '@/components/map-view';
 import { APIProvider } from '@vis.gl/react-google-maps';
 
