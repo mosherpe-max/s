@@ -1,4 +1,3 @@
-
 'use client';
 
 import { Button } from '@/components/ui/button';
@@ -62,8 +61,7 @@ export default function Home() {
             Turn Convenience into Revenue
           </h1>
           <p className="mt-4 max-w-2xl mx-auto text-lg text-neutral-200">
-            Provide immediate food and beverage service to your customers anywhere
-            at your establishment, never miss a sales opportunity again.
+            Give your customers VIP treatment with Koop's plug and play digital ordering platform, boosting your food and beverage sales.
           </p>
           <div className="mt-10 flex flex-wrap justify-center gap-4">
             <Button asChild size="lg" className="h-12 px-8 font-headline font-bold uppercase tracking-wider">
