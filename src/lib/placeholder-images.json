@@ -92,15 +92,15 @@
     },
     {
       "id": "hero-bowling",
-      "description": "Bowling ball and pins",
-      "imageUrl": "https://images.unsplash.com/photo-1544197150-b99a580bb7a8?auto=format&fit=crop&q=80&w=1080",
-      "imageHint": "bowling"
+      "description": "Bowling alley with pins and ball",
+      "imageUrl": "https://images.unsplash.com/photo-1538510163373-287899435841?auto=format&fit=crop&q=80&w=1080",
+      "imageHint": "bowling alley"
     },
     {
       "id": "hero-brewery",
-      "description": "Draft beers inside a local brewery",
-      "imageUrl": "https://images.unsplash.com/photo-1518176258769-f227c798150e?auto=format&fit=crop&q=80&w=1080",
-      "imageHint": "brewery beer"
+      "description": "Beer taps in a modern brewery",
+      "imageUrl": "https://images.unsplash.com/photo-1555658636-6e4a36218be7?auto=format&fit=crop&q=80&w=1080",
+      "imageHint": "brewery"
     },
     {
       "id": "feature-golfer-phone",
