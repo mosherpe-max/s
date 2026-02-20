@@ -92,9 +92,9 @@
     },
     {
       "id": "hero-bowling",
-      "description": "Vibrant bowling alley atmosphere",
-      "imageUrl": "https://images.unsplash.com/photo-1544698310-74ea9d1c8258?auto=format&fit=crop&q=80&w=1080",
-      "imageHint": "bowling drink"
+      "description": "Bowling lane with pins ready",
+      "imageUrl": "https://images.unsplash.com/photo-1538333581680-d005f7833e11?auto=format&fit=crop&q=80&w=1080",
+      "imageHint": "bowling alley"
     },
     {
       "id": "hero-brewery",
