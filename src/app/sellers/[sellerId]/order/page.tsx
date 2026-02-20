@@ -100,11 +100,9 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
   }, [seller?.menuTypes]);
 
   const filteredMenuItems = useMemo(() => {
-    if (!menuItems) return [];
-    if (!selectedMenuType) return menuItems;
-    return menuItems.filter(item => 
-      !item.availableOn || item.availableOn.length === 0 || item.availableOn.includes(selectedMenuType)
-    );
+    if (!menuItems || !selectedMenuType) return [];
+    // Strict filter: Only show items that are explicitly assigned to this menu type
+    return menuItems.filter(item => item.availableOn?.includes(selectedMenuType));
   }, [menuItems, selectedMenuType]);
 
   const currentCategories = useMemo(() => {
