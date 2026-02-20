@@ -15,7 +15,7 @@
     {
       "id": "spirits-1",
       "description": "A glass of whiskey on the rocks",
-      "imageUrl": "https://images.unsplash.com/photo-1695057672316-7efe5b856ab0?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw3fHx3aGlza2V5JTIwZ2xhc3N8ZW58MHx8fHwxNzY3MzczNTM0fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageUrl": "https://images.unsplash.com/photo-1695057672316-7efe5b856ab0?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw3fHx3aGlza2V5JTIwZ2xhc3N8ZW58MHx8fHwxNzY3MzczMTI2fDA&ixlib=rb-4.1.0&q=80&w=1080",
       "imageHint": "whiskey glass"
     },
     {
@@ -92,9 +92,9 @@
     },
     {
       "id": "hero-bowling",
-      "description": "Bowling lane with pins ready",
-      "imageUrl": "https://images.unsplash.com/photo-1538333581680-d005f7833e11?auto=format&fit=crop&q=80&w=1080",
-      "imageHint": "bowling alley"
+      "description": "Bowling ball and pins",
+      "imageUrl": "https://images.unsplash.com/photo-1544197150-b99a580bb7a8?auto=format&fit=crop&q=80&w=1080",
+      "imageHint": "bowling"
     },
     {
       "id": "hero-brewery",
