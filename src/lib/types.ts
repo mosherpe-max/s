@@ -68,6 +68,7 @@ export interface MenuItem {
     price: number;
     category: Category;
     rank: number;
+    imageUrl?: string;
     availableOn?: string[];
     menuRanks?: Record<string, number>;
 }

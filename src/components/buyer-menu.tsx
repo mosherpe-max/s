@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import type { OrderItem, MenuItem, Category } from '@/lib/types';
 import { PlusCircle, MinusCircle } from 'lucide-react';
 import { categoryIcons } from './icons';
+import Image from 'next/image';
 
 interface BuyerMenuProps {
   orderItems: OrderItem[];
@@ -56,12 +57,19 @@ export function BuyerMenu({ orderItems, onUpdateItem, currentCategories, menuIte
                 const quantity = orderItem ? orderItem.quantity : 0;
                 return (
                   <div key={item.id} className="flex items-start justify-between p-4 rounded-xl bg-card border shadow-sm transition-all hover:shadow-md active:scale-[0.98]">
-                    <div className="flex-1 pr-4">
-                      <p className="font-bold text-base leading-tight">{item.name}</p>
-                      <p className="text-xs font-mono font-bold mt-0.5" style={{ color: accentColor || 'hsl(var(--primary))' }}>${item.price.toFixed(2)}</p>
-                      {item.description && <p className="text-[10px] text-muted-foreground mt-1.5 line-clamp-2 leading-relaxed">{item.description}</p>}
+                    <div className="flex items-start gap-4 flex-1 pr-2">
+                      {item.imageUrl && (
+                        <div className="relative h-20 w-20 rounded-lg overflow-hidden border bg-muted shrink-0 shadow-inner">
+                          <Image src={item.imageUrl} alt={item.name} fill className="object-cover" />
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="font-bold text-base leading-tight truncate">{item.name}</p>
+                        <p className="text-xs font-mono font-bold mt-0.5" style={{ color: accentColor || 'hsl(var(--primary))' }}>${item.price.toFixed(2)}</p>
+                        {item.description && <p className="text-[10px] text-muted-foreground mt-1.5 line-clamp-2 leading-relaxed">{item.description}</p>}
+                      </div>
                     </div>
-                    <div className="flex items-center gap-1.5 bg-muted/30 p-1 rounded-full border shrink-0 h-fit">
+                    <div className="flex items-center gap-1.5 bg-muted/30 p-1 rounded-full border shrink-0 h-fit ml-2">
                         <Button
                           variant="ghost"
                           size="icon"

@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useMemo, useEffect, use, useRef } from 'react';
@@ -27,7 +28,8 @@ import {
   Activity,
   Map as MapIcon,
   Navigation,
-  ChevronRight
+  ChevronRight,
+  ImageIcon
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -70,17 +72,20 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { MapView } from '@/components/map-view';
 import { APIProvider } from '@vis.gl/react-google-maps';
+import Image from 'next/image';
 
 import type { MenuItem, Seller, Category, Order, Member, SellerType } from '@/lib/types';
 import { categories } from '@/lib/types';
 import { menuItems as mockMenuItems } from '@/lib/data';
 import { useToast } from '@/hooks/use-toast';
+import { PlaceHolderImages } from '@/lib/placeholder-images';
 
 const menuItemSchema = z.object({
   name: z.string().min(1, 'Item name is required'),
   description: z.string().optional(),
   price: z.coerce.number().min(0, 'Price must be a positive number'),
   category: z.enum(categories),
+  imageUrl: z.string().url('Please enter a valid image URL').or(z.literal('')).optional(),
   availableOn: z.array(z.string()).optional(),
 });
 
@@ -119,6 +124,7 @@ function MasterItemForm({
       description: '',
       price: 0,
       category: 'Beer' as Category,
+      imageUrl: '',
       availableOn: [],
     },
   });
@@ -141,6 +147,13 @@ function MasterItemForm({
                 <FormItem><FormLabel>Category</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select a category" /></SelectTrigger></FormControl><SelectContent>{categories.map((cat) => (<SelectItem key={cat} value={cat}>{cat}</SelectItem>))}</SelectContent></Select><FormMessage /></FormItem>
             )} />
           </div>
+          <FormField control={form.control} name="imageUrl" render={({ field }) => (
+            <FormItem>
+              <FormLabel className="flex items-center gap-2"><ImageIcon className="h-3 w-3" /> Image URL</FormLabel>
+              <FormControl><Input {...field} placeholder="https://images.unsplash.com/..." /></FormControl>
+              <FormMessage />
+            </FormItem>
+          )} />
         </div>
         <div className="flex justify-end gap-2 pt-4 border-t">
           <Button type="button" variant="ghost" onClick={onClose}>Cancel</Button>
@@ -257,6 +270,11 @@ function SortableItem({ item, onDelete, menuType }: { item: MenuItem; onDelete: 
         <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-primary">
           <GripVertical className="h-4 w-4" />
         </div>
+        {item.imageUrl && (
+          <div className="relative h-6 w-6 rounded-md overflow-hidden border bg-muted flex-shrink-0">
+            <Image src={item.imageUrl} alt={item.name} fill className="object-cover" />
+          </div>
+        )}
         <span className="text-xs font-medium truncate">{item.name}</span>
       </div>
       <Button variant="ghost" size="icon" className="text-destructive h-7 w-7" onClick={onDelete}>
@@ -336,6 +354,21 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   const activeOrders = useMemo(() => {
     return orders?.filter(o => ['Placed', 'Preparing', 'Out for Delivery'].includes(o.status)) || [];
   }, [orders]);
+
+  const sortedMenuTypesForAdmin = useMemo(() => {
+    if (!seller?.menuTypes) return [];
+    const types = [...seller.menuTypes];
+    // Custom sort: Lane Delivery, then Take Out, then the rest
+    types.sort((a, b) => {
+      const order = ['Lane Delivery', 'Take Out', 'Beverage Cart', 'Clubhouse', 'Pool', 'Halfway House', 'Dine-In'];
+      let indexA = order.indexOf(a);
+      let indexB = order.indexOf(b);
+      if (indexA === -1) indexA = 99;
+      if (indexB === -1) indexB = 99;
+      return indexA - indexB;
+    });
+    return types;
+  }, [seller?.menuTypes]);
 
   const dashboardStats = useMemo(() => {
     if (!orders) return null;
@@ -417,21 +450,21 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
       } else if (sellerId === 'demo-bowling-alley') {
         config = { name: 'Demo Bowling Lanes', type: 'Bowling Alley', menuTypes: ['Take Out', 'Lane Delivery'] };
         itemsToSeed = [
-          { name: 'Pitcher of Domestic Light', description: 'Perfect for sharing while bowling.', price: 15.00, category: 'Beer' },
-          { name: 'Bucket of Domestic (6)', description: 'Mix and match your favorites.', price: 25.00, category: 'Beer' },
-          { name: 'Fountain Soda', description: 'Refillable cup. Choice of Cola, Diet, Lemon-Lime.', price: 3.50, category: 'Soft Drinks' },
-          { name: 'Pitcher of Soda', description: 'Great for the whole lane!', price: 9.00, category: 'Soft Drinks' },
-          { name: 'Bowl of Popcorn', description: 'Buttery, salted, and fresh.', price: 4.50, category: 'Snacks' },
-          { name: 'Loaded Nachos', description: 'Corn chips topped with cheese, jalapeños, and sour cream.', price: 10.50, category: 'Appetizers' },
-          { name: 'Buffalo Wings (10pc)', description: 'Crispy wings tossed in buffalo sauce.', price: 14.50, category: 'Appetizers' },
-          { name: 'Mozzarella Sticks', description: 'Served with zesty marinara sauce.', price: 8.00, category: 'Appetizers' },
-          { name: 'Strike Burger', description: 'Cheeseburger with secret sauce and fries.', price: 13.50, category: 'Handhelds' },
-          { name: 'Classic Hot Dog', description: 'Grilled all-beef frank on a toasted bun.', price: 7.00, category: 'Handhelds' },
-          { name: 'Chicken Tenders & Fries', description: 'Breaded chicken breast strips with honey mustard.', price: 12.00, category: 'Handhelds' },
-          { name: 'Large Pepperoni Pizza', description: '16-inch classic with extra pepperoni.', price: 21.00, category: 'Pizza' },
-          { name: 'Large Cheese Pizza', description: 'Thin crust with a four-cheese blend.', price: 18.00, category: 'Pizza' },
-          { name: 'Ice Cream Sundae', description: 'Vanilla ice cream with chocolate syrup and a cherry.', price: 6.50, category: 'Dessert' },
-          { name: 'Glow Bowl Wristband', description: 'Access to special lighting events.', price: 5.00, category: 'Other' },
+          { name: 'Pitcher of Domestic Light', description: 'Perfect for sharing while bowling.', price: 15.00, category: 'Beer', imageUrl: PlaceHolderImages.find(i => i.imageHint === 'craft beer')?.imageUrl },
+          { name: 'Bucket of Domestic (6)', description: 'Mix and match your favorites.', price: 25.00, category: 'Beer', imageUrl: PlaceHolderImages.find(i => i.imageHint === 'lager can')?.imageUrl },
+          { name: 'Fountain Soda', description: 'Refillable cup. Choice of Cola, Diet, Lemon-Lime.', price: 3.50, category: 'Soft Drinks', imageUrl: PlaceHolderImages.find(i => i.imageHint === 'cola can')?.imageUrl },
+          { name: 'Pitcher of Soda', description: 'Great for the whole lane!', price: 9.00, category: 'Soft Drinks', imageUrl: PlaceHolderImages.find(i => i.id === 'soft-drink-1')?.imageUrl },
+          { name: 'Bowl of Popcorn', description: 'Buttery, salted, and fresh.', price: 4.50, category: 'Snacks', imageUrl: PlaceHolderImages.find(i => i.imageHint === 'potato chips')?.imageUrl },
+          { name: 'Loaded Nachos', description: 'Corn chips topped with cheese, jalapeños, and sour cream.', price: 10.50, category: 'Appetizers', imageUrl: 'https://images.unsplash.com/photo-1513456852971-30c0b8199d4d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwzfHxuYWNob3N8ZW58MHx8fHwxNzYzOTQxOTAwfDA&ixlib=rb-4.1.0&q=80&w=1080' },
+          { name: 'Buffalo Wings (10pc)', description: 'Crispy wings tossed in buffalo sauce.', price: 14.50, category: 'Appetizers', imageUrl: 'https://images.unsplash.com/photo-1567620832903-9fc6debc209f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw0fHxidWZmYWxvJTIwd2luZ3N8ZW58MHx8fHwxNzYzOTQxOTAwfDA&ixlib=rb-4.1.0&q=80&w=1080' },
+          { name: 'Mozzarella Sticks', description: 'Served with zesty marinara sauce.', price: 8.00, category: 'Appetizers', imageUrl: 'https://images.unsplash.com/photo-1531451394031-448f2a1c83e2?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxtb3p6YXJlbGxhJTIwc3RpY2tzfGVufDB8fHx8MTc2Mzk0MTkwMHww&ixlib=rb-4.1.0&q=80&w=1080' },
+          { name: 'Strike Burger', description: 'Cheeseburger with secret sauce and fries.', price: 13.50, category: 'Handhelds', imageUrl: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxidXJnZXJ8ZW58MHx8fHwxNzYzOTQxOTAwfDA&ixlib=rb-4.1.0&q=80&w=1080' },
+          { name: 'Classic Hot Dog', description: 'Grilled all-beef frank on a toasted bun.', price: 7.00, category: 'Handhelds', imageUrl: 'https://images.unsplash.com/photo-1541214113241-21578d2d9b62?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw0fHxob3QlMjBkb2d8ZW58MHx8fHwxNzYzOTQxOTAwfDA&ixlib=rb-4.1.0&q=80&w=1080' },
+          { name: 'Chicken Tenders & Fries', description: 'Breaded chicken breast strips with honey mustard.', price: 12.00, category: 'Handhelds', imageUrl: 'https://images.unsplash.com/photo-1562967914-608f82629710?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxjaGlja2VuJTIwdGVuZGVyc3xlbnwwfHx8fDE3NjM5NDE5MDB8MA&ixlib=rb-4.1.0&q=80&w=1080' },
+          { name: 'Large Pepperoni Pizza', description: '16-inch classic with extra pepperoni.', price: 21.00, category: 'Pizza', imageUrl: 'https://images.unsplash.com/photo-1628840042765-356cda07504e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxwZXBwZXJvbmklMjBwaXp6YXxlbnwwfHx8fDE3NjM5NDE5MDB8MA&ixlib=rb-4.1.0&q=80&w=1080' },
+          { name: 'Large Cheese Pizza', description: 'Thin crust with a four-cheese blend.', price: 18.00, category: 'Pizza', imageUrl: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxwaXp6YXxlbnwwfHx8fDE3NjM5NDE5MDB8MA&ixlib=rb-4.1.0&q=80&w=1080' },
+          { name: 'Ice Cream Sundae', description: 'Vanilla ice cream with chocolate syrup and a cherry.', price: 6.50, category: 'Dessert', imageUrl: 'https://images.unsplash.com/photo-1563805042-7684c019e1cb?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxpY2UlMjBjcmVhbSUyMHN1bmRhZXxlbnwwfHx8fDE3NjM5NDE5MDB8MA&ixlib=rb-4.1.0&q=80&w=1080' },
+          { name: 'Glow Bowl Wristband', description: 'Access to special lighting events.', price: 5.00, category: 'Other', imageUrl: 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwzfHx3cmlzdGJhbmR8ZW58MHx8fHwxNzYzOTQxOTAwfDA&ixlib=rb-4.1.0&q=80&w=1080' },
         ];
       } else if (sellerId === 'demo-golf-course-private') {
         config = { name: 'Demo Private Country Club', type: 'Private Golf Course', menuTypes: ['Beverage Cart', 'Clubhouse', 'Pool', 'Halfway House'] };
@@ -479,7 +512,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     reader.onload = async (e) => {
       try {
         const data = new Uint8Array(e.target?.result as ArrayBuffer);
-        const workbook = XLSX.read(data, { type: 'array' });
+        workbook = XLSX.read(data, { type: 'array' });
         const worksheet = workbook.Sheets[workbook.SheetNames[0]];
         const jsonData = XLSX.utils.sheet_to_json(worksheet);
 
@@ -710,8 +743,17 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setEditingItem(item); setIsMasterFormOpen(true); }}><Edit className="h-3.5 w-3.5" /></Button>
                       </div>
                     </div>
-                    <h4 className="font-bold">{item.name}</h4>
-                    <p className="font-mono font-bold text-sm text-primary">${item.price.toFixed(2)}</p>
+                    <div className="flex gap-3 items-center">
+                      {item.imageUrl && (
+                        <div className="relative h-12 w-12 rounded-lg overflow-hidden border bg-muted shrink-0">
+                          <Image src={item.imageUrl} alt={item.name} fill className="object-cover" />
+                        </div>
+                      )}
+                      <div>
+                        <h4 className="font-bold">{item.name}</h4>
+                        <p className="font-mono font-bold text-sm text-primary">${item.price.toFixed(2)}</p>
+                      </div>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -721,9 +763,9 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
 
         <h2 id="service-management" className="font-headline text-xl font-bold mb-6 mt-16 flex items-center gap-2 text-primary uppercase tracking-wider scroll-mt-24"><ListChecks className="h-6 w-6" /> Service Menus</h2>
         <div className="grid grid-cols-1 gap-12">
-          {seller?.menuTypes?.map(menuType => {
+          {sortedMenuTypesForAdmin.map(menuType => {
               const itemsInThisMenu = menuItems?.filter(i => i.availableOn?.includes(menuType)) || [];
-              const enabledCats = seller.categoryVisibility?.[menuType] || [];
+              const enabledCats = seller?.categoryVisibility?.[menuType] || [];
               const allowedCategories = getCategoriesForMenu(menuType);
 
               return (
@@ -895,7 +937,14 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                                                 "p-3 rounded-lg border cursor-pointer transition-all flex justify-between items-center",
                                                 isSelected ? "border-primary bg-primary/5 shadow-sm" : "hover:bg-muted/50"
                                             )}>
-                                                <span className="text-sm font-bold">{item.name}</span>
+                                                <div className="flex items-center gap-2">
+                                                  {item.imageUrl && (
+                                                    <div className="relative h-8 w-8 rounded overflow-hidden border bg-muted">
+                                                      <Image src={item.imageUrl} alt={item.name} fill className="object-cover" />
+                                                    </div>
+                                                  )}
+                                                  <span className="text-sm font-bold">{item.name}</span>
+                                                </div>
                                                 {isSelected && <Check className="h-4 w-4 text-primary" />}
                                             </div>
                                         );
