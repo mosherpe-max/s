@@ -35,7 +35,7 @@ export function OrderSummary({ items, serviceFee = 0 }: OrderSummaryProps) {
               <p className="font-mono">${subtotal.toFixed(2)}</p>
             </div>
             <div className="flex justify-between">
-              <p className="text-muted-foreground">Service Fee</p>
+              <p className="text-muted-foreground">Platform Fee</p>
               <p className="font-mono">${serviceFee.toFixed(2)}</p>
             </div>
           </div>

@@ -81,7 +81,7 @@
         },
         "serviceFee": {
           "type": "number",
-          "description": "The service fee charged by the seller."
+          "description": "The platform fee charged by the establishment per order."
         },
         "status": {
           "type": "string",
@@ -239,7 +239,7 @@
           "items": { "$ref": "#/backend/entities/MenuItem" }
         },
         "subtotal": { "type": "number" },
-        "serviceFee": { "type": "number" },
+        "serviceFee": { "type": "number", "description": "The platform fee charged for this order." },
         "total": { "type": "number" },
         "status": {
           "type": "string",

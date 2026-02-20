@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useMemo, useEffect, use, useRef } from 'react';
@@ -59,15 +60,15 @@ import {
   useSensor,
   useSensors,
   DragEndEvent
-} from '@dnd-kit/core';
+} from '@get-dnd/core';
 import {
   arrayMove,
   SortableContext,
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
   useSortable
-} from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
+} from '@get-dnd/sortable';
+import { CSS } from '@get-dnd/utilities';
 import { MapView } from '@/components/map-view';
 import { APIProvider } from '@vis.gl/react-google-maps';
 
@@ -820,7 +821,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                       <TableRow>
                         <TableHead>Member Name</TableHead>
                         <TableHead>Member #</TableHead>
-                        <Status>Status</Status>
+                        <TableHead>Status</TableHead>
                         <TableHead className="text-right">Actions</TableHead>
                       </TableRow>
                     </TableHeader>

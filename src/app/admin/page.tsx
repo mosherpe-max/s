@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -65,7 +66,7 @@ const sellerSchema = z.object({
   contactName: z.string().min(2, 'Contact person name is required'),
   contactEmail: z.string().email('Please enter a valid email address'),
   contactPhone: z.string().min(10, 'Phone number must be at least 10 digits'),
-  serviceFee: z.coerce.number().min(0, 'Service fee cannot be negative').max(100, 'Fee seems too high'),
+  serviceFee: z.coerce.number().min(0, 'Platform fee cannot be negative').max(100, 'Fee seems too high'),
   status: z.enum(['Active', 'Inactive']),
 });
 
@@ -509,7 +510,7 @@ export default function KOOPAdminPage() {
                       <TableCell className="font-medium align-top pt-5">
                         <div className="flex flex-col">
                             <span>{seller.courseName}</span>
-                            <span className="text-[10px] text-muted-foreground font-mono mt-1">Fee: ${seller.serviceFee.toFixed(2)}</span>
+                            <span className="text-[10px] text-muted-foreground font-mono mt-1">Platform Fee: ${seller.serviceFee.toFixed(2)}</span>
                         </div>
                       </TableCell>
                       <TableCell className="align-top pt-5">
@@ -788,7 +789,7 @@ export default function KOOPAdminPage() {
                     name="serviceFee"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Service Fee ($)</FormLabel>
+                        <FormLabel>Platform Fee ($)</FormLabel>
                         <FormControl>
                           <Input type="number" step="0.50" {...field} />
                         </FormControl>
