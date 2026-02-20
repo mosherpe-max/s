@@ -5,6 +5,7 @@ import { useCollection, useFirestore, useMemoFirebase, useDoc } from '@/firebase
 import { useEffect, useState, useMemo, useRef, use } from 'react';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
 import { OrderCard } from '@/components/order-card';
 import type { Order, Seller } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
