@@ -61,7 +61,7 @@ export default function Home() {
             Turn Convenience into Revenue
           </h1>
           <p className="mt-4 max-w-2xl mx-auto text-lg text-neutral-200">
-            Give your customers VIP treatment with Koop's plug and play digital ordering platform, boosting your food and beverage sales.
+            Give your customers VIP treatment with KOOP's plug and play digital ordering platform, boosting your food and beverage sales.
           </p>
           <div className="mt-10 flex flex-wrap justify-center gap-4">
             <Button asChild size="lg" className="h-12 px-8 font-headline font-bold uppercase tracking-wider">
@@ -83,7 +83,7 @@ export default function Home() {
           </div>
           <div className="mt-8">
              <Button asChild variant="link" className="text-white/60 hover:text-white uppercase text-xs font-bold tracking-[0.2em]">
-                <Link href="#features">Learn More About Koop</Link>
+                <Link href="#features">Learn More About KOOP</Link>
              </Button>
           </div>
         </div>
@@ -97,7 +97,7 @@ export default function Home() {
                 Key Features
               </div>
               <h2 className="text-3xl font-bold tracking-tighter sm:text-5xl font-headline">
-                How Koop Works
+                How KOOP Works
               </h2>
               <p className="max-w-[900px] text-muted-foreground md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
                 We connect hungry and thirsty patrons with specialized service teams for a seamless experience.
@@ -179,7 +179,7 @@ export default function Home() {
               Drive Revenue and Delight Customers
             </h2>
             <p className="max-w-[600px] text-muted-foreground md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
-              Equip your service staff with Koop to increase order volume,
+              Equip your service staff with KOOP to increase order volume,
               optimize routes, and manage your menu with ease. Our seller
               dashboard provides all the tools you need to succeed.
             </p>
