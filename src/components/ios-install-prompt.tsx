@@ -15,37 +15,35 @@ import {
 /**
  * A specialized prompt for iOS Safari users to add the app to their home screen.
  * Enhanced with visual cues and a directional arrow to point toward the Safari Share button.
+ * NOTE: Detection logic is temporarily bypassed for preview.
  */
 export function IosInstallPrompt() {
   const [showPrompt, setShowPrompt] = useState(false);
 
   useEffect(() => {
-    // 1. Detect if the device is iOS
+    // FOR PREVIEW: Always show after a short delay
+    const timer = setTimeout(() => setShowPrompt(true), 1000);
+    return () => clearTimeout(timer);
+
+    /* Original detection logic (commented out for preview):
     const isIOS = /iPad|iPhone|iPod/.test(window.navigator.userAgent);
-    
-    // 2. Detect if the browser is Safari (Chrome/Firefox on iOS have 'CriOS'/'FxiOS')
     const isSafari = window.navigator.userAgent.includes('Safari') && 
                     !window.navigator.userAgent.includes('CriOS') && 
                     !window.navigator.userAgent.includes('FxiOS');
-    
-    // 3. Check if already in standalone mode (installed)
     const isStandalone = ('standalone' in window.navigator) && (window.navigator as any).standalone;
-    
-    // 4. Check if user has already dismissed it in this session or permanently
     const hasBeenDismissed = localStorage.getItem('ios-install-prompt-dismissed');
 
-    // Only show if it's iOS Safari, not installed, and not previously dismissed
     if (isIOS && isSafari && !isStandalone && !hasBeenDismissed) {
-      // Small delay for better UX after page load
       const timer = setTimeout(() => setShowPrompt(true), 1500);
       return () => clearTimeout(timer);
     }
+    */
   }, []);
 
   const handleDismiss = () => {
     setShowPrompt(false);
-    // Remember dismissal to avoid annoying the user
-    localStorage.setItem('ios-install-prompt-dismissed', 'true');
+    // In production, we'd save the dismissal
+    // localStorage.setItem('ios-install-prompt-dismissed', 'true');
   };
 
   return (
