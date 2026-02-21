@@ -66,7 +66,7 @@ const sellerSchema = z.object({
   contactName: z.string().min(2, 'Contact person name is required'),
   contactEmail: z.string().email('Please enter a valid email address'),
   contactPhone: z.string().min(10, 'Phone number must be at least 10 digits'),
-  serviceFee: z.coerce.number().min(0, 'Platform fee cannot be negative').max(100, 'Fee seems too high'),
+  serviceFee: z.coerce.number().min(0, 'Convenience fee cannot be negative').max(100, 'Fee seems too high'),
   status: z.enum(['Active', 'Inactive']),
 });
 
