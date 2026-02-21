@@ -14,7 +14,8 @@ import {
   Store,
   Users,
   Menu,
-  ChevronRight
+  ChevronRight,
+  Waves
 } from 'lucide-react';
 import { useCart } from '@/lib/cart-context';
 import { useState, useEffect, useMemo } from 'react';
@@ -211,25 +212,44 @@ export function AppHeader() {
                 Services <ChevronDown className="ml-1 h-3 w-3" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuLabel className={labelClass}>Driver Interfaces</DropdownMenuLabel>
-              <DropdownMenuSeparator />
+            <DropdownMenuContent align="end" className="w-64">
+              <DropdownMenuLabel className={labelClass}>Public GC & Bowling</DropdownMenuLabel>
               <DropdownMenuItem asChild>
                 <Link href="/sellers/demo-course/bevcart" className={itemClass}>
                   <Truck className="h-4 w-4 text-primary" />
-                  <span className="font-bold text-xs uppercase tracking-tight">BEVCART DRIVER</span>
+                  <span className="font-bold text-xs uppercase tracking-tight">Public BevCart Driver</span>
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
                 <Link href="/sellers/demo-course/clubhouse" className={itemClass}>
                   <LayoutDashboard className="h-4 w-4 text-primary" />
-                  <span className="font-bold text-xs uppercase tracking-tight">CLUBHOUSE PORTAL</span>
+                  <span className="font-bold text-xs uppercase tracking-tight">Public Clubhouse Portal</span>
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
                 <Link href="/sellers/demo-bowling-alley/laneside" className={itemClass}>
                   <Users className="h-4 w-4 text-primary" />
-                  <span className="font-bold text-xs uppercase tracking-tight">LANESIDE SERVER</span>
+                  <span className="font-bold text-xs uppercase tracking-tight">Laneside Server</span>
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel className={labelClass}>Private GC Demo</DropdownMenuLabel>
+              <DropdownMenuItem asChild>
+                <Link href="/sellers/demo-golf-course-private/bevcart" className={itemClass}>
+                  <Truck className="h-4 w-4 text-primary" />
+                  <span className="font-bold text-xs uppercase tracking-tight">Private BevCart Driver</span>
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/sellers/demo-golf-course-private/clubhouse" className={itemClass}>
+                  <LayoutDashboard className="h-4 w-4 text-primary" />
+                  <span className="font-bold text-xs uppercase tracking-tight">Private Clubhouse Driver</span>
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/sellers/demo-golf-course-private/clubhouse" className={itemClass}>
+                  <Waves className="h-4 w-4 text-primary" />
+                  <span className="font-bold text-xs uppercase tracking-tight">Private Pool Server</span>
                 </Link>
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -238,17 +258,33 @@ export function AppHeader() {
           <>
             <Link href="/sellers/demo-course/bevcart" onClick={() => setIsMobileMenuOpen(false)} className={itemClass}>
               <Truck className="h-5 w-5 text-primary" />
-              <span className="font-bold text-sm uppercase tracking-tight">BEVCART DRIVER</span>
+              <span className="font-bold text-sm uppercase tracking-tight">Public BevCart Driver</span>
               <ChevronRight className="ml-auto h-4 w-4 text-muted-foreground/30" />
             </Link>
             <Link href="/sellers/demo-course/clubhouse" onClick={() => setIsMobileMenuOpen(false)} className={itemClass}>
               <LayoutDashboard className="h-5 w-5 text-primary" />
-              <span className="font-bold text-sm uppercase tracking-tight">CLUBHOUSE PORTAL</span>
+              <span className="font-bold text-sm uppercase tracking-tight">Public Clubhouse Portal</span>
               <ChevronRight className="ml-auto h-4 w-4 text-muted-foreground/30" />
             </Link>
             <Link href="/sellers/demo-bowling-alley/laneside" onClick={() => setIsMobileMenuOpen(false)} className={itemClass}>
               <Users className="h-5 w-5 text-primary" />
-              <span className="font-bold text-sm uppercase tracking-tight">LANESIDE SERVER</span>
+              <span className="font-bold text-sm uppercase tracking-tight">Laneside Server</span>
+              <ChevronRight className="ml-auto h-4 w-4 text-muted-foreground/30" />
+            </Link>
+            <div className="h-4" />
+            <Link href="/sellers/demo-golf-course-private/bevcart" onClick={() => setIsMobileMenuOpen(false)} className={itemClass}>
+              <Truck className="h-5 w-5 text-primary" />
+              <span className="font-bold text-sm uppercase tracking-tight">Private BevCart Driver</span>
+              <ChevronRight className="ml-auto h-4 w-4 text-muted-foreground/30" />
+            </Link>
+            <Link href="/sellers/demo-golf-course-private/clubhouse" onClick={() => setIsMobileMenuOpen(false)} className={itemClass}>
+              <LayoutDashboard className="h-5 w-5 text-primary" />
+              <span className="font-bold text-sm uppercase tracking-tight">Private Clubhouse Driver</span>
+              <ChevronRight className="ml-auto h-4 w-4 text-muted-foreground/30" />
+            </Link>
+            <Link href="/sellers/demo-golf-course-private/clubhouse" onClick={() => setIsMobileMenuOpen(false)} className={itemClass}>
+              <Waves className="h-5 w-5 text-primary" />
+              <span className="font-bold text-sm uppercase tracking-tight">Private Pool Server</span>
               <ChevronRight className="ml-auto h-4 w-4 text-muted-foreground/30" />
             </Link>
           </>
