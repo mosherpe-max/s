@@ -72,7 +72,6 @@ export default function LaneSideServerDashboardPage({ params }: { params: Promis
       isToday(o.createdAt.toDate())
     );
 
-    const activeCount = lanesideOrders.length;
     const deliveredToday = laneOrdersToday.filter(o => o.status === 'Delivered');
     const totalDollars = deliveredToday.reduce((acc, o) => acc + (o.total || 0), 0);
     
@@ -100,12 +99,11 @@ export default function LaneSideServerDashboardPage({ params }: { params: Promis
     }).length;
 
     return {
-      activeCount,
       totalDollars,
       avgTime,
       exceededCount
     };
-  }, [allOrders, lanesideOrders, primarySeller, now, thresholds.max]);
+  }, [allOrders, primarySeller, now, thresholds.max]);
 
   useEffect(() => {
     if (!lanesideOrders || !now) return;
@@ -201,14 +199,7 @@ export default function LaneSideServerDashboardPage({ params }: { params: Promis
 
       <div className="flex-1 flex flex-col p-4 gap-3 overflow-hidden max-w-6xl mx-auto w-full">
         {/* Compact Metrics Bar */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-1">
-           <div className="px-3 py-2 bg-white rounded-lg border shadow-sm flex items-center gap-2.5">
-              <div className="p-1.5 bg-primary/10 rounded-md shrink-0"><Package className="h-4 w-4 text-primary" /></div>
-              <div className="min-w-0">
-                <p className="text-[8px] font-black uppercase text-muted-foreground truncate tracking-wider">Active</p>
-                <p className="text-lg font-headline font-black leading-none">{metrics?.activeCount ?? 0}</p>
-              </div>
-           </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-1">
            <div className="px-3 py-2 bg-white rounded-lg border shadow-sm flex items-center gap-2.5">
               <div className="p-1.5 bg-green-500/10 rounded-md shrink-0"><DollarSign className="h-4 w-4 text-green-600" /></div>
               <div className="min-w-0">
