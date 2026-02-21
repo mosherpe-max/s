@@ -28,7 +28,8 @@ import {
   Map as MapIcon,
   Navigation,
   ChevronRight,
-  ImageIcon
+  ImageIcon,
+  LayoutGrid
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -335,6 +336,19 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  const scrollToSection = (id: string) => {
+    const element = document.getElementById(id);
+    if (element) {
+      const offset = 80; // Account for navigation bar
+      const elementPosition = element.getBoundingClientRect().top;
+      const offsetPosition = elementPosition + window.pageYOffset - offset;
+      window.scrollTo({
+        top: offsetPosition,
+        behavior: 'smooth'
+      });
+    }
+  };
+
   const sellerRef = useMemoFirebase(() => (firestore ? doc(firestore, 'sellers', sellerId) : null), [firestore, sellerId]);
   const { data: seller, isLoading: isSellerLoading } = useDoc<Seller>(sellerRef);
 
@@ -511,7 +525,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     reader.onload = async (e) => {
       try {
         const data = new Uint8Array(e.target?.result as ArrayBuffer);
-        const workbook = XLSX.read(data, { type: 'array' });
+        workbook = XLSX.read(data, { type: 'array' });
         const worksheet = workbook.Sheets[workbook.SheetNames[0]];
         const jsonData = XLSX.utils.sheet_to_json(worksheet);
 
@@ -630,9 +644,36 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
           </div>
         </header>
 
-        {/* Live Operations Monitor / Order Queue - Moved Prior to Performance Overview */}
+        {/* Navigation Toolbar */}
+        <nav className="sticky top-16 z-30 bg-background/95 backdrop-blur-md border-y mb-8 -mx-4 px-4 py-3 flex items-center justify-center sm:justify-start gap-2 overflow-x-auto whitespace-nowrap shadow-sm">
+          <span className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground mr-2 hidden sm:inline-block">Jump to:</span>
+          <Button variant="ghost" size="sm" onClick={() => scrollToSection('ops-monitor')} className="h-8 text-[10px] font-bold uppercase tracking-widest px-3 rounded-full hover:bg-primary/10 hover:text-primary">
+            <Activity className="mr-1.5 h-3.5 w-3.5" />
+            {isBowlingAlley ? 'Live Queue' : 'Operations'}
+          </Button>
+          <Button variant="ghost" size="sm" onClick={() => scrollToSection('performance-overview')} className="h-8 text-[10px] font-bold uppercase tracking-widest px-3 rounded-full hover:bg-primary/10 hover:text-primary">
+            <BarChart3 className="mr-1.5 h-3.5 w-3.5" />
+            Sales Stats
+          </Button>
+          <Button variant="ghost" size="sm" onClick={() => scrollToSection('service-management')} className="h-8 text-[10px] font-bold uppercase tracking-widest px-3 rounded-full hover:bg-primary/10 hover:text-primary">
+            <ListChecks className="mr-1.5 h-3.5 w-3.5" />
+            Service Menus
+          </Button>
+          <Button variant="ghost" size="sm" onClick={() => scrollToSection('menu-library')} className="h-8 text-[10px] font-bold uppercase tracking-widest px-3 rounded-full hover:bg-primary/10 hover:text-primary">
+            <Database className="mr-1.5 h-3.5 w-3.5" />
+            Menu Library
+          </Button>
+          {isClubSeller && (
+            <Button variant="ghost" size="sm" onClick={() => scrollToSection('member-management')} className="h-8 text-[10px] font-bold uppercase tracking-widest px-3 rounded-full hover:bg-primary/10 hover:text-primary">
+              <Users className="mr-1.5 h-3.5 w-3.5" />
+              Members
+            </Button>
+          )}
+        </nav>
+
+        {/* Live Operations Monitor / Order Queue */}
         {(isGolfCourse || isBowlingAlley) && (
-          <section id="ops-monitor" className="mb-12 scroll-mt-24">
+          <section id="ops-monitor" className="mb-12 scroll-mt-32">
             <h2 className="font-headline text-xl font-bold mb-6 flex items-center gap-2 text-primary uppercase tracking-wider">
               <Activity className="h-6 w-6" /> 
               {isBowlingAlley ? 'Live Order Queue' : 'Live Operations Monitor'}
@@ -778,7 +819,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
           </section>
         )}
 
-        <section id="performance-overview" className="mb-12 scroll-mt-24">
+        <section id="performance-overview" className="mb-12 scroll-mt-32">
           <h2 className="font-headline text-xl font-bold mb-6 flex items-center gap-2 text-primary uppercase tracking-wider"><BarChart3 className="h-6 w-6" /> Performance Overview</h2>
           <div className="flex flex-wrap gap-4">
               {dashboardStats ? (
@@ -791,7 +832,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
           </div>
         </section>
 
-        <h2 id="service-management" className="font-headline text-xl font-bold mb-6 mt-16 flex items-center gap-2 text-primary uppercase tracking-wider scroll-mt-24"><ListChecks className="h-6 w-6" /> Service Menus</h2>
+        <h2 id="service-management" className="font-headline text-xl font-bold mb-6 mt-16 flex items-center gap-2 text-primary uppercase tracking-wider scroll-mt-32"><ListChecks className="h-6 w-6" /> Service Menus</h2>
         <div className="grid grid-cols-1 gap-12">
           {sortedMenuTypesForAdmin.map(menuType => {
               const itemsInThisMenu = menuItems?.filter(i => i.availableOn?.includes(menuType)) || [];
@@ -868,7 +909,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
           })}
         </div>
 
-        <Card id="menu-library" className="mb-12 mt-16 shadow-md border-primary/20 bg-primary/5 scroll-mt-24">
+        <Card id="menu-library" className="mb-12 mt-16 shadow-md border-primary/20 bg-primary/5 scroll-mt-32">
           <CardHeader className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
               <CardTitle className="flex items-center gap-2 uppercase tracking-tight text-primary"><Database className="h-5 w-5" /> Menu Library</CardTitle>
@@ -915,7 +956,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
         </Card>
 
         {isClubSeller && (
-          <section id="member-management" className="mt-16 scroll-mt-24">
+          <section id="member-management" className="mt-16 scroll-mt-32">
             <h2 className="font-headline text-xl font-bold mb-6 flex items-center gap-2 text-primary uppercase tracking-wider">
               <Users className="h-6 w-6" /> Member Directory
             </h2>
