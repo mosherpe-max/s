@@ -37,7 +37,8 @@ import {
   Truck,
   Building,
   MapPin,
-  ShoppingBasket
+  ShoppingBasket,
+  Utensils
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -127,7 +128,7 @@ const serviceTypeIcons: Record<string, any> = {
   'Pool': LayoutGrid,
   'Take Out': ShoppingBasket,
   'Halfway House': Building,
-  'Dine-In': UtensilsCrossed,
+  'Dine-In': Utensils,
   'Lane Delivery': MapPin,
 };
 
