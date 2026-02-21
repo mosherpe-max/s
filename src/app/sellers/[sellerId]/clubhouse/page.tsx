@@ -88,8 +88,8 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
 
   // 4 AM EST Auto-Reset Logic
   useEffect(() => {
-    if (primarySeller && isClubhouseActive) {
-      const lastActiveDate = primarySeller.lastActive?.toDate();
+    if (primarySeller && isClubhouseActive && primarySeller.lastActive) {
+      const lastActiveDate = primarySeller.lastActive.toDate();
       if (isStaffSessionStale(lastActiveDate)) {
         handleToggleActive(false);
       }

@@ -40,8 +40,8 @@ export default function LaneSideServerDashboardPage({ params }: { params: Promis
 
   // 4 AM EST Auto-Reset Logic
   useEffect(() => {
-    if (primarySeller && isServerActive) {
-      const lastActiveDate = primarySeller.lastActive?.toDate();
+    if (primarySeller && isServerActive && primarySeller.lastActive) {
+      const lastActiveDate = primarySeller.lastActive.toDate();
       if (isStaffSessionStale(lastActiveDate)) {
         handleToggleActive(false);
       }

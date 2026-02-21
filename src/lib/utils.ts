@@ -57,9 +57,10 @@ export function getMostRecent4AmEst(): Date {
 
 /**
  * Checks if a timestamp is before the most recent 4:00 AM EST reset.
+ * If no timestamp is provided, we assume the session is not stale (e.g. just starting).
  */
 export function isStaffSessionStale(lastActive: Date | null | undefined): boolean {
-  if (!lastActive) return true;
+  if (!lastActive) return false;
   const threshold = getMostRecent4AmEst();
   return lastActive < threshold;
 }

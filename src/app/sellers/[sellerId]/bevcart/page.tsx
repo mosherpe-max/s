@@ -88,8 +88,8 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
 
   // 4 AM EST Auto-Reset Logic
   useEffect(() => {
-    if (primarySeller && isBevCartActive) {
-      const lastActiveDate = primarySeller.lastActive?.toDate();
+    if (primarySeller && isBevCartActive && primarySeller.lastActive) {
+      const lastActiveDate = primarySeller.lastActive.toDate();
       if (isStaffSessionStale(lastActiveDate)) {
         handleToggleActive(false);
       }
