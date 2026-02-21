@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useMemo, useEffect, use, useRef } from 'react';
@@ -877,9 +876,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
 
                               <div className="flex justify-between items-center mt-1">
                                 <p className="text-xs font-mono font-black text-primary">${order.total.toFixed(2)}</p>
-                                <Button variant="ghost" size="sm" asChild className="h-7 text-[9px] uppercase font-black tracking-[0.1em] px-2.5 bg-muted/50 hover:bg-primary hover:text-white transition-all">
-                                  <a href={`/order/track?id=${order.id}`}>Details <ChevronRight className="ml-1 h-3 w-3" /></a>
-                                </Button>
                               </div>
                             </div>
                           );
