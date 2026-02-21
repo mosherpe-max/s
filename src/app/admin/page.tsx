@@ -6,7 +6,7 @@ import { collection, doc, setDoc, deleteDoc, query, writeBatch, getDocs, getDoc 
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { PlusCircle, Edit, Trash2, Loader2, MapPin, Mail, Phone, User, Building, DollarSign, ShoppingBag, BarChart3, ListChecks, Utensils, RefreshCw, AlertTriangle, ShieldCheck } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, Loader2, MapPin, Mail, Phone, User, Building, DollarSign, ShoppingBag, BarChart3, ListChecks, Utensils, RefreshCw, AlertTriangle, ShieldCheck, Percent } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import {
   AlertDialog,
@@ -67,6 +67,7 @@ const sellerSchema = z.object({
   contactEmail: z.string().email('Please enter a valid email address'),
   contactPhone: z.string().min(10, 'Phone number must be at least 10 digits'),
   serviceFee: z.coerce.number().min(0, 'Default convenience fee cannot be negative').max(100, 'Fee seems too high'),
+  taxRate: z.coerce.number().min(0, 'Tax rate cannot be negative').max(100, 'Tax rate seems too high').default(6.0),
   menuServiceFees: z.record(z.string(), z.coerce.number().min(0)).optional(),
   status: z.enum(['Active', 'Inactive']),
 });
@@ -200,6 +201,7 @@ export default function KOOPAdminPage() {
       contactEmail: '',
       contactPhone: '',
       serviceFee: 0,
+      taxRate: 6.0,
       menuServiceFees: {},
       status: 'Active',
     },
@@ -269,6 +271,7 @@ export default function KOOPAdminPage() {
         contactEmail: seller.contactEmail,
         contactPhone: seller.contactPhone,
         serviceFee: seller.serviceFee,
+        taxRate: seller.taxRate || 6.0,
         menuServiceFees: seller.menuServiceFees || {},
         status: seller.status,
       });
@@ -289,6 +292,7 @@ export default function KOOPAdminPage() {
         contactEmail: '',
         contactPhone: '',
         serviceFee: 0,
+        taxRate: 6.0,
         menuServiceFees: {},
         status: 'Active',
       });
@@ -515,6 +519,7 @@ export default function KOOPAdminPage() {
                         <div className="flex flex-col">
                             <span>{seller.courseName}</span>
                             <span className="text-[10px] text-muted-foreground font-mono mt-1">Default Convenience Fee: ${seller.serviceFee.toFixed(2)}</span>
+                            <span className="text-[10px] text-muted-foreground font-mono mt-0.5">Tax Rate: {seller.taxRate || 6.0}%</span>
                         </div>
                       </TableCell>
                       <TableCell className="align-top pt-5">
@@ -788,10 +793,33 @@ export default function KOOPAdminPage() {
                 </div>
 
                 <div className="space-y-4 pt-4 border-t">
-                  <h3 className="text-sm font-bold uppercase tracking-wider text-primary flex items-center gap-2">
-                      <DollarSign className="h-4 w-4" /> Convenience Fees
-                  </h3>
-                  <p className="text-xs text-muted-foreground">Define the fee charged to customers per order for each service.</p>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <h3 className="text-sm font-bold uppercase tracking-wider text-primary flex items-center gap-2">
+                        <DollarSign className="h-4 w-4" /> Fees & Taxation
+                    </h3>
+                    <FormField
+                      control={form.control}
+                      name="taxRate"
+                      render={({ field }) => (
+                        <FormItem className="flex items-center gap-3 space-y-0">
+                          <FormLabel className="text-xs font-bold uppercase tracking-widest text-muted-foreground whitespace-nowrap">Establishment Tax Rate (%)</FormLabel>
+                          <div className="relative w-24">
+                            <FormControl>
+                              <Input 
+                                type="number" 
+                                step="0.1" 
+                                {...field} 
+                                className="h-8 text-right pr-7 font-mono text-xs" 
+                              />
+                            </FormControl>
+                            <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] font-bold text-muted-foreground">%</span>
+                          </div>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">Define convenience fees and local tax rates.</p>
                   
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <FormField

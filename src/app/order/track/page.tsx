@@ -180,6 +180,7 @@ function OrderTrackingContent() {
   const isEditable = order.status === 'Placed' || order.status === 'Preparing';
   const brandColor = seller?.brandColor || 'hsl(var(--primary))';
   const numericId = getNumericOrderId(order.id);
+  const taxRatePercentage = seller?.taxRate || 6.0;
 
   const mapBuyerLocation = isOutForDelivery ? order.deliveryLocation : initialLocations?.buyer;
   const mapSellerLocation = isOutForDelivery ? { latitude: seller?.latitude || 0, longitude: seller?.longitude || 0 } : initialLocations?.seller;
@@ -352,7 +353,7 @@ function OrderTrackingContent() {
                         <span className="font-mono text-foreground">${order.serviceFee.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between">
-                        <span>EST. TAX (6%)</span>
+                        <span>EST. TAX ({taxRatePercentage}%)</span>
                         <span className="font-mono text-foreground">${(order.tax || 0).toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between">

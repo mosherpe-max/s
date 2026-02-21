@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useMemo, useEffect, use, useRef } from 'react';
@@ -630,7 +631,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
         type: config.type, 
         streetAddress: '123 Prototyping Way', city: 'Pebble Beach', state: 'CA', zip: '93953',
         latitude: 42.7748, longitude: -83.2139, contactName: 'Service Manager', contactEmail: 'manager@demo.com',
-        contactPhone: '555-0100', serviceFee: 2.50, status: 'Active', 
+        contactPhone: '555-0100', serviceFee: 2.50, taxRate: 6.0, status: 'Active', 
         bevcartActive: false,
         clubhouseActive: false,
         menuTypes: config.menuTypes,

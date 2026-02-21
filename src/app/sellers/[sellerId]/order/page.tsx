@@ -112,7 +112,9 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
 
   const activeOrderItems = useMemo(() => orderItems.filter((item) => item.quantity > 0), [orderItems]);
   const subtotal = useMemo(() => activeOrderItems.reduce((acc, item) => acc + item.price * item.quantity, 0), [activeOrderItems]);
-  const tax = useMemo(() => subtotal * 0.06, [subtotal]);
+  
+  const taxRatePercentage = seller?.taxRate ?? 6.0;
+  const tax = useMemo(() => subtotal * (taxRatePercentage / 100), [subtotal, taxRatePercentage]);
   
   // Apply specific convenience fee for the menu type if defined, fallback to global default
   const platformFee = useMemo(() => {
@@ -505,6 +507,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
                   serviceFee={platformFee} 
                   tax={tax}
                   tip={tipAmount}
+                  taxRate={taxRatePercentage}
                 />
               </div>
 
@@ -531,7 +534,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
               <div className="text-center opacity-60 pb-10">
                 <p className="text-[9px] text-muted-foreground font-bold uppercase tracking-[0.1em] italic leading-relaxed">
                   By placing this order, you agree to the service terms of {seller?.courseName}.<br/>
-                  Total includes {platformFee > 0 ? `a $${platformFee.toFixed(2)} convenience fee, ` : ''}6% sales tax and gratuity.
+                  Total includes {platformFee > 0 ? `a $${platformFee.toFixed(2)} convenience fee, ` : ''}{taxRatePercentage}% sales tax and gratuity.
                 </p>
               </div>
             </div>

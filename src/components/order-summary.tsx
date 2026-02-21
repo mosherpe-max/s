@@ -15,9 +15,10 @@ interface OrderSummaryProps {
   serviceFee?: number;
   tax?: number;
   tip?: number;
+  taxRate?: number;
 }
 
-export function OrderSummary({ items, serviceFee = 0, tax = 0, tip = 0 }: OrderSummaryProps) {
+export function OrderSummary({ items, serviceFee = 0, tax = 0, tip = 0, taxRate = 6.0 }: OrderSummaryProps) {
   const subtotal = items.reduce((acc, item) => acc + item.price * item.quantity, 0);
   const total = subtotal + serviceFee + tax + tip;
 
@@ -69,7 +70,7 @@ export function OrderSummary({ items, serviceFee = 0, tax = 0, tip = 0 }: OrderS
               <p className="font-mono text-foreground">${serviceFee.toFixed(2)}</p>
             </div>
             <div className="flex justify-between items-center">
-              <p>Estimated Tax (6%)</p>
+              <p>Estimated Tax ({taxRate}%)</p>
               <p className="font-mono text-foreground">${tax.toFixed(2)}</p>
             </div>
             <div className="flex justify-between items-center">
