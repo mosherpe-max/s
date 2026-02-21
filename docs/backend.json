@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "Seller": {
@@ -80,7 +81,7 @@
         },
         "serviceFee": {
           "type": "number",
-          "description": "The platform fee charged by the establishment per order."
+          "description": "The convenience fee charged by the establishment per order."
         },
         "status": {
           "type": "string",
@@ -245,7 +246,7 @@
           "items": { "$ref": "#/backend/entities/MenuItem" }
         },
         "subtotal": { "type": "number" },
-        "serviceFee": { "type": "number", "description": "The platform fee charged for this order." },
+        "serviceFee": { "type": "number", "description": "The convenience fee charged for this order." },
         "tax": { "type": "number", "description": "The calculated tax for the order." },
         "tip": { "type": "number", "description": "The tip provided by the customer." },
         "total": { "type": "number" },

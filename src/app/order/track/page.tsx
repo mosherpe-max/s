@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Suspense, useEffect, useRef, useState } from 'react';
@@ -347,7 +348,7 @@ function OrderTrackingContent() {
                         <span className="font-mono text-foreground">${order.subtotal.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between">
-                        <span>PLATFORM FEE</span>
+                        <span>CONVENIENCE FEE</span>
                         <span className="font-mono text-foreground">${order.serviceFee.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between">

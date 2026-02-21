@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Separator } from '@/components/ui/separator';
@@ -46,7 +47,7 @@ export function OrderSummary({ items, serviceFee = 0, tax = 0, tip = 0 }: OrderS
             </div>
             <div className="flex justify-between items-center">
               <div className="flex items-center gap-1.5">
-                <p>Platform Fee</p>
+                <p>Convenience Fee</p>
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -56,7 +57,7 @@ export function OrderSummary({ items, serviceFee = 0, tax = 0, tip = 0 }: OrderS
                       side="top" 
                       className="max-w-[220px] text-[10px] leading-tight font-medium p-2"
                     >
-                      <p>This Platform Fee helps us provide the mobile ordering technology. It is not a tip and does not go to the delivery staff.</p>
+                      <p>This Convenience Fee helps us provide the mobile ordering technology. It is not a tip and does not go to the delivery staff.</p>
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>

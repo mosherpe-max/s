@@ -510,7 +510,7 @@ export default function KOOPAdminPage() {
                       <TableCell className="font-medium align-top pt-5">
                         <div className="flex flex-col">
                             <span>{seller.courseName}</span>
-                            <span className="text-[10px] text-muted-foreground font-mono mt-1">Platform Fee: ${seller.serviceFee.toFixed(2)}</span>
+                            <span className="text-[10px] text-muted-foreground font-mono mt-1">Convenience Fee: ${seller.serviceFee.toFixed(2)}</span>
                         </div>
                       </TableCell>
                       <TableCell className="align-top pt-5">
@@ -789,7 +789,7 @@ export default function KOOPAdminPage() {
                     name="serviceFee"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Platform Fee ($)</FormLabel>
+                        <FormLabel>Convenience Fee ($)</FormLabel>
                         <FormControl>
                           <Input type="number" step="0.50" {...field} />
                         </FormControl>

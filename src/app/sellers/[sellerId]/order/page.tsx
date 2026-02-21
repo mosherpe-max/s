@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, use, useEffect, useMemo } from 'react';
@@ -506,7 +507,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
               <div className="text-center opacity-60 pb-10">
                 <p className="text-[9px] text-muted-foreground font-bold uppercase tracking-[0.1em] italic leading-relaxed">
                   By placing this order, you agree to the service terms of {seller?.courseName}.<br/>
-                  Total includes {platformFee > 0 ? `a $${platformFee.toFixed(2)} platform fee, ` : ''}6% sales tax and gratuity.
+                  Total includes {platformFee > 0 ? `a $${platformFee.toFixed(2)} convenience fee, ` : ''}6% sales tax and gratuity.
                 </p>
               </div>
             </div>
