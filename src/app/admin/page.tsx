@@ -50,7 +50,7 @@ import { isToday, isThisMonth, isThisYear, format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
 const sellerSchema = z.object({
-  courseName: z.string().min(2, 'Course name must be at least 2 characters'),
+  courseName: z.string().min(2, 'Seller name must be at least 2 characters'),
   type: z.enum(['Private Golf Course', 'Semi Private Golf Course', 'Public Golf Course', 'Bowling Alley', 'Brewery', 'Restaurant'], {
     required_error: "Please select a seller type",
   }),
@@ -655,7 +655,7 @@ export default function KOOPAdminPage() {
                               <FormLabel className="font-normal cursor-pointer flex-1">
                                 {type}
                               </FormLabel>
-                            </RadioGroupItem>
+                            </FormItem>
                           ))}
                         </RadioGroup>
                       </FormControl>
