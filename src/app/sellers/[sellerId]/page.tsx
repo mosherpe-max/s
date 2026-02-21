@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useMemo, useEffect, use, useRef } from 'react';
@@ -29,9 +30,10 @@ import {
   Navigation,
   ChevronRight,
   ImageIcon,
-  LayoutGrid
+  LayoutGrid,
+  Timer
 } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useForm } from 'react-hook-form';
@@ -98,6 +100,13 @@ const memberSchema = z.object({
 });
 
 type MemberFormData = z.infer<typeof memberSchema>;
+
+const thresholdSchema = z.object({
+  warning: z.coerce.number().min(1, 'Warning duration must be at least 1 minute'),
+  max: z.coerce.number().min(1, 'Max duration must be at least 1 minute'),
+});
+
+type ThresholdFormData = z.infer<typeof thresholdSchema>;
 
 const getCategoriesForMenu = (menuType: string): Category[] => {
   if (menuType === 'Beverage Cart') {
@@ -232,7 +241,7 @@ function StatTile({ title, revenue, orders, longWait }: { title: string, revenue
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Clock className="h-4 w-4 text-destructive" />
-            <span className="text-sm font-medium">Orders &gt; 10m</span>
+            <span className="text-sm font-medium">Orders &gt; Threshold</span>
           </div>
           <span className="font-mono font-bold text-destructive">{longWait}</span>
         </div>
@@ -303,6 +312,9 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   const [isCategoryConfigOpen, setIsCategoryConfigOpen] = useState(false);
   const [configMenuType, setConfigMenuType] = useState<string>('');
 
+  const [isThresholdConfigOpen, setIsThresholdConfigOpen] = useState(false);
+  const [thresholdMenuType, setThresholdMenuType] = useState<string>('');
+
   const [isSeeding, setIsSeeding] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   
@@ -339,7 +351,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   const scrollToSection = (id: string) => {
     const element = document.getElementById(id);
     if (element) {
-      const offset = 80; // Account for navigation bar
+      const offset = 80; 
       const elementPosition = element.getBoundingClientRect().top;
       const offsetPosition = elementPosition + window.pageYOffset - offset;
       window.scrollTo({
@@ -370,13 +382,14 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   }, [orders]);
 
   const dashboardStats = useMemo(() => {
-    if (!orders) return null;
+    if (!orders || !seller) return null;
     const calculate = (filtered: Order[]) => {
       const revenue = filtered.reduce((acc, o) => acc + o.total, 0);
       const longWait = filtered.filter(o => {
         if (!o.deliveredAt || !o.createdAt) return false;
         const duration = (o.deliveredAt.toDate().getTime() - o.createdAt.toDate().getTime()) / 60000;
-        return duration > 10;
+        const thresholds = seller.orderThresholds?.[o.menuType] || { max: o.menuType === 'Beverage Cart' ? 10 : 20 };
+        return duration > thresholds.max;
       }).length;
       return { revenue, orders: filtered.length, longWait };
     };
@@ -385,18 +398,22 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
       monthly: calculate(orders.filter(o => o.createdAt && isThisMonth(o.createdAt.toDate()))),
       yearly: calculate(orders.filter(o => o.createdAt && isThisYear(o.createdAt.toDate()))),
     };
-  }, [orders]);
+  }, [orders, seller]);
 
   const mappedBuyers = useMemo(() => {
     return activeOrders.map(o => {
       let colorClass = "bg-green-600";
+      const thresholds = seller?.orderThresholds?.[o.menuType] || {
+        warning: o.menuType === 'Beverage Cart' ? 7 : 15,
+        max: o.menuType === 'Beverage Cart' ? 10 : 20
+      };
+
       if (o.createdAt) {
         const orderTime = o.createdAt.toDate().getTime();
-        const minutesElapsed = (now - orderTime) / (1000 * 60);
-        const waitThreshold = o.menuType === 'Beverage Cart' ? 10 : 20;
-        if (minutesElapsed > waitThreshold) {
+        const minutesElapsed = (now - orderTime) / 60000;
+        if (minutesElapsed >= thresholds.max) {
           colorClass = "bg-red-600";
-        } else if (minutesElapsed >= (waitThreshold * 0.75)) {
+        } else if (minutesElapsed >= thresholds.warning) {
           colorClass = "bg-yellow-500";
         }
       }
@@ -408,7 +425,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
         assignedDriverId: o.assignedDriverId
       };
     });
-  }, [activeOrders, now]);
+  }, [activeOrders, now, seller]);
 
   const liveDrivers = useMemo(() => {
     const drivers = [];
@@ -444,6 +461,31 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     return types;
   }, [seller?.menuTypes]);
 
+  const thresholdForm = useForm<ThresholdFormData>({
+    resolver: zodResolver(thresholdSchema),
+    defaultValues: { warning: 7, max: 10 }
+  });
+
+  const handleOpenThresholdConfig = (menuType: string) => {
+    setThresholdMenuType(menuType);
+    const existing = seller?.orderThresholds?.[menuType] || {
+      warning: menuType === 'Beverage Cart' ? 7 : 15,
+      max: menuType === 'Beverage Cart' ? 10 : 20
+    };
+    thresholdForm.reset(existing);
+    setIsThresholdConfigOpen(true);
+  };
+
+  const handleSaveThresholds = async (data: ThresholdFormData) => {
+    if (!firestore || !sellerId) return;
+    const updates = {
+      [`orderThresholds.${thresholdMenuType}`]: data
+    };
+    await updateDoc(doc(firestore, 'sellers', sellerId), updates);
+    setIsThresholdConfigOpen(false);
+    toast({ title: 'Alerts Updated', description: `Durations updated for ${thresholdMenuType}.` });
+  };
+
   const handleSeedData = async () => {
     if (!firestore) return;
     setIsSeeding(true);
@@ -477,7 +519,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
           { name: 'Large Pepperoni Pizza', description: '16-inch classic with extra pepperoni.', price: 21.00, category: 'Pizza', imageUrl: 'https://images.unsplash.com/photo-1628840042765-356cda07504e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxwZXBwZXJvbmklMjBwaXp6YXxlbnwwfHx8fDE3NjM5NDE5MDB8MA&ixlib=rb-4.1.0&q=80&w=1080' },
           { name: 'Large Cheese Pizza', description: 'Thin crust with a four-cheese blend.', price: 18.00, category: 'Pizza', imageUrl: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxwaXp6YXxlbnwwfHx8fDE3NjM5NDE5MDB8MA&ixlib=rb-4.1.0&q=80&w=1080' },
           { name: 'Ice Cream Sundae', description: 'Vanilla ice cream with chocolate syrup and a cherry.', price: 6.50, category: 'Dessert', imageUrl: 'https://images.unsplash.com/photo-1563805042-7684c019e1cb?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxpY2UlMjBjcmVhbSUyMHN1bmRhZXxlbnwwfHx8fDE3NjM5NDE5MDB8MA&ixlib=rb-4.1.0&q=80&w=1080' },
-          { name: 'Glow Bowl Wristband', description: 'Access to special lighting events.', price: 5.00, category: 'Other', imageUrl: 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwzfHx3cmlzdGJhbmR8ZW58MHx8fHwxNzYzOTQxOTAwfDA&ixlib=rb-4.1.0&q=80&w=1080' },
+          { name: 'Glow Bowl Wristband', description: 'Access to special lighting events.', price: 5.00, category: 'Other', imageUrl: 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHjaHwzfHx3cmlzdGJhbmR8ZW58MHx8fHwxNzYzOTQxOTAwfDA&ixlib=rb-4.1.0&q=80&w=1080' },
         ];
       } else if (sellerId === 'demo-golf-course-private') {
         config = { name: 'Demo Private Country Club', type: 'Private Golf Course', menuTypes: ['Beverage Cart', 'Clubhouse', 'Pool', 'Halfway House'] };
@@ -498,6 +540,10 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
         categoryVisibility: config.menuTypes.reduce((acc, mt) => ({
           ...acc,
           [mt]: getCategoriesForMenu(mt)
+        }), {}),
+        orderThresholds: config.menuTypes.reduce((acc, mt) => ({
+          ...acc,
+          [mt]: { warning: mt === 'Beverage Cart' ? 7 : 15, max: mt === 'Beverage Cart' ? 10 : 20 }
         }), {})
       }, { merge: true });
 
@@ -525,7 +571,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     reader.onload = async (e) => {
       try {
         const data = new Uint8Array(e.target?.result as ArrayBuffer);
-        workbook = XLSX.read(data, { type: 'array' });
+        const workbook = XLSX.read(data, { type: 'array' });
         const worksheet = workbook.Sheets[workbook.SheetNames[0]];
         const jsonData = XLSX.utils.sheet_to_json(worksheet);
 
@@ -644,7 +690,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
           </div>
         </header>
 
-        {/* Navigation Toolbar */}
         <nav className="sticky top-16 z-30 bg-background/95 backdrop-blur-md border-y mb-8 -mx-4 px-4 py-3 flex items-center justify-center sm:justify-start gap-2 overflow-x-auto whitespace-nowrap shadow-sm">
           <span className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground mr-2 hidden sm:inline-block">Jump to:</span>
           <Button variant="ghost" size="sm" onClick={() => scrollToSection('ops-monitor')} className="h-8 text-[10px] font-bold uppercase tracking-widest px-3 rounded-full hover:bg-primary/10 hover:text-primary">
@@ -671,7 +716,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
           )}
         </nav>
 
-        {/* Live Operations Monitor / Order Queue */}
         {(isGolfCourse || isBowlingAlley) && (
           <section id="ops-monitor" className="mb-12 scroll-mt-32">
             <h2 className="font-headline text-xl font-bold mb-6 flex items-center gap-2 text-primary uppercase tracking-wider">
@@ -780,12 +824,14 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                             activeOrders.map(order => {
                               const orderTime = order.createdAt?.toDate().getTime() || now;
                               const minutesElapsed = (now - orderTime) / 60000;
-                              const isOld = minutesElapsed > 15;
+                              const thresholds = seller?.orderThresholds?.[order.menuType] || { warning: 10, max: 15 };
+                              const isOld = minutesElapsed >= thresholds.max;
+                              const isWarning = minutesElapsed >= thresholds.warning;
 
                               return (
-                                <TableRow key={order.id} className={cn(isOld && "bg-destructive/5")}>
+                                <TableRow key={order.id} className={cn(isOld && "bg-destructive/5", isWarning && !isOld && "bg-yellow-500/5")}>
                                   <TableCell>
-                                    <Badge variant={isOld ? "destructive" : "secondary"} className="font-mono text-[10px]">
+                                    <Badge variant={isOld ? "destructive" : (isWarning ? "secondary" : "outline")} className={cn("font-mono text-[10px]", isWarning && !isOld && "bg-yellow-500 text-white border-yellow-600")}>
                                       {Math.floor(minutesElapsed)}m
                                     </Badge>
                                   </TableCell>
@@ -838,19 +884,31 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
               const itemsInThisMenu = menuItems?.filter(i => i.availableOn?.includes(menuType)) || [];
               const enabledCats = seller?.categoryVisibility?.[menuType] || [];
               const allowedCategories = getCategoriesForMenu(menuType);
+              const thresholds = seller?.orderThresholds?.[menuType] || { warning: menuType === 'Beverage Cart' ? 7 : 15, max: menuType === 'Beverage Cart' ? 10 : 20 };
 
               return (
                   <Card key={menuType} className="shadow-lg">
-                      <CardHeader className="flex flex-row items-center justify-between border-b bg-muted/20">
+                      <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between border-b bg-muted/20 gap-4">
                           <div>
                               <CardTitle className="text-xl uppercase tracking-tight">{menuType} Menu</CardTitle>
-                              <CardDescription>Manage visibility and selection for {menuType}.</CardDescription>
+                              <CardDescription>Manage visibility, selection, and alert thresholds.</CardDescription>
+                              <div className="flex items-center gap-3 mt-2">
+                                <Badge variant="secondary" className="text-[9px] uppercase font-bold tracking-widest bg-yellow-500/10 text-yellow-700 border-yellow-500/20">
+                                  <Timer className="mr-1 h-3 w-3" /> Warning: {thresholds.warning}m
+                                </Badge>
+                                <Badge variant="secondary" className="text-[9px] uppercase font-bold tracking-widest bg-red-500/10 text-red-700 border-red-500/20">
+                                  <Timer className="mr-1 h-3 w-3" /> Max: {thresholds.max}m
+                                </Badge>
+                              </div>
                           </div>
-                          <div className="flex gap-2">
-                            <Button variant="outline" onClick={() => { setConfigMenuType(menuType); setIsCategoryConfigOpen(true); }} className="bg-background">
-                                <Settings2 className="mr-2 h-4 w-4" /> Manage Categories
+                          <div className="flex flex-wrap gap-2">
+                            <Button variant="outline" size="sm" onClick={() => handleOpenThresholdConfig(menuType)} className="bg-background">
+                                <Timer className="mr-2 h-4 w-4" /> Configure Alerts
                             </Button>
-                            <Button variant="default" onClick={() => { setPickingMenuType(menuType); setIsPickingOpen(true); }}>
+                            <Button variant="outline" size="sm" onClick={() => { setConfigMenuType(menuType); setIsCategoryConfigOpen(true); }} className="bg-background">
+                                <Settings2 className="mr-2 h-4 w-4" /> Categories
+                            </Button>
+                            <Button variant="default" size="sm" onClick={() => { setPickingMenuType(menuType); setIsPickingOpen(true); }}>
                                 <PlusCircle className="mr-2 h-4 w-4" /> Add Items
                             </Button>
                           </div>
@@ -874,7 +932,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                                           <div key={category} className={cn("space-y-3", isCatHidden && "opacity-50 grayscale")}>
                                               <div className="flex items-center gap-2">
                                                 <h4 className="font-bold text-sm uppercase tracking-widest">{category}</h4>
-                                                {isCatHidden && <Badge variant="secondary" className="uppercase text-[9px]">Hidden from Golfer</Badge>}
+                                                {isCatHidden && <Badge variant="secondary" className="uppercase text-[9px]">Hidden from Patron</Badge>}
                                               </div>
                                               
                                               <DndContext
@@ -1082,7 +1140,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
           <DialogContent className="sm:max-w-[500px] max-h-[90vh] flex flex-col p-0 overflow-hidden">
             <DialogHeader className="px-6 py-4 border-b">
               <DialogTitle className="uppercase tracking-tight">Enabled Categories: {configMenuType}</DialogTitle>
-              <CardDescription>Choose which categories should appear to golfers using this service.</CardDescription>
+              <CardDescription>Choose which categories should appear to patrons using this service.</CardDescription>
             </DialogHeader>
             <div className="flex-1 overflow-y-auto px-6 py-4">
               <div className="grid grid-cols-1 gap-3">
@@ -1107,6 +1165,55 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
             <DialogFooter className="px-6 py-4 border-t bg-muted/20">
               <Button onClick={() => setIsCategoryConfigOpen(false)} className="w-full sm:w-auto font-bold uppercase text-xs tracking-widest">Save Settings</Button>
             </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={isThresholdConfigOpen} onOpenChange={setIsThresholdConfigOpen}>
+          <DialogContent className="sm:max-w-[400px]">
+            <DialogHeader>
+              <DialogTitle className="uppercase tracking-tight flex items-center gap-2">
+                <Timer className="h-5 w-5 text-primary" /> Alert Thresholds: {thresholdMenuType}
+              </DialogTitle>
+              <DialogDescription>
+                Set the order duration targets for this service. Visual alerts will change based on these values.
+              </DialogDescription>
+            </DialogHeader>
+            <Form {...thresholdForm}>
+              <form onSubmit={thresholdForm.handleSubmit(handleSaveThresholds)} className="space-y-6 pt-4">
+                <div className="space-y-4">
+                  <FormField
+                    control={thresholdForm.control}
+                    name="warning"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="flex items-center gap-2">
+                          <div className="w-3 h-3 rounded-full bg-yellow-500" /> Warning Order Duration (Min)
+                        </FormLabel>
+                        <FormControl><Input type="number" {...field} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={thresholdForm.control}
+                    name="max"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="flex items-center gap-2">
+                          <div className="w-3 h-3 rounded-full bg-red-600" /> Max Order Duration (Min)
+                        </FormLabel>
+                        <FormControl><Input type="number" {...field} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                <DialogFooter className="border-t pt-4">
+                  <Button type="button" variant="ghost" onClick={() => setIsThresholdConfigOpen(false)}>Cancel</Button>
+                  <Button type="submit">Save Thresholds</Button>
+                </DialogFooter>
+              </form>
+            </Form>
           </DialogContent>
         </Dialog>
       </div>

@@ -43,6 +43,8 @@ export interface Seller {
   lastActive?: Timestamp;
   // Category visibility per menu type: { 'Beverage Cart': ['Beer', 'Snacks'], 'Clubhouse': [...] }
   categoryVisibility?: Record<string, Category[]>;
+  // Thresholds for alerts: { 'Beverage Cart': { warning: 7, max: 10 } }
+  orderThresholds?: Record<string, { warning: number; max: number }>;
 }
 
 export type Category = 'Beer' | 'Spirits' | 'Soft Drinks' | 'Snacks' | 'Other' | 'Handhelds' | 'Appetizers' | 'Entrees' | 'Pizza' | 'Salad' | 'Dessert';

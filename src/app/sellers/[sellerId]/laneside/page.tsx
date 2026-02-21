@@ -1,3 +1,4 @@
+
 'use client';
 
 import { collection, query, where, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
@@ -35,6 +36,7 @@ export default function LaneSideServerDashboardPage({ params }: { params: Promis
 
   // For Laneside, we use "clubhouseActive" as the toggle for simplicity in prototyping
   const isServerActive = primarySeller?.clubhouseActive === true;
+  const thresholds = primarySeller?.orderThresholds?.['Lane Delivery'] || { warning: 10, max: 15 };
 
   const activeOrdersQuery = useMemoFirebase(() => {
     if (!firestore || !sellerId) return null;
@@ -157,8 +159,8 @@ export default function LaneSideServerDashboardPage({ params }: { params: Promis
            <div className="p-4 bg-white rounded-xl border shadow-sm flex items-center gap-3">
               <div className="p-2 bg-primary/10 rounded-full"><Clock className="h-5 w-5 text-primary" /></div>
               <div>
-                <p className="text-[10px] font-bold uppercase text-muted-foreground">Avg. Delivery Time</p>
-                <p className="text-xl font-headline font-bold">-- min</p>
+                <p className="text-[10px] font-bold uppercase text-muted-foreground">Thresholds</p>
+                <p className="text-xs font-headline font-bold text-muted-foreground">W: {thresholds.warning}m / M: {thresholds.max}m</p>
               </div>
            </div>
         </div>

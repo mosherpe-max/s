@@ -1,3 +1,4 @@
+
 'use client';
 
 import { collection, query, where, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
@@ -53,6 +54,7 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
   const { data: activeSellers, isLoading: areSellersLoading } = useCollection<Seller>(activeSellersQuery);
 
   const isClubhouseActive = primarySeller?.clubhouseActive === true;
+  const thresholds = primarySeller?.orderThresholds?.['Clubhouse'] || { warning: 15, max: 20 };
 
   // Persistence: Wake Lock Management
   useEffect(() => {
@@ -156,7 +158,7 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
     const overdueOrders = clubhouseOrders.filter(o => {
       if (!o.createdAt || notifiedOverdueRef.current.has(o.id)) return false;
       const minutesElapsed = (now - o.createdAt.toDate().getTime()) / (1000 * 60);
-      return minutesElapsed > 20;
+      return minutesElapsed >= thresholds.max;
     });
 
     if (overdueOrders.length > 0) {
@@ -170,16 +172,16 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
           title: (
             <div className="flex items-center gap-2 text-white">
               <Clock className="h-5 w-5 animate-pulse" />
-              <span className="font-headline font-bold text-lg uppercase">OVERDUE SERVICE ORDER!</span>
+              <span className="font-headline font-bold text-lg uppercase">MAX DURATION REACHED!</span>
             </div>
           ),
-          description: `Order for ${o.customerName} has exceeded 20 minutes.`,
+          description: `Order for ${o.customerName} has reached ${thresholds.max} minutes.`,
         });
       });
     }
 
     initialLoadRef.current = false;
-  }, [clubhouseOrders, now, toast]);
+  }, [clubhouseOrders, now, toast, thresholds.max]);
 
   useEffect(() => {
     setNow(Date.now());
@@ -316,9 +318,9 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
       if (o.createdAt) {
         const orderTime = o.createdAt.toDate().getTime();
         const minutesElapsed = (now - orderTime) / (1000 * 60);
-        if (minutesElapsed > 20) {
+        if (minutesElapsed >= thresholds.max) {
           colorClass = "bg-red-600";
-        } else if (minutesElapsed >= 15) {
+        } else if (minutesElapsed >= thresholds.warning) {
           colorClass = "bg-yellow-500";
         }
       }
@@ -330,7 +332,7 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
         assignedDriverId: o.assignedDriverId
       };
     });
-  }, [activeOrders, now]);
+  }, [activeOrders, now, thresholds]);
 
   const handleFocusClick = () => {
     setZoomMode(current => (current === 'radius' ? 'all' : 'radius'));
