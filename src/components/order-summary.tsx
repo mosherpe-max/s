@@ -5,11 +5,10 @@ import { Separator } from '@/components/ui/separator';
 import type { OrderItem } from '@/lib/types';
 import { Info } from 'lucide-react';
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 interface OrderSummaryProps {
   items: OrderItem[];
@@ -48,19 +47,24 @@ export function OrderSummary({ items, serviceFee = 0, tax = 0, tip = 0 }: OrderS
             <div className="flex justify-between items-center">
               <div className="flex items-center gap-1.5">
                 <p>Convenience Fee</p>
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Info className="h-3 w-3 text-muted-foreground cursor-help" />
-                    </TooltipTrigger>
-                    <TooltipContent 
-                      side="top" 
-                      className="max-w-[220px] text-[10px] leading-tight font-medium p-2"
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <button 
+                      type="button" 
+                      className="inline-flex items-center justify-center rounded-full hover:bg-muted p-0.5 transition-colors focus:outline-none"
+                      aria-label="Convenience fee information"
                     >
-                      <p>This Convenience Fee helps us provide the mobile ordering technology. It is not a tip and does not go to the delivery staff.</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
+                      <Info className="h-3.5 w-3.5 text-muted-foreground cursor-pointer" />
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent 
+                    side="top" 
+                    align="center"
+                    className="max-w-[240px] text-[10px] leading-tight font-medium p-3 shadow-xl border-2 z-[100]"
+                  >
+                    <p>This Convenience Fee helps us provide the mobile ordering technology. It is not a tip and does not go to the delivery staff.</p>
+                  </PopoverContent>
+                </Popover>
               </div>
               <p className="font-mono text-foreground">${serviceFee.toFixed(2)}</p>
             </div>
