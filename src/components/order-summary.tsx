@@ -1,6 +1,14 @@
+'use client';
 
 import { Separator } from '@/components/ui/separator';
 import type { OrderItem } from '@/lib/types';
+import { Info } from 'lucide-react';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface OrderSummaryProps {
   items: OrderItem[];
@@ -37,7 +45,22 @@ export function OrderSummary({ items, serviceFee = 0, tax = 0, tip = 0 }: OrderS
               <p className="font-mono text-foreground">${subtotal.toFixed(2)}</p>
             </div>
             <div className="flex justify-between items-center">
-              <p>Platform Fee</p>
+              <div className="flex items-center gap-1.5">
+                <p>Platform Fee</p>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Info className="h-3 w-3 text-muted-foreground cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent 
+                      side="top" 
+                      className="max-w-[220px] text-[10px] leading-tight font-medium p-2"
+                    >
+                      <p>This Platform Fee helps us provide the mobile ordering technology. It is not a tip and does not go to the delivery staff.</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
               <p className="font-mono text-foreground">${serviceFee.toFixed(2)}</p>
             </div>
             <div className="flex justify-between items-center">
