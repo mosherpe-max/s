@@ -358,14 +358,15 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
             </SheetTrigger>
           </div>
         )}
-        <SheetContent side="bottom" className="rounded-t-[2.5rem] max-h-[95vh] flex flex-col p-0 border-t-4 overflow-hidden bg-background shadow-[0_-10px_40px_rgba(0,0,0,0.15)]">
+        <SheetContent side="bottom" className="rounded-t-[2.5rem] max-h-[95vh] h-[95vh] flex flex-col p-0 border-t-4 overflow-hidden bg-background shadow-[0_-10px_40px_rgba(0,0,0,0.15)]">
           <SheetHeader className="px-6 py-5 border-b bg-muted/20 shrink-0">
             <SheetTitle className="font-headline font-black uppercase text-center text-sm tracking-tight flex items-center justify-center gap-2">
               <ShoppingBasket className="h-4 w-4 text-primary" />
               {editingOrderId ? "Update Your Order" : "Final Order Review"}
             </SheetTitle>
           </SheetHeader>
-          <ScrollArea className="flex-1 w-full">
+          
+          <ScrollArea className="flex-1 w-full min-h-0">
             <div className="px-6 py-6 space-y-8 pb-32">
               
               <div className="grid grid-cols-2 gap-4 py-4 px-4 bg-muted/30 rounded-2xl border border-dashed">
@@ -490,6 +491,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
               </div>
             </div>
           </ScrollArea>
+
           <SheetFooter className="p-6 bg-white border-t-2 flex flex-col gap-4 shrink-0 relative z-10 shadow-[0_-10px_30px_rgba(0,0,0,0.08)]">
             <div className="flex justify-between items-center px-1">
               <span className="font-black text-xs uppercase tracking-[0.2em] text-muted-foreground">FINAL TOTAL</span>
