@@ -92,9 +92,9 @@
     },
     {
       "id": "hero-bowling",
-      "description": "Friends enjoying bowling at a vibrant alley",
-      "imageUrl": "https://images.unsplash.com/photo-1528150230181-99bbf7b22162?auto=format&fit=crop&q=80&w=1080",
-      "imageHint": "bowling people"
+      "description": "Vibrant bowling alley scene",
+      "imageUrl": "https://images.unsplash.com/photo-1538332576228-eb5b4c4de6f5?auto=format&fit=crop&q=80&w=1080",
+      "imageHint": "bowling alley"
     },
     {
       "id": "hero-brewery",
