@@ -93,7 +93,7 @@
     {
       "id": "hero-bowling",
       "description": "Bright vibrant bowling lanes",
-      "imageUrl": "https://images.unsplash.com/photo-1629713014426-156da15c7571?auto=format&fit=crop&q=80&w=1080",
+      "imageUrl": "https://images.unsplash.com/photo-1614252235316-8c857d38b5f4?auto=format&fit=crop&q=80&w=1080",
       "imageHint": "bowling alley"
     },
     {
@@ -111,7 +111,7 @@
     {
       "id": "feature-bev-cart",
       "description": "Beverage cart on a golf course path",
-      "imageUrl": "https://images.unsplash.com/photo-1650553451549-61606be7ef0b?auto=format&fit=crop&q=80&w=1080",
+      "imageUrl": "https://images.unsplash.com/photo-1650553451549-61606be7ef0?auto=format&fit=crop&q=80&w=1080",
       "imageHint": "beverage cart"
     }
   ]
