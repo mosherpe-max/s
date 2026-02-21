@@ -39,7 +39,9 @@ import {
   MapPin,
   ShoppingBasket,
   Utensils,
-  AlertTriangle
+  AlertTriangle,
+  Waves,
+  Upload
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -47,7 +49,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import {
   Select,
   SelectContent,
@@ -116,6 +118,12 @@ const thresholdSchema = z.object({
 
 type ThresholdFormData = z.infer<typeof thresholdSchema>;
 
+const poolMapSchema = z.object({
+  poolMapUrl: z.string().url('Please enter a valid image URL for the pool map'),
+});
+
+type PoolMapFormData = z.infer<typeof poolMapSchema>;
+
 const getCategoriesForMenu = (menuType: string): Category[] => {
   if (menuType === 'Beverage Cart') {
     return ['Beer', 'Spirits', 'Soft Drinks', 'Snacks', 'Kids', 'Other'];
@@ -126,7 +134,7 @@ const getCategoriesForMenu = (menuType: string): Category[] => {
 const serviceTypeIcons: Record<string, any> = {
   'Beverage Cart': Truck,
   'Clubhouse': Building,
-  'Pool': LayoutGrid,
+  'Pool': Waves,
   'Take Out': ShoppingBasket,
   'Halfway House': Building,
   'Dine-In': Utensils,
@@ -350,6 +358,8 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   const [isThresholdConfigOpen, setIsThresholdConfigOpen] = useState(false);
   const [thresholdMenuType, setThresholdMenuType] = useState<string>('');
 
+  const [isPoolMapConfigOpen, setIsPoolMapConfigOpen] = useState(false);
+
   const [isSeeding, setIsSeeding] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   
@@ -553,11 +563,21 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     defaultValues: { warning: 7, max: 10 }
   });
 
+  const poolMapForm = useForm<PoolMapFormData>({
+    resolver: zodResolver(poolMapSchema),
+    defaultValues: { poolMapUrl: '' }
+  });
+
   const handleOpenThresholdConfig = (menuType: string) => {
     setThresholdMenuType(menuType);
     const existing = seller?.orderThresholds?.[menuType] || { warning: 7, max: 10 };
     thresholdForm.reset(existing);
     setIsThresholdConfigOpen(true);
+  };
+
+  const handleOpenPoolMapConfig = () => {
+    poolMapForm.reset({ poolMapUrl: seller?.poolMapUrl || '' });
+    setIsPoolMapConfigOpen(true);
   };
 
   const handleSaveThresholds = async (data: ThresholdFormData) => {
@@ -568,6 +588,13 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     await updateDoc(doc(firestore, 'sellers', sellerId), updates);
     setIsThresholdConfigOpen(false);
     toast({ title: 'Alerts Updated', description: `Durations updated for ${thresholdMenuType}.` });
+  };
+
+  const handleSavePoolMap = async (data: PoolMapFormData) => {
+    if (!firestore || !sellerId) return;
+    await updateDoc(doc(firestore, 'sellers', sellerId), { poolMapUrl: data.poolMapUrl });
+    setIsPoolMapConfigOpen(false);
+    toast({ title: 'Pool Map Configured', description: 'Interactive grid applied to your pool image.' });
   };
 
   const handleSeedData = async () => {
@@ -855,6 +882,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                     key={type} 
                     variant={selectedOpsMenu === type ? 'default' : 'ghost'} 
                     size="sm" 
+                    onChange={() => setSelectedOpsMenu(type)}
                     onClick={() => setSelectedOpsMenu(type)}
                     className="h-8 text-[10px] font-bold uppercase tracking-widest px-3 relative"
                   >
@@ -1037,6 +1065,11 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                               </div>
                           </div>
                           <div className="flex flex-wrap gap-2">
+                            {menuType === 'Pool' && (
+                              <Button variant="outline" size="sm" onClick={handleOpenPoolMapConfig} className="bg-background border-primary/20 text-primary hover:bg-primary/5">
+                                  <MapIcon className="mr-2 h-4 w-4" /> Setup Pool Map
+                              </Button>
+                            )}
                             <Button variant="outline" size="sm" onClick={() => handleOpenThresholdConfig(menuType)} className="bg-background">
                                 <Timer className="mr-2 h-4 w-4" /> Configure Alerts
                             </Button>
@@ -1377,6 +1410,53 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                 <DialogFooter className="border-t pt-4">
                   <Button type="button" variant="ghost" onClick={() => setIsThresholdConfigOpen(false)}>Cancel</Button>
                   <Button type="submit">Save Thresholds</Button>
+                </DialogFooter>
+              </form>
+            </Form>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={isPoolMapConfigOpen} onOpenChange={setIsPoolMapConfigOpen}>
+          <DialogContent className="sm:max-w-[500px]">
+            <DialogHeader>
+              <DialogTitle className="uppercase tracking-tight flex items-center gap-2">
+                <Waves className="h-5 w-5 text-primary" /> Pool Map Configuration
+              </DialogTitle>
+              <DialogDescription>
+                Provide a photo of your pool area. We will automatically section it into 9 numbered zones for your patrons.
+              </DialogDescription>
+            </DialogHeader>
+            <Form {...poolMapForm}>
+              <form onSubmit={poolMapForm.handleSubmit(handleSavePoolMap)} className="space-y-6 pt-4">
+                <FormField
+                  control={poolMapForm.control}
+                  name="poolMapUrl"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Pool Map Image URL</FormLabel>
+                      <FormControl>
+                        <div className="space-y-3">
+                          <Input {...field} placeholder="https://images.unsplash.com/photo-..." />
+                          {field.value && (
+                            <div className="relative aspect-video rounded-lg overflow-hidden border-2 border-dashed bg-muted flex items-center justify-center">
+                              <Image src={field.value} alt="Pool Preview" fill className="object-cover opacity-50" />
+                              <div className="absolute inset-0 grid grid-cols-3 grid-rows-3 pointer-events-none border border-white/20">
+                                {Array.from({ length: 9 }).map((_, i) => (
+                                  <div key={i} className="border border-white/20 flex items-center justify-center text-[10px] font-bold text-white/60">Zone {i+1}</div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </FormControl>
+                      <FormDescription>Upload a top-down or wide-angle shot of the pool deck.</FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <DialogFooter className="border-t pt-4">
+                  <Button type="button" variant="ghost" onClick={() => setIsPoolMapConfigOpen(false)}>Cancel</Button>
+                  <Button type="submit">Save Pool Map</Button>
                 </DialogFooter>
               </form>
             </Form>

@@ -426,6 +426,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
                     <PoolLayoutPicker 
                       value={locationValue}
                       onChange={setLocationValue}
+                      mapUrl={seller?.poolMapUrl}
                     />
                   ) : (selectedMenuType === 'Lane Delivery' && seller?.laneCount) || (selectedMenuType === 'Dine-In' && seller?.tableCount) ? (
                     <ScrollArea className="max-h-48 border rounded-xl bg-background p-3 shadow-inner">
