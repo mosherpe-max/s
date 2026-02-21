@@ -458,7 +458,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
                   ))}
                   <Button 
                     variant={selectedTipType === 'Custom' ? 'default' : 'outline'}
-                    onClick={() => setSelectedTipType('Custom')}
+                    onClick={() => setSelectedTipType(customTipValue ? 'Custom' : null)}
                     className={cn(
                       "h-11 font-black rounded-xl",
                       selectedTipType === 'Custom' ? "bg-primary text-white shadow-md scale-105" : "bg-white"
@@ -503,6 +503,13 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
                         <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">Card or Cash accepted by staff</p>
                     </div>
                   </div>
+              </div>
+
+              <div className="px-2 pt-2 text-center">
+                <p className="text-[10px] text-muted-foreground font-medium leading-relaxed italic">
+                  * The Convenience Fee helps us provide the mobile ordering technology. 
+                  It is not a tip and does not go to the delivery staff.
+                </p>
               </div>
 
               <div className="text-center opacity-60 pb-10">
