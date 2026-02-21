@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useMemo, useEffect, use, useRef } from 'react';
@@ -350,25 +349,11 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
 
   const isClubSeller = seller?.type === 'Private Golf Course' || seller?.type === 'Semi Private Golf Course';
   const isGolfCourse = seller?.type.includes('Golf Course');
+  const isBowlingAlley = seller?.type === 'Bowling Alley';
 
   const activeOrders = useMemo(() => {
     return orders?.filter(o => ['Placed', 'Preparing', 'Out for Delivery'].includes(o.status)) || [];
   }, [orders]);
-
-  const sortedMenuTypesForAdmin = useMemo(() => {
-    if (!seller?.menuTypes) return [];
-    const types = [...seller.menuTypes];
-    // Custom sort: Lane Delivery, then Take Out, then the rest
-    types.sort((a, b) => {
-      const order = ['Lane Delivery', 'Take Out', 'Beverage Cart', 'Clubhouse', 'Pool', 'Halfway House', 'Dine-In'];
-      let indexA = order.indexOf(a);
-      let indexB = order.indexOf(b);
-      if (indexA === -1) indexA = 99;
-      if (indexB === -1) indexB = 99;
-      return indexA - indexB;
-    });
-    return types;
-  }, [seller?.menuTypes]);
 
   const dashboardStats = useMemo(() => {
     if (!orders) return null;
@@ -430,6 +415,20 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
       .filter(item => item.category === masterCategoryFilter)
       .sort((a,b) => a.name.localeCompare(b.name));
   }, [menuItems, masterCategoryFilter]);
+
+  const sortedMenuTypesForAdmin = useMemo(() => {
+    if (!seller?.menuTypes) return [];
+    const types = [...seller.menuTypes];
+    types.sort((a, b) => {
+      const order = ['Lane Delivery', 'Take Out', 'Beverage Cart', 'Clubhouse', 'Pool', 'Halfway House', 'Dine-In'];
+      let indexA = order.indexOf(a);
+      let indexB = order.indexOf(b);
+      if (indexA === -1) indexA = 99;
+      if (indexB === -1) indexB = 99;
+      return indexA - indexB;
+    });
+    return types;
+  }, [seller?.menuTypes]);
 
   const handleSeedData = async () => {
     if (!firestore) return;
@@ -644,73 +643,150 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
           </div>
         </section>
 
-        {/* Live Operations Monitor - Capability limited to Golf Courses per request */}
-        {isGolfCourse && (
+        {/* Live Operations Monitor / Order Queue */}
+        {(isGolfCourse || isBowlingAlley) && (
           <section id="ops-monitor" className="mb-12 scroll-mt-24">
             <h2 className="font-headline text-xl font-bold mb-6 flex items-center gap-2 text-primary uppercase tracking-wider">
-              <Activity className="h-6 w-6" /> Live Operations Monitor
+              <Activity className="h-6 w-6" /> 
+              {isBowlingAlley ? 'Live Order Queue' : 'Live Operations Monitor'}
             </h2>
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <Card className="lg:col-span-2 h-[400px] overflow-hidden shadow-md">
-                <APIProvider apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!}>
-                  {seller ? (
-                    <MapView 
-                      sellerLocation={{ latitude: seller.latitude, longitude: seller.longitude }}
-                      sellers={liveDrivers}
-                      buyers={mappedBuyers}
-                      zoomMode="all"
-                      interactive={true}
-                    />
-                  ) : <Skeleton className="w-full h-full" />}
-                </APIProvider>
-              </Card>
+              {isGolfCourse ? (
+                <>
+                  <Card className="lg:col-span-2 h-[400px] overflow-hidden shadow-md">
+                    <APIProvider apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!}>
+                      {seller ? (
+                        <MapView 
+                          sellerLocation={{ latitude: seller.latitude, longitude: seller.longitude }}
+                          sellers={liveDrivers}
+                          buyers={mappedBuyers}
+                          zoomMode="all"
+                          interactive={true}
+                        />
+                      ) : <Skeleton className="w-full h-full" />}
+                    </APIProvider>
+                  </Card>
 
-              <Card className="shadow-md flex flex-col max-h-[400px]">
-                <CardHeader className="py-4 border-b bg-muted/20">
-                  <CardTitle className="text-sm font-bold uppercase flex items-center justify-between">
-                    Active Orders
-                    <Badge variant="secondary" className="font-mono">{activeOrders.length}</Badge>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-0 overflow-hidden flex-1">
-                  <ScrollArea className="h-full">
-                    <div className="p-4 space-y-3">
-                      {areOrdersLoading ? (
-                        [...Array(3)].map((_, i) => <Skeleton key={i} className="h-20 w-full" />)
-                      ) : activeOrders.length === 0 ? (
-                        <div className="text-center py-12 text-muted-foreground flex flex-col items-center gap-2">
-                          <ShoppingBag className="h-8 w-8 opacity-10" />
-                          <p className="text-xs font-medium italic">No active orders right now.</p>
+                  <Card className="shadow-md flex flex-col max-h-[400px]">
+                    <CardHeader className="py-4 border-b bg-muted/20">
+                      <CardTitle className="text-sm font-bold uppercase flex items-center justify-between">
+                        Active Orders
+                        <Badge variant="secondary" className="font-mono">{activeOrders.length}</Badge>
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-0 overflow-hidden flex-1">
+                      <ScrollArea className="h-full">
+                        <div className="p-4 space-y-3">
+                          {areOrdersLoading ? (
+                            [...Array(3)].map((_, i) => <Skeleton key={i} className="h-20 w-full" />)
+                          ) : activeOrders.length === 0 ? (
+                            <div className="text-center py-12 text-muted-foreground flex flex-col items-center gap-2">
+                              <ShoppingBag className="h-8 w-8 opacity-10" />
+                              <p className="text-xs font-medium italic">No active orders right now.</p>
+                            </div>
+                          ) : (
+                            activeOrders.map(order => (
+                              <div key={order.id} className="p-3 rounded-lg border bg-background hover:border-primary/50 transition-colors shadow-sm">
+                                <div className="flex justify-between items-start mb-1.5">
+                                  <span className="text-xs font-bold truncate pr-2">{order.customerName}</span>
+                                  <Badge variant="outline" className="text-[9px] h-4 px-1 uppercase font-bold tracking-tight">
+                                    {order.status}
+                                  </Badge>
+                                </div>
+                                <div className="flex items-center gap-2 text-[10px] text-muted-foreground font-medium">
+                                  <Clock className="w-3 h-3" />
+                                  {order.createdAt ? formatDistanceToNow(order.createdAt.toDate(), { addSuffix: true }) : 'Just now'}
+                                  <span className="mx-1">•</span>
+                                  <Navigation className="w-3 h-3" />
+                                  {order.menuType}
+                                </div>
+                                <div className="mt-2 flex justify-between items-end">
+                                  <p className="text-[10px] font-mono font-bold text-primary">${order.total.toFixed(2)}</p>
+                                  <Button variant="ghost" size="sm" asChild className="h-6 text-[9px] uppercase font-bold tracking-widest px-2">
+                                    <a href={`/order/track?id=${order.id}`}>View Map <ChevronRight className="ml-0.5 h-2.5 w-2.5" /></a>
+                                  </Button>
+                                </div>
+                              </div>
+                            ))
+                          )}
                         </div>
-                      ) : (
-                        activeOrders.map(order => (
-                          <div key={order.id} className="p-3 rounded-lg border bg-background hover:border-primary/50 transition-colors shadow-sm">
-                            <div className="flex justify-between items-start mb-1.5">
-                              <span className="text-xs font-bold truncate pr-2">{order.customerName}</span>
-                              <Badge variant="outline" className="text-[9px] h-4 px-1 uppercase font-bold tracking-tight">
-                                {order.status}
-                              </Badge>
-                            </div>
-                            <div className="flex items-center gap-2 text-[10px] text-muted-foreground font-medium">
-                              <Clock className="w-3 h-3" />
-                              {order.createdAt ? formatDistanceToNow(order.createdAt.toDate(), { addSuffix: true }) : 'Just now'}
-                              <span className="mx-1">•</span>
-                              <Navigation className="w-3 h-3" />
-                              {order.menuType}
-                            </div>
-                            <div className="mt-2 flex justify-between items-end">
-                              <p className="text-[10px] font-mono font-bold text-primary">${order.total.toFixed(2)}</p>
-                              <Button variant="ghost" size="sm" asChild className="h-6 text-[9px] uppercase font-bold tracking-widest px-2">
-                                <a href={`/order/track?id=${order.id}`}>View Map <ChevronRight className="ml-0.5 h-2.5 w-2.5" /></a>
-                              </Button>
-                            </div>
-                          </div>
-                        ))
-                      )}
+                      </ScrollArea>
+                    </CardContent>
+                  </Card>
+                </>
+              ) : (
+                <Card className="lg:col-span-3 shadow-md flex flex-col">
+                  <CardHeader className="py-4 border-b bg-muted/20">
+                    <CardTitle className="text-sm font-bold uppercase flex items-center justify-between">
+                      Current Order Queue
+                      <Badge variant="secondary" className="font-mono">{activeOrders.length}</Badge>
+                    </CardTitle>
+                    <CardDescription>Real-time view of all pending lane and take-out orders.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="p-0">
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow className="bg-muted/5">
+                            <TableHead className="w-[100px]">Age</TableHead>
+                            <TableHead>Patron</TableHead>
+                            <TableHead>Location</TableHead>
+                            <TableHead>Service Mode</TableHead>
+                            <TableHead>Items</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead className="text-right">Actions</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {areOrdersLoading ? (
+                            [...Array(3)].map((_, i) => (
+                              <TableRow key={i}><TableCell colSpan={7}><Skeleton className="h-12 w-full" /></TableCell></TableRow>
+                            ))
+                          ) : activeOrders.length === 0 ? (
+                            <TableRow>
+                              <TableCell colSpan={7} className="h-32 text-center text-muted-foreground italic">
+                                No active orders in the queue.
+                              </TableCell>
+                            </TableRow>
+                          ) : (
+                            activeOrders.map(order => {
+                              const orderTime = order.createdAt?.toDate().getTime() || now;
+                              const minutesElapsed = (now - orderTime) / 60000;
+                              const isOld = minutesElapsed > 15;
+
+                              return (
+                                <TableRow key={order.id} className={cn(isOld && "bg-destructive/5")}>
+                                  <TableCell>
+                                    <Badge variant={isOld ? "destructive" : "secondary"} className="font-mono text-[10px]">
+                                      {Math.floor(minutesElapsed)}m
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell className="font-bold text-xs uppercase tracking-tight">{order.customerName}</TableCell>
+                                  <TableCell>
+                                    <Badge className="bg-primary font-black text-[10px]">{order.menuTypeLocation || '--'}</Badge>
+                                  </TableCell>
+                                  <TableCell className="text-[10px] font-bold uppercase text-muted-foreground">{order.menuType}</TableCell>
+                                  <TableCell className="text-[10px] max-w-[200px] truncate">
+                                    {order.items.map(i => `${i.quantity}x ${i.name}`).join(', ')}
+                                  </TableCell>
+                                  <TableCell>
+                                    <Badge variant="outline" className="text-[9px] uppercase font-black">{order.status}</Badge>
+                                  </TableCell>
+                                  <TableCell className="text-right">
+                                    <Button variant="ghost" size="sm" asChild className="h-8 text-[9px] font-bold uppercase tracking-widest px-3 border border-primary/10">
+                                      <a href={`/order/track?id=${order.id}`}>View Tracking</a>
+                                    </Button>
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })
+                          )}
+                        </TableBody>
+                      </Table>
                     </div>
-                  </ScrollArea>
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
+              )}
             </div>
           </section>
         )}
