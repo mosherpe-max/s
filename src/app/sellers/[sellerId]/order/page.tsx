@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, use, useEffect, useMemo } from 'react';
@@ -411,21 +410,23 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
                     <MapPin className="h-3 w-3 text-primary" /> {locationLabel}
                   </Label>
                   {(selectedMenuType === 'Lane Delivery' && seller?.laneCount) || (selectedMenuType === 'Dine-In' && seller?.tableCount) ? (
-                    <div className="grid grid-cols-5 sm:grid-cols-8 gap-2">
-                      {Array.from({ length: (selectedMenuType === 'Lane Delivery' ? seller?.laneCount : seller?.tableCount) || 0 }, (_, i) => (i + 1).toString()).map((num) => (
-                        <Button
-                          key={num}
-                          variant={locationValue === num ? 'default' : 'outline'}
-                          onClick={() => setLocationValue(num)}
-                          className={cn(
-                            "h-10 px-0 font-bold text-xs rounded-xl transition-all",
-                            locationValue === num ? "bg-primary text-white shadow-lg scale-105" : "bg-white hover:bg-primary/5"
-                          )}
-                        >
-                          {num}
-                        </Button>
-                      ))}
-                    </div>
+                    <ScrollArea className="max-h-48 border rounded-xl bg-background p-3 shadow-inner">
+                      <div className="grid grid-cols-6 sm:grid-cols-8 gap-2">
+                        {Array.from({ length: (selectedMenuType === 'Lane Delivery' ? seller?.laneCount : seller?.tableCount) || 0 }, (_, i) => (i + 1).toString()).map((num) => (
+                          <Button
+                            key={num}
+                            variant={locationValue === num ? 'default' : 'outline'}
+                            onClick={() => setLocationValue(num)}
+                            className={cn(
+                              "h-8 px-0 font-black text-[10px] rounded-lg transition-all",
+                              locationValue === num ? "bg-primary text-white shadow-md scale-105" : "bg-white hover:bg-primary/5"
+                            )}
+                          >
+                            {num}
+                          </Button>
+                        ))}
+                      </div>
+                    </ScrollArea>
                   ) : (
                     <Input 
                       placeholder={`Enter your ${locationLabel}...`}
