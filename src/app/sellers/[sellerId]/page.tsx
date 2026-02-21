@@ -37,7 +37,8 @@ import {
   Building,
   MapPin,
   ShoppingBasket,
-  Utensils
+  Utensils,
+  AlertTriangle
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -266,6 +267,23 @@ function StatTile({ title, revenue, orders, longWait }: { title: string, revenue
   );
 }
 
+function OpsMetricCard({ label, value, icon: Icon, colorClass, subValue }: { label: string, value: string | number, icon: any, colorClass?: string, subValue?: string }) {
+  return (
+    <div className="bg-background border rounded-xl p-3 shadow-sm flex items-center gap-3">
+      <div className={cn("p-2 rounded-lg bg-primary/10", colorClass)}>
+        <Icon className="h-4 w-4" />
+      </div>
+      <div className="min-w-0">
+        <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground truncate">{label}</p>
+        <div className="flex items-baseline gap-1.5">
+          <p className="text-sm font-black font-headline truncate">{value}</p>
+          {subValue && <span className="text-[8px] font-bold text-muted-foreground uppercase">{subValue}</span>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function SortableItem({ item, onDelete, menuType }: { item: MenuItem; onDelete: () => void; menuType: string }) {
   const {
     attributes,
@@ -427,6 +445,44 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     };
   }, [orders, seller]);
 
+  const opsMetrics = useMemo(() => {
+    if (!orders || !seller) return null;
+
+    const calculateMetrics = (filtered: Order[]) => {
+      const todayOrders = filtered.filter(o => o.createdAt && isToday(o.createdAt.toDate()));
+      const deliveredToday = todayOrders.filter(o => o.status === 'Delivered');
+      
+      const revenue = todayOrders.reduce((acc, o) => acc + (o.total || 0), 0);
+      
+      let totalMinutes = 0;
+      deliveredToday.forEach(o => {
+        if (o.deliveredAt && o.createdAt) {
+          totalMinutes += (o.deliveredAt.toDate().getTime() - o.createdAt.toDate().getTime()) / 60000;
+        }
+      });
+      const avgTime = deliveredToday.length > 0 ? totalMinutes / deliveredToday.length : 0;
+
+      const exceededCount = todayOrders.filter(o => {
+        const thresholds = seller.orderThresholds?.[o.menuType] || { warning: 7, max: 10 };
+        const thresholdMax = thresholds.max;
+        if (o.status === 'Delivered' && o.deliveredAt && o.createdAt) {
+          return (o.deliveredAt.toDate().getTime() - o.createdAt.toDate().getTime()) / 60000 > thresholdMax;
+        }
+        if (o.createdAt) {
+          return (now - o.createdAt.toDate().getTime()) / 60000 > thresholdMax;
+        }
+        return false;
+      }).length;
+
+      return { revenue, avgTime, exceededCount };
+    };
+
+    return {
+      total: calculateMetrics(orders),
+      selected: selectedOpsMenu ? calculateMetrics(orders.filter(o => o.menuType === selectedOpsMenu)) : null
+    };
+  }, [orders, seller, selectedOpsMenu, now]);
+
   const mappedBuyers = useMemo(() => {
     return filteredOpsOrders.map(o => {
       let colorClass = "bg-green-600";
@@ -538,7 +594,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
           { name: 'Pitcher of Soda', description: 'Great for the whole lane!', price: 9.00, category: 'Soft Drinks', imageUrl: PlaceHolderImages.find(i => i.id === 'soft-drink-1')?.imageUrl },
           { name: 'Bowl of Popcorn', description: 'Buttery, salted, and fresh.', price: 4.50, category: 'Snacks', imageUrl: PlaceHolderImages.find(i => i.imageHint === 'potato chips')?.imageUrl },
           { name: 'Loaded Nachos', description: 'Corn chips topped with cheese, jalapeños, and sour cream.', price: 10.50, category: 'Appetizers', imageUrl: 'https://images.unsplash.com/photo-1513456852971-30c0b8199d4d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwzfHxuYWNob3N8ZW58MHx8fHwxNzYzOTQxOTAwfDA&ixlib=rb-4.1.0&q=80&w=1080' },
-          { name: 'Buffalo Wings (10pc)', description: 'Crispy wings tossed in buffalo sauce.', price: 14.50, category: 'Appetizers', imageUrl: 'https://images.unsplash.com/photo-1567620832903-9fc6debc209f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHjaH4fHxidWZmYWxvJTIwd2luZ3N8ZW58MHx8fHwxNzYzOTQxOTAwfDA&ixlib=rb-4.1.0&q=80&w=1080' },
+          { name: 'Buffalo Wings (10pc)', description: 'Crispy wings tossed in buffalo sauce.', price: 14.50, category: 'Appetizers', imageUrl: 'https://images.unsplash.com/photo-1567620832903-9fc6debc209f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw0fHxidWZmYWxvJTIwd2luZ3N8ZW58MHx8fHwxNzYzOTQxOTAwfDA&ixlib=rb-4.1.0&q=80&w=1080' },
           { name: 'Mozzarella Sticks', description: 'Served with zesty marinara sauce.', price: 8.00, category: 'Appetizers', imageUrl: 'https://images.unsplash.com/photo-1531451394031-448f2a1c83e2?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxtb3p6YXJlbGxhJTIwc3RpY2tzfGVufDB8fHx8MTc2Mzk0MTkwMHww&ixlib=rb-4.1.0&q=80&w=1080' },
           { name: 'Strike Burger', description: 'Cheeseburger with secret sauce and fries.', price: 13.50, category: 'Handhelds', imageUrl: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxidXJnZXJ8ZW58MHx8fHwxNzYzOTQyMjExfDA&ixlib=rb-4.1.0&q=80&w=1080' },
           { name: 'Classic Hot Dog', description: 'Grilled all-beef frank on a toasted bun.', price: 7.00, category: 'Handhelds', imageUrl: 'https://images.unsplash.com/photo-1541214113241-21578d2d9b62?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw0fHxob3QlMjBkb2d8ZW58MHx8fHwxNzYzOTQxOTAwfDA&ixlib=rb-4.1.0&q=80&w=1080' },
@@ -796,6 +852,45 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                 );
               })}
             </div>
+          </div>
+
+          {/* New Granular Performance Bar for selected menu type */}
+          <div className="mb-6 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+            <div className="col-span-1 md:col-span-2 xl:col-span-1 bg-primary/5 rounded-xl border-2 border-primary/10 p-4 flex flex-col justify-center gap-1 shadow-sm">
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-primary/60 leading-none mb-1">Establishment Totals</p>
+              <div className="flex justify-between items-center">
+                <div className="flex flex-col">
+                  <span className="text-xs font-black uppercase tracking-tight">Today's Revenue</span>
+                  <span className="text-lg font-headline font-black text-primary">${opsMetrics?.total?.revenue.toFixed(2) || '0.00'}</span>
+                </div>
+                <div className="h-10 w-[1px] bg-primary/10" />
+                <div className="flex flex-col text-right">
+                  <span className="text-xs font-black uppercase tracking-tight">Total Alerts</span>
+                  <span className="text-lg font-headline font-black text-destructive">{opsMetrics?.total?.exceededCount || 0}</span>
+                </div>
+              </div>
+            </div>
+
+            <OpsMetricCard 
+              label={`${selectedOpsMenu} Revenue`} 
+              value={`$${opsMetrics?.selected?.revenue.toFixed(2) || '0.00'}`} 
+              icon={DollarSign} 
+              colorClass="text-green-600 bg-green-500/10"
+            />
+            <OpsMetricCard 
+              label={`${selectedOpsMenu} Avg Time`} 
+              value={`${opsMetrics?.selected?.avgTime.toFixed(1) || '0'}m`} 
+              icon={Timer} 
+              colorClass="text-blue-600 bg-blue-500/10"
+              subValue="Delivered"
+            />
+            <OpsMetricCard 
+              label={`${selectedOpsMenu} Alerts`} 
+              value={opsMetrics?.selected?.exceededCount || 0} 
+              icon={AlertTriangle} 
+              colorClass="text-destructive bg-destructive/10"
+              subValue="Today"
+            />
           </div>
 
           <div className={cn("grid grid-cols-1 gap-6", isMapRequired ? "lg:grid-cols-3" : "lg:grid-cols-1")}>
