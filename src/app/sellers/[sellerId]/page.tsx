@@ -41,7 +41,8 @@ import {
   Utensils,
   AlertTriangle,
   Waves,
-  Upload
+  Upload,
+  Focus
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -83,7 +84,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { MapView } from '@/components/map-view';
-import { APIProvider } from '@vis.gl/react-google-maps';
+import { APIProvider, Map, useMap } from '@vis.gl/react-google-maps';
 import Image from 'next/image';
 
 import type { MenuItem, Seller, Category, Order, Member, SellerType } from '@/lib/types';
@@ -117,12 +118,6 @@ const thresholdSchema = z.object({
 });
 
 type ThresholdFormData = z.infer<typeof thresholdSchema>;
-
-const poolMapSchema = z.object({
-  poolMapUrl: z.string().url('Please enter a valid image URL for the pool map'),
-});
-
-type PoolMapFormData = z.infer<typeof poolMapSchema>;
 
 const getCategoriesForMenu = (menuType: string): Category[] => {
   if (menuType === 'Beverage Cart') {
@@ -336,6 +331,28 @@ function SortableItem({ item, onDelete, menuType }: { item: MenuItem; onDelete: 
   );
 }
 
+function MapViewSetter({ onSet }: { onSave: (url: string) => void, onSet: (center: { lat: number, lng: number }, zoom: number) => void }) {
+  const map = useMap();
+  
+  const handleSetView = () => {
+    if (!map) return;
+    const center = map.getCenter();
+    const zoom = map.getZoom();
+    if (center && zoom !== undefined) {
+      onSet({ lat: center.lat(), lng: center.lng() }, zoom);
+    }
+  };
+
+  return (
+    <div className="absolute bottom-4 right-4 z-10">
+      <Button size="sm" onClick={handleSetView} className="shadow-lg bg-primary text-white font-black uppercase text-[10px] tracking-widest px-4">
+        <MapIcon className="mr-2 h-3.5 w-3.5" />
+        Set Map View
+      </Button>
+    </div>
+  );
+}
+
 export default function SellerAdminPage({ params }: { params: Promise<{ sellerId: string }> }) {
   const { sellerId } = use(params);
   const firestore = useFirestore();
@@ -359,6 +376,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   const [thresholdMenuType, setThresholdMenuType] = useState<string>('');
 
   const [isPoolMapConfigOpen, setIsPoolMapConfigOpen] = useState(false);
+  const [tempPoolMapUrl, setTempPoolMapUrl] = useState<string | null>(null);
 
   const [isSeeding, setIsSeeding] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
@@ -563,11 +581,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     defaultValues: { warning: 7, max: 10 }
   });
 
-  const poolMapForm = useForm<PoolMapFormData>({
-    resolver: zodResolver(poolMapSchema),
-    defaultValues: { poolMapUrl: '' }
-  });
-
   const handleOpenThresholdConfig = (menuType: string) => {
     setThresholdMenuType(menuType);
     const existing = seller?.orderThresholds?.[menuType] || { warning: 7, max: 10 };
@@ -576,7 +589,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   };
 
   const handleOpenPoolMapConfig = () => {
-    poolMapForm.reset({ poolMapUrl: seller?.poolMapUrl || '' });
+    setTempPoolMapUrl(seller?.poolMapUrl || null);
     setIsPoolMapConfigOpen(true);
   };
 
@@ -590,11 +603,19 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     toast({ title: 'Alerts Updated', description: `Durations updated for ${thresholdMenuType}.` });
   };
 
-  const handleSavePoolMap = async (data: PoolMapFormData) => {
-    if (!firestore || !sellerId) return;
-    await updateDoc(doc(firestore, 'sellers', sellerId), { poolMapUrl: data.poolMapUrl });
+  const handleSetPoolMapView = (center: { lat: number, lng: number }, zoom: number) => {
+    const key = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+    // Generate a high-res static map URL for the patron view
+    const staticUrl = `https://maps.googleapis.com/maps/api/staticmap?center=${center.lat},${center.lng}&zoom=${zoom}&size=600x800&maptype=satellite&key=${key}`;
+    setTempPoolMapUrl(staticUrl);
+    toast({ title: 'View Captured', description: 'This satellite image will be used for patrons.' });
+  };
+
+  const handleSavePoolMap = async () => {
+    if (!firestore || !sellerId || !tempPoolMapUrl) return;
+    await updateDoc(doc(firestore, 'sellers', sellerId), { poolMapUrl: tempPoolMapUrl });
     setIsPoolMapConfigOpen(false);
-    toast({ title: 'Pool Map Configured', description: 'Interactive grid applied to your pool image.' });
+    toast({ title: 'Pool Map Saved', description: 'Satellite layout updated for checkout.' });
   };
 
   const handleSeedData = async () => {
@@ -1417,49 +1438,69 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
         </Dialog>
 
         <Dialog open={isPoolMapConfigOpen} onOpenChange={setIsPoolMapConfigOpen}>
-          <DialogContent className="sm:max-w-[500px]">
-            <DialogHeader>
+          <DialogContent className="sm:max-w-[700px] max-h-[95vh] flex flex-col p-0 overflow-hidden">
+            <DialogHeader className="px-6 py-4 border-b">
               <DialogTitle className="uppercase tracking-tight flex items-center gap-2">
                 <Waves className="h-5 w-5 text-primary" /> Pool Map Configuration
               </DialogTitle>
               <DialogDescription>
-                Provide a photo of your pool area. We will automatically section it into 9 numbered zones for your patrons.
+                Locate your pool area on the satellite map. Pan and zoom until it is perfectly centered, then click "Set Map View".
               </DialogDescription>
             </DialogHeader>
-            <Form {...poolMapForm}>
-              <form onSubmit={poolMapForm.handleSubmit(handleSavePoolMap)} className="space-y-6 pt-4">
-                <FormField
-                  control={poolMapForm.control}
-                  name="poolMapUrl"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Pool Map Image URL</FormLabel>
-                      <FormControl>
-                        <div className="space-y-3">
-                          <Input {...field} placeholder="https://images.unsplash.com/photo-..." />
-                          {field.value && (
-                            <div className="relative aspect-video rounded-lg overflow-hidden border-2 border-dashed bg-muted flex items-center justify-center">
-                              <Image src={field.value} alt="Pool Preview" fill className="object-cover opacity-50" />
-                              <div className="absolute inset-0 grid grid-cols-3 grid-rows-3 pointer-events-none border border-white/20">
-                                {Array.from({ length: 9 }).map((_, i) => (
-                                  <div key={i} className="border border-white/20 flex items-center justify-center text-[10px] font-bold text-white/60">Zone {i+1}</div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </FormControl>
-                      <FormDescription>Upload a top-down or wide-angle shot of the pool deck.</FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <DialogFooter className="border-t pt-4">
-                  <Button type="button" variant="ghost" onClick={() => setIsPoolMapConfigOpen(false)}>Cancel</Button>
-                  <Button type="submit">Save Pool Map</Button>
-                </DialogFooter>
-              </form>
-            </Form>
+            <div className="flex-1 min-h-[400px] relative bg-muted">
+              <APIProvider apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!}>
+                <div className="w-full h-full relative">
+                  <Map
+                    defaultCenter={{ lat: seller?.latitude || 0, lng: seller?.longitude || 0 }}
+                    defaultZoom={19}
+                    mapId="pool-map-config"
+                    mapTypeId="satellite"
+                    disableDefaultUI={false}
+                    gestureHandling="greedy"
+                  >
+                    <MapViewSetter onSet={handleSetPoolMapView} />
+                  </Map>
+                  
+                  {/* Grid Overlay for reference */}
+                  <div className="absolute inset-0 grid grid-cols-3 grid-rows-3 pointer-events-none border-2 border-white/20">
+                    {Array.from({ length: 9 }).map((_, i) => (
+                      <div key={i} className="border border-white/10 flex items-center justify-center text-[10px] font-bold text-white/40 uppercase tracking-widest">Zone {i+1}</div>
+                    ))}
+                  </div>
+                </div>
+              </APIProvider>
+            </div>
+            
+            <div className="px-6 py-4 border-t bg-muted/10 space-y-4">
+              <div className="flex items-center justify-between">
+                <h4 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Patron View Preview</h4>
+                {tempPoolMapUrl && <Badge variant="secondary" className="bg-green-500/10 text-green-600 border-green-500/20 text-[8px] uppercase">New View Ready</Badge>}
+              </div>
+              <div className="relative aspect-video rounded-xl overflow-hidden border-2 bg-black shadow-inner flex items-center justify-center group">
+                {tempPoolMapUrl ? (
+                  <>
+                    <Image src={tempPoolMapUrl} alt="Captured Preview" fill className="object-cover opacity-80" unoptimized />
+                    <div className="absolute inset-0 grid grid-cols-3 grid-rows-3 pointer-events-none border border-white/30">
+                      {Array.from({ length: 9 }).map((_, i) => (
+                        <div key={i} className="border border-white/20 flex items-center justify-center text-[10px] font-black text-white/60 drop-shadow-md">{i+1}</div>
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-center p-8">
+                    <MapIcon className="h-8 w-8 text-muted-foreground mx-auto mb-2 opacity-30" />
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase">No map view set yet.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <DialogFooter className="px-6 py-4 border-t bg-muted/20">
+              <Button type="button" variant="ghost" onClick={() => setIsPoolMapConfigOpen(false)}>Cancel</Button>
+              <Button onClick={handleSavePoolMap} disabled={!tempPoolMapUrl} className="min-w-[140px] font-black uppercase tracking-widest text-xs h-10">
+                Save Pool Map
+              </Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
       </div>
