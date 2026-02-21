@@ -587,6 +587,54 @@ export default function KOOPAdminPage() {
                     <Building className="h-4 w-4" /> Basic Information
                 </h3>
                 
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="courseName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Seller / Business Name</FormLabel>
+                        <FormControl><Input {...field} placeholder="e.g. Pebble Beach Golf Links" /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="status"
+                    render={({ field }) => (
+                      <FormItem className="space-y-3">
+                        <FormLabel>Account Status</FormLabel>
+                        <FormControl>
+                          <RadioGroup
+                            onValueChange={field.onChange}
+                            value={field.value}
+                            className="flex flex-row space-x-6 pt-2"
+                          >
+                            <FormItem className="flex items-center space-x-2 space-y-0">
+                              <FormControl>
+                                <RadioGroupItem value="Active" />
+                              </FormControl>
+                              <FormLabel className="font-normal cursor-pointer">
+                                Active
+                              </FormLabel>
+                            </FormItem>
+                            <FormItem className="flex items-center space-x-2 space-y-0">
+                              <FormControl>
+                                <RadioGroupItem value="Inactive" />
+                              </FormControl>
+                              <FormLabel className="font-normal cursor-pointer">
+                                Inactive
+                              </FormLabel>
+                            </FormItem>
+                          </RadioGroup>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
                 <FormField
                   control={form.control}
                   name="type"
@@ -607,7 +655,7 @@ export default function KOOPAdminPage() {
                               <FormLabel className="font-normal cursor-pointer flex-1">
                                 {type}
                               </FormLabel>
-                            </FormItem>
+                            </RadioGroupItem>
                           ))}
                         </RadioGroup>
                       </FormControl>
@@ -743,54 +791,6 @@ export default function KOOPAdminPage() {
                     />
                   </div>
                 )}
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="courseName"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Seller / Business Name</FormLabel>
-                        <FormControl><Input {...field} placeholder="e.g. Pebble Beach Golf Links" /></FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="status"
-                    render={({ field }) => (
-                      <FormItem className="space-y-3">
-                        <FormLabel>Account Status</FormLabel>
-                        <FormControl>
-                          <RadioGroup
-                            onValueChange={field.onChange}
-                            value={field.value}
-                            className="flex flex-row space-x-6 pt-2"
-                          >
-                            <FormItem className="flex items-center space-x-2 space-y-0">
-                              <FormControl>
-                                <RadioGroupItem value="Active" />
-                              </FormControl>
-                              <FormLabel className="font-normal cursor-pointer">
-                                Active
-                              </FormLabel>
-                            </FormItem>
-                            <FormItem className="flex items-center space-x-2 space-y-0">
-                              <FormControl>
-                                <RadioGroupItem value="Inactive" />
-                              </FormControl>
-                              <FormLabel className="font-normal cursor-pointer">
-                                Inactive
-                              </FormLabel>
-                            </FormItem>
-                          </RadioGroup>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
 
                 <div className="space-y-4 pt-4 border-t">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
