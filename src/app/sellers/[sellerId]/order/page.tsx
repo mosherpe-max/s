@@ -43,6 +43,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { cn, isStaffSessionStale } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
+import { PoolLayoutPicker } from '@/components/pool-layout-picker';
 
 const serviceTypeIcons: Record<string, any> = {
   'Beverage Cart': Truck,
@@ -58,7 +59,7 @@ const serviceLocationLabels: Record<string, string> = {
   'Lane Delivery': 'Lane Number',
   'Dine-In': 'Table Number',
   'Halfway House': 'Location Name',
-  'Pool': 'Cabana/Chair Number',
+  'Pool': 'Pool Side Location',
 };
 
 export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId: string }> }) {
@@ -259,7 +260,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
           { timeout: 5000 }
         );
       } else {
-        // No GPS required for Lane Delivery or Take Out
+        // No GPS required for Lane Delivery or Take Out or Pool
         submitToFirestore(mockBuyerLocation.latitude, mockBuyerLocation.longitude);
       }
     } catch (error) {
@@ -409,7 +410,13 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
                   <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
                     <MapPin className="h-3 w-3 text-primary" /> {locationLabel}
                   </Label>
-                  {(selectedMenuType === 'Lane Delivery' && seller?.laneCount) || (selectedMenuType === 'Dine-In' && seller?.tableCount) ? (
+                  
+                  {selectedMenuType === 'Pool' ? (
+                    <PoolLayoutPicker 
+                      value={locationValue}
+                      onChange={setLocationValue}
+                    />
+                  ) : (selectedMenuType === 'Lane Delivery' && seller?.laneCount) || (selectedMenuType === 'Dine-In' && seller?.tableCount) ? (
                     <ScrollArea className="max-h-48 border rounded-xl bg-background p-3 shadow-inner">
                       <div className="grid grid-cols-6 sm:grid-cols-8 gap-2">
                         {Array.from({ length: (selectedMenuType === 'Lane Delivery' ? seller?.laneCount : seller?.tableCount) || 0 }, (_, i) => (i + 1).toString()).map((num) => (
