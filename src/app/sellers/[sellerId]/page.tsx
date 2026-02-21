@@ -33,7 +33,11 @@ import {
   LayoutGrid,
   Timer,
   Eye,
-  EyeOff
+  EyeOff,
+  Truck,
+  Building,
+  MapPin,
+  ShoppingBasket
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -115,6 +119,16 @@ const getCategoriesForMenu = (menuType: string): Category[] => {
     return ['Beer', 'Spirits', 'Soft Drinks', 'Snacks', 'Kids', 'Other'];
   }
   return [...categories] as Category[];
+};
+
+const serviceTypeIcons: Record<string, any> = {
+  'Beverage Cart': Truck,
+  'Clubhouse': Building,
+  'Pool': LayoutGrid,
+  'Take Out': ShoppingBasket,
+  'Halfway House': Building,
+  'Dine-In': UtensilsCrossed,
+  'Lane Delivery': MapPin,
 };
 
 function MasterItemForm({
@@ -321,6 +335,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   const [isImporting, setIsImporting] = useState(false);
   
   const [masterCategoryFilter, setMasterCategoryFilter] = useState<string>('All');
+  const [selectedOpsMenu, setSelectedOpsMenu] = useState<string>('');
   const [showTopButton, setShowTopButton] = useState(false);
   const [now, setNow] = useState(Date.now());
 
@@ -366,6 +381,12 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   const sellerRef = useMemoFirebase(() => (firestore ? doc(firestore, 'sellers', sellerId) : null), [firestore, sellerId]);
   const { data: seller, isLoading: isSellerLoading } = useDoc<Seller>(sellerRef);
 
+  useEffect(() => {
+    if (seller?.menuTypes?.length && !selectedOpsMenu) {
+      setSelectedOpsMenu(seller.menuTypes[0]);
+    }
+  }, [seller, selectedOpsMenu]);
+
   const menuItemsQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'sellers', sellerId, 'menuItems') : null), [firestore, sellerId]);
   const { data: menuItems, isLoading: areItemsLoading } = useCollection<MenuItem>(menuItemsQuery);
 
@@ -382,6 +403,10 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   const activeOrders = useMemo(() => {
     return orders?.filter(o => ['Placed', 'Preparing', 'Out for Delivery'].includes(o.status)) || [];
   }, [orders]);
+
+  const filteredOpsOrders = useMemo(() => {
+    return activeOrders.filter(o => o.menuType === selectedOpsMenu);
+  }, [activeOrders, selectedOpsMenu]);
 
   const dashboardStats = useMemo(() => {
     if (!orders || !seller) return null;
@@ -403,7 +428,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   }, [orders, seller]);
 
   const mappedBuyers = useMemo(() => {
-    return activeOrders.map(o => {
+    return filteredOpsOrders.map(o => {
       let colorClass = "bg-green-600";
       const thresholds = seller?.orderThresholds?.[o.menuType] || { warning: 7, max: 10 };
 
@@ -424,19 +449,25 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
         assignedDriverId: o.assignedDriverId
       };
     });
-  }, [activeOrders, now, seller]);
+  }, [filteredOpsOrders, now, seller]);
 
   const liveDrivers = useMemo(() => {
     const drivers = [];
-    if (seller?.bevcartActive) {
+    if (selectedOpsMenu === 'Beverage Cart' && seller?.bevcartActive) {
       drivers.push({
         id: seller.id,
         name: `${seller.courseName} BevCart`,
         location: { latitude: seller.latitude, longitude: seller.longitude }
       });
+    } else if (selectedOpsMenu === 'Clubhouse' && seller?.clubhouseActive) {
+      drivers.push({
+        id: seller.id,
+        name: `${seller.courseName} Clubhouse`,
+        location: { latitude: seller.latitude, longitude: seller.longitude }
+      });
     }
     return drivers;
-  }, [seller]);
+  }, [seller, selectedOpsMenu]);
 
   const filteredMasterItems = useMemo(() => {
     if (!menuItems) return [];
@@ -507,7 +538,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
           { name: 'Pitcher of Soda', description: 'Great for the whole lane!', price: 9.00, category: 'Soft Drinks', imageUrl: PlaceHolderImages.find(i => i.id === 'soft-drink-1')?.imageUrl },
           { name: 'Bowl of Popcorn', description: 'Buttery, salted, and fresh.', price: 4.50, category: 'Snacks', imageUrl: PlaceHolderImages.find(i => i.imageHint === 'potato chips')?.imageUrl },
           { name: 'Loaded Nachos', description: 'Corn chips topped with cheese, jalapeños, and sour cream.', price: 10.50, category: 'Appetizers', imageUrl: 'https://images.unsplash.com/photo-1513456852971-30c0b8199d4d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwzfHxuYWNob3N8ZW58MHx8fHwxNzYzOTQxOTAwfDA&ixlib=rb-4.1.0&q=80&w=1080' },
-          { name: 'Buffalo Wings (10pc)', description: 'Crispy wings tossed in buffalo sauce.', price: 14.50, category: 'Appetizers', imageUrl: 'https://images.unsplash.com/photo-1567620832903-9fc6debc209f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw0fHxidWZmYWxvJTIwd2luZ3N8ZW58MHx8fHwxNzYzOTQxOTAwfDA&ixlib=rb-4.1.0&q=80&w=1080' },
+          { name: 'Buffalo Wings (10pc)', description: 'Crispy wings tossed in buffalo sauce.', price: 14.50, category: 'Appetizers', imageUrl: 'https://images.unsplash.com/photo-1567620832903-9fc6debc209f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHjaH4fHxidWZmYWxvJTIwd2luZ3N8ZW58MHx8fHwxNzYzOTQxOTAwfDA&ixlib=rb-4.1.0&q=80&w=1080' },
           { name: 'Mozzarella Sticks', description: 'Served with zesty marinara sauce.', price: 8.00, category: 'Appetizers', imageUrl: 'https://images.unsplash.com/photo-1531451394031-448f2a1c83e2?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxtb3p6YXJlbGxhJTIwc3RpY2tzfGVufDB8fHx8MTc2Mzk0MTkwMHww&ixlib=rb-4.1.0&q=80&w=1080' },
           { name: 'Strike Burger', description: 'Cheeseburger with secret sauce and fries.', price: 13.50, category: 'Handhelds', imageUrl: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxidXJnZXJ8ZW58MHx8fHwxNzYzOTQyMjExfDA&ixlib=rb-4.1.0&q=80&w=1080' },
           { name: 'Classic Hot Dog', description: 'Grilled all-beef frank on a toasted bun.', price: 7.00, category: 'Handhelds', imageUrl: 'https://images.unsplash.com/photo-1541214113241-21578d2d9b62?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw0fHxob3QlMjBkb2d8ZW58MHx8fHwxNzYzOTQxOTAwfDA&ixlib=rb-4.1.0&q=80&w=1080' },
@@ -681,6 +712,8 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     }
   };
 
+  const isMapRequired = selectedOpsMenu === 'Beverage Cart' || selectedOpsMenu === 'Clubhouse';
+
   if (!isMounted) return null;
 
   return (
@@ -708,7 +741,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
           <span className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground mr-2 hidden sm:inline-block">Jump to:</span>
           <Button variant="ghost" size="sm" onClick={() => scrollToSection('ops-monitor')} className="h-8 text-[10px] font-bold uppercase tracking-widest px-3 rounded-full hover:bg-primary/10 hover:text-primary">
             <Activity className="mr-1.5 h-3.5 w-3.5" />
-            {isBowlingAlley ? 'Live Queue' : 'Operations'}
+            Live Queue
           </Button>
           <Button variant="ghost" size="sm" onClick={() => scrollToSection('performance-overview')} className="h-8 text-[10px] font-bold uppercase tracking-widest px-3 rounded-full hover:bg-primary/10 hover:text-primary">
             <BarChart3 className="mr-1.5 h-3.5 w-3.5" />
@@ -730,154 +763,134 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
           )}
         </nav>
 
-        {(isGolfCourse || isBowlingAlley) && (
-          <section id="ops-monitor" className="mb-12 scroll-mt-32">
-            <h2 className="font-headline text-xl font-bold mb-6 flex items-center gap-2 text-primary uppercase tracking-wider">
-              <Activity className="h-6 w-6" /> 
-              {isBowlingAlley ? 'Live Order Queue' : 'Live Operations Monitor'}
-            </h2>
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {isGolfCourse ? (
-                <>
-                  <Card className="lg:col-span-2 h-[400px] overflow-hidden shadow-md">
-                    <APIProvider apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!}>
-                      {seller ? (
-                        <MapView 
-                          sellerLocation={{ latitude: seller.latitude, longitude: seller.longitude }}
-                          sellers={liveDrivers}
-                          buyers={mappedBuyers}
-                          zoomMode="all"
-                          interactive={true}
-                        />
-                      ) : <Skeleton className="w-full h-full" />}
-                    </APIProvider>
-                  </Card>
-
-                  <Card className="shadow-md flex flex-col max-h-[400px]">
-                    <CardHeader className="py-4 border-b bg-muted/20">
-                      <CardTitle className="text-sm font-bold uppercase flex items-center justify-between">
-                        Active Orders
-                        <Badge variant="secondary" className="font-mono">{activeOrders.length}</Badge>
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="p-0 overflow-hidden flex-1">
-                      <ScrollArea className="h-full">
-                        <div className="p-4 space-y-3">
-                          {areOrdersLoading ? (
-                            [...Array(3)].map((_, i) => <Skeleton key={i} className="h-20 w-full" />)
-                          ) : activeOrders.length === 0 ? (
-                            <div className="text-center py-12 text-muted-foreground flex flex-col items-center gap-2">
-                              <ShoppingBag className="h-8 w-8 opacity-10" />
-                              <p className="text-xs font-medium italic">No active orders right now.</p>
-                            </div>
-                          ) : (
-                            activeOrders.map(order => (
-                              <div key={order.id} className="p-3 rounded-lg border bg-background hover:border-primary/50 transition-colors shadow-sm">
-                                <div className="flex justify-between items-start mb-1.5">
-                                  <span className="text-xs font-bold truncate pr-2">{order.customerName}</span>
-                                  <Badge variant="outline" className="text-[9px] h-4 px-1 uppercase font-bold tracking-tight">
-                                    {order.status}
-                                  </Badge>
-                                </div>
-                                <div className="flex items-center gap-2 text-[10px] text-muted-foreground font-medium">
-                                  <Clock className="w-3 h-3" />
-                                  {order.createdAt ? formatDistanceToNow(order.createdAt.toDate(), { addSuffix: true }) : 'Just now'}
-                                  <span className="mx-1">•</span>
-                                  <Navigation className="w-3 h-3" />
-                                  {order.menuType}
-                                </div>
-                                <div className="mt-2 flex justify-between items-end">
-                                  <p className="text-[10px] font-mono font-bold text-primary">${order.total.toFixed(2)}</p>
-                                  <Button variant="ghost" size="sm" asChild className="h-6 text-[9px] uppercase font-bold tracking-widest px-2">
-                                    <a href={`/order/track?id=${order.id}`}>View Map <ChevronRight className="ml-0.5 h-2.5 w-2.5" /></a>
-                                  </Button>
-                                </div>
-                              </div>
-                            ))
-                          )}
-                        </div>
-                      </ScrollArea>
-                    </CardContent>
-                  </Card>
-                </>
-              ) : (
-                <Card className="lg:col-span-3 shadow-md flex flex-col">
-                  <CardHeader className="py-4 border-b bg-muted/20">
-                    <CardTitle className="text-sm font-bold uppercase flex items-center justify-between">
-                      Current Order Queue
-                      <Badge variant="secondary" className="font-mono">{activeOrders.length}</Badge>
-                    </CardTitle>
-                    <CardDescription>Real-time view of all pending lane and take-out orders.</CardDescription>
-                  </CardHeader>
-                  <CardContent className="p-0">
-                    <div className="overflow-x-auto">
-                      <Table>
-                        <TableHeader>
-                          <TableRow className="bg-muted/5">
-                            <TableHead className="w-[100px]">Age</TableHead>
-                            <TableHead>Patron</TableHead>
-                            <TableHead>Location</TableHead>
-                            <TableHead>Service Mode</TableHead>
-                            <TableHead>Items</TableHead>
-                            <TableHead>Status</TableHead>
-                            <TableHead className="text-right">Actions</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {areOrdersLoading ? (
-                            [...Array(3)].map((_, i) => (
-                              <TableRow key={i}><TableCell colSpan={7}><Skeleton className="h-12 w-full" /></TableCell></TableRow>
-                            ))
-                          ) : activeOrders.length === 0 ? (
-                            <TableRow>
-                              <TableCell colSpan={7} className="h-32 text-center text-muted-foreground italic">
-                                No active orders in the queue.
-                              </TableCell>
-                            </TableRow>
-                          ) : (
-                            activeOrders.map(order => {
-                              const orderTime = order.createdAt?.toDate().getTime() || now;
-                              const minutesElapsed = (now - orderTime) / 60000;
-                              const thresholds = seller?.orderThresholds?.[order.menuType] || { warning: 7, max: 10 };
-                              const isOld = minutesElapsed >= thresholds.max;
-                              const isWarning = minutesElapsed >= thresholds.warning;
-
-                              return (
-                                <TableRow key={order.id} className={cn(isOld && "bg-destructive/5", isWarning && !isOld && "bg-yellow-500/5")}>
-                                  <TableCell>
-                                    <Badge variant={isOld ? "destructive" : (isWarning ? "secondary" : "outline")} className={cn("font-mono text-[10px]", isWarning && !isOld && "bg-yellow-500 text-white border-yellow-600")}>
-                                      {Math.floor(minutesElapsed)}m
-                                    </Badge>
-                                  </TableCell>
-                                  <TableCell className="font-bold text-xs uppercase tracking-tight">{order.customerName}</TableCell>
-                                  <TableCell>
-                                    <Badge className="bg-primary font-black text-[10px]">{order.menuTypeLocation || '--'}</Badge>
-                                  </TableCell>
-                                  <TableCell className="text-[10px] font-bold uppercase text-muted-foreground">{order.menuType}</TableCell>
-                                  <TableCell className="text-[10px] max-w-[200px] truncate">
-                                    {order.items.map(i => `${i.quantity}x ${i.name}`).join(', ')}
-                                  </TableCell>
-                                  <TableCell>
-                                    <Badge variant="outline" className="text-[9px] uppercase font-black">{order.status}</Badge>
-                                  </TableCell>
-                                  <TableCell className="text-right">
-                                    <Button variant="ghost" size="sm" asChild className="h-8 text-[9px] font-bold uppercase tracking-widest px-3 border border-primary/10">
-                                      <a href={`/order/track?id=${order.id}`}>View Tracking</a>
-                                    </Button>
-                                  </TableCell>
-                                </TableRow>
-                              );
-                            })
-                          )}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
+        <section id="ops-monitor" className="mb-12 scroll-mt-32">
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-6">
+            <div className="flex flex-col gap-1">
+              <h2 className="font-headline text-xl font-bold flex items-center gap-2 text-primary uppercase tracking-wider">
+                <Activity className="h-6 w-6" /> 
+                Live Operations Monitor
+              </h2>
+              <p className="text-muted-foreground text-xs font-medium">Real-time status of current active orders.</p>
             </div>
-          </section>
-        )}
+            
+            <div className="flex flex-wrap gap-1 bg-muted/30 p-1 rounded-lg border">
+              {seller?.menuTypes?.map(type => {
+                const Icon = serviceTypeIcons[type] || ShoppingBag;
+                const count = activeOrders.filter(o => o.menuType === type).length;
+                return (
+                  <Button 
+                    key={type} 
+                    variant={selectedOpsMenu === type ? 'default' : 'ghost'} 
+                    size="sm" 
+                    onClick={() => setSelectedOpsMenu(type)}
+                    className="h-8 text-[10px] font-bold uppercase tracking-widest px-3 relative"
+                  >
+                    <Icon className="mr-1.5 h-3 w-3" />
+                    {type}
+                    {count > 0 && (
+                      <span className="ml-1.5 bg-background text-foreground px-1.5 rounded-full text-[8px] font-black border">
+                        {count}
+                      </span>
+                    )}
+                  </Button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className={cn("grid grid-cols-1 gap-6", isMapRequired ? "lg:grid-cols-3" : "lg:grid-cols-1")}>
+            {isMapRequired && (
+              <Card className="lg:col-span-2 h-[450px] overflow-hidden shadow-md border-2">
+                <APIProvider apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!}>
+                  {seller ? (
+                    <MapView 
+                      sellerLocation={{ latitude: seller.latitude, longitude: seller.longitude }}
+                      sellers={liveDrivers}
+                      buyers={mappedBuyers}
+                      zoomMode="all"
+                      interactive={true}
+                    />
+                  ) : <Skeleton className="w-full h-full" />}
+                </APIProvider>
+              </Card>
+            )}
+
+            <Card className={cn("shadow-md flex flex-col border-2 overflow-hidden", isMapRequired ? "max-h-[450px]" : "w-full")}>
+              <CardHeader className="py-4 border-b bg-muted/20">
+                <CardTitle className="text-sm font-black uppercase flex items-center justify-between">
+                  <span>{selectedOpsMenu} Queue</span>
+                  <Badge variant="secondary" className="font-black">{filteredOpsOrders.length}</Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-0 overflow-hidden flex-1">
+                <ScrollArea className="h-full">
+                  <div className="p-4 space-y-3">
+                    {areOrdersLoading ? (
+                      [...Array(3)].map((_, i) => <Skeleton key={i} className="h-24 w-full" />)
+                    ) : filteredOpsOrders.length === 0 ? (
+                      <div className="text-center py-20 text-muted-foreground flex flex-col items-center gap-2">
+                        <ShoppingBag className="h-10 w-10 opacity-10" />
+                        <p className="text-sm font-medium italic">No active {selectedOpsMenu} orders.</p>
+                      </div>
+                    ) : (
+                      <div className={cn("grid gap-3", !isMapRequired && "sm:grid-cols-2 xl:grid-cols-3")}>
+                        {filteredOpsOrders.map((order, idx) => {
+                          const orderTime = order.createdAt?.toDate().getTime() || now;
+                          const minutesElapsed = (now - orderTime) / 60000;
+                          const thresholds = seller?.orderThresholds?.[order.menuType] || { warning: 7, max: 10 };
+                          const isOld = minutesElapsed >= thresholds.max;
+                          const isWarning = minutesElapsed >= thresholds.warning;
+
+                          return (
+                            <div key={order.id} className={cn(
+                              "p-4 rounded-xl border-2 bg-background flex flex-col gap-2 transition-all shadow-sm",
+                              isOld ? "border-destructive/30 bg-destructive/5" : (isWarning ? "border-yellow-500/30 bg-yellow-500/5" : "border-muted hover:border-primary/50")
+                            )}>
+                              <div className="flex justify-between items-start">
+                                <div className="flex items-center gap-3">
+                                  {isMapRequired ? (
+                                    <div className={cn(
+                                      "w-8 h-8 rounded-full flex items-center justify-center font-black text-white text-sm shadow-md",
+                                      isOld ? "bg-red-600" : (isWarning ? "bg-yellow-500" : "bg-green-600")
+                                    )}>
+                                      {idx + 1}
+                                    </div>
+                                  ) : (
+                                    <Badge className="bg-primary text-white font-black text-[10px] h-6 px-2">#{order.menuTypeLocation || '??'}</Badge>
+                                  )}
+                                  <div className="flex flex-col">
+                                    <span className="text-xs font-black uppercase tracking-tight truncate max-w-[120px]">{order.customerName}</span>
+                                    <span className="text-[9px] text-muted-foreground font-bold uppercase tracking-widest">
+                                      {Math.floor(minutesElapsed)}m ago
+                                    </span>
+                                  </div>
+                                </div>
+                                <Badge variant="outline" className="text-[8px] h-5 px-1.5 uppercase font-black tracking-widest border-primary/20 bg-background shadow-sm">
+                                  {order.status}
+                                </Badge>
+                              </div>
+                              
+                              <div className="text-[10px] font-medium text-muted-foreground bg-muted/30 p-2 rounded-lg border border-dashed truncate">
+                                {order.items.map(i => `${i.quantity}x ${i.name}`).join(', ')}
+                              </div>
+
+                              <div className="flex justify-between items-center mt-1">
+                                <p className="text-xs font-mono font-black text-primary">${order.total.toFixed(2)}</p>
+                                <Button variant="ghost" size="sm" asChild className="h-7 text-[9px] uppercase font-black tracking-[0.1em] px-2.5 bg-muted/50 hover:bg-primary hover:text-white transition-all">
+                                  <a href={`/order/track?id=${order.id}`}>Details <ChevronRight className="ml-1 h-3 w-3" /></a>
+                                </Button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </ScrollArea>
+              </CardContent>
+            </Card>
+          </div>
+        </section>
 
         <section id="performance-overview" className="mb-12 scroll-mt-32">
           <h2 className="font-headline text-xl font-bold mb-6 flex items-center gap-2 text-primary uppercase tracking-wider"><BarChart3 className="h-6 w-6" /> Performance Overview</h2>
