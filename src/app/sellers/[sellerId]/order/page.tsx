@@ -338,6 +338,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
             currentCategories={currentCategories} 
             menuItems={filteredMenuItems} 
             selectedMenuType={selectedMenuType}
+            categoryImageVisibility={seller?.categoryImageVisibility?.[selectedMenuType] || []}
           />
         )}
       </main>
@@ -372,13 +373,13 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
               <div className="grid grid-cols-2 gap-4 py-4 px-4 bg-muted/30 rounded-2xl border border-dashed">
                 <div className="space-y-1">
                   <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-1.5">
-                    <Store className="w-3 h-3" /> ESTABLISHMENT
+                    <Store className="w-2.5 h-2.5" /> ESTABLISHMENT
                   </p>
                   <p className="text-xs font-black truncate">{seller?.courseName || 'Loading...'}</p>
                 </div>
                 <div className="space-y-1 text-right">
                   <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-1.5 justify-end">
-                    <ClipboardList className="w-3 h-3" /> SERVICE MODE
+                    <ClipboardList className="w-2.5 h-2.5" /> SERVICE MODE
                   </p>
                   <p className="text-xs font-black">{selectedMenuType}</p>
                 </div>

@@ -14,9 +14,10 @@ interface BuyerMenuProps {
   currentCategories: Category[];
   accentColor?: string;
   selectedMenuType?: string;
+  categoryImageVisibility?: Category[];
 }
 
-export function BuyerMenu({ orderItems, onUpdateItem, currentCategories, menuItems, accentColor, selectedMenuType }: BuyerMenuProps) {
+export function BuyerMenu({ orderItems, onUpdateItem, currentCategories, menuItems, accentColor, selectedMenuType, categoryImageVisibility = [] }: BuyerMenuProps) {
   const handleQuantityChange = (item: MenuItem, change: number) => {
     const existingItem = orderItems.find(i => i.id === item.id);
     const currentQuantity = existingItem ? existingItem.quantity : 0;
@@ -28,6 +29,7 @@ export function BuyerMenu({ orderItems, onUpdateItem, currentCategories, menuIte
     <div className="space-y-12">
       {currentCategories.map((category) => {
         const CategoryIcon = categoryIcons[category];
+        const showImages = categoryImageVisibility.includes(category);
         const itemsInCategory = menuItems
           .filter((item) => item.category === category)
           .sort((a, b) => {
@@ -58,7 +60,7 @@ export function BuyerMenu({ orderItems, onUpdateItem, currentCategories, menuIte
                 return (
                   <div key={item.id} className="flex items-start justify-between p-4 rounded-xl bg-card border shadow-sm transition-all hover:shadow-md active:scale-[0.98]">
                     <div className="flex items-start gap-4 flex-1 pr-2">
-                      {item.imageUrl && (
+                      {showImages && item.imageUrl && (
                         <div className="relative h-20 w-20 rounded-lg overflow-hidden border bg-muted shrink-0 shadow-inner">
                           <Image src={item.imageUrl} alt={item.name} fill className="object-cover" />
                         </div>

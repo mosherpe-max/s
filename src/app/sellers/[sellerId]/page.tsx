@@ -31,7 +31,9 @@ import {
   ChevronRight,
   ImageIcon,
   LayoutGrid,
-  Timer
+  Timer,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -507,7 +509,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
           { name: 'Loaded Nachos', description: 'Corn chips topped with cheese, jalapeños, and sour cream.', price: 10.50, category: 'Appetizers', imageUrl: 'https://images.unsplash.com/photo-1513456852971-30c0b8199d4d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwzfHxuYWNob3N8ZW58MHx8fHwxNzYzOTQxOTAwfDA&ixlib=rb-4.1.0&q=80&w=1080' },
           { name: 'Buffalo Wings (10pc)', description: 'Crispy wings tossed in buffalo sauce.', price: 14.50, category: 'Appetizers', imageUrl: 'https://images.unsplash.com/photo-1567620832903-9fc6debc209f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw0fHxidWZmYWxvJTIwd2luZ3N8ZW58MHx8fHwxNzYzOTQxOTAwfDA&ixlib=rb-4.1.0&q=80&w=1080' },
           { name: 'Mozzarella Sticks', description: 'Served with zesty marinara sauce.', price: 8.00, category: 'Appetizers', imageUrl: 'https://images.unsplash.com/photo-1531451394031-448f2a1c83e2?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxtb3p6YXJlbGxhJTIwc3RpY2tzfGVufDB8fHx8MTc2Mzk0MTkwMHww&ixlib=rb-4.1.0&q=80&w=1080' },
-          { name: 'Strike Burger', description: 'Cheeseburger with secret sauce and fries.', price: 13.50, category: 'Handhelds', imageUrl: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxidWJnZXJ8ZW58MHx8fHwxNzYzOTQxOTAwfDA&ixlib=rb-4.1.0&q=80&w=1080' },
+          { name: 'Strike Burger', description: 'Cheeseburger with secret sauce and fries.', price: 13.50, category: 'Handhelds', imageUrl: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxidXJnZXJ8ZW58MHx8fHwxNzYzOTQxOTAwfDA&ixlib=rb-4.1.0&q=80&w=1080' },
           { name: 'Classic Hot Dog', description: 'Grilled all-beef frank on a toasted bun.', price: 7.00, category: 'Handhelds', imageUrl: 'https://images.unsplash.com/photo-1541214113241-21578d2d9b62?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw0fHxob3QlMjBkb2d8ZW58MHx8fHwxNzYzOTQxOTAwfDA&ixlib=rb-4.1.0&q=80&w=1080' },
           { name: 'Chicken Tenders & Fries', description: 'Breaded chicken breast strips with honey mustard.', price: 12.00, category: 'Handhelds', imageUrl: 'https://images.unsplash.com/photo-1562967914-608f82629710?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxjaGlja2VuJTIwdGVuZGVyc3xlbnwwfHx8fDE3NjM5NDE5MDB8MA&ixlib=rb-4.1.0&q=80&w=1080' },
           { name: 'Large Pepperoni Pizza', description: '16-inch classic with extra pepperoni.', price: 21.00, category: 'Pizza', imageUrl: 'https://images.unsplash.com/photo-1628840042765-356cda07504e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxwZXBwZXJvbmklMjBwaXp6YXxlbnwwfHx8fDE3NjM5NDE5MDB8MA&ixlib=rb-4.1.0&q=80&w=1080' },
@@ -532,6 +534,10 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
         brandColor: '#22c55e',
         laneCount: sellerId === 'demo-bowling-alley' ? 24 : 0,
         categoryVisibility: config.menuTypes.reduce((acc, mt) => ({
+          ...acc,
+          [mt]: getCategoriesForMenu(mt)
+        }), {}),
+        categoryImageVisibility: config.menuTypes.reduce((acc, mt) => ({
           ...acc,
           [mt]: getCategoriesForMenu(mt)
         }), {}),
@@ -629,6 +635,18 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     
     updateDoc(doc(firestore, 'sellers', sellerId), {
       [`categoryVisibility.${menuType}`]: nextCategories
+    });
+  };
+
+  const handleToggleCategoryImageVisibility = (menuType: string, category: Category) => {
+    if (!firestore || !seller) return;
+    const visibility = seller.categoryImageVisibility || {};
+    const currentCategories = visibility[menuType] || [];
+    const isVisible = currentCategories.includes(category);
+    const nextCategories = isVisible ? currentCategories.filter(c => c !== category) : [...currentCategories, category];
+    
+    updateDoc(doc(firestore, 'sellers', sellerId), {
+      [`categoryImageVisibility.${menuType}`]: nextCategories
     });
   };
 
@@ -1131,26 +1149,57 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
         </Dialog>
 
         <Dialog open={isCategoryConfigOpen} onOpenChange={setIsCategoryConfigOpen}>
-          <DialogContent className="sm:max-w-[500px] max-h-[90vh] flex flex-col p-0 overflow-hidden">
+          <DialogContent className="sm:max-w-[600px] max-h-[90vh] flex flex-col p-0 overflow-hidden">
             <DialogHeader className="px-6 py-4 border-b">
-              <DialogTitle className="uppercase tracking-tight">Enabled Categories: {configMenuType}</DialogTitle>
-              <CardDescription>Choose which categories should appear to patrons using this service.</CardDescription>
+              <DialogTitle className="uppercase tracking-tight">Menu Configuration: {configMenuType}</DialogTitle>
+              <CardDescription>Manage category visibility and item images for patrons using this service.</CardDescription>
             </DialogHeader>
             <div className="flex-1 overflow-y-auto px-6 py-4">
-              <div className="grid grid-cols-1 gap-3">
+              <div className="grid grid-cols-1 gap-4">
+                <div className="grid grid-cols-12 gap-2 px-4 py-2 bg-muted/30 rounded-lg text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                  <div className="col-span-6">Category Name</div>
+                  <div className="col-span-3 text-center">Visible</div>
+                  <div className="col-span-3 text-center">Pictures</div>
+                </div>
                 {getCategoriesForMenu(configMenuType).map(category => {
                   const isVisible = seller?.categoryVisibility?.[configMenuType]?.includes(category);
+                  const showImages = seller?.categoryImageVisibility?.[configMenuType]?.includes(category);
+                  
                   return (
                     <div 
                       key={category} 
                       className={cn(
-                        "flex items-center space-x-3 p-4 border-2 rounded-xl cursor-pointer transition-all",
-                        isVisible ? "border-primary bg-primary/5" : "border-muted hover:border-muted-foreground/20"
+                        "grid grid-cols-12 items-center gap-2 p-4 border-2 rounded-xl transition-all",
+                        isVisible ? "border-primary bg-primary/5" : "border-muted opacity-60"
                       )} 
-                      onClick={() => handleToggleCategoryVisibility(configMenuType, category)}
                     >
-                      <Checkbox checked={isVisible} />
-                      <span className="text-sm font-black uppercase tracking-tight">{category}</span>
+                      <div className="col-span-6 flex flex-col">
+                        <span className="text-sm font-black uppercase tracking-tight">{category}</span>
+                        {!isVisible && <span className="text-[10px] text-muted-foreground uppercase font-bold">Hidden from Patron</span>}
+                      </div>
+                      
+                      <div className="col-span-3 flex justify-center">
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className={cn("h-10 w-10 rounded-full", isVisible ? "text-primary" : "text-muted-foreground")}
+                          onClick={() => handleToggleCategoryVisibility(configMenuType, category)}
+                        >
+                          {isVisible ? <Eye className="h-5 w-5" /> : <EyeOff className="h-5 w-5" />}
+                        </Button>
+                      </div>
+
+                      <div className="col-span-3 flex justify-center">
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          disabled={!isVisible}
+                          className={cn("h-10 w-10 rounded-full", showImages ? "text-primary" : "text-muted-foreground")}
+                          onClick={() => handleToggleCategoryImageVisibility(configMenuType, category)}
+                        >
+                          <ImageIcon className={cn("h-5 w-5", !showImages && "opacity-30")} />
+                        </Button>
+                      </div>
                     </div>
                   );
                 })}
