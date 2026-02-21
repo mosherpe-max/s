@@ -66,7 +66,8 @@ const sellerSchema = z.object({
   contactName: z.string().min(2, 'Contact person name is required'),
   contactEmail: z.string().email('Please enter a valid email address'),
   contactPhone: z.string().min(10, 'Phone number must be at least 10 digits'),
-  serviceFee: z.coerce.number().min(0, 'Convenience fee cannot be negative').max(100, 'Fee seems too high'),
+  serviceFee: z.coerce.number().min(0, 'Default convenience fee cannot be negative').max(100, 'Fee seems too high'),
+  menuServiceFees: z.record(z.string(), z.coerce.number().min(0)).optional(),
   status: z.enum(['Active', 'Inactive']),
 });
 
@@ -199,6 +200,7 @@ export default function KOOPAdminPage() {
       contactEmail: '',
       contactPhone: '',
       serviceFee: 0,
+      menuServiceFees: {},
       status: 'Active',
     },
   });
@@ -267,6 +269,7 @@ export default function KOOPAdminPage() {
         contactEmail: seller.contactEmail,
         contactPhone: seller.contactPhone,
         serviceFee: seller.serviceFee,
+        menuServiceFees: seller.menuServiceFees || {},
         status: seller.status,
       });
     } else {
@@ -286,6 +289,7 @@ export default function KOOPAdminPage() {
         contactEmail: '',
         contactPhone: '',
         serviceFee: 0,
+        menuServiceFees: {},
         status: 'Active',
       });
     }
@@ -510,7 +514,7 @@ export default function KOOPAdminPage() {
                       <TableCell className="font-medium align-top pt-5">
                         <div className="flex flex-col">
                             <span>{seller.courseName}</span>
-                            <span className="text-[10px] text-muted-foreground font-mono mt-1">Convenience Fee: ${seller.serviceFee.toFixed(2)}</span>
+                            <span className="text-[10px] text-muted-foreground font-mono mt-1">Default Convenience Fee: ${seller.serviceFee.toFixed(2)}</span>
                         </div>
                       </TableCell>
                       <TableCell className="align-top pt-5">
@@ -783,21 +787,58 @@ export default function KOOPAdminPage() {
                   />
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                   <FormField
-                    control={form.control}
-                    name="serviceFee"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Convenience Fee ($)</FormLabel>
-                        <FormControl>
-                          <Input type="number" step="0.50" {...field} />
-                        </FormControl>
-                        <FormDescription>Charged per order to the customer.</FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                <div className="space-y-4 pt-4 border-t">
+                  <h3 className="text-sm font-bold uppercase tracking-wider text-primary flex items-center gap-2">
+                      <DollarSign className="h-4 w-4" /> Convenience Fees
+                  </h3>
+                  <p className="text-xs text-muted-foreground">Define the fee charged to customers per order for each service.</p>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="serviceFee"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Default Fee ($)</FormLabel>
+                          <FormControl>
+                            <Input type="number" step="0.50" {...field} />
+                          </FormControl>
+                          <FormDescription>Used if no menu-specific fee is set.</FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  {selectedMenuTypes.length > 0 && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pt-2">
+                      {selectedMenuTypes.map((type) => (
+                        <FormField
+                          key={type}
+                          control={form.control}
+                          name={`menuServiceFees.${type}`}
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-[10px] font-black uppercase tracking-tight">{type} Fee</FormLabel>
+                              <FormControl>
+                                <div className="relative">
+                                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                                  <Input 
+                                    type="number" 
+                                    step="0.50" 
+                                    className="pl-7"
+                                    value={field.value ?? ''}
+                                    onChange={(e) => field.onChange(e.target.value === '' ? undefined : Number(e.target.value))}
+                                  />
+                                </div>
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
 

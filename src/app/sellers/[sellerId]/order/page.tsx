@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, use, useEffect, useMemo } from 'react';
@@ -112,7 +113,15 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
   const activeOrderItems = useMemo(() => orderItems.filter((item) => item.quantity > 0), [orderItems]);
   const subtotal = useMemo(() => activeOrderItems.reduce((acc, item) => acc + item.price * item.quantity, 0), [activeOrderItems]);
   const tax = useMemo(() => subtotal * 0.06, [subtotal]);
-  const platformFee = seller?.serviceFee || 0;
+  
+  // Apply specific convenience fee for the menu type if defined, fallback to global default
+  const platformFee = useMemo(() => {
+    if (!seller) return 0;
+    if (seller.menuServiceFees && selectedMenuType in seller.menuServiceFees) {
+      return seller.menuServiceFees[selectedMenuType];
+    }
+    return seller.serviceFee || 0;
+  }, [seller, selectedMenuType]);
 
   const tipOptions = useMemo(() => {
     if (subtotal > 20) {

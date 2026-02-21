@@ -81,7 +81,11 @@
         },
         "serviceFee": {
           "type": "number",
-          "description": "The convenience fee charged by the establishment per order."
+          "description": "The default convenience fee charged by the establishment per order."
+        },
+        "menuServiceFees": {
+          "type": "object",
+          "description": "A map of service menu types to their specific convenience fees."
         },
         "status": {
           "type": "string",

@@ -32,6 +32,7 @@ export interface Seller {
   contactEmail: string;
   contactPhone: string;
   serviceFee: number;
+  menuServiceFees?: Record<string, number>;
   status: 'Active' | 'Inactive';
   bevcartActive?: boolean;
   clubhouseActive?: boolean;
