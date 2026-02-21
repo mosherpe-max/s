@@ -67,18 +67,18 @@ export default function Home() {
           <div className="mt-10 flex flex-wrap justify-center gap-4">
             <Button asChild size="lg" className="h-12 px-8 font-headline font-bold uppercase tracking-wider">
               <Link href="/sellers/demo-course/order">
-                View BevCart Sample Menu
+                Public Golf Course Sample Menu
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Link>
             </Button>
             <Button asChild size="lg" variant="outline" className="h-12 px-8 font-headline font-bold uppercase tracking-wider bg-white/10 text-white border-white/20 hover:bg-white/20 hover:text-white">
-              <Link href="/sellers/demo-course/order">
-                View Clubhouse Sample Menu
+              <Link href="/sellers/demo-golf-course-private/order">
+                Private Golf Course Sample Menu
               </Link>
             </Button>
             <Button asChild size="lg" variant="outline" className="h-12 px-8 font-headline font-bold uppercase tracking-wider bg-white/10 text-white border-white/20 hover:bg-white/20 hover:text-white">
               <Link href="/sellers/demo-bowling-alley/order">
-                View LaneSide Sample Menu
+                Bowling Alley Sample Menu
               </Link>
             </Button>
           </div>
