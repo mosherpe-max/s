@@ -388,7 +388,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
       const longWait = filtered.filter(o => {
         if (!o.deliveredAt || !o.createdAt) return false;
         const duration = (o.deliveredAt.toDate().getTime() - o.createdAt.toDate().getTime()) / 60000;
-        const thresholds = seller.orderThresholds?.[o.menuType] || { max: o.menuType === 'Beverage Cart' ? 10 : 20 };
+        const thresholds = seller.orderThresholds?.[o.menuType] || { warning: 7, max: 10 };
         return duration > thresholds.max;
       }).length;
       return { revenue, orders: filtered.length, longWait };
@@ -403,10 +403,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   const mappedBuyers = useMemo(() => {
     return activeOrders.map(o => {
       let colorClass = "bg-green-600";
-      const thresholds = seller?.orderThresholds?.[o.menuType] || {
-        warning: o.menuType === 'Beverage Cart' ? 7 : 15,
-        max: o.menuType === 'Beverage Cart' ? 10 : 20
-      };
+      const thresholds = seller?.orderThresholds?.[o.menuType] || { warning: 7, max: 10 };
 
       if (o.createdAt) {
         const orderTime = o.createdAt.toDate().getTime();
@@ -468,10 +465,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
 
   const handleOpenThresholdConfig = (menuType: string) => {
     setThresholdMenuType(menuType);
-    const existing = seller?.orderThresholds?.[menuType] || {
-      warning: menuType === 'Beverage Cart' ? 7 : 15,
-      max: menuType === 'Beverage Cart' ? 10 : 20
-    };
+    const existing = seller?.orderThresholds?.[menuType] || { warning: 7, max: 10 };
     thresholdForm.reset(existing);
     setIsThresholdConfigOpen(true);
   };
@@ -513,7 +507,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
           { name: 'Loaded Nachos', description: 'Corn chips topped with cheese, jalapeños, and sour cream.', price: 10.50, category: 'Appetizers', imageUrl: 'https://images.unsplash.com/photo-1513456852971-30c0b8199d4d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwzfHxuYWNob3N8ZW58MHx8fHwxNzYzOTQxOTAwfDA&ixlib=rb-4.1.0&q=80&w=1080' },
           { name: 'Buffalo Wings (10pc)', description: 'Crispy wings tossed in buffalo sauce.', price: 14.50, category: 'Appetizers', imageUrl: 'https://images.unsplash.com/photo-1567620832903-9fc6debc209f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw0fHxidWZmYWxvJTIwd2luZ3N8ZW58MHx8fHwxNzYzOTQxOTAwfDA&ixlib=rb-4.1.0&q=80&w=1080' },
           { name: 'Mozzarella Sticks', description: 'Served with zesty marinara sauce.', price: 8.00, category: 'Appetizers', imageUrl: 'https://images.unsplash.com/photo-1531451394031-448f2a1c83e2?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxtb3p6YXJlbGxhJTIwc3RpY2tzfGVufDB8fHx8MTc2Mzk0MTkwMHww&ixlib=rb-4.1.0&q=80&w=1080' },
-          { name: 'Strike Burger', description: 'Cheeseburger with secret sauce and fries.', price: 13.50, category: 'Handhelds', imageUrl: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxidXJnZXJ8ZW58MHx8fHwxNzYzOTQxOTAwfDA&ixlib=rb-4.1.0&q=80&w=1080' },
+          { name: 'Strike Burger', description: 'Cheeseburger with secret sauce and fries.', price: 13.50, category: 'Handhelds', imageUrl: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxidWJnZXJ8ZW58MHx8fHwxNzYzOTQxOTAwfDA&ixlib=rb-4.1.0&q=80&w=1080' },
           { name: 'Classic Hot Dog', description: 'Grilled all-beef frank on a toasted bun.', price: 7.00, category: 'Handhelds', imageUrl: 'https://images.unsplash.com/photo-1541214113241-21578d2d9b62?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw0fHxob3QlMjBkb2d8ZW58MHx8fHwxNzYzOTQxOTAwfDA&ixlib=rb-4.1.0&q=80&w=1080' },
           { name: 'Chicken Tenders & Fries', description: 'Breaded chicken breast strips with honey mustard.', price: 12.00, category: 'Handhelds', imageUrl: 'https://images.unsplash.com/photo-1562967914-608f82629710?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxjaGlja2VuJTIwdGVuZGVyc3xlbnwwfHx8fDE3NjM5NDE5MDB8MA&ixlib=rb-4.1.0&q=80&w=1080' },
           { name: 'Large Pepperoni Pizza', description: '16-inch classic with extra pepperoni.', price: 21.00, category: 'Pizza', imageUrl: 'https://images.unsplash.com/photo-1628840042765-356cda07504e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxwZXBwZXJvbmklMjBwaXp6YXxlbnwwfHx8fDE3NjM5NDE5MDB8MA&ixlib=rb-4.1.0&q=80&w=1080' },
@@ -543,7 +537,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
         }), {}),
         orderThresholds: config.menuTypes.reduce((acc, mt) => ({
           ...acc,
-          [mt]: { warning: mt === 'Beverage Cart' ? 7 : 15, max: mt === 'Beverage Cart' ? 10 : 20 }
+          [mt]: { warning: 7, max: 10 }
         }), {})
       }, { merge: true });
 
@@ -824,7 +818,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                             activeOrders.map(order => {
                               const orderTime = order.createdAt?.toDate().getTime() || now;
                               const minutesElapsed = (now - orderTime) / 60000;
-                              const thresholds = seller?.orderThresholds?.[order.menuType] || { warning: 10, max: 15 };
+                              const thresholds = seller?.orderThresholds?.[order.menuType] || { warning: 7, max: 10 };
                               const isOld = minutesElapsed >= thresholds.max;
                               const isWarning = minutesElapsed >= thresholds.warning;
 
@@ -884,7 +878,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
               const itemsInThisMenu = menuItems?.filter(i => i.availableOn?.includes(menuType)) || [];
               const enabledCats = seller?.categoryVisibility?.[menuType] || [];
               const allowedCategories = getCategoriesForMenu(menuType);
-              const thresholds = seller?.orderThresholds?.[menuType] || { warning: menuType === 'Beverage Cart' ? 7 : 15, max: menuType === 'Beverage Cart' ? 10 : 20 };
+              const thresholds = seller?.orderThresholds?.[menuType] || { warning: 7, max: 10 };
 
               return (
                   <Card key={menuType} className="shadow-lg">

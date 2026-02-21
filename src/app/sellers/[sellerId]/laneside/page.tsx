@@ -36,7 +36,7 @@ export default function LaneSideServerDashboardPage({ params }: { params: Promis
 
   // For Laneside, we use "clubhouseActive" as the toggle for simplicity in prototyping
   const isServerActive = primarySeller?.clubhouseActive === true;
-  const thresholds = primarySeller?.orderThresholds?.['Lane Delivery'] || { warning: 10, max: 15 };
+  const thresholds = primarySeller?.orderThresholds?.['Lane Delivery'] || { warning: 7, max: 10 };
 
   const activeOrdersQuery = useMemoFirebase(() => {
     if (!firestore || !sellerId) return null;

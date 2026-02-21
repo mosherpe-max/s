@@ -54,7 +54,7 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
   const { data: activeSellers, isLoading: areSellersLoading } = useCollection<Seller>(activeSellersQuery);
 
   const isClubhouseActive = primarySeller?.clubhouseActive === true;
-  const thresholds = primarySeller?.orderThresholds?.['Clubhouse'] || { warning: 15, max: 20 };
+  const thresholds = primarySeller?.orderThresholds?.['Clubhouse'] || { warning: 7, max: 10 };
 
   // Persistence: Wake Lock Management
   useEffect(() => {
