@@ -30,6 +30,8 @@ function OrderTrackingContent() {
   const [isTrackingActive, setIsTrackingActive] = useState(false);
   const [initialLocations, setInitialLocations] = useState<{ buyer: { latitude: number, longitude: number }, seller: { latitude: number, longitude: number } } | null>(null);
   const [isInstallPromptOpen, setIsInstallPromptOpen] = useState(false);
+  const [isIos, setIsIos] = useState(false);
+  const [isStandalone, setIsStandalone] = useState(false);
   
   const wakeLockRef = useRef<any>(null);
   const locationIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -56,6 +58,16 @@ function OrderTrackingContent() {
   }, [firestore, order?.sellerId]);
 
   const { data: seller, isLoading: isLoadingSeller } = useDoc<Seller>(sellerRef);
+
+  useEffect(() => {
+    // Detect iOS and Standalone mode after hydration
+    const userAgent = window.navigator.userAgent.toLowerCase();
+    const isIosDevice = /iphone|ipad|ipod/.test(userAgent);
+    const isStandaloneMode = (window.navigator as any).standalone || window.matchMedia('(display-mode: standalone)').matches;
+    
+    setIsIos(isIosDevice);
+    setIsStandalone(isStandaloneMode);
+  }, []);
 
   useEffect(() => {
     if (order && seller && !initialLocations) {
@@ -268,8 +280,8 @@ function OrderTrackingContent() {
             </CardHeader>
             <Separator />
             <CardContent className="pt-6 space-y-6">
-                {!isDelivered && (
-                  <div className="bg-[#213147] rounded-2xl p-5 border-b-4 border-primary shadow-inner space-y-4">
+                {!isDelivered && isIos && !isStandalone && (
+                  <div className="bg-[#213147] rounded-2xl p-5 border-b-4 border-primary shadow-inner space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-500">
                     <div className="flex items-start gap-4">
                       <div className="bg-primary/20 p-2.5 rounded-xl shrink-0">
                         <Smartphone className="h-6 w-6 text-primary" />
