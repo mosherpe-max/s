@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -28,11 +29,8 @@ export function IosInstallPrompt({ open: controlledOpen, onOpenChange }: IosInst
   const setOpen = onOpenChange !== undefined ? onOpenChange : setInternalOpen;
 
   useEffect(() => {
-    // FOR PREVIEW: Always show after a short delay if not controlled
-    if (controlledOpen === undefined) {
-      const timer = setTimeout(() => setInternalOpen(true), 1000);
-      return () => clearTimeout(timer);
-    }
+    // Only auto-show if not controlled and specifically detected as iOS (handled by parent logic)
+    // Removed the "Always show" preview timer to respect user flow
   }, [controlledOpen]);
 
   const handleDismiss = () => {
