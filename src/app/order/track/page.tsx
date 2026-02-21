@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { PartyPopper, ShoppingBag, MapPin, Loader2, ArrowLeft, Store, ClipboardList, Satellite, Edit2, ChevronLeft } from 'lucide-react';
+import { PartyPopper, ShoppingBag, MapPin, Loader2, ArrowLeft, Store, ClipboardList, Satellite, Edit2, ChevronLeft, Smartphone, BellRing } from 'lucide-react';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { IosInstallPrompt } from '@/components/ios-install-prompt';
 import { getNumericOrderId } from '@/lib/utils';
@@ -29,6 +29,7 @@ function OrderTrackingContent() {
   
   const [isTrackingActive, setIsTrackingActive] = useState(false);
   const [initialLocations, setInitialLocations] = useState<{ buyer: { latitude: number, longitude: number }, seller: { latitude: number, longitude: number } } | null>(null);
+  const [isInstallPromptOpen, setIsInstallPromptOpen] = useState(false);
   
   const wakeLockRef = useRef<any>(null);
   const locationIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -172,7 +173,7 @@ function OrderTrackingContent() {
 
   return (
     <div className="flex flex-col min-h-[calc(100vh-4rem)] bg-muted/10 overflow-y-auto">
-      <IosInstallPrompt />
+      <IosInstallPrompt open={isInstallPromptOpen} onOpenChange={setIsInstallPromptOpen} />
 
       {!isDelivered && !isBowlingAlley && (
         <div className="h-[40vh] relative shadow-inner overflow-hidden border-b-2 shrink-0">
@@ -219,8 +220,7 @@ function OrderTrackingContent() {
            </Button>
            {isEditable && (
              <Button 
-              variant="outline" 
-              size="sm" 
+              variant="outline" size="sm" 
               onClick={handleModifyOrder}
               className="rounded-full h-8 text-[9px] font-bold uppercase tracking-widest border-primary/20 text-primary hover:bg-primary/5"
              >
@@ -258,7 +258,7 @@ function OrderTrackingContent() {
           </div>
         )}
 
-        <Card className="shadow-lg border-primary/10">
+        <Card className="shadow-lg border-primary/10 overflow-hidden">
             <CardHeader className="pb-4">
                 <div className="flex justify-between items-center mb-6">
                     <h3 className="font-headline text-lg font-bold uppercase tracking-wider text-muted-foreground">ORDER TRACKING</h3>
@@ -268,6 +268,29 @@ function OrderTrackingContent() {
             </CardHeader>
             <Separator />
             <CardContent className="pt-6 space-y-6">
+                {!isDelivered && (
+                  <div className="bg-[#213147] rounded-2xl p-5 border-b-4 border-primary shadow-inner space-y-4">
+                    <div className="flex items-start gap-4">
+                      <div className="bg-primary/20 p-2.5 rounded-xl shrink-0">
+                        <Smartphone className="h-6 w-6 text-primary" />
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-xs font-black text-white uppercase tracking-tight">For Apple iOS Users</p>
+                        <p className="text-[10px] text-white/70 font-medium leading-tight">
+                          Get live Tracking and Notifications by adding KOOP to your home screen.
+                        </p>
+                      </div>
+                    </div>
+                    <Button 
+                      onClick={() => setIsInstallPromptOpen(true)}
+                      className="w-full bg-primary text-white font-black uppercase text-[10px] tracking-widest h-10 rounded-xl"
+                    >
+                      <BellRing className="mr-2 h-3.5 w-3.5" />
+                      Setup Tracking
+                    </Button>
+                  </div>
+                )}
+
                 <div className="grid grid-cols-2 gap-4 py-3 px-4 bg-muted/30 rounded-xl border border-dashed">
                   <div className="space-y-1">
                     <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-1.5">

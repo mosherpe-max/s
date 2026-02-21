@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Share, PlusSquare, ArrowDown, MoreHorizontal } from 'lucide-react';
+import { Share, PlusSquare, ArrowDown, MoreHorizontal, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -12,44 +12,45 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 
+interface IosInstallPromptProps {
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+}
+
 /**
  * A specialized prompt for iOS Safari users to add the app to their home screen.
  * Enhanced with visual cues and a directional arrow to point toward the Safari Share button.
- * NOTE: Detection logic is temporarily bypassed for preview.
  */
-export function IosInstallPrompt() {
-  const [showPrompt, setShowPrompt] = useState(false);
+export function IosInstallPrompt({ open: controlledOpen, onOpenChange }: IosInstallPromptProps) {
+  const [internalOpen, setInternalOpen] = useState(false);
+
+  const open = controlledOpen !== undefined ? controlledOpen : internalOpen;
+  const setOpen = onOpenChange !== undefined ? onOpenChange : setInternalOpen;
 
   useEffect(() => {
-    // FOR PREVIEW: Always show after a short delay
-    const timer = setTimeout(() => setShowPrompt(true), 1000);
-    return () => clearTimeout(timer);
-
-    /* Original detection logic (commented out for preview):
-    const isIOS = /iPad|iPhone|iPod/.test(window.navigator.userAgent);
-    const isSafari = window.navigator.userAgent.includes('Safari') && 
-                    !window.navigator.userAgent.includes('CriOS') && 
-                    !window.navigator.userAgent.includes('FxiOS');
-    const isStandalone = ('standalone' in window.navigator) && (window.navigator as any).standalone;
-    const hasBeenDismissed = localStorage.getItem('ios-install-prompt-dismissed');
-
-    if (isIOS && isSafari && !isStandalone && !hasBeenDismissed) {
-      const timer = setTimeout(() => setShowPrompt(true), 1500);
+    // FOR PREVIEW: Always show after a short delay if not controlled
+    if (controlledOpen === undefined) {
+      const timer = setTimeout(() => setInternalOpen(true), 1000);
       return () => clearTimeout(timer);
     }
-    */
-  }, []);
+  }, [controlledOpen]);
 
   const handleDismiss = () => {
-    setShowPrompt(false);
-    // In production, we'd save the dismissal
-    // localStorage.setItem('ios-install-prompt-dismissed', 'true');
+    setOpen(false);
   };
 
   return (
-    <Dialog open={showPrompt} onOpenChange={setShowPrompt}>
+    <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent className="sm:max-w-[420px] rounded-[32px] border-2 shadow-2xl p-0 overflow-hidden">
-        <div className="bg-[#213147] p-6 text-center border-b-4 border-primary">
+        <div className="bg-[#213147] p-6 text-center border-b-4 border-primary relative">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={handleDismiss}
+            className="absolute right-4 top-4 text-white/40 hover:text-white hover:bg-white/10 rounded-full h-8 w-8"
+          >
+            <X className="h-4 w-4" />
+          </Button>
           <DialogHeader className="space-y-2">
             <DialogTitle className="text-2xl font-headline font-black uppercase tracking-tight text-white leading-none">
               ENABLE LIVE TRACKING
@@ -99,13 +100,13 @@ export function IosInstallPrompt() {
           <p className="text-[10px] font-black uppercase tracking-[0.3em] text-primary/80 text-center">Follow the browser instructions</p>
         </div>
 
-        <DialogFooter className="px-6 pb-6 pt-0 sm:justify-center">
+        <DialogFooter className="px-6 pb-6 pt-0 flex flex-col gap-2 sm:justify-center">
           <Button 
             onClick={handleDismiss} 
             variant="ghost" 
             className="w-full rounded-full text-muted-foreground font-black text-[11px] uppercase tracking-widest hover:bg-transparent hover:text-foreground"
           >
-            Maybe Later
+            Maybe Later, take me to status
           </Button>
         </DialogFooter>
       </DialogContent>
