@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, use, useEffect, useMemo } from 'react';
@@ -42,7 +41,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useCart } from '@/lib/cart-context';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { cn } from '@/lib/utils';
+import { cn, isStaffSessionStale } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
 
 const serviceTypeIcons: Record<string, any> = {
@@ -83,6 +82,23 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
 
   const menuItemsQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'sellers', sellerId, 'menuItems') : null), [firestore, sellerId]);
   const { data: menuItems, isLoading: areItemsLoading } = useCollection<MenuItem>(menuItemsQuery);
+
+  // Auto-Reset stale drivers at 4 AM EST
+  useEffect(() => {
+    if (firestore && seller) {
+      const lastActive = seller.lastActive?.toDate();
+      const needsBevCartReset = seller.bevcartActive && isStaffSessionStale(lastActive);
+      const needsClubhouseReset = seller.clubhouseActive && isStaffSessionStale(lastActive);
+
+      if (needsBevCartReset || needsClubhouseReset) {
+        const updates: any = {};
+        if (needsBevCartReset) updates.bevcartActive = false;
+        if (needsClubhouseReset) updates.clubhouseActive = false;
+        
+        updateDoc(doc(firestore, 'sellers', sellerId), updates).catch(() => {});
+      }
+    }
+  }, [seller, firestore, sellerId]);
 
   useEffect(() => {
     const handleScroll = () => setShowBackToTop(window.scrollY > 400);

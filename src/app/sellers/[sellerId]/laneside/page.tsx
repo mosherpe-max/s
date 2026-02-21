@@ -17,6 +17,7 @@ import Link from 'next/link';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { format, isToday } from 'date-fns';
+import { isStaffSessionStale } from '@/lib/utils';
 
 export default function LaneSideServerDashboardPage({ params }: { params: Promise<{ sellerId: string }> }) {
   const { sellerId } = use(params);
@@ -36,6 +37,32 @@ export default function LaneSideServerDashboardPage({ params }: { params: Promis
   // For Laneside, we use "clubhouseActive" as the toggle for simplicity in prototyping
   const isServerActive = primarySeller?.clubhouseActive === true;
   const thresholds = primarySeller?.orderThresholds?.['Lane Delivery'] || { warning: 7, max: 10 };
+
+  // 4 AM EST Auto-Reset Logic
+  useEffect(() => {
+    if (primarySeller && isServerActive) {
+      const lastActiveDate = primarySeller.lastActive?.toDate();
+      if (isStaffSessionStale(lastActiveDate)) {
+        handleToggleActive(false);
+      }
+    }
+  }, [primarySeller, isServerActive]);
+
+  // Activity Heartbeat
+  useEffect(() => {
+    if (!firestore || !isServerActive || !sellerId) return;
+
+    const syncStatus = async () => {
+      const sellerDocRef = doc(firestore, 'sellers', sellerId);
+      updateDoc(sellerDocRef, {
+        lastActive: serverTimestamp()
+      }).catch(() => {});
+    };
+
+    const intervalId = setInterval(syncStatus, 30000);
+    syncStatus(); // Immediate first beat
+    return () => clearInterval(intervalId);
+  }, [firestore, isServerActive, sellerId]);
 
   const activeOrdersQuery = useMemoFirebase(() => {
     if (!firestore || !sellerId) return null;
@@ -155,7 +182,10 @@ export default function LaneSideServerDashboardPage({ params }: { params: Promis
   const handleToggleActive = (checked: boolean) => {
     if (!firestore || !sellerId) return;
     const sellerDocRef = doc(firestore, 'sellers', sellerId);
-    updateDoc(sellerDocRef, { clubhouseActive: checked })
+    updateDoc(sellerDocRef, { 
+      clubhouseActive: checked,
+      lastActive: checked ? serverTimestamp() : null
+    })
       .catch(async () => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({
           path: sellerDocRef.path,

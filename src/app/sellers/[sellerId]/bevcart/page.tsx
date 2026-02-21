@@ -1,4 +1,3 @@
-
 'use client';
 
 import { collection, query, where, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
@@ -20,6 +19,7 @@ import Link from 'next/link';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { format } from 'date-fns';
+import { isStaffSessionStale } from '@/lib/utils';
 
 type LatLng = {
   latitude: number;
@@ -86,23 +86,15 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
     };
   }, [isBevCartActive]);
 
-  // Midnight Auto-Reset Logic (Internal)
+  // 4 AM EST Auto-Reset Logic
   useEffect(() => {
-    const checkMidnight = () => {
-      const todayStr = format(new Date(), 'yyyy-MM-dd');
-      const storedDate = localStorage.getItem('last-driver-session-date');
-      
-      if (storedDate && storedDate !== todayStr && isBevCartActive) {
+    if (primarySeller && isBevCartActive) {
+      const lastActiveDate = primarySeller.lastActive?.toDate();
+      if (isStaffSessionStale(lastActiveDate)) {
         handleToggleActive(false);
       }
-      localStorage.setItem('last-driver-session-date', todayStr);
-    };
-
-    const interval = setInterval(checkMidnight, 60000); 
-    checkMidnight(); 
-    
-    return () => clearInterval(interval);
-  }, [isBevCartActive]);
+    }
+  }, [primarySeller, isBevCartActive]);
 
   const activeOrdersQuery = useMemoFirebase(() => {
     if (!firestore || !sellerId) return null;
