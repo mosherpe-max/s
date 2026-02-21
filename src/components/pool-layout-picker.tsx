@@ -1,159 +1,91 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React from 'react';
 import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { MapPin, Check } from 'lucide-react';
+import Image from 'next/image';
 
 interface PoolLayoutPickerProps {
   value: string;
   onChange: (value: string) => void;
 }
 
-type PoolZone = 'Cabanas' | 'West Lounge' | 'East Lounge' | 'South Deck';
-
-interface ZoneConfig {
-  id: PoolZone;
-  label: string;
-  prefix: string;
-  count: number;
-  color: string;
-}
-
-const ZONES: ZoneConfig[] = [
-  { id: 'Cabanas', label: 'VIP Cabanas', prefix: '', count: 8, color: 'bg-amber-500' },
-  { id: 'West Lounge', label: 'West Lounge', prefix: 'W', count: 15, color: 'bg-blue-500' },
-  { id: 'East Lounge', label: 'East Lounge', prefix: 'E', count: 15, color: 'bg-blue-500' },
-  { id: 'South Deck', label: 'South Deck', prefix: 'S', count: 10, color: 'bg-emerald-500' },
+const POOL_ZONES = [
+  { id: 'VIP Cabanas', label: 'VIP Cabanas', top: '8%', left: '15%', width: '70%', height: '18%' },
+  { id: 'West Lounge', label: 'West Lounge', top: '30%', left: '5%', width: '22%', height: '45%' },
+  { id: 'East Lounge', label: 'East Lounge', top: '30%', left: '73%', width: '22%', height: '45%' },
+  { id: 'South Deck', label: 'South Deck', top: '78%', left: '15%', width: '70%', height: '18%' },
 ];
 
 export function PoolLayoutPicker({ value, onChange }: PoolLayoutPickerProps) {
-  const [selectedZone, setSelectedZone] = useState<PoolZone | null>(null);
-
-  // Derive zone from value if already set
-  useMemo(() => {
-    if (value && !selectedZone) {
-      if (value.startsWith('W')) setSelectedZone('West Lounge');
-      else if (value.startsWith('E')) setSelectedZone('East Lounge');
-      else if (value.startsWith('S')) setSelectedZone('South Deck');
-      else if (!isNaN(parseInt(value))) setSelectedZone('Cabanas');
-    }
-  }, [value, selectedZone]);
-
-  const handleZoneClick = (zone: PoolZone) => {
-    setSelectedZone(zone);
-  };
-
-  const handleNumberClick = (num: string) => {
-    onChange(num);
-  };
-
-  const activeZoneConfig = ZONES.find(z => z.id === selectedZone);
-
   return (
-    <div className="space-y-6">
-      {/* Visual Map */}
-      <div className="relative w-full aspect-[4/3] bg-muted/20 rounded-3xl border-2 border-dashed border-primary/20 overflow-hidden p-4 shadow-inner">
-        <div className="absolute inset-0 flex flex-col items-center justify-between p-6">
-          
-          {/* North Area: Cabanas */}
-          <button 
-            onClick={() => handleZoneClick('Cabanas')}
-            className={cn(
-              "w-3/4 h-12 rounded-xl border-2 transition-all flex items-center justify-center gap-2 font-black text-[10px] uppercase tracking-widest",
-              selectedZone === 'Cabanas' ? "bg-amber-500 text-white border-amber-600 shadow-lg scale-105" : "bg-white/80 border-amber-200 text-amber-700 hover:bg-amber-50"
-            )}
-          >
-            VIP Cabanas (1-8)
-          </button>
+    <div className="space-y-4">
+      <div className="relative w-full aspect-[4/3] bg-muted rounded-3xl overflow-hidden border-2 border-primary/10 shadow-2xl group">
+        {/* Background Pool Image */}
+        <Image 
+          src="https://images.unsplash.com/photo-1572331165267-854da2b10ccc?auto=format&fit=crop&q=80&w=1080"
+          alt="Pool Layout"
+          fill
+          className="object-cover transition-transform duration-1000 group-hover:scale-105"
+        />
+        
+        {/* Overlay to dim image slightly */}
+        <div className="absolute inset-0 bg-black/20" />
 
-          <div className="flex-1 w-full flex items-center justify-between gap-4 py-4">
-            {/* West Area */}
-            <button 
-              onClick={() => handleZoneClick('West Lounge')}
+        {/* The Pool Body (Visual only) */}
+        <div className="absolute top-[35%] left-[30%] w-[40%] h-[35%] rounded-[40px] border-2 border-cyan-300/50 bg-cyan-400/10 backdrop-blur-sm pointer-events-none flex items-center justify-center">
+           <span className="font-headline font-black text-white/40 text-xl tracking-[0.3em] uppercase select-none">POOL</span>
+        </div>
+
+        {/* Selection Overlays */}
+        {POOL_ZONES.map((zone) => {
+          const isSelected = value === zone.id;
+          return (
+            <button
+              key={zone.id}
+              onClick={() => onChange(zone.id)}
+              style={{
+                top: zone.top,
+                left: zone.left,
+                width: zone.width,
+                height: zone.height,
+              }}
               className={cn(
-                "w-12 h-3/4 rounded-xl border-2 transition-all flex flex-col items-center justify-center gap-2 font-black text-[10px] uppercase tracking-widest [writing-mode:vertical-lr] rotate-180",
-                selectedZone === 'West Lounge' ? "bg-blue-500 text-white border-blue-600 shadow-lg scale-105" : "bg-white/80 border-blue-200 text-blue-700 hover:bg-blue-50"
+                "absolute rounded-2xl border-2 transition-all duration-300 flex items-center justify-center p-2 backdrop-blur-md",
+                isSelected 
+                  ? "bg-primary/60 border-white text-white shadow-[0_0_30px_rgba(255,255,255,0.3)] scale-105 z-10" 
+                  : "bg-white/10 border-white/20 text-white/90 hover:bg-white/20 hover:border-white/40"
               )}
             >
-              West Lounge
-            </button>
-
-            {/* The Pool Body */}
-            <div className="flex-1 h-full bg-cyan-100/50 rounded-[40px] border-4 border-cyan-200 flex items-center justify-center relative overflow-hidden group">
-              <div className="absolute inset-0 opacity-20 pointer-events-none">
-                <div className="w-full h-full bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] animate-pulse" />
+              <div className="flex flex-col items-center gap-1.5">
+                {isSelected ? (
+                  <Check className="h-5 w-5 drop-shadow-md animate-in zoom-in-50 duration-300" />
+                ) : (
+                  <MapPin className="h-4 w-4 opacity-50 drop-shadow-md" />
+                )}
+                <span className="font-black text-[10px] sm:text-xs uppercase tracking-widest drop-shadow-lg text-center leading-tight px-1">
+                  {zone.label}
+                </span>
               </div>
-              <span className="font-headline font-black text-cyan-300 text-2xl uppercase tracking-[0.2em] select-none">POOL</span>
-            </div>
-
-            {/* East Area */}
-            <button 
-              onClick={() => handleZoneClick('East Lounge')}
-              className={cn(
-                "w-12 h-3/4 rounded-xl border-2 transition-all flex flex-col items-center justify-center gap-2 font-black text-[10px] uppercase tracking-widest [writing-mode:vertical-lr]",
-                selectedZone === 'East Lounge' ? "bg-blue-500 text-white border-blue-600 shadow-lg scale-105" : "bg-white/80 border-blue-200 text-blue-700 hover:bg-blue-50"
-              )}
-            >
-              East Lounge
             </button>
-          </div>
-
-          {/* South Area */}
-          <button 
-            onClick={() => handleZoneClick('South Deck')}
-            className={cn(
-              "w-3/4 h-12 rounded-xl border-2 transition-all flex items-center justify-center gap-2 font-black text-[10px] uppercase tracking-widest",
-              selectedZone === 'South Deck' ? "bg-emerald-500 text-white border-emerald-600 shadow-lg scale-105" : "bg-white/80 border-emerald-200 text-emerald-700 hover:bg-emerald-50"
-            )}
-          >
-            South Deck (S1-S10)
-          </button>
-        </div>
+          );
+        })}
       </div>
 
-      {/* Number Selection */}
-      <div className={cn("space-y-4 animate-in fade-in slide-in-from-top-4 duration-500", !selectedZone && "hidden")}>
-        <div className="flex items-center justify-between px-1">
-          <h4 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
-            <div className={cn("w-2 h-2 rounded-full", activeZoneConfig?.color)} />
-            Select {activeZoneConfig?.label} Number
-          </h4>
-          {value && (
-            <span className="text-[10px] font-black text-primary uppercase">Selected: {value}</span>
-          )}
-        </div>
-
-        <ScrollArea className="h-32 border-2 rounded-2xl bg-white p-3 shadow-inner">
-          <div className="grid grid-cols-5 sm:grid-cols-8 gap-2">
-            {activeZoneConfig && Array.from({ length: activeZoneConfig.count }, (_, i) => {
-              const val = `${activeZoneConfig.prefix}${i + 1}`;
-              const isSelected = value === val;
-              return (
-                <Button
-                  key={val}
-                  variant={isSelected ? 'default' : 'outline'}
-                  onClick={() => handleNumberClick(val)}
-                  className={cn(
-                    "h-10 px-0 font-black text-xs rounded-xl transition-all",
-                    isSelected ? "bg-primary text-white shadow-md scale-105" : "bg-white hover:bg-primary/5 border-2"
-                  )}
-                >
-                  {val}
-                </Button>
-              );
-            })}
+      <div className="flex flex-col items-center gap-2">
+        {value ? (
+          <div className="bg-primary px-6 py-2.5 rounded-full shadow-lg border-2 border-white/20 flex items-center gap-2 animate-in slide-in-from-bottom-2 duration-300">
+            <Check className="h-4 w-4 text-white" />
+            <span className="text-xs font-black uppercase tracking-[0.2em] text-white">
+              Selected: {value}
+            </span>
           </div>
-        </ScrollArea>
+        ) : (
+          <p className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground animate-pulse">
+            Tap a zone on the pool map
+          </p>
+        )}
       </div>
-
-      {!selectedZone && (
-        <div className="flex items-center justify-center gap-2 text-muted-foreground py-4 animate-bounce">
-          <MapPin className="h-4 w-4" />
-          <p className="text-[10px] font-black uppercase tracking-widest">Tap a zone on the map above</p>
-        </div>
-      )}
     </div>
   );
 }
