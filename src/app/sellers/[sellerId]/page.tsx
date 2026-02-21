@@ -593,21 +593,35 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
           { name: 'Fountain Soda', description: 'Refillable cup. Choice of Cola, Diet, Lemon-Lime.', price: 3.50, category: 'Soft Drinks', imageUrl: PlaceHolderImages.find(i => i.imageHint === 'cola can')?.imageUrl },
           { name: 'Pitcher of Soda', description: 'Great for the whole lane!', price: 9.00, category: 'Soft Drinks', imageUrl: PlaceHolderImages.find(i => i.id === 'soft-drink-1')?.imageUrl },
           { name: 'Bowl of Popcorn', description: 'Buttery, salted, and fresh.', price: 4.50, category: 'Snacks', imageUrl: PlaceHolderImages.find(i => i.imageHint === 'potato chips')?.imageUrl },
-          { name: 'Loaded Nachos', description: 'Corn chips topped with cheese, jalapeños, and sour cream.', price: 10.50, category: 'Appetizers', imageUrl: 'https://images.unsplash.com/photo-1513456852971-30c0b8199d4d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwzfHxuYWNob3N8ZW58MHx8fHwxNzYzOTQxOTAwfDA&ixlib=rb-4.1.0&q=80&w=1080' },
-          { name: 'Buffalo Wings (10pc)', description: 'Crispy wings tossed in buffalo sauce.', price: 14.50, category: 'Appetizers', imageUrl: 'https://images.unsplash.com/photo-1567620832903-9fc6debc209f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw0fHxidWZmYWxvJTIwd2luZ3N8ZW58MHx8fHwxNzYzOTQxOTAwfDA&ixlib=rb-4.1.0&q=80&w=1080' },
-          { name: 'Mozzarella Sticks', description: 'Served with zesty marinara sauce.', price: 8.00, category: 'Appetizers', imageUrl: 'https://images.unsplash.com/photo-1531451394031-448f2a1c83e2?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxtb3p6YXJlbGxhJTIwc3RpY2tzfGVufDB8fHx8MTc2Mzk0MTkwMHww&ixlib=rb-4.1.0&q=80&w=1080' },
-          { name: 'Strike Burger', description: 'Cheeseburger with secret sauce and fries.', price: 13.50, category: 'Handhelds', imageUrl: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxidXJnZXJ8ZW58MHx8fHwxNzYzOTQyMjExfDA&ixlib=rb-4.1.0&q=80&w=1080' },
-          { name: 'Classic Hot Dog', description: 'Grilled all-beef frank on a toasted bun.', price: 7.00, category: 'Handhelds', imageUrl: 'https://images.unsplash.com/photo-1541214113241-21578d2d9b62?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw0fHxob3QlMjBkb2d8ZW58MHx8fHwxNzYzOTQxOTAwfDA&ixlib=rb-4.1.0&q=80&w=1080' },
-          { name: 'Chicken Tenders & Fries', description: 'Breaded chicken breast strips with honey mustard.', price: 12.00, category: 'Handhelds', imageUrl: 'https://images.unsplash.com/photo-1562967914-608f82629710?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxjaGlja2VuJTIwdGVuZGVyc3xlbnwwfHx8fDE3NjM5NDE5MDB8MA&ixlib=rb-4.1.0&q=80&w=1080' },
-          { name: 'Large Pepperoni Pizza', description: '16-inch classic with extra pepperoni.', price: 21.00, category: 'Pizza', imageUrl: 'https://images.unsplash.com/photo-1628840042765-356cda07504e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxwZXBwZXJvbmklMjBwaXp6YXxlbnwwfHx8fDE3NjM5NDE5MDB8MA&ixlib=rb-4.1.0&q=80&w=1080' },
-          { name: 'Large Cheese Pizza', description: 'Thin crust with a four-cheese blend.', price: 18.00, category: 'Pizza', imageUrl: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxwYXXp6YXxlbnwwfHx8fDE3NjM5NDE5MDB8MA&ixlib=rb-4.1.0&q=80&w=1080' },
-          { name: 'Ice Cream Sundae', description: 'Vanilla ice cream with chocolate syrup and a cherry.', price: 6.50, category: 'Dessert', imageUrl: 'https://images.unsplash.com/photo-1563805042-7684c019e1cb?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxpY2UlMjBjcmVhbSUyMHN1bmRhZXxlbnwwfHx8fDE3NjM5NDE5MDB8MA&ixlib=rb-4.1.0&q=80&w=1080' },
-          { name: 'Mini Corn Dogs', description: 'Bite-sized corn dogs served with ketchup.', price: 7.50, category: 'Kids', imageUrl: 'https://images.unsplash.com/photo-1623653387945-2fd25214f8fc?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxjb3JuJTIwZG9nfGVufDB8fHx8MTc2Mzk0MTkwMHww&ixlib=rb-4.1.0&q=80&w=1080' },
-          { name: 'Junior Strike Sliders', description: 'Two mini cheeseburgers with a handful of fries.', price: 9.00, category: 'Kids', imageUrl: 'https://images.unsplash.com/photo-1521305916504-4a1121188589?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxzbGlkZXJzJTIwYnVyZ2VyfGVufDB8fHx8MTc2Mzk0MTkwMHww&ixlib=rb-4.1.0&q=80&w=1080' },
-          { name: 'Glow Bowl Wristband', description: 'Access to special lighting events.', price: 5.00, category: 'Other', imageUrl: 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwzfHx3cmlzdGJhbmR8ZW58MHx8fHwxNzYzOTQxOTAwfDA&ixlib=rb-4.1.0&q=80&w=1080' },
+          { name: 'Loaded Nachos', description: 'Corn chips topped with cheese, jalapeños, and sour cream.', price: 10.50, category: 'Appetizers', imageUrl: 'https://images.unsplash.com/photo-1513456852971-30c0b8199d4d?auto=format&fit=crop&q=80&w=1080' },
+          { name: 'Buffalo Wings (10pc)', description: 'Crispy wings tossed in buffalo sauce.', price: 14.50, category: 'Appetizers', imageUrl: 'https://images.unsplash.com/photo-1567620832903-9fc6debc209f?auto=format&fit=crop&q=80&w=1080' },
+          { name: 'Mozzarella Sticks', description: 'Served with zesty marinara sauce.', price: 8.00, category: 'Appetizers', imageUrl: 'https://images.unsplash.com/photo-1531451394031-448f2a1c83e2?auto=format&fit=crop&q=80&w=1080' },
+          { name: 'Strike Burger', description: 'Cheeseburger with secret sauce and fries.', price: 13.50, category: 'Handhelds', imageUrl: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&q=80&w=1080' },
+          { name: 'Classic Hot Dog', description: 'Grilled all-beef frank on a toasted bun.', price: 7.00, category: 'Handhelds', imageUrl: 'https://images.unsplash.com/photo-1541214113241-21578d2d9b62?auto=format&fit=crop&q=80&w=1080' },
+          { name: 'Chicken Tenders & Fries', description: 'Breaded chicken breast strips with honey mustard.', price: 12.00, category: 'Handhelds', imageUrl: 'https://images.unsplash.com/photo-1562967914-608f82629710?auto=format&fit=crop&q=80&w=1080' },
+          { name: 'Large Pepperoni Pizza', description: '16-inch classic with extra pepperoni.', price: 21.00, category: 'Pizza', imageUrl: 'https://images.unsplash.com/photo-1628840042765-356cda07504e?auto=format&fit=crop&q=80&w=1080' },
+          { name: 'Large Cheese Pizza', description: 'Thin crust with a four-cheese blend.', price: 18.00, category: 'Pizza', imageUrl: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&q=80&w=1080' },
+          { name: 'Ice Cream Sundae', description: 'Vanilla ice cream with chocolate syrup and a cherry.', price: 6.50, category: 'Dessert', imageUrl: 'https://images.unsplash.com/photo-1563805042-7684c019e1cb?auto=format&fit=crop&q=80&w=1080' },
+          { name: 'Mini Corn Dogs', description: 'Bite-sized corn dogs served with ketchup.', price: 7.50, category: 'Kids', imageUrl: 'https://images.unsplash.com/photo-1623653387945-2fd25214f8fc?auto=format&fit=crop&q=80&w=1080' },
+          { name: 'Junior Strike Sliders', description: 'Two mini cheeseburgers with a handful of fries.', price: 9.00, category: 'Kids', imageUrl: 'https://images.unsplash.com/photo-1521305916504-4a1121188589?auto=format&fit=crop&q=80&w=1080' },
+          { name: 'Glow Bowl Wristband', description: 'Access to special lighting events.', price: 5.00, category: 'Other', imageUrl: 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&q=80&w=1080' },
         ];
       } else if (sellerId === 'demo-golf-course-private') {
         config = { name: 'Demo Private Country Club', type: 'Private Golf Course', menuTypes: ['Beverage Cart', 'Clubhouse', 'Pool', 'Halfway House'] };
+        itemsToSeed = [
+          { name: 'Signature Old Fashioned', description: 'Small-batch bourbon, demerara, house bitters.', price: 16.00, category: 'Spirits', imageUrl: PlaceHolderImages.find(i => i.imageHint === 'whiskey glass')?.imageUrl },
+          { name: 'Reserve Cabernet', description: 'A bold, oak-aged red from Napa Valley.', price: 18.00, category: 'Beer', imageUrl: PlaceHolderImages.find(i => i.imageHint === 'craft beer')?.imageUrl },
+          { name: 'Lobster Roll', description: 'Fresh Maine lobster, warm butter, brioche bun.', price: 28.00, category: 'Handhelds', imageUrl: 'https://images.unsplash.com/photo-1599487488170-d11ec9c172f0?auto=format&fit=crop&q=80&w=1080' },
+          { name: 'Filet Mignon', description: '8oz grass-fed beef, truffle butter, grilled asparagus.', price: 42.00, category: 'Entrees', imageUrl: 'https://images.unsplash.com/photo-1546241072-48010ad28c2c?auto=format&fit=crop&q=80&w=1080' },
+          { name: 'Ahi Tuna Tartare', description: 'Avocado, soy-ginger glaze, crispy wontons.', price: 19.00, category: 'Appetizers', imageUrl: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=1080' },
+          { name: 'Burrata & Heirloom Tomato', description: 'Fresh burrata, balsamic glaze, basil oil.', price: 17.00, category: 'Salad', imageUrl: 'https://images.unsplash.com/photo-1608897013039-887f3c0cac56?auto=format&fit=crop&q=80&w=1080' },
+          { name: 'Truffle Fries', description: 'Parmesan, parsley, truffle oil.', price: 12.00, category: 'Snacks', imageUrl: PlaceHolderImages.find(i => i.imageHint === 'potato chips')?.imageUrl },
+          { name: 'Frozen Watermelon Margarita', description: 'Perfect for poolside sipping.', price: 14.00, category: 'Spirits', imageUrl: PlaceHolderImages.find(i => i.imageHint === 'vodka bottle')?.imageUrl },
+          { name: 'Premium Fruit Platter', description: 'Seasonal berries, melons, and honey yogurt.', price: 15.00, category: 'Snacks', imageUrl: 'https://images.unsplash.com/photo-1519996529931-28324d5a630e?auto=format&fit=crop&q=80&w=1080' },
+          { name: 'Wagyu Beef Sliders', description: 'Three sliders with caramelized onions and gruyere.', price: 22.00, category: 'Handhelds', imageUrl: 'https://images.unsplash.com/photo-1521305916504-4a1121188589?auto=format&fit=crop&q=80&w=1080' },
+          { name: 'Artisanal Charcuterie', description: 'Imported cheeses, cured meats, honeycomb.', price: 26.00, category: 'Appetizers', imageUrl: 'https://images.unsplash.com/photo-1631452180519-c014fe946bc7?auto=format&fit=crop&q=80&w=1080' },
+          { name: 'Pro Shop Gift Card ($50)', description: 'Can be used for gear or lessons.', price: 50.00, category: 'Other', imageUrl: 'https://images.unsplash.com/photo-1587174486073-ae5e5cff23aa?auto=format&fit=crop&q=80&w=1080' },
+        ];
       }
 
       batch.set(doc(firestore, 'sellers', sellerId), {
@@ -622,6 +636,8 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
         menuTypes: config.menuTypes,
         brandColor: '#22c55e',
         laneCount: sellerId === 'demo-bowling-alley' ? 24 : 0,
+        halfwayHouseCount: sellerId === 'demo-golf-course-private' ? 2 : 0,
+        halfwayHouseNames: sellerId === 'demo-golf-course-private' ? ['Turn Shack', 'Back Nine House'] : [],
         categoryVisibility: config.menuTypes.reduce((acc, mt) => ({
           ...acc,
           [mt]: getCategoriesForMenu(mt)
@@ -854,7 +870,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
             </div>
           </div>
 
-          {/* New Granular Performance Bar for selected menu type */}
           <div className="mb-6 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
             <div className="col-span-1 md:col-span-2 xl:col-span-1 bg-primary/5 rounded-xl border-2 border-primary/10 p-4 flex flex-col justify-center gap-1 shadow-sm">
               <p className="text-[10px] font-black uppercase tracking-[0.2em] text-primary/60 leading-none mb-1">Establishment Totals</p>
