@@ -250,13 +250,16 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
         }
       };
 
-      if (navigator.geolocation) {
+      const isGpsRequired = selectedMenuType === 'Beverage Cart' || selectedMenuType === 'Clubhouse';
+
+      if (navigator.geolocation && isGpsRequired) {
         navigator.geolocation.getCurrentPosition(
           (p) => submitToFirestore(p.coords.latitude, p.coords.longitude),
           () => submitToFirestore(mockBuyerLocation.latitude, mockBuyerLocation.longitude),
           { timeout: 5000 }
         );
       } else {
+        // No GPS required for Lane Delivery or Take Out
         submitToFirestore(mockBuyerLocation.latitude, mockBuyerLocation.longitude);
       }
     } catch (error) {

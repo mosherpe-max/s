@@ -305,7 +305,9 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
 
   const mappedBuyers = useMemo(() => {
     if (!now || !activeOrders) return [];
-    return activeOrders.filter(o => o.menuType !== 'Beverage Cart').map(o => {
+    // Only map orders where GPS is required: Clubhouse orders
+    // (BevCart is excluded via the main filter, and Take Out/Lane Delivery don't need map presence)
+    return activeOrders.filter(o => o.menuType === 'Clubhouse').map(o => {
       let colorClass = "bg-green-600";
       if (o.createdAt) {
         const orderTime = o.createdAt.toDate().getTime();

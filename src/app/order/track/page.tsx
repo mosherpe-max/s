@@ -59,8 +59,9 @@ function OrderTrackingContent() {
 
   const { data: seller, isLoading: isLoadingSeller } = useDoc<Seller>(sellerRef);
 
+  const isGpsRequired = order?.menuType === 'Beverage Cart' || order?.menuType === 'Clubhouse';
+
   useEffect(() => {
-    // Detect iOS and Standalone mode after hydration
     const userAgent = window.navigator.userAgent.toLowerCase();
     const isIosDevice = /iphone|ipad|ipod/.test(userAgent);
     const isStandaloneMode = (window.navigator as any).standalone || window.matchMedia('(display-mode: standalone)').matches;
@@ -70,13 +71,13 @@ function OrderTrackingContent() {
   }, []);
 
   useEffect(() => {
-    if (order && seller && !initialLocations) {
+    if (order && seller && !initialLocations && isGpsRequired) {
       setInitialLocations({
         buyer: order.deliveryLocation,
         seller: { latitude: seller.latitude, longitude: seller.longitude }
       });
     }
-  }, [order, seller, initialLocations]);
+  }, [order, seller, initialLocations, isGpsRequired]);
 
   useEffect(() => {
     const requestWakeLock = async () => {
@@ -96,7 +97,7 @@ function OrderTrackingContent() {
       }
     };
 
-    if (order && order.status === 'Out for Delivery') {
+    if (order && order.status === 'Out for Delivery' && isGpsRequired) {
       requestWakeLock();
     } else {
       releaseWakeLock();
@@ -105,11 +106,11 @@ function OrderTrackingContent() {
     return () => {
       releaseWakeLock();
     };
-  }, [order?.status]);
+  }, [order?.status, isGpsRequired]);
 
   useEffect(() => {
     const updateLocation = () => {
-      if (!navigator.geolocation || !order || !firestore) return;
+      if (!navigator.geolocation || !order || !firestore || !isGpsRequired) return;
 
       navigator.geolocation.getCurrentPosition(
         (position) => {
@@ -125,7 +126,7 @@ function OrderTrackingContent() {
       );
     };
 
-    if (order?.status === 'Out for Delivery') {
+    if (order?.status === 'Out for Delivery' && isGpsRequired) {
       setIsTrackingActive(true);
       updateLocation();
       locationIntervalRef.current = setInterval(updateLocation, 15000);
@@ -142,7 +143,7 @@ function OrderTrackingContent() {
         clearInterval(locationIntervalRef.current);
       }
     };
-  }, [order?.status, order?.id, firestore]);
+  }, [order?.status, order?.id, firestore, isGpsRequired]);
 
   const handleModifyOrder = () => {
     if (order) {
@@ -178,7 +179,6 @@ function OrderTrackingContent() {
   const isEditable = order.status === 'Placed' || order.status === 'Preparing';
   const brandColor = seller?.brandColor || 'hsl(var(--primary))';
   const numericId = getNumericOrderId(order.id);
-  const isBowlingAlley = seller?.type === 'Bowling Alley';
 
   const mapBuyerLocation = isOutForDelivery ? order.deliveryLocation : initialLocations?.buyer;
   const mapSellerLocation = isOutForDelivery ? { latitude: seller?.latitude || 0, longitude: seller?.longitude || 0 } : initialLocations?.seller;
@@ -187,7 +187,7 @@ function OrderTrackingContent() {
     <div className="flex flex-col min-h-[calc(100vh-4rem)] bg-muted/10 overflow-y-auto">
       <IosInstallPrompt open={isInstallPromptOpen} onOpenChange={setIsInstallPromptOpen} />
 
-      {!isDelivered && !isBowlingAlley && (
+      {!isDelivered && isGpsRequired && (
         <div className="h-[40vh] relative shadow-inner overflow-hidden border-b-2 shrink-0">
           {mapSellerLocation && mapBuyerLocation ? (
             <MapView
@@ -221,8 +221,8 @@ function OrderTrackingContent() {
         </div>
       )}
 
-      {/* Alternative Header for Bowling Alleys or No Map Views */}
-      {!isDelivered && isBowlingAlley && (
+      {/* Header for orders without Maps (Lane Side, Take Out, or delivered) */}
+      {(!isGpsRequired || isDelivered) && (
         <div className="bg-background border-b px-4 py-3 flex items-center justify-between sticky top-0 z-10 shadow-sm shrink-0">
            <Button variant="ghost" size="sm" asChild className="rounded-full h-8 px-3">
               <Link href={`/sellers/${order.sellerId}/order`} className="flex items-center">
@@ -258,7 +258,7 @@ function OrderTrackingContent() {
             </Card>
         )}
 
-        {isTrackingActive && isOutForDelivery && !isBowlingAlley && (
+        {isTrackingActive && isOutForDelivery && isGpsRequired && (
           <div className="px-1">
              <Alert className="bg-primary/95 text-white border-none shadow-xl backdrop-blur-md py-3 rounded-xl">
                 <Satellite className="h-5 w-5 text-white animate-pulse" />
@@ -280,7 +280,7 @@ function OrderTrackingContent() {
             </CardHeader>
             <Separator />
             <CardContent className="pt-6 space-y-6">
-                {!isDelivered && isIos && !isStandalone && (
+                {!isDelivered && isIos && !isStandalone && isGpsRequired && (
                   <div className="bg-[#213147] rounded-2xl p-5 border-b-4 border-primary shadow-inner space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-500">
                     <div className="flex items-start gap-4">
                       <div className="bg-primary/20 p-2.5 rounded-xl shrink-0">
@@ -321,7 +321,7 @@ function OrderTrackingContent() {
                 {order.menuTypeLocation && (
                   <div className="px-4 py-3 bg-primary/5 rounded-xl border border-primary/10 flex items-center justify-between">
                     <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                      {isBowlingAlley ? 'Lane Number' : 'Location Detail'}
+                      Location Detail
                     </span>
                     <span className="text-sm font-black text-primary uppercase">{order.menuTypeLocation}</span>
                   </div>
