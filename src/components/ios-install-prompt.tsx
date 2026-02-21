@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Share, PlusSquare, ArrowDown } from 'lucide-react';
+import { Share, PlusSquare, ArrowDown, MoreHorizontal } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -60,24 +60,34 @@ export function IosInstallPrompt() {
           </DialogHeader>
         </div>
         
-        <div className="p-6 space-y-4">
-          <div className="flex items-center gap-5 bg-muted/40 p-4 rounded-2xl border border-dashed border-primary/20 transition-all hover:bg-muted/60">
-            <div className="bg-white p-3 rounded-xl shadow-md shrink-0 border border-primary/5">
-              <Share className="h-8 w-8 text-primary" />
+        <div className="p-6 space-y-3">
+          <div className="flex items-center gap-5 bg-muted/40 p-3 rounded-2xl border border-dashed border-primary/20 transition-all hover:bg-muted/60">
+            <div className="bg-white p-2.5 rounded-xl shadow-md shrink-0 border border-primary/5">
+              <MoreHorizontal className="h-7 w-7 text-primary" />
             </div>
-            <div className="space-y-1">
-              <p className="text-sm font-black uppercase tracking-tight">1. Tap the Share icon</p>
-              <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-[0.1em]">Found at the bottom of your screen</p>
+            <div className="space-y-0.5">
+              <p className="text-xs font-black uppercase tracking-tight">1. Tap the Menu icon</p>
+              <p className="text-[9px] text-muted-foreground font-bold uppercase tracking-[0.1em]">Found at the top or bottom corner</p>
             </div>
           </div>
 
-          <div className="flex items-center gap-5 bg-muted/40 p-4 rounded-2xl border border-dashed border-primary/20 transition-all hover:bg-muted/60">
-            <div className="bg-white p-3 rounded-xl shadow-md shrink-0 border border-primary/5">
-              <PlusSquare className="h-8 w-8 text-primary" />
+          <div className="flex items-center gap-5 bg-muted/40 p-3 rounded-2xl border border-dashed border-primary/20 transition-all hover:bg-muted/60">
+            <div className="bg-white p-2.5 rounded-xl shadow-md shrink-0 border border-primary/5">
+              <Share className="h-7 w-7 text-primary" />
             </div>
-            <div className="space-y-1">
-              <p className="text-sm font-black uppercase tracking-tight">2. 'Add to Home Screen'</p>
-              <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-[0.1em]">Scroll down the menu to find it</p>
+            <div className="space-y-0.5">
+              <p className="text-xs font-black uppercase tracking-tight">2. Select the Share icon</p>
+              <p className="text-[9px] text-muted-foreground font-bold uppercase tracking-[0.1em]">Look for the square with an arrow</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-5 bg-muted/40 p-3 rounded-2xl border border-dashed border-primary/20 transition-all hover:bg-muted/60">
+            <div className="bg-white p-2.5 rounded-xl shadow-md shrink-0 border border-primary/5">
+              <PlusSquare className="h-7 w-7 text-primary" />
+            </div>
+            <div className="space-y-0.5">
+              <p className="text-xs font-black uppercase tracking-tight">3. 'Add to Home Screen'</p>
+              <p className="text-[9px] text-muted-foreground font-bold uppercase tracking-[0.1em]">Scroll down the menu to find it</p>
             </div>
           </div>
         </div>
@@ -86,7 +96,7 @@ export function IosInstallPrompt() {
           <div className="flex flex-col items-center animate-bounce">
             <ArrowDown className="h-8 w-8 text-primary" />
           </div>
-          <p className="text-[10px] font-black uppercase tracking-[0.3em] text-primary/80 text-center">Tap the browser menu button below</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.3em] text-primary/80 text-center">Follow the browser instructions</p>
         </div>
 
         <DialogFooter className="px-6 pb-6 pt-0 sm:justify-center">
