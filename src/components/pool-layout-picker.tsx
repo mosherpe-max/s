@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { cn } from '@/lib/utils';
-import { MapPin, Check } from 'lucide-react';
+import { Check } from 'lucide-react';
 import Image from 'next/image';
 
 interface PoolLayoutPickerProps {
@@ -11,31 +11,29 @@ interface PoolLayoutPickerProps {
 }
 
 const POOL_ZONES = [
-  { id: 'VIP Cabanas', label: 'VIP Cabanas', top: '8%', left: '15%', width: '70%', height: '18%' },
-  { id: 'West Lounge', label: 'West Lounge', top: '30%', left: '5%', width: '22%', height: '45%' },
-  { id: 'East Lounge', label: 'East Lounge', top: '30%', left: '73%', width: '22%', height: '45%' },
-  { id: 'South Deck', label: 'South Deck', top: '78%', left: '15%', width: '70%', height: '18%' },
+  { id: 'Zone 1', label: '1', top: '5%', left: '25%', width: '50%', height: '18%', desc: 'North Tables' },
+  { id: 'Zone 2', label: '2', top: '25%', left: '68%', width: '25%', height: '30%', desc: 'East Upper Lounge' },
+  { id: 'Zone 3', label: '3', top: '58%', left: '68%', width: '25%', height: '30%', desc: 'East Lower Lounge' },
+  { id: 'Zone 4', label: '4', top: '78%', left: '30%', width: '40%', height: '18%', desc: 'Circular Pool Area' },
+  { id: 'Zone 5', label: '5', top: '50%', left: '5%', width: '25%', height: '35%', desc: 'West Curved Pool' },
+  { id: 'Zone 6', label: '6', top: '15%', left: '5%', width: '20%', height: '30%', desc: 'Northwest Lounge' },
 ];
 
 export function PoolLayoutPicker({ value, onChange }: PoolLayoutPickerProps) {
   return (
     <div className="space-y-4">
-      <div className="relative w-full aspect-[4/3] bg-muted rounded-3xl overflow-hidden border-2 border-primary/10 shadow-2xl group">
-        {/* Background Pool Image */}
+      <div className="relative w-full aspect-[3/4] bg-muted rounded-[2.5rem] overflow-hidden border-4 border-white shadow-2xl group">
+        {/* Satellite Background Pool Image */}
         <Image 
-          src="https://images.unsplash.com/photo-1572331165267-854da2b10ccc?auto=format&fit=crop&q=80&w=1080"
-          alt="Pool Layout"
+          src="https://images.unsplash.com/photo-1605144884288-49eb7f9bb447?auto=format&fit=crop&q=80&w=1080"
+          alt="Pool Satellite Layout"
+          data-ai-hint="pool satellite"
           fill
           className="object-cover transition-transform duration-1000 group-hover:scale-105"
         />
         
-        {/* Overlay to dim image slightly */}
-        <div className="absolute inset-0 bg-black/20" />
-
-        {/* The Pool Body (Visual only) */}
-        <div className="absolute top-[35%] left-[30%] w-[40%] h-[35%] rounded-[40px] border-2 border-cyan-300/50 bg-cyan-400/10 backdrop-blur-sm pointer-events-none flex items-center justify-center">
-           <span className="font-headline font-black text-white/40 text-xl tracking-[0.3em] uppercase select-none">POOL</span>
-        </div>
+        {/* Overlay to dim image slightly for button visibility */}
+        <div className="absolute inset-0 bg-black/10" />
 
         {/* Selection Overlays */}
         {POOL_ZONES.map((zone) => {
@@ -51,21 +49,20 @@ export function PoolLayoutPicker({ value, onChange }: PoolLayoutPickerProps) {
                 height: zone.height,
               }}
               className={cn(
-                "absolute rounded-2xl border-2 transition-all duration-300 flex items-center justify-center p-2 backdrop-blur-md",
+                "absolute rounded-2xl border-2 transition-all duration-300 flex items-center justify-center p-1 backdrop-blur-[2px]",
                 isSelected 
-                  ? "bg-primary/60 border-white text-white shadow-[0_0_30px_rgba(255,255,255,0.3)] scale-105 z-10" 
-                  : "bg-white/10 border-white/20 text-white/90 hover:bg-white/20 hover:border-white/40"
+                  ? "bg-primary border-white text-white shadow-[0_0_20px_rgba(0,0,0,0.4)] scale-110 z-20" 
+                  : "bg-white/40 border-white/60 text-foreground hover:bg-white/60"
               )}
             >
-              <div className="flex flex-col items-center gap-1.5">
+              <div className="flex flex-col items-center">
                 {isSelected ? (
-                  <Check className="h-5 w-5 drop-shadow-md animate-in zoom-in-50 duration-300" />
+                  <Check className="h-6 w-6 drop-shadow-md animate-in zoom-in-50 duration-300" />
                 ) : (
-                  <MapPin className="h-4 w-4 opacity-50 drop-shadow-md" />
+                  <span className="font-headline font-black text-xl drop-shadow-sm">
+                    {zone.label}
+                  </span>
                 )}
-                <span className="font-black text-[10px] sm:text-xs uppercase tracking-widest drop-shadow-lg text-center leading-tight px-1">
-                  {zone.label}
-                </span>
               </div>
             </button>
           );
@@ -74,16 +71,26 @@ export function PoolLayoutPicker({ value, onChange }: PoolLayoutPickerProps) {
 
       <div className="flex flex-col items-center gap-2">
         {value ? (
-          <div className="bg-primary px-6 py-2.5 rounded-full shadow-lg border-2 border-white/20 flex items-center gap-2 animate-in slide-in-from-bottom-2 duration-300">
-            <Check className="h-4 w-4 text-white" />
-            <span className="text-xs font-black uppercase tracking-[0.2em] text-white">
-              Selected: {value}
+          <div className="bg-primary px-6 py-3 rounded-2xl shadow-lg border-2 border-white/20 flex flex-col items-center animate-in slide-in-from-bottom-2 duration-300">
+            <div className="flex items-center gap-2">
+              <Check className="h-4 w-4 text-white" />
+              <span className="text-sm font-black uppercase tracking-[0.1em] text-white">
+                {value} SELECTED
+              </span>
+            </div>
+            <span className="text-[10px] font-bold text-white/80 uppercase">
+              {POOL_ZONES.find(z => z.id === value)?.desc}
             </span>
           </div>
         ) : (
-          <p className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground animate-pulse">
-            Tap a zone on the pool map
-          </p>
+          <div className="flex flex-col items-center gap-1">
+            <p className="text-[11px] font-black uppercase tracking-[0.2em] text-primary">
+              Tap a Numbered Zone
+            </p>
+            <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">
+              To tell us where you are sitting
+            </p>
+          </div>
         )}
       </div>
     </div>
