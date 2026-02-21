@@ -331,7 +331,7 @@ function SortableItem({ item, onDelete, menuType }: { item: MenuItem; onDelete: 
   );
 }
 
-function MapViewSetter({ onSet }: { onSave: (url: string) => void, onSet: (center: { lat: number, lng: number }, zoom: number) => void }) {
+function MapViewSetter({ onSet }: { onSet: (center: { lat: number, lng: number }, zoom: number) => void }) {
   const map = useMap();
   
   const handleSetView = () => {
@@ -1447,28 +1447,34 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                 Locate your pool area on the satellite map. Pan and zoom until it is perfectly centered, then click "Set Map View".
               </DialogDescription>
             </DialogHeader>
-            <div className="flex-1 min-h-[400px] relative bg-muted">
-              <APIProvider apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!}>
-                <div className="w-full h-full relative">
-                  <Map
-                    defaultCenter={{ lat: seller?.latitude || 0, lng: seller?.longitude || 0 }}
-                    defaultZoom={19}
-                    mapId="pool-map-config"
-                    mapTypeId="satellite"
-                    disableDefaultUI={false}
-                    gestureHandling="greedy"
-                  >
-                    <MapViewSetter onSet={handleSetPoolMapView} />
-                  </Map>
-                  
-                  {/* Grid Overlay for reference */}
-                  <div className="absolute inset-0 grid grid-cols-3 grid-rows-3 pointer-events-none border-2 border-white/20">
-                    {Array.from({ length: 9 }).map((_, i) => (
-                      <div key={i} className="border border-white/10 flex items-center justify-center text-[10px] font-bold text-white/40 uppercase tracking-widest">Zone {i+1}</div>
-                    ))}
+            <div className="flex-1 min-h-[400px] w-full relative bg-muted">
+              {seller && (
+                <APIProvider apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!}>
+                  <div className="w-full h-full relative">
+                    <Map
+                      defaultCenter={{ lat: seller.latitude, lng: seller.longitude }}
+                      defaultZoom={19}
+                      mapTypeId="satellite"
+                      disableDefaultUI={false}
+                      gestureHandling="greedy"
+                    >
+                      <MapViewSetter onSet={handleSetPoolMapView} />
+                    </Map>
+                    
+                    {/* Grid Overlay for reference */}
+                    <div className="absolute inset-0 grid grid-cols-3 grid-rows-3 pointer-events-none border-2 border-white/20">
+                      {Array.from({ length: 9 }).map((_, i) => (
+                        <div key={i} className="border border-white/10 flex items-center justify-center text-[10px] font-bold text-white/40 uppercase tracking-widest">Zone {i+1}</div>
+                      ))}
+                    </div>
                   </div>
+                </APIProvider>
+              )}
+              {!seller && (
+                <div className="w-full h-full flex items-center justify-center">
+                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                 </div>
-              </APIProvider>
+              )}
             </div>
             
             <div className="px-6 py-4 border-t bg-muted/10 space-y-4">
