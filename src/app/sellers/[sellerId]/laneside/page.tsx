@@ -1,4 +1,3 @@
-
 'use client';
 
 import { collection, query, where, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
@@ -200,34 +199,35 @@ export default function LaneSideServerDashboardPage({ params }: { params: Promis
         </div>
       </header>
 
-      <div className="flex-1 flex flex-col p-4 gap-4 overflow-hidden max-w-6xl mx-auto w-full">
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-2">
-           <div className="p-4 bg-white rounded-xl border shadow-sm flex items-center gap-3">
-              <div className="p-2 bg-primary/10 rounded-full shrink-0"><Package className="h-5 w-5 text-primary" /></div>
+      <div className="flex-1 flex flex-col p-4 gap-3 overflow-hidden max-w-6xl mx-auto w-full">
+        {/* Compact Metrics Bar */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-1">
+           <div className="px-3 py-2 bg-white rounded-lg border shadow-sm flex items-center gap-2.5">
+              <div className="p-1.5 bg-primary/10 rounded-md shrink-0"><Package className="h-4 w-4 text-primary" /></div>
               <div className="min-w-0">
-                <p className="text-[10px] font-bold uppercase text-muted-foreground truncate">Active Orders</p>
-                <p className="text-xl font-headline font-bold">{metrics?.activeCount ?? 0}</p>
+                <p className="text-[8px] font-black uppercase text-muted-foreground truncate tracking-wider">Active</p>
+                <p className="text-lg font-headline font-black leading-none">{metrics?.activeCount ?? 0}</p>
               </div>
            </div>
-           <div className="p-4 bg-white rounded-xl border shadow-sm flex items-center gap-3">
-              <div className="p-2 bg-green-500/10 rounded-full shrink-0"><DollarSign className="h-5 w-5 text-green-600" /></div>
+           <div className="px-3 py-2 bg-white rounded-lg border shadow-sm flex items-center gap-2.5">
+              <div className="p-1.5 bg-green-500/10 rounded-md shrink-0"><DollarSign className="h-4 w-4 text-green-600" /></div>
               <div className="min-w-0">
-                <p className="text-[10px] font-bold uppercase text-muted-foreground truncate">Delivered Today</p>
-                <p className="text-xl font-headline font-bold">${metrics?.totalDollars.toFixed(2) ?? '0.00'}</p>
+                <p className="text-[8px] font-black uppercase text-muted-foreground truncate tracking-wider">Today</p>
+                <p className="text-lg font-headline font-black leading-none">${metrics?.totalDollars.toFixed(2) ?? '0.00'}</p>
               </div>
            </div>
-           <div className="p-4 bg-white rounded-xl border shadow-sm flex items-center gap-3">
-              <div className="p-2 bg-blue-500/10 rounded-full shrink-0"><Timer className="h-5 w-5 text-blue-600" /></div>
+           <div className="px-3 py-2 bg-white rounded-lg border shadow-sm flex items-center gap-2.5">
+              <div className="p-1.5 bg-blue-500/10 rounded-md shrink-0"><Timer className="h-4 w-4 text-blue-600" /></div>
               <div className="min-w-0">
-                <p className="text-[10px] font-bold uppercase text-muted-foreground truncate">Avg Delivery Time</p>
-                <p className="text-xl font-headline font-bold">{metrics?.avgTime.toFixed(1) ?? 0}m</p>
+                <p className="text-[8px] font-black uppercase text-muted-foreground truncate tracking-wider">Avg Time</p>
+                <p className="text-lg font-headline font-black leading-none">{metrics?.avgTime.toFixed(1) ?? 0}m</p>
               </div>
            </div>
-           <div className="p-4 bg-white rounded-xl border shadow-sm flex items-center gap-3">
-              <div className="p-2 bg-red-500/10 rounded-full shrink-0"><AlertTriangle className="h-5 w-5 text-red-600" /></div>
+           <div className="px-3 py-2 bg-white rounded-lg border shadow-sm flex items-center gap-2.5">
+              <div className="p-1.5 bg-red-500/10 rounded-md shrink-0"><AlertTriangle className="h-4 w-4 text-red-600" /></div>
               <div className="min-w-0">
-                <p className="text-[10px] font-bold uppercase text-muted-foreground truncate">Over Threshold</p>
-                <p className="text-xl font-headline font-bold text-red-600">{metrics?.exceededCount ?? 0}</p>
+                <p className="text-[8px] font-black uppercase text-muted-foreground truncate tracking-wider">Slow</p>
+                <p className="text-lg font-headline font-black leading-none text-red-600">{metrics?.exceededCount ?? 0}</p>
               </div>
            </div>
         </div>
