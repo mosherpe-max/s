@@ -791,52 +791,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
           </section>
         )}
 
-        <Card id="menu-library" className="mb-12 shadow-md border-primary/20 bg-primary/5 scroll-mt-24">
-          <CardHeader className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div>
-              <CardTitle className="flex items-center gap-2 uppercase tracking-tight text-primary"><Database className="h-5 w-5" /> Menu Library</CardTitle>
-              <CardDescription>Your global catalog of all items available to the establishment.</CardDescription>
-            </div>
-            <Button onClick={() => { setEditingItem(null); setIsMasterFormOpen(true); }} size="sm"><PlusCircle className="mr-2 h-4 w-4" /> New Item</Button>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-wrap items-center gap-2 mb-8 bg-background/50 p-2 rounded-lg border">
-              <Button variant={masterCategoryFilter === 'All' ? 'default' : 'ghost'} size="sm" onClick={() => setMasterCategoryFilter('All')}>All</Button>
-              {categories.map(cat => (
-                <Button key={cat} variant={masterCategoryFilter === cat ? 'default' : 'ghost'} size="sm" onClick={() => setMasterCategoryFilter(cat)}>{cat}</Button>
-              ))}
-            </div>
-
-            {areItemsLoading ? (
-              <Skeleton className="h-40 w-full" />
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {filteredMasterItems.map(item => (
-                  <div key={item.id} className="p-4 rounded-xl bg-background border shadow-sm group hover:border-primary/50 transition-all">
-                    <div className="flex justify-between items-start mb-2">
-                      <Badge variant="secondary" className="text-[10px] uppercase font-bold tracking-widest">{item.category}</Badge>
-                      <div className="flex gap-1">
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setEditingItem(item); setIsMasterFormOpen(true); }}><Edit className="h-3.5 w-3.5" /></Button>
-                      </div>
-                    </div>
-                    <div className="flex gap-3 items-center">
-                      {item.imageUrl && (
-                        <div className="relative h-12 w-12 rounded-lg overflow-hidden border bg-muted shrink-0">
-                          <Image src={item.imageUrl} alt={item.name} fill className="object-cover" />
-                        </div>
-                      )}
-                      <div>
-                        <h4 className="font-bold">{item.name}</h4>
-                        <p className="font-mono font-bold text-sm text-primary">${item.price.toFixed(2)}</p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
         <h2 id="service-management" className="font-headline text-xl font-bold mb-6 mt-16 flex items-center gap-2 text-primary uppercase tracking-wider scroll-mt-24"><ListChecks className="h-6 w-6" /> Service Menus</h2>
         <div className="grid grid-cols-1 gap-12">
           {sortedMenuTypesForAdmin.map(menuType => {
@@ -913,6 +867,52 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
               );
           })}
         </div>
+
+        <Card id="menu-library" className="mb-12 mt-16 shadow-md border-primary/20 bg-primary/5 scroll-mt-24">
+          <CardHeader className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <CardTitle className="flex items-center gap-2 uppercase tracking-tight text-primary"><Database className="h-5 w-5" /> Menu Library</CardTitle>
+              <CardDescription>Your global catalog of all items available to the establishment.</CardDescription>
+            </div>
+            <Button onClick={() => { setEditingItem(null); setIsMasterFormOpen(true); }} size="sm"><PlusCircle className="mr-2 h-4 w-4" /> New Item</Button>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap items-center gap-2 mb-8 bg-background/50 p-2 rounded-lg border">
+              <Button variant={masterCategoryFilter === 'All' ? 'default' : 'ghost'} size="sm" onClick={() => setMasterCategoryFilter('All')}>All</Button>
+              {categories.map(cat => (
+                <Button key={cat} variant={masterCategoryFilter === cat ? 'default' : 'ghost'} size="sm" onClick={() => setMasterCategoryFilter(cat)}>{cat}</Button>
+              ))}
+            </div>
+
+            {areItemsLoading ? (
+              <Skeleton className="h-40 w-full" />
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {filteredMasterItems.map(item => (
+                  <div key={item.id} className="p-4 rounded-xl bg-background border shadow-sm group hover:border-primary/50 transition-all">
+                    <div className="flex justify-between items-start mb-2">
+                      <Badge variant="secondary" className="text-[10px] uppercase font-bold tracking-widest">{item.category}</Badge>
+                      <div className="flex gap-1">
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setEditingItem(item); setIsMasterFormOpen(true); }}><Edit className="h-3.5 w-3.5" /></Button>
+                      </div>
+                    </div>
+                    <div className="flex gap-3 items-center">
+                      {item.imageUrl && (
+                        <div className="relative h-12 w-12 rounded-lg overflow-hidden border bg-muted shrink-0">
+                          <Image src={item.imageUrl} alt={item.name} fill className="object-cover" />
+                        </div>
+                      )}
+                      <div>
+                        <h4 className="font-bold">{item.name}</h4>
+                        <p className="font-mono font-bold text-sm text-primary">${item.price.toFixed(2)}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {isClubSeller && (
           <section id="member-management" className="mt-16 scroll-mt-24">
