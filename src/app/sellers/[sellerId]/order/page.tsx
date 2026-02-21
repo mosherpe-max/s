@@ -119,8 +119,12 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
   // Apply specific convenience fee for the menu type if defined, fallback to global default
   const platformFee = useMemo(() => {
     if (!seller) return 0;
-    if (seller.menuServiceFees && selectedMenuType in seller.menuServiceFees) {
-      return seller.menuServiceFees[selectedMenuType];
+    // Explicitly check for presence in the map to differentiate from undefined/null
+    const menuSpecificFees = seller.menuServiceFees || {};
+    const specificFee = menuSpecificFees[selectedMenuType];
+    
+    if (specificFee !== undefined && specificFee !== null) {
+      return specificFee;
     }
     return seller.serviceFee || 0;
   }, [seller, selectedMenuType]);

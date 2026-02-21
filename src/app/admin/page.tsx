@@ -6,7 +6,7 @@ import { collection, doc, setDoc, deleteDoc, query, writeBatch, getDocs, getDoc 
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { PlusCircle, Edit, Trash2, Loader2, MapPin, Mail, Phone, User, Building, DollarSign, ShoppingBag, BarChart3, ListChecks, Utensils, RefreshCw, AlertTriangle, ShieldCheck, Percent } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, Loader2, MapPin, Mail, Phone, User, Building, DollarSign, ShoppingBag, BarChart3, ListChecks, Utensils, RefreshCw, AlertTriangle, ShieldCheck, Percent, Info } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import {
   AlertDialog,
@@ -68,7 +68,7 @@ const sellerSchema = z.object({
   contactPhone: z.string().min(10, 'Phone number must be at least 10 digits'),
   serviceFee: z.coerce.number().min(0, 'Default convenience fee cannot be negative').max(100, 'Fee seems too high'),
   taxRate: z.coerce.number().min(0, 'Tax rate cannot be negative').max(100, 'Tax rate seems too high').default(6.0),
-  menuServiceFees: z.record(z.string(), z.coerce.number().min(0)).optional(),
+  menuServiceFees: z.record(z.string(), z.coerce.number().min(0).optional()).optional(),
   status: z.enum(['Active', 'Inactive']),
 });
 
@@ -648,14 +648,12 @@ export default function KOOPAdminPage() {
                           className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pt-2"
                         >
                           {sellerTypes.map((type) => (
-                            <FormItem key={type} className="flex items-center space-x-2 space-y-0 border rounded-md p-2 hover:bg-muted/50 cursor-pointer transition-colors">
-                              <FormControl>
-                                <RadioGroupItem value={type} />
-                              </FormControl>
-                              <FormLabel className="font-normal cursor-pointer flex-1">
+                            <div key={type} className="flex items-center space-x-2 space-y-0 border rounded-md p-2 hover:bg-muted/50 cursor-pointer transition-colors">
+                              <RadioGroupItem value={type} id={type} />
+                              <Label htmlFor={type} className="font-normal cursor-pointer flex-1">
                                 {type}
-                              </FormLabel>
-                            </FormItem>
+                              </Label>
+                            </div>
                           ))}
                         </RadioGroup>
                       </FormControl>
@@ -827,11 +825,11 @@ export default function KOOPAdminPage() {
                       name="serviceFee"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Default Fee ($)</FormLabel>
+                          <FormLabel>Default Convenience Fee ($)</FormLabel>
                           <FormControl>
                             <Input type="number" step="0.50" {...field} />
                           </FormControl>
-                          <FormDescription>Used if no menu-specific fee is set.</FormDescription>
+                          <FormDescription>Global fallback if no menu-specific fee is defined below.</FormDescription>
                           <FormMessage />
                         </FormItem>
                       )}
@@ -839,32 +837,40 @@ export default function KOOPAdminPage() {
                   </div>
 
                   {selectedMenuTypes.length > 0 && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pt-2">
-                      {selectedMenuTypes.map((type) => (
-                        <FormField
-                          key={type}
-                          control={form.control}
-                          name={`menuServiceFees.${type}`}
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel className="text-[10px] font-black uppercase tracking-tight">{type} Fee</FormLabel>
-                              <FormControl>
-                                <div className="relative">
-                                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
-                                  <Input 
-                                    type="number" 
-                                    step="0.50" 
-                                    className="pl-7"
-                                    value={field.value ?? ''}
-                                    onChange={(e) => field.onChange(e.target.value === '' ? undefined : Number(e.target.value))}
-                                  />
-                                </div>
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      ))}
+                    <div className="bg-primary/5 p-4 rounded-xl border border-primary/10">
+                      <div className="flex items-center gap-2 mb-3">
+                        <Info className="h-3.5 w-3.5 text-primary" />
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-primary">Menu-Specific Overrides (Optional)</span>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {selectedMenuTypes.map((type) => (
+                          <FormField
+                            key={type}
+                            control={form.control}
+                            name={`menuServiceFees.${type}`}
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="text-[10px] font-black uppercase tracking-tight">{type} Fee</FormLabel>
+                                <FormControl>
+                                  <div className="relative">
+                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                                    <Input 
+                                      type="number" 
+                                      step="0.50" 
+                                      className="pl-7 h-9 text-sm"
+                                      placeholder={form.getValues('serviceFee')?.toString()}
+                                      value={field.value ?? ''}
+                                      onChange={(e) => field.onChange(e.target.value === '' ? undefined : Number(e.target.value))}
+                                    />
+                                  </div>
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        ))}
+                      </div>
+                      <p className="text-[9px] text-muted-foreground mt-3 italic">* Leave these blank to use the Default Convenience Fee.</p>
                     </div>
                   )}
                 </div>
