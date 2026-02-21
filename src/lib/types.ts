@@ -49,7 +49,7 @@ export interface Seller {
   orderThresholds?: Record<string, { warning: number; max: number }>;
 }
 
-export type Category = 'Beer' | 'Spirits' | 'Soft Drinks' | 'Snacks' | 'Other' | 'Handhelds' | 'Appetizers' | 'Entrees' | 'Pizza' | 'Salad' | 'Dessert';
+export type Category = 'Beer' | 'Spirits' | 'Soft Drinks' | 'Snacks' | 'Other' | 'Handhelds' | 'Appetizers' | 'Entrees' | 'Pizza' | 'Salad' | 'Dessert' | 'Kids';
 
 export const categories: readonly Category[] = [
   'Beer', 
@@ -62,7 +62,8 @@ export const categories: readonly Category[] = [
   'Entrees', 
   'Pizza', 
   'Salad', 
-  'Dessert'
+  'Dessert',
+  'Kids'
 ];
 
 export interface MenuItem {

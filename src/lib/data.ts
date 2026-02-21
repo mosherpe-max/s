@@ -128,6 +128,22 @@ export const menuItems: (Omit<MenuItem, 'id' | 'rank'> & { id?: string, rank?: n
     imageUrl: 'https://images.unsplash.com/photo-1533134242443-d4fd215305ad?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxjaGVlc2VjYWtlfGVufDB8fHx8MTc2Mzk0MjIxMXww&ixlib=rb-4.1.0&q=80&w=1080',
   },
 
+  // KIDS
+  {
+    name: 'Kids Chicken Tenders',
+    description: 'Three crispy breaded tenders with a side of honey mustard.',
+    price: 8.50,
+    category: 'Kids',
+    imageUrl: 'https://images.unsplash.com/photo-1562967914-608f82629710?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxjaGlja2VuJTIwdGVuZGVyc3xlbnwwfHx8fDE3NjM5NDIyMTF8MA&ixlib=rb-4.1.0&q=80&w=1080',
+  },
+  {
+    name: 'Junior Mac & Cheese',
+    description: 'Creamy house-made cheddar cheese sauce and pasta.',
+    price: 7.00,
+    category: 'Kids',
+    imageUrl: 'https://images.unsplash.com/photo-1543339494-b4cd4f7ba686?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwzfHxtYWMlMjBhbmQlMjBjaGVlc2V8ZW58MHx8fHwxNzYzOTQyMjExfDA&ixlib=rb-4.1.0&q=80&w=1080',
+  },
+
   // OTHER
   {
     name: 'Logo Golf Balls (3-pack)',

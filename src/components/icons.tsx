@@ -1,4 +1,5 @@
-import { Beer, Martini, GlassWater, Cookie, CookingPot, UtensilsCrossed, Sandwich, IceCream, Pizza, Salad, MoreHorizontal, type LucideIcon } from 'lucide-react';
+
+import { Beer, Martini, GlassWater, Cookie, CookingPot, UtensilsCrossed, Sandwich, IceCream, Pizza, Salad, MoreHorizontal, Baby, type LucideIcon } from 'lucide-react';
 import type { Category } from '@/lib/types';
 
 export const categoryIcons: Record<Category, LucideIcon> = {
@@ -13,4 +14,5 @@ export const categoryIcons: Record<Category, LucideIcon> = {
   'Salad': Salad,
   'Dessert': IceCream,
   'Other': MoreHorizontal,
+  'Kids': Baby,
 };
