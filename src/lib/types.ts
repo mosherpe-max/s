@@ -104,6 +104,8 @@ export interface Order {
   items: OrderItem[];
   subtotal: number;
   serviceFee: number;
+  tax: number;
+  tip: number;
   total: number;
   status: 'Placed' | 'Preparing' | 'Out for Delivery' | 'Delivered' | 'Cancelled';
   createdAt: Timestamp;

@@ -172,11 +172,11 @@ function OrderTrackingContent() {
   const mapSellerLocation = isOutForDelivery ? { latitude: seller?.latitude || 0, longitude: seller?.longitude || 0 } : initialLocations?.seller;
 
   return (
-    <div className="flex flex-col min-h-[calc(100vh-4rem)] bg-muted/10">
+    <div className="flex flex-col min-h-[calc(100vh-4rem)] bg-muted/10 overflow-y-auto">
       <IosInstallPrompt />
 
       {!isDelivered && !isBowlingAlley && (
-        <div className="h-[40vh] relative shadow-inner overflow-hidden border-b-2">
+        <div className="h-[40vh] relative shadow-inner overflow-hidden border-b-2 shrink-0">
           {mapSellerLocation && mapBuyerLocation ? (
             <MapView
               sellerLocation={mapSellerLocation}
@@ -211,7 +211,7 @@ function OrderTrackingContent() {
 
       {/* Alternative Header for Bowling Alleys or No Map Views */}
       {!isDelivered && isBowlingAlley && (
-        <div className="bg-background border-b px-4 py-3 flex items-center justify-between sticky top-0 z-10 shadow-sm">
+        <div className="bg-background border-b px-4 py-3 flex items-center justify-between sticky top-0 z-10 shadow-sm shrink-0">
            <Button variant="ghost" size="sm" asChild className="rounded-full h-8 px-3">
               <Link href={`/sellers/${order.sellerId}/order`} className="flex items-center">
                 <ChevronLeft className="mr-1 h-4 w-4" /> 
@@ -232,7 +232,7 @@ function OrderTrackingContent() {
         </div>
       )}
 
-      <div className="flex-1 p-4 space-y-4 max-w-2xl mx-auto w-full">
+      <div className="flex-1 p-4 space-y-4 max-w-2xl mx-auto w-full pb-20">
         {isDelivered && (
             <Card className="text-center shadow-xl border-green-200 bg-green-50 overflow-hidden">
                 <div className="h-2 bg-green-500 w-full" />
@@ -276,8 +276,8 @@ function OrderTrackingContent() {
                     </p>
                     <p className="text-xs font-bold truncate">{seller?.courseName || 'Loading...'}</p>
                   </div>
-                  <div className="space-y-1">
-                    <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-1.5">
+                  <div className="space-y-1 text-right">
+                    <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-1.5 justify-end">
                       <ClipboardList className="w-3 h-3" /> SERVICE MODE
                     </p>
                     <p className="text-xs font-bold">{order.menuType}</p>
@@ -296,7 +296,7 @@ function OrderTrackingContent() {
                     <div className="space-y-2">
                         {order.items.map(item => (
                             <div key={item.id} className="flex justify-between items-center text-sm">
-                                <span className="font-medium text-xs">{item.name} <span className="text-muted-foreground font-normal ml-1">x{item.quantity}</span></span>
+                                <span className="font-medium text-xs">{item.name} <span className="text-muted-foreground font-normal ml-1 text-[10px]">x{item.quantity}</span></span>
                                 <span className="font-mono font-bold text-xs">${(item.price * item.quantity).toFixed(2)}</span>
                             </div>
                         ))}
@@ -305,24 +305,33 @@ function OrderTrackingContent() {
                 
                 <Separator className="border-dashed" />
                 
-                <div className="space-y-1.5 pt-2">
-                    <div className="flex justify-between text-[11px] text-muted-foreground">
+                <div className="space-y-1.5 pt-2 text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
+                    <div className="flex justify-between">
                         <span>SUBTOTAL</span>
-                        <span className="font-mono">${order.subtotal.toFixed(2)}</span>
+                        <span className="font-mono text-foreground">${order.subtotal.toFixed(2)}</span>
                     </div>
-                    <div className="flex justify-between text-[11px] text-muted-foreground">
+                    <div className="flex justify-between">
                         <span>PLATFORM FEE</span>
-                        <span className="font-mono">${order.serviceFee.toFixed(2)}</span>
+                        <span className="font-mono text-foreground">${order.serviceFee.toFixed(2)}</span>
                     </div>
-                    <div className="flex justify-between items-center pt-2 font-bold text-lg">
-                        <span className="font-headline uppercase tracking-tight text-base">ORDER TOTAL</span>
+                    <div className="flex justify-between">
+                        <span>EST. TAX (6%)</span>
+                        <span className="font-mono text-foreground">${(order.tax || 0).toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                        <span>GRATUITY / TIP</span>
+                        <span className="font-mono text-foreground">${(order.tip || 0).toFixed(2)}</span>
+                    </div>
+                    <Separator className="my-2 border-dashed" />
+                    <div className="flex justify-between items-center pt-1 font-black text-lg">
+                        <span className="font-headline uppercase tracking-tight text-base text-foreground">TOTAL PAID</span>
                         <span className="font-mono" style={{ color: brandColor }}>${order.total.toFixed(2)}</span>
                     </div>
                 </div>
 
                 <div className="p-4 bg-muted/30 rounded-xl border flex flex-col gap-2">
                     <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">PAYMENT METHOD</p>
-                    <p className="text-xs font-medium text-foreground italic">"{order.paymentMethod}"</p>
+                    <p className="text-xs font-black text-foreground uppercase italic tracking-tight">"{order.paymentMethod}"</p>
                 </div>
             </CardContent>
         </Card>
