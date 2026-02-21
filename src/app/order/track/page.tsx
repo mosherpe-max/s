@@ -1,4 +1,3 @@
-
 'use client';
 
 import { Suspense, useEffect, useRef, useState } from 'react';
@@ -286,7 +285,9 @@ function OrderTrackingContent() {
 
                 {order.menuTypeLocation && (
                   <div className="px-4 py-3 bg-primary/5 rounded-xl border border-primary/10 flex items-center justify-between">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Location Detail</span>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                      {isBowlingAlley ? 'Lane Number' : 'Location Detail'}
+                    </span>
                     <span className="text-sm font-black text-primary uppercase">{order.menuTypeLocation}</span>
                   </div>
                 )}
