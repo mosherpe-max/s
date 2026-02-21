@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Button } from '@/components/ui/button';
@@ -36,8 +37,8 @@ export default function Home() {
           </div>
           <div className="relative">
             <Image
-              alt="Bowling lane service"
-              data-ai-hint="bowling alley"
+              alt="People bowling"
+              data-ai-hint="bowling people"
               priority
               fill
               className="object-cover"
