@@ -630,20 +630,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
           </div>
         </header>
 
-        <section id="performance-overview" className="mb-12 scroll-mt-24">
-          <h2 className="font-headline text-xl font-bold mb-6 flex items-center gap-2 text-primary uppercase tracking-wider"><BarChart3 className="h-6 w-6" /> Performance Overview</h2>
-          <div className="flex flex-wrap gap-4">
-              {dashboardStats ? (
-                  <>
-                      <StatTile title="Daily" {...dashboardStats.daily} />
-                      <StatTile title="Monthly" {...dashboardStats.monthly} />
-                      <StatTile title="Yearly" {...dashboardStats.yearly} />
-                  </>
-              ) : <Skeleton className="h-40 w-full" />}
-          </div>
-        </section>
-
-        {/* Live Operations Monitor / Order Queue */}
+        {/* Live Operations Monitor / Order Queue - Moved Prior to Performance Overview */}
         {(isGolfCourse || isBowlingAlley) && (
           <section id="ops-monitor" className="mb-12 scroll-mt-24">
             <h2 className="font-headline text-xl font-bold mb-6 flex items-center gap-2 text-primary uppercase tracking-wider">
@@ -790,6 +777,19 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
             </div>
           </section>
         )}
+
+        <section id="performance-overview" className="mb-12 scroll-mt-24">
+          <h2 className="font-headline text-xl font-bold mb-6 flex items-center gap-2 text-primary uppercase tracking-wider"><BarChart3 className="h-6 w-6" /> Performance Overview</h2>
+          <div className="flex flex-wrap gap-4">
+              {dashboardStats ? (
+                  <>
+                      <StatTile title="Daily" {...dashboardStats.daily} />
+                      <StatTile title="Monthly" {...dashboardStats.monthly} />
+                      <StatTile title="Yearly" {...dashboardStats.yearly} />
+                  </>
+              ) : <Skeleton className="h-40 w-full" />}
+          </div>
+        </section>
 
         <h2 id="service-management" className="font-headline text-xl font-bold mb-6 mt-16 flex items-center gap-2 text-primary uppercase tracking-wider scroll-mt-24"><ListChecks className="h-6 w-6" /> Service Menus</h2>
         <div className="grid grid-cols-1 gap-12">
