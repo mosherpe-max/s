@@ -12,18 +12,18 @@ import type { Order, Seller } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
-import { Bell, Package, AlertCircle, Clock, MapPin } from 'lucide-react';
+import { Bell, Package, AlertCircle, Clock, MapPin, DollarSign, Timer, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
-import { format } from 'date-fns';
+import { format, isToday } from 'date-fns';
 
 export default function LaneSideServerDashboardPage({ params }: { params: Promise<{ sellerId: string }> }) {
   const { sellerId } = use(params);
   const firestore = useFirestore();
   const { toast } = useToast();
-  const [now, setNow] = useState<number | null>(null);
+  const [now, setNow] = useState<number>(Date.now());
   
   const lastOrderIdsRef = useRef<Set<string>>(new Set());
   const initialLoadRef = useRef(true);
@@ -49,11 +49,64 @@ export default function LaneSideServerDashboardPage({ params }: { params: Promis
 
   const { data: activeOrders, isLoading: areActiveOrdersLoading } = useCollection<Order>(activeOrdersQuery);
 
+  const allOrdersQuery = useMemoFirebase(() => {
+    if (!firestore || !sellerId) return null;
+    return query(
+      collection(firestore, 'orders'),
+      where('sellerId', '==', sellerId)
+    );
+  }, [firestore, sellerId]);
+
+  const { data: allOrders } = useCollection<Order>(allOrdersQuery);
+
   const lanesideOrders = useMemo(() => {
     if (!activeOrders) return [];
-    // Laneside server handles specifically Lane Delivery orders
     return activeOrders.filter(o => o.menuType === 'Lane Delivery');
   }, [activeOrders]);
+
+  const metrics = useMemo(() => {
+    if (!allOrders || !primarySeller) return null;
+    
+    const laneOrdersToday = allOrders.filter(o => 
+      o.menuType === 'Lane Delivery' && 
+      o.createdAt && 
+      isToday(o.createdAt.toDate())
+    );
+
+    const activeCount = lanesideOrders.length;
+    const deliveredToday = laneOrdersToday.filter(o => o.status === 'Delivered');
+    const totalDollars = deliveredToday.reduce((acc, o) => acc + (o.total || 0), 0);
+    
+    let totalMinutes = 0;
+    deliveredToday.forEach(o => {
+      if (o.deliveredAt && o.createdAt) {
+        const duration = (o.deliveredAt.toDate().getTime() - o.createdAt.toDate().getTime()) / 60000;
+        totalMinutes += duration;
+      }
+    });
+    
+    const avgTime = deliveredToday.length > 0 ? totalMinutes / deliveredToday.length : 0;
+    const thresholdMax = thresholds.max;
+    
+    const exceededCount = laneOrdersToday.filter(o => {
+      if (o.status === 'Delivered' && o.deliveredAt && o.createdAt) {
+        const duration = (o.deliveredAt.toDate().getTime() - o.createdAt.toDate().getTime()) / 60000;
+        return duration > thresholdMax;
+      }
+      if (o.createdAt) {
+        const duration = (now - o.createdAt.toDate().getTime()) / 60000;
+        return duration > thresholdMax;
+      }
+      return false;
+    }).length;
+
+    return {
+      activeCount,
+      totalDollars,
+      avgTime,
+      exceededCount
+    };
+  }, [allOrders, lanesideOrders, primarySeller, now, thresholds.max]);
 
   useEffect(() => {
     if (!lanesideOrders || !now) return;
@@ -147,25 +200,39 @@ export default function LaneSideServerDashboardPage({ params }: { params: Promis
         </div>
       </header>
 
-      <div className="flex-1 flex flex-col p-4 gap-4 overflow-hidden max-w-4xl mx-auto w-full">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-2">
+      <div className="flex-1 flex flex-col p-4 gap-4 overflow-hidden max-w-6xl mx-auto w-full">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-2">
            <div className="p-4 bg-white rounded-xl border shadow-sm flex items-center gap-3">
-              <div className="p-2 bg-primary/10 rounded-full"><Package className="h-5 w-5 text-primary" /></div>
-              <div>
-                <p className="text-[10px] font-bold uppercase text-muted-foreground">Active Lane Orders</p>
-                <p className="text-xl font-headline font-bold">{lanesideOrders.length}</p>
+              <div className="p-2 bg-primary/10 rounded-full shrink-0"><Package className="h-5 w-5 text-primary" /></div>
+              <div className="min-w-0">
+                <p className="text-[10px] font-bold uppercase text-muted-foreground truncate">Active Orders</p>
+                <p className="text-xl font-headline font-bold">{metrics?.activeCount ?? 0}</p>
               </div>
            </div>
            <div className="p-4 bg-white rounded-xl border shadow-sm flex items-center gap-3">
-              <div className="p-2 bg-primary/10 rounded-full"><Clock className="h-5 w-5 text-primary" /></div>
-              <div>
-                <p className="text-[10px] font-bold uppercase text-muted-foreground">Thresholds</p>
-                <p className="text-xs font-headline font-bold text-muted-foreground">W: {thresholds.warning}m / M: {thresholds.max}m</p>
+              <div className="p-2 bg-green-500/10 rounded-full shrink-0"><DollarSign className="h-5 w-5 text-green-600" /></div>
+              <div className="min-w-0">
+                <p className="text-[10px] font-bold uppercase text-muted-foreground truncate">Delivered Today</p>
+                <p className="text-xl font-headline font-bold">${metrics?.totalDollars.toFixed(2) ?? '0.00'}</p>
+              </div>
+           </div>
+           <div className="p-4 bg-white rounded-xl border shadow-sm flex items-center gap-3">
+              <div className="p-2 bg-blue-500/10 rounded-full shrink-0"><Timer className="h-5 w-5 text-blue-600" /></div>
+              <div className="min-w-0">
+                <p className="text-[10px] font-bold uppercase text-muted-foreground truncate">Avg Delivery Time</p>
+                <p className="text-xl font-headline font-bold">{metrics?.avgTime.toFixed(1) ?? 0}m</p>
+              </div>
+           </div>
+           <div className="p-4 bg-white rounded-xl border shadow-sm flex items-center gap-3">
+              <div className="p-2 bg-red-500/10 rounded-full shrink-0"><AlertTriangle className="h-5 w-5 text-red-600" /></div>
+              <div className="min-w-0">
+                <p className="text-[10px] font-bold uppercase text-muted-foreground truncate">Over Threshold</p>
+                <p className="text-xl font-headline font-bold text-red-600">{metrics?.exceededCount ?? 0}</p>
               </div>
            </div>
         </div>
 
-        <div className="flex-1 bg-white border-2 rounded-xl overflow-hidden flex flex-col shadow-sm">
+        <div className="flex-1 bg-white border-2 rounded-xl overflow-hidden flex flex-col shadow-sm min-h-0">
           <h2 className="font-headline text-base font-semibold px-4 py-3 border-b flex items-center justify-between uppercase bg-muted/10">
             <span>Pending Deliveries</span>
             <Badge variant="secondary" className="font-mono">{lanesideOrders.length}</Badge>
