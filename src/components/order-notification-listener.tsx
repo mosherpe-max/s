@@ -11,7 +11,7 @@ import { useRouter } from 'next/navigation';
 
 /**
  * A global listener that monitors the most recent order status for the buyer.
- * Displays toast notifications for key milestones: Confirmed and Out for Delivery.
+ * Displays toast notifications and System Level Push Notifications for key milestones.
  */
 export function OrderNotificationListener() {
   const firestore = useFirestore();
@@ -32,8 +32,33 @@ export function OrderNotificationListener() {
   const { data: orders } = useCollection<Order>(latestOrderQuery);
   const order = orders?.[0];
 
+  // Request Notification Permission on first mount if we have an active order
+  useEffect(() => {
+    if (order && 'Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+  }, [order]);
+
+  const sendSystemNotification = (title: string, body: string, url: string) => {
+    if ('Notification' in window && Notification.permission === 'granted') {
+      navigator.serviceWorker.ready.then((registration) => {
+        registration.showNotification(title, {
+          body,
+          icon: 'https://picsum.photos/seed/koop/192/192',
+          badge: 'https://picsum.photos/seed/koop/96/96',
+          vibrate: [200, 100, 200],
+          tag: 'order-status',
+          renotify: true,
+          data: { url }
+        });
+      });
+    }
+  };
+
   useEffect(() => {
     if (!order) return;
+
+    const orderUrl = `/order/track?id=${order.id}&sellerId=${order.sellerId}`;
 
     // If this is a new order we haven't seen yet, just register the current status and move on
     if (order.id !== prevOrderIdRef.current) {
@@ -47,7 +72,7 @@ export function OrderNotificationListener() {
       const trackAction = (
         <ToastAction 
           altText="Track Order" 
-          onClick={() => router.push(`/order/track?id=${order.id}`)}
+          onClick={() => router.push(orderUrl)}
         >
           View Order
         </ToastAction>
@@ -65,13 +90,19 @@ export function OrderNotificationListener() {
             description: 'The establishment has received your order and is preparing it.',
             action: trackAction,
           });
+          
+          sendSystemNotification(
+            'Order Received!',
+            'The establishment is now preparing your refreshments.',
+            orderUrl
+          );
           break;
 
         case 'Out for Delivery':
           // Attempt to re-initiate wake lock if browser supports it
           if ('wakeLock' in navigator) {
             try {
-              (navigator as any).wakeLock.request('screen');
+              (navigator as any).wakeLock.request('screen').catch(() => {});
             } catch (e) {
               console.warn('Wake Lock re-initiation failed from background');
             }
@@ -87,6 +118,20 @@ export function OrderNotificationListener() {
             description: 'The driver is out for delivery. Watch the map for their live location.',
             action: trackAction,
           });
+
+          sendSystemNotification(
+            'Delivery Heading Your Way!',
+            'Watch the map live to see your driver approaching.',
+            orderUrl
+          );
+          break;
+          
+        case 'Delivered':
+          sendSystemNotification(
+            'Order Delivered!',
+            'Your items have arrived. Enjoy!',
+            orderUrl
+          );
           break;
       }
       
