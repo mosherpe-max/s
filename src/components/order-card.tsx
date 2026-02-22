@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { Separator } from './ui/separator';
 import { Button } from './ui/button';
-import { Navigation, PartyPopper, ClipboardList, Send, MoveHorizontal, User, Satellite, Clock } from 'lucide-react';
+import { Navigation, PartyPopper, ClipboardList, Send, MoveHorizontal, User, Satellite, Clock, MapPin } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { Badge } from './ui/badge';
 import { cn, getDriverColor, getNumericOrderId } from '@/lib/utils';
@@ -94,16 +94,16 @@ export function OrderCard({
     switch (order.status) {
       case 'Placed':
         return (
-          <Button className="w-full font-headline font-bold uppercase text-[10px] h-10" onClick={() => onUpdateStatus(order.id, 'Preparing', currentDriverId)}>
-            <Send className="mr-2 h-3.5 w-3.5" />
+          <Button className="w-full font-headline font-bold uppercase text-[11px] h-11 shadow-sm" onClick={() => onUpdateStatus(order.id, 'Preparing', currentDriverId)}>
+            <Send className="mr-2 h-4 w-4" />
             Confirm Order
           </Button>
         );
       case 'Preparing':
         return (
-          <div className="flex gap-1.5 w-full">
-            <Button className="flex-1 font-headline font-bold uppercase text-[10px] h-10" onClick={() => onUpdateStatus(order.id, 'Out for Delivery', currentDriverId)}>
-              <Navigation className="mr-2 h-3.5 w-3.5" />
+          <div className="flex gap-2 w-full">
+            <Button className="flex-1 font-headline font-bold uppercase text-[11px] h-11 shadow-sm" onClick={() => onUpdateStatus(order.id, 'Out for Delivery', currentDriverId)}>
+              <Navigation className="mr-2 h-4 w-4" />
               {order.menuType === 'Lane Delivery' ? 'Serving Now' : 'Start Delivery'}
             </Button>
             {canHandoff && renderHandoffButton()}
@@ -111,9 +111,9 @@ export function OrderCard({
         );
       case 'Out for Delivery':
         return (
-          <div className="flex gap-1.5 w-full">
-            <Button className="flex-1 font-headline font-bold uppercase text-[10px] h-10" onClick={() => onUpdateStatus(order.id, 'Delivered')}>
-              <PartyPopper className="mr-2 h-3.5 w-3.5" />
+          <div className="flex gap-2 w-full">
+            <Button className="flex-1 font-headline font-bold uppercase text-[11px] h-11 shadow-sm bg-green-600 hover:bg-green-700" onClick={() => onUpdateStatus(order.id, 'Delivered')}>
+              <PartyPopper className="mr-2 h-4 w-4" />
               Complete Order
             </Button>
             {canHandoff && renderHandoffButton()}
@@ -127,8 +127,8 @@ export function OrderCard({
   const renderHandoffButton = () => (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="icon" className="h-10 w-10 shrink-0 border-primary/20 hover:bg-primary/10">
-          <MoveHorizontal className="h-4 w-4 text-primary" />
+        <Button variant="outline" size="icon" className="h-11 w-11 shrink-0 border-primary/20 hover:bg-primary/10">
+          <MoveHorizontal className="h-5 w-5 text-primary" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">
@@ -168,82 +168,97 @@ export function OrderCard({
 
   return (
     <Card className={cn(
-      'overflow-hidden flex flex-col h-full transition-all duration-300 w-full max-w-full',
+      'overflow-hidden flex flex-col h-full transition-all duration-300 w-full max-w-full shadow-sm',
       borderThickness,
       borderColorClass,
       isExceeded ? 'bg-red-50' : (isWarning ? 'bg-yellow-50' : 'bg-card'),
-      !assignedDriverId && 'opacity-90 hover:opacity-100',
-      isAssignedToMe && !isExceeded && 'shadow-md ring-1 ring-primary/20'
+      !assignedDriverId && 'opacity-95 hover:opacity-100',
+      isAssignedToMe && !isExceeded && 'shadow-md ring-1 ring-primary/10'
     )}>
-      <CardHeader className={cn('flex flex-row items-start gap-3 p-3', isExceeded ? 'bg-red-100/50' : (isWarning ? 'bg-yellow-100/50' : 'bg-muted/30'))}>
-        <Avatar className="w-9 h-9 shrink-0 border border-primary/10">
-          <AvatarFallback className={cn("font-bold text-[10px] text-primary-foreground", isExceeded ? 'bg-destructive' : 'bg-primary')}>#{numericId}</AvatarFallback>
-        </Avatar>
-        <div className='flex-1 min-w-0'>
-          <div className="flex items-center gap-2 mb-0.5">
-            <CardTitle className='text-xs font-bold uppercase tracking-tight truncate leading-tight'>{order.customerName}</CardTitle>
-            {order.menuTypeLocation && (
-              <Badge className={cn("text-white text-[9px] font-black uppercase tracking-tight px-1.5 h-4", isExceeded ? 'bg-destructive' : 'bg-primary')}>
-                {order.menuTypeLocation}
-              </Badge>
-            )}
-          </div>
-          <div className="flex flex-col gap-0.5 mt-0.5">
-            <div className="flex items-center justify-between gap-2">
-              <CardDescription className="text-[9px] flex items-center gap-1 font-medium truncate">
-                {mounted && order.createdAt?.toDate ? formatDistanceToNow(order.createdAt.toDate(), { addSuffix: true }) : 'Processing...'}
-              </CardDescription>
-              {mounted && now && (
-                <div className={cn("text-[9px] font-black uppercase flex items-center gap-1 shrink-0", isExceeded ? 'text-destructive' : (isWarning ? 'text-yellow-700' : 'text-muted-foreground'))}>
-                  <Clock className="w-2.5 h-2.5" />
-                  {minutesElapsed}m elapsed
+      <CardHeader className={cn('flex flex-col p-4 gap-3', isExceeded ? 'bg-red-100/50' : (isWarning ? 'bg-yellow-100/50' : 'bg-muted/30'))}>
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <Avatar className="w-10 h-10 shrink-0 border-2 border-white shadow-sm">
+              <AvatarFallback className={cn("font-black text-xs text-white", isExceeded ? 'bg-destructive' : 'bg-primary')}>
+                #{numericId.slice(-3)}
+              </AvatarFallback>
+            </Avatar>
+            <div className="min-w-0">
+              <CardTitle className='text-sm font-black uppercase tracking-tight truncate leading-tight'>
+                {order.customerName}
+              </CardTitle>
+              {order.menuTypeLocation && (
+                <div className="flex items-center gap-1.5 mt-1">
+                  <MapPin className="w-3 h-3 text-muted-foreground" />
+                  <span className="text-[10px] font-black text-primary uppercase tracking-widest">
+                    {order.menuTypeLocation}
+                  </span>
                 </div>
               )}
             </div>
-            
-            {/* GPS Signal Freshness Fallback */}
-            {mounted && order.lastGpsUpdate && order.status === 'Out for Delivery' && (
-              <div className="flex items-center gap-1 text-[8px] font-black uppercase tracking-widest text-primary animate-in fade-in duration-500">
-                <Satellite className="w-2.5 h-2.5 animate-pulse" />
-                <span>GPS Updated {formatDistanceToNow(order.lastGpsUpdate.toDate(), { addSuffix: true })}</span>
-              </div>
-            )}
-
-            <div className="flex items-center gap-1.5 overflow-hidden mt-0.5">
-              <Badge variant="outline" className="text-[7px] h-3.5 px-1 uppercase font-bold tracking-widest bg-background border-primary/20 flex items-center gap-1 shrink-0">
-                <ClipboardList className="w-2 h-2" /> {order.menuType}
+          </div>
+          
+          <div className="flex flex-col items-end gap-1">
+            {statusInfo && (
+              <Badge variant={isExceeded ? 'destructive' : statusInfo.badgeVariant} className="text-[8px] font-black tracking-[0.1em] h-5 px-2 shrink-0">
+                {isExceeded ? 'OVERDUE' : statusInfo.label}
               </Badge>
-              {assignedDriverId && !isAssignedToMe && (
-                <Badge variant="secondary" className="text-[7px] h-3.5 px-1 uppercase font-bold truncate">
-                  <User className="w-2 h-2 mr-1" /> Other Driver
-                </Badge>
-              )}
+            )}
+            <div className={cn(
+              "text-[10px] font-black uppercase flex items-center gap-1.5 mt-1",
+              isExceeded ? 'text-destructive' : (isWarning ? 'text-yellow-700' : 'text-muted-foreground')
+            )}>
+              <Clock className="w-3 h-3" />
+              {minutesElapsed}m
             </div>
           </div>
         </div>
-        {statusInfo && (
-          <Badge variant={isExceeded ? 'destructive' : statusInfo.badgeVariant} className="text-[7px] font-bold tracking-widest h-4 px-1 shrink-0">
-            {isExceeded ? 'OVERDUE' : statusInfo.label}
-          </Badge>
-        )}
+
+        <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-dashed border-muted-foreground/20">
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className="text-[8px] h-4.5 px-1.5 uppercase font-bold tracking-widest bg-background/50 border-primary/20 flex items-center gap-1 shadow-xs">
+              <ClipboardList className="w-2.5 h-2.5" /> {order.menuType}
+            </Badge>
+            {assignedDriverId && !isAssignedToMe && (
+              <Badge variant="secondary" className="text-[8px] h-4.5 px-1.5 uppercase font-bold flex items-center gap-1">
+                <User className="w-2.5 h-2.5" /> Other Staff
+              </Badge>
+            )}
+          </div>
+
+          {mounted && order.lastGpsUpdate && order.status === 'Out for Delivery' && (
+            <div className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-tight text-primary animate-in fade-in duration-500 bg-primary/5 px-2 py-0.5 rounded-full border border-primary/10">
+              <Satellite className="w-3 h-3 animate-pulse" />
+              <span>GPS: {formatDistanceToNow(order.lastGpsUpdate.toDate(), { addSuffix: true }).replace('about ', '')}</span>
+            </div>
+          )}
+        </div>
       </CardHeader>
-      <CardContent className='p-3 space-y-2.5 flex-1'>
-        <div className="space-y-1">
+
+      <CardContent className='p-4 space-y-3 flex-1'>
+        <div className="space-y-1.5">
           {order.items.map(item => (
-            <div key={item.id} className="flex justify-between items-start text-[11px] gap-2">
-              <span className="font-medium truncate flex-1">{item.name} <span className='text-muted-foreground font-normal ml-0.5'>x{item.quantity}</span></span>
-              <span className='font-mono font-bold text-[10px] shrink-0'>${(item.price * item.quantity).toFixed(2)}</span>
+            <div key={item.id} className="flex justify-between items-start text-xs gap-3">
+              <span className="font-medium truncate flex-1 text-foreground/90">
+                {item.name} <span className='text-muted-foreground font-bold ml-1 text-[10px]'>×{item.quantity}</span>
+              </span>
+              <span className='font-mono font-bold text-muted-foreground'>
+                ${(item.price * item.quantity).toFixed(2)}
+              </span>
             </div>
           ))}
         </div>
-        <Separator className="border-dashed" />
-        <div className='flex justify-between items-center'>
-          <span className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Order Total</span>
-          <span className='font-mono font-bold text-xs'>${order.total.toFixed(2)}</span>
+        
+        <Separator className="border-dashed opacity-50" />
+        
+        <div className='flex justify-between items-center px-0.5'>
+          <span className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">TOTAL</span>
+          <span className='font-mono font-black text-sm text-primary'>${order.total.toFixed(2)}</span>
         </div>
       </CardContent>
+
       {renderAction() && (
-        <CardFooter className={cn('p-1.5 mt-auto border-t', isExceeded ? 'bg-red-100/30' : 'bg-muted/20')}>
+        <CardFooter className={cn('p-2 mt-auto border-t', isExceeded ? 'bg-red-100/30' : 'bg-muted/20')}>
           {renderAction()}
         </CardFooter>
       )}
