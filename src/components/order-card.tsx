@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -202,7 +201,6 @@ export function OrderCard({
           </div>
           
           <div className="flex flex-col items-end gap-1">
-            <span className="text-[8px] font-mono font-bold text-muted-foreground/50 leading-none mb-0.5">#{numericId}</span>
             {statusInfo && (
               <Badge variant={isExceeded ? 'destructive' : statusInfo.badgeVariant} className="text-[8px] font-black tracking-[0.1em] h-5 px-2 shrink-0">
                 {isExceeded ? 'OVERDUE' : statusInfo.label}
@@ -223,6 +221,7 @@ export function OrderCard({
             <Badge variant="outline" className="text-[8px] h-4.5 px-1.5 uppercase font-bold tracking-widest bg-background/50 border-primary/20 flex items-center gap-1 shadow-xs">
               <ClipboardList className="w-2.5 h-2.5" /> {order.menuType}
             </Badge>
+            <span className="text-[8px] font-mono font-bold text-muted-foreground/40 px-1">#{numericId}</span>
             {assignedDriverId && !isAssignedToMe && (
               <Badge variant="secondary" className="text-[8px] h-4.5 px-1.5 uppercase font-bold flex items-center gap-1">
                 <User className="w-2.5 h-2.5" /> Other Staff
