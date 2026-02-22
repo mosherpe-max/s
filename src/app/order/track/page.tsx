@@ -311,8 +311,8 @@ function OrderTrackingContent() {
           </div>
         )}
 
-        {/* Mandatory Hole Selection for Browser Users on Golf Course */}
-        {!isDelivered && isGolfService && !isStandalone && (
+        {/* Mandatory Hole Selection fallback - Targeted at iOS Browser Users on Golf Course */}
+        {!isDelivered && isGolfService && isIos && !isStandalone && (
           <Card className="border-2 border-primary/30 shadow-xl overflow-hidden animate-in slide-in-from-top-2 duration-500">
             <div className="bg-primary/10 px-4 py-3 border-b border-primary/20 flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -325,7 +325,7 @@ function OrderTrackingContent() {
               <div className="space-y-1">
                 <h4 className="text-sm font-black uppercase tracking-tight">What hole are you on?</h4>
                 <p className="text-[10px] text-muted-foreground font-medium leading-tight">
-                  Even with live GPS, staff use hole numbers to navigate the course mentally. Please keep this updated so they can find you even if your signal drops.
+                  Standard mobile browsers stop tracking when backgrounded. Please keep this updated so staff can find you even if your screen is off.
                 </p>
               </div>
               
@@ -351,18 +351,16 @@ function OrderTrackingContent() {
                 })}
               </div>
 
-              {isIos && (
-                <div className="pt-2">
-                  <Button 
-                    variant="ghost" 
-                    onClick={() => setIsInstallPromptOpen(true)}
-                    className="w-full h-auto py-2 text-[10px] font-bold text-primary uppercase border border-dashed border-primary/30 hover:bg-primary/5 rounded-xl flex items-center justify-center gap-2"
-                  >
-                    <Smartphone className="h-3.5 w-3.5" />
-                    Add to Home Screen for Background Tracking
-                  </Button>
-                </div>
-              )}
+              <div className="pt-2">
+                <Button 
+                  variant="ghost" 
+                  onClick={() => setIsInstallPromptOpen(true)}
+                  className="w-full h-auto py-2 text-[10px] font-bold text-primary uppercase border border-dashed border-primary/30 hover:bg-primary/5 rounded-xl flex items-center justify-center gap-2"
+                >
+                  <Smartphone className="h-3.5 w-3.5" />
+                  Add to Home Screen for Background Tracking
+                </Button>
+              </div>
             </CardContent>
           </Card>
         )}
