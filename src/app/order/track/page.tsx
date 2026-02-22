@@ -1,4 +1,3 @@
-
 'use client';
 
 import { Suspense, useEffect, useRef, useState } from 'react';
@@ -14,7 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { PartyPopper, ShoppingBag, MapPin, Loader2, ArrowLeft, Store, ClipboardList, Satellite, Edit2, ChevronLeft, Smartphone, BellRing, Flag, CheckCircle2, Zap, Info } from 'lucide-react';
+import { PartyPopper, ShoppingBag, MapPin, Loader2, ArrowLeft, Store, ClipboardList, Satellite, Edit2, ChevronLeft, Smartphone, BellRing, Flag, CheckCircle2, Zap, Info, Eye } from 'lucide-react';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { IosInstallPrompt } from '@/components/ios-install-prompt';
 import { getNumericOrderId } from '@/lib/utils';
@@ -35,6 +34,7 @@ function OrderTrackingContent() {
   const [isIos, setIsIos] = useState(false);
   const [isStandalone, setIsStandalone] = useState(false);
   const [isUpdatingHole, setIsUpdatingHole] = useState(false);
+  const [forceIosView, setForceIosView] = useState(false);
   
   const wakeLockRef = useRef<any>(null);
   const watchIdRef = useRef<number | null>(null);
@@ -65,7 +65,6 @@ function OrderTrackingContent() {
   const isGolfService = order?.menuType === 'Beverage Cart' || order?.menuType === 'Clubhouse';
   const isGpsRequired = isGolfService;
 
-  // Device Detection & Status Tracking
   useEffect(() => {
     const userAgent = window.navigator.userAgent.toLowerCase();
     const isIosDevice = /iphone|ipad|ipod/.test(userAgent);
@@ -75,7 +74,6 @@ function OrderTrackingContent() {
     setIsIos(isIosDevice);
     setIsStandalone(isStandaloneMode);
 
-    // Save device status to the order for driver fallback awareness
     if (orderId && firestore) {
       const status = isStandaloneMode ? 'standalone' : (isIosDevice ? 'ios-browser' : (isAndroid ? 'android' : 'standard'));
       updateDoc(doc(firestore, 'orders', orderId), { buyerDeviceStatus: status }).catch(() => {});
@@ -91,13 +89,11 @@ function OrderTrackingContent() {
     }
   }, [order, seller, initialLocations, isGpsRequired]);
 
-  // Handle Screen Wake Lock to prevent iOS from sleeping during delivery
   useEffect(() => {
     const requestWakeLock = async () => {
       if ('wakeLock' in navigator && !wakeLockRef.current) {
         try {
           wakeLockRef.current = await (navigator as any).wakeLock.request('screen');
-          console.log('Wake Lock acquired');
         } catch (err) {
           console.warn('Wake Lock request failed:', err);
         }
@@ -111,10 +107,8 @@ function OrderTrackingContent() {
       }
     };
 
-    // Keep screen on during delivery to ensure GPS keeps firing
     if (order && order.status === 'Out for Delivery' && isGpsRequired) {
       requestWakeLock();
-      
       const handleVisibilityChange = () => {
         if (document.visibilityState === 'visible' && order.status === 'Out for Delivery') {
           requestWakeLock();
@@ -130,13 +124,11 @@ function OrderTrackingContent() {
     }
   }, [order?.status, isGpsRequired]);
 
-  // High-Precision Location Tracking
   useEffect(() => {
     if (!order || !firestore || !isGpsRequired) return;
 
     if (order.status === 'Out for Delivery') {
       setIsTrackingActive(true);
-      
       if (navigator.geolocation) {
         watchIdRef.current = navigator.geolocation.watchPosition(
           (position) => {
@@ -151,11 +143,7 @@ function OrderTrackingContent() {
             }).catch(() => {});
           },
           (error) => console.warn('GPS Watcher Failed:', error),
-          { 
-            enableHighAccuracy: true, 
-            timeout: 15000, 
-            maximumAge: 0 
-          }
+          { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
         );
       }
     } else {
@@ -222,9 +210,24 @@ function OrderTrackingContent() {
   const mapBuyerLocation = isOutForDelivery ? order.deliveryLocation : initialLocations?.buyer;
   const mapSellerLocation = isOutForDelivery ? { latitude: seller?.latitude || 0, longitude: seller?.longitude || 0 } : initialLocations?.seller;
 
+  const showHoleSelection = !isDelivered && isGolfService && (forceIosView || (isIos && !isStandalone));
+
   return (
     <div className="flex flex-col min-h-[calc(100vh-4rem)] bg-muted/10 overflow-y-auto">
       <IosInstallPrompt open={isInstallPromptOpen} onOpenChange={setIsInstallPromptOpen} />
+
+      {/* Prototype Preview Toggle - Visible only during chat session/dev */}
+      <div className="fixed top-20 right-4 z-50 flex flex-col gap-2">
+        <Button 
+          size="sm" 
+          variant={forceIosView ? "default" : "secondary"}
+          onClick={() => setForceIosView(!forceIosView)}
+          className="rounded-full shadow-2xl h-10 px-4 font-black uppercase text-[10px] tracking-widest border-2 border-white"
+        >
+          <Eye className="mr-2 h-3.5 w-3.5" />
+          {forceIosView ? "Showing iOS Preview" : "Preview iOS Browser UI"}
+        </Button>
+      </div>
 
       {!isDelivered && isGpsRequired && (
         <div className="h-[40vh] relative shadow-inner overflow-hidden border-b-2 shrink-0">
@@ -322,8 +325,7 @@ function OrderTrackingContent() {
           </div>
         )}
 
-        {/* Mandatory Hole Selection fallback - Targeted at iOS Browser Users on Golf Course */}
-        {!isDelivered && isGolfService && isIos && !isStandalone && (
+        {showHoleSelection && (
           <Card className="border-2 border-primary/30 shadow-xl overflow-hidden animate-in slide-in-from-top-2 duration-500">
             <div className="bg-primary/10 px-4 py-3 border-b border-primary/20 flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -366,7 +368,7 @@ function OrderTrackingContent() {
                 <Button 
                   variant="ghost" 
                   onClick={() => setIsInstallPromptOpen(true)}
-                  className="w-full h-auto py-2 text-[10px] font-bold text-primary uppercase border border-dashed border-primary/30 hover:bg-primary/5 rounded-xl flex items-center justify-center gap-2"
+                  className="w-full h-auto py-2.5 text-[10px] font-bold text-primary uppercase border border-dashed border-primary/30 hover:bg-primary/5 rounded-xl flex items-center justify-center gap-2"
                 >
                   <Smartphone className="h-3.5 w-3.5" />
                   Add to Home Screen for Background Tracking
