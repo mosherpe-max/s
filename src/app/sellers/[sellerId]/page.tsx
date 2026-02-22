@@ -45,7 +45,8 @@ import {
   Focus,
   ListOrdered,
   Download,
-  Calendar as CalendarIcon
+  Calendar as CalendarIcon,
+  ClipboardList
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -84,7 +85,7 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
   useSortable
-} from '@dnd-kit/sortable';
+} from '@sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { MapView } from '@/components/map-view';
 import { APIProvider, Map, useMap } from '@vis.gl/react-google-maps';
@@ -518,21 +519,27 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     };
   }, [orders, seller, selectedOpsMenu, now]);
 
-  const dailyReportData = useMemo(() => {
-    if (!orders || !seller) return [];
-
+  const filteredOrdersByRange = useMemo(() => {
+    if (!orders) return [];
     const start = parseISO(startDate);
     const end = parseISO(endDate);
-
-    const filtered = orders.filter(o => {
+    
+    return orders.filter(o => {
       if (!o.createdAt) return false;
       const orderDate = o.createdAt.toDate();
-      return isWithinInterval(orderDate, { start, end });
-    });
+      // Ensure range covers entire start and end days
+      const rangeStart = new Date(start.setHours(0, 0, 0, 0));
+      const rangeEnd = new Date(end.setHours(23, 59, 59, 999));
+      return isWithinInterval(orderDate, { start: rangeStart, end: rangeEnd });
+    }).sort((a, b) => b.createdAt.toDate().getTime() - a.createdAt.toDate().getTime());
+  }, [orders, startDate, endDate]);
+
+  const dailyReportData = useMemo(() => {
+    if (!filteredOrdersByRange || !seller) return [];
 
     const groupedByDate: Record<string, Record<string, number>> = {};
 
-    filtered.forEach(o => {
+    filteredOrdersByRange.forEach(o => {
       const dateKey = format(o.createdAt.toDate(), 'yyyy-MM-dd');
       if (!groupedByDate[dateKey]) {
         groupedByDate[dateKey] = {};
@@ -548,7 +555,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
         total: Object.values(menus).reduce((a, b) => a + b, 0)
       }))
       .sort((a, b) => b.date.localeCompare(a.date));
-  }, [orders, seller, startDate, endDate]);
+  }, [filteredOrdersByRange, seller]);
 
   const handleExportExcel = () => {
     if (dailyReportData.length === 0) return;
@@ -556,9 +563,34 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     const worksheet = XLSX.utils.json_to_sheet(dailyReportData);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Daily Sales");
-    XLSX.writeFile(workbook, `KOOP_Sales_Report_${startDate}_to_${endDate}.xlsx`);
+    XLSX.writeFile(workbook, `KOOP_Daily_Sales_${startDate}_to_${endDate}.xlsx`);
     
-    toast({ title: 'Report Exported', description: 'Your Excel file has been generated.' });
+    toast({ title: 'Report Exported', description: 'Daily summary generated.' });
+  };
+
+  const handleExportIndividualOrdersExcel = () => {
+    if (filteredOrdersByRange.length === 0) return;
+
+    const exportData = filteredOrdersByRange.map(o => ({
+      'Order ID': o.id,
+      'Customer': o.customerName,
+      'Date': format(o.createdAt.toDate(), 'yyyy-MM-dd HH:mm'),
+      'Menu Type': o.menuType,
+      'Status': o.status,
+      'Items': o.items.map(i => `${i.quantity}x ${i.name}`).join(', '),
+      'Subtotal': o.subtotal,
+      'Fee': o.serviceFee,
+      'Tax': o.tax,
+      'Tip': o.tip,
+      'Total': o.total
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(exportData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Individual Orders");
+    XLSX.writeFile(workbook, `KOOP_Orders_Detailed_${startDate}_to_${endDate}.xlsx`);
+    
+    toast({ title: 'Orders Exported', description: 'Detailed log generated.' });
   };
 
   const mappedBuyers = useMemo(() => {
@@ -1137,85 +1169,157 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
 
         <section id="sales-stats" className="mb-12 scroll-mt-32">
           <h2 className="font-headline text-xl font-bold mb-6 flex items-center gap-2 text-primary uppercase tracking-wider"><BarChart3 className="h-6 w-6" /> Sales Stats</h2>
-          <div className="flex flex-wrap gap-4 mb-8">
+          
+          <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-muted/30 p-4 rounded-xl border-2">
+            <div className="space-y-1">
+              <h3 className="text-sm font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                <CalendarIcon className="h-4 w-4" /> Global Date Range Filter
+              </h3>
+              <p className="text-[10px] font-medium text-muted-foreground">Adjust the date range below to update all sales charts and order logs.</p>
+            </div>
+            <div className="flex items-center gap-3 bg-background border-2 rounded-lg px-4 py-2 shadow-sm">
+              <input 
+                type="date" 
+                value={startDate} 
+                onChange={(e) => setStartDate(e.target.value)}
+                className="text-xs font-black uppercase tracking-tight focus:outline-none bg-transparent"
+              />
+              <span className="text-muted-foreground font-bold">to</span>
+              <input 
+                type="date" 
+                value={endDate} 
+                onChange={(e) => setEndDate(e.target.value)}
+                className="text-xs font-black uppercase tracking-tight focus:outline-none bg-transparent"
+              />
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-4 mb-12">
               {dashboardStats ? (
                   <>
-                      <StatTile title="Monthly" {...dashboardStats.monthly} />
-                      <StatTile title="Yearly" {...dashboardStats.yearly} />
+                      <StatTile title="Current Month (To Date)" {...dashboardStats.monthly} />
+                      <StatTile title="Current Year (To Date)" {...dashboardStats.yearly} />
                   </>
               ) : <Skeleton className="h-40 w-full" />}
           </div>
 
-          <Card className="shadow-lg border-2">
-            <CardHeader className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b bg-muted/20">
-              <div className="space-y-1">
-                <CardTitle className="text-lg uppercase tracking-tight flex items-center gap-2">
-                  <ListOrdered className="h-5 w-5 text-primary" /> Daily Revenue Report
-                </CardTitle>
-                <CardDescription>Daily totals broken down by service mode.</CardDescription>
-              </div>
-              <div className="flex flex-wrap items-center gap-3">
-                <div className="flex items-center gap-2 bg-background border rounded-lg px-3 py-1.5">
-                  <CalendarIcon className="h-4 w-4 text-muted-foreground" />
-                  <input 
-                    type="date" 
-                    value={startDate} 
-                    onChange={(e) => setStartDate(e.target.value)}
-                    className="text-xs font-bold uppercase tracking-tight focus:outline-none bg-transparent"
-                  />
-                  <span className="text-muted-foreground">to</span>
-                  <input 
-                    type="date" 
-                    value={endDate} 
-                    onChange={(e) => setEndDate(e.target.value)}
-                    className="text-xs font-bold uppercase tracking-tight focus:outline-none bg-transparent"
-                  />
+          <div className="grid grid-cols-1 gap-8">
+            {/* Daily Revenue Summary Table */}
+            <Card className="shadow-lg border-2 overflow-hidden">
+              <CardHeader className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b bg-muted/20">
+                <div className="space-y-1">
+                  <CardTitle className="text-lg uppercase tracking-tight flex items-center gap-2">
+                    <ListOrdered className="h-5 w-5 text-primary" /> Daily Revenue Summary
+                  </CardTitle>
+                  <CardDescription>Consolidated daily totals for each service mode.</CardDescription>
                 </div>
-                <Button variant="outline" size="sm" onClick={handleExportExcel} disabled={dailyReportData.length === 0} className="bg-background">
-                  <Download className="mr-2 h-4 w-4" /> Export Excel
+                <Button variant="outline" size="sm" onClick={handleExportExcel} disabled={dailyReportData.length === 0} className="bg-background border-2 font-bold uppercase text-[10px] tracking-widest">
+                  <Download className="mr-2 h-4 w-4" /> Export Summary
                 </Button>
-              </div>
-            </CardHeader>
-            <CardContent className="p-0">
-              {areOrdersLoading ? (
-                <div className="p-12 text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto text-muted-foreground" /></div>
-              ) : dailyReportData.length === 0 ? (
-                <div className="p-20 text-center text-muted-foreground italic flex flex-col items-center gap-2">
-                  <FileSpreadsheet className="h-10 w-10 opacity-10" />
-                  <p>No sales data found for the selected range.</p>
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="bg-muted/30">
-                        <TableHead className="font-black uppercase tracking-widest text-[10px]">Date</TableHead>
-                        {seller?.menuTypes?.map(mt => (
-                          <TableHead key={mt} className="font-black uppercase tracking-widest text-[10px] text-right">{mt}</TableHead>
-                        ))}
-                        <TableHead className="font-black uppercase tracking-widest text-[10px] text-right text-primary">Daily Total</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {dailyReportData.map((row) => (
-                        <TableRow key={row.date} className="hover:bg-muted/10">
-                          <TableCell className="font-bold text-xs uppercase tracking-tight">{row.date}</TableCell>
+              </CardHeader>
+              <CardContent className="p-0">
+                {areOrdersLoading ? (
+                  <div className="p-12 text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto text-muted-foreground" /></div>
+                ) : dailyReportData.length === 0 ? (
+                  <div className="p-20 text-center text-muted-foreground italic flex flex-col items-center gap-2">
+                    <FileSpreadsheet className="h-10 w-10 opacity-10" />
+                    <p>No sales data found for the selected range.</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-muted/30">
+                          <TableHead className="font-black uppercase tracking-widest text-[10px]">Date</TableHead>
                           {seller?.menuTypes?.map(mt => (
-                            <TableCell key={mt} className="text-right font-mono text-xs">
-                              {row[mt] > 0 ? `$${row[mt].toFixed(2)}` : <span className="text-muted-foreground opacity-20">-</span>}
-                            </TableCell>
+                            <TableHead key={mt} className="font-black uppercase tracking-widest text-[10px] text-right">{mt}</TableHead>
                           ))}
-                          <TableCell className="text-right font-mono font-black text-xs text-primary">
-                            ${row.total.toFixed(2)}
-                          </TableCell>
+                          <TableHead className="font-black uppercase tracking-widest text-[10px] text-right text-primary">Daily Total</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                      </TableHeader>
+                      <TableBody>
+                        {dailyReportData.map((row) => (
+                          <TableRow key={row.date} className="hover:bg-muted/10 transition-colors">
+                            <TableCell className="font-bold text-xs uppercase tracking-tight">{row.date}</TableCell>
+                            {seller?.menuTypes?.map(mt => (
+                              <TableCell key={mt} className="text-right font-mono text-xs">
+                                {row[mt] > 0 ? `$${row[mt].toFixed(2)}` : <span className="text-muted-foreground opacity-20">-</span>}
+                              </TableCell>
+                            ))}
+                            <TableCell className="text-right font-mono font-black text-xs text-primary">
+                              ${row.total.toFixed(2)}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Individual Orders Log Table */}
+            <Card className="shadow-lg border-2 overflow-hidden">
+              <CardHeader className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b bg-muted/20">
+                <div className="space-y-1">
+                  <CardTitle className="text-lg uppercase tracking-tight flex items-center gap-2">
+                    <ClipboardList className="h-5 w-5 text-primary" /> Individual Orders Log
+                  </CardTitle>
+                  <CardDescription>Audit trail of all individual transactions in this range.</CardDescription>
                 </div>
-              )}
-            </CardContent>
-          </Card>
+                <Button variant="outline" size="sm" onClick={handleExportIndividualOrdersExcel} disabled={filteredOrdersByRange.length === 0} className="bg-background border-2 font-bold uppercase text-[10px] tracking-widest">
+                  <Download className="mr-2 h-4 w-4" /> Export Orders
+                </Button>
+              </CardHeader>
+              <CardContent className="p-0">
+                {areOrdersLoading ? (
+                  <div className="p-12 text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto text-muted-foreground" /></div>
+                ) : filteredOrdersByRange.length === 0 ? (
+                  <div className="p-20 text-center text-muted-foreground italic flex flex-col items-center gap-2">
+                    <ShoppingBag className="h-10 w-10 opacity-10" />
+                    <p>No individual orders found for this period.</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-muted/30">
+                          <TableHead className="font-black uppercase tracking-widest text-[10px]">Customer</TableHead>
+                          <TableHead className="font-black uppercase tracking-widest text-[10px]">Date/Time</TableHead>
+                          <TableHead className="font-black uppercase tracking-widest text-[10px]">Menu</TableHead>
+                          <TableHead className="font-black uppercase tracking-widest text-[10px]">Summary</TableHead>
+                          <TableHead className="font-black uppercase tracking-widest text-[10px] text-right text-primary">Total</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredOrdersByRange.map((order) => (
+                          <TableRow key={order.id} className="hover:bg-muted/10 transition-colors">
+                            <TableCell className="font-bold text-xs uppercase tracking-tight">{order.customerName}</TableCell>
+                            <TableCell className="text-[10px] text-muted-foreground font-mono">
+                              {format(order.createdAt.toDate(), 'MMM dd, HH:mm')}
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="outline" className="text-[8px] font-black uppercase bg-background shadow-xs">
+                                {order.menuType}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="max-w-[200px]">
+                              <p className="text-[10px] text-muted-foreground truncate font-medium">
+                                {order.items.map(i => `${i.quantity}x ${i.name}`).join(', ')}
+                              </p>
+                            </TableCell>
+                            <TableCell className="text-right font-mono font-black text-xs text-primary">
+                              ${order.total.toFixed(2)}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </section>
 
         <h2 id="service-management" className="font-headline text-xl font-bold mb-6 mt-16 flex items-center gap-2 text-primary uppercase tracking-wider scroll-mt-32"><ListChecks className="h-6 w-6" /> Service Menus</h2>
