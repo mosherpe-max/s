@@ -1,4 +1,3 @@
-
 'use client';
 
 import { collection, query, where, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
@@ -315,8 +314,8 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
   }, [otherActiveDrivers, activeSellers]);
 
   const mappedBuyers = useMemo(() => {
-    if (!now || !activeOrders) return [];
-    return activeOrders.map(o => {
+    if (!now || !driverOrders) return [];
+    return driverOrders.map(o => {
       let colorClass = "bg-green-600";
       if (o.createdAt) {
         const orderTime = o.createdAt.toDate().getTime();
@@ -335,7 +334,7 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
         assignedDriverId: o.assignedDriverId
       };
     });
-  }, [activeOrders, now, thresholds]);
+  }, [driverOrders, now, thresholds]);
 
   const handleFocusClick = () => {
     setZoomMode(current => (current === 'radius' ? 'all' : 'radius'));

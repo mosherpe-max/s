@@ -1,4 +1,3 @@
-
 'use client';
 
 import { collection, query, where, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
@@ -305,10 +304,10 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
   }, [activeSellers, now, sellerId]);
 
   const mappedBuyers = useMemo(() => {
-    if (!now || !activeOrders) return [];
+    if (!now || !clubhouseOrders) return [];
     // Only map orders where GPS is required: Clubhouse orders
-    // (BevCart is excluded via the main filter, and Take Out/Lane Delivery don't need map presence)
-    return activeOrders.filter(o => o.menuType === 'Clubhouse').map(o => {
+    // Filtering map markers to match only clubhouse orders so numbering 1, 2, 3 matches the list
+    return clubhouseOrders.filter(o => o.menuType === 'Clubhouse').map(o => {
       let colorClass = "bg-green-600";
       if (o.createdAt) {
         const orderTime = o.createdAt.toDate().getTime();
@@ -327,7 +326,7 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
         assignedDriverId: o.assignedDriverId
       };
     });
-  }, [activeOrders, now, thresholds]);
+  }, [clubhouseOrders, now, thresholds]);
 
   const handleFocusClick = () => {
     setZoomMode(current => (current === 'radius' ? 'all' : 'radius'));

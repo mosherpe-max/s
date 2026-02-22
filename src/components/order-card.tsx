@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -178,11 +177,14 @@ export function OrderCard({
       <CardHeader className={cn('flex flex-col p-4 gap-3', isExceeded ? 'bg-red-100/50' : (isWarning ? 'bg-yellow-100/50' : 'bg-muted/30'))}>
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
-            <Avatar className="w-10 h-10 shrink-0 border-2 border-white shadow-sm">
-              <AvatarFallback className={cn("font-black text-xs text-white", isExceeded ? 'bg-destructive' : 'bg-primary')}>
-                #{numericId.slice(-3)}
-              </AvatarFallback>
-            </Avatar>
+            {/* Numbered Badge - Linked to Map Marker */}
+            <div className={cn(
+              "flex items-center justify-center w-10 h-10 rounded-full font-black text-sm text-white shadow-md shrink-0 border-2 border-white",
+              isExceeded ? 'bg-red-600' : (isWarning ? 'bg-yellow-500' : 'bg-green-600')
+            )}>
+              {orderNumber}
+            </div>
+            
             <div className="min-w-0">
               <CardTitle className='text-sm font-black uppercase tracking-tight truncate leading-tight'>
                 {order.customerName}

@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useMemo, useEffect, use, useRef } from 'react';
@@ -1008,17 +1007,14 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                             )}>
                               <div className="flex justify-between items-start">
                                 <div className="flex items-center gap-3">
-                                  {isMapRequired ? (
-                                    <div className={cn(
-                                      "w-8 h-8 rounded-full flex items-center justify-center font-black text-white text-sm shadow-md",
-                                      isOld ? "bg-red-600" : (isWarning ? "bg-yellow-500" : "bg-green-600")
-                                    )}>
-                                      {idx + 1}
-                                    </div>
-                                  ) : (
-                                    <Badge className="bg-primary text-white font-black text-[10px] h-6 px-2">#{order.menuTypeLocation || '??'}</Badge>
-                                  )}
-                                  <div className="flex flex-col">
+                                  {/* Prominent Number - Linked to Map Marker */}
+                                  <div className={cn(
+                                    "w-8 h-8 rounded-full flex items-center justify-center font-black text-white text-xs shadow-md shrink-0 border-2 border-white",
+                                    isOld ? "bg-red-600" : (isWarning ? "bg-yellow-500" : "bg-green-600")
+                                  )}>
+                                    {idx + 1}
+                                  </div>
+                                  <div className="flex flex-col min-w-0">
                                     <span className="text-xs font-black uppercase tracking-tight truncate max-w-[120px]">{order.customerName}</span>
                                     <span className="text-[9px] text-muted-foreground font-bold uppercase tracking-widest">
                                       {Math.floor(minutesElapsed)}m ago
@@ -1036,6 +1032,9 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
 
                               <div className="flex justify-between items-center mt-1">
                                 <p className="text-xs font-mono font-black text-primary">${order.total.toFixed(2)}</p>
+                                {order.menuTypeLocation && (
+                                  <span className="text-[9px] font-black text-primary/60 uppercase">{order.menuTypeLocation}</span>
+                                )}
                               </div>
                             </div>
                           );
