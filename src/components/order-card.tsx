@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -201,6 +202,7 @@ export function OrderCard({
           </div>
           
           <div className="flex flex-col items-end gap-1">
+            <span className="text-[8px] font-mono font-bold text-muted-foreground/50 leading-none mb-0.5">#{numericId}</span>
             {statusInfo && (
               <Badge variant={isExceeded ? 'destructive' : statusInfo.badgeVariant} className="text-[8px] font-black tracking-[0.1em] h-5 px-2 shrink-0">
                 {isExceeded ? 'OVERDUE' : statusInfo.label}
@@ -208,7 +210,7 @@ export function OrderCard({
             )}
             <div className={cn(
               "text-[10px] font-black uppercase flex items-center gap-1.5 mt-1",
-              isExceeded ? 'text-destructive' : (isWarning ? 'text-yellow-700' : 'text-muted-foreground')
+              isExceeded ? "text-destructive" : (isWarning ? "text-yellow-700" : "text-muted-foreground")
             )}>
               <Clock className="w-3 h-3" />
               {minutesElapsed}m
