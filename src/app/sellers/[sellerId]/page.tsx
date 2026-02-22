@@ -41,7 +41,8 @@ import {
   AlertTriangle,
   Waves,
   Upload,
-  Focus
+  Focus,
+  ListOrdered
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -502,7 +503,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
         return false;
       }).length;
 
-      return { revenue, avgTime, exceededCount };
+      return { revenue, avgTime, exceededCount, count: todayOrders.length };
     };
 
     return {
@@ -919,7 +920,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
             </div>
           </div>
 
-          <div className="mb-6 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+          <div className="mb-6 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
             <div className="col-span-1 md:col-span-2 xl:col-span-1 bg-primary/5 rounded-xl border-2 border-primary/10 p-4 flex flex-col justify-center gap-1 shadow-sm">
               <p className="text-[10px] font-black uppercase tracking-[0.2em] text-primary/60 leading-none mb-1">Establishment Totals</p>
               <div className="flex justify-between items-center">
@@ -927,7 +928,12 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                   <span className="text-xs font-black uppercase tracking-tight">Today's Revenue</span>
                   <span className="text-lg font-headline font-black text-primary">${opsMetrics?.total?.revenue.toFixed(2) || '0.00'}</span>
                 </div>
-                <div className="h-10 w-[1px] bg-primary/10" />
+                <div className="h-10 w-[1px] bg-primary/10 mx-2" />
+                <div className="flex flex-col">
+                  <span className="text-xs font-black uppercase tracking-tight">Today's Orders</span>
+                  <span className="text-lg font-headline font-black text-foreground">{opsMetrics?.total?.count || 0}</span>
+                </div>
+                <div className="h-10 w-[1px] bg-primary/10 mx-2" />
                 <div className="flex flex-col text-right">
                   <span className="text-xs font-black uppercase tracking-tight">Total Alerts</span>
                   <span className="text-lg font-headline font-black text-destructive">{opsMetrics?.total?.exceededCount || 0}</span>
@@ -940,6 +946,13 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
               value={`$${opsMetrics?.selected?.revenue.toFixed(2) || '0.00'}`} 
               icon={DollarSign} 
               colorClass="text-green-600 bg-green-500/10"
+            />
+            <OpsMetricCard 
+              label={`${selectedOpsMenu} Volume`} 
+              value={opsMetrics?.selected?.count || 0} 
+              icon={ListOrdered} 
+              colorClass="text-indigo-600 bg-indigo-500/10"
+              subValue="Today"
             />
             <OpsMetricCard 
               label={`${selectedOpsMenu} Avg Time`} 
