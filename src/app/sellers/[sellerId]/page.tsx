@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useMemo, useEffect, use, useRef } from 'react';
@@ -42,7 +43,9 @@ import {
   Waves,
   Upload,
   Focus,
-  ListOrdered
+  ListOrdered,
+  Download,
+  Calendar as CalendarIcon
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -63,7 +66,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
-import { isToday, isThisMonth, isThisYear, formatDistanceToNow } from 'date-fns';
+import { isToday, isThisMonth, isThisYear, format, startOfMonth, endOfMonth, isWithinInterval, parseISO } from 'date-fns';
 import * as XLSX from 'xlsx';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { 
@@ -386,6 +389,10 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   const [showTopButton, setShowTopButton] = useState(false);
   const [now, setNow] = useState(Date.now());
 
+  // Sales Reporting State
+  const [startDate, setStartDate] = useState(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
+  const [endDate, setEndDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+
   const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, {
@@ -510,6 +517,49 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
       selected: selectedOpsMenu ? calculateMetrics(orders.filter(o => o.menuType === selectedOpsMenu)) : null
     };
   }, [orders, seller, selectedOpsMenu, now]);
+
+  const dailyReportData = useMemo(() => {
+    if (!orders || !seller) return [];
+
+    const start = parseISO(startDate);
+    const end = parseISO(endDate);
+
+    const filtered = orders.filter(o => {
+      if (!o.createdAt) return false;
+      const orderDate = o.createdAt.toDate();
+      return isWithinInterval(orderDate, { start, end });
+    });
+
+    const groupedByDate: Record<string, Record<string, number>> = {};
+
+    filtered.forEach(o => {
+      const dateKey = format(o.createdAt.toDate(), 'yyyy-MM-dd');
+      if (!groupedByDate[dateKey]) {
+        groupedByDate[dateKey] = {};
+        seller.menuTypes.forEach(mt => { groupedByDate[dateKey][mt] = 0; });
+      }
+      groupedByDate[dateKey][o.menuType] = (groupedByDate[dateKey][o.menuType] || 0) + o.total;
+    });
+
+    return Object.entries(groupedByDate)
+      .map(([date, menus]) => ({
+        date,
+        ...menus,
+        total: Object.values(menus).reduce((a, b) => a + b, 0)
+      }))
+      .sort((a, b) => b.date.localeCompare(a.date));
+  }, [orders, seller, startDate, endDate]);
+
+  const handleExportExcel = () => {
+    if (dailyReportData.length === 0) return;
+
+    const worksheet = XLSX.utils.json_to_sheet(dailyReportData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Daily Sales");
+    XLSX.writeFile(workbook, `KOOP_Sales_Report_${startDate}_to_${endDate}.xlsx`);
+    
+    toast({ title: 'Report Exported', description: 'Your Excel file has been generated.' });
+  };
 
   const mappedBuyers = useMemo(() => {
     return filteredOpsOrders.map(o => {
@@ -698,6 +748,33 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
           [mt]: { warning: 7, max: 10 }
         }), {})
       }, { merge: true });
+
+      // Add mock historical orders for reporting demo
+      const dates = [0, 1, 2, 3, 4, 5, 6].map(daysAgo => {
+        const d = new Date();
+        d.setDate(d.getDate() - daysAgo);
+        return d;
+      });
+
+      dates.forEach(date => {
+        config.menuTypes.forEach(mt => {
+          const count = Math.floor(Math.random() * 5) + 2;
+          for(let i=0; i<count; i++) {
+            const orderRef = doc(collection(firestore, 'orders'));
+            batch.set(orderRef, {
+              id: orderRef.id,
+              sellerId,
+              customerName: 'Sample Patron',
+              total: 20 + Math.random() * 50,
+              menuType: mt,
+              status: 'Delivered',
+              createdAt: date,
+              deliveredAt: date,
+              items: [{ id: 'item-1', name: 'Sample Item', quantity: 1, price: 20, category: 'Beer' }]
+            });
+          }
+        });
+      });
 
       itemsToSeed.forEach((item, index) => {
         const newItemRef = doc(collection(firestore, 'sellers', sellerId, 'menuItems'));
@@ -1060,7 +1137,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
 
         <section id="sales-stats" className="mb-12 scroll-mt-32">
           <h2 className="font-headline text-xl font-bold mb-6 flex items-center gap-2 text-primary uppercase tracking-wider"><BarChart3 className="h-6 w-6" /> Sales Stats</h2>
-          <div className="flex flex-wrap gap-4">
+          <div className="flex flex-wrap gap-4 mb-8">
               {dashboardStats ? (
                   <>
                       <StatTile title="Monthly" {...dashboardStats.monthly} />
@@ -1068,6 +1145,77 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                   </>
               ) : <Skeleton className="h-40 w-full" />}
           </div>
+
+          <Card className="shadow-lg border-2">
+            <CardHeader className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b bg-muted/20">
+              <div className="space-y-1">
+                <CardTitle className="text-lg uppercase tracking-tight flex items-center gap-2">
+                  <ListOrdered className="h-5 w-5 text-primary" /> Daily Revenue Report
+                </CardTitle>
+                <CardDescription>Daily totals broken down by service mode.</CardDescription>
+              </div>
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="flex items-center gap-2 bg-background border rounded-lg px-3 py-1.5">
+                  <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+                  <input 
+                    type="date" 
+                    value={startDate} 
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="text-xs font-bold uppercase tracking-tight focus:outline-none bg-transparent"
+                  />
+                  <span className="text-muted-foreground">to</span>
+                  <input 
+                    type="date" 
+                    value={endDate} 
+                    onChange={(e) => setEndDate(e.target.value)}
+                    className="text-xs font-bold uppercase tracking-tight focus:outline-none bg-transparent"
+                  />
+                </div>
+                <Button variant="outline" size="sm" onClick={handleExportExcel} disabled={dailyReportData.length === 0} className="bg-background">
+                  <Download className="mr-2 h-4 w-4" /> Export Excel
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="p-0">
+              {areOrdersLoading ? (
+                <div className="p-12 text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto text-muted-foreground" /></div>
+              ) : dailyReportData.length === 0 ? (
+                <div className="p-20 text-center text-muted-foreground italic flex flex-col items-center gap-2">
+                  <FileSpreadsheet className="h-10 w-10 opacity-10" />
+                  <p>No sales data found for the selected range.</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-muted/30">
+                        <TableHead className="font-black uppercase tracking-widest text-[10px]">Date</TableHead>
+                        {seller?.menuTypes?.map(mt => (
+                          <TableHead key={mt} className="font-black uppercase tracking-widest text-[10px] text-right">{mt}</TableHead>
+                        ))}
+                        <TableHead className="font-black uppercase tracking-widest text-[10px] text-right text-primary">Daily Total</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {dailyReportData.map((row) => (
+                        <TableRow key={row.date} className="hover:bg-muted/10">
+                          <TableCell className="font-bold text-xs uppercase tracking-tight">{row.date}</TableCell>
+                          {seller?.menuTypes?.map(mt => (
+                            <TableCell key={mt} className="text-right font-mono text-xs">
+                              {row[mt] > 0 ? `$${row[mt].toFixed(2)}` : <span className="text-muted-foreground opacity-20">-</span>}
+                            </TableCell>
+                          ))}
+                          <TableCell className="text-right font-mono font-black text-xs text-primary">
+                            ${row.total.toFixed(2)}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </section>
 
         <h2 id="service-management" className="font-headline text-xl font-bold mb-6 mt-16 flex items-center gap-2 text-primary uppercase tracking-wider scroll-mt-32"><ListChecks className="h-6 w-6" /> Service Menus</h2>
