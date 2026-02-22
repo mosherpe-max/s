@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { PartyPopper, ShoppingBag, MapPin, Loader2, ArrowLeft, Store, ClipboardList, Satellite, Edit2, ChevronLeft, Smartphone, BellRing, Flag, CheckCircle2, Zap, Info, Eye } from 'lucide-react';
+import { PartyPopper, ShoppingBag, MapPin, Loader2, ArrowLeft, Store, ClipboardList, Satellite, Edit2, ChevronLeft, Smartphone, BellRing, Flag, CheckCircle2, Zap, Info, Eye, Sparkles } from 'lucide-react';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { IosInstallPrompt } from '@/components/ios-install-prompt';
 import { getNumericOrderId } from '@/lib/utils';
@@ -327,22 +327,43 @@ function OrderTrackingContent() {
 
         {showHoleSelection && (
           <Card className="border-2 border-primary/30 shadow-xl overflow-hidden animate-in slide-in-from-top-2 duration-500">
-            <div className="bg-primary/10 px-4 py-3 border-b border-primary/20 flex items-center justify-between">
+            <div className="bg-primary/10 px-4 py-2 border-b border-primary/20 flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Flag className="h-4 w-4 text-primary" />
-                <span className="text-[10px] font-black uppercase tracking-widest text-primary">Location Redundancy</span>
+                <Flag className="h-3.5 w-3.5 text-primary" />
+                <span className="text-[9px] font-black uppercase tracking-widest text-primary">Service Redundancy</span>
               </div>
-              <Badge variant="outline" className="text-[8px] bg-white border-primary/20 uppercase font-black">Hole Selection</Badge>
+              <Badge variant="outline" className="text-[8px] bg-white border-primary/20 uppercase font-black px-1.5 h-5">Hole Update</Badge>
             </div>
-            <CardContent className="p-5 space-y-4">
-              <div className="space-y-1">
-                <h4 className="text-sm font-black uppercase tracking-tight">What hole are you on?</h4>
-                <p className="text-[10px] text-muted-foreground font-medium leading-tight">
-                  Standard mobile browsers stop tracking when backgrounded. Please keep this updated so staff can find you even if your screen is off.
+            
+            <div className="bg-[#213147] px-4 py-3 border-b-2 border-primary flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="bg-primary/20 p-1.5 rounded-lg">
+                  <Sparkles className="h-4 w-4 text-primary animate-pulse" />
+                </div>
+                <div className="space-y-0.5">
+                  <p className="text-[10px] font-black text-white uppercase tracking-tight">Tired of manual updates?</p>
+                  <p className="text-[8px] text-white/60 font-bold uppercase tracking-widest">Install for 100% Background GPS</p>
+                </div>
+              </div>
+              <Button 
+                variant="default" 
+                size="sm" 
+                onClick={() => setIsInstallPromptOpen(true)}
+                className="h-7 px-3 bg-primary text-white text-[9px] font-black uppercase tracking-widest rounded-full shadow-lg border border-white/10"
+              >
+                <BellRing className="mr-1.5 h-3 w-3" /> Install
+              </Button>
+            </div>
+
+            <CardContent className="p-3 space-y-3">
+              <div className="space-y-0.5 px-1">
+                <h4 className="text-[11px] font-black uppercase tracking-tight">Current Hole Location</h4>
+                <p className="text-[9px] text-muted-foreground font-medium leading-tight">
+                  Update this so staff can find you even if your screen is off.
                 </p>
               </div>
               
-              <div className="grid grid-cols-6 gap-2">
+              <div className="grid grid-cols-9 gap-1">
                 {Array.from({ length: 18 }, (_, i) => (i + 1).toString()).map((hole) => {
                   const currentHole = order.menuTypeLocation?.replace('Hole ', '');
                   const isSelected = currentHole === hole;
@@ -354,25 +375,14 @@ function OrderTrackingContent() {
                       disabled={isUpdatingHole}
                       onClick={() => handleHoleUpdate(hole)}
                       className={cn(
-                        "h-10 text-[11px] font-black rounded-lg transition-all",
-                        isSelected ? "bg-primary text-white scale-105 shadow-md" : "bg-white hover:bg-primary/5"
+                        "h-8 px-0 text-[10px] font-black rounded-md transition-all",
+                        isSelected ? "bg-primary text-white scale-105 shadow-md border-primary" : "bg-white hover:bg-primary/5 text-muted-foreground"
                       )}
                     >
                       {hole}
                     </Button>
                   );
                 })}
-              </div>
-
-              <div className="pt-2">
-                <Button 
-                  variant="ghost" 
-                  onClick={() => setIsInstallPromptOpen(true)}
-                  className="w-full h-auto py-2.5 text-[10px] font-bold text-primary uppercase border border-dashed border-primary/30 hover:bg-primary/5 rounded-xl flex items-center justify-center gap-2"
-                >
-                  <Smartphone className="h-3.5 w-3.5" />
-                  Add to Home Screen for Background Tracking
-                </Button>
               </div>
             </CardContent>
           </Card>
