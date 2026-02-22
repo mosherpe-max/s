@@ -468,7 +468,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
       return { revenue, orders: filtered.length, longWait };
     };
     return {
-      daily: calculate(orders.filter(o => o.createdAt && isToday(o.createdAt.toDate()))),
       monthly: calculate(orders.filter(o => o.createdAt && isThisMonth(o.createdAt.toDate()))),
       yearly: calculate(orders.filter(o => o.createdAt && isThisYear(o.createdAt.toDate()))),
     };
@@ -605,7 +604,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
 
   const handleSetPoolMapView = (center: { lat: number, lng: number }, zoom: number) => {
     const key = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
-    // Generate a high-res static map URL for the patron view
     const staticUrl = `https://maps.googleapis.com/maps/api/staticmap?center=${center.lat},${center.lng}&zoom=${zoom}&size=600x800&maptype=satellite&key=${key}`;
     setTempPoolMapUrl(staticUrl);
     toast({ title: 'View Captured', description: 'This satellite image will be used for patrons.' });
@@ -864,7 +862,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
             <Activity className="mr-1.5 h-3.5 w-3.5" />
             Live Queue
           </Button>
-          <Button variant="ghost" size="sm" onClick={() => scrollToSection('performance-overview')} className="h-8 text-[10px] font-bold uppercase tracking-widest px-3 rounded-full hover:bg-primary/10 hover:text-primary">
+          <Button variant="ghost" size="sm" onClick={() => scrollToSection('sales-stats')} className="h-8 text-[10px] font-bold uppercase tracking-widest px-3 rounded-full hover:bg-primary/10 hover:text-primary">
             <BarChart3 className="mr-1.5 h-3.5 w-3.5" />
             Sales Stats
           </Button>
@@ -1020,7 +1018,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                             )}>
                               <div className="flex justify-between items-start">
                                 <div className="flex items-center gap-3">
-                                  {/* Prominent Number - Linked to Map Marker */}
                                   <div className={cn(
                                     "w-8 h-8 rounded-full flex items-center justify-center font-black text-white text-xs shadow-md shrink-0 border-2 border-white",
                                     isOld ? "bg-red-600" : (isWarning ? "bg-yellow-500" : "bg-green-600")
@@ -1061,8 +1058,8 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
           </div>
         </section>
 
-        <section id="performance-overview" className="mb-12 scroll-mt-32">
-          <h2 className="font-headline text-xl font-bold mb-6 flex items-center gap-2 text-primary uppercase tracking-wider"><BarChart3 className="h-6 w-6" /> Performance Overview</h2>
+        <section id="sales-stats" className="mb-12 scroll-mt-32">
+          <h2 className="font-headline text-xl font-bold mb-6 flex items-center gap-2 text-primary uppercase tracking-wider"><BarChart3 className="h-6 w-6" /> Sales Stats</h2>
           <div className="flex flex-wrap gap-4">
               {dashboardStats ? (
                   <>
@@ -1123,7 +1120,11 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                                   {allowedCategories.map(category => {
                                       const itemsInCategory = itemsInThisMenu
                                         .filter(i => i.category === category)
-                                        .sort((a, b) => (a.menuRanks?.[menuType] ?? a.rank) - (b.menuRanks?.[menuType] ?? b.rank));
+                                        .sort((a, b) => {
+                                          const rankA = a.menuRanks?.[menuType] ?? a.rank ?? 0;
+                                          const rankB = b.menuRanks?.[menuType] ?? b.rank ?? 0;
+                                          return rankA - rankB;
+                                        });
 
                                       const isCatHidden = !enabledCats.includes(category);
                                       if (itemsInCategory.length === 0) return null;
@@ -1286,7 +1287,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
         <Dialog open={isMemberFormOpen} onOpenChange={setIsMemberFormOpen}>
           <DialogContent className="sm:max-w-[500px]">
             <DialogHeader><DialogTitle>{editingMember ? 'Edit Member' : 'New Member'}</DialogTitle></DialogHeader>
-            <MemberForm onSave={handleSaveMember} member={editingMember} onClose={() => setIsMemberFormOpen(false)} />
+            <MemberForm onSave={handleSaveMember} member={editingMember} onClose={() => setIsMasterFormOpen(false)} />
           </DialogContent>
         </Dialog>
 
@@ -1472,7 +1473,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                       <MapViewSetter onSet={handleSetPoolMapView} />
                     </Map>
                     
-                    {/* Grid Overlay for reference */}
                     <div className="absolute inset-0 grid grid-cols-3 grid-rows-3 pointer-events-none border-2 border-white/20">
                       {Array.from({ length: 9 }).map((_, i) => (
                         <div key={i} className="border border-white/10 flex items-center justify-center text-[10px] font-bold text-white/40 uppercase tracking-widest">Zone {i+1}</div>
