@@ -1,7 +1,8 @@
+
 'use client';
 
 import { Suspense, useEffect, useRef, useState } from 'react';
-import { collection, query, orderBy, limit, doc, updateDoc } from 'firebase/firestore';
+import { collection, query, orderBy, limit, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { useCollection, useDoc, useFirestore, useMemoFirebase } from '@/firebase';
 import type { Order, Seller } from '@/lib/types';
 import { MapView } from '@/components/map-view';
@@ -137,7 +138,10 @@ function OrderTrackingContent() {
               longitude: position.coords.longitude,
             };
             const orderDocRef = doc(firestore, 'orders', order.id);
-            updateDoc(orderDocRef, { deliveryLocation: newLocation }).catch(() => {});
+            updateDoc(orderDocRef, { 
+              deliveryLocation: newLocation,
+              lastGpsUpdate: serverTimestamp() 
+            }).catch(() => {});
           },
           (error) => console.warn('GPS Watcher Failed:', error),
           { 

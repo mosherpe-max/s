@@ -119,4 +119,5 @@ export interface Order {
   status: 'Placed' | 'Preparing' | 'Out for Delivery' | 'Delivered' | 'Cancelled';
   createdAt: Timestamp;
   deliveredAt?: Timestamp;
+  lastGpsUpdate?: Timestamp;
 }

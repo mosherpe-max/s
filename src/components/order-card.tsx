@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -6,7 +7,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { Separator } from './ui/separator';
 import { Button } from './ui/button';
-import { Navigation, PartyPopper, ClipboardList, Send, MoveHorizontal, User, MapPin } from 'lucide-react';
+import { Navigation, PartyPopper, ClipboardList, Send, MoveHorizontal, User, MapPin, Satellite } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { Badge } from './ui/badge';
 import { cn, getDriverColor, getNumericOrderId } from '@/lib/utils';
@@ -175,7 +176,16 @@ export function OrderCard({
             <CardDescription className="text-[9px] flex items-center gap-1 font-medium truncate">
               {mounted && order.createdAt?.toDate ? formatDistanceToNow(order.createdAt.toDate(), { addSuffix: true }) : 'Processing...'}
             </CardDescription>
-            <div className="flex items-center gap-1.5 overflow-hidden">
+            
+            {/* GPS Signal Freshness Fallback */}
+            {mounted && order.lastGpsUpdate && order.status === 'Out for Delivery' && (
+              <div className="flex items-center gap-1 text-[8px] font-black uppercase tracking-widest text-primary animate-in fade-in duration-500">
+                <Satellite className="w-2.5 h-2.5 animate-pulse" />
+                <span>GPS Updated {formatDistanceToNow(order.lastGpsUpdate.toDate(), { addSuffix: true })}</span>
+              </div>
+            )}
+
+            <div className="flex items-center gap-1.5 overflow-hidden mt-0.5">
               <Badge variant="outline" className="text-[7px] h-3.5 px-1 uppercase font-bold tracking-widest bg-background border-primary/20 flex items-center gap-1 shrink-0">
                 <ClipboardList className="w-2 h-2" /> {order.menuType}
               </Badge>
