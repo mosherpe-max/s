@@ -65,14 +65,22 @@ function OrderTrackingContent() {
   const isGolfService = order?.menuType === 'Beverage Cart' || order?.menuType === 'Clubhouse';
   const isGpsRequired = isGolfService;
 
+  // Device Detection & Status Tracking
   useEffect(() => {
     const userAgent = window.navigator.userAgent.toLowerCase();
     const isIosDevice = /iphone|ipad|ipod/.test(userAgent);
     const isStandaloneMode = (window.navigator as any).standalone || window.matchMedia('(display-mode: standalone)').matches;
+    const isAndroid = /android/.test(userAgent);
     
     setIsIos(isIosDevice);
     setIsStandalone(isStandaloneMode);
-  }, []);
+
+    // Save device status to the order for driver fallback awareness
+    if (orderId && firestore) {
+      const status = isStandaloneMode ? 'standalone' : (isIosDevice ? 'ios-browser' : (isAndroid ? 'android' : 'standard'));
+      updateDoc(doc(firestore, 'orders', orderId), { buyerDeviceStatus: status }).catch(() => {});
+    }
+  }, [orderId, firestore]);
 
   useEffect(() => {
     if (order && seller && !initialLocations && isGpsRequired) {
@@ -107,7 +115,6 @@ function OrderTrackingContent() {
     if (order && order.status === 'Out for Delivery' && isGpsRequired) {
       requestWakeLock();
       
-      // Re-acquire lock if page becomes visible again (e.g. after phone unlock)
       const handleVisibilityChange = () => {
         if (document.visibilityState === 'visible' && order.status === 'Out for Delivery') {
           requestWakeLock();

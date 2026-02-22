@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -6,7 +7,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { Separator } from './ui/separator';
 import { Button } from './ui/button';
-import { Navigation, PartyPopper, ClipboardList, Send, MoveHorizontal, User, Satellite, Clock, MapPin } from 'lucide-react';
+import { Navigation, PartyPopper, ClipboardList, Send, MoveHorizontal, User, Satellite, Clock, MapPin, Smartphone } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { Badge } from './ui/badge';
 import { cn, getDriverColor, getNumericOrderId } from '@/lib/utils';
@@ -88,6 +89,14 @@ export function OrderCard({
   
   const isExceeded = thresholds && minutesElapsed >= thresholds.max;
   const isWarning = thresholds && minutesElapsed >= thresholds.warning && !isExceeded;
+
+  // GPS Freshness Logic
+  const gpsMinutesOld = order.lastGpsUpdate && now 
+    ? Math.floor((now - order.lastGpsUpdate.toDate().getTime()) / 60000) 
+    : null;
+  
+  const isGpsStale = gpsMinutesOld !== null && gpsMinutesOld >= 3;
+  const isIosWarning = order.buyerDeviceStatus === 'ios-browser' && isGpsStale;
 
   const renderAction = () => {
     switch (order.status) {
@@ -230,12 +239,29 @@ export function OrderCard({
           </div>
 
           {mounted && order.lastGpsUpdate && order.status === 'Out for Delivery' && (
-            <div className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-tight text-primary animate-in fade-in duration-500 bg-primary/5 px-2 py-0.5 rounded-full border border-primary/10">
-              <Satellite className="w-3 h-3 animate-pulse" />
-              <span>GPS: {formatDistanceToNow(order.lastGpsUpdate.toDate(), { addSuffix: true }).replace('about ', '')}</span>
+            <div className={cn(
+              "flex items-center gap-1.5 text-[9px] font-black uppercase tracking-tight px-2 py-0.5 rounded-full border transition-all duration-500",
+              isGpsStale ? "bg-destructive/10 text-destructive border-destructive/20 animate-pulse" : "bg-primary/5 text-primary border-primary/10"
+            )}>
+              <div className="flex items-center gap-1">
+                {order.buyerDeviceStatus === 'ios-browser' ? <Smartphone className="w-2.5 h-2.5" /> : <Satellite className={cn("w-3 h-3", !isGpsStale && "animate-pulse")} />}
+                <span>
+                  {isGpsStale ? "GPS SIGNAL STALE" : "SIGNAL: LIVE"} 
+                  ({formatDistanceToNow(order.lastGpsUpdate.toDate(), { addSuffix: true }).replace('about ', '')})
+                </span>
+              </div>
             </div>
           )}
         </div>
+        
+        {isIosWarning && (
+          <div className="bg-destructive/5 border border-destructive/20 rounded-lg p-2 flex items-start gap-2 animate-in slide-in-from-top-1">
+            <Smartphone className="h-3.5 w-3.5 text-destructive shrink-0" />
+            <p className="text-[9px] font-bold text-destructive leading-tight uppercase">
+              Buyer is on iOS Browser & likely backgrounded. GPS pin may be unreliable. Use hole selection fallback.
+            </p>
+          </div>
+        )}
       </CardHeader>
 
       <CardContent className='p-4 space-y-3 flex-1'>

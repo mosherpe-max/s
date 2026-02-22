@@ -120,4 +120,5 @@ export interface Order {
   createdAt: Timestamp;
   deliveredAt?: Timestamp;
   lastGpsUpdate?: Timestamp;
+  buyerDeviceStatus?: 'ios-browser' | 'standalone' | 'android' | 'standard';
 }
