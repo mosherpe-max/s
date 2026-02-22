@@ -14,12 +14,13 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { PartyPopper, ShoppingBag, MapPin, Loader2, ArrowLeft, Store, ClipboardList, Satellite, Edit2, ChevronLeft, Smartphone, BellRing } from 'lucide-react';
+import { PartyPopper, ShoppingBag, MapPin, Loader2, ArrowLeft, Store, ClipboardList, Satellite, Edit2, ChevronLeft, Smartphone, BellRing, Flag, CheckCircle2 } from 'lucide-react';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { IosInstallPrompt } from '@/components/ios-install-prompt';
 import { getNumericOrderId } from '@/lib/utils';
 import { useCart } from '@/lib/cart-context';
 import { APIProvider } from '@vis.gl/react-google-maps';
+import { cn } from '@/lib/utils';
 
 function OrderTrackingContent() {
   const firestore = useFirestore();
@@ -33,6 +34,7 @@ function OrderTrackingContent() {
   const [isInstallPromptOpen, setIsInstallPromptOpen] = useState(false);
   const [isIos, setIsIos] = useState(false);
   const [isStandalone, setIsStandalone] = useState(false);
+  const [isUpdatingHole, setIsUpdatingHole] = useState(false);
   
   const wakeLockRef = useRef<any>(null);
   const locationIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -60,7 +62,8 @@ function OrderTrackingContent() {
 
   const { data: seller, isLoading: isLoadingSeller } = useDoc<Seller>(sellerRef);
 
-  const isGpsRequired = order?.menuType === 'Beverage Cart' || order?.menuType === 'Clubhouse';
+  const isGolfService = order?.menuType === 'Beverage Cart' || order?.menuType === 'Clubhouse';
+  const isGpsRequired = isGolfService;
 
   useEffect(() => {
     const userAgent = window.navigator.userAgent.toLowerCase();
@@ -153,6 +156,17 @@ function OrderTrackingContent() {
     }
   };
 
+  const handleHoleUpdate = async (hole: string) => {
+    if (!order || !firestore) return;
+    setIsUpdatingHole(true);
+    try {
+      const orderDocRef = doc(firestore, 'orders', order.id);
+      await updateDoc(orderDocRef, { menuTypeLocation: `Hole ${hole}` });
+    } finally {
+      setIsUpdatingHole(false);
+    }
+  };
+
   if (isLoading || (order && isLoadingSeller)) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center p-8 space-y-4">
@@ -223,7 +237,6 @@ function OrderTrackingContent() {
         </div>
       )}
 
-      {/* Header for orders without Maps (Lane Side, Take Out, or delivered) */}
       {(!isGpsRequired || isDelivered) && (
         <div className="bg-background border-b px-4 py-3 flex items-center justify-between sticky top-0 z-10 shadow-sm shrink-0">
            <Button variant="ghost" size="sm" asChild className="rounded-full h-8 px-3">
@@ -272,6 +285,62 @@ function OrderTrackingContent() {
           </div>
         )}
 
+        {/* Mandatory Hole Selection for Browser Users on Golf Course */}
+        {!isDelivered && isGolfService && !isStandalone && (
+          <Card className="border-2 border-primary/30 shadow-xl overflow-hidden animate-in slide-in-from-top-2 duration-500">
+            <div className="bg-primary/10 px-4 py-3 border-b border-primary/20 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Flag className="h-4 w-4 text-primary" />
+                <span className="text-[10px] font-black uppercase tracking-widest text-primary">Required Fallback</span>
+              </div>
+              <Badge variant="outline" className="text-[8px] bg-white border-primary/20 uppercase font-black">Manual Hole Selection</Badge>
+            </div>
+            <CardContent className="p-5 space-y-4">
+              <div className="space-y-1">
+                <h4 className="text-sm font-black uppercase tracking-tight">Where are you now?</h4>
+                <p className="text-[10px] text-muted-foreground font-medium leading-tight">
+                  Since background tracking is disabled in your browser, please update your current hole so the cart can find you.
+                </p>
+              </div>
+              
+              <div className="grid grid-cols-6 gap-2">
+                {Array.from({ length: 18 }, (_, i) => (i + 1).toString()).map((hole) => {
+                  const currentHole = order.menuTypeLocation?.replace('Hole ', '');
+                  const isSelected = currentHole === hole;
+                  return (
+                    <Button
+                      key={hole}
+                      variant={isSelected ? 'default' : 'outline'}
+                      size="sm"
+                      disabled={isUpdatingHole}
+                      onClick={() => handleHoleUpdate(hole)}
+                      className={cn(
+                        "h-10 text-[11px] font-black rounded-lg transition-all",
+                        isSelected ? "bg-primary text-white scale-105 shadow-md" : "bg-white hover:bg-primary/5"
+                      )}
+                    >
+                      {hole}
+                    </Button>
+                  );
+                })}
+              </div>
+
+              {isIos && (
+                <div className="pt-2">
+                  <Button 
+                    variant="ghost" 
+                    onClick={() => setIsInstallPromptOpen(true)}
+                    className="w-full h-auto py-2 text-[10px] font-bold text-primary uppercase border border-dashed border-primary/30 hover:bg-primary/5 rounded-xl flex items-center justify-center gap-2"
+                  >
+                    <Smartphone className="h-3.5 w-3.5" />
+                    Add to Home Screen for Auto-Tracking
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
         <Card className="shadow-lg border-primary/10 overflow-hidden">
             <CardHeader className="pb-4">
                 <div className="flex justify-between items-center mb-6">
@@ -283,24 +352,24 @@ function OrderTrackingContent() {
             <Separator />
             <CardContent className="pt-6 space-y-6">
                 {!isDelivered && isIos && !isStandalone && isGpsRequired && (
-                  <div className="bg-[#213147] rounded-2xl p-5 border-b-4 border-primary shadow-inner space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                  <div className="bg-[#213147] rounded-2xl p-5 border-b-4 border-primary shadow-inner space-y-4">
                     <div className="flex items-start gap-4">
                       <div className="bg-primary/20 p-2.5 rounded-xl shrink-0">
                         <Smartphone className="h-6 w-6 text-primary" />
                       </div>
                       <div className="space-y-1">
-                        <p className="text-xs font-black text-white uppercase tracking-tight">For Apple iOS Users</p>
+                        <p className="text-xs font-black text-white uppercase tracking-tight">Recommendation for iOS</p>
                         <p className="text-[10px] text-white/70 font-medium leading-tight">
-                          Get live Tracking and Notifications by adding KOOP to your home screen.
+                          Avoid manual hole updates! Add KOOP to your home screen for reliable live tracking.
                         </p>
                       </div>
                     </div>
                     <Button 
                       onClick={() => setIsInstallPromptOpen(true)}
-                      className="w-full bg-primary text-white font-black uppercase text-[10px] tracking-widest h-10 rounded-xl"
+                      className="w-full bg-primary text-white font-black uppercase text-[10px] tracking-widest h-10 rounded-xl shadow-lg"
                     >
                       <BellRing className="mr-2 h-3.5 w-3.5" />
-                      Setup Tracking
+                      Setup Live Tracking
                     </Button>
                   </div>
                 )}
@@ -321,9 +390,10 @@ function OrderTrackingContent() {
                 </div>
 
                 {order.menuTypeLocation && (
-                  <div className="px-4 py-3 bg-primary/5 rounded-xl border border-primary/10 flex items-center justify-between">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                      Location Detail
+                  <div className="px-4 py-3 bg-primary/5 rounded-xl border border-primary/10 flex items-center justify-between animate-in fade-in duration-300">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                      <CheckCircle2 className="h-3 w-3 text-green-600" />
+                      Current Location
                     </span>
                     <span className="text-sm font-black text-primary uppercase">{order.menuTypeLocation}</span>
                   </div>
