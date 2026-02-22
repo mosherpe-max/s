@@ -1,4 +1,3 @@
-
 'use client';
 
 import { Suspense, useEffect, useRef, useState } from 'react';
@@ -14,7 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { PartyPopper, ShoppingBag, MapPin, Loader2, ArrowLeft, Store, ClipboardList, Satellite, Edit2, ChevronLeft, Smartphone, BellRing, Flag, CheckCircle2 } from 'lucide-react';
+import { PartyPopper, ShoppingBag, MapPin, Loader2, ArrowLeft, Store, ClipboardList, Satellite, Edit2, ChevronLeft, Smartphone, BellRing, Flag, CheckCircle2, Zap } from 'lucide-react';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { IosInstallPrompt } from '@/components/ios-install-prompt';
 import { getNumericOrderId } from '@/lib/utils';
@@ -37,7 +36,7 @@ function OrderTrackingContent() {
   const [isUpdatingHole, setIsUpdatingHole] = useState(false);
   
   const wakeLockRef = useRef<any>(null);
-  const locationIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const watchIdRef = useRef<number | null>(null);
 
   const orderRef = useMemoFirebase(() => {
     if (!firestore || !orderId) return null;
@@ -83,11 +82,13 @@ function OrderTrackingContent() {
     }
   }, [order, seller, initialLocations, isGpsRequired]);
 
+  // Handle Screen Wake Lock to prevent iOS from sleeping during delivery
   useEffect(() => {
     const requestWakeLock = async () => {
       if ('wakeLock' in navigator && !wakeLockRef.current) {
         try {
           wakeLockRef.current = await (navigator as any).wakeLock.request('screen');
+          console.log('Wake Lock acquired');
         } catch (err) {
           console.warn('Wake Lock request failed:', err);
         }
@@ -101,50 +102,62 @@ function OrderTrackingContent() {
       }
     };
 
+    // Keep screen on during delivery to ensure GPS keeps firing
     if (order && order.status === 'Out for Delivery' && isGpsRequired) {
       requestWakeLock();
+      
+      // Re-acquire lock if page becomes visible again (e.g. after phone unlock)
+      const handleVisibilityChange = () => {
+        if (document.visibilityState === 'visible' && order.status === 'Out for Delivery') {
+          requestWakeLock();
+        }
+      };
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+      return () => {
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
+        releaseWakeLock();
+      };
     } else {
       releaseWakeLock();
     }
-
-    return () => {
-      releaseWakeLock();
-    };
   }, [order?.status, isGpsRequired]);
 
+  // High-Precision Location Tracking
   useEffect(() => {
-    const updateLocation = () => {
-      if (!navigator.geolocation || !order || !firestore || !isGpsRequired) return;
+    if (!order || !firestore || !isGpsRequired) return;
 
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const newLocation = {
-            latitude: position.coords.latitude,
-            longitude: position.coords.longitude,
-          };
-          const orderDocRef = doc(firestore, 'orders', order.id);
-          updateDoc(orderDocRef, { deliveryLocation: newLocation }).catch(() => {});
-        },
-        (error) => console.warn('GPS Update Failed:', error),
-        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-      );
-    };
-
-    if (order?.status === 'Out for Delivery' && isGpsRequired) {
+    if (order.status === 'Out for Delivery') {
       setIsTrackingActive(true);
-      updateLocation();
-      locationIntervalRef.current = setInterval(updateLocation, 15000);
+      
+      if (navigator.geolocation) {
+        watchIdRef.current = navigator.geolocation.watchPosition(
+          (position) => {
+            const newLocation = {
+              latitude: position.coords.latitude,
+              longitude: position.coords.longitude,
+            };
+            const orderDocRef = doc(firestore, 'orders', order.id);
+            updateDoc(orderDocRef, { deliveryLocation: newLocation }).catch(() => {});
+          },
+          (error) => console.warn('GPS Watcher Failed:', error),
+          { 
+            enableHighAccuracy: true, 
+            timeout: 15000, 
+            maximumAge: 0 
+          }
+        );
+      }
     } else {
       setIsTrackingActive(false);
-      if (locationIntervalRef.current) {
-        clearInterval(locationIntervalRef.current);
-        locationIntervalRef.current = null;
+      if (watchIdRef.current !== null) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+        watchIdRef.current = null;
       }
     }
 
     return () => {
-      if (locationIntervalRef.current) {
-        clearInterval(locationIntervalRef.current);
+      if (watchIdRef.current !== null) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
       }
     };
   }, [order?.status, order?.id, firestore, isGpsRequired]);
@@ -234,6 +247,18 @@ function OrderTrackingContent() {
                </Button>
              )}
           </div>
+          
+          {isTrackingActive && isOutForDelivery && (
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10">
+              <Badge className="bg-primary/90 backdrop-blur-md text-white border-2 border-white/20 shadow-xl px-4 py-1.5 rounded-full flex items-center gap-2 animate-in zoom-in-90">
+                <div className="relative">
+                  <Satellite className="h-3.5 w-3.5 animate-pulse" />
+                  <div className="absolute inset-0 bg-white rounded-full animate-ping opacity-20" />
+                </div>
+                <span className="text-[10px] font-black uppercase tracking-[0.1em]">Tracking Active</span>
+              </Badge>
+            </div>
+          )}
         </div>
       )}
 
@@ -275,11 +300,13 @@ function OrderTrackingContent() {
 
         {isTrackingActive && isOutForDelivery && isGpsRequired && (
           <div className="px-1">
-             <Alert className="bg-primary/95 text-white border-none shadow-xl backdrop-blur-md py-3 rounded-xl">
-                <Satellite className="h-5 w-5 text-white animate-pulse" />
-                <AlertTitle className="text-xs font-bold uppercase tracking-[0.2em] mb-0.5">Live Location Active</AlertTitle>
-                <AlertDescription className="text-[11px] opacity-90 leading-tight">
-                  The driver is using your location to find you on the course.
+             <Alert className="bg-primary/95 text-white border-none shadow-xl backdrop-blur-md py-4 rounded-2xl">
+                <Zap className="h-5 w-5 text-white fill-white animate-bounce" />
+                <AlertTitle className="text-xs font-black uppercase tracking-[0.2em] mb-1">Stay Active for Accurate Delivery</AlertTitle>
+                <AlertDescription className="text-[11px] font-medium opacity-90 leading-tight">
+                  {isStandalone 
+                    ? "Live background tracking is active. You can safely lock your screen." 
+                    : "Please keep this tab open and your screen active. This ensures the driver can find your exact spot on the course."}
                 </AlertDescription>
               </Alert>
           </div>
@@ -291,15 +318,15 @@ function OrderTrackingContent() {
             <div className="bg-primary/10 px-4 py-3 border-b border-primary/20 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Flag className="h-4 w-4 text-primary" />
-                <span className="text-[10px] font-black uppercase tracking-widest text-primary">Required Fallback</span>
+                <span className="text-[10px] font-black uppercase tracking-widest text-primary">Location Fallback</span>
               </div>
-              <Badge variant="outline" className="text-[8px] bg-white border-primary/20 uppercase font-black">Manual Hole Selection</Badge>
+              <Badge variant="outline" className="text-[8px] bg-white border-primary/20 uppercase font-black">Current Hole</Badge>
             </div>
             <CardContent className="p-5 space-y-4">
               <div className="space-y-1">
                 <h4 className="text-sm font-black uppercase tracking-tight">Where are you now?</h4>
                 <p className="text-[10px] text-muted-foreground font-medium leading-tight">
-                  Since background tracking is disabled in your browser, please update your current hole so the cart can find you.
+                  If you background this app, tracking will pause. Please keep your current hole updated so the cart can find you.
                 </p>
               </div>
               
@@ -333,7 +360,7 @@ function OrderTrackingContent() {
                     className="w-full h-auto py-2 text-[10px] font-bold text-primary uppercase border border-dashed border-primary/30 hover:bg-primary/5 rounded-xl flex items-center justify-center gap-2"
                   >
                     <Smartphone className="h-3.5 w-3.5" />
-                    Add to Home Screen for Auto-Tracking
+                    Add to Home Screen for Background Tracking
                   </Button>
                 </div>
               )}
@@ -360,7 +387,7 @@ function OrderTrackingContent() {
                       <div className="space-y-1">
                         <p className="text-xs font-black text-white uppercase tracking-tight">Recommendation for iOS</p>
                         <p className="text-[10px] text-white/70 font-medium leading-tight">
-                          Avoid manual hole updates! Add KOOP to your home screen for reliable live tracking.
+                          Avoid tracking interruptions! Add KOOP to your home screen so we can find you even if your phone is in your pocket.
                         </p>
                       </div>
                     </div>
@@ -369,7 +396,7 @@ function OrderTrackingContent() {
                       className="w-full bg-primary text-white font-black uppercase text-[10px] tracking-widest h-10 rounded-xl shadow-lg"
                     >
                       <BellRing className="mr-2 h-3.5 w-3.5" />
-                      Setup Live Tracking
+                      Enable Reliable Tracking
                     </Button>
                   </div>
                 )}
