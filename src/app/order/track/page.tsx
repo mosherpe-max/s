@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { PartyPopper, ShoppingBag, MapPin, Loader2, ArrowLeft, Store, ClipboardList, Satellite, Edit2, ChevronLeft, Smartphone, BellRing, Flag, CheckCircle2, Zap } from 'lucide-react';
+import { PartyPopper, ShoppingBag, MapPin, Loader2, ArrowLeft, Store, ClipboardList, Satellite, Edit2, ChevronLeft, Smartphone, BellRing, Flag, CheckCircle2, Zap, Info } from 'lucide-react';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { IosInstallPrompt } from '@/components/ios-install-prompt';
 import { getNumericOrderId } from '@/lib/utils';
@@ -172,12 +172,11 @@ function OrderTrackingContent() {
   const handleHoleUpdate = async (hole: string) => {
     if (!order || !firestore) return;
     setIsUpdatingHole(true);
-    try {
-      const orderDocRef = doc(firestore, 'orders', order.id);
-      await updateDoc(orderDocRef, { menuTypeLocation: `Hole ${hole}` });
-    } finally {
-      setIsUpdatingHole(false);
-    }
+    const updates = { menuTypeLocation: `Hole ${hole}` };
+    updateDoc(doc(firestore, 'orders', order.id), updates)
+      .finally(() => {
+        setIsUpdatingHole(false);
+      });
   };
 
   if (isLoading || (order && isLoadingSeller)) {
@@ -255,7 +254,7 @@ function OrderTrackingContent() {
                   <Satellite className="h-3.5 w-3.5 animate-pulse" />
                   <div className="absolute inset-0 bg-white rounded-full animate-ping opacity-20" />
                 </div>
-                <span className="text-[10px] font-black uppercase tracking-[0.1em]">Tracking Active</span>
+                <span className="text-[10px] font-black uppercase tracking-[0.1em]">Live GPS Active</span>
               </Badge>
             </div>
           )}
@@ -302,11 +301,11 @@ function OrderTrackingContent() {
           <div className="px-1">
              <Alert className="bg-primary/95 text-white border-none shadow-xl backdrop-blur-md py-4 rounded-2xl">
                 <Zap className="h-5 w-5 text-white fill-white animate-bounce" />
-                <AlertTitle className="text-xs font-black uppercase tracking-[0.2em] mb-1">Stay Active for Accurate Delivery</AlertTitle>
+                <AlertTitle className="text-xs font-black uppercase tracking-[0.2em] mb-1">Optimizing GPS Accuracy</AlertTitle>
                 <AlertDescription className="text-[11px] font-medium opacity-90 leading-tight">
                   {isStandalone 
                     ? "Live background tracking is active. You can safely lock your screen." 
-                    : "Please keep this tab open and your screen active. This ensures the driver can find your exact spot on the course."}
+                    : "We've locked your screen active to ensure the driver can find your exact spot. Please keep this tab open while the cart approaches."}
                 </AlertDescription>
               </Alert>
           </div>
@@ -318,15 +317,15 @@ function OrderTrackingContent() {
             <div className="bg-primary/10 px-4 py-3 border-b border-primary/20 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Flag className="h-4 w-4 text-primary" />
-                <span className="text-[10px] font-black uppercase tracking-widest text-primary">Location Fallback</span>
+                <span className="text-[10px] font-black uppercase tracking-widest text-primary">Location Redundancy</span>
               </div>
-              <Badge variant="outline" className="text-[8px] bg-white border-primary/20 uppercase font-black">Current Hole</Badge>
+              <Badge variant="outline" className="text-[8px] bg-white border-primary/20 uppercase font-black">Hole Selection</Badge>
             </div>
             <CardContent className="p-5 space-y-4">
               <div className="space-y-1">
-                <h4 className="text-sm font-black uppercase tracking-tight">Where are you now?</h4>
+                <h4 className="text-sm font-black uppercase tracking-tight">What hole are you on?</h4>
                 <p className="text-[10px] text-muted-foreground font-medium leading-tight">
-                  If you background this app, tracking will pause. Please keep your current hole updated so the cart can find you.
+                  Even with live GPS, staff use hole numbers to navigate the course mentally. Please keep this updated so they can find you even if your signal drops.
                 </p>
               </div>
               
@@ -385,9 +384,9 @@ function OrderTrackingContent() {
                         <Smartphone className="h-6 w-6 text-primary" />
                       </div>
                       <div className="space-y-1">
-                        <p className="text-xs font-black text-white uppercase tracking-tight">Recommendation for iOS</p>
+                        <p className="text-xs font-black text-white uppercase tracking-tight">Pro Tip: Background Tracking</p>
                         <p className="text-[10px] text-white/70 font-medium leading-tight">
-                          Avoid tracking interruptions! Add KOOP to your home screen so we can find you even if your phone is in your pocket.
+                          Standard browsers stop tracking when you lock your screen. Install the KOOP app to keep the GPS active in your pocket.
                         </p>
                       </div>
                     </div>
@@ -396,7 +395,7 @@ function OrderTrackingContent() {
                       className="w-full bg-primary text-white font-black uppercase text-[10px] tracking-widest h-10 rounded-xl shadow-lg"
                     >
                       <BellRing className="mr-2 h-3.5 w-3.5" />
-                      Enable Reliable Tracking
+                      Switch to Background GPS
                     </Button>
                   </div>
                 )}
@@ -420,7 +419,7 @@ function OrderTrackingContent() {
                   <div className="px-4 py-3 bg-primary/5 rounded-xl border border-primary/10 flex items-center justify-between animate-in fade-in duration-300">
                     <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
                       <CheckCircle2 className="h-3 w-3 text-green-600" />
-                      Current Location
+                      Current Landmark
                     </span>
                     <span className="text-sm font-black text-primary uppercase">{order.menuTypeLocation}</span>
                   </div>
