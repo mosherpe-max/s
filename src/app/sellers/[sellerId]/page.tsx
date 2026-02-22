@@ -1066,7 +1066,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
           <div className="flex flex-wrap gap-4">
               {dashboardStats ? (
                   <>
-                      <StatTile title="Daily" {...dashboardStats.daily} />
                       <StatTile title="Monthly" {...dashboardStats.monthly} />
                       <StatTile title="Yearly" {...dashboardStats.yearly} />
                   </>
