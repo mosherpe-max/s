@@ -1,3 +1,4 @@
+
 'use client';
 
 import { collection, query, where, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
@@ -276,6 +277,8 @@ export default function LaneSideServerDashboardPage({ params }: { params: Promis
                     orderNumber={index + 1} 
                     onUpdateStatus={handleUpdateOrderStatus} 
                     currentDriverId={sellerId} 
+                    thresholds={thresholds}
+                    now={now}
                   />
                 ))
               )}

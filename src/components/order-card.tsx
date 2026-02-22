@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { Separator } from './ui/separator';
 import { Button } from './ui/button';
-import { Navigation, PartyPopper, ClipboardList, Send, MoveHorizontal, User, MapPin, Satellite } from 'lucide-react';
+import { Navigation, PartyPopper, ClipboardList, Send, MoveHorizontal, User, Satellite, Clock } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { Badge } from './ui/badge';
 import { cn, getDriverColor, getNumericOrderId } from '@/lib/utils';
@@ -57,14 +57,18 @@ export function OrderCard({
   onUpdateStatus, 
   onHandoff,
   availableDrivers = [],
-  currentDriverId = 'demo-course' 
+  currentDriverId = 'demo-course',
+  thresholds,
+  now
 }: { 
   order: Order; 
   orderNumber: number; 
   onUpdateStatus: (id: string, status: Order['status'], driverId?: string) => void; 
   onHandoff?: (orderId: string, targetDriverId: string) => void;
   availableDrivers?: AvailableDriver[];
-  currentDriverId?: string 
+  currentDriverId?: string;
+  thresholds?: { warning: number; max: number };
+  now?: number;
 }) {
   const [mounted, setMounted] = useState(false);
   const statusInfo = getStatusConfig(order.status);
@@ -77,6 +81,14 @@ export function OrderCard({
   const driverColor = assignedDriverId ? getDriverColor(assignedDriverId) : null;
   const isAssignedToMe = assignedDriverId === currentDriverId;
   const canHandoff = (order.status === 'Preparing' || order.status === 'Out for Delivery') && availableDrivers.length > 0;
+
+  // Duration Logic
+  const minutesElapsed = order.createdAt && now 
+    ? Math.floor((now - order.createdAt.toDate().getTime()) / 60000) 
+    : 0;
+  
+  const isExceeded = thresholds && minutesElapsed >= thresholds.max;
+  const isWarning = thresholds && minutesElapsed >= thresholds.warning && !isExceeded;
 
   const renderAction = () => {
     switch (order.status) {
@@ -148,34 +160,46 @@ export function OrderCard({
     'violet-600': 'border-violet-600',
   };
 
-  const borderColorClass = driverColor ? colorMap[driverColor] : 'border-muted';
-  const borderThickness = assignedDriverId ? 'border-[3px]' : 'border-2';
+  const borderColorClass = isExceeded 
+    ? 'border-destructive' 
+    : (isWarning ? 'border-yellow-500' : (driverColor ? colorMap[driverColor] : 'border-muted'));
+  
+  const borderThickness = (assignedDriverId || isExceeded || isWarning) ? 'border-[3px]' : 'border-2';
 
   return (
     <Card className={cn(
       'overflow-hidden flex flex-col h-full transition-all duration-300 w-full max-w-full',
       borderThickness,
       borderColorClass,
+      isExceeded ? 'bg-red-50' : (isWarning ? 'bg-yellow-50' : 'bg-card'),
       !assignedDriverId && 'opacity-90 hover:opacity-100',
-      isAssignedToMe && 'shadow-md ring-1 ring-primary/20'
+      isAssignedToMe && !isExceeded && 'shadow-md ring-1 ring-primary/20'
     )}>
-      <CardHeader className='flex flex-row items-start gap-3 p-3 bg-muted/30'>
+      <CardHeader className={cn('flex flex-row items-start gap-3 p-3', isExceeded ? 'bg-red-100/50' : (isWarning ? 'bg-yellow-100/50' : 'bg-muted/30'))}>
         <Avatar className="w-9 h-9 shrink-0 border border-primary/10">
-          <AvatarFallback className="font-bold text-[10px] bg-primary text-primary-foreground">#{numericId}</AvatarFallback>
+          <AvatarFallback className={cn("font-bold text-[10px] text-primary-foreground", isExceeded ? 'bg-destructive' : 'bg-primary')}>#{numericId}</AvatarFallback>
         </Avatar>
         <div className='flex-1 min-w-0'>
           <div className="flex items-center gap-2 mb-0.5">
             <CardTitle className='text-xs font-bold uppercase tracking-tight truncate leading-tight'>{order.customerName}</CardTitle>
             {order.menuTypeLocation && (
-              <Badge className="bg-primary text-white text-[9px] font-black uppercase tracking-tight px-1.5 h-4">
+              <Badge className={cn("text-white text-[9px] font-black uppercase tracking-tight px-1.5 h-4", isExceeded ? 'bg-destructive' : 'bg-primary')}>
                 {order.menuTypeLocation}
               </Badge>
             )}
           </div>
           <div className="flex flex-col gap-0.5 mt-0.5">
-            <CardDescription className="text-[9px] flex items-center gap-1 font-medium truncate">
-              {mounted && order.createdAt?.toDate ? formatDistanceToNow(order.createdAt.toDate(), { addSuffix: true }) : 'Processing...'}
-            </CardDescription>
+            <div className="flex items-center justify-between gap-2">
+              <CardDescription className="text-[9px] flex items-center gap-1 font-medium truncate">
+                {mounted && order.createdAt?.toDate ? formatDistanceToNow(order.createdAt.toDate(), { addSuffix: true }) : 'Processing...'}
+              </CardDescription>
+              {mounted && now && (
+                <div className={cn("text-[9px] font-black uppercase flex items-center gap-1 shrink-0", isExceeded ? 'text-destructive' : (isWarning ? 'text-yellow-700' : 'text-muted-foreground'))}>
+                  <Clock className="w-2.5 h-2.5" />
+                  {minutesElapsed}m elapsed
+                </div>
+              )}
+            </div>
             
             {/* GPS Signal Freshness Fallback */}
             {mounted && order.lastGpsUpdate && order.status === 'Out for Delivery' && (
@@ -198,7 +222,9 @@ export function OrderCard({
           </div>
         </div>
         {statusInfo && (
-          <Badge variant={statusInfo.badgeVariant} className="text-[7px] font-bold tracking-widest h-4 px-1 shrink-0">{statusInfo.label}</Badge>
+          <Badge variant={isExceeded ? 'destructive' : statusInfo.badgeVariant} className="text-[7px] font-bold tracking-widest h-4 px-1 shrink-0">
+            {isExceeded ? 'OVERDUE' : statusInfo.label}
+          </Badge>
         )}
       </CardHeader>
       <CardContent className='p-3 space-y-2.5 flex-1'>
@@ -217,7 +243,7 @@ export function OrderCard({
         </div>
       </CardContent>
       {renderAction() && (
-        <CardFooter className='p-1.5 bg-muted/20 mt-auto border-t'>
+        <CardFooter className={cn('p-1.5 mt-auto border-t', isExceeded ? 'bg-red-100/30' : 'bg-muted/20')}>
           {renderAction()}
         </CardFooter>
       )}

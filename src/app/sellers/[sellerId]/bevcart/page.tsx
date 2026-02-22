@@ -1,3 +1,4 @@
+
 'use client';
 
 import { collection, query, where, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
@@ -414,6 +415,8 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
                       onHandoff={handleHandoff}
                       availableDrivers={otherActiveDrivers}
                       currentDriverId={sellerId} 
+                      thresholds={thresholds}
+                      now={now || Date.now()}
                     />
                   ))
                 )}
