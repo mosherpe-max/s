@@ -15,7 +15,8 @@ import {
   Users,
   Menu,
   ChevronRight,
-  Waves
+  Waves,
+  Database
 } from 'lucide-react';
 import { useCart } from '@/lib/cart-context';
 import { useState, useEffect, useMemo } from 'react';
@@ -111,11 +112,11 @@ export function AppHeader() {
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="sm" className="text-white hover:bg-white/10 text-[10px] font-headline font-bold uppercase tracking-wider px-3 h-9">
-                Platform <ChevronDown className="ml-1 h-3 w-3" />
+                Internal <ChevronDown className="ml-1 h-3 w-3" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuLabel className={labelClass}>Internal Tools</DropdownMenuLabel>
+              <DropdownMenuLabel className={labelClass}>Platform Admin</DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem asChild>
                 <Link href="/admin" className={itemClass}>
@@ -133,42 +134,42 @@ export function AppHeader() {
           </Link>
         )}
 
-        {/* SELLER ENVIRONMENTS */}
-        {mobile && <p className={labelClass}>Sellers</p>}
+        {/* MANAGE SELLERS (IMPERSONATION) */}
+        {mobile && <p className={labelClass}>Impersonate Sellers</p>}
         {!mobile ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="sm" className="text-white hover:bg-white/10 text-[10px] font-headline font-bold uppercase tracking-wider px-3 h-9">
-                Sellers <ChevronDown className="ml-1 h-3 w-3" />
+                Manage Sellers <ChevronDown className="ml-1 h-3 w-3" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuLabel className={labelClass}>Manage Environments</DropdownMenuLabel>
+            <DropdownMenuContent align="end" className="w-64">
+              <DropdownMenuLabel className={labelClass}>Access Seller Admin</DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem asChild>
                 <Link href="/sellers/demo-course" className={itemClass}>
-                  <Building className="h-4 w-4 text-primary" />
+                  <Building className="h-4 w-4 text-indigo-600" />
                   <div className="flex flex-col">
                     <span className="font-bold text-xs uppercase tracking-tight">Public GC Admin</span>
-                    <span className="text-[9px] text-muted-foreground">demo-course</span>
+                    <span className="text-[9px] text-muted-foreground">Setup menu & ops</span>
                   </div>
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
                 <Link href="/sellers/demo-bowling-alley" className={itemClass}>
-                  <Store className="h-4 w-4 text-primary" />
+                  <Store className="h-4 w-4 text-indigo-600" />
                   <div className="flex flex-col">
                     <span className="font-bold text-xs uppercase tracking-tight">Bowling Admin</span>
-                    <span className="text-[9px] text-muted-foreground">demo-bowling-alley</span>
+                    <span className="text-[9px] text-muted-foreground">Setup lanes & menu</span>
                   </div>
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
                 <Link href="/sellers/demo-golf-course-private" className={itemClass}>
-                  <Building className="h-4 w-4 text-primary" />
+                  <Building className="h-4 w-4 text-indigo-600" />
                   <div className="flex flex-col">
-                    <span className="font-bold text-xs uppercase tracking-tight">Private GC Admin</span>
-                    <span className="text-[9px] text-muted-foreground">private-demo</span>
+                    <span className="font-bold text-xs uppercase tracking-tight">Private Club Admin</span>
+                    <span className="text-[9px] text-muted-foreground">Setup members & pool</span>
                   </div>
                 </Link>
               </DropdownMenuItem>
@@ -177,39 +178,30 @@ export function AppHeader() {
         ) : (
           <>
             <Link href="/sellers/demo-course" onClick={() => setIsMobileMenuOpen(false)} className={itemClass}>
-              <Building className="h-5 w-5 text-primary" />
-              <div className="flex flex-col">
-                <span className="font-bold text-sm uppercase tracking-tight">Public GC Admin</span>
-                <span className="text-[10px] text-muted-foreground">demo-course</span>
-              </div>
+              <Database className="h-5 w-5 text-indigo-600" />
+              <span className="font-bold text-sm uppercase tracking-tight">Public GC Admin</span>
               <ChevronRight className="ml-auto h-4 w-4 text-muted-foreground/30" />
             </Link>
             <Link href="/sellers/demo-bowling-alley" onClick={() => setIsMobileMenuOpen(false)} className={itemClass}>
-              <Store className="h-5 w-5 text-primary" />
-              <div className="flex flex-col">
-                <span className="font-bold text-sm uppercase tracking-tight">Bowling Admin</span>
-                <span className="text-[10px] text-muted-foreground">demo-bowling-alley</span>
-              </div>
+              <Database className="h-5 w-5 text-indigo-600" />
+              <span className="font-bold text-sm uppercase tracking-tight">Bowling Admin</span>
               <ChevronRight className="ml-auto h-4 w-4 text-muted-foreground/30" />
             </Link>
             <Link href="/sellers/demo-golf-course-private" onClick={() => setIsMobileMenuOpen(false)} className={itemClass}>
-              <Building className="h-5 w-5 text-primary" />
-              <div className="flex flex-col">
-                <span className="font-bold text-sm uppercase tracking-tight">Private GC Admin</span>
-                <span className="text-[10px] text-muted-foreground">private-demo</span>
-              </div>
+              <Database className="h-5 w-5 text-indigo-600" />
+              <span className="font-bold text-sm uppercase tracking-tight">Private Club Admin</span>
               <ChevronRight className="ml-auto h-4 w-4 text-muted-foreground/30" />
             </Link>
           </>
         )}
 
-        {/* SERVICES */}
-        {mobile && <p className={labelClass}>Driver Services</p>}
+        {/* DRIVER SERVICES */}
+        {mobile && <p className={labelClass}>Staff Interfaces</p>}
         {!mobile ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="sm" className="text-white hover:bg-white/10 text-[10px] font-headline font-bold uppercase tracking-wider px-3 h-9">
-                Services <ChevronDown className="ml-1 h-3 w-3" />
+                Staff Views <ChevronDown className="ml-1 h-3 w-3" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-64">
@@ -246,12 +238,6 @@ export function AppHeader() {
                   <span className="font-bold text-xs uppercase tracking-tight">Private Clubhouse Driver</span>
                 </Link>
               </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link href="/sellers/demo-golf-course-private/clubhouse" className={itemClass}>
-                  <Waves className="h-4 w-4 text-primary" />
-                  <span className="font-bold text-xs uppercase tracking-tight">Private Pool Server</span>
-                </Link>
-              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         ) : (
@@ -280,11 +266,6 @@ export function AppHeader() {
             <Link href="/sellers/demo-golf-course-private/clubhouse" onClick={() => setIsMobileMenuOpen(false)} className={itemClass}>
               <LayoutDashboard className="h-5 w-5 text-primary" />
               <span className="font-bold text-sm uppercase tracking-tight">Private Clubhouse Driver</span>
-              <ChevronRight className="ml-auto h-4 w-4 text-muted-foreground/30" />
-            </Link>
-            <Link href="/sellers/demo-golf-course-private/clubhouse" onClick={() => setIsMobileMenuOpen(false)} className={itemClass}>
-              <Waves className="h-5 w-5 text-primary" />
-              <span className="font-bold text-sm uppercase tracking-tight">Private Pool Server</span>
               <ChevronRight className="ml-auto h-4 w-4 text-muted-foreground/30" />
             </Link>
           </>
@@ -357,7 +338,7 @@ export function AppHeader() {
                     <KoopLogo />
                   </div>
                   <SheetTitle className="text-center text-[10px] uppercase font-bold tracking-[0.3em] text-white/60 mt-4">
-                    PROTOTYPE NAVIGATION
+                    PLATFORM NAVIGATION
                   </SheetTitle>
                 </SheetHeader>
                 <ScrollArea className="h-[calc(100vh-140px)]">

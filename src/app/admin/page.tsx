@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -6,8 +5,8 @@ import { collection, doc, setDoc, deleteDoc, query, writeBatch, getDocs, getDoc 
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { PlusCircle, Edit, Trash2, Loader2, MapPin, Mail, Phone, User, Building, DollarSign, ShoppingBag, BarChart3, ListChecks, Utensils, RefreshCw, AlertTriangle, ShieldCheck, Percent, Info } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { PlusCircle, Edit, Trash2, Loader2, MapPin, Mail, Phone, User, Building, DollarSign, ShoppingBag, BarChart3, ListChecks, Utensils, RefreshCw, AlertTriangle, ShieldCheck, Percent, Info, ExternalLink } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -48,6 +47,7 @@ import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { isToday, isThisMonth, isThisYear, format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import Link from 'next/link';
 
 const sellerSchema = z.object({
   courseName: z.string().min(2, 'Seller name must be at least 2 characters'),
@@ -545,7 +545,13 @@ export default function KOOPAdminPage() {
                       </TableCell>
                       <TableCell className="text-right align-top pt-4">
                         <div className="flex justify-end gap-1">
-                          <Button variant="ghost" size="icon" onClick={() => handleOpenForm(seller)} title="Edit">
+                          <Button variant="default" size="sm" asChild className="h-8 bg-indigo-600 hover:bg-indigo-700 font-bold uppercase text-[9px] tracking-widest px-3">
+                            <Link href={`/sellers/${seller.id}`}>
+                              <ExternalLink className="mr-1.5 h-3 w-3" />
+                              Manage
+                            </Link>
+                          </Button>
+                          <Button variant="ghost" size="icon" onClick={() => handleOpenForm(seller)} title="Edit Settings">
                             <Edit className="h-4 w-4" />
                           </Button>
                           <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10" onClick={() => setSellerToDelete(seller)} title="Delete">
