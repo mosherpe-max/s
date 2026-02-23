@@ -1,7 +1,6 @@
-
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { Share, PlusSquare, ArrowDown, MoreHorizontal, X, BellRing } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -12,8 +11,8 @@ interface IosInstallPromptProps {
 }
 
 /**
- * A specialized prompt for iOS Safari users.
- * Floating bubble anchored to the bottom with an arrow pointing to the Share button.
+ * A specialized prompt for iOS users to install the PWA.
+ * Features a high-fidelity floating bubble anchored to the bottom.
  */
 export function IosInstallPrompt({ open, onOpenChange }: IosInstallPromptProps) {
   if (!open) return null;
@@ -24,12 +23,17 @@ export function IosInstallPrompt({ open, onOpenChange }: IosInstallPromptProps) 
 
   const handleEnableNotifications = async () => {
     if ('Notification' in window) {
-      await Notification.requestPermission();
+      try {
+        // Request permission immediately when the prompt is shown.
+        // This is a proxy for the user "electing" to start the install process.
+        await Notification.requestPermission();
+      } catch (err) {
+        console.warn('Notification permission request failed:', err);
+      }
     }
   };
 
-  // Automatically request permission when the prompt opens to ensure 
-  // the user is ready for background updates once installed.
+  // Automatically request permission when the prompt opens
   useEffect(() => {
     if (open) {
       handleEnableNotifications();
@@ -76,21 +80,31 @@ export function IosInstallPrompt({ open, onOpenChange }: IosInstallPromptProps) 
         {/* Instructions */}
         <div className="p-6 space-y-4">
           <div className="flex items-center gap-4">
-            <div className="bg-blue-500/10 p-2.5 rounded-2xl shadow-sm border border-blue-500/20 shrink-0">
-              <Share className="h-6 w-6 text-blue-600" />
+            <div className="bg-slate-500/10 p-2.5 rounded-2xl shadow-sm border border-slate-500/20 shrink-0">
+              <MoreHorizontal className="h-6 w-6 text-slate-700" />
             </div>
             <div className="space-y-0.5">
-              <p className="text-[11px] font-black uppercase tracking-tight">1. Tap the Share icon</p>
-              <p className="text-[9px] text-muted-foreground font-bold uppercase tracking-[0.1em]">Found at the center of the bottom bar</p>
+              <p className="text-[11px] font-black uppercase tracking-tight">1. Tap the '...' More Options</p>
+              <p className="text-[9px] text-muted-foreground font-bold uppercase tracking-[0.1em]">Usually found in the corner of your browser</p>
             </div>
           </div>
 
           <div className="flex items-center gap-4">
-            <div className="bg-slate-500/10 p-2.5 rounded-2xl shadow-sm border border-slate-500/20 shrink-0">
-              <PlusSquare className="h-6 w-6 text-slate-700" />
+            <div className="bg-blue-500/10 p-2.5 rounded-2xl shadow-sm border border-blue-500/20 shrink-0">
+              <Share className="h-6 w-6 text-blue-600" />
             </div>
             <div className="space-y-0.5">
-              <p className="text-[11px] font-black uppercase tracking-tight">2. Select 'Add to Home Screen'</p>
+              <p className="text-[11px] font-black uppercase tracking-tight">2. Select the Share icon</p>
+              <p className="text-[9px] text-muted-foreground font-bold uppercase tracking-[0.1em]">The square with an arrow pointing up</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-4">
+            <div className="bg-green-500/10 p-2.5 rounded-2xl shadow-sm border border-green-500/20 shrink-0">
+              <PlusSquare className="h-6 w-6 text-green-700" />
+            </div>
+            <div className="space-y-0.5">
+              <p className="text-[11px] font-black uppercase tracking-tight">3. Tap 'Add to Home Screen'</p>
               <p className="text-[9px] text-muted-foreground font-bold uppercase tracking-[0.1em]">Scroll down the list to find the plus icon</p>
             </div>
           </div>
@@ -114,7 +128,7 @@ export function IosInstallPrompt({ open, onOpenChange }: IosInstallPromptProps) 
       {/* Visual Indicator showing exactly where to tap */}
       <div className="mt-4 flex flex-col items-center gap-1 opacity-80">
         <ArrowDown className="h-6 w-6 text-white animate-bounce" />
-        <p className="text-[10px] font-black text-white uppercase tracking-[0.3em] drop-shadow-md">Tap Center Below</p>
+        <p className="text-[10px] font-black text-white uppercase tracking-[0.3em] drop-shadow-md">Tap Options Below</p>
       </div>
     </div>
   );
