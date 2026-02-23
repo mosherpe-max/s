@@ -45,7 +45,8 @@ import {
   ListOrdered,
   Download,
   Calendar as CalendarIcon,
-  ClipboardList
+  ClipboardList,
+  ArrowRightLeft
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -392,6 +393,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   // Sales Reporting State
   const [startDate, setStartDate] = useState(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
   const [endDate, setEndDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [revenueMode, setRevenueMode] = useState<'Gross' | 'Net'>('Gross');
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -465,7 +467,10 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   const dashboardStats = useMemo(() => {
     if (!orders || !seller) return null;
     const calculate = (filtered: Order[]) => {
-      const revenue = filtered.reduce((acc, o) => acc + o.total, 0);
+      const revenue = filtered.reduce((acc, o) => {
+        const val = revenueMode === 'Gross' ? o.total : (o.subtotal + (o.tip || 0));
+        return acc + val;
+      }, 0);
       const longWait = filtered.filter(o => {
         if (!o.deliveredAt || !o.createdAt) return false;
         const duration = (o.deliveredAt.toDate().getTime() - o.createdAt.toDate().getTime()) / 60000;
@@ -478,7 +483,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
       monthly: calculate(orders.filter(o => o.createdAt && isThisMonth(o.createdAt.toDate()))),
       yearly: calculate(orders.filter(o => o.createdAt && isThisYear(o.createdAt.toDate()))),
     };
-  }, [orders, seller]);
+  }, [orders, seller, revenueMode]);
 
   const opsMetrics = useMemo(() => {
     if (!orders || !seller) return null;
@@ -487,7 +492,10 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
       const todayOrders = filtered.filter(o => o.createdAt && isToday(o.createdAt.toDate()));
       const deliveredToday = todayOrders.filter(o => o.status === 'Delivered');
       
-      const revenue = todayOrders.reduce((acc, o) => acc + (o.total || 0), 0);
+      const revenue = todayOrders.reduce((acc, o) => {
+        const val = revenueMode === 'Gross' ? o.total : (o.subtotal + (o.tip || 0));
+        return acc + val;
+      }, 0);
       
       let totalMinutes = 0;
       deliveredToday.forEach(o => {
@@ -516,7 +524,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
       total: calculateMetrics(orders),
       selected: selectedOpsMenu ? calculateMetrics(orders.filter(o => o.menuType === selectedOpsMenu)) : null
     };
-  }, [orders, seller, selectedOpsMenu, now]);
+  }, [orders, seller, selectedOpsMenu, now, revenueMode]);
 
   const filteredOrdersByRange = useMemo(() => {
     if (!orders) return [];
@@ -544,7 +552,8 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
         groupedByDate[dateKey] = {};
         seller.menuTypes.forEach(mt => { groupedByDate[dateKey][mt] = 0; });
       }
-      groupedByDate[dateKey][o.menuType] = (groupedByDate[dateKey][o.menuType] || 0) + o.total;
+      const val = revenueMode === 'Gross' ? o.total : (o.subtotal + (o.tip || 0));
+      groupedByDate[dateKey][o.menuType] = (groupedByDate[dateKey][o.menuType] || 0) + val;
     });
 
     return Object.entries(groupedByDate)
@@ -554,17 +563,17 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
         total: Object.values(menus).reduce((a, b) => a + b, 0)
       }))
       .sort((a, b) => b.date.localeCompare(a.date));
-  }, [filteredOrdersByRange, seller]);
+  }, [filteredOrdersByRange, seller, revenueMode]);
 
   const handleExportExcel = () => {
     if (dailyReportData.length === 0) return;
 
     const worksheet = XLSX.utils.json_to_sheet(dailyReportData);
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Daily Sales");
-    XLSX.writeFile(workbook, `KOOP_Daily_Sales_${startDate}_to_${endDate}.xlsx`);
+    XLSX.utils.book_append_sheet(workbook, worksheet, `Daily Sales (${revenueMode})`);
+    XLSX.writeFile(workbook, `KOOP_${revenueMode}_Daily_Sales_${startDate}_to_${endDate}.xlsx`);
     
-    toast({ title: 'Report Exported', description: 'Daily summary generated.' });
+    toast({ title: 'Report Exported', description: `Daily summary (${revenueMode}) generated.` });
   };
 
   const handleExportIndividualOrdersExcel = () => {
@@ -581,7 +590,8 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
       'Fee': o.serviceFee,
       'Tax': o.tax,
       'Tip': o.tip,
-      'Total': o.total
+      'Total': o.total,
+      [`Report Mode (${revenueMode})`]: revenueMode === 'Gross' ? o.total : (o.subtotal + (o.tip || 0))
     }));
 
     const worksheet = XLSX.utils.json_to_sheet(exportData);
@@ -797,6 +807,10 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
               sellerId,
               customerName: 'Sample Patron',
               total: 20 + Math.random() * 50,
+              subtotal: 15 + Math.random() * 40,
+              serviceFee: 2.50,
+              tax: 1.50,
+              tip: 5.00,
               menuType: mt,
               status: 'Delivered',
               createdAt: date,
@@ -1167,7 +1181,34 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
         </section>
 
         <section id="sales-stats" className="mb-12 scroll-mt-32">
-          <h2 className="font-headline text-xl font-bold mb-6 flex items-center gap-2 text-primary uppercase tracking-wider"><BarChart3 className="h-6 w-6" /> Sales Stats</h2>
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+            <h2 className="font-headline text-xl font-bold flex items-center gap-2 text-primary uppercase tracking-wider"><BarChart3 className="h-6 w-6" /> Sales Stats</h2>
+            
+            <div className="flex items-center gap-2 bg-muted/30 border-2 rounded-xl p-1 shadow-inner">
+              <Button 
+                variant={revenueMode === 'Gross' ? 'default' : 'ghost'} 
+                size="sm" 
+                onClick={() => setRevenueMode('Gross')}
+                className={cn(
+                  "h-8 text-[10px] font-black uppercase tracking-widest px-4 rounded-lg transition-all",
+                  revenueMode === 'Gross' ? "shadow-md scale-105" : "text-muted-foreground hover:bg-background/50"
+                )}
+              >
+                Gross Sales
+              </Button>
+              <Button 
+                variant={revenueMode === 'Net' ? 'default' : 'ghost'} 
+                size="sm" 
+                onClick={() => setRevenueMode('Net')}
+                className={cn(
+                  "h-8 text-[10px] font-black uppercase tracking-widest px-4 rounded-lg transition-all",
+                  revenueMode === 'Net' ? "shadow-md scale-105" : "text-muted-foreground hover:bg-background/50"
+                )}
+              >
+                Net Sales
+              </Button>
+            </div>
+          </div>
           
           <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-muted/30 p-4 rounded-xl border-2">
             <div className="space-y-1">
@@ -1196,8 +1237,8 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
           <div className="flex flex-wrap gap-4 mb-12">
               {dashboardStats ? (
                   <>
-                      <StatTile title="Current Month (To Date)" {...dashboardStats.monthly} />
-                      <StatTile title="Current Year (To Date)" {...dashboardStats.yearly} />
+                      <StatTile title={`Current Month (${revenueMode})`} {...dashboardStats.monthly} />
+                      <StatTile title={`Current Year (${revenueMode})`} {...dashboardStats.yearly} />
                   </>
               ) : <Skeleton className="h-40 w-full" />}
           </div>
@@ -1208,7 +1249,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
               <CardHeader className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b bg-muted/20">
                 <div className="space-y-1">
                   <CardTitle className="text-lg uppercase tracking-tight flex items-center gap-2">
-                    <ListOrdered className="h-5 w-5 text-primary" /> Daily Revenue Summary
+                    <ListOrdered className="h-5 w-5 text-primary" /> Daily {revenueMode} Revenue Summary
                   </CardTitle>
                   <CardDescription>Consolidated daily totals for each service mode.</CardDescription>
                 </div>
@@ -1287,31 +1328,34 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                           <TableHead className="font-black uppercase tracking-widest text-[10px]">Date/Time</TableHead>
                           <TableHead className="font-black uppercase tracking-widest text-[10px]">Menu</TableHead>
                           <TableHead className="font-black uppercase tracking-widest text-[10px]">Summary</TableHead>
-                          <TableHead className="font-black uppercase tracking-widest text-[10px] text-right text-primary">Total</TableHead>
+                          <TableHead className="font-black uppercase tracking-widest text-[10px] text-right text-primary">{revenueMode}</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {filteredOrdersByRange.map((order) => (
-                          <TableRow key={order.id} className="hover:bg-muted/10 transition-colors">
-                            <TableCell className="font-bold text-xs uppercase tracking-tight">{order.customerName}</TableCell>
-                            <TableCell className="text-[10px] text-muted-foreground font-mono">
-                              {format(order.createdAt.toDate(), 'MMM dd, HH:mm')}
-                            </TableCell>
-                            <TableCell>
-                              <Badge variant="outline" className="text-[8px] font-black uppercase bg-background shadow-xs">
-                                {order.menuType}
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="max-w-[200px]">
-                              <p className="text-[10px] text-muted-foreground truncate font-medium">
-                                {order.items.map(i => `${i.quantity}x ${i.name}`).join(', ')}
-                              </p>
-                            </TableCell>
-                            <TableCell className="text-right font-mono font-black text-xs text-primary">
-                              ${order.total.toFixed(2)}
-                            </TableCell>
-                          </TableRow>
-                        ))}
+                        {filteredOrdersByRange.map((order) => {
+                          const displayTotal = revenueMode === 'Gross' ? order.total : (order.subtotal + (order.tip || 0));
+                          return (
+                            <TableRow key={order.id} className="hover:bg-muted/10 transition-colors">
+                              <TableCell className="font-bold text-xs uppercase tracking-tight">{order.customerName}</TableCell>
+                              <TableCell className="text-[10px] text-muted-foreground font-mono">
+                                {format(order.createdAt.toDate(), 'MMM dd, HH:mm')}
+                              </TableCell>
+                              <TableCell>
+                                <Badge variant="outline" className="text-[8px] font-black uppercase bg-background shadow-xs">
+                                  {order.menuType}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="max-w-[200px]">
+                                <p className="text-[10px] text-muted-foreground truncate font-medium">
+                                  {order.items.map(i => `${i.quantity}x ${i.name}`).join(', ')}
+                                </p>
+                              </TableCell>
+                              <TableCell className="text-right font-mono font-black text-xs text-primary">
+                                ${displayTotal.toFixed(2)}
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
                       </TableBody>
                     </Table>
                   </div>
