@@ -69,11 +69,11 @@ export function IosInstallPrompt({ open, onOpenChange }: IosInstallPromptProps) 
               <BellRing className="h-5 w-5 text-primary animate-pulse" />
             </div>
           </div>
-          <h3 className="text-lg font-headline font-black uppercase tracking-tight text-white leading-none mb-1">
-            Install KOOP
+          <h3 className="text-base font-headline font-black uppercase tracking-tight text-white leading-tight mb-1">
+            Get Accurate Delivery
           </h3>
-          <p className="text-white/70 text-[9px] font-bold uppercase tracking-widest leading-tight px-4">
-            Follow these steps to keep GPS active in your pocket
+          <p className="text-white/70 text-[10px] font-bold uppercase tracking-widest leading-relaxed px-4">
+            Add to your Home Screen for accurate delivery tracking and order updates
           </p>
         </div>
         
