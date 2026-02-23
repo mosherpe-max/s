@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Suspense, useEffect, useRef, useState } from 'react';
@@ -173,6 +174,12 @@ function OrderTrackingContent() {
     setIsUpdatingHole(true);
     const updates = { menuTypeLocation: `Hole ${hole}` };
     updateDoc(doc(firestore, 'orders', order.id), updates)
+      .then(() => {
+        // Trigger the install bubble for iOS browser users upon manual location update
+        if ((isIos || forceIosView) && !isStandalone) {
+          setIsInstallPromptOpen(true);
+        }
+      })
       .finally(() => {
         setIsUpdatingHole(false);
       });
