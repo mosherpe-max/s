@@ -458,20 +458,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
                 </div>
               )}
 
-              {/* Order Summary moved before Tip Selection */}
-              <div className="space-y-4">
-                <h3 className="font-black text-[10px] uppercase tracking-widest text-muted-foreground flex items-center gap-2 px-1">
-                  <Info className="w-3.5 h-3.5" /> ORDER SUMMARY
-                </h3>
-                <OrderSummary 
-                  items={activeOrderItems} 
-                  serviceFee={platformFee} 
-                  tax={tax}
-                  tip={tipAmount}
-                  taxRate={taxRatePercentage}
-                />
-              </div>
-
+              {/* 1. Tip Selection */}
               <div className="space-y-4 bg-muted/10 p-5 rounded-2xl border-2 border-dashed">
                 <h3 className="font-black text-[10px] uppercase tracking-widest text-muted-foreground flex items-center gap-2">
                   <Heart className="w-3.5 h-3.5 text-red-500" /> ADD GRATUITY / TIP
@@ -512,6 +499,20 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
                     />
                   </div>
                 )}
+              </div>
+
+              {/* 2. Order Summary - Back to original spot below Tip */}
+              <div className="space-y-4">
+                <h3 className="font-black text-[10px] uppercase tracking-widest text-muted-foreground flex items-center gap-2 px-1">
+                  <Info className="w-3.5 h-3.5" /> ORDER SUMMARY
+                </h3>
+                <OrderSummary 
+                  items={activeOrderItems} 
+                  serviceFee={platformFee} 
+                  tax={tax}
+                  tip={tipAmount}
+                  taxRate={taxRatePercentage}
+                />
               </div>
 
               <div className="space-y-4">

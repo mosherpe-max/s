@@ -307,108 +307,15 @@ function OrderTrackingContent() {
       )}
 
       <div className="flex-1 p-4 space-y-4 max-w-2xl mx-auto w-full pb-20">
-        {/* Order Tracking Card - Always at the top of content list */}
-        <Card className="shadow-lg border-primary/10 overflow-hidden">
-            <CardHeader className="pb-4">
-                <div className="flex justify-between items-center mb-6">
-                    <h3 className="font-headline text-lg font-bold uppercase tracking-wider text-muted-foreground">ORDER TRACKING</h3>
-                    <Badge variant="outline" className="font-mono text-[10px] h-6 px-3 border-primary/20 bg-primary/5">#{numericId}</Badge>
+        {/* 1. Dedicated Live Progress Bar - Only Status Info here */}
+        <Card className="shadow-lg border-primary/10 overflow-hidden bg-white/80 backdrop-blur-sm">
+            <CardHeader className="py-4 px-6">
+                <div className="flex justify-between items-center mb-4">
+                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Live Tracking</span>
+                    <Badge variant="outline" className="font-mono text-[9px] h-5 px-2 border-primary/20 bg-primary/5">#{numericId}</Badge>
                 </div>
                 <OrderStatus currentStatus={order.status} menuType={order.menuType} />
             </CardHeader>
-            <Separator />
-            <CardContent className="pt-6 space-y-6">
-                {!isDelivered && isIos && !isStandalone && isGpsRequired && (
-                  <div className="bg-[#213147] rounded-2xl p-5 border-b-4 border-primary shadow-inner space-y-4">
-                    <div className="flex items-start gap-4">
-                      <div className="bg-primary/20 p-2.5 rounded-xl shrink-0">
-                        <Smartphone className="h-6 w-6 text-primary" />
-                      </div>
-                      <div className="space-y-1">
-                        <p className="text-xs font-black text-white uppercase tracking-tight">Pro Tip: Background Tracking</p>
-                        <p className="text-[10px] text-white/70 font-medium leading-tight">
-                          Standard browsers stop tracking when you lock your screen. Install the KOOP app to keep the GPS active in your pocket.
-                        </p>
-                      </div>
-                    </div>
-                    <Button 
-                      onClick={() => setIsInstallPromptOpen(true)}
-                      className="w-full bg-primary text-white font-black uppercase text-[10px] tracking-widest h-10 rounded-xl shadow-lg"
-                    >
-                      <BellRing className="mr-2 h-3.5 w-3.5" />
-                      Switch to Background GPS
-                    </Button>
-                  </div>
-                )}
-
-                <div className="grid grid-cols-2 gap-4 py-3 px-4 bg-muted/30 rounded-xl border border-dashed">
-                  <div className="space-y-1">
-                    <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-1.5">
-                      <Store className="w-3 h-3" /> ESTABLISHMENT
-                    </p>
-                    <p className="text-xs font-bold truncate">{seller?.courseName || 'Loading...'}</p>
-                  </div>
-                  <div className="space-y-1 text-right">
-                    <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-1.5 justify-end">
-                      <ClipboardList className="w-3 h-3" /> SERVICE MODE
-                    </p>
-                    <p className="text-xs font-bold">{order.menuType}</p>
-                  </div>
-                </div>
-
-                {order.menuTypeLocation && (
-                  <div className="px-4 py-3 bg-primary/5 rounded-xl border border-primary/10 flex items-center justify-between animate-in fade-in duration-300">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
-                      <CheckCircle2 className="h-3 w-3 text-green-600" />
-                      Current Landmark
-                    </span>
-                    <span className="text-sm font-black text-primary uppercase">{order.menuTypeLocation}</span>
-                  </div>
-                )}
-
-                <div className="space-y-3">
-                    <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground"><ShoppingBag className="w-3.5 h-3.5" /> ORDER ITEMS</div>
-                    <div className="space-y-2">
-                        {order.items.map(item => (
-                            <div key={item.id} className="flex justify-between items-center text-sm">
-                                <span className="font-medium text-xs">{item.name} <span className="text-muted-foreground font-normal ml-1 text-[10px]">x{item.quantity}</span></span>
-                                <span className="font-mono font-bold text-xs">${(item.price * item.quantity).toFixed(2)}</span>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-                
-                <Separator className="border-dashed" />
-                
-                <div className="space-y-1.5 pt-2 text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
-                    <div className="flex justify-between">
-                        <span>SUBTOTAL</span>
-                        <span className="font-mono text-foreground">${order.subtotal.toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                        <span>CONVENIENCE FEE</span>
-                        <span className="font-mono text-foreground">${order.serviceFee.toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                        <span>EST. TAX ({taxRatePercentage}%)</span>
-                        <span className="font-mono text-foreground">${(order.tax || 0).toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                        <span>GRATUITY / TIP</span>
-                        <span className="font-mono text-foreground">${(order.tip || 0).toFixed(2)}</span>
-                    </div>
-                    <Separator className="my-2 border-dashed" />
-                    <div className="flex justify-between items-center pt-1 font-black text-lg">
-                        <span className="font-headline uppercase tracking-tight text-base text-foreground">TOTAL PAID</span>
-                        <span className="font-mono" style={{ color: brandColor }}>${order.total.toFixed(2)}</span>
-                    </div>
-                </div>
-
-                <div className="p-4 bg-muted/30 rounded-xl border flex flex-col gap-2">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">PAYMENT METHOD</p>
-                    <p className="text-xs font-black text-foreground uppercase italic tracking-tight">"{order.paymentMethod}"</p>
-                </div>
-            </CardContent>
         </Card>
 
         {isDelivered && (
@@ -501,6 +408,82 @@ function OrderTrackingContent() {
             </CardContent>
           </Card>
         )}
+
+        {/* 2. Order Details Card - Summary of items and payment */}
+        <Card className="shadow-md border-primary/5 overflow-hidden">
+            <CardHeader className="py-3 px-6 bg-muted/30 border-b">
+                <h3 className="font-headline text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">Order Details</h3>
+            </CardHeader>
+            <CardContent className="pt-6 space-y-6">
+                <div className="grid grid-cols-2 gap-4 py-3 px-4 bg-muted/30 rounded-xl border border-dashed">
+                  <div className="space-y-1">
+                    <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-1.5">
+                      <Store className="w-3 h-3" /> ESTABLISHMENT
+                    </p>
+                    <p className="text-xs font-bold truncate">{seller?.courseName || 'Loading...'}</p>
+                  </div>
+                  <div className="space-y-1 text-right">
+                    <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-1.5 justify-end">
+                      <ClipboardList className="w-3 h-3" /> SERVICE MODE
+                    </p>
+                    <p className="text-xs font-bold">{order.menuType}</p>
+                  </div>
+                </div>
+
+                {order.menuTypeLocation && (
+                  <div className="px-4 py-3 bg-primary/5 rounded-xl border border-primary/10 flex items-center justify-between animate-in fade-in duration-300">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                      <CheckCircle2 className="h-3 w-3 text-green-600" />
+                      Current Landmark
+                    </span>
+                    <span className="text-sm font-black text-primary uppercase">{order.menuTypeLocation}</span>
+                  </div>
+                )}
+
+                <div className="space-y-3">
+                    <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground"><ShoppingBag className="w-3.5 h-3.5" /> ORDER ITEMS</div>
+                    <div className="space-y-2">
+                        {order.items.map(item => (
+                            <div key={item.id} className="flex justify-between items-center text-sm">
+                                <span className="font-medium text-xs">{item.name} <span className="text-muted-foreground font-normal ml-1 text-[10px]">x{item.quantity}</span></span>
+                                <span className="font-mono font-bold text-xs">${(item.price * item.quantity).toFixed(2)}</span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+                
+                <Separator className="border-dashed" />
+                
+                <div className="space-y-1.5 pt-2 text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
+                    <div className="flex justify-between">
+                        <span>SUBTOTAL</span>
+                        <span className="font-mono text-foreground">${order.subtotal.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                        <span>CONVENIENCE FEE</span>
+                        <span className="font-mono text-foreground">${order.serviceFee.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                        <span>EST. TAX ({taxRatePercentage}%)</span>
+                        <span className="font-mono text-foreground">${(order.tax || 0).toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                        <span>GRATUITY / TIP</span>
+                        <span className="font-mono text-foreground">${(order.tip || 0).toFixed(2)}</span>
+                    </div>
+                    <Separator className="my-2 border-dashed" />
+                    <div className="flex justify-between items-center pt-1 font-black text-lg">
+                        <span className="font-headline uppercase tracking-tight text-base text-foreground">TOTAL PAID</span>
+                        <span className="font-mono" style={{ color: brandColor }}>${order.total.toFixed(2)}</span>
+                    </div>
+                </div>
+
+                <div className="p-4 bg-muted/30 rounded-xl border flex flex-col gap-2">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">PAYMENT METHOD</p>
+                    <p className="text-xs font-black text-foreground uppercase italic tracking-tight">"{order.paymentMethod}"</p>
+                </div>
+            </CardContent>
+        </Card>
       </div>
     </div>
   );
