@@ -56,6 +56,25 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
   const isClubhouseActive = primarySeller?.clubhouseActive === true;
   const thresholds = primarySeller?.orderThresholds?.['Clubhouse'] || { warning: 7, max: 10 };
 
+  // Request Notification Permission
+  useEffect(() => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+  }, []);
+
+  const sendSystemNotification = (title: string, body: string) => {
+    if ('Notification' in window && Notification.permission === 'granted') {
+      new Notification(title, {
+        body,
+        icon: 'https://picsum.photos/seed/koop-staff/192/192',
+        badge: 'https://picsum.photos/seed/koop-staff/96/96',
+        tag: 'staff-alert',
+        renotify: true,
+      });
+    }
+  };
+
   // Persistence: Wake Lock Management
   useEffect(() => {
     const requestWakeLock = async () => {
@@ -132,6 +151,11 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
         ),
         description: `You have ${newOrders.length} new order(s).`,
       });
+
+      sendSystemNotification(
+        'New Service Order!',
+        `You have ${newOrders.length} new service order(s) waiting.`
+      );
     }
     lastOrderIdsRef.current = currentOrderIds;
 
@@ -157,6 +181,11 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
           ),
           description: `Order for ${o.customerName} has reached ${thresholds.max} minutes.`,
         });
+
+        sendSystemNotification(
+          'URGENT: Order Overdue!',
+          `Service order for ${o.customerName} has exceeded ${thresholds.max} minutes.`
+        );
       });
     }
 

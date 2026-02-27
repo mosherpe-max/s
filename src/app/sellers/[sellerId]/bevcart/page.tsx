@@ -56,6 +56,25 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
   const isBevCartActive = primarySeller?.bevcartActive === true;
   const thresholds = primarySeller?.orderThresholds?.['Beverage Cart'] || { warning: 7, max: 10 };
 
+  // Request Notification Permission
+  useEffect(() => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+  }, []);
+
+  const sendSystemNotification = (title: string, body: string) => {
+    if ('Notification' in window && Notification.permission === 'granted') {
+      new Notification(title, {
+        body,
+        icon: 'https://picsum.photos/seed/koop-staff/192/192',
+        badge: 'https://picsum.photos/seed/koop-staff/96/96',
+        tag: 'staff-alert',
+        renotify: true,
+      });
+    }
+  };
+
   // Persistence: Wake Lock Management
   useEffect(() => {
     const requestWakeLock = async () => {
@@ -131,6 +150,11 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
         ),
         description: `You have ${newOrders.length} new order(s).`,
       });
+
+      sendSystemNotification(
+        'New BevCart Order!',
+        `You have ${newOrders.length} new order(s) waiting for confirmation.`
+      );
     }
     lastOrderIdsRef.current = currentOrderIds;
 
@@ -156,6 +180,11 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
           ),
           description: `Order for ${o.customerName} has reached ${thresholds.max} minutes.`,
         });
+
+        sendSystemNotification(
+          'URGENT: Order Overdue!',
+          `Order for ${o.customerName} has exceeded ${thresholds.max} minutes.`
+        );
       });
     }
 

@@ -38,6 +38,25 @@ export default function LaneSideServerDashboardPage({ params }: { params: Promis
   const isServerActive = primarySeller?.clubhouseActive === true;
   const thresholds = primarySeller?.orderThresholds?.['Lane Delivery'] || { warning: 7, max: 10 };
 
+  // Request Notification Permission
+  useEffect(() => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+  }, []);
+
+  const sendSystemNotification = (title: string, body: string) => {
+    if ('Notification' in window && Notification.permission === 'granted') {
+      new Notification(title, {
+        body,
+        icon: 'https://picsum.photos/seed/koop-staff/192/192',
+        badge: 'https://picsum.photos/seed/koop-staff/96/96',
+        tag: 'staff-alert',
+        renotify: true,
+      });
+    }
+  };
+
   // 4 AM EST Auto-Reset Logic
   useEffect(() => {
     if (primarySeller && isServerActive && primarySeller.lastActive) {
@@ -151,6 +170,11 @@ export default function LaneSideServerDashboardPage({ params }: { params: Promis
         ),
         description: `New order for ${newOrders[0].menuTypeLocation || 'a lane'}.`,
       });
+
+      sendSystemNotification(
+        'New Lane Order!',
+        `New order received for ${newOrders[0].menuTypeLocation || 'a lane'}.`
+      );
     }
     lastOrderIdsRef.current = currentOrderIds;
     initialLoadRef.current = false;
@@ -248,7 +272,7 @@ export default function LaneSideServerDashboardPage({ params }: { params: Promis
               <div className="p-1.5 bg-red-500/10 rounded-md shrink-0"><AlertTriangle className="h-4 w-4 text-red-600" /></div>
               <div className="min-w-0">
                 <p className="text-[8px] font-black uppercase text-muted-foreground truncate tracking-wider">Slow</p>
-                <p className="text-lg font-headline font-black leading-none text-red-600">{metrics?.exceededCount ?? 0}</p>
+                <p className="text-lg font-headline font-black text-red-600">{metrics?.exceededCount ?? 0}</p>
               </div>
            </div>
         </div>

@@ -5,7 +5,7 @@ import { collection, query, orderBy, limit } from 'firebase/firestore';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import type { Order } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
-import { Navigation, CheckCircle2 } from 'lucide-react';
+import { Navigation, CheckCircle2, PartyPopper } from 'lucide-react';
 import { ToastAction } from '@/components/ui/toast';
 import { useRouter } from 'next/navigation';
 
@@ -92,8 +92,8 @@ export function OrderNotificationListener() {
           });
           
           sendSystemNotification(
-            'Order Received!',
-            'The establishment is now preparing your refreshments.',
+            'Order Confirmed!',
+            'The establishment has received your order and is now preparing it.',
             orderUrl
           );
           break;
@@ -120,13 +120,24 @@ export function OrderNotificationListener() {
           });
 
           sendSystemNotification(
-            'Delivery Heading Your Way!',
+            'Your Refreshments are On the Way!',
             'Watch the map live to see your driver approaching.',
             orderUrl
           );
           break;
           
         case 'Delivered':
+          toast({
+            title: (
+              <div className="flex items-center gap-2">
+                <PartyPopper className="h-5 w-5 text-green-600" />
+                <span className="font-headline font-bold uppercase text-green-600">Delivered!</span>
+              </div>
+            ),
+            description: 'Your items have arrived. Enjoy!',
+            action: trackAction,
+          });
+
           sendSystemNotification(
             'Order Delivered!',
             'Your items have arrived. Enjoy!',
