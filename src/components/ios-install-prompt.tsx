@@ -111,11 +111,11 @@ export function IosInstallPrompt({ open, onOpenChange }: IosInstallPromptProps) 
         </div>
 
         {/* Footer Actions */}
-        <div className="px-5 pb-5 pt-1 flex flex-col gap-2">
+        <div className="px-5 pb-6 pt-1 flex flex-col gap-2">
           <Button 
             onClick={handleDismiss} 
             variant="ghost" 
-            className="w-full rounded-full text-muted-foreground font-black text-[9px] uppercase tracking-[0.2em] hover:bg-black/5 h-8"
+            className="w-full rounded-full text-foreground/60 font-black text-[11px] uppercase tracking-[0.15em] hover:bg-black/5 h-10"
           >
             Not Now
           </Button>
