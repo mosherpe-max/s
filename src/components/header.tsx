@@ -284,7 +284,7 @@ export function AppHeader() {
         </div>
         
         <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-          {isMounted && isBuyerView ? (
+          {isMounted && isBuyerView && !isTrackingPage ? (
             <Button 
               variant="outline" 
               className="flex items-center gap-2 h-10 px-3 sm:px-4 border-white/20 text-white hover:bg-white/10 hover:text-white bg-transparent rounded-full"
