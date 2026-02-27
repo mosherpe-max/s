@@ -38,6 +38,7 @@ function OrderTrackingContent() {
   
   const wakeLockRef = useRef<any>(null);
   const watchIdRef = useRef<number | null>(null);
+  const prevStatusRef = useRef<string | undefined>(undefined);
 
   const orderRef = useMemoFirebase(() => {
     if (!firestore || !orderId) return null;
@@ -79,6 +80,14 @@ function OrderTrackingContent() {
       updateDoc(doc(firestore, 'orders', orderId), { buyerDeviceStatus: status }).catch(() => {});
     }
   }, [orderId, firestore]);
+
+  // Auto-scroll to top on completion
+  useEffect(() => {
+    if (order?.status === 'Delivered' && prevStatusRef.current && prevStatusRef.current !== 'Delivered') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+    prevStatusRef.current = order?.status;
+  }, [order?.status]);
 
   useEffect(() => {
     if (order && seller && !initialLocations && isGpsRequired) {
@@ -298,97 +307,7 @@ function OrderTrackingContent() {
       )}
 
       <div className="flex-1 p-4 space-y-4 max-w-2xl mx-auto w-full pb-20">
-        {isDelivered && (
-            <Card className="text-center shadow-xl border-green-200 bg-green-50 overflow-hidden">
-                <div className="h-2 bg-green-500 w-full" />
-                <CardContent className="p-8">
-                    <PartyPopper className="h-16 w-16 text-green-600 mx-auto mb-4" />
-                    <h2 className="font-headline text-3xl font-bold text-green-800 uppercase tracking-tight">ORDER COMPLETE!</h2>
-                    <p className="text-green-700/80 mt-2 mb-8 font-medium">Your refreshments have arrived. Enjoy!</p>
-                    <Button asChild size="lg" className="rounded-full px-8 bg-green-600 hover:bg-green-700 font-headline font-bold uppercase">
-                        <Link href={`/sellers/${order.sellerId}/order`}>ORDER AGAIN</Link>
-                    </Button>
-                </CardContent>
-            </Card>
-        )}
-
-        {isOrderActive && (
-          <div className="px-1">
-             <Alert className="bg-primary/95 text-white border-none shadow-xl backdrop-blur-md py-4 rounded-2xl">
-                <Zap className="h-5 w-5 text-white fill-white animate-bounce" />
-                <AlertTitle className="text-xs font-black uppercase tracking-[0.2em] mb-1">Stay Connected</AlertTitle>
-                <AlertDescription className="text-[11px] font-medium opacity-90 leading-tight">
-                  {isStandalone 
-                    ? "Live background updates are active. You can safely lock your screen." 
-                    : "We've locked your screen active so you can track your refreshments in real-time. Please keep this tab open for the most accurate service."}
-                </AlertDescription>
-              </Alert>
-          </div>
-        )}
-
-        {showHoleSelection && (
-          <Card className="border-2 border-primary/30 shadow-xl overflow-hidden animate-in slide-in-from-top-2 duration-500">
-            <div className="bg-primary/10 px-4 py-2 border-b border-primary/20 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Flag className="h-3.5 w-3.5 text-primary" />
-                <span className="text-[9px] font-black uppercase tracking-widest text-primary">Service Redundancy</span>
-              </div>
-              <Badge variant="outline" className="text-[8px] bg-white border-primary/20 uppercase font-black px-1.5 h-5">Hole Update</Badge>
-            </div>
-            
-            <div className="bg-[#213147] px-4 py-3 border-b-2 border-primary flex items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <div className="bg-primary/20 p-1.5 rounded-lg">
-                  <Sparkles className="h-4 w-4 text-primary animate-pulse" />
-                </div>
-                <div className="space-y-0.5">
-                  <p className="text-[10px] font-black text-white uppercase tracking-tight">Tired of manual updates?</p>
-                  <p className="text-[8px] text-white/60 font-bold uppercase tracking-widest">Install for 100% Background GPS</p>
-                </div>
-              </div>
-              <Button 
-                variant="default" 
-                size="sm" 
-                onClick={() => setIsInstallPromptOpen(true)}
-                className="h-7 px-3 bg-primary text-white text-[9px] font-black uppercase tracking-widest rounded-full shadow-lg border border-white/10"
-              >
-                <BellRing className="mr-1.5 h-3 w-3" /> Install
-              </Button>
-            </div>
-
-            <CardContent className="p-3 space-y-3">
-              <div className="space-y-0.5 px-1">
-                <h4 className="text-[11px] font-black uppercase tracking-tight">Current Hole Location</h4>
-                <p className="text-[9px] text-muted-foreground font-medium leading-tight">
-                  Update this so staff can find you even if your screen is off.
-                </p>
-              </div>
-              
-              <div className="grid grid-cols-9 gap-1">
-                {Array.from({ length: 18 }, (_, i) => (i + 1).toString()).map((hole) => {
-                  const currentHole = order.menuTypeLocation?.replace('Hole ', '');
-                  const isSelected = currentHole === hole;
-                  return (
-                    <Button
-                      key={hole}
-                      variant={isSelected ? 'default' : 'outline'}
-                      size="sm"
-                      disabled={isUpdatingHole}
-                      onClick={() => handleHoleUpdate(hole)}
-                      className={cn(
-                        "h-8 px-0 text-[10px] font-black rounded-md transition-all",
-                        isSelected ? "bg-primary text-white scale-105 shadow-md border-primary" : "bg-white hover:bg-primary/5 text-muted-foreground"
-                      )}
-                    >
-                      {hole}
-                    </Button>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
+        {/* Order Tracking Card - Always at the top of content list */}
         <Card className="shadow-lg border-primary/10 overflow-hidden">
             <CardHeader className="pb-4">
                 <div className="flex justify-between items-center mb-6">
@@ -491,6 +410,97 @@ function OrderTrackingContent() {
                 </div>
             </CardContent>
         </Card>
+
+        {isDelivered && (
+            <Card className="text-center shadow-xl border-green-200 bg-green-50 overflow-hidden">
+                <div className="h-2 bg-green-500 w-full" />
+                <CardContent className="p-8">
+                    <PartyPopper className="h-16 w-16 text-green-600 mx-auto mb-4" />
+                    <h2 className="font-headline text-3xl font-bold text-green-800 uppercase tracking-tight">ORDER COMPLETE!</h2>
+                    <p className="text-green-700/80 mt-2 mb-8 font-medium">Your refreshments have arrived. Enjoy!</p>
+                    <Button asChild size="lg" className="rounded-full px-8 bg-green-600 hover:bg-green-700 font-headline font-bold uppercase">
+                        <Link href={`/sellers/${order.sellerId}/order`}>ORDER AGAIN</Link>
+                    </Button>
+                </CardContent>
+            </Card>
+        )}
+
+        {isOrderActive && (
+          <div className="px-1">
+             <Alert className="bg-primary/95 text-white border-none shadow-xl backdrop-blur-md py-4 rounded-2xl">
+                <Zap className="h-5 w-5 text-white fill-white animate-bounce" />
+                <AlertTitle className="text-xs font-black uppercase tracking-[0.2em] mb-1">Stay Connected</AlertTitle>
+                <AlertDescription className="text-[11px] font-medium opacity-90 leading-tight">
+                  {isStandalone 
+                    ? "Live background updates are active. You can safely lock your screen." 
+                    : "We've locked your screen active so you can track your refreshments in real-time. Please keep this tab open for the most accurate service."}
+                </AlertDescription>
+              </Alert>
+          </div>
+        )}
+
+        {showHoleSelection && (
+          <Card className="border-2 border-primary/30 shadow-xl overflow-hidden animate-in slide-in-from-top-2 duration-500">
+            <div className="bg-primary/10 px-4 py-2 border-b border-primary/20 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Flag className="h-3.5 w-3.5 text-primary" />
+                <span className="text-[9px] font-black uppercase tracking-widest text-primary">Service Redundancy</span>
+              </div>
+              <Badge variant="outline" className="text-[8px] bg-white border-primary/20 uppercase font-black px-1.5 h-5">Hole Update</Badge>
+            </div>
+            
+            <div className="bg-[#213147] px-4 py-3 border-b-2 border-primary flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="bg-primary/20 p-1.5 rounded-lg">
+                  <Sparkles className="h-4 w-4 text-primary animate-pulse" />
+                </div>
+                <div className="space-y-0.5">
+                  <p className="text-[10px] font-black text-white uppercase tracking-tight">Tired of manual updates?</p>
+                  <p className="text-[8px] text-white/60 font-bold uppercase tracking-widest">Install for 100% Background GPS</p>
+                </div>
+              </div>
+              <Button 
+                variant="default" 
+                size="sm" 
+                onClick={() => setIsInstallPromptOpen(true)}
+                className="h-7 px-3 bg-primary text-white text-[9px] font-black uppercase tracking-widest rounded-full shadow-lg border border-white/10"
+              >
+                <BellRing className="mr-1.5 h-3 w-3" /> Install
+              </Button>
+            </div>
+
+            <CardContent className="p-3 space-y-3">
+              <div className="space-y-0.5 px-1">
+                <h4 className="text-[11px] font-black uppercase tracking-tight">Current Hole Location</h4>
+                <p className="text-[9px] text-muted-foreground font-medium leading-tight">
+                  Update this so staff can find you even if your screen is off.
+                </p>
+              </div>
+              
+              <div className="grid grid-cols-9 gap-1">
+                {Array.from({ length: 18 }, (_, i) => (i + 1).toString()).map((hole) => {
+                  const currentHole = order.menuTypeLocation?.replace('Hole ', '');
+                  const isSelected = currentHole === hole;
+                  return (
+                    <Button
+                      key={hole}
+                      variant={isSelected ? 'default' : 'outline'}
+                      size="sm"
+                      disabled={isUpdatingHole}
+                      onClick={() => handleHoleUpdate(hole)}
+                      className={cn(
+                        "h-8 px-0 text-[10px] font-black rounded-md transition-all",
+                        isSelected ? "bg-primary text-white scale-105 shadow-md border-primary" : "bg-white hover:bg-primary/5 text-muted-foreground"
+                      )}
+                    >
+                      {hole}
+                    </Button>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   );
