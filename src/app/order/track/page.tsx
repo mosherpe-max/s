@@ -1,4 +1,3 @@
-
 'use client';
 
 import { Suspense, useEffect, useRef, useState } from 'react';
@@ -248,13 +247,6 @@ function OrderTrackingContent() {
             <div className="w-full h-full flex items-center justify-center bg-muted"><MapPin className="animate-bounce h-8 w-8 text-muted-foreground" /></div>
           )}
           <div className="absolute top-4 left-4 z-10 flex flex-col gap-2">
-             <Button variant="secondary" size="sm" asChild className="rounded-full shadow-lg h-9 border-2 border-primary/20 bg-background/95 backdrop-blur-sm">
-                <Link href={`/sellers/${order.sellerId}/order`} className="flex items-center">
-                  <ArrowLeft className="mr-2 h-4 w-4" /> 
-                  <span className="text-[10px] font-bold uppercase tracking-wider">BACK TO MENU</span>
-                </Link>
-             </Button>
-             
              {isEditable && (
                <Button 
                 variant="default" 
@@ -283,13 +275,7 @@ function OrderTrackingContent() {
       )}
 
       {(!isGpsRequired || isDelivered) && (
-        <div className="bg-background border-b px-4 py-3 flex items-center justify-between sticky top-0 z-10 shadow-sm shrink-0">
-           <Button variant="ghost" size="sm" asChild className="rounded-full h-8 px-3">
-              <Link href={`/sellers/${order.sellerId}/order`} className="flex items-center">
-                <ChevronLeft className="mr-1 h-4 w-4" /> 
-                <span className="text-[10px] font-bold uppercase tracking-wider">Back to Menu</span>
-              </Link>
-           </Button>
+        <div className="bg-background border-b px-4 py-3 flex items-center justify-end sticky top-0 z-10 shadow-sm shrink-0">
            {isEditable && (
              <Button 
               variant="outline" size="sm" 
