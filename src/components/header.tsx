@@ -5,24 +5,21 @@ import { Button } from './ui/button';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { 
   ShoppingCart, 
-  Hash, 
   ChevronDown, 
   ShieldCheck, 
   Building, 
   Truck, 
   LayoutDashboard,
   Store,
-  Users,
   Menu,
   ChevronRight,
-  Waves,
-  Database
+  Database,
+  Users
 } from 'lucide-react';
 import { useCart } from '@/lib/cart-context';
 import { useState, useEffect, useMemo } from 'react';
 import { doc } from 'firebase/firestore';
 import { useFirestore, useDoc, useMemoFirebase } from '@/firebase';
-import { getNumericOrderId } from '@/lib/utils';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -76,9 +73,6 @@ export function AppHeader() {
     }
     return searchParams.get('sellerId');
   }, [pathname, searchParams]);
-
-  const orderId = searchParams.get('id');
-  const numericOrderId = useMemo(() => orderId ? getNumericOrderId(orderId) : null, [orderId]);
 
   const sellerRef = useMemoFirebase(() => {
     if (!firestore || !sellerId) return null;
@@ -290,15 +284,7 @@ export function AppHeader() {
         </div>
         
         <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-          {isMounted && isTrackingPage && numericOrderId ? (
-            <div className="flex items-center gap-2 sm:gap-3 bg-white/10 px-3 sm:px-4 py-1.5 rounded-full border border-white/20">
-              <div className="flex flex-col items-end leading-none">
-                <span className="text-[8px] sm:text-[9px] uppercase font-bold text-white/50 tracking-widest">Order ID</span>
-                <span className="text-xs sm:text-sm font-mono font-bold text-white">#{numericOrderId}</span>
-              </div>
-              <Hash className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary" />
-            </div>
-          ) : isMounted && isBuyerView ? (
+          {isMounted && isBuyerView ? (
             <Button 
               variant="outline" 
               className="flex items-center gap-2 h-10 px-3 sm:px-4 border-white/20 text-white hover:bg-white/10 hover:text-white bg-transparent rounded-full"
