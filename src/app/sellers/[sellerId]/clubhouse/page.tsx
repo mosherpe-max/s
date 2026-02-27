@@ -114,18 +114,6 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
   }, [activeOrders]);
 
   useEffect(() => {
-    const handleUnload = () => {
-      if (firestore && isClubhouseActive && sellerId) {
-        const sellerDocRef = doc(firestore, 'sellers', sellerId);
-        updateDoc(sellerDocRef, { clubhouseActive: false }).catch(() => {});
-      }
-    };
-
-    window.addEventListener('beforeunload', handleUnload);
-    return () => window.removeEventListener('beforeunload', handleUnload);
-  }, [firestore, isClubhouseActive, sellerId]);
-
-  useEffect(() => {
     if (!clubhouseOrders || !now) return;
 
     const currentOrderIds = new Set(clubhouseOrders.map(o => o.id));

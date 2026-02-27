@@ -113,18 +113,6 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
   }, [activeOrders]);
 
   useEffect(() => {
-    const handleUnload = () => {
-      if (firestore && isBevCartActive && sellerId) {
-        const sellerDocRef = doc(firestore, 'sellers', sellerId);
-        updateDoc(sellerDocRef, { bevcartActive: false }).catch(() => {});
-      }
-    };
-
-    window.addEventListener('beforeunload', handleUnload);
-    return () => window.removeEventListener('beforeunload', handleUnload);
-  }, [firestore, isBevCartActive, sellerId]);
-
-  useEffect(() => {
     if (!driverOrders || !now) return;
 
     const currentOrderIds = new Set(driverOrders.map(o => o.id));
