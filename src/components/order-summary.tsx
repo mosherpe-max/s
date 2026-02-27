@@ -1,4 +1,3 @@
-
 'use client';
 
 import { Separator } from '@/components/ui/separator';
@@ -52,18 +51,22 @@ export function OrderSummary({ items, serviceFee = 0, tax = 0, tip = 0, taxRate 
                   <PopoverTrigger asChild>
                     <button 
                       type="button" 
-                      className="inline-flex items-center justify-center rounded-full hover:bg-muted p-0.5 transition-colors focus:outline-none"
+                      className="inline-flex items-center justify-center rounded-full hover:bg-muted active:bg-muted p-1 transition-colors focus:outline-none touch-manipulation"
                       aria-label="Convenience fee information"
                     >
-                      <Info className="h-3.5 w-3.5 text-muted-foreground cursor-pointer" />
+                      <Info className="h-4 w-4 text-primary cursor-pointer" />
                     </button>
                   </PopoverTrigger>
                   <PopoverContent 
                     side="top" 
                     align="center"
-                    className="max-w-[240px] text-[10px] leading-tight font-medium p-3 shadow-xl border-2 z-[100]"
+                    className="max-w-[260px] text-[11px] leading-relaxed font-medium p-4 shadow-[0_10px_40px_rgba(0,0,0,0.2)] border-2 z-[150] rounded-xl bg-white"
                   >
-                    <p>This Convenience Fee helps us provide the mobile ordering technology. It is not a tip and does not go to the delivery staff.</p>
+                    <div className="space-y-2">
+                      <p className="font-black uppercase text-[9px] tracking-widest text-primary border-b pb-1">Convenience Fee Policy</p>
+                      <p>This Convenience Fee helps us provide the mobile ordering technology and real-time tracking.</p>
+                      <p className="font-bold text-foreground italic">It is not a tip and does not go to the delivery staff.</p>
+                    </div>
                   </PopoverContent>
                 </Popover>
               </div>

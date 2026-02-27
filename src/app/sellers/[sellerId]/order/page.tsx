@@ -118,7 +118,6 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
   // Apply specific convenience fee for the menu type if defined, fallback to global default
   const platformFee = useMemo(() => {
     if (!seller) return 0;
-    // Explicitly check for presence in the map to differentiate from undefined/null
     const menuSpecificFees = seller.menuServiceFees || {};
     const specificFee = menuSpecificFees[selectedMenuType];
     
@@ -274,7 +273,6 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
           { timeout: 5000 }
         );
       } else {
-        // No GPS required for Lane Delivery or Take Out or Pool
         submitToFirestore(mockBuyerLocation.latitude, mockBuyerLocation.longitude);
       }
     } catch (error) {
@@ -460,6 +458,20 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
                 </div>
               )}
 
+              {/* Order Summary moved before Tip Selection */}
+              <div className="space-y-4">
+                <h3 className="font-black text-[10px] uppercase tracking-widest text-muted-foreground flex items-center gap-2 px-1">
+                  <Info className="w-3.5 h-3.5" /> ORDER SUMMARY
+                </h3>
+                <OrderSummary 
+                  items={activeOrderItems} 
+                  serviceFee={platformFee} 
+                  tax={tax}
+                  tip={tipAmount}
+                  taxRate={taxRatePercentage}
+                />
+              </div>
+
               <div className="space-y-4 bg-muted/10 p-5 rounded-2xl border-2 border-dashed">
                 <h3 className="font-black text-[10px] uppercase tracking-widest text-muted-foreground flex items-center gap-2">
                   <Heart className="w-3.5 h-3.5 text-red-500" /> ADD GRATUITY / TIP
@@ -500,19 +512,6 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
                     />
                   </div>
                 )}
-              </div>
-
-              <div className="space-y-4">
-                <h3 className="font-black text-[10px] uppercase tracking-widest text-muted-foreground flex items-center gap-2 px-1">
-                  <Info className="w-3.5 h-3.5" /> ORDER SUMMARY
-                </h3>
-                <OrderSummary 
-                  items={activeOrderItems} 
-                  serviceFee={platformFee} 
-                  tax={tax}
-                  tip={tipAmount}
-                  taxRate={taxRatePercentage}
-                />
               </div>
 
               <div className="space-y-4">
