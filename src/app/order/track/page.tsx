@@ -89,6 +89,7 @@ function OrderTrackingContent() {
     }
   }, [order, seller, initialLocations, isGpsRequired]);
 
+  // Wide Wake Lock Window: Placed -> Delivered
   useEffect(() => {
     const requestWakeLock = async () => {
       if ('wakeLock' in navigator && !wakeLockRef.current) {
@@ -107,13 +108,19 @@ function OrderTrackingContent() {
       }
     };
 
-    if (order && order.status === 'Out for Delivery' && isGpsRequired) {
+    // Keep screen awake while order is active
+    const isOrderActive = order && ['Placed', 'Preparing', 'Out for Delivery'].includes(order.status);
+
+    if (isOrderActive) {
       requestWakeLock();
+      
       const handleVisibilityChange = () => {
-        if (document.visibilityState === 'visible' && order.status === 'Out for Delivery') {
+        // Re-initiate when user returns to app (e.g. via push notification click)
+        if (document.visibilityState === 'visible' && isOrderActive) {
           requestWakeLock();
         }
       };
+      
       document.addEventListener('visibilitychange', handleVisibilityChange);
       return () => {
         document.removeEventListener('visibilitychange', handleVisibilityChange);
@@ -122,7 +129,7 @@ function OrderTrackingContent() {
     } else {
       releaseWakeLock();
     }
-  }, [order?.status, isGpsRequired]);
+  }, [order?.status]);
 
   useEffect(() => {
     if (!order || !firestore || !isGpsRequired) return;
@@ -209,6 +216,7 @@ function OrderTrackingContent() {
   const isDelivered = order.status === 'Delivered';
   const isOutForDelivery = order.status === 'Out for Delivery';
   const isEditable = order.status === 'Placed' || order.status === 'Preparing';
+  const isOrderActive = !isDelivered && order.status !== 'Cancelled';
   const brandColor = seller?.brandColor || 'hsl(var(--primary))';
   const numericId = getNumericOrderId(order.id);
   const taxRatePercentage = seller?.taxRate || 6.0;
@@ -304,15 +312,15 @@ function OrderTrackingContent() {
             </Card>
         )}
 
-        {isTrackingActive && isOutForDelivery && isGpsRequired && (
+        {isOrderActive && (
           <div className="px-1">
              <Alert className="bg-primary/95 text-white border-none shadow-xl backdrop-blur-md py-4 rounded-2xl">
                 <Zap className="h-5 w-5 text-white fill-white animate-bounce" />
-                <AlertTitle className="text-xs font-black uppercase tracking-[0.2em] mb-1">Optimizing GPS Accuracy</AlertTitle>
+                <AlertTitle className="text-xs font-black uppercase tracking-[0.2em] mb-1">Stay Connected</AlertTitle>
                 <AlertDescription className="text-[11px] font-medium opacity-90 leading-tight">
                   {isStandalone 
-                    ? "Live background tracking is active. You can safely lock your screen." 
-                    : "We've locked your screen active to ensure the driver can find your exact spot. Please keep this tab open while the cart approaches."}
+                    ? "Live background updates are active. You can safely lock your screen." 
+                    : "We've locked your screen active so you can track your refreshments in real-time. Please keep this tab open for the most accurate service."}
                 </AlertDescription>
               </Alert>
           </div>
