@@ -1,4 +1,3 @@
-
 import { Timestamp } from "firebase/firestore";
 
 export type SellerType = 'Private Golf Course' | 'Semi Private Golf Course' | 'Public Golf Course' | 'Bowling Alley' | 'Brewery' | 'Restaurant';
@@ -48,6 +47,8 @@ export interface Seller {
   serviceFee: number;
   taxRate: number;
   menuServiceFees?: Record<string, number>;
+  monthlyPlatformFee?: number;
+  launchFee?: number;
   status: 'Active' | 'Inactive';
   bevcartActive?: boolean;
   clubhouseActive?: boolean;

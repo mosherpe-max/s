@@ -37,7 +37,8 @@ import {
   Hash,
   Map as MapIcon,
   Percent,
-  Settings2
+  Settings2,
+  CalendarDays
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import {
@@ -104,6 +105,8 @@ const sellerSchema = z.object({
   serviceFee: z.coerce.number().min(0, 'Default convenience fee cannot be negative'),
   taxRate: z.coerce.number().min(0, 'Tax rate cannot be negative').max(100, 'Tax rate seems too high').default(6.0),
   menuServiceFees: z.record(z.string(), z.coerce.number().min(0).optional()).optional(),
+  monthlyPlatformFee: z.coerce.number().min(0).optional(),
+  launchFee: z.coerce.number().min(0).optional(),
   status: z.enum(['Active', 'Inactive']),
 });
 
@@ -286,6 +289,8 @@ export default function KOOPAdminPage() {
       serviceFee: 0,
       taxRate: 6.0,
       menuServiceFees: {},
+      monthlyPlatformFee: 0,
+      launchFee: 0,
       status: 'Active',
     },
   });
@@ -354,6 +359,8 @@ export default function KOOPAdminPage() {
         serviceFee: seller.serviceFee,
         taxRate: seller.taxRate || 6.0,
         menuServiceFees: seller.menuServiceFees || {},
+        monthlyPlatformFee: seller.monthlyPlatformFee || 0,
+        launchFee: seller.launchFee || 0,
         status: seller.status,
       });
     } else {
@@ -375,6 +382,8 @@ export default function KOOPAdminPage() {
         serviceFee: 0,
         taxRate: 6.0,
         menuServiceFees: {},
+        monthlyPlatformFee: 0,
+        launchFee: 0,
         status: 'Active',
       });
     }
@@ -525,7 +534,7 @@ export default function KOOPAdminPage() {
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
         <div className="flex-1">
           <div className="flex items-center gap-3">
-            <h1 className="font-headline text-3xl font-bold text-foreground uppercase tracking-tight">KOOP ADMIN</h1>
+            <h1 className="font-headline text-3xl font-bold text-foreground uppercase tracking-tight text-[#213147]">KOOP ADMIN</h1>
             <Badge variant="outline" className="text-[10px] font-black uppercase tracking-widest bg-primary/5 border-primary/20">System Master</Badge>
           </div>
           <p className="text-muted-foreground">Global oversight of seller network and growth pipeline.</p>
@@ -909,16 +918,79 @@ export default function KOOPAdminPage() {
               </div>
 
               {/* SECTION 4: FINANCIALS */}
-              <div className="space-y-4">
-                <h3 className="text-sm font-bold uppercase tracking-wider text-primary flex items-center gap-2"><DollarSign className="h-4 w-4" /> Financial Settings</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-6">
+                <div className="flex items-center gap-2 text-primary">
+                  <DollarSign className="h-5 w-5" />
+                  <h3 className="text-sm font-bold uppercase tracking-wider">Financial Settings</h3>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-muted/10 p-5 rounded-2xl border-2 border-dashed">
                   <FormField control={form.control} name="serviceFee" render={({ field }) => (
-                    <FormItem><FormLabel>Convenience Fee ($)</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormDescription>Platform fee per order.</FormDescription></FormItem>
+                    <FormItem>
+                      <FormLabel className="text-xs font-black uppercase flex items-center gap-2">
+                        <DollarSign className="h-3 w-3" /> Default Conv. Fee
+                      </FormLabel>
+                      <FormControl><Input type="number" step="0.01" {...field} /></FormControl>
+                      <FormDescription className="text-[10px]">Standard fee per order.</FormDescription>
+                    </FormItem>
                   )} />
                   <FormField control={form.control} name="taxRate" render={({ field }) => (
-                    <FormItem><FormLabel>Tax Rate (%)</FormLabel><FormControl><div className="relative"><Input type="number" step="0.1" {...field} className="pr-8" /><Percent className="absolute right-3 top-3 h-4 w-4 text-muted-foreground" /></div></FormControl><FormDescription>Local sales tax percentage.</FormDescription></FormItem>
+                    <FormItem>
+                      <FormLabel className="text-xs font-black uppercase flex items-center gap-2">
+                        <Percent className="h-3 w-3" /> Sales Tax Rate
+                      </FormLabel>
+                      <FormControl><div className="relative"><Input type="number" step="0.1" {...field} className="pr-8" /><Percent className="absolute right-3 top-3 h-4 w-4 text-muted-foreground" /></div></FormControl>
+                      <FormDescription className="text-[10px]">Calculated at checkout.</FormDescription>
+                    </FormItem>
                   )} />
                 </div>
+
+                {/* SaaS & Launch Fees */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-1">
+                  <FormField control={form.control} name="launchFee" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-xs font-black uppercase flex items-center gap-2">
+                        <TrendingUp className="h-3 w-3 text-indigo-600" /> Setup / Launch Fee ($)
+                      </FormLabel>
+                      <FormControl><Input type="number" {...field} /></FormControl>
+                      <FormDescription className="text-[10px]">One-time implementation fee.</FormDescription>
+                    </FormItem>
+                  )} />
+                  <FormField control={form.control} name="monthlyPlatformFee" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-xs font-black uppercase flex items-center gap-2">
+                        <CalendarDays className="h-3 w-3 text-indigo-600" /> Monthly SaaS Fee ($)
+                      </FormLabel>
+                      <FormControl><Input type="number" {...field} /></FormControl>
+                      <FormDescription className="text-[10px]">Recurring platform usage fee.</FormDescription>
+                    </FormItem>
+                  )} />
+                </div>
+
+                {/* Menu-Specific Overrides */}
+                {selectedMenuTypes.length > 0 && (
+                  <div className="pt-4 border-t space-y-4">
+                    <div className="flex items-center gap-2">
+                      <Settings2 className="h-4 w-4 text-muted-foreground" />
+                      <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Menu-Specific Convenience Overrides</Label>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {selectedMenuTypes.map((menuType) => (
+                        <FormField
+                          key={`override-${menuType}`}
+                          control={form.control}
+                          name={`menuServiceFees.${menuType}`}
+                          render={({ field }) => (
+                            <div className="p-3 bg-background border-2 rounded-xl shadow-sm space-y-2">
+                              <p className="text-[10px] font-bold uppercase truncate">{menuType}</p>
+                              <FormControl><Input type="number" step="0.01" {...field} placeholder="Uses Default" className="h-8 text-xs" /></FormControl>
+                            </div>
+                          )}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* SECTION 5: CONTACT */}
