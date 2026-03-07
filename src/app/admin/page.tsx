@@ -532,7 +532,7 @@ export default function KOOPAdminPage() {
         setIsFormOpen(open);
         if (!open) setEditingSeller(null);
       }}>
-        <DialogContent className="sm:max-w-[700px] max-h-[90vh] flex flex-col p-0 overflow-hidden">
+        <DialogContent className="sm:max-w-[700px] w-[95vw] max-h-[95vh] flex flex-col p-0 overflow-hidden shadow-2xl">
           <DialogHeader className="p-6 border-b bg-muted/10 shrink-0">
             <DialogTitle className="uppercase font-headline text-xl">{editingSeller ? 'Update Venue Profile' : 'Register New Venue'}</DialogTitle>
             <DialogDescription>
@@ -540,138 +540,140 @@ export default function KOOPAdminPage() {
             </DialogDescription>
           </DialogHeader>
           
-          <ScrollArea className="flex-1 px-6 py-4">
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSave)} className="space-y-8 pt-2 pb-8">
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Building className="h-4 w-4 text-primary" />
-                    <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">General Information</h3>
-                  </div>
-                  <FormField control={form.control} name="courseName" render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-[10px] font-black uppercase">Venue Name</FormLabel>
-                      <FormControl><Input {...field} placeholder="e.g. Pine Valley Golf Club" className="h-11 border-2 font-bold" /></FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )} />
-                  <div className="grid grid-cols-2 gap-4">
-                    <FormField control={form.control} name="type" render={({ field }) => (
+          <div className="flex-1 overflow-y-auto min-h-0">
+            <div className="px-6 py-6">
+              <Form {...form}>
+                <form id="venue-form" onSubmit={form.handleSubmit(onSave)} className="space-y-10 pb-8">
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 mb-2 border-b pb-2">
+                      <Building className="h-4 w-4 text-primary" />
+                      <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">General Information</h3>
+                    </div>
+                    <FormField control={form.control} name="courseName" render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-[10px] font-black uppercase">Service Category</FormLabel>
-                        <FormControl>
-                          <select {...field} className="w-full h-11 border-2 rounded-md px-3 text-sm font-bold bg-background">
-                            {sellerTypes.map(t => <option key={t} value={t}>{t}</option>)}
-                          </select>
-                        </FormControl>
+                        <FormLabel className="text-[10px] font-black uppercase">Venue Name</FormLabel>
+                        <FormControl><Input {...field} placeholder="e.g. Pine Valley Golf Club" className="h-11 border-2 font-bold" /></FormControl>
+                        <FormMessage />
                       </FormItem>
                     )} />
-                    <FormField control={form.control} name="status" render={({ field }) => (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <FormField control={form.control} name="type" render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-[10px] font-black uppercase">Service Category</FormLabel>
+                          <FormControl>
+                            <select {...field} className="w-full h-11 border-2 rounded-md px-3 text-sm font-bold bg-background">
+                              {sellerTypes.map(t => <option key={t} value={t}>{t}</option>)}
+                            </select>
+                          </FormControl>
+                        </FormItem>
+                      )} />
+                      <FormField control={form.control} name="status" render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-[10px] font-black uppercase">Platform Status</FormLabel>
+                          <FormControl>
+                            <select {...field} className="w-full h-11 border-2 rounded-md px-3 text-sm font-bold bg-background">
+                              <option value="Active">Active</option>
+                              <option value="Inactive">Inactive</option>
+                            </select>
+                          </FormControl>
+                        </FormItem>
+                      )} />
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 mb-2 border-b pb-2">
+                      <MapPin className="h-4 w-4 text-primary" />
+                      <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Location Details</h3>
+                    </div>
+                    <FormField control={form.control} name="streetAddress" render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-[10px] font-black uppercase">Platform Status</FormLabel>
-                        <FormControl>
-                          <select {...field} className="w-full h-11 border-2 rounded-md px-3 text-sm font-bold bg-background">
-                            <option value="Active">Active</option>
-                            <option value="Inactive">Inactive</option>
-                          </select>
-                        </FormControl>
+                        <FormLabel className="text-[10px] font-black uppercase">Street Address</FormLabel>
+                        <FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl>
+                      </FormItem>
+                    )} />
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      <FormField control={form.control} name="city" render={({ field }) => (
+                        <FormItem><FormLabel className="text-[10px] font-black uppercase">City</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>
+                      )} />
+                      <FormField control={form.control} name="state" render={({ field }) => (
+                        <FormItem><FormLabel className="text-[10px] font-black uppercase">State</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>
+                      )} />
+                      <FormField control={form.control} name="zip" render={({ field }) => (
+                        <FormItem><FormLabel className="text-[10px] font-black uppercase">ZIP Code</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>
+                      )} />
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 mb-2 border-b pb-2">
+                      <Mail className="h-4 w-4 text-primary" />
+                      <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Primary Contact</h3>
+                    </div>
+                    <FormField control={form.control} name="contactName" render={({ field }) => (
+                      <FormItem><FormLabel className="text-[10px] font-black uppercase">Decision Maker Name</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>
+                    )} />
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <FormField control={form.control} name="contactEmail" render={({ field }) => (
+                        <FormItem><FormLabel className="text-[10px] font-black uppercase">Contact Email</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>
+                      )} />
+                      <FormField control={form.control} name="contactPhone" render={({ field }) => (
+                        <FormItem><FormLabel className="text-[10px] font-black uppercase">Contact Phone</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>
+                      )} />
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 mb-2 border-b pb-2">
+                      <DollarSign className="h-4 w-4 text-primary" />
+                      <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Financial Settings</h3>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <FormField control={form.control} name="serviceFee" render={({ field }) => (
+                        <FormItem><FormLabel className="text-[10px] font-black uppercase">Default Conv. Fee ($)</FormLabel><FormControl><Input type="number" step="0.01" {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>
+                      )} />
+                      <FormField control={form.control} name="taxRate" render={({ field }) => (
+                        <FormItem><FormLabel className="text-[10px] font-black uppercase">Tax Rate (%)</FormLabel><FormControl><Input type="number" step="0.1" {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>
+                      )} />
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <FormField control={form.control} name="launchFee" render={({ field }) => (
+                        <FormItem><FormLabel className="text-[10px] font-black uppercase">Platform Launch Fee ($)</FormLabel><FormControl><Input type="number" {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>
+                      )} />
+                      <FormField control={form.control} name="monthlyPlatformFee" render={({ field }) => (
+                        <FormItem><FormLabel className="text-[10px] font-black uppercase">Monthly Fee ($)</FormLabel><FormControl><Input type="number" {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>
+                      )} />
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 mb-2 border-b pb-2">
+                      <Palette className="h-4 w-4 text-primary" />
+                      <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Visual Branding</h3>
+                    </div>
+                    <FormField control={form.control} name="brandColor" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-[10px] font-black uppercase">Menu Primary Color (Hex)</FormLabel>
+                        <div className="flex gap-3">
+                          <FormControl>
+                            <Input {...field} placeholder="#10b981" className="h-11 border-2 font-bold flex-1" />
+                          </FormControl>
+                          <div className="w-11 h-11 rounded-md border-2 shadow-inner" style={{ backgroundColor: field.value }} />
+                        </div>
+                        <FormMessage />
                       </FormItem>
                     )} />
                   </div>
-                </div>
-
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <MapPin className="h-4 w-4 text-primary" />
-                    <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Location Details</h3>
-                  </div>
-                  <FormField control={form.control} name="streetAddress" render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-[10px] font-black uppercase">Street Address</FormLabel>
-                      <FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl>
-                    </FormItem>
-                  )} />
-                  <div className="grid grid-cols-3 gap-4">
-                    <FormField control={form.control} name="city" render={({ field }) => (
-                      <FormItem><FormLabel className="text-[10px] font-black uppercase">City</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>
-                    )} />
-                    <FormField control={form.control} name="state" render={({ field }) => (
-                      <FormItem><FormLabel className="text-[10px] font-black uppercase">State</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>
-                    )} />
-                    <FormField control={form.control} name="zip" render={({ field }) => (
-                      <FormItem><FormLabel className="text-[10px] font-black uppercase">ZIP Code</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>
-                    )} />
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Mail className="h-4 w-4 text-primary" />
-                    <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Primary Contact</h3>
-                  </div>
-                  <FormField control={form.control} name="contactName" render={({ field }) => (
-                    <FormItem><FormLabel className="text-[10px] font-black uppercase">Decision Maker Name</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>
-                  )} />
-                  <div className="grid grid-cols-2 gap-4">
-                    <FormField control={form.control} name="contactEmail" render={({ field }) => (
-                      <FormItem><FormLabel className="text-[10px] font-black uppercase">Contact Email</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>
-                    )} />
-                    <FormField control={form.control} name="contactPhone" render={({ field }) => (
-                      <FormItem><FormLabel className="text-[10px] font-black uppercase">Contact Phone</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>
-                    )} />
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <DollarSign className="h-4 w-4 text-primary" />
-                    <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Financial Settings</h3>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <FormField control={form.control} name="serviceFee" render={({ field }) => (
-                      <FormItem><FormLabel className="text-[10px] font-black uppercase">Default Conv. Fee ($)</FormLabel><FormControl><Input type="number" step="0.01" {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>
-                    )} />
-                    <FormField control={form.control} name="taxRate" render={({ field }) => (
-                      <FormItem><FormLabel className="text-[10px] font-black uppercase">Tax Rate (%)</FormLabel><FormControl><Input type="number" step="0.1" {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>
-                    )} />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <FormField control={form.control} name="launchFee" render={({ field }) => (
-                      <FormItem><FormLabel className="text-[10px] font-black uppercase">Platform Launch Fee ($)</FormLabel><FormControl><Input type="number" {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>
-                    )} />
-                    <FormField control={form.control} name="monthlyPlatformFee" render={({ field }) => (
-                      <FormItem><FormLabel className="text-[10px] font-black uppercase">Monthly Fee ($)</FormLabel><FormControl><Input type="number" {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>
-                    )} />
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Palette className="h-4 w-4 text-primary" />
-                    <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Visual Branding</h3>
-                  </div>
-                  <FormField control={form.control} name="brandColor" render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-[10px] font-black uppercase">Menu Primary Color (Hex)</FormLabel>
-                      <div className="flex gap-3">
-                        <FormControl>
-                          <Input {...field} placeholder="#10b981" className="h-11 border-2 font-bold flex-1" />
-                        </FormControl>
-                        <div className="w-11 h-11 rounded-md border-2" style={{ backgroundColor: field.value }} />
-                      </div>
-                      <FormMessage />
-                    </FormItem>
-                  )} />
-                </div>
-              </form>
-            </Form>
-          </ScrollArea>
+                </form>
+              </Form>
+            </div>
+          </div>
 
           <DialogFooter className="p-6 border-t bg-muted/10 shrink-0">
             <Button 
               type="submit" 
+              form="venue-form"
               disabled={isSaving} 
-              onClick={form.handleSubmit(onSave)}
               className="w-full h-14 bg-[#213147] hover:bg-[#213147]/90 text-white font-headline font-black uppercase tracking-widest shadow-xl"
             >
               {isSaving ? <Loader2 className="animate-spin" /> : (editingSeller ? "SAVE VENUE CHANGES" : "PROVISION ESTABLISHMENT")}
