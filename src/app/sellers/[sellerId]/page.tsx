@@ -41,7 +41,9 @@ import {
   ClipboardList,
   ExternalLink,
   ArrowUp,
-  Layers
+  Layers,
+  QrCode,
+  FileImage
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -240,7 +242,7 @@ function MasterItemForm({
               <FormItem><FormLabel>Item Name</FormLabel><FormControl><Input {...field} placeholder="e.g., Craft IPA" /></FormControl><FormMessage /></FormItem>
             )} />
             <FormField control={form.control} name="description" render={({ field }) => (
-              <FormItem><FormLabel>Description</FormLabel><FormControl><Textarea {...field} placeholder="A short description." /></FormControl><FormMessage /></FormItem>
+              <FormItem><FormLabel>Description</FormLabel><FormControl><Textarea {...field} placeholder="A short description." /></FormControl><FormMessage /></FormMessage></FormItem>
             )} />
             <div className="grid grid-cols-2 gap-4">
               <FormField control={form.control} name="price" render={({ field }) => (
@@ -554,6 +556,9 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
           <Button variant="ghost" size="sm" onClick={() => scrollToSection('service-management')} className="h-8 text-[10px] font-bold uppercase tracking-widest px-3 rounded-full hover:bg-primary/10">
             <ListChecks className="mr-1.5 h-3.5 w-3.5" /> Service Menus
           </Button>
+          <Button variant="ghost" size="sm" onClick={() => scrollToSection('qr-signage')} className="h-8 text-[10px] font-bold uppercase tracking-widest px-3 rounded-full hover:bg-primary/10">
+            <QrCode className="mr-1.5 h-3.5 w-3.5" /> QR & Signage
+          </Button>
           <Button variant="ghost" size="sm" onClick={() => scrollToSection('menu-library')} className="h-8 text-[10px] font-bold uppercase tracking-widest px-3 rounded-full hover:bg-primary/10">
             <Database className="mr-1.5 h-3.5 w-3.5" /> Menu Library
           </Button>
@@ -711,6 +716,85 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                 );
             })}
           </div>
+        </section>
+
+        <section id="qr-signage" className="mb-12 mt-16 scroll-mt-32">
+          <h2 className="font-headline text-xl font-bold mb-6 flex items-center gap-2 text-primary uppercase tracking-wider"><QrCode className="h-6 w-6" /> QR Code & Signage</h2>
+          <Card className="shadow-lg border-2 border-primary/10">
+            <CardHeader className="bg-primary/5 border-b">
+              <CardTitle className="text-lg font-headline uppercase">Operational Signage</CardTitle>
+              <CardDescription>Your unique QR code links directly to your digital ordering menu.</CardDescription>
+            </CardHeader>
+            <CardContent className="pt-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
+                <div className="flex flex-col items-center justify-center p-8 bg-white rounded-[2rem] shadow-2xl border-4 border-muted/20 relative aspect-square max-w-sm mx-auto overflow-hidden">
+                  {seller?.qrCodeUrl ? (
+                    <div className="text-center space-y-6">
+                      <Image 
+                        src={seller.qrCodeUrl} 
+                        alt="Seller QR Code" 
+                        width={250} 
+                        height={250} 
+                        className="mx-auto"
+                      />
+                      <div className="space-y-1">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-primary">Scan to Order</p>
+                        <p className="text-sm font-bold truncate max-w-[200px]">{seller.courseName}</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center space-y-4">
+                      <div className="p-6 bg-muted rounded-full inline-block">
+                        <QrCode className="h-16 w-16 opacity-10" />
+                      </div>
+                      <p className="text-xs text-muted-foreground italic px-8">No QR code generated for this venue yet. Please contact KOOP Admin or initialize via settings.</p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-6">
+                  <div className="space-y-2">
+                    <h3 className="font-headline text-xl font-bold text-[#213147]">High-Resolution QR Assets</h3>
+                    <p className="text-muted-foreground text-sm leading-relaxed">
+                      Download your venue's unique QR code for use on on-course signage, cart placards, menu boards, or table tents. This code points to your live digital ordering platform.
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-3">
+                    <Button 
+                      className="h-14 font-black uppercase tracking-widest shadow-lg rounded-xl gap-3"
+                      disabled={!seller?.qrCodeUrl}
+                      asChild
+                    >
+                      <a href={seller?.qrCodeUrl} download={`${seller?.courseName}_QR.png`} target="_blank">
+                        <Download className="h-5 w-5" />
+                        Download High-Res PNG
+                      </a>
+                    </Button>
+                    <Button 
+                      variant="outline"
+                      className="h-14 font-black uppercase tracking-widest border-2 rounded-xl gap-3"
+                      disabled={!seller?.qrCodeUrl}
+                      onClick={() => window.print()}
+                    >
+                      <Printer className="h-5 w-5" />
+                      Print Table Tent (PDF)
+                    </Button>
+                  </div>
+
+                  <div className="p-4 bg-muted/30 rounded-xl border border-dashed flex items-start gap-3">
+                    <Info className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-black uppercase tracking-widest">Signage Tip</p>
+                      <p className="text-[11px] text-muted-foreground leading-relaxed">
+                        For best results on golf courses, place QR codes on every hole marker and inside the beverage carts. For bowling alleys, place on the scoring consoles at each lane.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </section>
 
         <section id="sales-stats" className="mb-12 scroll-mt-32">

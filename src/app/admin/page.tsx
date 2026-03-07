@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { collection, doc, setDoc, deleteDoc, query, writeBatch, getDocs, orderBy } from 'firebase/firestore';
+import { collection, doc, setDoc, deleteDoc, query, writeBatch, getDocs, orderBy, updateDoc } from 'firebase/firestore';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -46,7 +46,8 @@ import {
   ArrowUpRight,
   Printer,
   FileText,
-  CreditCard
+  CreditCard,
+  QrCode
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import {
@@ -93,6 +94,7 @@ import { isToday, isThisMonth, isThisYear, format, startOfMonth, endOfMonth, sub
 import { cn, getNumericOrderId } from '@/lib/utils';
 import Link from 'next/link';
 import * as XLSX from 'xlsx';
+import Image from 'next/image';
 
 const sellerSchema = z.object({
   courseName: z.string().min(2, 'Seller name must be at least 2 characters'),
@@ -366,6 +368,7 @@ export default function KOOPAdminPage() {
   const [editingSeller, setEditingSeller] = useState<Seller | null>(null);
   const [sellerToDelete, setSellerToDelete] = useState<Seller | null>(null);
   const [activeTab, setActiveTab] = useState<string>('operations');
+  const [isGeneratingQr, setIsGeneratingQr] = useState(false);
 
   // Date Range for Reports
   const [reportStartDate, setReportStartDate] = useState(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
@@ -725,6 +728,33 @@ export default function KOOPAdminPage() {
 
     setSelectedInvoice(invoiceData);
     setIsInvoiceDialogOpen(true);
+  };
+
+  const handleGenerateQr = async (seller: Seller) => {
+    if (!firestore) return;
+    setIsGeneratingQr(true);
+    
+    const menuUrl = `${window.location.origin}/sellers/${seller.id}/order`;
+    const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(menuUrl)}`;
+    
+    const sellerRef = doc(firestore, 'sellers', seller.id);
+    updateDoc(sellerRef, { qrCodeUrl: qrApiUrl })
+      .then(() => {
+        toast({
+          title: "QR Code Generated",
+          description: `QR code for ${seller.courseName} is now active and stored.`,
+        });
+      })
+      .catch((error) => {
+        toast({
+          variant: "destructive",
+          title: "QR Generation Failed",
+          description: "Could not save the QR code URL to the database.",
+        });
+      })
+      .finally(() => {
+        setIsGeneratingQr(false);
+      });
   };
 
   const onSave = async (data: SellerFormData) => {
@@ -1215,6 +1245,7 @@ export default function KOOPAdminPage() {
                         <TableHead>Seller</TableHead>
                         <TableHead>Type</TableHead>
                         <TableHead>Contact</TableHead>
+                        <TableHead className="text-center">QR Support</TableHead>
                         <TableHead className="text-center">Status</TableHead>
                         <TableHead className="text-right">Actions</TableHead>
                       </TableRow>
@@ -1235,6 +1266,26 @@ export default function KOOPAdminPage() {
                             <div className="flex flex-col text-xs">
                               <span className="font-semibold">{seller.contactName}</span>
                               <span className="text-muted-foreground">{seller.contactEmail}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <div className="flex justify-center gap-2 items-center">
+                              {seller.qrCodeUrl ? (
+                                <Badge className="bg-green-600 text-white gap-1 uppercase text-[8px] font-black">
+                                  <QrCode className="h-2.5 w-2.5" /> Stored
+                                </Badge>
+                              ) : (
+                                <Button 
+                                  variant="outline" 
+                                  size="sm" 
+                                  disabled={isGeneratingQr}
+                                  onClick={() => handleGenerateQr(seller)}
+                                  className="h-7 text-[8px] font-black uppercase tracking-widest gap-1 border-primary/20 text-primary hover:bg-primary/5"
+                                >
+                                  {isGeneratingQr ? <Loader2 className="h-2.5 w-2.5 animate-spin" /> : <QrCode className="h-2.5 w-2.5" />}
+                                  Generate QR
+                                </Button>
+                              )}
                             </div>
                           </TableCell>
                           <TableCell className="text-center">

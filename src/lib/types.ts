@@ -57,6 +57,7 @@ export interface Seller {
   bottomBarColor?: string;
   bodyBackgroundColor?: string;
   logoUrl?: string;
+  qrCodeUrl?: string;
   lastActive?: Timestamp;
   categoryVisibility?: Record<string, Category[]>;
   categoryImageVisibility?: Record<string, Category[]>;
