@@ -87,6 +87,12 @@ export function AppHeader() {
   
   const showSellerName = (isBuyerView || isTrackingPage) && !isDriverPage;
 
+  // Hamburger visibility rules: Home, KOOP Admin, Seller Admin only
+  const isHomePage = pathname === '/';
+  const isKoopAdmin = pathname === '/admin';
+  const isSellerAdmin = sellerId && pathname === `/sellers/${sellerId}`;
+  const showHamburger = isHomePage || isKoopAdmin || isSellerAdmin;
+
   if (isDriverPage) return null;
 
   const NavigationLinks = ({ mobile = false }: { mobile?: boolean }) => {
@@ -310,29 +316,31 @@ export function AppHeader() {
             <NavigationLinks />
           </div>
 
-          {/* Mobile Navigation Hamburger */}
-          <div className="lg:hidden">
-            <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
-              <SheetTrigger asChild>
-                <Button variant="ghost" size="icon" className="text-white hover:bg-white/10 h-10 w-10">
-                  <Menu className="h-6 w-6" />
-                </Button>
-              </SheetTrigger>
-              <SheetContent side="right" className="w-[300px] sm:w-[350px] p-0 border-l-2 border-primary">
-                <SheetHeader className="px-6 py-6 border-b bg-[#213147] text-white">
-                  <div className="flex justify-center">
-                    <KoopLogo />
-                  </div>
-                  <SheetTitle className="text-center text-[10px] uppercase font-bold tracking-[0.3em] text-white/60 mt-4">
-                    PLATFORM NAVIGATION
-                  </SheetTitle>
-                </SheetHeader>
-                <ScrollArea className="h-[calc(100vh-140px)]">
-                  <NavigationLinks mobile />
-                </ScrollArea>
-              </SheetContent>
-            </Sheet>
-          </div>
+          {/* Mobile Navigation Hamburger - Visible only on specific pages */}
+          {showHamburger && (
+            <div className="lg:hidden">
+              <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
+                <SheetTrigger asChild>
+                  <Button variant="ghost" size="icon" className="text-white hover:bg-white/10 h-10 w-10">
+                    <Menu className="h-6 w-6" />
+                  </Button>
+                </SheetTrigger>
+                <SheetContent side="right" className="w-[300px] sm:w-[350px] p-0 border-l-2 border-primary">
+                  <SheetHeader className="px-6 py-6 border-b bg-[#213147] text-white">
+                    <div className="flex justify-center">
+                      <KoopLogo />
+                    </div>
+                    <SheetTitle className="text-center text-[10px] uppercase font-bold tracking-[0.3em] text-white/60 mt-4">
+                      PLATFORM NAVIGATION
+                    </SheetTitle>
+                  </SheetHeader>
+                  <ScrollArea className="h-[calc(100vh-140px)]">
+                    <NavigationLinks mobile />
+                  </ScrollArea>
+                </SheetContent>
+              </Sheet>
+            </div>
+          )}
         </div>
       </div>
     </header>
