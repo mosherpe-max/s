@@ -42,7 +42,8 @@ import {
   Download,
   FileSpreadsheet,
   Table as TableIcon,
-  Layers
+  Layers,
+  ArrowUpRight
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import {
@@ -191,6 +192,7 @@ export default function KOOPAdminPage() {
   const [isResetting, setIsResetting] = useState(false);
   const [editingSeller, setEditingSeller] = useState<Seller | null>(null);
   const [sellerToDelete, setSellerToDelete] = useState<Seller | null>(null);
+  const [activeTab, setActiveTab] = useState<string>('operations');
 
   // Date Range for Reports
   const [reportStartDate, setReportStartDate] = useState(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
@@ -431,6 +433,21 @@ export default function KOOPAdminPage() {
     setIsFormOpen(true);
   };
 
+  const scrollToSection = (id: string, tab?: string) => {
+    if (tab) setActiveTab(tab);
+    
+    // Give time for tab to switch if necessary
+    setTimeout(() => {
+      const element = document.getElementById(id);
+      if (element) {
+        const offset = 140; // Height of header + navigation
+        const elementPosition = element.getBoundingClientRect().top;
+        const offsetPosition = elementPosition + window.pageYOffset - offset;
+        window.scrollTo({ top: offsetPosition, behavior: 'smooth' });
+      }
+    }, tab ? 50 : 0);
+  };
+
   const handleSystemReset = async () => {
     if (!firestore) return;
     setIsResetting(true);
@@ -604,7 +621,7 @@ export default function KOOPAdminPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-7xl">
+    <div className="container mx-auto px-4 py-8 max-w-7xl relative">
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
         <div className="flex-1">
           <div className="flex items-center gap-3">
@@ -639,14 +656,38 @@ export default function KOOPAdminPage() {
         </div>
       </header>
 
-      <Tabs defaultValue="operations" className="space-y-8">
+      {/* Quick Navigation Sticky Bar */}
+      <nav className="sticky top-16 z-30 bg-background/95 backdrop-blur-md border-y mb-8 -mx-4 px-4 py-3 flex items-center justify-start gap-2 overflow-x-auto shadow-sm scrollbar-hide">
+        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground mr-2 shrink-0">Quick Jump:</span>
+        <Button variant="ghost" size="sm" onClick={() => scrollToSection('revenue-section', 'operations')} className="h-8 text-[10px] font-bold uppercase tracking-widest px-3 rounded-full hover:bg-primary/10 whitespace-nowrap">
+          <BarChart3 className="mr-1.5 h-3.5 w-3.5" /> Revenue
+        </Button>
+        <Button variant="ghost" size="sm" onClick={() => scrollToSection('reports-section', 'operations')} className="h-8 text-[10px] font-bold uppercase tracking-widest px-3 rounded-full hover:bg-primary/10 whitespace-nowrap">
+          <FileSpreadsheet className="mr-1.5 h-3.5 w-3.5" /> Reports
+        </Button>
+        <Button variant="ghost" size="sm" onClick={() => scrollToSection('rate-matrix-section', 'operations')} className="h-8 text-[10px] font-bold uppercase tracking-widest px-3 rounded-full hover:bg-primary/10 whitespace-nowrap">
+          <Hash className="mr-1.5 h-3.5 w-3.5" /> Rate Matrix
+        </Button>
+        <Button variant="ghost" size="sm" onClick={() => scrollToSection('sellers-section', 'operations')} className="h-8 text-[10px] font-bold uppercase tracking-widest px-3 rounded-full hover:bg-primary/10 whitespace-nowrap">
+          <Building className="mr-1.5 h-3.5 w-3.5" /> Sellers
+        </Button>
+        <div className="h-4 w-[1px] bg-border mx-2 shrink-0" />
+        <Button variant="ghost" size="sm" onClick={() => scrollToSection('pipeline-stats-section', 'growth')} className="h-8 text-[10px] font-bold uppercase tracking-widest px-3 rounded-full hover:bg-indigo-50 text-indigo-600 whitespace-nowrap">
+          <Target className="mr-1.5 h-3.5 w-3.5" /> Pipeline
+        </Button>
+        <Button variant="ghost" size="sm" onClick={() => scrollToSection('activity-section', 'growth')} className="h-8 text-[10px] font-bold uppercase tracking-widest px-3 rounded-full hover:bg-indigo-50 text-indigo-600 whitespace-nowrap">
+          <ClipboardList className="mr-1.5 h-3.5 w-3.5" /> Activity
+        </Button>
+      </nav>
+
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
         <TabsList className="bg-muted/50 p-1">
           <TabsTrigger value="operations" className="text-[10px] font-black uppercase tracking-widest px-8">Venue Operations</TabsTrigger>
           <TabsTrigger value="growth" className="text-[10px] font-black uppercase tracking-widest px-8">Growth Pipeline</TabsTrigger>
         </TabsList>
 
         <TabsContent value="operations" className="space-y-10">
-          <section>
+          <section id="revenue-section" className="scroll-mt-40">
             <h2 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground mb-4 flex items-center gap-2">
                 <DollarSign className="h-3.5 w-3.5" /> Platform Revenue
             </h2>
@@ -667,7 +708,7 @@ export default function KOOPAdminPage() {
             </div>
 
             {/* Platform Reports Section */}
-            <Card className="border shadow-md">
+            <Card id="reports-section" className="border shadow-md scroll-mt-40">
               <CardHeader className="pb-4 bg-muted/10 border-b">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div className="flex items-center gap-3">
@@ -768,7 +809,7 @@ export default function KOOPAdminPage() {
           </section>
 
           {/* Rate Matrix Section */}
-          <section className="mt-10">
+          <section id="rate-matrix-section" className="mt-10 scroll-mt-40">
             <h2 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground mb-4 flex items-center gap-2">
                 <Settings2 className="h-3.5 w-3.5" /> Platform Rate Matrix
             </h2>
@@ -847,7 +888,7 @@ export default function KOOPAdminPage() {
             </Card>
           </section>
 
-          <Card className="shadow-sm border-muted mt-10">
+          <Card id="sellers-section" className="shadow-sm border-muted mt-10 scroll-mt-40">
             <CardHeader className="bg-muted/30 border-b py-4">
               <div className="flex items-center gap-3">
                 <CardTitle className="text-xl">Registered Sellers</CardTitle>
@@ -920,7 +961,7 @@ export default function KOOPAdminPage() {
         </TabsContent>
 
         <TabsContent value="growth" className="space-y-10">
-          <section>
+          <section id="pipeline-stats-section" className="scroll-mt-40">
             <h2 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground mb-4 flex items-center gap-2">
                 <Target className="h-3.5 w-3.5" /> Pipeline Analytics
             </h2>
@@ -1021,7 +1062,7 @@ export default function KOOPAdminPage() {
               </CardContent>
             </Card>
 
-            <Card className="shadow-sm border-muted flex flex-col max-h-[600px] overflow-hidden">
+            <Card id="activity-section" className="shadow-sm border-muted flex flex-col max-h-[600px] overflow-hidden scroll-mt-40">
               <CardHeader className="bg-muted/30 border-b">
                 <CardTitle className="text-lg flex items-center gap-2"><ClipboardList className="h-5 w-5" /> Recent Activity</CardTitle>
               </CardHeader>
