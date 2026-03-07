@@ -26,8 +26,8 @@ import {
   Phone,
   Mail,
   Zap,
-  Palette,
-  Fingerprint
+  Fingerprint,
+  Layers
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -62,7 +62,7 @@ const sellerSchema = z.object({
   launchFee: z.coerce.number().min(0),
   monthlyPlatformFee: z.coerce.number().min(0),
   status: z.enum(['Active', 'Inactive']),
-  brandColor: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, 'Invalid hex color').optional(),
+  laneCount: z.coerce.number().min(0).optional(),
 });
 
 type SellerFormData = z.infer<typeof sellerSchema>;
@@ -162,9 +162,11 @@ export default function KOOPAdminPage() {
       launchFee: 500,
       monthlyPlatformFee: 99,
       status: 'Active',
-      brandColor: '#10b981',
+      laneCount: 0,
     },
   });
+
+  const selectedType = form.watch('type');
 
   const handleSystemReset = async () => {
     if (!firestore) return;
@@ -201,7 +203,6 @@ export default function KOOPAdminPage() {
           serviceFee: 2.50,
           taxRate: 6.0,
           status: 'Active',
-          brandColor: '#10b981',
           menuTypes: ['Beverage Cart', 'Clubhouse', 'Take Out'],
           qrCodeUrl: 'https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=https://koop.app/sellers/demo-course/order'
         },
@@ -219,7 +220,6 @@ export default function KOOPAdminPage() {
           serviceFee: 0,
           taxRate: 7.5,
           status: 'Active',
-          brandColor: '#213147',
           menuTypes: ['Beverage Cart', 'Clubhouse', 'Pool', 'Take Out'],
           qrCodeUrl: 'https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=https://koop.app/sellers/demo-golf-course-private/order'
         },
@@ -237,7 +237,6 @@ export default function KOOPAdminPage() {
           serviceFee: 1.50,
           taxRate: 8.0,
           status: 'Active',
-          brandColor: '#ef4444',
           menuTypes: ['Lane Delivery', 'Take Out'],
           laneCount: 24,
           qrCodeUrl: 'https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=https://koop.app/sellers/demo-bowling-alley/order'
@@ -276,7 +275,7 @@ export default function KOOPAdminPage() {
       launchFee: seller.launchFee || 0,
       monthlyPlatformFee: seller.monthlyPlatformFee || 0,
       status: seller.status,
-      brandColor: seller.brandColor || '#10b981',
+      laneCount: seller.laneCount || 0,
     });
     setIsFormOpen(true);
   };
@@ -294,7 +293,7 @@ export default function KOOPAdminPage() {
     const sellerId = editingSeller ? editingSeller.id : data.courseName.toLowerCase().replace(/\s+/g, '-');
     const sellerRef = doc(firestore, 'sellers', sellerId);
     
-    const menuTypes = editingSeller?.menuTypes || (data.type.includes('Golf') ? ['Beverage Cart', 'Clubhouse', 'Take Out'] : ['Lane Delivery', 'Take Out']);
+    const menuTypes = editingSeller?.menuTypes || (data.type.includes('Golf') ? ['Beverage Cart', 'Clubhouse', 'Take Out'] : (data.type === 'Bowling Alley' ? ['Lane Delivery', 'Take Out'] : ['Dine-In', 'Take Out']));
     
     setDoc(sellerRef, { 
       ...data, 
@@ -588,6 +587,21 @@ export default function KOOPAdminPage() {
                         </FormItem>
                       )} />
                     </div>
+
+                    {selectedType === 'Bowling Alley' && (
+                      <FormField control={form.control} name="laneCount" render={({ field }) => (
+                        <FormItem className="animate-in slide-in-from-top-2">
+                          <FormLabel className="text-[10px] font-black uppercase flex items-center gap-2">
+                            <Layers className="h-3 w-3 text-primary" /> Lane Configuration
+                          </FormLabel>
+                          <FormControl>
+                            <Input type="number" {...field} placeholder="Number of lanes" className="h-11 border-2 font-bold" />
+                          </FormControl>
+                          <FormDescription className="text-[9px] uppercase font-bold text-muted-foreground">This defines the available lane selections for customers.</FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )} />
+                    )}
                   </div>
 
                   <div className="space-y-4">
@@ -653,25 +667,6 @@ export default function KOOPAdminPage() {
                         <FormItem><FormLabel className="text-[10px] font-black uppercase">Monthly Fee ($)</FormLabel><FormControl><Input type="number" {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>
                       )} />
                     </div>
-                  </div>
-
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-2 mb-2 border-b pb-2">
-                      <Palette className="h-4 w-4 text-primary" />
-                      <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Visual Branding</h3>
-                    </div>
-                    <FormField control={form.control} name="brandColor" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-[10px] font-black uppercase">Menu Primary Color (Hex)</FormLabel>
-                        <div className="flex gap-3">
-                          <FormControl>
-                            <Input {...field} placeholder="#10b981" className="h-11 border-2 font-bold flex-1" />
-                          </FormControl>
-                          <div className="w-11 h-11 rounded-md border-2 shadow-inner" style={{ backgroundColor: field.value }} />
-                        </div>
-                        <FormMessage />
-                      </FormItem>
-                    )} />
                   </div>
                 </form>
               </Form>
