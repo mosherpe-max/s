@@ -40,7 +40,9 @@ import {
   Settings2,
   CalendarDays,
   Download,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Table as TableIcon,
+  Layers
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import {
@@ -765,7 +767,87 @@ export default function KOOPAdminPage() {
             </Card>
           </section>
 
-          <Card className="shadow-sm border-muted">
+          {/* Rate Matrix Section */}
+          <section className="mt-10">
+            <h2 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground mb-4 flex items-center gap-2">
+                <Settings2 className="h-3.5 w-3.5" /> Platform Rate Matrix
+            </h2>
+            <Card className="border shadow-md">
+              <CardHeader className="pb-4 bg-muted/10 border-b">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-slate-100 rounded-lg">
+                    <Hash className="h-5 w-5 text-slate-600" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-lg uppercase font-headline">Venue Rate Matrix</CardTitle>
+                    <CardDescription>Setup fees, monthly SaaS, and per-menu convenience rates.</CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="pt-6">
+                <div className="border rounded-xl overflow-hidden bg-background">
+                  <ScrollArea className="h-[400px]">
+                    <Table>
+                      <TableHeader className="bg-muted/30 sticky top-0 z-10">
+                        <TableRow>
+                          <TableHead className="text-[10px] font-black uppercase">Venue</TableHead>
+                          <TableHead className="text-[10px] font-black uppercase text-right">Setup Fee</TableHead>
+                          <TableHead className="text-[10px] font-black uppercase text-right">Monthly SaaS</TableHead>
+                          <TableHead className="text-[10px] font-black uppercase pl-8">Service Mode & Convenience Fees</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {isSellersLoading ? (
+                          [...Array(5)].map((_, i) => (
+                            <TableRow key={`rate-skel-${i}`}>
+                              <TableCell><Skeleton className="h-4 w-32" /></TableCell>
+                              <TableCell><Skeleton className="h-4 w-16 ml-auto" /></TableCell>
+                              <TableCell><Skeleton className="h-4 w-16 ml-auto" /></TableCell>
+                              <TableCell className="pl-8"><Skeleton className="h-4 w-48" /></TableCell>
+                            </TableRow>
+                          ))
+                        ) : sellers && sellers.length > 0 ? (
+                          sellers.map((s) => (
+                            <TableRow key={`rate-${s.id}`} className="hover:bg-muted/5 transition-colors">
+                              <TableCell>
+                                <div className="flex flex-col">
+                                  <span className="text-xs font-bold truncate max-w-[180px]">{s.courseName}</span>
+                                  <span className="text-[9px] uppercase text-muted-foreground">{s.type}</span>
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-right font-mono font-bold text-xs">${s.launchFee || 0}</TableCell>
+                              <TableCell className="text-right font-mono font-bold text-xs">${s.monthlyPlatformFee || 0}</TableCell>
+                              <TableCell className="pl-8">
+                                <div className="flex flex-wrap gap-1.5 py-1">
+                                  {s.menuTypes?.map(m => {
+                                    const fee = s.menuServiceFees?.[m] ?? s.serviceFee;
+                                    return (
+                                      <Badge key={m} variant="outline" className="h-6 bg-muted/20 border-primary/10 text-[9px] font-bold px-2 py-0 gap-2 items-center flex">
+                                        <span className="opacity-60 uppercase">{m}:</span>
+                                        <span className="text-primary font-black">${fee.toFixed(2)}</span>
+                                      </Badge>
+                                    );
+                                  })}
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          ))
+                        ) : (
+                          <TableRow>
+                            <TableCell colSpan={4} className="h-32 text-center text-muted-foreground italic text-sm">
+                              No sellers registered to display rate matrix.
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </TableBody>
+                    </Table>
+                  </ScrollArea>
+                </div>
+              </CardContent>
+            </Card>
+          </section>
+
+          <Card className="shadow-sm border-muted mt-10">
             <CardHeader className="bg-muted/30 border-b py-4">
               <div className="flex items-center gap-3">
                 <CardTitle className="text-xl">Registered Sellers</CardTitle>
