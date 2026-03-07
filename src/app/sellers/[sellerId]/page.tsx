@@ -46,7 +46,8 @@ import {
   Download,
   Calendar as CalendarIcon,
   ClipboardList,
-  ArrowRightLeft
+  ArrowRightLeft,
+  ExternalLink
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -85,11 +86,12 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
   useSortable
-} from '@dnd-kit/sortable';
+} from '@radix-ui/react-sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { MapView } from '@/components/map-view';
 import { APIProvider, Map, useMap } from '@vis.gl/react-google-maps';
 import Image from 'next/image';
+import Link from 'next/link';
 
 import type { MenuItem, Seller, Category, Order, Member, SellerType } from '@/lib/types';
 import { categories } from '@/lib/types';
@@ -953,6 +955,18 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     }
   };
 
+  const getStaffRoute = (menuType: string) => {
+    switch (menuType) {
+      case 'Beverage Cart': return `/sellers/${sellerId}/bevcart`;
+      case 'Clubhouse': return `/sellers/${sellerId}/clubhouse`;
+      case 'Lane Delivery': return `/sellers/${sellerId}/laneside`;
+      case 'Pool': return `/sellers/${sellerId}/clubhouse`;
+      case 'Dine-In': return `/sellers/${sellerId}/clubhouse`;
+      case 'Halfway House': return `/sellers/${sellerId}/clubhouse`;
+      default: return null;
+    }
+  };
+
   const isMapRequired = selectedOpsMenu === 'Beverage Cart' || selectedOpsMenu === 'Clubhouse';
 
   if (!isMounted) return null;
@@ -1014,29 +1028,39 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
               <p className="text-muted-foreground text-xs font-medium">Real-time status of current active orders.</p>
             </div>
             
-            <div className="flex flex-wrap gap-1 bg-muted/30 p-1 rounded-lg border">
-              {seller?.menuTypes?.map(type => {
-                const Icon = serviceTypeIcons[type] || ShoppingBag;
-                const count = activeOrders.filter(o => o.menuType === type).length;
-                return (
-                  <Button 
-                    key={type} 
-                    variant={selectedOpsMenu === type ? 'default' : 'ghost'} 
-                    size="sm" 
-                    onChange={() => setSelectedOpsMenu(type)}
-                    onClick={() => setSelectedOpsMenu(type)}
-                    className="h-8 text-[10px] font-bold uppercase tracking-widest px-3 relative"
-                  >
-                    <Icon className="mr-1.5 h-3 w-3" />
-                    {type}
-                    {count > 0 && (
-                      <span className="ml-1.5 bg-background text-foreground px-1.5 rounded-full text-[8px] font-black border">
-                        {count}
-                      </span>
-                    )}
-                  </Button>
-                );
-              })}
+            <div className="flex flex-col md:flex-row items-center gap-3">
+              <div className="flex flex-wrap gap-1 bg-muted/30 p-1 rounded-lg border">
+                {seller?.menuTypes?.map(type => {
+                  const Icon = serviceTypeIcons[type] || ShoppingBag;
+                  const count = activeOrders.filter(o => o.menuType === type).length;
+                  return (
+                    <Button 
+                      key={type} 
+                      variant={selectedOpsMenu === type ? 'default' : 'ghost'} 
+                      size="sm" 
+                      onClick={() => setSelectedOpsMenu(type)}
+                      className="h-8 text-[10px] font-bold uppercase tracking-widest px-3 relative"
+                    >
+                      <Icon className="mr-1.5 h-3 w-3" />
+                      {type}
+                      {count > 0 && (
+                        <span className="ml-1.5 bg-background text-foreground px-1.5 rounded-full text-[8px] font-black border">
+                          {count}
+                        </span>
+                      )}
+                    </Button>
+                  );
+                })}
+              </div>
+
+              {getStaffRoute(selectedOpsMenu) && (
+                <Button asChild variant="outline" size="sm" className="h-8 border-primary text-primary hover:bg-primary/5 font-black uppercase text-[10px] tracking-widest">
+                  <Link href={getStaffRoute(selectedOpsMenu)}>
+                    <ExternalLink className="mr-1.5 h-3 w-3" />
+                    Impersonate {selectedOpsMenu} Staff
+                  </Link>
+                </Button>
+              )}
             </div>
           </div>
 
