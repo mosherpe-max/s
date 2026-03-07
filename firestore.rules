@@ -34,7 +34,7 @@ service cloud.firestore {
       allow get: if true; // Publicly readable for menus
       allow list: if isAdmin(); // Only admins can see the full venue list
       allow create, delete: if isAdmin();
-      allow update: if isAdmin(); // For now, only platform admins manage sellers
+      allow update: if isAdmin(); 
 
       match /menuItems/{itemId} {
         allow get, list: if true;
@@ -43,11 +43,11 @@ service cloud.firestore {
     }
 
     match /orders/{orderId} {
-      allow get: if true; // Tracking via ID
-      allow create: if true; // Guest checkout
+      allow get: if true; 
+      allow create: if true; 
       
-      // Broad listing restricted to Admins. 
-      // Patrons should use where('customerId', '==', uid) which is handled by query constraints
+      // Scoped listing: Users can only see their own orders. 
+      // Admins can see everything.
       allow list: if isAdmin() || (isSignedIn() && request.query.limit <= 10 && resource.data.customerId == request.auth.uid);
       
       allow update: if isAdmin() || (isSignedIn() && resource.data.customerId == request.auth.uid);

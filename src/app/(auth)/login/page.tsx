@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -71,16 +71,16 @@ export default function LoginPage() {
     try {
       if (authMode === 'signup') {
         await createUserWithEmailAndPassword(auth, email, password);
-        toast({ title: "Account Created", description: "You are now signed in. Use the setup tool below to grant admin rights." });
+        toast({ title: "Account Created", description: "You are now signed in. Use the tool below to grant admin access." });
       } else {
         await signInWithEmailAndPassword(auth, email, password);
-        toast({ title: "Welcome back!", description: "Authorized session established." });
+        toast({ title: "Authorized Session Established" });
       }
     } catch (error: any) {
       toast({ 
         variant: "destructive", 
-        title: authMode === 'signup' ? "Registration Failed" : "Access Denied", 
-        description: error.message || "Authentication error." 
+        title: "Authentication Failed", 
+        description: error.message || "Please check your credentials." 
       });
     } finally {
       setIsLoading(false);
@@ -202,8 +202,7 @@ export default function LoginPage() {
                       <p className="text-[10px] font-black uppercase tracking-widest">Admin Role Required</p>
                     </div>
                     <p className="text-xs text-indigo-800 font-medium leading-relaxed">
-                      Access to the KOOP Dashboard requires a security marker in the <code>roles_admin</code> collection. 
-                      Click below to promote this account.
+                      Access to the KOOP Dashboard requires a security marker. Click below to promote this account.
                     </p>
                     <Button 
                       onClick={handleSetupAdmin} 

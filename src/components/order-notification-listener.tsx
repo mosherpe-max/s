@@ -12,7 +12,7 @@ import { useRouter, usePathname } from 'next/navigation';
 
 /**
  * A global listener that monitors the most recent order status for the buyer.
- * Displays toast notifications and System Level Push Notifications for key milestones.
+ * Silenced on Admin and Public pages to prevent permission race conditions.
  */
 export function OrderNotificationListener() {
   const firestore = useFirestore();
@@ -23,12 +23,18 @@ export function OrderNotificationListener() {
   const prevStatusRef = useRef<Order['status'] | undefined>(undefined);
   const prevOrderIdRef = useRef<string | undefined>(undefined);
 
-  // Skip notifications if on an admin page to avoid permission collision or unnecessary overhead
-  const isAdminPath = pathname?.startsWith('/admin') || pathname?.includes('/bevcart') || pathname?.includes('/clubhouse');
+  // CRITICAL: Silent mode for pages that don't need live tracking
+  const isSilentPath = 
+    pathname === '/' || 
+    pathname === '/login' || 
+    pathname?.startsWith('/admin') || 
+    pathname?.includes('/bevcart') || 
+    pathname?.includes('/clubhouse') ||
+    pathname?.includes('/laneside');
 
   const latestOrderQuery = useMemoFirebase(() => {
-    // CRITICAL: Only attempt the query if we have an authenticated user and NOT on admin pages.
-    if (!firestore || !user || isAdminPath) return null;
+    // Only attempt the query if we have a user and are on a "Tracking-Eligible" page
+    if (!firestore || !user || isSilentPath) return null;
     
     return query(
       collection(firestore, 'orders'),
@@ -36,7 +42,7 @@ export function OrderNotificationListener() {
       orderBy('createdAt', 'desc'),
       limit(1)
     );
-  }, [firestore, user, isAdminPath]);
+  }, [firestore, user, isSilentPath]);
 
   const { data: orders } = useCollection<Order>(latestOrderQuery);
   const order = orders?.[0];
@@ -64,7 +70,7 @@ export function OrderNotificationListener() {
   };
 
   useEffect(() => {
-    if (!order) return;
+    if (!order || isSilentPath) return;
 
     const orderUrl = `/order/track?id=${order.id}&sellerId=${order.sellerId}`;
 
@@ -93,15 +99,9 @@ export function OrderNotificationListener() {
                 <span className="font-headline font-bold uppercase">Order Confirmed</span>
               </div>
             ),
-            description: 'The establishment has received your order and is preparing it.',
+            description: 'The establishment has received your order.',
             action: trackAction,
           });
-          
-          sendSystemNotification(
-            'Order Confirmed!',
-            'The establishment has received your order and is now preparing it.',
-            orderUrl
-          );
           break;
 
         case 'Out for Delivery':
@@ -115,12 +115,6 @@ export function OrderNotificationListener() {
             description: 'The driver is out for delivery.',
             action: trackAction,
           });
-
-          sendSystemNotification(
-            'Your Refreshments are On the Way!',
-            'Watch the map live to see your driver approaching.',
-            orderUrl
-          );
           break;
           
         case 'Delivered':
@@ -134,18 +128,12 @@ export function OrderNotificationListener() {
             description: 'Your items have arrived. Enjoy!',
             action: trackAction,
           });
-
-          sendSystemNotification(
-            'Order Delivered!',
-            'Your items have arrived. Enjoy!',
-            orderUrl
-          );
           break;
       }
       
       prevStatusRef.current = order.status;
     }
-  }, [order, toast, router]);
+  }, [order, toast, router, isSilentPath]);
 
   return null;
 }
