@@ -1,53 +1,511 @@
-
 {
   "entities": {
-    "Seller": {
+    "AdminUser": {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Seller",
+      "title": "AdminUser",
       "type": "object",
-      "description": "Represents a seller in the KOOP application.",
+      "description": "Represents an administrator of the Koop platform, responsible for managing seller accounts and menus.",
       "properties": {
-        "ownerId": { "type": "string" },
-        "courseName": { "type": "string" },
-        "type": { "type": "string" },
-        "menuTypes": { "type": "array", "items": { "type": "string" } },
-        "status": { "type": "string", "enum": ["Active", "Inactive"] }
-      }
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the AdminUser entity."
+        },
+        "externalAuthId": {
+          "type": "string",
+          "description": "Identifier from the external authentication system linked to this admin user. (Relationship: External Auth 1:1 AdminUser)"
+        },
+        "firstName": {
+          "type": "string",
+          "description": "The first name of the admin user."
+        },
+        "lastName": {
+          "type": "string",
+          "description": "The last name of the admin user."
+        },
+        "email": {
+          "type": "string",
+          "description": "The email address of the admin user.",
+          "format": "email"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when the admin user record was created.",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp when the admin user record was last updated.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "externalAuthId",
+        "firstName",
+        "lastName",
+        "email",
+        "createdAt",
+        "updatedAt"
+      ]
     },
-    "Prospect": {
-      "title": "Prospect",
+    "BuyerProfile": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "BuyerProfile",
       "type": "object",
-      "description": "Represents a potential venue in the sales pipeline.",
+      "description": "Represents a customer using the Koop app to browse menus, place orders, and track deliveries.",
       "properties": {
-        "venueName": { "type": "string" },
-        "venueType": { "type": "string", "enum": ["Golf Course", "Bowling Alley", "Brewery/Restaurant"] },
-        "stage": { "type": "string", "enum": ["Contacted", "Demo Scheduled", "Proposal Sent", "Closed", "Lost"] },
-        "contactName": { "type": "string" },
-        "contactEmail": { "type": "string", "format": "email" },
-        "assignedRepId": { "type": "string" }
-      }
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the BuyerProfile entity."
+        },
+        "externalAuthId": {
+          "type": "string",
+          "description": "Identifier from the external authentication system linked to this buyer. (Relationship: External Auth 1:1 BuyerProfile)"
+        },
+        "firstName": {
+          "type": "string",
+          "description": "The first name of the buyer."
+        },
+        "lastName": {
+          "type": "string",
+          "description": "The last name of the buyer."
+        },
+        "email": {
+          "type": "string",
+          "description": "The email address of the buyer.",
+          "format": "email"
+        },
+        "phoneNumber": {
+          "type": "string",
+          "description": "The primary phone number of the buyer."
+        },
+        "currentLatitude": {
+          "type": "number",
+          "description": "The current GPS latitude of the buyer, used for dynamic map tracking."
+        },
+        "currentLongitude": {
+          "type": "number",
+          "description": "The current GPS longitude of the buyer, used for dynamic map tracking."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when the buyer profile record was created.",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp when the buyer profile record was last updated.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "externalAuthId",
+        "firstName",
+        "lastName",
+        "email",
+        "phoneNumber",
+        "createdAt",
+        "updatedAt"
+      ]
     },
-    "SalesActivity": {
-      "title": "SalesActivity",
+    "SellerProfile": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "SellerProfile",
       "type": "object",
-      "description": "Log of interactions with prospects.",
+      "description": "Represents a beverage cart driver or seller in the Koop app, managing their menu and fulfilling orders.",
       "properties": {
-        "prospectId": { "type": "string" },
-        "type": { "type": "string", "enum": ["Call", "Email", "Visit", "Meeting"] },
-        "notes": { "type": "string" },
-        "repId": { "type": "string" }
-      }
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the SellerProfile entity."
+        },
+        "externalAuthId": {
+          "type": "string",
+          "description": "Identifier from the external authentication system linked to this seller. (Relationship: External Auth 1:1 SellerProfile)"
+        },
+        "firstName": {
+          "type": "string",
+          "description": "The first name of the seller."
+        },
+        "lastName": {
+          "type": "string",
+          "description": "The last name of the seller."
+        },
+        "email": {
+          "type": "string",
+          "description": "The email address of the seller.",
+          "format": "email"
+        },
+        "phoneNumber": {
+          "type": "string",
+          "description": "The primary phone number of the seller."
+        },
+        "cartName": {
+          "type": "string",
+          "description": "The distinctive name of the seller's beverage cart (e.g., 'The 9th Hole Express')."
+        },
+        "currentLatitude": {
+          "type": "number",
+          "description": "The current GPS latitude of the seller's cart, used for dynamic map tracking and delivery prioritization."
+        },
+        "currentLongitude": {
+          "type": "number",
+          "description": "The current GPS longitude of the seller's cart, used for dynamic map tracking and delivery prioritization."
+        },
+        "menuId": {
+          "type": "string",
+          "description": "Reference to the Menu entity associated with this seller. (Relationship: SellerProfile 1:1 Menu)"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when the seller profile record was created.",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp when the seller profile record was last updated.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "externalAuthId",
+        "firstName",
+        "lastName",
+        "email",
+        "phoneNumber",
+        "cartName",
+        "menuId",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "Menu": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Menu",
+      "type": "object",
+      "description": "A curated list of food and beverage items offered by a specific seller.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Menu entity."
+        },
+        "sellerId": {
+          "type": "string",
+          "description": "Reference to the SellerProfile entity that owns this menu. (Relationship: SellerProfile 1:1 Menu)"
+        },
+        "name": {
+          "type": "string",
+          "description": "The name of the menu (e.g., 'Main Beverage Menu', 'Snack Menu')."
+        },
+        "description": {
+          "type": "string",
+          "description": "A brief textual description of the menu."
+        },
+        "isActive": {
+          "type": "boolean",
+          "description": "Indicates whether the menu is currently active and visible to buyers."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when the menu record was created.",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp when the menu record was last updated.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "sellerId",
+        "name",
+        "isActive",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "MenuItem": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "MenuItem",
+      "type": "object",
+      "description": "An individual food or beverage item available for purchase through a seller's menu.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the MenuItem entity."
+        },
+        "menuId": {
+          "type": "string",
+          "description": "Reference to the Menu entity this item belongs to. (Relationship: Menu 1:N MenuItem)"
+        },
+        "name": {
+          "type": "string",
+          "description": "The name of the menu item (e.g., 'Craft Pilsner', 'Bottled Water')."
+        },
+        "description": {
+          "type": "string",
+          "description": "A detailed description of the menu item, including ingredients or characteristics."
+        },
+        "category": {
+          "type": "string",
+          "description": "The category of the menu item (e.g., 'Beer', 'Spirits', 'Soft Drinks', 'Snacks')."
+        },
+        "price": {
+          "type": "number",
+          "description": "The selling price of a single unit of the menu item."
+        },
+        "imageUrl": {
+          "type": "string",
+          "description": "URL to an image visually representing the menu item.",
+          "format": "uri"
+        },
+        "isAvailable": {
+          "type": "boolean",
+          "description": "Indicates whether the menu item is currently available for purchase."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when the menu item record was created.",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp when the menu item record was last updated.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "menuId",
+        "name",
+        "price",
+        "isAvailable",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "Order": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Order",
+      "type": "object",
+      "description": "A customer's request for items from a seller's menu, including status and delivery details.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Order entity."
+        },
+        "buyerId": {
+          "type": "string",
+          "description": "Reference to the BuyerProfile entity who placed this order. (Relationship: BuyerProfile 1:N Order)"
+        },
+        "sellerId": {
+          "type": "string",
+          "description": "Reference to the SellerProfile entity assigned to fulfill this order. (Relationship: SellerProfile 1:N Order)"
+        },
+        "orderPlacedAt": {
+          "type": "string",
+          "description": "Timestamp when the order was initially placed by the buyer.",
+          "format": "date-time"
+        },
+        "estimatedDeliveryAt": {
+          "type": "string",
+          "description": "The estimated timestamp for when the order is expected to be delivered.",
+          "format": "date-time"
+        },
+        "deliveredAt": {
+          "type": "string",
+          "description": "The actual timestamp when the order was delivered to the buyer.",
+          "format": "date-time"
+        },
+        "status": {
+          "type": "string",
+          "description": "The current status of the order (e.g., 'Order Placed', 'Preparing', 'Out for Delivery', 'Delivered', 'Cancelled')."
+        },
+        "totalAmount": {
+          "type": "number",
+          "description": "The total monetary amount of the order, including all items, taxes, and fees."
+        },
+        "deliveryLatitude": {
+          "type": "number",
+          "description": "The GPS latitude for the buyer's requested delivery location for this specific order."
+        },
+        "deliveryLongitude": {
+          "type": "number",
+          "description": "The GPS longitude for the buyer's requested delivery location for this specific order."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when the order record was created.",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp when the order record was last updated.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "buyerId",
+        "sellerId",
+        "orderPlacedAt",
+        "status",
+        "totalAmount",
+        "deliveryLatitude",
+        "deliveryLongitude",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "OrderItem": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "OrderItem",
+      "type": "object",
+      "description": "A specific item included within a customer's order, capturing its details at the time of purchase.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the OrderItem entity."
+        },
+        "orderId": {
+          "type": "string",
+          "description": "Reference to the Order entity this item belongs to. (Relationship: Order 1:N OrderItem)"
+        },
+        "menuItemId": {
+          "type": "string",
+          "description": "Reference to the MenuItem entity that was ordered. (Relationship: MenuItem 1:N OrderItem)"
+        },
+        "name": {
+          "type": "string",
+          "description": "The name of the item as it appeared on the menu at the time the order was placed."
+        },
+        "quantity": {
+          "type": "number",
+          "description": "The quantity of this specific item ordered."
+        },
+        "unitPrice": {
+          "type": "number",
+          "description": "The price of a single unit of the item at the time the order was placed."
+        },
+        "subtotal": {
+          "type": "number",
+          "description": "The calculated subtotal for this order item (quantity * unitPrice)."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when the order item record was created.",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp when the order item record was last updated.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "orderId",
+        "menuItemId",
+        "name",
+        "quantity",
+        "unitPrice",
+        "subtotal",
+        "createdAt",
+        "updatedAt"
+      ]
     }
   },
   "auth": {
-    "providers": ["password", "anonymous"]
+    "providers": [
+      "password",
+      "anonymous"
+    ]
   },
   "firestore": {
     "structure": [
-      { "path": "/sellers/{sellerId}", "definition": { "entityName": "Seller", "description": "Stores seller profiles." } },
-      { "path": "/orders/{orderId}", "definition": { "entityName": "Order", "description": "Stores customer orders." } },
-      { "path": "/prospects/{prospectId}", "definition": { "entityName": "Prospect", "description": "Sales pipeline prospects." } },
-      { "path": "/activities/{activityId}", "definition": { "entityName": "SalesActivity", "description": "Sales activity logs." } }
-    ]
+      {
+        "path": "/adminUsers/{adminUserId}",
+        "definition": {
+          "entityName": "AdminUser",
+          "schema": {
+            "$ref": "#/backend/entities/AdminUser"
+          },
+          "description": "Stores profile information for Koop administrators. The 'adminUserId' in the path corresponds to `request.auth.uid` for self-management, or access is granted to other authenticated Koop Admins. Includes 'externalAuthId' for linking to the authentication provider."
+        }
+      },
+      {
+        "path": "/roles_admin/{uid}",
+        "definition": {
+          "entityName": "AdminUser",
+          "schema": {
+            "$ref": "#/backend/entities/AdminUser"
+          },
+          "description": "This collection grants Koop administrative privileges. The existence of a document at `/roles_admin/request.auth.uid` means the user is a Koop Admin. The document itself is a minimal marker (e.g., just a creation timestamp), not a full AdminUser profile, but the `uid` refers to a user associated with an AdminUser profile."
+        }
+      },
+      {
+        "path": "/buyerProfiles/{buyerId}",
+        "definition": {
+          "entityName": "BuyerProfile",
+          "schema": {
+            "$ref": "#/backend/entities/BuyerProfile"
+          },
+          "description": "Stores profile information for buyers. The 'buyerId' in the path corresponds to `request.auth.uid`, ensuring private access for the buyer. Includes 'externalAuthId' for linking to the authentication provider."
+        }
+      },
+      {
+        "path": "/sellerProfiles/{sellerId}",
+        "definition": {
+          "entityName": "SellerProfile",
+          "schema": {
+            "$ref": "#/backend/entities/SellerProfile"
+          },
+          "description": "Stores profile information for sellers (beverage cart drivers). The 'sellerId' in the path corresponds to `request.auth.uid`, ensuring private access for the seller. Koop Admins also have access. Includes 'externalAuthId' for linking to the authentication provider."
+        }
+      },
+      {
+        "path": "/sellerProfiles/{sellerId}/menus/{menuId}",
+        "definition": {
+          "entityName": "Menu",
+          "schema": {
+            "$ref": "#/backend/entities/Menu"
+          },
+          "description": "Menus specific to a seller. The 'sellerId' in the path defines ownership. The document includes the 'sellerId' field, which aligns with the parent path, for authorization clarity. Access is granted to the owning seller or Koop Admins. Public read access can be granted if 'isActive' is true."
+        }
+      },
+      {
+        "path": "/sellerProfiles/{sellerId}/menus/{menuId}/menuItems/{menuItemId}",
+        "definition": {
+          "entityName": "MenuItem",
+          "schema": {
+            "$ref": "#/backend/entities/MenuItem"
+          },
+          "description": "Individual menu items belonging to a specific menu and seller. Documents will include a denormalized 'sellerId' field (from the parent 'SellerProfile') for authorization independence and simplified security rules. Access is granted to the owning seller or Koop Admins. Public read access can be granted if 'isAvailable' is true and the parent menu is active."
+        }
+      },
+      {
+        "path": "/orders/{orderId}",
+        "definition": {
+          "entityName": "Order",
+          "schema": {
+            "$ref": "#/backend/entities/Order"
+          },
+          "description": "Represents an order placed by a buyer to a seller. Documents include 'buyerId' and 'sellerId' fields for authorizing access by the respective buyer, seller, or Koop Admins without requiring parent 'get()' calls."
+        }
+      },
+      {
+        "path": "/orders/{orderId}/orderItems/{orderItemId}",
+        "definition": {
+          "entityName": "OrderItem",
+          "schema": {
+            "$ref": "#/backend/entities/OrderItem"
+          },
+          "description": "Individual items within a specific order. Documents will include denormalized 'buyerId' and 'sellerId' fields (from the parent 'Order') for authorization independence and simplified security rules. Access is granted to the buyer, seller, or Koop Admins associated with the parent order."
+        }
+      }
+    ],
+    "reasoning": "The Firestore structure is designed following the core principles of Authorization Independence, Structural Segregation, and consistent Access Modeling to ensure security, scalability, and debuggability, especially for user roles and profiles. \n\n**1. Authorization Independence via Denormalization:**\n   - **Roles:** The Koop Admin role is implemented using a dedicated top-level collection, `/roles_admin/{uid}`. The mere *existence* of a document at `/roles_admin/request.auth.uid` grants the administrative role. This eliminates the need for `get()` calls in rules to check roles, making authorization atomic and independent.\n   - **User Profiles:** Buyer and Seller profiles (`/buyerProfiles/{buyerId}`, `/sellerProfiles/{sellerId}`) use path-based ownership where `{buyerId}` or `{sellerId}` directly corresponds to `request.auth.uid`. This makes profile access rules highly efficient and independent.\n   - **Collaborative Data (Orders):** For `Order` documents in `/orders/{orderId}`, both `buyerId` and `sellerId` are explicitly stored within each `Order` document. This denormalization allows rules to check `request.auth.uid == resource.data.buyerId || request.auth.uid == resource.data.sellerId` without requiring `get()` operations on parent documents or other profiles.\n   - **Nested Data (Menu Items, Order Items):**\n     - `MenuItem` documents, located under `/sellerProfiles/{sellerId}/menus/{menuId}/menuItems/{menuItemId}`, will include a denormalized `sellerId` field. This ensures that a `MenuItem`'s authorization can be checked directly against `resource.data.sellerId` without traversing up the hierarchy to its parent `Menu` or `SellerProfile` using `get()`.\n     - `OrderItem` documents, found under `/orders/{orderId}/orderItems/{orderItemId}`, similarly will denormalize `buyerId` and `sellerId` from their parent `Order`. This allows for direct authorization checks within `OrderItem` rules, avoiding `get()` calls to the parent `Order`.\n\n**2. Structural Segregation for Homogeneous Security Posture:**\n   - **Distinct User Types:** `AdminUser`, `BuyerProfile`, and `SellerProfile` are placed in separate top-level collections (`/adminUsers`, `/buyerProfiles`, `/sellerProfiles`). This segregation ensures that each collection has a uniform security posture, simplifying rules significantly. For example, `/buyerProfiles` will only contain documents accessible by individual buyers or admins, not mixed with publicly viewable data.\n   - **Roles:** The `/roles_admin` collection is specifically for role assignment, keeping role management distinct from user profile data.\n   - **Seller Data:** Menus and MenuItems are nested under `/sellerProfiles/{sellerId}`, reinforcing their ownership and ensuring consistent authorization logic for seller-specific content.\n\n**3. Query Against Path Segments (QAPs) and Denormalized Fields:**\n   - **User Profiles:** `list` operations for user profiles are straightforward. For instance, a buyer can only `list` their own profile, which is achieved by a rule like `allow list: if request.auth.uid != null`. Admins can `list` all profiles within `/adminUsers`, `/buyerProfiles`, and `/sellerProfiles` via rules that check for the admin role (e.g., `exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid))`).\n   - **Orders:** Buyers can `list` their own orders by querying `/orders` where `buyerId == request.auth.uid`. Similarly, sellers can `list` orders assigned to them where `sellerId == request.auth.uid`. The denormalized `buyerId` and `sellerId` fields directly support efficient and secure `list` queries without filtering at the rule level.\n   - **Menus/Menu Items:** Sellers can `list` their own menus and menu items by querying within their respective `/sellerProfiles/{sellerId}/menus` or `/sellerProfiles/{sellerId}/menus/{menuId}/menuItems` paths. Publicly visible menus/items can be listed with an additional `isActive` or `isAvailable` filter in the query, with rules enforcing this check (e.g., `allow read: if resource.data.isActive == true`).\n\nThis robust structure ensures that security rules are clear, concise, and do not rely on expensive or insecure `get()` operations, thereby meeting all design principles."
   }
 }
