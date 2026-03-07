@@ -1,7 +1,6 @@
-
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { collection, doc, setDoc, addDoc, query, orderBy, serverTimestamp, deleteDoc, where } from 'firebase/firestore';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { Button } from '@/components/ui/button';
@@ -72,17 +71,20 @@ type ActivityFormData = z.infer<typeof activitySchema>;
 export default function SalesCRMPage() {
   const firestore = useFirestore();
   const { toast } = useToast();
+  const [isMounted, setIsMounted] = useState(false);
   const [isProspectDialogOpen, setIsProspectDialogOpen] = useState(false);
   const [isActivityDialogOpen, setIsActivityDialogOpen] = useState(false);
   const [selectedProspect, setSelectedProspect] = useState<Prospect | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Mock Rep - In a real app this would be the logged in user
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
   const currentRep = { id: 'rep-1', name: 'John Sales' };
 
   const prospectsQuery = useMemoFirebase(() => {
     if (!firestore) return null;
-    // Sales Reps only see their own prospects
     return query(
       collection(firestore, 'prospects'), 
       where('assignedRepId', '==', currentRep.id),
@@ -92,7 +94,6 @@ export default function SalesCRMPage() {
 
   const activitiesQuery = useMemoFirebase(() => {
     if (!firestore) return null;
-    // Sales Reps only see their own activities
     return query(
       collection(firestore, 'activities'), 
       where('repId', '==', currentRep.id),
@@ -210,6 +211,21 @@ export default function SalesCRMPage() {
       default: return 'bg-gray-500';
     }
   };
+
+  if (!isMounted) {
+    return (
+      <div className="container mx-auto px-4 py-8 max-w-7xl pb-20">
+        <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+          <Skeleton className="h-12 w-64" />
+          <Skeleton className="h-10 w-40" />
+        </header>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+          {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-24 w-full" />)}
+        </div>
+        <Skeleton className="h-[400px] w-full" />
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-7xl pb-20">
@@ -395,7 +411,6 @@ export default function SalesCRMPage() {
         </TabsContent>
       </Tabs>
 
-      {/* PROSPECT DIALOG */}
       <Dialog open={isProspectDialogOpen} onOpenChange={setIsProspectDialogOpen}>
         <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -445,7 +460,6 @@ export default function SalesCRMPage() {
         </DialogContent>
       </Dialog>
 
-      {/* ACTIVITY DIALOG */}
       <Dialog open={isActivityDialogOpen} onOpenChange={setIsActivityDialogOpen}>
         <DialogContent>
           <DialogHeader>

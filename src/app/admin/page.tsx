@@ -28,7 +28,9 @@ import {
   Briefcase,
   TrendingUp,
   PhoneCall,
-  ClipboardList
+  ClipboardList,
+  Search,
+  Filter
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import {
@@ -168,11 +170,16 @@ function GlobalStatCard({ title, revenue, orders, avgTransaction }: { title: str
 export default function KOOPAdminPage() {
   const firestore = useFirestore();
   const { toast } = useToast();
+  const [isMounted, setIsMounted] = useState(false);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
   const [editingSeller, setEditingSeller] = useState<Seller | null>(null);
   const [sellerToDelete, setSellerToDelete] = useState<Seller | null>(null);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   const sellersQuery = useMemoFirebase(() => {
     if (!firestore) return null;
@@ -268,8 +275,6 @@ export default function KOOPAdminPage() {
   const halfwayCount = form.watch('halfwayHouseCount') || 0;
 
   const isHalfwayHouseEnabled = selectedMenuTypes.includes('Halfway House');
-  const isLaneDeliveryEnabled = selectedMenuTypes.includes('Lane Delivery');
-  const isDineInEnabled = selectedMenuTypes.includes('Dine-In');
 
   useEffect(() => {
     if (isHalfwayHouseEnabled) {
@@ -477,6 +482,22 @@ export default function KOOPAdminPage() {
       default: return 'bg-gray-500';
     }
   };
+
+  if (!isMounted) {
+    return (
+      <div className="container mx-auto px-4 py-8 max-w-7xl">
+        <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+          <Skeleton className="h-12 w-64" />
+          <div className="flex gap-3"><Skeleton className="h-10 w-32" /><Skeleton className="h-10 w-40" /></div>
+        </header>
+        <Skeleton className="h-10 w-full mb-8" />
+        <div className="space-y-8">
+          <div className="flex gap-4"><Skeleton className="h-40 flex-1" /><Skeleton className="h-40 flex-1" /><Skeleton className="h-40 flex-1" /></div>
+          <Skeleton className="h-[400px] w-full" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-7xl">
