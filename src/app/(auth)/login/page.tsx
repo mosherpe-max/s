@@ -1,13 +1,13 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useAuth, useUser, useFirestore } from '@/firebase';
+import { useAuth, useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
 import { 
   signInAnonymously, 
   signInWithEmailAndPassword, 
@@ -16,7 +16,7 @@ import {
 } from 'firebase/auth';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
-import { Loader2, ShieldCheck, Mail, Lock, User, LogOut, CheckCircle2, AlertCircle, UserPlus, LogIn, KeyRound } from 'lucide-react';
+import { Loader2, ShieldCheck, Mail, Lock, User, LogOut, CheckCircle2, AlertCircle, UserPlus, LogIn, KeyRound, ArrowRight } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 const GolfBallIcon = (props: React.SVGProps<SVGSVGElement>) => (
@@ -56,6 +56,13 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
   const [isAdminSettingUp, setIsAdminSettingUp] = useState(false);
+
+  // Check if current user is already an admin
+  const roleRef = useMemoFirebase(() => {
+    if (!firestore || !user) return null;
+    return doc(firestore, 'roles_admin', user.uid);
+  }, [firestore, user]);
+  const { data: adminRole } = useDoc(roleRef);
 
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -108,25 +115,24 @@ export default function LoginPage() {
     if (!user || !firestore) return;
     setIsAdminSettingUp(true);
     try {
-      // 1. Set Role Marker in the specific location verified by Security Rules
+      // 1. Create Role Marker
       await setDoc(doc(firestore, 'roles_admin', user.uid), {
         grantedAt: serverTimestamp(),
-        grantedBy: 'Self-Setup Prototype'
+        grantedBy: 'Prototype Setup Tool'
       });
 
-      // 2. Create the extended admin profile
+      // 2. Create Admin Profile
       await setDoc(doc(firestore, 'adminUsers', user.uid), {
         id: user.uid,
-        email: user.email || 'anonymous@koop.com',
-        role: 'KOOP Admin',
+        email: user.email || 'guest@koop.com',
+        role: 'KOOP Platform Admin',
         createdAt: serverTimestamp()
       });
 
       toast({ 
         title: "Admin Access Granted", 
-        description: "Your account now has global platform privileges." 
+        description: "Your account now has global privileges." 
       });
-      router.push('/admin');
     } catch (error: any) {
       toast({ variant: "destructive", title: "Setup Failed", description: error.message });
     } finally {
@@ -138,7 +144,7 @@ export default function LoginPage() {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-4rem)] bg-background">
         <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
-        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Authenticating Session...</p>
+        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Initializing Security Protocol...</p>
       </div>
     );
   }
@@ -169,70 +175,75 @@ export default function LoginPage() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-[10px] font-black uppercase text-green-600 tracking-widest leading-none mb-1">Authenticated As</p>
-                  <p className="text-sm font-bold truncate">{user.email || 'Guest Session'}</p>
+                  <p className="text-sm font-bold truncate">{user.email || 'Anonymous Session'}</p>
                 </div>
                 <CheckCircle2 className="h-5 w-5 text-green-500" />
               </div>
 
-              <div className="space-y-4">
-                <div className="p-5 bg-indigo-50 border-2 border-indigo-100 rounded-2xl space-y-3">
-                  <div className="flex items-center gap-2 text-indigo-600">
-                    <ShieldCheck className="h-4 w-4" />
-                    <p className="text-[10px] font-black uppercase tracking-widest leading-none">Admin Promotion Tool</p>
+              {adminRole ? (
+                <div className="space-y-4">
+                  <div className="p-5 bg-primary/10 border-2 border-primary/20 rounded-2xl flex flex-col items-center text-center gap-2">
+                    <ShieldCheck className="h-10 w-10 text-primary" />
+                    <h3 className="font-headline font-bold text-primary uppercase">ADMIN STATUS VERIFIED</h3>
+                    <p className="text-xs text-muted-foreground">You have full administrative access to the platform.</p>
                   </div>
-                  <p className="text-xs text-indigo-800 font-medium leading-relaxed">
-                    Access to the <strong>KOOP Admin</strong> dashboard requires an entry in the <code>/roles_admin</code> collection. 
-                    Click below to register this account as a Platform Administrator.
-                  </p>
-                  
-                  <Button 
-                    onClick={handleSetupAdmin} 
-                    className="w-full h-12 bg-indigo-600 hover:bg-indigo-700 shadow-lg gap-3"
-                    disabled={isAdminSettingUp}
-                  >
-                    {isAdminSettingUp ? <Loader2 className="h-5 w-5 animate-spin" /> : <ShieldCheck className="h-5 w-5" />}
-                    <span className="font-headline font-bold uppercase tracking-wider">Setup Admin Access</span>
+                  <Button asChild className="w-full h-14 bg-[#213147] hover:bg-[#213147]/90 text-white font-headline font-black uppercase tracking-widest shadow-xl">
+                    <a href="/admin">
+                      ENTER ADMIN DASHBOARD
+                      <ArrowRight className="ml-2 h-5 w-5" />
+                    </a>
                   </Button>
                 </div>
-
-                <div className="grid grid-cols-1 gap-2">
-                  <Button 
-                    asChild 
-                    variant="outline" 
-                    className="h-12 border-2 border-[#213147] text-[#213147] font-bold uppercase tracking-widest hover:bg-[#213147]/5"
-                  >
-                    <a href="/admin">Enter Global Dashboard</a>
-                  </Button>
-
-                  <Button 
-                    variant="ghost" 
-                    onClick={handleLogout} 
-                    className="text-muted-foreground hover:text-destructive h-10 uppercase text-[10px] font-black tracking-[0.2em] gap-2 mt-2"
-                  >
-                    <LogOut className="h-3.5 w-3.5" />
-                    Terminate Session
-                  </Button>
+              ) : (
+                <div className="space-y-4">
+                  <div className="p-5 bg-indigo-50 border-2 border-indigo-100 rounded-2xl space-y-3">
+                    <div className="flex items-center gap-2 text-indigo-600">
+                      <ShieldCheck className="h-4 w-4" />
+                      <p className="text-[10px] font-black uppercase tracking-widest">Admin Role Required</p>
+                    </div>
+                    <p className="text-xs text-indigo-800 font-medium leading-relaxed">
+                      Access to the KOOP Dashboard requires a security marker in the <code>roles_admin</code> collection. 
+                      Click below to promote this account.
+                    </p>
+                    <Button 
+                      onClick={handleSetupAdmin} 
+                      className="w-full h-12 bg-indigo-600 hover:bg-indigo-700 shadow-lg gap-3"
+                      disabled={isAdminSettingUp}
+                    >
+                      {isAdminSettingUp ? <Loader2 className="h-5 w-5 animate-spin" /> : <ShieldCheck className="h-5 w-5" />}
+                      <span className="font-headline font-bold uppercase tracking-wider">Setup Admin Access</span>
+                    </Button>
+                  </div>
                 </div>
-              </div>
+              )}
+
+              <Button 
+                variant="ghost" 
+                onClick={handleLogout} 
+                className="w-full text-muted-foreground hover:text-destructive h-10 uppercase text-[10px] font-black tracking-[0.2em] gap-2"
+              >
+                <LogOut className="h-3.5 w-3.5" />
+                Terminate Session
+              </Button>
             </div>
           ) : (
             <Tabs defaultValue="email" className="space-y-6">
               <TabsList className="grid w-full grid-cols-2 bg-muted/50 p-1 h-12">
-                <TabsTrigger value="email" className="font-bold uppercase text-[10px] tracking-widest">Email Access</TabsTrigger>
-                <TabsTrigger value="guest" className="font-bold uppercase text-[10px] tracking-widest">Quick Start</TabsTrigger>
+                <TabsTrigger value="email" className="font-bold uppercase text-[10px] tracking-widest">Email Login</TabsTrigger>
+                <TabsTrigger value="guest" className="font-bold uppercase text-[10px] tracking-widest">Guest Access</TabsTrigger>
               </TabsList>
 
               <TabsContent value="email" className="space-y-4">
                 <form onSubmit={handleEmailAuth} className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="email" className="text-[10px] font-black uppercase tracking-widest px-1">Email Address</Label>
+                    <Label htmlFor="email" className="text-[10px] font-black uppercase tracking-widest">Email Address</Label>
                     <div className="relative">
                       <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                       <Input 
                         id="email" 
                         type="email" 
                         placeholder="admin@kooporders.com" 
-                        className="pl-10 h-11 border-2 font-bold focus-visible:ring-primary"
+                        className="pl-10 h-11 border-2 font-bold"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         required
@@ -240,14 +251,14 @@ export default function LoginPage() {
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="password" className="text-[10px] font-black uppercase tracking-widest px-1">Access Key</Label>
+                    <Label htmlFor="password" className="text-[10px] font-black uppercase tracking-widest">Security Key</Label>
                     <div className="relative">
                       <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                       <Input 
                         id="password" 
                         type="password" 
                         placeholder="••••••••"
-                        className="pl-10 h-11 border-2 font-bold focus-visible:ring-primary"
+                        className="pl-10 h-11 border-2 font-bold"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         required
@@ -259,12 +270,12 @@ export default function LoginPage() {
                     <Button 
                       type="button" 
                       variant="link" 
-                      className="text-[10px] font-black uppercase p-0 h-auto text-muted-foreground hover:text-primary transition-colors"
+                      className="text-[10px] font-black uppercase p-0 h-auto text-muted-foreground hover:text-primary"
                       onClick={() => setAuthMode(authMode === 'signin' ? 'signup' : 'signin')}
                     >
                       {authMode === 'signin' 
-                        ? "Need an account? Create one" 
-                        : "Already have an account? Sign In"}
+                        ? "New to KOOP? Create account" 
+                        : "Already registered? Sign In"}
                     </Button>
                   </div>
 
@@ -274,7 +285,7 @@ export default function LoginPage() {
                     disabled={isLoading}
                   >
                     {isLoading ? <Loader2 className="animate-spin" /> : (authMode === 'signup' ? <UserPlus className="h-4 w-4" /> : <LogIn className="h-4 w-4" />)}
-                    {authMode === 'signup' ? "REGISTER NEW ACCOUNT" : "AUTHENTICATE"}
+                    {authMode === 'signup' ? "REGISTER ACCOUNT" : "AUTHENTICATE"}
                   </Button>
                 </form>
               </TabsContent>
@@ -284,13 +295,13 @@ export default function LoginPage() {
                   <div className="bg-blue-50 border-2 border-blue-100 p-4 rounded-2xl flex items-start gap-3">
                     <AlertCircle className="h-5 w-5 text-blue-600 shrink-0 mt-0.5" />
                     <p className="text-xs text-blue-800 font-medium leading-relaxed">
-                      For rapid review, you can start a <strong>Guest Session</strong>. You will still need to click "Setup Admin Access" to enter the global dashboard.
+                      Start a temporary guest session to explore the platform. You can promote guest accounts to admin status using the tool above.
                     </p>
                   </div>
                   <Button 
                     onClick={handleAnonymousSignIn} 
                     variant="outline" 
-                    className="w-full h-14 border-2 border-dashed border-primary text-primary hover:bg-primary/5 font-headline font-black uppercase tracking-widest transition-all hover:scale-[1.02]"
+                    className="w-full h-14 border-2 border-dashed border-primary text-primary hover:bg-primary/5 font-headline font-black uppercase tracking-widest transition-all"
                     disabled={isLoading}
                   >
                     {isLoading ? <Loader2 className="animate-spin mr-2" /> : <KeyRound className="mr-2 h-5 w-5" />}
@@ -303,7 +314,7 @@ export default function LoginPage() {
         </CardContent>
         <CardFooter className="bg-muted/10 border-t py-4 text-center justify-center">
           <p className="text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground">
-            KOOP SECURE ACCESS PROTOCOL v2.1
+            KOOP SECURE ACCESS v2.5
           </p>
         </CardFooter>
       </Card>

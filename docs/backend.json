@@ -2,57 +2,42 @@
 {
   "entities": {
     "AdminUser": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "AdminUser",
+      "description": "Represents a platform administrator with global access.",
       "type": "object",
-      "description": "Represents an administrator of the Koop platform.",
       "properties": {
         "id": { "type": "string" },
-        "firstName": { "type": "string" },
-        "lastName": { "type": "string" },
         "email": { "type": "string", "format": "email" },
+        "role": { "type": "string" },
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["id", "email"]
     },
     "Seller": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Seller",
+      "description": "A venue profile including service settings and location.",
       "type": "object",
-      "description": "Represents a venue (Golf Course, Bowling Alley, etc.) on the KOOP platform.",
       "properties": {
         "id": { "type": "string" },
         "courseName": { "type": "string" },
         "type": { "type": "string" },
         "status": { "type": "string", "enum": ["Active", "Inactive"] },
-        "contactName": { "type": "string" },
-        "contactEmail": { "type": "string", "format": "email" }
+        "contactEmail": { "type": "string", "format": "email" },
+        "latitude": { "type": "number" },
+        "longitude": { "type": "number" }
       },
       "required": ["id", "courseName", "type", "status"]
     },
-    "Prospect": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Prospect",
+    "Order": {
+      "title": "Order",
+      "description": "A transaction for refreshments placed by a patron.",
       "type": "object",
-      "description": "A potential venue in the sales pipeline.",
       "properties": {
         "id": { "type": "string" },
-        "venueName": { "type": "string" },
-        "stage": { "type": "string" },
-        "launchFeeQuoted": { "type": "number" }
-      },
-      "required": ["id", "venueName", "stage"]
-    },
-    "SalesActivity": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "SalesActivity",
-      "type": "object",
-      "description": "A logged interaction between a sales rep and a prospect.",
-      "properties": {
-        "id": { "type": "string" },
-        "prospectId": { "type": "string" },
-        "type": { "type": "string" },
-        "notes": { "type": "string" }
+        "customerId": { "type": "string" },
+        "sellerId": { "type": "string" },
+        "status": { "type": "string" },
+        "total": { "type": "number" }
       }
     }
   },
@@ -64,32 +49,32 @@
   },
   "firestore": {
     "/roles_admin/{uid}": {
-      "schema": { "$ref": "#/backend/entities/AdminUser" },
-      "description": "Existence grants KOOP Administrative privileges."
+      "schema": { "type": "object", "properties": { "grantedAt": { "type": "string" } } },
+      "description": "Security marker for platform administrators."
     },
-    "/adminUsers/{adminUserId}": {
+    "/adminUsers/{uid}": {
       "schema": { "$ref": "#/backend/entities/AdminUser" },
-      "description": "Extended profile for platform admins."
+      "description": "Detailed admin profile."
     },
     "/sellers/{sellerId}": {
       "schema": { "$ref": "#/backend/entities/Seller" },
-      "description": "Venue profiles and settings."
+      "description": "Venue registry."
     },
     "/sellers/{sellerId}/menuItems/{itemId}": {
       "schema": "MenuItem",
-      "description": "Individual items available at a specific venue."
+      "description": "Individual menu items."
     },
     "/orders/{orderId}": {
-      "schema": "Order",
-      "description": "Orders placed by patrons."
+      "schema": { "$ref": "#/backend/entities/Order" },
+      "description": "Customer orders."
     },
     "/prospects/{prospectId}": {
-      "schema": { "$ref": "#/backend/entities/Prospect" },
-      "description": "Sales pipeline data."
+      "schema": "Prospect",
+      "description": "Sales pipeline leads."
     },
     "/activities/{activityId}": {
-      "schema": { "$ref": "#/backend/entities/SalesActivity" },
-      "description": "Sales interaction logs."
+      "schema": "Activity",
+      "description": "Sales activity logs."
     }
   }
 }

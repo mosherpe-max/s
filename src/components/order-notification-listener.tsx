@@ -8,7 +8,7 @@ import type { Order } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { Navigation, CheckCircle2, PartyPopper } from 'lucide-react';
 import { ToastAction } from '@/components/ui/toast';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 
 /**
  * A global listener that monitors the most recent order status for the buyer.
@@ -19,13 +19,16 @@ export function OrderNotificationListener() {
   const { user } = useUser();
   const { toast } = useToast();
   const router = useRouter();
+  const pathname = usePathname();
   const prevStatusRef = useRef<Order['status'] | undefined>(undefined);
   const prevOrderIdRef = useRef<string | undefined>(undefined);
 
+  // Skip notifications if on an admin page to avoid permission collision or unnecessary overhead
+  const isAdminPath = pathname?.startsWith('/admin') || pathname?.includes('/bevcart') || pathname?.includes('/clubhouse');
+
   const latestOrderQuery = useMemoFirebase(() => {
-    // CRITICAL: Only attempt the query if we have an authenticated user.
-    // This prevents "Missing or insufficient permissions" errors for visitors on pages like the home screen or menu.
-    if (!firestore || !user) return null;
+    // CRITICAL: Only attempt the query if we have an authenticated user and NOT on admin pages.
+    if (!firestore || !user || isAdminPath) return null;
     
     return query(
       collection(firestore, 'orders'),
@@ -33,12 +36,11 @@ export function OrderNotificationListener() {
       orderBy('createdAt', 'desc'),
       limit(1)
     );
-  }, [firestore, user]);
+  }, [firestore, user, isAdminPath]);
 
   const { data: orders } = useCollection<Order>(latestOrderQuery);
   const order = orders?.[0];
 
-  // Request Notification Permission on first mount if we have an active order
   useEffect(() => {
     if (order && 'Notification' in window && Notification.permission === 'default') {
       Notification.requestPermission();
@@ -66,14 +68,12 @@ export function OrderNotificationListener() {
 
     const orderUrl = `/order/track?id=${order.id}&sellerId=${order.sellerId}`;
 
-    // If this is a new order we haven't seen yet, just register the current status and move on
     if (order.id !== prevOrderIdRef.current) {
       prevOrderIdRef.current = order.id;
       prevStatusRef.current = order.status;
       return;
     }
 
-    // Only trigger a "notification" if the status has actually changed for the same order
     if (order.status !== prevStatusRef.current) {
       const trackAction = (
         <ToastAction 
@@ -105,15 +105,6 @@ export function OrderNotificationListener() {
           break;
 
         case 'Out for Delivery':
-          // Attempt to re-initiate wake lock if browser supports it
-          if ('wakeLock' in navigator) {
-            try {
-              (navigator as any).wakeLock.request('screen').catch(() => {});
-            } catch (e) {
-              console.warn('Wake Lock re-initiation failed from background');
-            }
-          }
-
           toast({
             title: (
               <div className="flex items-center gap-2">
@@ -121,7 +112,7 @@ export function OrderNotificationListener() {
                 <span className="font-headline font-bold uppercase">Heading Your Way!</span>
               </div>
             ),
-            description: 'The driver is out for delivery. Watch the map for their live location.',
+            description: 'The driver is out for delivery.',
             action: trackAction,
           });
 

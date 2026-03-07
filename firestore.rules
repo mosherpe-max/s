@@ -17,51 +17,51 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    // --- Collection Rules ---
+    // --- Role Management ---
 
     match /roles_admin/{uid} {
       allow get: if isSignedIn();
-      allow list, create, update, delete: if isAdmin();
+      allow list, write: if isAdmin();
     }
 
-    match /adminUsers/{adminUserId} {
-      allow get: if isOwner(adminUserId) || isAdmin();
-      allow list: if isAdmin();
-      allow create: if isOwner(adminUserId);
-      allow update: if isOwner(adminUserId) || isAdmin();
+    match /adminUsers/{uid} {
+      allow read, write: if isAdmin() || isOwner(uid);
     }
+
+    // --- Core Business Data ---
 
     match /sellers/{sellerId} {
-      allow get: if true; // Publicly readable for ordering
-      allow list: if isSignedIn();
+      allow get: if true; // Publicly readable for menus
+      allow list: if isAdmin(); // Only admins can see the full venue list
       allow create, delete: if isAdmin();
-      allow update: if isAdmin() || isOwner(sellerId);
+      allow update: if isAdmin(); // For now, only platform admins manage sellers
 
       match /menuItems/{itemId} {
         allow get, list: if true;
-        allow create, update, delete: if isAdmin() || isOwner(sellerId);
+        allow write: if isAdmin();
       }
     }
 
     match /orders/{orderId} {
-      allow get: if true; // For tracking via unique ID
+      allow get: if true; // Tracking via ID
       allow create: if true; // Guest checkout
       
-      // Scoped list: Admins see all, users see their own, sellers see their venue's
-      allow list: if isAdmin() || (isSignedIn() && (resource.data.customerId == request.auth.uid || resource.data.sellerId == request.auth.uid));
+      // Broad listing restricted to Admins. 
+      // Patrons should use where('customerId', '==', uid) which is handled by query constraints
+      allow list: if isAdmin() || (isSignedIn() && request.query.limit <= 10 && resource.data.customerId == request.auth.uid);
       
-      // Update: Admins, the patron, or the seller
-      allow update: if isAdmin() || (isSignedIn() && (resource.data.customerId == request.auth.uid || resource.data.sellerId == request.auth.uid));
-      
+      allow update: if isAdmin() || (isSignedIn() && resource.data.customerId == request.auth.uid);
       allow delete: if isAdmin();
     }
 
+    // --- CRM Data ---
+
     match /prospects/{prospectId} {
-      allow read, write: if isAdmin() || isSignedIn();
+      allow read, write: if isAdmin();
     }
 
     match /activities/{activityId} {
-      allow read, write: if isAdmin() || isSignedIn();
+      allow read, write: if isAdmin();
     }
   }
 }
