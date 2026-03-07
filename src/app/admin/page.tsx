@@ -805,7 +805,7 @@ export default function KOOPAdminPage() {
       .catch(async (error) => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({
           path: sellerRef.path,
-          operation: editingSeller ? 'update' : 'create',
+          operation: 'write',
           requestResourceData: payload
         }));
       })
@@ -1485,6 +1485,40 @@ export default function KOOPAdminPage() {
           <Separator className="my-2" />
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSave)} className="space-y-8 py-4">
+              {/* SECTION 0: QR ASSETS (Only for existing sellers with QR) */}
+              {editingSeller && editingSeller.qrCodeUrl && (
+                <div className="bg-primary/5 p-6 rounded-2xl border-2 border-primary/10 flex flex-col items-center gap-4 text-center">
+                  <div className="space-y-1">
+                    <h3 className="text-xs font-black uppercase tracking-widest text-primary flex items-center justify-center gap-2">
+                      <QrCode className="h-4 w-4" /> Live QR Asset
+                    </h3>
+                    <p className="text-[10px] text-muted-foreground uppercase font-bold">Pointed to live digital menu</p>
+                  </div>
+                  
+                  <div className="bg-white p-4 rounded-xl shadow-inner border">
+                    <Image 
+                      src={editingSeller.qrCodeUrl} 
+                      alt="Seller QR" 
+                      width={160} 
+                      height={160} 
+                      className="mx-auto"
+                    />
+                  </div>
+
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    size="sm" 
+                    className="h-9 px-6 font-black uppercase text-[10px] tracking-widest gap-2 bg-white"
+                    asChild
+                  >
+                    <a href={editingSeller.qrCodeUrl} download={`${editingSeller.courseName}_QR.png`} target="_blank">
+                      <Download className="h-3.5 w-3.5" /> Download PNG
+                    </a>
+                  </Button>
+                </div>
+              )}
+
               {/* SECTION 1: BASIC INFO */}
               <div className="space-y-4">
                 <h3 className="text-sm font-bold uppercase tracking-wider text-primary flex items-center gap-2"><Building className="h-4 w-4" /> Basic Information</h3>
