@@ -1,4 +1,3 @@
-
 'use client';
 
 import Link from 'next/link';
@@ -76,18 +75,28 @@ export function AppHeader() {
     return searchParams.get('sellerId');
   }, [pathname, searchParams]);
 
+  const orderId = searchParams.get('id');
+  const menuTypeParam = searchParams.get('menuType');
+
   const sellerRef = useMemoFirebase(() => {
     if (!firestore || !sellerId) return null;
     return doc(firestore, 'sellers', sellerId);
   }, [firestore, sellerId]);
 
+  const orderRef = useMemoFirebase(() => {
+    if (!firestore || !orderId) return null;
+    return doc(firestore, 'orders', orderId);
+  }, [firestore, orderId]);
+
   const { data: seller } = useDoc(sellerRef);
+  const { data: order } = useDoc(orderRef);
 
   const isDriverPage = pathname?.includes('/bevcart') || pathname?.includes('/clubhouse') || pathname?.includes('/laneside');
   const isTrackingPage = pathname?.includes('/order/track');
   const isBuyerView = pathname?.includes('/order') && !isDriverPage;
   
-  const showSellerName = (isBuyerView || isTrackingPage) && !isDriverPage;
+  const showServiceSubtext = (isBuyerView || isTrackingPage) && !isDriverPage;
+  const activeMenuType = menuTypeParam || order?.menuType;
 
   const isHomePage = pathname === '/';
   const isKoopAdmin = pathname === '/admin';
@@ -293,11 +302,16 @@ export function AppHeader() {
     <header className="sticky top-0 z-40 bg-[#213147] border-b-2 border-[#E50000] shadow-md">
       <div className="container mx-auto flex h-16 items-center justify-between px-4">
         <div className="flex items-center min-w-0">
-          {showSellerName && seller ? (
+          {showServiceSubtext && seller ? (
             <div className="flex flex-col min-w-0">
-               <span className="font-headline text-base sm:text-lg font-bold text-white uppercase tracking-tight truncate">
+               <span className="font-headline text-sm sm:text-base font-bold text-white uppercase tracking-tight truncate leading-tight">
                 {seller.courseName}
               </span>
+              {activeMenuType && (
+                <span className="text-[9px] sm:text-[10px] font-black text-white/60 uppercase tracking-widest leading-none">
+                  {activeMenuType} Menu
+                </span>
+              )}
             </div>
           ) : (
             <KoopLogo />

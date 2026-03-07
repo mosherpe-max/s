@@ -10,7 +10,7 @@ import { OrderSummary } from '@/components/order-summary';
 import { PricingBreakdown } from '@/components/pricing-breakdown';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { categoryIcons } from '@/components/icons';
 import { errorEmitter } from '@/firebase/error-emitter';
@@ -179,10 +179,12 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
   const { sellerId } = use(params);
   const firestore = useFirestore();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { toast } = useToast();
   const { orderItems, updateItem, removeItem, isCartOpen, setIsCartOpen, totalItems, clearCart, editingOrderId, loadOrder, cancelEditing } = useCart();
 
-  const [selectedMenuType, setSelectedMenuType] = useState<string>('');
+  const menuTypeFromUrl = searchParams.get('menuType');
+  const [selectedMenuType, setSelectedMenuType] = useState<string>(menuTypeFromUrl || '');
   const [locationValue, setLocationValue] = useState<string>('');
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
   const [showBackToTop, setShowBackToTop] = useState(false);
@@ -281,9 +283,16 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
 
   useEffect(() => {
     if (sortedMenuTypes.length > 0 && !selectedMenuType) {
-      setSelectedMenuType(sortedMenuTypes[0]);
+      handleMenuTypeChange(sortedMenuTypes[0]);
     }
   }, [sortedMenuTypes, selectedMenuType]);
+
+  const handleMenuTypeChange = (type: string) => {
+    setSelectedMenuType(type);
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('menuType', type);
+    router.replace(`?${params.toString()}`, { scroll: false });
+  };
 
   const isServiceActive = useMemo(() => {
     if (!seller) return false;
@@ -424,7 +433,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
                       key={type} 
                       variant={isSelected ? 'default' : 'secondary'} 
                       size="sm"
-                      onClick={() => { setSelectedMenuType(type); setLocationValue(''); }} 
+                      onClick={() => { handleMenuTypeChange(type); setLocationValue(''); }} 
                       className={cn(
                         "h-8 text-[10px] px-3 rounded-lg font-bold transition-all shadow-sm flex items-center gap-1.5",
                         isSelected ? "bg-primary text-white" : "bg-white text-muted-foreground"
