@@ -778,7 +778,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
         <Card id="menu-library" className="mb-12 mt-16 shadow-md border-primary/20 bg-primary/5 scroll-mt-32">
           <CardHeader className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
-              <CardTitle className="flex items-center gap-2 uppercase tracking-tight text-primary"><Database className="h-5 w-5" /> Menu Library</CardTitle>
+              <CardTitle className="flex items-center gap-2 uppercase tracking-tight text-primary"><Database className="h-5 w-5" /> Menu Library</CardTitle(Database className="h-5 w-5" /> Menu Library</CardTitle>
               <CardDescription>Global item catalog.</CardDescription>
             </div>
             <Button onClick={() => { setEditingItem(null); setIsMasterFormOpen(true); }} size="sm"><PlusCircle className="mr-2 h-4 w-4" /> New Item</Button>
@@ -874,14 +874,4 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
       )}
     </div>
   );
-}
-
-function isThisMonth(date: Date) {
-  const now = new Date();
-  return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
-}
-
-function isThisYear(date: Date) {
-  const now = new Date();
-  return date.getFullYear() === now.getFullYear();
 }
