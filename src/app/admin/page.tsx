@@ -19,10 +19,7 @@ import {
   ChevronRight,
   Activity,
   TrendingUp,
-  Users,
   Search,
-  Filter,
-  BarChart3,
   Clock,
   Briefcase
 } from 'lucide-react';
@@ -83,7 +80,7 @@ export default function KOOPAdminPage() {
   const { user, isUserLoading } = useUser();
   const { toast } = useToast();
   
-  // Guard Logic: Verify Role before attempting any data queries
+  // Verify Admin Role before querying data
   const roleRef = useMemoFirebase(() => {
     if (!firestore || !user) return null;
     return doc(firestore, 'roles_admin', user.uid);
@@ -96,7 +93,7 @@ export default function KOOPAdminPage() {
   const [isResetting, setIsResetting] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
-  // CRITICAL: Queries only activate if adminRole is verified. 
+  // Queries only activate if adminRole is verified
   const sellersQuery = useMemoFirebase(() => {
     if (!firestore || !adminRole) return null;
     return collection(firestore, 'sellers');
@@ -170,7 +167,7 @@ export default function KOOPAdminPage() {
       createdAt: new Date().toISOString()
     }, { merge: true })
       .then(() => {
-        toast({ title: 'Seller Registered', description: 'Access dashboard to setup menu.' });
+        toast({ title: 'Seller Registered' });
         setIsFormOpen(false);
         form.reset();
       })
@@ -181,7 +178,7 @@ export default function KOOPAdminPage() {
     return (
       <div className="flex flex-col items-center justify-center min-h-[80vh] gap-4">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
-        <p className="text-muted-foreground font-black uppercase text-[10px] tracking-widest">Verifying Security Privileges...</p>
+        <p className="text-muted-foreground font-black uppercase text-[10px] tracking-widest">Authenticating Admin Session...</p>
       </div>
     );
   }
@@ -195,12 +192,12 @@ export default function KOOPAdminPage() {
         <div className="space-y-2">
           <h1 className="font-headline text-3xl font-black uppercase text-[#213147]">ACCESS RESTRICTED</h1>
           <p className="text-muted-foreground max-w-md mx-auto">
-            Authorized KOOP Platform Administrators only. 
+            Authorized Platform Administrators only. 
             Use the setup tool on the login page to promote your account.
           </p>
         </div>
         <Button asChild size="lg" className="h-14 px-8 font-headline font-black uppercase tracking-widest">
-          <Link href="/login">RETURN TO SECURITY SETUP</Link>
+          <Link href="/login">RETURN TO LOGIN & SETUP</Link>
         </Button>
       </div>
     );
@@ -214,14 +211,14 @@ export default function KOOPAdminPage() {
             <h1 className="font-headline text-3xl font-bold text-[#213147] uppercase tracking-tight">KOOP ADMIN</h1>
             <Badge className="bg-primary/10 text-primary border-primary/20 uppercase text-[10px] font-black">Platform Global</Badge>
           </div>
-          <p className="text-muted-foreground text-sm">System oversight, revenue tracking, and venue network management.</p>
+          <p className="text-muted-foreground text-sm">Real-time system oversight and venue network management.</p>
         </div>
         <div className="flex items-center gap-3">
           <Button variant="outline" onClick={handleSystemReset} disabled={isResetting} className="border-destructive text-destructive hover:bg-destructive/5 text-[10px] font-black uppercase h-10 px-4 tracking-widest">
-            <RefreshCw className={cn("mr-2 h-3.5 w-3.5", isResetting && "animate-spin")} /> Reset Demo
+            <RefreshCw className={cn("mr-2 h-3.5 w-3.5", isResetting && "animate-spin")} /> Reset Logs
           </Button>
           <Button onClick={() => setIsFormOpen(true)} className="h-10 px-6 font-black uppercase text-[10px] tracking-widest">
-            <PlusCircle className="mr-2 h-4 w-4" /> Register New Venue
+            <PlusCircle className="mr-2 h-4 w-4" /> Register Venue
           </Button>
         </div>
       </header>
@@ -229,13 +226,13 @@ export default function KOOPAdminPage() {
       <Tabs defaultValue="operations" className="space-y-8">
         <TabsList className="bg-muted/50 p-1 h-12">
           <TabsTrigger value="operations" className="text-[10px] font-black uppercase px-8 h-10">
-            <Activity className="mr-2 h-3.5 w-3.5" /> Venue Operations
+            <Activity className="mr-2 h-3.5 w-3.5" /> Operations
           </TabsTrigger>
           <TabsTrigger value="growth" className="text-[10px] font-black uppercase px-8 h-10">
-            <Target className="mr-2 h-3.5 w-3.5" /> Growth Pipeline
+            <Target className="mr-2 h-3.5 w-3.5" /> Growth
           </TabsTrigger>
           <TabsTrigger value="settings" className="text-[10px] font-black uppercase px-8 h-10">
-            <ShieldAlert className="mr-2 h-3.5 w-3.5" /> System Health
+            <ShieldAlert className="mr-2 h-3.5 w-3.5" /> Maintenance
           </TabsTrigger>
         </TabsList>
 
@@ -245,37 +242,34 @@ export default function KOOPAdminPage() {
               title="Active Venues" 
               value={sellers?.length || 0} 
               icon={Building} 
-              description="Registered sellers in network" 
-              trend="+2"
+              description="Live establishments" 
             />
             <MetricCard 
-              title="Live Volume" 
+              title="Active Volume" 
               value={activeOrders.length} 
               icon={ShoppingBag} 
-              description="Orders currently in progress"
+              description="Orders in progress"
             />
             <MetricCard 
               title="Platform Gross" 
               value={`$${(orders?.reduce((acc, o) => acc + (o.total || 0), 0) || 0).toLocaleString()}`} 
               icon={DollarSign} 
-              description="Lifetime transaction volume"
-              trend="+12%"
+              description="Lifetime volume"
             />
             <MetricCard 
               title="Pipeline Value" 
               value={`$${(prospects?.reduce((acc, p) => acc + (p.launchFeeQuoted || 0), 0) || 0).toLocaleString()}`} 
               icon={Briefcase} 
-              description="Est. launch revenue in sales"
+              description="Est. launch revenue"
             />
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <div className="lg:col-span-2 space-y-6">
+            <div className="lg:col-span-2">
               <Card className="shadow-md overflow-hidden">
                 <CardHeader className="bg-muted/30 border-b flex flex-row items-center justify-between py-4">
                   <div>
-                    <CardTitle className="text-sm font-black uppercase">Registered Seller Network</CardTitle>
-                    <CardDescription className="text-[10px]">Manage established venue profiles and access.</CardDescription>
+                    <CardTitle className="text-sm font-black uppercase">Venue Network</CardTitle>
                   </div>
                   <div className="relative w-64">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
@@ -302,33 +296,23 @@ export default function KOOPAdminPage() {
                         [...Array(3)].map((_, i) => (
                           <TableRow key={i}><TableCell colSpan={4}><Skeleton className="h-12 w-full" /></TableCell></TableRow>
                         ))
-                      ) : filteredSellers.length === 0 ? (
-                        <TableRow>
-                          <TableCell colSpan={4} className="text-center py-12 text-muted-foreground italic text-sm">
-                            {searchTerm ? "No venues matching search criteria." : "No venues registered yet."}
-                          </TableCell>
-                        </TableRow>
                       ) : filteredSellers.map((seller) => (
                         <TableRow key={seller.id} className="group hover:bg-muted/5">
                           <TableCell>
                             <div className="flex flex-col">
-                              <span className="font-bold text-sm text-[#213147]">{seller.courseName}</span>
-                              <span className="text-[9px] text-muted-foreground uppercase font-medium">{seller.contactEmail}</span>
+                              <span className="font-bold text-sm">{seller.courseName}</span>
+                              <span className="text-[9px] text-muted-foreground uppercase">{seller.contactEmail}</span>
                             </div>
                           </TableCell>
-                          <TableCell>
-                            <span className="text-xs font-medium text-muted-foreground">{seller.type}</span>
-                          </TableCell>
+                          <TableCell><span className="text-xs">{seller.type}</span></TableCell>
                           <TableCell className="text-center">
-                            <Badge className={cn("text-[8px] uppercase font-black px-2", seller.status === 'Active' ? 'bg-green-600' : 'bg-slate-400')}>
+                            <Badge className={cn("text-[8px] uppercase font-black", seller.status === 'Active' ? 'bg-green-600' : 'bg-slate-400')}>
                               {seller.status}
                             </Badge>
                           </TableCell>
                           <TableCell className="text-right">
-                            <Button variant="ghost" size="sm" asChild className="h-8 text-[10px] font-black uppercase tracking-wider group-hover:text-primary">
-                              <Link href={`/sellers/${seller.id}`}>
-                                Manage <ChevronRight className="ml-1 h-3 w-3" />
-                              </Link>
+                            <Button variant="ghost" size="sm" asChild className="h-8 text-[10px] font-black uppercase">
+                              <Link href={`/sellers/${seller.id}`}>Manage <ChevronRight className="ml-1 h-3 w-3" /></Link>
                             </Button>
                           </TableCell>
                         </TableRow>
@@ -339,110 +323,61 @@ export default function KOOPAdminPage() {
               </Card>
             </div>
 
-            <div className="space-y-6">
-              <Card className="shadow-md border-2 border-primary/5">
-                <CardHeader className="bg-primary/5 border-b py-4">
-                  <CardTitle className="text-xs font-black uppercase flex items-center gap-2">
-                    <Activity className="h-4 w-4 text-primary" />
-                    Live Operations Activity
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-0">
-                  <ScrollArea className="h-[400px]">
-                    <div className="p-4 space-y-4">
-                      {activeOrders.length === 0 ? (
-                        <div className="text-center py-20 opacity-30 space-y-2">
-                          <ShoppingBag className="h-8 w-8 mx-auto" />
-                          <p className="text-[10px] font-black uppercase">No active transactions</p>
-                        </div>
-                      ) : (
-                        activeOrders.map((order) => (
-                          <div key={order.id} className="p-3 rounded-xl border-2 bg-white flex flex-col gap-2 shadow-sm animate-in fade-in duration-500">
-                            <div className="flex justify-between items-start">
-                              <div className="flex flex-col">
-                                <span className="text-[10px] font-black uppercase text-[#213147] truncate max-w-[140px]">{order.customerName}</span>
-                                <span className="text-[8px] font-bold text-muted-foreground uppercase">{order.menuType}</span>
-                              </div>
-                              <Badge variant="outline" className="text-[7px] uppercase font-black h-4 px-1.5 border-primary/20 bg-primary/5">{order.status}</Badge>
-                            </div>
-                            <div className="flex justify-between items-center mt-1">
-                              <span className="text-[9px] font-mono font-bold text-primary">${order.total.toFixed(2)}</span>
-                              <span className="text-[8px] text-muted-foreground font-medium flex items-center gap-1">
-                                <Clock className="h-2 w-2" /> 
-                                {order.createdAt ? `${Math.floor((Date.now() - order.createdAt.toDate().getTime()) / 60000)}m ago` : 'Just now'}
-                              </span>
-                            </div>
+            <Card className="shadow-md border-2">
+              <CardHeader className="bg-primary/5 border-b py-4">
+                <CardTitle className="text-xs font-black uppercase flex items-center gap-2">
+                  <Activity className="h-4 w-4 text-primary" /> Live Activity
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                <ScrollArea className="h-[400px]">
+                  <div className="p-4 space-y-4">
+                    {activeOrders.length === 0 ? (
+                      <div className="text-center py-20 opacity-30">
+                        <ShoppingBag className="h-8 w-8 mx-auto mb-2" />
+                        <p className="text-[10px] font-black uppercase">No active orders</p>
+                      </div>
+                    ) : (
+                      activeOrders.map((order) => (
+                        <div key={order.id} className="p-3 rounded-xl border-2 bg-white flex flex-col gap-2">
+                          <div className="flex justify-between items-start">
+                            <span className="text-[10px] font-black uppercase truncate max-w-[140px]">{order.customerName}</span>
+                            <Badge variant="outline" className="text-[7px] uppercase font-black">{order.status}</Badge>
                           </div>
-                        ))
-                      )}
-                    </div>
-                  </ScrollArea>
-                </CardContent>
-              </Card>
-            </div>
+                          <div className="flex justify-between items-center text-[9px] font-bold text-muted-foreground">
+                            <span>{order.menuType}</span>
+                            <span className="flex items-center gap-1"><Clock className="h-2.5 w-2.5" /> {order.createdAt ? `${Math.floor((Date.now() - order.createdAt.toDate().getTime()) / 60000)}m` : 'now'}</span>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </ScrollArea>
+              </CardContent>
+            </Card>
           </div>
         </TabsContent>
 
         <TabsContent value="growth">
           <div className="flex flex-col items-center justify-center py-20 bg-white border-2 border-dashed rounded-3xl text-center px-6">
-            <div className="p-6 bg-indigo-50 rounded-full mb-6 text-indigo-600">
-              <Target className="h-16 w-16" />
-            </div>
-            <h2 className="font-headline text-3xl font-black uppercase text-[#213147] mb-2">Growth CRM</h2>
-            <p className="text-muted-foreground max-w-lg mb-8 leading-relaxed">
-              Global oversight of the sales pipeline, decision makers, and launch quotes is managed within the dedicated Sales Portal.
-            </p>
-            <div className="flex flex-wrap justify-center gap-4">
-              <Button asChild size="lg" className="bg-indigo-600 hover:bg-indigo-700 h-14 px-8 font-headline font-black uppercase tracking-widest shadow-xl">
-                <Link href="/sales">
-                  Open Sales Portal
-                  <ArrowRight className="ml-2 h-5 w-5" />
-                </Link>
-              </Button>
-              <Button variant="outline" className="h-14 px-8 font-headline font-black uppercase tracking-widest border-2">
-                Download Sales Report
-              </Button>
-            </div>
+            <Target className="h-16 w-16 text-indigo-600 mb-6" />
+            <h2 className="font-headline text-2xl font-black uppercase mb-2">Growth CRM</h2>
+            <p className="text-muted-foreground max-w-lg mb-8">Manage the sales pipeline and launch quotes in the Sales Portal.</p>
+            <Button asChild size="lg" className="bg-indigo-600 hover:bg-indigo-700 h-14 px-8 font-black uppercase tracking-widest">
+              <Link href="/sales">Open Sales Portal <ArrowRight className="ml-2 h-5 w-5" /></Link>
+            </Button>
           </div>
         </TabsContent>
 
         <TabsContent value="settings">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <Card className="border-2">
-              <CardHeader className="bg-muted/20 border-b">
-                <CardTitle className="text-sm font-black uppercase">System Permissions</CardTitle>
-                <CardDescription>Global administrative access control.</CardDescription>
-              </CardHeader>
+              <CardHeader className="bg-muted/20 border-b"><CardTitle className="text-sm font-black uppercase">System Maintenance</CardTitle></CardHeader>
               <CardContent className="pt-6 space-y-4">
-                <div className="flex items-center justify-between p-4 bg-muted/30 rounded-xl border">
-                  <div className="flex items-center gap-3">
-                    <ShieldAlert className="h-5 w-5 text-indigo-600" />
-                    <div className="flex flex-col">
-                      <span className="text-xs font-bold uppercase">Self-Promotion Mode</span>
-                      <span className="text-[9px] text-muted-foreground uppercase font-medium">Currently: PROTOTYPE ACTIVE</span>
-                    </div>
-                  </div>
-                  <Badge className="bg-green-600 uppercase text-[8px] font-black">Enabled</Badge>
-                </div>
-                <p className="text-[10px] text-muted-foreground leading-relaxed">
-                  In this prototype phase, authenticated users can promote themselves to Admin via the Setup Tool. 
-                  In production, this collection is restricted to service account writes only.
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card className="border-2">
-              <CardHeader className="bg-muted/20 border-b">
-                <CardTitle className="text-sm font-black uppercase">Data Maintenance</CardTitle>
-                <CardDescription>Infrastructure and database utilities.</CardDescription>
-              </CardHeader>
-              <CardContent className="pt-6 space-y-4">
-                <Button variant="outline" onClick={handleSystemReset} className="w-full h-12 border-2 border-destructive text-destructive font-black uppercase text-[10px] tracking-widest gap-3">
-                  <RefreshCw className="h-4 w-4" /> Purge Global Transaction Logs
+                <Button variant="outline" onClick={handleSystemReset} className="w-full h-12 border-2 border-destructive text-destructive font-black uppercase text-[10px]">
+                  Purge Global Transaction Logs
                 </Button>
-                <p className="text-[9px] text-center text-muted-foreground uppercase font-bold">
-                  WARNING: This action cannot be undone. All orders across all venues will be permanently deleted.
-                </p>
+                <p className="text-[9px] text-center text-muted-foreground uppercase font-bold">WARNING: Permanently deletes all orders across the network.</p>
               </CardContent>
             </Card>
           </div>
@@ -452,22 +387,22 @@ export default function KOOPAdminPage() {
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
-            <DialogTitle className="uppercase font-headline text-[#213147]">Register New Venue</DialogTitle>
-            <DialogDescription>Initialize a new establishment on the KOOP platform network.</DialogDescription>
+            <DialogTitle className="uppercase font-headline">Register Venue</DialogTitle>
+            <DialogDescription>Initialize a new establishment on the KOOP network.</DialogDescription>
           </DialogHeader>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSave)} className="space-y-4 pt-4">
               <FormField control={form.control} name="courseName" render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Venue Name</FormLabel>
-                  <FormControl><Input {...field} placeholder="e.g. Pine Valley Golf Club" className="h-11 border-2 font-bold" /></FormControl>
+                  <FormLabel className="text-[10px] font-black uppercase">Venue Name</FormLabel>
+                  <FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
               <div className="grid grid-cols-2 gap-4">
                 <FormField control={form.control} name="type" render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Service Category</FormLabel>
+                    <FormLabel className="text-[10px] font-black uppercase">Service Category</FormLabel>
                     <FormControl>
                       <select {...field} className="w-full h-11 border-2 rounded-md px-3 text-sm font-bold bg-background">
                         {sellerTypes.map(t => <option key={t} value={t}>{t}</option>)}
@@ -477,7 +412,7 @@ export default function KOOPAdminPage() {
                 )} />
                 <FormField control={form.control} name="status" render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Initial Status</FormLabel>
+                    <FormLabel className="text-[10px] font-black uppercase">Status</FormLabel>
                     <FormControl>
                       <select {...field} className="w-full h-11 border-2 rounded-md px-3 text-sm font-bold bg-background">
                         <option value="Active">Active</option>
@@ -489,13 +424,13 @@ export default function KOOPAdminPage() {
               </div>
               <FormField control={form.control} name="contactEmail" render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Contact Email</FormLabel>
-                  <FormControl><Input {...field} placeholder="manager@venue.com" className="h-11 border-2 font-bold" /></FormControl>
+                  <FormLabel className="text-[10px] font-black uppercase">Contact Email</FormLabel>
+                  <FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl>
                 </FormItem>
               )} />
               <FormField control={form.control} name="serviceFee" render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Default Conv. Fee ($)</FormLabel>
+                  <FormLabel className="text-[10px] font-black uppercase">Default Conv. Fee ($)</FormLabel>
                   <FormControl><Input type="number" step="0.01" {...field} className="h-11 border-2 font-bold font-mono" /></FormControl>
                 </FormItem>
               )} />

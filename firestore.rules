@@ -22,7 +22,6 @@ service cloud.firestore {
     match /roles_admin/{uid} {
       allow get: if isSignedIn();
       // Allow self-promotion for the prototype setup tool.
-      // In production, this would be restricted to a backend script or existing admins.
       allow write: if isOwner(uid); 
       allow list: if isAdmin();
     }
@@ -34,10 +33,9 @@ service cloud.firestore {
     // --- Core Business Data ---
 
     match /sellers/{sellerId} {
-      allow get: if true; // Publicly readable for menus
-      allow list: if isAdmin(); // Only admins can see the full venue list
-      allow create, delete: if isAdmin();
-      allow update: if isAdmin(); 
+      allow get: if true; 
+      allow list: if isAdmin(); 
+      allow create, delete, update: if isAdmin();
 
       match /menuItems/{itemId} {
         allow get, list: if true;
@@ -49,9 +47,8 @@ service cloud.firestore {
       allow get: if true; 
       allow create: if true; 
       
-      // Scoped listing: Users can only see their own orders. 
-      // Admins can see everything.
-      allow list: if isAdmin() || (isSignedIn() && request.query.limit <= 10 && resource.data.customerId == request.auth.uid);
+      // Allow admins to list all, and users to list only their own via filtered query
+      allow list: if isAdmin() || (isSignedIn() && request.auth.uid == resource.data.customerId);
       
       allow update: if isAdmin() || (isSignedIn() && resource.data.customerId == request.auth.uid);
       allow delete: if isAdmin();

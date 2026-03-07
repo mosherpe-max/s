@@ -11,7 +11,7 @@ import { ToastAction } from '@/components/ui/toast';
 import { useRouter, usePathname } from 'next/navigation';
 
 /**
- * A global listener that monitors the most recent order status for the buyer.
+ * A global listener that monitors order status for the buyer.
  * Silenced on Admin and Public pages to prevent permission race conditions.
  */
 export function OrderNotificationListener() {
@@ -33,7 +33,7 @@ export function OrderNotificationListener() {
     pathname?.includes('/laneside');
 
   const latestOrderQuery = useMemoFirebase(() => {
-    // Only attempt the query if we have a user and are on a "Tracking-Eligible" page
+    // Only attempt query if on tracking-eligible page and user is signed in
     if (!firestore || !user || isSilentPath) return null;
     
     return query(
@@ -48,28 +48,6 @@ export function OrderNotificationListener() {
   const order = orders?.[0];
 
   useEffect(() => {
-    if (order && 'Notification' in window && Notification.permission === 'default') {
-      Notification.requestPermission();
-    }
-  }, [order]);
-
-  const sendSystemNotification = (title: string, body: string, url: string) => {
-    if ('Notification' in window && Notification.permission === 'granted') {
-      navigator.serviceWorker.ready.then((registration) => {
-        registration.showNotification(title, {
-          body,
-          icon: 'https://picsum.photos/seed/koop/192/192',
-          badge: 'https://picsum.photos/seed/koop/96/96',
-          vibrate: [200, 100, 200],
-          tag: 'order-status',
-          renotify: true,
-          data: { url }
-        });
-      });
-    }
-  };
-
-  useEffect(() => {
     if (!order || isSilentPath) return;
 
     const orderUrl = `/order/track?id=${order.id}&sellerId=${order.sellerId}`;
@@ -82,55 +60,29 @@ export function OrderNotificationListener() {
 
     if (order.status !== prevStatusRef.current) {
       const trackAction = (
-        <ToastAction 
-          altText="Track Order" 
-          onClick={() => router.push(orderUrl)}
-        >
-          View Order
+        <ToastAction altText="View Order" onClick={() => router.push(orderUrl)}>
+          View
         </ToastAction>
+      );
+
+      const title = (icon: any, text: string) => (
+        <div className="flex items-center gap-2">
+          {icon}
+          <span className="font-headline font-bold uppercase">{text}</span>
+        </div>
       );
 
       switch (order.status) {
         case 'Preparing':
-          toast({
-            title: (
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="h-5 w-5 text-green-500" />
-                <span className="font-headline font-bold uppercase">Order Confirmed</span>
-              </div>
-            ),
-            description: 'The establishment has received your order.',
-            action: trackAction,
-          });
+          toast({ title: title(<CheckCircle2 className="h-5 w-5 text-green-500" />, 'Order Confirmed'), description: 'Establishment received your order.', action: trackAction });
           break;
-
         case 'Out for Delivery':
-          toast({
-            title: (
-              <div className="flex items-center gap-2">
-                <Navigation className="h-5 w-5 text-primary" />
-                <span className="font-headline font-bold uppercase">Heading Your Way!</span>
-              </div>
-            ),
-            description: 'The driver is out for delivery.',
-            action: trackAction,
-          });
+          toast({ title: title(<Navigation className="h-5 w-5 text-primary" />, 'Heading Your Way!'), description: 'The driver is out for delivery.', action: trackAction });
           break;
-          
         case 'Delivered':
-          toast({
-            title: (
-              <div className="flex items-center gap-2">
-                <PartyPopper className="h-5 w-5 text-green-600" />
-                <span className="font-headline font-bold uppercase text-green-600">Delivered!</span>
-              </div>
-            ),
-            description: 'Your items have arrived. Enjoy!',
-            action: trackAction,
-          });
+          toast({ title: title(<PartyPopper className="h-5 w-5 text-green-600" />, 'Delivered!'), description: 'Your items have arrived. Enjoy!', action: trackAction });
           break;
       }
-      
       prevStatusRef.current = order.status;
     }
   }, [order, toast, router, isSilentPath]);
