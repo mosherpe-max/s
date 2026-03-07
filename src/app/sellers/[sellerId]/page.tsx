@@ -43,7 +43,9 @@ import {
   ArrowUp,
   Layers,
   QrCode,
-  FileImage
+  FileImage,
+  Printer,
+  Info
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -123,36 +125,11 @@ const menuItemSchema = z.object({
 
 type MenuItemFormData = z.infer<typeof menuItemSchema>;
 
-const memberSchema = z.object({
-  name: z.string().min(1, 'Member name is required'),
-  memberNumber: z.string().min(1, 'Member ID number is required'),
-  status: z.enum(['Active', 'Inactive']),
-});
-
-type MemberFormData = z.infer<typeof memberSchema>;
-
-const thresholdSchema = z.object({
-  warning: z.coerce.number().min(1, 'Warning duration must be at least 1 minute'),
-  max: z.coerce.number().min(1, 'Max duration must be at least 1 minute'),
-});
-
-type ThresholdFormData = z.infer<typeof thresholdSchema>;
-
 const getCategoriesForMenu = (menuType: string): Category[] => {
   if (menuType === 'Beverage Cart') {
     return ['Beer', 'Spirits', 'Soft Drinks', 'Snacks', 'Kids', 'Other'];
   }
   return [...categories] as Category[];
-};
-
-const serviceTypeIcons: Record<string, any> = {
-  'Beverage Cart': Truck,
-  'Clubhouse': Building,
-  'Pool': Waves,
-  'Take Out': ShoppingBasket,
-  'Halfway House': Building,
-  'Dine-In': Utensils,
-  'Lane Delivery': MapPin,
 };
 
 function ModifierGroupManager({ 
@@ -242,7 +219,7 @@ function MasterItemForm({
               <FormItem><FormLabel>Item Name</FormLabel><FormControl><Input {...field} placeholder="e.g., Craft IPA" /></FormControl><FormMessage /></FormItem>
             )} />
             <FormField control={form.control} name="description" render={({ field }) => (
-              <FormItem><FormLabel>Description</FormLabel><FormControl><Textarea {...field} placeholder="A short description." /></FormControl><FormMessage /></FormMessage></FormItem>
+              <FormItem><FormLabel>Description</FormLabel><FormControl><Textarea {...field} placeholder="A short description." /></FormControl><FormMessage /></FormItem>
             )} />
             <div className="grid grid-cols-2 gap-4">
               <FormField control={form.control} name="price" render={({ field }) => (
@@ -344,32 +321,18 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   const [isMasterFormOpen, setIsMasterFormOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
   
-  const [isMemberFormOpen, setIsMemberFormOpen] = useState(false);
-  const [editingMember, setEditingMember] = useState<Member | null>(null);
-  
   const [isPickingOpen, setIsPickingOpen] = useState(false);
   const [pickingMenuType, setPickingMenuType] = useState<string>('');
   
   const [isCategoryConfigOpen, setIsCategoryConfigOpen] = useState(false);
   const [configMenuType, setConfigMenuType] = useState<string>('');
 
-  const [isThresholdConfigOpen, setIsThresholdConfigOpen] = useState(false);
-  const [thresholdMenuType, setThresholdMenuType] = useState<string>('');
-
-  const [isPoolMapConfigOpen, setIsPoolMapConfigOpen] = useState(false);
-  const [tempPoolMapUrl, setTempPoolMapUrl] = useState<string | null>(null);
-
-  const [isSeeding, setIsSeeding] = useState(false);
-  const [isImporting, setIsImporting] = useState(false);
-  
   const [masterCategoryFilter, setMasterCategoryFilter] = useState<string>('All');
   const [selectedOpsMenu, setSelectedOpsMenu] = useState<string>('');
   const [showTopButton, setShowTopButton] = useState(false);
   const [now, setNow] = useState(Date.now());
 
   const [revenueMode, setRevenueMode] = useState<'Gross' | 'Net'>('Gross');
-  const [startDate, setStartDate] = useState(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
-  const [endDate, setEndDate] = useState(format(new Date(), 'yyyy-MM-dd'));
 
   useEffect(() => {
     setIsMounted(true);
@@ -408,11 +371,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
 
   const ordersQuery = useMemoFirebase(() => (firestore ? query(collection(firestore, 'orders'), where('sellerId', '==', sellerId)) : null), [firestore, sellerId]);
   const { data: orders, isLoading: areOrdersLoading } = useCollection<Order>(ordersQuery);
-
-  const membersQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'sellers', sellerId, 'members') : null), [firestore, sellerId]);
-  const { data: members, isLoading: areMembersLoading } = useCollection<Member>(membersQuery);
-
-  const isClubSeller = seller?.type === 'Private Golf Course' || seller?.type === 'Semi Private Golf Course';
 
   const activeOrders = useMemo(() => {
     return orders?.filter(o => ['Placed', 'Preparing', 'Out for Delivery'].includes(o.status)) || [];
@@ -916,4 +874,14 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
       )}
     </div>
   );
+}
+
+function isThisMonth(date: Date) {
+  const now = new Date();
+  return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
+}
+
+function isThisYear(date: Date) {
+  const now = new Date();
+  return date.getFullYear() === now.getFullYear();
 }
