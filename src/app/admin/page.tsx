@@ -1164,17 +1164,17 @@ export default function KOOPAdminPage() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {selectedType === 'Bowling Alley' && (
                       <FormField control={form.control} name="laneCount" render={({ field }) => (
-                        <FormItem><FormLabel>Total Lanes</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormDescription>Maximum lane number for selection.</FormDescription></FormItem>
+                        <FormItem><FormLabel>Total Lanes</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ''} /></FormControl><FormDescription>Maximum lane number for selection.</FormDescription></FormItem>
                       )} />
                     )}
                     {selectedType === 'Restaurant' && (
                       <FormField control={form.control} name="tableCount" render={({ field }) => (
-                        <FormItem><FormLabel>Total Tables</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormDescription>Maximum table number for Dine-In.</FormDescription></FormItem>
+                        <FormItem><FormLabel>Total Tables</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ''} /></FormControl><FormDescription>Maximum table number for Dine-In.</FormDescription></FormItem>
                       )} />
                     )}
                     {isHalfwayHouseEnabled && (
                       <FormField control={form.control} name="halfwayHouseCount" render={({ field }) => (
-                        <FormItem><FormLabel>Halfway House Count</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormDescription>How many halfway houses on course?</FormDescription></FormItem>
+                        <FormItem><FormLabel>Halfway House Count</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ''} /></FormControl><FormDescription>How many halfway houses on course?</FormDescription></FormItem>
                       )} />
                     )}
                   </div>
@@ -1184,7 +1184,7 @@ export default function KOOPAdminPage() {
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         {fields.map((field, index) => (
                           <FormField key={field.id} control={form.control} name={`halfwayHouseNames.${index}`} render={({ field }) => (
-                            <FormItem><FormControl><Input {...field} placeholder={`Hole ${index + 9} Snack Shack`} /></FormControl></FormItem>
+                            <FormItem><FormControl><Input {...field} value={field.value ?? ''} placeholder={`Hole ${index + 9} Snack Shack`} /></FormControl></FormItem>
                           )} />
                         ))}
                       </div>
@@ -1225,7 +1225,7 @@ export default function KOOPAdminPage() {
                       <FormLabel className="text-xs font-black uppercase flex items-center gap-2">
                         <DollarSign className="h-3 w-3" /> Default Conv. Fee
                       </FormLabel>
-                      <FormControl><Input type="number" step="0.01" {...field} /></FormControl>
+                      <FormControl><Input type="number" step="0.01" {...field} value={field.value ?? ''} /></FormControl>
                       <FormDescription className="text-[10px]">Standard fee per order.</FormDescription>
                     </FormItem>
                   )} />
@@ -1234,7 +1234,7 @@ export default function KOOPAdminPage() {
                       <FormLabel className="text-xs font-black uppercase flex items-center gap-2">
                         <Percent className="h-3 w-3" /> Sales Tax Rate
                       </FormLabel>
-                      <FormControl><div className="relative"><Input type="number" step="0.1" {...field} className="pr-8" /><Percent className="absolute right-3 top-3 h-4 w-4 text-muted-foreground" /></div></FormControl>
+                      <FormControl><div className="relative"><Input type="number" step="0.1" {...field} value={field.value ?? ''} className="pr-8" /><Percent className="absolute right-3 top-3 h-4 w-4 text-muted-foreground" /></div></FormControl>
                       <FormDescription className="text-[10px]">Calculated at checkout.</FormDescription>
                     </FormItem>
                   )} />
@@ -1247,7 +1247,7 @@ export default function KOOPAdminPage() {
                       <FormLabel className="text-xs font-black uppercase flex items-center gap-2">
                         <TrendingUp className="h-3 w-3 text-indigo-600" /> Setup / Launch Fee ($)
                       </FormLabel>
-                      <FormControl><Input type="number" {...field} /></FormControl>
+                      <FormControl><Input type="number" {...field} value={field.value ?? ''} /></FormControl>
                       <FormDescription className="text-[10px]">One-time implementation fee.</FormDescription>
                     </FormItem>
                   )} />
@@ -1256,7 +1256,7 @@ export default function KOOPAdminPage() {
                       <FormLabel className="text-xs font-black uppercase flex items-center gap-2">
                         <CalendarDays className="h-3 w-3 text-indigo-600" /> Monthly SaaS Fee ($)
                       </FormLabel>
-                      <FormControl><Input type="number" {...field} /></FormControl>
+                      <FormControl><Input type="number" {...field} value={field.value ?? ''} /></FormControl>
                       <FormDescription className="text-[10px]">Recurring platform usage fee.</FormDescription>
                     </FormItem>
                   )} />
@@ -1278,7 +1278,7 @@ export default function KOOPAdminPage() {
                           render={({ field }) => (
                             <div className="p-3 bg-background border-2 rounded-xl shadow-sm space-y-2">
                               <p className="text-[10px] font-bold uppercase truncate">{menuType}</p>
-                              <FormControl><Input type="number" step="0.01" {...field} placeholder="Uses Default" className="h-8 text-xs" /></FormControl>
+                              <FormControl><Input type="number" step="0.01" {...field} value={field.value ?? ''} placeholder="Uses Default" className="h-8 text-xs" /></FormControl>
                             </div>
                           )}
                         />
