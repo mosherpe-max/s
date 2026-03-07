@@ -39,7 +39,8 @@ import {
   Download,
   Calendar as CalendarIcon,
   ClipboardList,
-  ExternalLink
+  ExternalLink,
+  ArrowUp
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -1135,7 +1136,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                 <ScrollArea className="h-full">
                   <div className="p-4 space-y-3">
                     {areOrdersLoading ? (
-                      [...Array(3)].map((_, i) => <Skeleton key={i} className="h-24 w-full" />)
+                      [...Array(3)].map((_, i) => <Skeleton key={`ops-skel-${i}`} className="h-24 w-full" />)
                     ) : filteredOpsOrders.length === 0 ? (
                       <div className="text-center py-20 text-muted-foreground flex flex-col items-center gap-2">
                         <ShoppingBag className="h-10 w-10 opacity-10" />
@@ -1288,7 +1289,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                         <TableRow className="bg-muted/30">
                           <TableHead className="font-black uppercase tracking-widest text-[10px]">Date</TableHead>
                           {seller?.menuTypes?.map(mt => (
-                            <TableHead key={mt} className="font-black uppercase tracking-widest text-[10px] text-right">{mt}</TableHead>
+                            <TableHead key={`head-${mt}`} className="font-black uppercase tracking-widest text-[10px] text-right">{mt}</TableHead>
                           ))}
                           <TableHead className="font-black uppercase tracking-widest text-[10px] text-right text-primary">Daily Total</TableHead>
                         </TableRow>
@@ -1298,7 +1299,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                           <TableRow key={row.date} className="hover:bg-muted/10 transition-colors">
                             <TableCell className="font-bold text-xs uppercase tracking-tight">{row.date}</TableCell>
                             {seller?.menuTypes?.map(mt => (
-                              <TableCell key={mt} className="text-right font-mono text-xs">
+                              <TableCell key={`${row.date}-${mt}`} className="text-right font-mono text-xs">
                                 {row[mt] > 0 ? `$${row[mt].toFixed(2)}` : <span className="text-muted-foreground opacity-20">-</span>}
                               </TableCell>
                             ))}
@@ -1389,7 +1390,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
               const thresholds = seller?.orderThresholds?.[menuType] || { warning: 7, max: 10 };
 
               return (
-                  <Card key={menuType} className="shadow-lg">
+                  <Card key={`menu-sec-${menuType}`} className="shadow-lg">
                       <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between border-b bg-muted/20 gap-4">
                           <div>
                               <CardTitle className="text-xl uppercase tracking-tight">{menuType} Menu</CardTitle>
@@ -1440,7 +1441,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                                       if (itemsInCategory.length === 0) return null;
 
                                       return (
-                                          <div key={category} className={cn("space-y-3", isCatHidden && "opacity-50 grayscale")}>
+                                          <div key={`${menuType}-${category}`} className={cn("space-y-3", isCatHidden && "opacity-50 grayscale")}>
                                               <div className="flex items-center gap-2">
                                                 <h4 className="font-bold text-sm uppercase tracking-widest">{category}</h4>
                                                 {isCatHidden && <Badge variant="secondary" className="uppercase text-[9px]">Hidden from Patron</Badge>}
@@ -1458,7 +1459,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                                                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                                       {itemsInCategory.map(item => (
                                                           <SortableItem 
-                                                            key={item.id} 
+                                                            key={`${menuType}-${item.id}`} 
                                                             item={item} 
                                                             menuType={menuType}
                                                             onDelete={() => handleToggleItemAvailability(item, menuType)} 
@@ -1490,7 +1491,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
             <div className="flex flex-wrap items-center gap-2 mb-8 bg-background/50 p-2 rounded-lg border">
               <Button variant={masterCategoryFilter === 'All' ? 'default' : 'ghost'} size="sm" onClick={() => setMasterCategoryFilter('All')}>All</Button>
               {categories.map(cat => (
-                <Button key={cat} variant={masterCategoryFilter === cat ? 'default' : 'ghost'} size="sm" onClick={() => setMasterCategoryFilter(cat)}>{cat}</Button>
+                <Button key={`lib-filter-${cat}`} variant={masterCategoryFilter === cat ? 'default' : 'ghost'} size="sm" onClick={() => setMasterCategoryFilter(cat)}>{cat}</Button>
               ))}
             </div>
 
@@ -1499,7 +1500,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {filteredMasterItems.map(item => (
-                  <div key={item.id} className="p-4 rounded-xl bg-background border shadow-sm group hover:border-primary/50 transition-all">
+                  <div key={`lib-item-${item.id}`} className="p-4 rounded-xl bg-background border shadow-sm group hover:border-primary/50 transition-all">
                     <div className="flex justify-between items-start mb-2">
                       <Badge variant="secondary" className="text-[10px] uppercase font-bold tracking-widest">{item.category}</Badge>
                       <div className="flex gap-1">
@@ -1597,7 +1598,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
         <Dialog open={isMemberFormOpen} onOpenChange={setIsMemberFormOpen}>
           <DialogContent className="sm:max-w-[500px]">
             <DialogHeader><DialogTitle>{editingMember ? 'Edit Member' : 'New Member'}</DialogTitle></DialogHeader>
-            <MemberForm onSave={handleSaveMember} member={editingMember} onClose={() => setIsMasterFormOpen(false)} />
+            <MemberForm onSave={handleSaveMember} member={editingMember} onClose={() => setIsMemberFormOpen(false)} />
           </DialogContent>
         </Dialog>
 
@@ -1613,13 +1614,13 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                         const itemsInCategory = menuItems?.filter(i => i.category === category) || [];
                         if (itemsInCategory.length === 0) return null;
                         return (
-                            <div key={category} className="mb-6">
+                            <div key={`pick-cat-${category}`} className="mb-6">
                                 <h5 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">{category}</h5>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                     {itemsInCategory.map(item => {
                                         const isSelected = item.availableOn?.includes(pickingMenuType);
                                         return (
-                                            <div key={item.id} onClick={() => handleToggleItemAvailability(item, pickingMenuType)} className={cn(
+                                            <div key={`pick-item-${item.id}`} onClick={() => handleToggleItemAvailability(item, pickingMenuType)} className={cn(
                                                 "p-3 rounded-lg border cursor-pointer transition-all flex justify-between items-center",
                                                 isSelected ? "border-primary bg-primary/5 shadow-sm" : "hover:bg-muted/50"
                                             )}>
@@ -1666,7 +1667,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                   
                   return (
                     <div 
-                      key={category} 
+                      key={`conf-cat-${category}`} 
                       className={cn(
                         "grid grid-cols-12 items-center gap-2 p-4 border-2 rounded-xl transition-all",
                         isVisible ? "border-primary bg-primary/5" : "border-muted opacity-60"
@@ -1785,7 +1786,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                     
                     <div className="absolute inset-0 grid grid-cols-3 grid-rows-3 pointer-events-none border-2 border-white/20">
                       {Array.from({ length: 9 }).map((_, i) => (
-                        <div key={i} className="border border-white/10 flex items-center justify-center text-[10px] font-bold text-white/40 uppercase tracking-widest">Zone {i+1}</div>
+                        <div key={`zone-guide-${i}`} className="border border-white/10 flex items-center justify-center text-[10px] font-bold text-white/40 uppercase tracking-widest">Zone {i+1}</div>
                       ))}
                     </div>
                   </div>
@@ -1809,7 +1810,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                     <Image src={tempPoolMapUrl} alt="Captured Preview" fill className="object-cover opacity-80" unoptimized />
                     <div className="absolute inset-0 grid grid-cols-3 grid-rows-3 pointer-events-none border border-white/30">
                       {Array.from({ length: 9 }).map((_, i) => (
-                        <div key={i} className="border border-white/20 flex items-center justify-center text-[10px] font-black text-white/60 drop-shadow-md">{i+1}</div>
+                        <div key={`prev-zone-${i}`} className="border border-white/20 flex items-center justify-center text-[10px] font-black text-white/60 drop-shadow-md">{i+1}</div>
                       ))}
                     </div>
                   </>
