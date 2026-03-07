@@ -68,34 +68,15 @@ import { cn } from '@/lib/utils';
 import { isToday, isThisMonth, isThisYear, format, startOfMonth, parseISO, isWithinInterval } from 'date-fns';
 import * as XLSX from 'xlsx';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { 
-  DndContext, 
-  closestCenter,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  DragEndEvent
-} from '@dnd-kit/core';
-import {
-  arrayMove,
-  SortableContext,
-  sortableKeyboardCoordinates,
-  verticalListSortingStrategy,
-  useSortable
-} from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
 import { MapView } from '@/components/map-view';
-import { APIProvider, Map, useMap } from '@vis.gl/react-google-maps';
+import { APIProvider } from '@vis.gl/react-google-maps';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Separator } from '@/components/ui/separator';
 
 import type { MenuItem, Seller, Category, Order, Member, SellerType, ModifierGroup, ModifierOption } from '@/lib/types';
 import { categories } from '@/lib/types';
-import { menuItems as mockMenuItems } from '@/lib/data';
 import { useToast } from '@/hooks/use-toast';
-import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 
@@ -127,7 +108,7 @@ type MenuItemFormData = z.infer<typeof menuItemSchema>;
 
 const getCategoriesForMenu = (menuType: string): Category[] => {
   if (menuType === 'Beverage Cart') {
-    return ['Beer', 'Spirits', 'Soft Drinks', 'Snacks', 'Kids', 'Other'];
+    return ['Beer', 'Spirits', 'Soft Drinks', 'Snacks', 'Other'];
   }
   return [...categories] as Category[];
 };
@@ -778,7 +759,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
         <Card id="menu-library" className="mb-12 mt-16 shadow-md border-primary/20 bg-primary/5 scroll-mt-32">
           <CardHeader className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
-              <CardTitle className="flex items-center gap-2 uppercase tracking-tight text-primary"><Database className="h-5 w-5" /> Menu Library</CardTitle(Database className="h-5 w-5" /> Menu Library</CardTitle>
+              <CardTitle className="flex items-center gap-2 uppercase tracking-tight text-primary"><Database className="h-5 w-5" /> Menu Library</CardTitle>
               <CardDescription>Global item catalog.</CardDescription>
             </div>
             <Button onClick={() => { setEditingItem(null); setIsMasterFormOpen(true); }} size="sm"><PlusCircle className="mr-2 h-4 w-4" /> New Item</Button>
