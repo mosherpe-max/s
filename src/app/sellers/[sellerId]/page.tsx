@@ -536,7 +536,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     return orders.filter(o => {
       if (!o.createdAt) return false;
       const orderDate = o.createdAt.toDate();
-      // Ensure range covers entire start and end days
       const rangeStart = new Date(start.setHours(0, 0, 0, 0));
       const rangeEnd = new Date(end.setHours(23, 59, 59, 999));
       return isWithinInterval(orderDate, { start: rangeStart, end: rangeEnd });
@@ -792,7 +791,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
         }), {})
       }, { merge: true });
 
-      // Add mock historical orders for reporting demo
       const dates = [0, 1, 2, 3, 4, 5, 6].map(daysAgo => {
         const d = new Date();
         d.setDate(d.getDate() - daysAgo);
@@ -1073,19 +1071,20 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
               <p className="text-[10px] font-black uppercase tracking-[0.2em] text-primary/60 leading-none mb-1">Establishment Totals</p>
               <div className="flex justify-between items-center">
                 <div className="flex justify-between items-center">
-                <div className="flex flex-col">
-                  <span className="text-xs font-black uppercase tracking-tight">Today's Revenue</span>
-                  <span className="text-lg font-headline font-black text-primary">${opsMetrics?.total?.revenue.toFixed(2) || '0.00'}</span>
-                </div>
-                <div className="h-10 w-[1px] bg-primary/10 mx-2" />
-                <div className="flex flex-col">
-                  <span className="text-xs font-black uppercase tracking-tight">Today's Orders</span>
-                  <span className="text-lg font-headline font-black text-foreground">{opsMetrics?.total?.count || 0}</span>
-                </div>
-                <div className="h-10 w-[1px] bg-primary/10 mx-2" />
-                <div className="flex flex-col text-right">
-                  <span className="text-xs font-black uppercase tracking-tight">Total Alerts</span>
-                  <span className="text-lg font-headline font-black text-destructive">{opsMetrics?.total?.exceededCount || 0}</span>
+                  <div className="flex flex-col">
+                    <span className="text-xs font-black uppercase tracking-tight">Today's Revenue</span>
+                    <span className="text-lg font-headline font-black text-primary">${opsMetrics?.total?.revenue.toFixed(2) || '0.00'}</span>
+                  </div>
+                  <div className="h-10 w-[1px] bg-primary/10 mx-2" />
+                  <div className="flex flex-col">
+                    <span className="text-xs font-black uppercase tracking-tight">Today's Orders</span>
+                    <span className="text-lg font-headline font-black text-foreground">{opsMetrics?.total?.count || 0}</span>
+                  </div>
+                  <div className="h-10 w-[1px] bg-primary/10 mx-2" />
+                  <div className="flex flex-col text-right">
+                    <span className="text-xs font-black uppercase tracking-tight">Total Alerts</span>
+                    <span className="text-lg font-headline font-black text-destructive">{opsMetrics?.total?.exceededCount || 0}</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1147,7 +1146,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                 <ScrollArea className="h-full">
                   <div className="p-4 space-y-3">
                     {areOrdersLoading ? (
-                      [...Array(3)].map((_, i) => <Skeleton key={i} className="h-24 w-full" />)
+                      [...Array(3)].map((_, i) => <Skeleton className="h-24 w-full" />)
                     ) : filteredOpsOrders.length === 0 ? (
                       <div className="text-center py-20 text-muted-foreground flex flex-col items-center gap-2">
                         <ShoppingBag className="h-10 w-10 opacity-10" />
@@ -1273,7 +1272,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
           </div>
 
           <div className="grid grid-cols-1 gap-8">
-            {/* Daily Revenue Summary Table */}
             <Card className="shadow-lg border-2 overflow-hidden">
               <CardHeader className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b bg-muted/20">
                 <div className="space-y-1">
@@ -1327,7 +1325,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
               </CardContent>
             </Card>
 
-            {/* Individual Orders Log Table */}
             <Card className="shadow-lg border-2 overflow-hidden">
               <CardHeader className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b bg-muted/20">
                 <div className="space-y-1">
