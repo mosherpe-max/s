@@ -36,7 +36,8 @@ import {
   Timer,
   Hash,
   Map as MapIcon,
-  Percent
+  Percent,
+  Settings2
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import {
@@ -54,7 +55,7 @@ import { Input } from '@/components/ui/input';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from "zod";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/form';
 import {
   RadioGroup,
   RadioGroupItem
