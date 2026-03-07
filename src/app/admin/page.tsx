@@ -43,9 +43,12 @@ import {
   FileSpreadsheet,
   Table as TableIcon,
   Layers,
-  ArrowUpRight
+  ArrowUpRight,
+  Printer,
+  FileText,
+  CreditCard
 } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -86,8 +89,8 @@ import { sellerTypes } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
-import { isToday, isThisMonth, isThisYear, format, startOfMonth } from 'date-fns';
-import { cn } from '@/lib/utils';
+import { isToday, isThisMonth, isThisYear, format, startOfMonth, endOfMonth, subMonths, addDays } from 'date-fns';
+import { cn, getNumericOrderId } from '@/lib/utils';
 import Link from 'next/link';
 import * as XLSX from 'xlsx';
 
@@ -183,6 +186,176 @@ function GlobalStatCard({ title, revenue, orders, avgTransaction }: { title: str
   );
 }
 
+/**
+ * High-fidelity Invoice Component based on the template image.
+ */
+function PrintableInvoice({ invoiceData }: { invoiceData: any }) {
+  const { venue, orders, billingMonth, totalFees, subtotal, tax, totalDue } = invoiceData;
+  const todayStr = format(new Date(), 'MM/dd/yyyy');
+  const dueDateStr = format(addDays(new Date(), 30), 'MM/dd/yyyy');
+  const typeCode = venue.type.includes('Golf') ? 'GC' : (venue.type.includes('Bowling') ? 'BA' : 'BR');
+  const accountId = `${typeCode}-${venue.id.slice(0, 4).toUpperCase()}`;
+  const invoiceId = `INV-${typeCode}-${getNumericOrderId(venue.id)}`;
+
+  return (
+    <div className="bg-white p-12 text-slate-900 font-sans max-w-[850px] mx-auto border shadow-2xl print:shadow-none print:border-0 print:p-0">
+      {/* Header */}
+      <div className="flex justify-between items-stretch h-32 mb-12">
+        <div className="bg-[#213147] flex-1 flex flex-col justify-center px-8 relative">
+          <div className="flex items-baseline gap-2 mb-1">
+            <span className="text-white font-bold text-4xl tracking-tighter">KOOP</span>
+            <div className="w-2 h-2 bg-red-600 rounded-full" />
+            <span className="text-white/60 font-light text-2xl">{venue.type === 'Brewery' || venue.type === 'Restaurant' ? 'Brewery / Restaurant' : venue.type}</span>
+          </div>
+          <p className="text-white/40 text-xs italic tracking-wider">Mobile Ordering Platform</p>
+        </div>
+        <div className="bg-red-600 w-64 flex flex-col justify-center px-8 text-white">
+          <h1 className="text-4xl font-black uppercase tracking-tight mb-1">INVOICE</h1>
+          <p className="text-sm font-bold opacity-80">#{invoiceId}</p>
+        </div>
+      </div>
+
+      {/* Address Block */}
+      <div className="grid grid-cols-3 gap-8 mb-16 text-[11px] leading-relaxed">
+        <div>
+          <h4 className="font-black uppercase tracking-widest text-red-600 mb-3">FROM</h4>
+          <p className="font-bold">Koop Technologies, LLC</p>
+          <p>3362 Grantham Ct</p>
+          <p>Oakland Twp, MI 48363</p>
+          <p className="text-blue-600">billing@kooporders.com</p>
+        </div>
+        <div>
+          <h4 className="font-black uppercase tracking-widest text-red-600 mb-3">BILL TO</h4>
+          <p className="font-bold">[{venue.courseName}]</p>
+          <p>[{venue.contactName}]</p>
+          <p>[{venue.streetAddress}]</p>
+          <p>[{venue.city}, {venue.state} {venue.zip}]</p>
+        </div>
+        <div>
+          <h4 className="font-black uppercase tracking-widest text-red-600 mb-3">INVOICE DETAILS</h4>
+          <div className="grid grid-cols-2 gap-x-2">
+            <span className="font-bold">Invoice #:</span> <span>{invoiceId}</span>
+            <span className="font-bold">Invoice Date:</span> <span>{todayStr}</span>
+            <span className="font-bold">Due Date:</span> <span>{dueDateStr}</span>
+            <span className="font-bold">Billing Period:</span> <span>{billingMonth}</span>
+            <span className="font-bold">Account #:</span> <span>{accountId}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Items Section Header */}
+      <div className="bg-[#213147] text-white px-6 py-2.5 font-bold text-xs uppercase tracking-widest mb-4">
+        {venue.courseName.toUpperCase()} — MONTHLY PLATFORM SERVICES
+      </div>
+
+      {/* Table */}
+      <Table className="mb-8">
+        <TableHeader className="bg-[#213147]/5">
+          <TableRow className="border-b-2 border-[#213147]">
+            <TableHead className="text-[#213147] font-black uppercase text-[10px] tracking-wider py-3">DESCRIPTION</TableHead>
+            <TableHead className="text-[#213147] font-black uppercase text-[10px] tracking-wider py-3 text-center">QTY</TableHead>
+            <TableHead className="text-[#213147] font-black uppercase text-[10px] tracking-wider py-3 text-right">UNIT PRICE</TableHead>
+            <TableHead className="text-[#213147] font-black uppercase text-[10px] tracking-wider py-3 text-right">AMOUNT</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody className="text-[11px]">
+          <TableRow className="border-b border-slate-100">
+            <TableCell className="py-4">
+              <p className="font-bold">Launch Fee — Menu setup, QR signage,</p>
+              <p className="text-slate-500">marketing materials, staff training</p>
+            </TableCell>
+            <TableCell className="text-center">1</TableCell>
+            <TableCell className="text-right">${(venue.launchFee || 0).toFixed(2)}</TableCell>
+            <TableCell className="text-right font-bold">${(venue.launchFee || 0).toFixed(2)}</TableCell>
+          </TableRow>
+          <TableRow className="border-b border-slate-100">
+            <TableCell className="py-4">
+              <p className="font-bold">Monthly Platform Fee — {venue.type} mobile</p>
+              <p className="text-slate-500">ordering</p>
+            </TableCell>
+            <TableCell className="text-center">1</TableCell>
+            <TableCell className="text-right">${(venue.monthlyPlatformFee || 0).toFixed(2)}</TableCell>
+            <TableCell className="text-right font-bold">${(venue.monthlyPlatformFee || 0).toFixed(2)}</TableCell>
+          </TableRow>
+          <TableRow className="border-b border-slate-100">
+            <TableCell className="py-4">
+              <p className="font-bold">Transaction Fees Collected — {orders.length} orders ×</p>
+              <p className="text-slate-500">${(venue.serviceFee || 0).toFixed(2)} fee (patron-paid, remitted monthly)</p>
+            </TableCell>
+            <TableCell className="text-center">{orders.length}</TableCell>
+            <TableCell className="text-right">${(venue.serviceFee || 0).toFixed(2)}</TableCell>
+            <TableCell className="text-right font-bold">${totalFees.toFixed(2)}</TableCell>
+          </TableRow>
+        </TableBody>
+      </Table>
+
+      {/* Totals */}
+      <div className="flex justify-end mb-16">
+        <div className="w-64 space-y-3 text-[11px]">
+          <div className="flex justify-between items-center text-slate-500">
+            <span>Subtotal</span>
+            <span className="font-bold text-slate-900">${subtotal.toFixed(2)}</span>
+          </div>
+          <Separator className="bg-slate-100" />
+          <div className="flex justify-between items-center text-slate-500">
+            <span>Transaction Fees</span>
+            <span className="font-bold text-slate-900">${totalFees.toFixed(2)}</span>
+          </div>
+          <Separator className="bg-slate-100" />
+          <div className="flex justify-between items-center text-slate-500">
+            <span>Tax (if applicable)</span>
+            <span className="font-bold text-slate-900">$0.00</span>
+          </div>
+          <div className="bg-[#213147] text-white px-4 py-3 flex justify-between items-center mt-4">
+            <span className="font-black uppercase tracking-widest text-[10px]">TOTAL DUE</span>
+            <span className="text-xl font-black">${totalDue.toFixed(2)}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Footer Instructions */}
+      <div className="grid grid-cols-2 gap-8 mb-12">
+        <div className="bg-slate-50 p-6 rounded-sm border border-slate-100">
+          <h4 className="font-black text-[10px] uppercase tracking-widest mb-3">PAYMENT INSTRUCTIONS</h4>
+          <div className="text-[10px] space-y-1.5 leading-relaxed text-slate-600">
+            <p>Payment due within 30 days of invoice date.</p>
+            <p>ACH/Bank Transfer preferred.</p>
+            <p>Make checks payable to: <span className="font-bold text-slate-900">Koop Technologies, LLC</span></p>
+            <p>Ref: Invoice # on all payments.</p>
+          </div>
+        </div>
+        <div className="bg-slate-50 p-6 rounded-sm border border-slate-100">
+          <h4 className="font-black text-[10px] uppercase tracking-widest mb-3">NOTES</h4>
+          <div className="text-[10px] space-y-1.5 leading-relaxed text-slate-600">
+            <p>Transaction fees are collected from patrons at time of order and remitted to Koop at month-end.</p>
+            <p>Platform processes payments via Authorize.Net to your merchant account.</p>
+            <p>Questions? Contact <span className="font-bold text-slate-900">billing@koopnow.com</span></p>
+          </div>
+        </div>
+      </div>
+
+      <div className="text-center text-xs text-slate-400 italic mb-16">
+        Thank you for partnering with Koop — driving more revenue to your venue.
+      </div>
+
+      {/* Final Bottom Bar */}
+      <div className="border-t-2 border-[#213147] pt-4 flex justify-between items-center text-[9px] font-bold text-slate-400 uppercase tracking-widest">
+        <div className="flex items-center gap-4">
+          <span className="text-slate-900">KOOP</span>
+          <span>|</span>
+          <span>Mobile Ordering Platform</span>
+        </div>
+        <div className="flex items-center gap-4">
+          <span>www.kooporders.com</span>
+          <span>|</span>
+          <span>billing@kooporders.com</span>
+        </div>
+        <div>Page 1 of 1</div>
+      </div>
+    </div>
+  );
+}
+
 export default function KOOPAdminPage() {
   const firestore = useFirestore();
   const { toast } = useToast();
@@ -197,6 +370,11 @@ export default function KOOPAdminPage() {
   // Date Range for Reports
   const [reportStartDate, setReportStartDate] = useState(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
   const [reportEndDate, setReportEndDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+
+  // Billing State
+  const [isInvoiceDialogOpen, setIsInvoiceDialogOpen] = useState(false);
+  const [selectedInvoice, setSelectedInvoice] = useState<any | null>(null);
+  const [billingMonth, setBillingMonth] = useState(format(subMonths(new Date(), 1), 'yyyy-MM'));
 
   useEffect(() => {
     setIsMounted(true);
@@ -519,6 +697,36 @@ export default function KOOPAdminPage() {
     });
   };
 
+  const handleGenerateInvoice = (seller: Seller) => {
+    if (!orders) return;
+
+    const [year, month] = billingMonth.split('-');
+    const billingPeriodStart = startOfMonth(new Date(parseInt(year), parseInt(month) - 1));
+    const billingPeriodEnd = endOfMonth(billingPeriodStart);
+
+    const venueOrders = orders.filter(o => {
+      if (o.sellerId !== seller.id || !o.createdAt) return false;
+      const orderDate = o.createdAt.toDate();
+      return orderDate >= billingPeriodStart && orderDate <= billingPeriodEnd;
+    });
+
+    const totalFees = venueOrders.reduce((acc, o) => acc + (o.serviceFee || 0), 0);
+    const subtotal = (seller.launchFee || 0) + (seller.monthlyPlatformFee || 0) + totalFees;
+    
+    const invoiceData = {
+      venue: seller,
+      orders: venueOrders,
+      billingMonth: format(billingPeriodStart, 'MMMM yyyy'),
+      totalFees,
+      subtotal,
+      tax: 0,
+      totalDue: subtotal
+    };
+
+    setSelectedInvoice(invoiceData);
+    setIsInvoiceDialogOpen(true);
+  };
+
   const onSave = async (data: SellerFormData) => {
     if (!firestore) return;
     setIsSaving(true);
@@ -665,6 +873,9 @@ export default function KOOPAdminPage() {
         <Button variant="ghost" size="sm" onClick={() => scrollToSection('reports-section', 'operations')} className="h-8 text-[10px] font-bold uppercase tracking-widest px-3 rounded-full hover:bg-primary/10 whitespace-nowrap">
           <FileSpreadsheet className="mr-1.5 h-3.5 w-3.5" /> Reports
         </Button>
+        <Button variant="ghost" size="sm" onClick={() => scrollToSection('billing-section', 'operations')} className="h-8 text-[10px] font-bold uppercase tracking-widest px-3 rounded-full hover:bg-primary/10 whitespace-nowrap">
+          <CreditCard className="mr-1.5 h-3.5 w-3.5" /> Billing
+        </Button>
         <Button variant="ghost" size="sm" onClick={() => scrollToSection('rate-matrix-section', 'operations')} className="h-8 text-[10px] font-bold uppercase tracking-widest px-3 rounded-full hover:bg-primary/10 whitespace-nowrap">
           <Hash className="mr-1.5 h-3.5 w-3.5" /> Rate Matrix
         </Button>
@@ -808,10 +1019,105 @@ export default function KOOPAdminPage() {
             </Card>
           </section>
 
+          {/* Billing & Invoices Section */}
+          <section id="billing-section" className="mt-10 scroll-mt-40">
+            <h2 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground mb-4 flex items-center gap-2">
+                <CreditCard className="h-3.5 w-3.5" /> Monthly Billing & Invoices
+            </h2>
+            <Card className="border shadow-md">
+              <CardHeader className="pb-4 bg-muted/10 border-b">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-red-50 rounded-lg">
+                      <FileText className="h-5 w-5 text-red-600" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-lg uppercase font-headline">Generate Monthly Invoices</CardTitle>
+                      <CardDescription>Calculate platform SaaS and transaction fees for the selected month.</CardDescription>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Input 
+                      type="month" 
+                      value={billingMonth} 
+                      onChange={(e) => setBillingMonth(e.target.value)} 
+                      className="w-40 h-10 font-bold"
+                    />
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="pt-6">
+                <div className="border rounded-xl overflow-hidden bg-background">
+                  <Table>
+                    <TableHeader className="bg-muted/30">
+                      <TableRow>
+                        <TableHead className="text-[10px] font-black uppercase">Venue</TableHead>
+                        <TableHead className="text-[10px] font-black uppercase text-right">SaaS + Launch</TableHead>
+                        <TableHead className="text-[10px] font-black uppercase text-right">Remitted Transaction Fees</TableHead>
+                        <TableHead className="text-[10px] font-black uppercase text-right">Invoice Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {isSellersLoading || isOrdersLoading ? (
+                        [...Array(3)].map((_, i) => (
+                          <TableRow key={`bill-skel-${i}`}>
+                            <TableCell><Skeleton className="h-4 w-32" /></TableCell>
+                            <TableCell><Skeleton className="h-4 w-16 ml-auto" /></TableCell>
+                            <TableCell><Skeleton className="h-4 w-16 ml-auto" /></TableCell>
+                            <TableCell className="text-right"><Skeleton className="h-8 w-24 ml-auto" /></TableCell>
+                          </TableRow>
+                        ))
+                      ) : sellers && sellers.length > 0 ? (
+                        sellers.map((s) => {
+                          const [year, month] = billingMonth.split('-');
+                          const start = startOfMonth(new Date(parseInt(year), parseInt(month) - 1));
+                          const end = endOfMonth(start);
+                          
+                          const venueOrders = orders?.filter(o => {
+                            if (o.sellerId !== s.id || !o.createdAt) return false;
+                            const d = o.createdAt.toDate();
+                            return d >= start && d <= end;
+                          }) || [];
+
+                          const totalTransactionFees = venueOrders.reduce((acc, o) => acc + (o.serviceFee || 0), 0);
+                          const contractFees = (s.monthlyPlatformFee || 0) + (s.launchFee || 0);
+
+                          return (
+                            <TableRow key={`bill-${s.id}`} className="hover:bg-muted/5 transition-colors">
+                              <TableCell>
+                                <div className="flex flex-col">
+                                  <span className="text-xs font-bold">{s.courseName}</span>
+                                  <span className="text-[9px] uppercase text-muted-foreground">{s.type}</span>
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-right font-mono font-bold text-xs">${contractFees.toFixed(2)}</TableCell>
+                              <TableCell className="text-right font-mono font-bold text-xs text-indigo-600">${totalTransactionFees.toFixed(2)}</TableCell>
+                              <TableCell className="text-right">
+                                <Button size="sm" variant="outline" className="h-8 text-[10px] font-black uppercase tracking-widest gap-2" onClick={() => handleGenerateInvoice(s)}>
+                                  <Printer className="h-3.5 w-3.5" /> View/Print Invoice
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })
+                      ) : (
+                        <TableRow>
+                          <TableCell colSpan={4} className="h-32 text-center text-muted-foreground italic text-sm">
+                            No sellers available for billing.
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          </section>
+
           {/* Rate Matrix Section */}
           <section id="rate-matrix-section" className="mt-10 scroll-mt-40">
             <h2 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground mb-4 flex items-center gap-2">
-                <Settings2 className="h-3.5 w-3.5" /> Platform Rate Matrix
+                <Hash className="h-3.5 w-3.5" /> Platform Rate Matrix
             </h2>
             <Card className="border shadow-md">
               <CardHeader className="pb-4 bg-muted/10 border-b">
@@ -865,7 +1171,7 @@ export default function KOOPAdminPage() {
                                     return (
                                       <Badge key={m} variant="outline" className="h-6 bg-muted/20 border-primary/10 text-[9px] font-bold px-2 py-0 gap-2 items-center flex">
                                         <span className="opacity-60 uppercase">{m}:</span>
-                                        <span className="text-primary font-black">${fee.toFixed(2)}</span>
+                                        <span className="text-primary font-black">${(fee || 0).toFixed(2)}</span>
                                       </Badge>
                                     );
                                   })}
@@ -919,7 +1225,7 @@ export default function KOOPAdminPage() {
                           <TableCell className="font-medium">
                             <div className="flex flex-col">
                                 <span>{seller.courseName}</span>
-                                <span className="text-[10px] text-muted-foreground font-mono">Fee: ${seller.serviceFee.toFixed(2)} | Tax: {seller.taxRate || 6.0}%</span>
+                                <span className="text-[10px] text-muted-foreground font-mono">Fee: ${(seller.serviceFee || 0).toFixed(2)} | Tax: {seller.taxRate || 6.0}%</span>
                             </div>
                           </TableCell>
                           <TableCell>
@@ -1095,6 +1401,27 @@ export default function KOOPAdminPage() {
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* Invoice Generator Modal */}
+      <Dialog open={isInvoiceDialogOpen} onOpenChange={setIsInvoiceDialogOpen}>
+        <DialogContent className="sm:max-w-[900px] max-h-[90vh] overflow-y-auto p-0">
+          <DialogHeader className="px-6 py-4 border-b bg-muted/30 flex flex-row items-center justify-between">
+            <div>
+              <DialogTitle className="uppercase font-headline tracking-tight">Invoice Preview</DialogTitle>
+              <DialogDescription>Review and print monthly billing for {selectedInvoice?.venue.courseName}.</DialogDescription>
+            </div>
+            <Button onClick={() => window.print()} className="h-10 px-6 font-black uppercase tracking-widest gap-2">
+              <Printer className="h-4 w-4" /> Print / Save PDF
+            </Button>
+          </DialogHeader>
+          <div className="p-8 bg-slate-100/50 print:p-0 print:bg-white">
+            {selectedInvoice && <PrintableInvoice invoiceData={selectedInvoice} />}
+          </div>
+          <DialogFooter className="px-6 py-4 border-t bg-muted/30">
+            <Button variant="ghost" onClick={() => setIsInvoiceDialogOpen(false)} className="font-bold uppercase text-[10px]">Close Preview</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
         <DialogContent className="sm:max-w-[700px] max-h-[95vh] overflow-y-auto">
