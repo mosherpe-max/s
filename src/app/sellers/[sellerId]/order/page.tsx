@@ -96,7 +96,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
         if (needsBevCartReset) updates.bevcartActive = false;
         if (needsClubhouseReset) updates.clubhouseActive = false;
         
-        updateDoc(doc(firestore, 'sellers', sellerId), updates).catch(() => {});
+        updateDoc(doc(firestore, sellerId), updates).catch(() => {});
       }
     }
   }, [seller, firestore, sellerId]);
@@ -194,9 +194,15 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
   const isServiceActive = useMemo(() => {
     if (!seller) return false;
     if (seller.status !== 'Active') return false;
-    if (selectedMenuType === 'Beverage Cart') return seller.bevcartActive === true;
-    if (selectedMenuType === 'Clubhouse') return seller.clubhouseActive === true;
-    return true; 
+    
+    // Only allow orders if a driver/server is online for the requested mode
+    if (selectedMenuType === 'Beverage Cart') {
+      return seller.bevcartActive === true;
+    }
+    
+    // All other modes (Clubhouse, Lane Delivery, Pool, Dine-In, etc.)
+    // are gated by the general Clubhouse/Server activity toggle
+    return seller.clubhouseActive === true; 
   }, [seller, selectedMenuType]);
 
   const handleJumpToCategory = (cat: string) => {
@@ -208,6 +214,15 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
   const handlePlaceOrder = async () => {
     try {
       if (!firestore || !seller) return;
+
+      if (!isServiceActive) {
+        toast({ 
+          variant: 'destructive', 
+          title: 'Service Offline', 
+          description: `Staff just went offline for ${selectedMenuType}. Please check back in a moment.` 
+        });
+        return;
+      }
 
       const locationLabel = serviceLocationLabels[selectedMenuType];
       if (locationLabel && !locationValue.trim()) {
@@ -360,7 +375,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
             <div className="bg-muted p-8 rounded-full"><ShieldAlert className="h-16 w-16 opacity-30" /></div>
             <div className="space-y-3">
               <h2 className="font-headline text-3xl font-bold uppercase tracking-tight text-[#213147]">{selectedMenuType} OFFLINE</h2>
-              <p className="text-muted-foreground text-xs max-w-xs mx-auto">This service is not currently taking orders. Please try another service or check back later.</p>
+              <p className="text-muted-foreground text-xs max-w-xs mx-auto">This service is not currently taking orders. Staff are either busy or off-duty. Please try another service or check back later.</p>
             </div>
           </div>
         ) : (
@@ -501,7 +516,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
                 )}
               </div>
 
-              {/* 2. Order Summary - Back to original spot below Tip */}
+              {/* 2. Order Summary */}
               <div className="space-y-4">
                 <h3 className="font-black text-[10px] uppercase tracking-widest text-muted-foreground flex items-center gap-2 px-1">
                   <Info className="w-3.5 h-3.5" /> ORDER SUMMARY
@@ -545,6 +560,14 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
           </ScrollArea>
 
           <SheetFooter className="p-6 bg-white border-t-2 flex flex-col gap-4 shrink-0 relative z-10 shadow-[0_-10px_30px_rgba(0,0,0,0.08)]">
+            {!isServiceActive && (
+              <div className="bg-destructive/10 border border-destructive/20 p-3 rounded-xl flex items-center gap-3 animate-in fade-in duration-300">
+                <AlertTriangle className="h-5 w-5 text-destructive shrink-0" />
+                <p className="text-[10px] font-black text-destructive uppercase leading-tight">
+                  Staff just went offline for {selectedMenuType}. Please check back later.
+                </p>
+              </div>
+            )}
             <div className="flex justify-between items-center px-1">
               <span className="font-black text-xs uppercase tracking-[0.2em] text-muted-foreground">FINAL TOTAL</span>
               <span className="font-headline font-black text-3xl text-primary tracking-tighter">${finalTotal.toFixed(2)}</span>
@@ -553,7 +576,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
               size="lg" 
               className="w-full text-base font-black h-16 font-headline uppercase tracking-[0.2em] bg-primary shadow-2xl rounded-2xl transition-all active:scale-95" 
               onClick={handlePlaceOrder} 
-              disabled={isPlacingOrder || (locationLabel && !locationValue)}
+              disabled={isPlacingOrder || !isServiceActive || (locationLabel && !locationValue)}
             >
               {isPlacingOrder ? <><Loader2 className="animate-spin mr-2" /> PROCESSING...</> : (editingOrderId ? "UPDATE ORDER" : "PLACE ORDER NOW")}
             </Button>
