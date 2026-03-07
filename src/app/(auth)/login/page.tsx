@@ -16,7 +16,7 @@ import {
 } from 'firebase/auth';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
-import { Loader2, ShieldCheck, Mail, Lock, User, LogOut, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Loader2, ShieldCheck, Mail, Lock, User, LogOut, CheckCircle2, AlertCircle, UserPlus, LogIn } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 const GolfBallIcon = (props: React.SVGProps<SVGSVGElement>) => (
@@ -54,27 +54,26 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [isSignUp, setIsSignUp] = useState(false);
   const [isAdminSettingUp, setIsAdminSettingUp] = useState(false);
 
-  // Redirect if already logged in and not specifically trying to setup admin
-  useEffect(() => {
-    if (user && !isAdminSettingUp) {
-      // Just stay here if they are logged in, allow them to log out or setup admin
-    }
-  }, [user, isAdminSettingUp]);
-
-  const handleEmailSignIn = async (e: React.FormEvent) => {
+  const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!auth) return;
     setIsLoading(true);
     try {
-      await signInWithEmailAndPassword(auth, email, password);
-      toast({ title: "Welcome back!", description: "You have signed in successfully." });
+      if (isSignUp) {
+        await createUserWithEmailAndPassword(auth, email, password);
+        toast({ title: "Account Created", description: "You are now signed in. Please setup admin access below." });
+      } else {
+        await signInWithEmailAndPassword(auth, email, password);
+        toast({ title: "Welcome back!", description: "Authorized session established." });
+      }
     } catch (error: any) {
       toast({ 
         variant: "destructive", 
-        title: "Sign In Failed", 
-        description: error.message || "Invalid credentials." 
+        title: isSignUp ? "Sign Up Failed" : "Sign In Failed", 
+        description: error.message || "Authentication error." 
       });
     } finally {
       setIsLoading(false);
@@ -174,32 +173,41 @@ export default function LoginPage() {
                 <CheckCircle2 className="h-5 w-5 text-green-500" />
               </div>
 
-              <div className="grid grid-cols-1 gap-3">
-                <Button 
-                  onClick={handleSetupAdmin} 
-                  className="h-12 bg-indigo-600 hover:bg-indigo-700 shadow-lg gap-3"
-                  disabled={isAdminSettingUp}
-                >
-                  {isAdminSettingUp ? <Loader2 className="h-5 w-5 animate-spin" /> : <ShieldCheck className="h-5 w-5" />}
-                  <span className="font-headline font-bold uppercase tracking-wider">Setup Prototype Admin Access</span>
-                </Button>
-                
-                <Button 
-                  asChild 
-                  variant="outline" 
-                  className="h-12 border-2 border-[#213147] text-[#213147] font-bold uppercase tracking-widest"
-                >
-                  <a href="/admin">Go to Dashboard</a>
-                </Button>
+              <div className="space-y-3">
+                <div className="p-4 bg-indigo-50 border-2 border-indigo-100 rounded-xl space-y-2">
+                  <p className="text-[10px] font-black uppercase text-indigo-600 tracking-widest">Initial Setup Required</p>
+                  <p className="text-xs text-indigo-800 font-medium leading-relaxed">
+                    Click the button below to grant this account global administrative privileges in the database.
+                  </p>
+                </div>
 
-                <Button 
-                  variant="ghost" 
-                  onClick={handleLogout} 
-                  className="text-muted-foreground hover:text-destructive h-10 uppercase text-[10px] font-black tracking-[0.2em] gap-2"
-                >
-                  <LogOut className="h-3.5 w-3.5" />
-                  Terminate Session
-                </Button>
+                <div className="grid grid-cols-1 gap-3">
+                  <Button 
+                    onClick={handleSetupAdmin} 
+                    className="h-14 bg-indigo-600 hover:bg-indigo-700 shadow-lg gap-3"
+                    disabled={isAdminSettingUp}
+                  >
+                    {isAdminSettingUp ? <Loader2 className="h-5 w-5 animate-spin" /> : <ShieldCheck className="h-5 w-5" />}
+                    <span className="font-headline font-bold uppercase tracking-wider">Setup Prototype Admin Access</span>
+                  </Button>
+                  
+                  <Button 
+                    asChild 
+                    variant="outline" 
+                    className="h-12 border-2 border-[#213147] text-[#213147] font-bold uppercase tracking-widest"
+                  >
+                    <a href="/admin">Go to Dashboard</a>
+                  </Button>
+
+                  <Button 
+                    variant="ghost" 
+                    onClick={handleLogout} 
+                    className="text-muted-foreground hover:text-destructive h-10 uppercase text-[10px] font-black tracking-[0.2em] gap-2"
+                  >
+                    <LogOut className="h-3.5 w-3.5" />
+                    Terminate Session
+                  </Button>
+                </div>
               </div>
             </div>
           ) : (
@@ -210,7 +218,7 @@ export default function LoginPage() {
               </TabsList>
 
               <TabsContent value="email" className="space-y-4">
-                <form onSubmit={handleEmailSignIn} className="space-y-4">
+                <form onSubmit={handleEmailAuth} className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="email" className="text-[10px] font-black uppercase tracking-widest px-1">Email Address</Label>
                     <div className="relative">
@@ -240,12 +248,25 @@ export default function LoginPage() {
                       />
                     </div>
                   </div>
+                  
+                  <div className="flex items-center justify-between px-1">
+                    <Button 
+                      type="button" 
+                      variant="link" 
+                      className="text-[10px] font-bold uppercase p-0 h-auto"
+                      onClick={() => setIsSignUp(!isSignUp)}
+                    >
+                      {isSignUp ? "Already have an account? Sign In" : "Need an account? Create one"}
+                    </Button>
+                  </div>
+
                   <Button 
                     type="submit" 
-                    className="w-full h-12 bg-[#213147] hover:bg-[#213147]/90 text-white shadow-xl font-headline font-black uppercase tracking-widest mt-2"
+                    className="w-full h-12 bg-[#213147] hover:bg-[#213147]/90 text-white shadow-xl font-headline font-black uppercase tracking-widest mt-2 gap-2"
                     disabled={isLoading}
                   >
-                    {isLoading ? <Loader2 className="animate-spin mr-2" /> : "AUTHENTICATE"}
+                    {isLoading ? <Loader2 className="animate-spin" /> : (isSignUp ? <UserPlus className="h-4 w-4" /> : <LogIn className="h-4 w-4" />)}
+                    {isSignUp ? "CREATE ACCOUNT" : "AUTHENTICATE"}
                   </Button>
                 </form>
               </TabsContent>
