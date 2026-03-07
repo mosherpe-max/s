@@ -86,7 +86,7 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
   useSortable
-} from '@radix-ui/react-sortable';
+} from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { MapView } from '@/components/map-view';
 import { APIProvider, Map, useMap } from '@vis.gl/react-google-maps';
@@ -932,7 +932,11 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
 
     const itemsInCategory = menuItems
       .filter(i => i.category === category && i.availableOn?.includes(menuType))
-      .sort((a, b) => (a.menuRanks?.[menuType] ?? a.rank) - (b.menuRanks?.[menuType] ?? b.rank));
+      .sort((a, b) => {
+        const rankA = a.menuRanks?.[menuType] ?? a.rank ?? 0;
+        const rankB = b.menuRanks?.[menuType] ?? b.rank ?? 0;
+        return rankA - rankB;
+      });
 
     const oldIndex = itemsInCategory.findIndex(i => i.id === active.id);
     const newIndex = itemsInCategory.findIndex(i => i.id === over.id);
@@ -1068,6 +1072,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
             <div className="col-span-1 md:col-span-2 xl:col-span-1 bg-primary/5 rounded-xl border-2 border-primary/10 p-4 flex flex-col justify-center gap-1 shadow-sm">
               <p className="text-[10px] font-black uppercase tracking-[0.2em] text-primary/60 leading-none mb-1">Establishment Totals</p>
               <div className="flex justify-between items-center">
+                <div className="flex justify-between items-center">
                 <div className="flex flex-col">
                   <span className="text-xs font-black uppercase tracking-tight">Today's Revenue</span>
                   <span className="text-lg font-headline font-black text-primary">${opsMetrics?.total?.revenue.toFixed(2) || '0.00'}</span>
