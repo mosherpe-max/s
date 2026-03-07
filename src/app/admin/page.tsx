@@ -33,7 +33,10 @@ import {
   Filter,
   Activity,
   ListOrdered,
-  Timer
+  Timer,
+  Hash,
+  Map as MapIcon,
+  Percent
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import {
@@ -97,7 +100,7 @@ const sellerSchema = z.object({
   contactName: z.string().min(2, 'Contact person name is required'),
   contactEmail: z.string().email('Please enter a valid email address'),
   contactPhone: z.string().min(10, 'Phone number must be at least 10 digits'),
-  serviceFee: z.coerce.number().min(0, 'Default convenience fee cannot be negative').max(100, 'Fee seems too high'),
+  serviceFee: z.coerce.number().min(0, 'Default convenience fee cannot be negative'),
   taxRate: z.coerce.number().min(0, 'Tax rate cannot be negative').max(100, 'Tax rate seems too high').default(6.0),
   menuServiceFees: z.record(z.string(), z.coerce.number().min(0).optional()).optional(),
   status: z.enum(['Active', 'Inactive']),
@@ -196,13 +199,11 @@ export default function KOOPAdminPage() {
 
   const prospectsQuery = useMemoFirebase(() => {
     if (!firestore) return null;
-    // Removing orderBy to avoid index issues in prototype; sorting on client instead.
     return collection(firestore, 'prospects');
   }, [firestore]);
 
   const activitiesQuery = useMemoFirebase(() => {
     if (!firestore) return null;
-    // Removing orderBy to avoid index issues in prototype; sorting on client instead.
     return collection(firestore, 'activities');
   }, [firestore]);
 
@@ -513,15 +514,7 @@ export default function KOOPAdminPage() {
           <Skeleton className="h-12 w-64" />
           <div className="flex gap-3"><Skeleton className="h-10 w-32" /><Skeleton className="h-10 w-40" /></div>
         </header>
-        <Skeleton className="h-10 w-full mb-8" />
-        <div className="space-y-8">
-          <div className="flex gap-4">
-            <Skeleton key="skel-1" className="h-40 flex-1" />
-            <Skeleton key="skel-2" className="h-40 flex-1" />
-            <Skeleton key="skel-3" className="h-40 flex-1" />
-          </div>
-          <Skeleton className="h-[400px] w-full" />
-        </div>
+        <Skeleton className="h-[400px] w-full" />
       </div>
     );
   }
@@ -808,7 +801,8 @@ export default function KOOPAdminPage() {
           </DialogHeader>
           <Separator className="my-2" />
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSave)} className="space-y-6 py-4">
+            <form onSubmit={form.handleSubmit(onSave)} className="space-y-8 py-4">
+              {/* SECTION 1: BASIC INFO */}
               <div className="space-y-4">
                 <h3 className="text-sm font-bold uppercase tracking-wider text-primary flex items-center gap-2"><Building className="h-4 w-4" /> Basic Information</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -820,8 +814,8 @@ export default function KOOPAdminPage() {
                       <FormLabel>Status</FormLabel>
                       <FormControl>
                         <RadioGroup onValueChange={field.onChange} value={field.value} className="flex flex-row space-x-6 pt-2">
-                          <div className="flex items-center space-x-2"><RadioGroupItem value="Active" /><Label className="font-normal">Active</Label></div>
-                          <div className="flex items-center space-x-2"><RadioGroupItem value="Inactive" /><Label className="font-normal">Inactive</Label></div>
+                          <div className="flex items-center space-x-2"><RadioGroupItem value="Active" id="active" /><Label htmlFor="active" className="font-normal">Active</Label></div>
+                          <div className="flex items-center space-x-2"><RadioGroupItem value="Inactive" id="inactive" /><Label htmlFor="inactive" className="font-normal">Inactive</Label></div>
                         </RadioGroup>
                       </FormControl>
                     </FormItem>
@@ -857,6 +851,91 @@ export default function KOOPAdminPage() {
                   </FormItem>
                 )} />
               </div>
+
+              {/* SECTION 2: DYNAMIC VENUE CONFIG */}
+              {(selectedType === 'Bowling Alley' || selectedType === 'Restaurant' || isHalfwayHouseEnabled) && (
+                <div className="space-y-4 bg-muted/20 p-4 rounded-xl border border-dashed">
+                  <h3 className="text-sm font-bold uppercase tracking-wider text-primary flex items-center gap-2"><Settings2 className="h-4 w-4" /> Service Configuration</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {selectedType === 'Bowling Alley' && (
+                      <FormField control={form.control} name="laneCount" render={({ field }) => (
+                        <FormItem><FormLabel>Total Lanes</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormDescription>Maximum lane number for selection.</FormDescription></FormItem>
+                      )} />
+                    )}
+                    {selectedType === 'Restaurant' && (
+                      <FormField control={form.control} name="tableCount" render={({ field }) => (
+                        <FormItem><FormLabel>Total Tables</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormDescription>Maximum table number for Dine-In.</FormDescription></FormItem>
+                      )} />
+                    )}
+                    {isHalfwayHouseEnabled && (
+                      <FormField control={form.control} name="halfwayHouseCount" render={({ field }) => (
+                        <FormItem><FormLabel>Halfway House Count</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormDescription>How many halfway houses on course?</FormDescription></FormItem>
+                      )} />
+                    )}
+                  </div>
+                  {isHalfwayHouseEnabled && halfwayCount > 0 && (
+                    <div className="space-y-2 mt-4">
+                      <Label className="text-xs uppercase font-bold text-muted-foreground">Halfway House Names</Label>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {fields.map((field, index) => (
+                          <FormField key={field.id} control={form.control} name={`halfwayHouseNames.${index}`} render={({ field }) => (
+                            <FormItem><FormControl><Input {...field} placeholder={`Hole ${index + 9} Snack Shack`} /></FormControl></FormItem>
+                          )} />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* SECTION 3: ADDRESS */}
+              <div className="space-y-4">
+                <h3 className="text-sm font-bold uppercase tracking-wider text-primary flex items-center gap-2"><MapIcon className="h-4 w-4" /> Physical Location</h3>
+                <FormField control={form.control} name="streetAddress" render={({ field }) => (
+                  <FormItem><FormLabel>Street Address</FormLabel><FormControl><Input {...field} placeholder="123 Fairway Dr" /></FormControl></FormItem>
+                )} />
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <FormField control={form.control} name="city" render={({ field }) => (
+                    <FormItem><FormLabel>City</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
+                  )} />
+                  <FormField control={form.control} name="state" render={({ field }) => (
+                    <FormItem><FormLabel>State</FormLabel><FormControl><Input {...field} placeholder="CA" /></FormControl></FormItem>
+                  )} />
+                  <FormField control={form.control} name="zip" render={({ field }) => (
+                    <FormItem><FormLabel>ZIP Code</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
+                  )} />
+                </div>
+              </div>
+
+              {/* SECTION 4: FINANCIALS */}
+              <div className="space-y-4">
+                <h3 className="text-sm font-bold uppercase tracking-wider text-primary flex items-center gap-2"><DollarSign className="h-4 w-4" /> Financial Settings</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField control={form.control} name="serviceFee" render={({ field }) => (
+                    <FormItem><FormLabel>Convenience Fee ($)</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormDescription>Platform fee per order.</FormDescription></FormItem>
+                  )} />
+                  <FormField control={form.control} name="taxRate" render={({ field }) => (
+                    <FormItem><FormLabel>Tax Rate (%)</FormLabel><FormControl><div className="relative"><Input type="number" step="0.1" {...field} className="pr-8" /><Percent className="absolute right-3 top-3 h-4 w-4 text-muted-foreground" /></div></FormControl><FormDescription>Local sales tax percentage.</FormDescription></FormItem>
+                  )} />
+                </div>
+              </div>
+
+              {/* SECTION 5: CONTACT */}
+              <div className="space-y-4">
+                <h3 className="text-sm font-bold uppercase tracking-wider text-primary flex items-center gap-2"><User className="h-4 w-4" /> Primary Contact</h3>
+                <FormField control={form.control} name="contactName" render={({ field }) => (
+                  <FormItem><FormLabel>Contact Person</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
+                )} />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField control={form.control} name="contactEmail" render={({ field }) => (
+                    <FormItem><FormLabel>Email Address</FormLabel><FormControl><div className="relative"><Input type="email" {...field} className="pl-10" /><Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" /></div></FormControl></FormItem>
+                  )} />
+                  <FormField control={form.control} name="contactPhone" render={({ field }) => (
+                    <FormItem><FormLabel>Phone Number</FormLabel><FormControl><div className="relative"><Input {...field} className="pl-10" /><Phone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" /></div></FormControl></FormItem>
+                  )} />
+                </div>
+              </div>
+
               <div className="flex justify-end gap-3 pt-6 border-t">
                 <Button type="button" variant="ghost" onClick={() => setIsFormOpen(false)} disabled={isSaving}>Cancel</Button>
                 <Button type="submit" disabled={isSaving} className="min-w-[140px]">
