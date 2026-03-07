@@ -38,7 +38,9 @@ import {
   Map as MapIcon,
   Percent,
   Settings2,
-  CalendarDays
+  CalendarDays,
+  Download,
+  FileSpreadsheet
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import {
@@ -81,9 +83,10 @@ import { sellerTypes } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
-import { isToday, isThisMonth, isThisYear, format } from 'date-fns';
+import { isToday, isThisMonth, isThisYear, format, startOfMonth } from 'date-fns';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
+import * as XLSX from 'xlsx';
 
 const sellerSchema = z.object({
   courseName: z.string().min(2, 'Seller name must be at least 2 characters'),
@@ -186,6 +189,10 @@ export default function KOOPAdminPage() {
   const [isResetting, setIsResetting] = useState(false);
   const [editingSeller, setEditingSeller] = useState<Seller | null>(null);
   const [sellerToDelete, setSellerToDelete] = useState<Seller | null>(null);
+
+  // Date Range for Reports
+  const [reportStartDate, setReportStartDate] = useState(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
+  const [reportEndDate, setReportEndDate] = useState(format(new Date(), 'yyyy-MM-dd'));
 
   useEffect(() => {
     setIsMounted(true);
@@ -428,6 +435,55 @@ export default function KOOPAdminPage() {
     }
   };
 
+  const handleDownloadSalesReport = () => {
+    if (!orders || !sellers) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Data is not loaded yet.' });
+      return;
+    }
+
+    const start = new Date(reportStartDate);
+    const end = new Date(reportEndDate);
+    end.setHours(23, 59, 59, 999);
+
+    const filteredOrders = orders.filter(o => {
+      if (!o.createdAt) return false;
+      const orderDate = o.createdAt.toDate();
+      return orderDate >= start && orderDate <= end;
+    });
+
+    const reportData = sellers.map(seller => {
+      const venueOrders = filteredOrders.filter(o => o.sellerId === seller.id);
+      const koopRevenue = venueOrders.reduce((acc, o) => acc + (o.serviceFee || 0), 0);
+      const totalVenueSales = venueOrders.reduce((acc, o) => acc + (o.total || 0), 0);
+      
+      return {
+        'Venue Name': seller.courseName,
+        'Type': seller.type,
+        'Total Orders': venueOrders.length,
+        'Gross Sales ($)': totalVenueSales.toFixed(2),
+        'KOOP Platform Revenue ($)': koopRevenue.toFixed(2),
+        'Monthly SaaS Fee ($)': seller.monthlyPlatformFee || 0,
+        'Contract Launch Fee ($)': seller.launchFee || 0,
+        'Contact Email': seller.contactEmail
+      };
+    });
+
+    const ws = XLSX.utils.json_to_sheet(reportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Revenue Summary");
+    
+    // Auto-size columns
+    const maxWidths = Object.keys(reportData[0] || {}).map(key => ({ wch: Math.max(key.length, 15) }));
+    ws['!cols'] = maxWidths;
+
+    XLSX.writeFile(wb, `KOOP_Platform_Revenue_${reportStartDate}_to_${reportEndDate}.xlsx`);
+    
+    toast({
+      title: "Report Generated",
+      description: `Sales data exported for ${filteredOrders.length} orders across ${reportData.length} venues.`
+    });
+  };
+
   const onSave = async (data: SellerFormData) => {
     if (!firestore) return;
     setIsSaving(true);
@@ -576,7 +632,7 @@ export default function KOOPAdminPage() {
             <h2 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground mb-4 flex items-center gap-2">
                 <DollarSign className="h-3.5 w-3.5" /> Platform Revenue
             </h2>
-            <div className="flex flex-wrap gap-4">
+            <div className="flex flex-wrap gap-4 mb-8">
                 {isOrdersLoading ? (
                     <>
                         <Skeleton key="rev-skel-1" className="h-40 flex-1 min-w-[280px]" />
@@ -591,6 +647,51 @@ export default function KOOPAdminPage() {
                     </>
                 ) : null}
             </div>
+
+            {/* Platform Reports Section */}
+            <Card className="border-2 border-dashed shadow-none">
+              <CardHeader className="pb-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-indigo-50 rounded-lg">
+                    <FileSpreadsheet className="h-5 w-5 text-indigo-600" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-lg">Platform Revenue Reports</CardTitle>
+                    <CardDescription>Export detailed sales and fee breakdown by venue.</CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-col sm:flex-row items-end gap-4">
+                  <div className="space-y-1.5 flex-1 w-full">
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Start Date</Label>
+                    <Input 
+                      type="date" 
+                      value={reportStartDate} 
+                      onChange={(e) => setReportStartDate(e.target.value)} 
+                      className="h-10 font-mono font-bold"
+                    />
+                  </div>
+                  <div className="space-y-1.5 flex-1 w-full">
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">End Date</Label>
+                    <Input 
+                      type="date" 
+                      value={reportEndDate} 
+                      onChange={(e) => setReportEndDate(e.target.value)} 
+                      className="h-10 font-mono font-bold"
+                    />
+                  </div>
+                  <Button 
+                    onClick={handleDownloadSalesReport}
+                    disabled={isOrdersLoading || isSellersLoading}
+                    className="bg-indigo-600 hover:bg-indigo-700 h-10 w-full sm:w-auto px-8 shadow-md"
+                  >
+                    <Download className="mr-2 h-4 w-4" />
+                    Export Revenue Data
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
           </section>
 
           <Card className="shadow-sm border-muted">
