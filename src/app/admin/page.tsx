@@ -1256,7 +1256,6 @@ export default function KOOPAdminPage() {
                           <TableCell className="font-medium">
                             <div className="flex flex-col">
                                 <span>{seller.courseName}</span>
-                                <span className="text-[10px] text-muted-foreground font-mono">Fee: ${(seller.serviceFee || 0).toFixed(2)} | Tax: {seller.taxRate || 6.0}%</span>
                             </div>
                           </TableCell>
                           <TableCell>
