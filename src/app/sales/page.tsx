@@ -2,7 +2,7 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import { collection, doc, setDoc, addDoc, query, orderBy, serverTimestamp, deleteDoc } from 'firebase/firestore';
+import { collection, doc, setDoc, addDoc, query, orderBy, serverTimestamp, deleteDoc, where } from 'firebase/firestore';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -13,20 +13,15 @@ import {
   Mail, 
   MapPin, 
   TrendingUp, 
-  Calendar, 
   Plus, 
   Filter, 
   Search, 
-  User, 
   ClipboardList, 
   DollarSign,
-  Loader2,
   Trash2,
-  ChevronRight,
-  BarChart3,
-  Layers,
   MessageSquare,
-  Edit
+  Edit,
+  User
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -50,7 +45,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
-import type { Prospect, SalesActivity, ProspectStage, CRMVenueType } from '@/lib/types';
+import type { Prospect, SalesActivity, ProspectStage } from '@/lib/types';
 
 const prospectSchema = z.object({
   venueName: z.string().min(2, 'Venue name required'),
@@ -80,7 +75,6 @@ export default function SalesCRMPage() {
   const [isProspectDialogOpen, setIsProspectDialogOpen] = useState(false);
   const [isActivityDialogOpen, setIsActivityDialogOpen] = useState(false);
   const [selectedProspect, setSelectedProspect] = useState<Prospect | null>(null);
-  const [isAdminView, setIsAdminView] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
   // Mock Rep - In a real app this would be the logged in user
@@ -88,13 +82,23 @@ export default function SalesCRMPage() {
 
   const prospectsQuery = useMemoFirebase(() => {
     if (!firestore) return null;
-    return query(collection(firestore, 'prospects'), orderBy('updatedAt', 'desc'));
-  }, [firestore]);
+    // Sales Reps only see their own prospects
+    return query(
+      collection(firestore, 'prospects'), 
+      where('assignedRepId', '==', currentRep.id),
+      orderBy('updatedAt', 'desc')
+    );
+  }, [firestore, currentRep.id]);
 
   const activitiesQuery = useMemoFirebase(() => {
     if (!firestore) return null;
-    return query(collection(firestore, 'activities'), orderBy('date', 'desc'));
-  }, [firestore]);
+    // Sales Reps only see their own activities
+    return query(
+      collection(firestore, 'activities'), 
+      where('repId', '==', currentRep.id),
+      orderBy('date', 'desc')
+    );
+  }, [firestore, currentRep.id]);
 
   const { data: prospects, isLoading: isProspectsLoading } = useCollection<Prospect>(prospectsQuery);
   const { data: activities, isLoading: isActivitiesLoading } = useCollection<SalesActivity>(activitiesQuery);
@@ -102,9 +106,6 @@ export default function SalesCRMPage() {
   const filteredProspects = useMemo(() => {
     if (!prospects) return [];
     let list = prospects;
-    if (!isAdminView) {
-      list = list.filter(p => p.assignedRepId === currentRep.id);
-    }
     if (searchTerm) {
       list = list.filter(p => 
         p.venueName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -112,18 +113,16 @@ export default function SalesCRMPage() {
       );
     }
     return list;
-  }, [prospects, isAdminView, currentRep.id, searchTerm]);
+  }, [prospects, searchTerm]);
 
   const stats = useMemo(() => {
     if (!filteredProspects) return null;
     const closed = filteredProspects.filter(p => p.stage === 'Closed');
     const pipelineValue = filteredProspects.reduce((acc, p) => acc + (p.launchFeeQuoted || 0), 0);
-    const estAnnualVolume = closed.reduce((acc, p) => acc + (p.estVolume || 0) * 12, 0);
     return {
       total: filteredProspects.length,
       closedCount: closed.length,
       pipelineValue,
-      estAnnualVolume
     };
   }, [filteredProspects]);
 
@@ -159,8 +158,8 @@ export default function SalesCRMPage() {
     const payload = {
       ...data,
       id,
-      assignedRepId: selectedProspect?.assignedRepId || currentRep.id,
-      assignedRepName: selectedProspect?.assignedRepName || currentRep.name,
+      assignedRepId: currentRep.id,
+      assignedRepName: currentRep.name,
       updatedAt: serverTimestamp(),
       createdAt: selectedProspect?.createdAt || serverTimestamp(),
     };
@@ -217,32 +216,25 @@ export default function SalesCRMPage() {
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <h1 className="font-headline text-3xl font-bold uppercase tracking-tight">SALES CRM</h1>
-            <Badge variant="outline" className="text-[10px] font-black uppercase tracking-widest bg-primary/5 border-primary/20">
-              Internal Tool
+            <h1 className="font-headline text-3xl font-bold uppercase tracking-tight text-indigo-600">MY PIPELINE</h1>
+            <Badge variant="outline" className="text-[10px] font-black uppercase tracking-widest bg-indigo-50 border-indigo-200 text-indigo-700">
+              Sales Rep View
             </Badge>
           </div>
-          <p className="text-muted-foreground text-sm">Manage your pipeline and venue relationships.</p>
+          <p className="text-muted-foreground text-sm">Welcome back, {currentRep.name}. Manage your active deals below.</p>
         </div>
-        <div className="flex items-center gap-3">
-          <Button variant="outline" size="sm" onClick={() => setIsAdminView(!isAdminView)}>
-            {isAdminView ? <User className="mr-2 h-4 w-4" /> : <Layers className="mr-2 h-4 w-4" />}
-            {isAdminView ? 'Switch to My Pipeline' : 'Switch to Admin View'}
-          </Button>
-          <Button onClick={() => { setSelectedProspect(null); form.reset(); setIsProspectDialogOpen(true); }}>
-            <Plus className="mr-2 h-4 w-4" /> Add Prospect
-          </Button>
-        </div>
+        <Button onClick={() => { setSelectedProspect(null); form.reset(); setIsProspectDialogOpen(true); }} className="bg-indigo-600 hover:bg-indigo-700">
+          <Plus className="mr-2 h-4 w-4" /> Add New Prospect
+        </Button>
       </header>
 
-      {/* DASHBOARD STATS */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <Card className="shadow-sm border-2 border-primary/10">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        <Card className="shadow-sm border-2 border-indigo-100">
           <CardContent className="pt-6">
             <div className="flex items-center gap-4">
-              <div className="p-3 bg-primary/10 rounded-xl"><Target className="h-6 w-6 text-primary" /></div>
+              <div className="p-3 bg-indigo-50 rounded-xl"><Target className="h-6 w-6 text-indigo-600" /></div>
               <div>
-                <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Active Pipeline</p>
+                <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Active Prospects</p>
                 <p className="text-2xl font-headline font-black">{stats?.total || 0}</p>
               </div>
             </div>
@@ -262,21 +254,10 @@ export default function SalesCRMPage() {
         <Card className="shadow-sm border-2">
           <CardContent className="pt-6">
             <div className="flex items-center gap-4">
-              <div className="p-3 bg-indigo-50 rounded-xl"><DollarSign className="h-6 w-6 text-indigo-600" /></div>
+              <div className="p-3 bg-slate-50 rounded-xl"><DollarSign className="h-6 w-6 text-slate-600" /></div>
               <div>
-                <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Pipeline Value</p>
-                <p className="text-2xl font-headline font-black text-indigo-600">${stats?.pipelineValue.toLocaleString() || '0'}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="shadow-sm border-2">
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-blue-50 rounded-xl"><TrendingUp className="h-6 w-6 text-blue-600" /></div>
-              <div>
-                <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Est. Managed Volume</p>
-                <p className="text-2xl font-headline font-black text-blue-600">${stats?.estAnnualVolume.toLocaleString() || '0'}</p>
+                <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">My Pipeline Value</p>
+                <p className="text-2xl font-headline font-black text-slate-700">${stats?.pipelineValue.toLocaleString() || '0'}</p>
               </div>
             </div>
           </CardContent>
@@ -286,7 +267,7 @@ export default function SalesCRMPage() {
       <Tabs defaultValue="pipeline" className="space-y-6">
         <TabsList className="bg-muted/50 p-1">
           <TabsTrigger value="pipeline" className="text-[10px] font-black uppercase tracking-widest px-6">Pipeline</TabsTrigger>
-          <TabsTrigger value="activity" className="text-[10px] font-black uppercase tracking-widest px-6">Activity Log</TabsTrigger>
+          <TabsTrigger value="activity" className="text-[10px] font-black uppercase tracking-widest px-6">My Activity</TabsTrigger>
         </TabsList>
 
         <TabsContent value="pipeline" className="space-y-4">
@@ -307,9 +288,10 @@ export default function SalesCRMPage() {
             {isProspectsLoading ? (
               [...Array(3)].map((_, i) => <Skeleton key={i} className="h-32 w-full rounded-xl" />)
             ) : filteredProspects.length === 0 ? (
-              <div className="text-center py-20 border-2 border-dashed rounded-2xl text-muted-foreground">
+              <div className="text-center py-20 border-2 border-dashed rounded-2xl text-muted-foreground bg-white">
                 <Target className="h-12 w-12 opacity-10 mx-auto mb-4" />
-                <p className="font-medium">No prospects found in this view.</p>
+                <p className="font-medium">You don't have any prospects yet.</p>
+                <Button variant="link" onClick={() => setIsProspectDialogOpen(true)}>Add your first venue</Button>
               </div>
             ) : (
               <div className="border rounded-xl overflow-hidden shadow-sm bg-white">
@@ -317,9 +299,8 @@ export default function SalesCRMPage() {
                   <TableHeader className="bg-muted/30">
                     <TableRow>
                       <TableHead className="text-[10px] font-black uppercase">Venue</TableHead>
-                      <TableHead className="text-[10px] font-black uppercase">Decision Maker</TableHead>
+                      <TableHead className="text-[10px] font-black uppercase">Contact</TableHead>
                       <TableHead className="text-[10px] font-black uppercase">Stage</TableHead>
-                      <TableHead className="text-[10px] font-black uppercase">Rep</TableHead>
                       <TableHead className="text-[10px] font-black uppercase text-right">Quote</TableHead>
                       <TableHead className="text-[10px] font-black uppercase text-right">Actions</TableHead>
                     </TableRow>
@@ -348,15 +329,12 @@ export default function SalesCRMPage() {
                             {prospect.stage}
                           </Badge>
                         </TableCell>
-                        <TableCell>
-                          <span className="text-[10px] font-bold text-muted-foreground uppercase">{prospect.assignedRepName}</span>
-                        </TableCell>
                         <TableCell className="text-right">
                           <span className="font-mono font-bold text-xs">${prospect.launchFeeQuoted.toLocaleString()}</span>
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setSelectedProspect(prospect); setIsActivityDialogOpen(true); }}>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-indigo-600" onClick={() => { setSelectedProspect(prospect); setIsActivityDialogOpen(true); }}>
                               <MessageSquare className="h-4 w-4" />
                             </Button>
                             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setSelectedProspect(prospect); form.reset(prospect); setIsProspectDialogOpen(true); }}>
@@ -382,12 +360,12 @@ export default function SalesCRMPage() {
               [...Array(3)].map((_, i) => <Skeleton key={i} className="h-24 w-full rounded-xl" />)
             ) : activities && activities.length > 0 ? (
               <div className="space-y-3">
-                {activities.filter(a => isAdminView || a.repId === currentRep.id).map((activity) => (
-                  <Card key={activity.id} className="shadow-sm border-l-4 border-l-primary overflow-hidden">
+                {activities.map((activity) => (
+                  <Card key={activity.id} className="shadow-sm border-l-4 border-l-indigo-500 overflow-hidden bg-white">
                     <CardContent className="p-4">
                       <div className="flex justify-between items-start mb-2">
                         <div className="flex items-center gap-3">
-                          <div className="bg-muted p-2 rounded-lg">
+                          <div className="bg-indigo-50 p-2 rounded-lg text-indigo-600">
                             {activity.type === 'Call' && <PhoneCall className="h-4 w-4" />}
                             {activity.type === 'Email' && <Mail className="h-4 w-4" />}
                             {activity.type === 'Visit' && <MapPin className="h-4 w-4" />}
@@ -395,7 +373,7 @@ export default function SalesCRMPage() {
                           </div>
                           <div>
                             <p className="text-sm font-bold uppercase tracking-tight">{activity.venueName}</p>
-                            <p className="text-[9px] text-muted-foreground uppercase font-black tracking-widest">{activity.type} by {activity.repName}</p>
+                            <p className="text-[9px] text-muted-foreground uppercase font-black tracking-widest">{activity.type} Logged</p>
                           </div>
                         </div>
                         <span className="text-[10px] text-muted-foreground font-mono">
@@ -408,9 +386,9 @@ export default function SalesCRMPage() {
                 ))}
               </div>
             ) : (
-              <div className="text-center py-20 border-2 border-dashed rounded-2xl text-muted-foreground">
+              <div className="text-center py-20 border-2 border-dashed rounded-2xl text-muted-foreground bg-white">
                 <ClipboardList className="h-12 w-12 opacity-10 mx-auto mb-4" />
-                <p>No activity logged yet.</p>
+                <p>You haven't logged any activities yet.</p>
               </div>
             )}
           </div>
@@ -421,8 +399,8 @@ export default function SalesCRMPage() {
       <Dialog open={isProspectDialogOpen} onOpenChange={setIsProspectDialogOpen}>
         <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="font-headline uppercase">{selectedProspect ? 'Edit Prospect' : 'Add New Prospect'}</DialogTitle>
-            <DialogDescription>Track deal stages and venue details.</DialogDescription>
+            <DialogTitle className="font-headline uppercase text-indigo-600">{selectedProspect ? 'Edit Prospect' : 'Add New Prospect'}</DialogTitle>
+            <DialogDescription>Track deal stages and venue details for your pipeline.</DialogDescription>
           </DialogHeader>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSaveProspect)} className="space-y-4 pt-4">
@@ -460,7 +438,7 @@ export default function SalesCRMPage() {
                 <FormItem><FormLabel>Prospect Notes</FormLabel><FormControl><Textarea {...field} /></FormControl></FormItem>
               )} />
               <DialogFooter className="pt-4">
-                <Button type="submit" className="w-full sm:w-auto">Save Prospect</Button>
+                <Button type="submit" className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700">Save Prospect</Button>
               </DialogFooter>
             </form>
           </Form>
@@ -471,7 +449,7 @@ export default function SalesCRMPage() {
       <Dialog open={isActivityDialogOpen} onOpenChange={setIsActivityDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle className="font-headline uppercase">Log Activity</DialogTitle>
+            <DialogTitle className="font-headline uppercase text-indigo-600">Log Interaction</DialogTitle>
             <DialogDescription>Recording interaction with {selectedProspect?.venueName}</DialogDescription>
           </DialogHeader>
           <Form {...activityForm}>
@@ -483,7 +461,7 @@ export default function SalesCRMPage() {
                 <FormItem><FormLabel>Details</FormLabel><FormControl><Textarea {...field} placeholder="What was discussed?" /></FormControl><FormMessage /></FormItem>
               )} />
               <DialogFooter>
-                <Button type="submit" className="w-full">Log Action</Button>
+                <Button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700">Log Action</Button>
               </DialogFooter>
             </form>
           </Form>
