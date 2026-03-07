@@ -17,19 +17,14 @@ import {
   ListChecks, 
   Check, 
   BarChart3, 
-  ArrowUp, 
   Settings2, 
-  UserPlus, 
   GripVertical,
   DollarSign,
   ShoppingBag,
   Clock,
   Activity,
   Map as MapIcon,
-  Navigation,
-  ChevronRight,
   ImageIcon,
-  LayoutGrid,
   Timer,
   Eye,
   EyeOff,
@@ -40,13 +35,10 @@ import {
   Utensils,
   AlertTriangle,
   Waves,
-  Upload,
-  Focus,
   ListOrdered,
   Download,
   Calendar as CalendarIcon,
   ClipboardList,
-  ArrowRightLeft,
   ExternalLink
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
@@ -55,7 +47,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import {
   Select,
   SelectContent,
@@ -66,9 +58,8 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
-import { isToday, isThisMonth, isThisYear, format, startOfMonth, endOfMonth, isWithinInterval, parseISO } from 'date-fns';
+import { isToday, isThisMonth, isThisYear, format, startOfMonth, parseISO, isWithinInterval } from 'date-fns';
 import * as XLSX from 'xlsx';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { 
@@ -455,8 +446,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   const { data: members, isLoading: areMembersLoading } = useCollection<Member>(membersQuery);
 
   const isClubSeller = seller?.type === 'Private Golf Course' || seller?.type === 'Semi Private Golf Course';
-  const isGolfCourse = seller?.type.includes('Golf Course');
-  const isBowlingAlley = seller?.type === 'Bowling Alley';
 
   const activeOrders = useMemo(() => {
     return orders?.filter(o => ['Placed', 'Preparing', 'Out for Delivery'].includes(o.status)) || [];
@@ -863,7 +852,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
             description: row['Description'] || '',
             price,
             category: category as Category,
-            rank: index + 1,
+            rank: (menuItems?.length || 0) + index + 1,
             availableOn: ['Clubhouse']
           });
         });
@@ -1069,21 +1058,21 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
           <div className="mb-6 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
             <div className="col-span-1 md:col-span-2 xl:col-span-1 bg-primary/5 rounded-xl border-2 border-primary/10 p-4 flex flex-col justify-center gap-1 shadow-sm">
               <p className="text-[10px] font-black uppercase tracking-[0.2em] text-primary/60 leading-none mb-1">Establishment Totals</p>
-              <div className="flex justify-between items-center">
-                <div className="flex justify-between items-center">
+              <div className="flex flex-col gap-3">
+                <div className="flex justify-between items-center px-1">
                   <div className="flex flex-col">
-                    <span className="text-xs font-black uppercase tracking-tight">Today's Revenue</span>
-                    <span className="text-lg font-headline font-black text-primary">${opsMetrics?.total?.revenue.toFixed(2) || '0.00'}</span>
+                    <span className="text-[9px] font-black uppercase tracking-tight text-muted-foreground">Today's Revenue</span>
+                    <span className="text-base font-headline font-black text-primary">${(opsMetrics?.total?.revenue || 0).toFixed(2)}</span>
                   </div>
-                  <div className="h-10 w-[1px] bg-primary/10 mx-2" />
+                  <div className="h-8 w-[1px] bg-primary/10" />
                   <div className="flex flex-col">
-                    <span className="text-xs font-black uppercase tracking-tight">Today's Orders</span>
-                    <span className="text-lg font-headline font-black text-foreground">{opsMetrics?.total?.count || 0}</span>
+                    <span className="text-[9px] font-black uppercase tracking-tight text-muted-foreground">Orders</span>
+                    <span className="text-base font-headline font-black text-foreground">{opsMetrics?.total?.count || 0}</span>
                   </div>
-                  <div className="h-10 w-[1px] bg-primary/10 mx-2" />
+                  <div className="h-8 w-[1px] bg-primary/10" />
                   <div className="flex flex-col text-right">
-                    <span className="text-xs font-black uppercase tracking-tight">Total Alerts</span>
-                    <span className="text-lg font-headline font-black text-destructive">{opsMetrics?.total?.exceededCount || 0}</span>
+                    <span className="text-[9px] font-black uppercase tracking-tight text-muted-foreground">Alerts</span>
+                    <span className="text-base font-headline font-black text-destructive">{opsMetrics?.total?.exceededCount || 0}</span>
                   </div>
                 </div>
               </div>
@@ -1091,7 +1080,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
 
             <OpsMetricCard 
               label={`${selectedOpsMenu} Revenue`} 
-              value={`$${opsMetrics?.selected?.revenue.toFixed(2) || '0.00'}`} 
+              value={`$${(opsMetrics?.selected?.revenue || 0).toFixed(2)}`} 
               icon={DollarSign} 
               colorClass="text-green-600 bg-green-500/10"
             />
@@ -1146,7 +1135,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                 <ScrollArea className="h-full">
                   <div className="p-4 space-y-3">
                     {areOrdersLoading ? (
-                      [...Array(3)].map((_, i) => <Skeleton className="h-24 w-full" />)
+                      [...Array(3)].map((_, i) => <Skeleton key={i} className="h-24 w-full" />)
                     ) : filteredOpsOrders.length === 0 ? (
                       <div className="text-center py-20 text-muted-foreground flex flex-col items-center gap-2">
                         <ShoppingBag className="h-10 w-10 opacity-10" />
@@ -1547,7 +1536,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                   <CardDescription>Directory of members authorized for account charges.</CardDescription>
                 </div>
                 <Button onClick={() => { setEditingMember(null); setIsMemberFormOpen(true); }} size="sm">
-                  <UserPlus className="mr-2 h-4 w-4" /> New Member
+                  <PlusCircle className="mr-2 h-4 w-4" /> New Member
                 </Button>
               </CardHeader>
               <CardContent className="p-0">
