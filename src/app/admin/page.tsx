@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -835,7 +834,7 @@ export default function KOOPAdminPage() {
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
         <TabsList className="bg-muted/50 p-1">
           <TabsTrigger value="operations" className="text-[10px] font-black uppercase tracking-widest px-8">Venue Operations</TabsTrigger>
-          <TabsTrigger value="growth" className="text-[10px] font-black uppercase tracking-widest px-8">Growth Pipeline</TabsTrigger>
+          <TabsTrigger value="growth" className="text-[10px) font-black uppercase tracking-widest px-8">Growth Pipeline</TabsTrigger>
         </TabsList>
 
         <TabsContent value="operations" className="space-y-10">
@@ -1432,7 +1431,7 @@ export default function KOOPAdminPage() {
                   )} />
                   <FormField control={form.control} name="status" render={({ field }) => (
                     <FormItem className="space-y-3">
-                      <FormLabel>Status</Label>
+                      <FormLabel>Status</FormLabel>
                       <FormControl>
                         <RadioGroup onValueChange={field.onChange} value={field.value} className="flex flex-row space-x-6 pt-2">
                           <div className="flex items-center space-x-2"><RadioGroupItem value="Active" id="active" /><Label htmlFor="active" className="font-normal">Active</Label></div>
@@ -1444,7 +1443,7 @@ export default function KOOPAdminPage() {
                 </div>
                 <FormField control={form.control} name="type" render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Seller Type</Label>
+                    <FormLabel>Seller Type</FormLabel>
                     <FormControl>
                       <RadioGroup onValueChange={field.onChange} value={field.value} className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
                         {sellerTypes.map((type) => (
