@@ -1,8 +1,10 @@
+
 'use client';
 
 import { useState, use, useEffect, useMemo } from 'react';
 import { collection, doc, addDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
-import { useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
+import { signInAnonymously } from 'firebase/auth';
+import { useFirestore, useCollection, useMemoFirebase, useDoc, useAuth, useUser } from '@/firebase';
 import type { Seller, MenuItem, Category, Order, ModifierGroup, ModifierOption, OrderItem } from '@/lib/types';
 import { categories } from '@/lib/types';
 import { BuyerMenu } from '@/components/buyer-menu';
@@ -178,6 +180,8 @@ function ModifierPicker({
 export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId: string }> }) {
   const { sellerId } = use(params);
   const firestore = useFirestore();
+  const auth = useAuth();
+  const { user } = useUser();
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
@@ -193,6 +197,14 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
 
   const [selectedTipType, setSelectedTipType] = useState<string | null>(null);
   const [customTipValue, setCustomTipValue] = useState<string>('');
+
+  // Automatically sign in anonymously if not authenticated.
+  // This is required to ensure that global notification listeners can scope orders to a specific visitor securely.
+  useEffect(() => {
+    if (!user && auth) {
+      signInAnonymously(auth).catch(() => {});
+    }
+  }, [user, auth]);
 
   const sellerRef = useMemoFirebase(() => (firestore ? doc(firestore, 'sellers', sellerId) : null), [firestore, sellerId]);
   const { data: seller, isLoading: isSellerLoading } = useDoc<Seller>(sellerRef);
@@ -327,7 +339,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
 
   const handlePlaceOrder = async () => {
     try {
-      if (!firestore || !seller) return;
+      if (!firestore || !seller || !user) return;
       if (!isServiceActive) {
         toast({ variant: 'destructive', title: 'Service Offline' });
         return;
@@ -350,8 +362,8 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
         try {
           const orderData: any = {
             sellerId,
-            customerId: 'public-user',
-            customerName: 'Guest User',
+            customerId: user.uid,
+            customerName: user.email || 'Guest User',
             deliveryLocation: { latitude, longitude },
             items: activeOrderItems,
             subtotal,

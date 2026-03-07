@@ -1,8 +1,9 @@
+
 'use client';
 
 import { useEffect, useRef } from 'react';
-import { collection, query, orderBy, limit } from 'firebase/firestore';
-import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import { collection, query, orderBy, limit, where } from 'firebase/firestore';
+import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import type { Order } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { Navigation, CheckCircle2, PartyPopper } from 'lucide-react';
@@ -15,19 +16,24 @@ import { useRouter } from 'next/navigation';
  */
 export function OrderNotificationListener() {
   const firestore = useFirestore();
+  const { user } = useUser();
   const { toast } = useToast();
   const router = useRouter();
   const prevStatusRef = useRef<Order['status'] | undefined>(undefined);
   const prevOrderIdRef = useRef<string | undefined>(undefined);
 
   const latestOrderQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
+    // CRITICAL: Only attempt the query if we have an authenticated user.
+    // This prevents "Missing or insufficient permissions" errors for visitors on pages like the home screen or menu.
+    if (!firestore || !user) return null;
+    
     return query(
       collection(firestore, 'orders'),
+      where('customerId', '==', user.uid),
       orderBy('createdAt', 'desc'),
       limit(1)
     );
-  }, [firestore]);
+  }, [firestore, user]);
 
   const { data: orders } = useCollection<Order>(latestOrderQuery);
   const order = orders?.[0];

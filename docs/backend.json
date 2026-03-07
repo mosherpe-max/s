@@ -63,56 +63,33 @@
     ]
   },
   "firestore": {
-    "structure": [
-      {
-        "path": "/roles_admin/{uid}",
-        "definition": {
-          "entityName": "AdminUser",
-          "description": "Existence grants KOOP Administrative privileges."
-        }
-      },
-      {
-        "path": "/adminUsers/{adminUserId}",
-        "definition": {
-          "entityName": "AdminUser",
-          "description": "Extended profile for platform admins."
-        }
-      },
-      {
-        "path": "/sellers/{sellerId}",
-        "definition": {
-          "entityName": "Seller",
-          "description": "Venue profiles and settings."
-        }
-      },
-      {
-        "path": "/sellers/{sellerId}/menuItems/{itemId}",
-        "definition": {
-          "entityName": "MenuItem",
-          "description": "Individual items available at a specific venue."
-        }
-      },
-      {
-        "path": "/orders/{orderId}",
-        "definition": {
-          "entityName": "Order",
-          "description": "Orders placed by patrons."
-        }
-      },
-      {
-        "path": "/prospects/{prospectId}",
-        "definition": {
-          "entityName": "Prospect",
-          "description": "Sales pipeline data."
-        }
-      },
-      {
-        "path": "/activities/{activityId}",
-        "definition": {
-          "entityName": "SalesActivity",
-          "description": "Sales interaction logs."
-        }
-      }
-    ]
+    "/roles_admin/{uid}": {
+      "schema": { "$ref": "#/backend/entities/AdminUser" },
+      "description": "Existence grants KOOP Administrative privileges."
+    },
+    "/adminUsers/{adminUserId}": {
+      "schema": { "$ref": "#/backend/entities/AdminUser" },
+      "description": "Extended profile for platform admins."
+    },
+    "/sellers/{sellerId}": {
+      "schema": { "$ref": "#/backend/entities/Seller" },
+      "description": "Venue profiles and settings."
+    },
+    "/sellers/{sellerId}/menuItems/{itemId}": {
+      "schema": "MenuItem",
+      "description": "Individual items available at a specific venue."
+    },
+    "/orders/{orderId}": {
+      "schema": "Order",
+      "description": "Orders placed by patrons."
+    },
+    "/prospects/{prospectId}": {
+      "schema": { "$ref": "#/backend/entities/Prospect" },
+      "description": "Sales pipeline data."
+    },
+    "/activities/{activityId}": {
+      "schema": { "$ref": "#/backend/entities/SalesActivity" },
+      "description": "Sales interaction logs."
+    }
   }
 }
