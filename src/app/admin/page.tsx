@@ -21,7 +21,8 @@ import {
   TrendingUp,
   Search,
   Clock,
-  Briefcase
+  Briefcase,
+  Edit
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -89,6 +90,7 @@ export default function KOOPAdminPage() {
   const { data: adminRole, isLoading: isRoleLoading } = useDoc(roleRef);
 
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [editingSeller, setEditingSeller] = useState<Seller | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -153,22 +155,50 @@ export default function KOOPAdminPage() {
     }
   };
 
+  const handleEditSeller = (seller: Seller) => {
+    setEditingSeller(seller);
+    form.reset({
+      courseName: seller.courseName,
+      type: seller.type,
+      contactEmail: seller.contactEmail,
+      serviceFee: seller.serviceFee,
+      status: seller.status,
+    });
+    setIsFormOpen(true);
+  };
+
+  const handleAddNewSeller = () => {
+    setEditingSeller(null);
+    form.reset({
+      courseName: '',
+      type: 'Public Golf Course',
+      contactEmail: '',
+      serviceFee: 0,
+      status: 'Active',
+    });
+    setIsFormOpen(true);
+  };
+
   const onSave = async (data: SellerFormData) => {
     if (!firestore) return;
     setIsSaving(true);
-    const sellerId = data.courseName.toLowerCase().replace(/\s+/g, '-');
+    
+    // Use existing ID if editing, otherwise generate a new one from name
+    const sellerId = editingSeller ? editingSeller.id : data.courseName.toLowerCase().replace(/\s+/g, '-');
     const sellerRef = doc(firestore, 'sellers', sellerId);
     
     setDoc(sellerRef, { 
       ...data, 
       id: sellerId,
-      menuTypes: data.type.includes('Golf') ? ['Beverage Cart', 'Clubhouse', 'Take Out'] : ['Lane Delivery', 'Take Out'],
-      taxRate: 6.0,
-      createdAt: new Date().toISOString()
+      // Only set these on creation if they don't exist
+      menuTypes: editingSeller?.menuTypes || (data.type.includes('Golf') ? ['Beverage Cart', 'Clubhouse', 'Take Out'] : ['Lane Delivery', 'Take Out']),
+      taxRate: editingSeller?.taxRate || 6.0,
+      createdAt: editingSeller?.createdAt || new Date().toISOString()
     }, { merge: true })
       .then(() => {
-        toast({ title: 'Seller Registered' });
+        toast({ title: editingSeller ? 'Seller Updated' : 'Seller Registered' });
         setIsFormOpen(false);
+        setEditingSeller(null);
         form.reset();
       })
       .finally(() => setIsSaving(false));
@@ -217,7 +247,7 @@ export default function KOOPAdminPage() {
           <Button variant="outline" onClick={handleSystemReset} disabled={isResetting} className="border-destructive text-destructive hover:bg-destructive/5 text-[10px] font-black uppercase h-10 px-4 tracking-widest">
             <RefreshCw className={cn("mr-2 h-3.5 w-3.5", isResetting && "animate-spin")} /> Reset Logs
           </Button>
-          <Button onClick={() => setIsFormOpen(true)} className="h-10 px-6 font-black uppercase text-[10px] tracking-widest">
+          <Button onClick={handleAddNewSeller} className="h-10 px-6 font-black uppercase text-[10px] tracking-widest">
             <PlusCircle className="mr-2 h-4 w-4" /> Register Venue
           </Button>
         </div>
@@ -311,9 +341,14 @@ export default function KOOPAdminPage() {
                             </Badge>
                           </TableCell>
                           <TableCell className="text-right">
-                            <Button variant="ghost" size="sm" asChild className="h-8 text-[10px] font-black uppercase">
-                              <Link href={`/sellers/${seller.id}`}>Manage <ChevronRight className="ml-1 h-3 w-3" /></Link>
-                            </Button>
+                            <div className="flex justify-end gap-2">
+                              <Button variant="ghost" size="icon" onClick={() => handleEditSeller(seller)} className="h-8 w-8 text-muted-foreground hover:text-primary">
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button variant="ghost" size="sm" asChild className="h-8 text-[10px] font-black uppercase">
+                                <Link href={`/sellers/${seller.id}`}>Manage <ChevronRight className="ml-1 h-3 w-3" /></Link>
+                              </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))}
@@ -384,11 +419,16 @@ export default function KOOPAdminPage() {
         </TabsContent>
       </Tabs>
 
-      <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
+      <Dialog open={isFormOpen} onOpenChange={(open) => {
+        setIsFormOpen(open);
+        if (!open) setEditingSeller(null);
+      }}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
-            <DialogTitle className="uppercase font-headline">Register Venue</DialogTitle>
-            <DialogDescription>Initialize a new establishment on the KOOP network.</DialogDescription>
+            <DialogTitle className="uppercase font-headline">{editingSeller ? 'Update Venue' : 'Register Venue'}</DialogTitle>
+            <DialogDescription>
+              {editingSeller ? `Modifying details for ${editingSeller.courseName}.` : 'Initialize a new establishment on the KOOP network.'}
+            </DialogDescription>
           </DialogHeader>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSave)} className="space-y-4 pt-4">
@@ -436,7 +476,7 @@ export default function KOOPAdminPage() {
               )} />
               <DialogFooter className="pt-6">
                 <Button type="submit" disabled={isSaving} className="w-full h-14 bg-[#213147] hover:bg-[#213147]/90 text-white font-headline font-black uppercase tracking-widest shadow-xl">
-                  {isSaving ? <Loader2 className="animate-spin" /> : "PROVISION ESTABLISHMENT"}
+                  {isSaving ? <Loader2 className="animate-spin" /> : (editingSeller ? "SAVE CHANGES" : "PROVISION ESTABLISHMENT")}
                 </Button>
               </DialogFooter>
             </form>
