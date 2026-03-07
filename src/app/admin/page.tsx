@@ -834,7 +834,7 @@ export default function KOOPAdminPage() {
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
         <TabsList className="bg-muted/50 p-1">
           <TabsTrigger value="operations" className="text-[10px] font-black uppercase tracking-widest px-8">Venue Operations</TabsTrigger>
-          <TabsTrigger value="growth" className="text-[10px) font-black uppercase tracking-widest px-8">Growth Pipeline</TabsTrigger>
+          <TabsTrigger value="growth" className="text-[10px] font-black uppercase tracking-widest px-8">Growth Pipeline</TabsTrigger>
         </TabsList>
 
         <TabsContent value="operations" className="space-y-10">
@@ -1475,7 +1475,7 @@ export default function KOOPAdminPage() {
               {(selectedType === 'Bowling Alley' || selectedType === 'Restaurant' || isHalfwayHouseEnabled) && (
                 <div className="space-y-4 bg-muted/20 p-4 rounded-xl border border-dashed">
                   <h3 className="text-sm font-bold uppercase tracking-wider text-primary flex items-center gap-2"><Settings2 className="h-4 w-4" /> Service Configuration</h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {selectedType === 'Bowling Alley' && (
                       <FormField control={form.control} name="laneCount" render={({ field }) => (
                         <FormItem><FormLabel>Total Lanes</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ''} /></FormControl></FormItem>
@@ -1524,7 +1524,7 @@ export default function KOOPAdminPage() {
                     <FormItem>
                       <FormLabel className="text-xs font-black uppercase flex items-center gap-2">
                         <DollarSign className="h-3 w-3" /> Default Conv. Fee
-                      </Label>
+                      </FormLabel>
                       <FormControl><Input type="number" step="0.01" {...field} value={field.value ?? ''} /></FormControl>
                     </FormItem>
                   )} />
@@ -1532,7 +1532,7 @@ export default function KOOPAdminPage() {
                     <FormItem>
                       <FormLabel className="text-xs font-black uppercase flex items-center gap-2">
                         <Percent className="h-3 w-3" /> Sales Tax Rate
-                      </Label>
+                      </FormLabel>
                       <FormControl><div className="relative"><Input type="number" step="0.1" {...field} value={field.value ?? ''} className="pr-8" /><Percent className="absolute right-3 top-3 h-4 w-4 text-muted-foreground" /></div></FormControl>
                     </FormItem>
                   )} />
@@ -1543,7 +1543,7 @@ export default function KOOPAdminPage() {
                     <FormItem>
                       <FormLabel className="text-xs font-black uppercase flex items-center gap-2">
                         <TrendingUp className="h-3 w-3 text-indigo-600" /> Setup / Launch Fee ($)
-                      </Label>
+                      </FormLabel>
                       <FormControl><Input type="number" {...field} value={field.value ?? ''} /></FormControl>
                     </FormItem>
                   )} />
@@ -1551,7 +1551,7 @@ export default function KOOPAdminPage() {
                     <FormItem>
                       <FormLabel className="text-xs font-black uppercase flex items-center gap-2">
                         <CalendarDays className="h-3 w-3 text-indigo-600" /> Monthly SaaS Fee ($)
-                      </Label>
+                      </FormLabel>
                       <FormControl><Input type="number" {...field} value={field.value ?? ''} /></FormControl>
                     </FormItem>
                   )} />
