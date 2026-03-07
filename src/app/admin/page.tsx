@@ -263,6 +263,38 @@ export default function KOOPAdminPage() {
     };
   }, [orders]);
 
+  const reportData = useMemo(() => {
+    if (!orders || !sellers) return [];
+
+    const start = new Date(reportStartDate);
+    const end = new Date(reportEndDate);
+    end.setHours(23, 59, 59, 999);
+
+    const filteredOrders = orders.filter(o => {
+      if (!o.createdAt) return false;
+      const orderDate = o.createdAt.toDate();
+      return orderDate >= start && orderDate <= end;
+    });
+
+    return sellers.map(seller => {
+      const venueOrders = filteredOrders.filter(o => o.sellerId === seller.id);
+      const koopRevenue = venueOrders.reduce((acc, o) => acc + (o.serviceFee || 0), 0);
+      const totalVenueSales = venueOrders.reduce((acc, o) => acc + (o.total || 0), 0);
+      
+      return {
+        id: seller.id,
+        venueName: seller.courseName,
+        type: seller.type,
+        orderCount: venueOrders.length,
+        grossSales: totalVenueSales,
+        koopRevenue: koopRevenue,
+        monthlyFee: seller.monthlyPlatformFee || 0,
+        launchFee: seller.launchFee || 0,
+        email: seller.contactEmail
+      };
+    });
+  }, [orders, sellers, reportStartDate, reportEndDate]);
+
   const pipelineStats = useMemo(() => {
     if (!prospects) return null;
     const closed = prospects.filter(p => p.stage === 'Closed');
@@ -436,51 +468,35 @@ export default function KOOPAdminPage() {
   };
 
   const handleDownloadSalesReport = () => {
-    if (!orders || !sellers) {
-      toast({ variant: 'destructive', title: 'Error', description: 'Data is not loaded yet.' });
+    if (reportData.length === 0) {
+      toast({ variant: 'destructive', title: 'Error', description: 'No data to export.' });
       return;
     }
 
-    const start = new Date(reportStartDate);
-    const end = new Date(reportEndDate);
-    end.setHours(23, 59, 59, 999);
+    const excelData = reportData.map(r => ({
+      'Venue Name': r.venueName,
+      'Type': r.type,
+      'Total Orders': r.orderCount,
+      'Gross Sales ($)': r.grossSales.toFixed(2),
+      'KOOP Platform Revenue ($)': r.koopRevenue.toFixed(2),
+      'Monthly SaaS Fee ($)': r.monthlyFee,
+      'Contract Launch Fee ($)': r.launchFee,
+      'Contact Email': r.email
+    }));
 
-    const filteredOrders = orders.filter(o => {
-      if (!o.createdAt) return false;
-      const orderDate = o.createdAt.toDate();
-      return orderDate >= start && orderDate <= end;
-    });
-
-    const reportData = sellers.map(seller => {
-      const venueOrders = filteredOrders.filter(o => o.sellerId === seller.id);
-      const koopRevenue = venueOrders.reduce((acc, o) => acc + (o.serviceFee || 0), 0);
-      const totalVenueSales = venueOrders.reduce((acc, o) => acc + (o.total || 0), 0);
-      
-      return {
-        'Venue Name': seller.courseName,
-        'Type': seller.type,
-        'Total Orders': venueOrders.length,
-        'Gross Sales ($)': totalVenueSales.toFixed(2),
-        'KOOP Platform Revenue ($)': koopRevenue.toFixed(2),
-        'Monthly SaaS Fee ($)': seller.monthlyPlatformFee || 0,
-        'Contract Launch Fee ($)': seller.launchFee || 0,
-        'Contact Email': seller.contactEmail
-      };
-    });
-
-    const ws = XLSX.utils.json_to_sheet(reportData);
+    const ws = XLSX.utils.json_to_sheet(excelData);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Revenue Summary");
     
     // Auto-size columns
-    const maxWidths = Object.keys(reportData[0] || {}).map(key => ({ wch: Math.max(key.length, 15) }));
+    const maxWidths = Object.keys(excelData[0] || {}).map(key => ({ wch: Math.max(key.length, 15) }));
     ws['!cols'] = maxWidths;
 
     XLSX.writeFile(wb, `KOOP_Platform_Revenue_${reportStartDate}_to_${reportEndDate}.xlsx`);
     
     toast({
       title: "Report Generated",
-      description: `Sales data exported for ${filteredOrders.length} orders across ${reportData.length} venues.`
+      description: `Sales data exported for ${excelData.length} venues.`
     });
   };
 
@@ -649,21 +665,31 @@ export default function KOOPAdminPage() {
             </div>
 
             {/* Platform Reports Section */}
-            <Card className="border-2 border-dashed shadow-none">
-              <CardHeader className="pb-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-indigo-50 rounded-lg">
-                    <FileSpreadsheet className="h-5 w-5 text-indigo-600" />
+            <Card className="border shadow-md">
+              <CardHeader className="pb-4 bg-muted/10 border-b">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-indigo-50 rounded-lg">
+                      <FileSpreadsheet className="h-5 w-5 text-indigo-600" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-lg uppercase font-headline">Revenue Performance Reports</CardTitle>
+                      <CardDescription>Analyze sales and fee breakdown by date range.</CardDescription>
+                    </div>
                   </div>
-                  <div>
-                    <CardTitle className="text-lg">Platform Revenue Reports</CardTitle>
-                    <CardDescription>Export detailed sales and fee breakdown by venue.</CardDescription>
-                  </div>
+                  <Button 
+                    onClick={handleDownloadSalesReport}
+                    disabled={isOrdersLoading || isSellersLoading || reportData.length === 0}
+                    className="bg-indigo-600 hover:bg-indigo-700 shadow-md uppercase text-[10px] font-black tracking-widest"
+                  >
+                    <Download className="mr-2 h-4 w-4" />
+                    Export to Excel
+                  </Button>
                 </div>
               </CardHeader>
-              <CardContent>
-                <div className="flex flex-col sm:flex-row items-end gap-4">
-                  <div className="space-y-1.5 flex-1 w-full">
+              <CardContent className="pt-6 space-y-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-xl">
+                  <div className="space-y-1.5">
                     <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Start Date</Label>
                     <Input 
                       type="date" 
@@ -672,7 +698,7 @@ export default function KOOPAdminPage() {
                       className="h-10 font-mono font-bold"
                     />
                   </div>
-                  <div className="space-y-1.5 flex-1 w-full">
+                  <div className="space-y-1.5">
                     <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">End Date</Label>
                     <Input 
                       type="date" 
@@ -681,14 +707,59 @@ export default function KOOPAdminPage() {
                       className="h-10 font-mono font-bold"
                     />
                   </div>
-                  <Button 
-                    onClick={handleDownloadSalesReport}
-                    disabled={isOrdersLoading || isSellersLoading}
-                    className="bg-indigo-600 hover:bg-indigo-700 h-10 w-full sm:w-auto px-8 shadow-md"
-                  >
-                    <Download className="mr-2 h-4 w-4" />
-                    Export Revenue Data
-                  </Button>
+                </div>
+
+                <div className="border rounded-xl overflow-hidden bg-background">
+                  <ScrollArea className="h-[400px]">
+                    <Table>
+                      <TableHeader className="bg-muted/30 sticky top-0 z-10">
+                        <TableRow>
+                          <TableHead className="text-[10px] font-black uppercase">Venue</TableHead>
+                          <TableHead className="text-[10px] font-black uppercase text-center">Orders</TableHead>
+                          <TableHead className="text-[10px] font-black uppercase text-right">Gross Sales</TableHead>
+                          <TableHead className="text-[10px] font-black uppercase text-right text-indigo-600">KOOP Fees</TableHead>
+                          <TableHead className="text-[10px] font-black uppercase text-right">Monthly SaaS</TableHead>
+                          <TableHead className="text-[10px] font-black uppercase text-right">Launch Fee</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {isOrdersLoading || isSellersLoading ? (
+                          [...Array(5)].map((_, i) => (
+                            <TableRow key={`rep-skel-${i}`}>
+                              <TableCell><Skeleton className="h-4 w-32" /></TableCell>
+                              <TableCell><Skeleton className="h-4 w-8 mx-auto" /></TableCell>
+                              <TableCell><Skeleton className="h-4 w-16 ml-auto" /></TableCell>
+                              <TableCell><Skeleton className="h-4 w-16 ml-auto" /></TableCell>
+                              <TableCell><Skeleton className="h-4 w-16 ml-auto" /></TableCell>
+                              <TableCell><Skeleton className="h-4 w-16 ml-auto" /></TableCell>
+                            </TableRow>
+                          ))
+                        ) : reportData.length > 0 ? (
+                          reportData.map((venue) => (
+                            <TableRow key={venue.id} className="hover:bg-muted/5 transition-colors">
+                              <TableCell>
+                                <div className="flex flex-col">
+                                  <span className="text-xs font-bold truncate max-w-[180px]">{venue.venueName}</span>
+                                  <span className="text-[9px] uppercase text-muted-foreground">{venue.type}</span>
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-center font-mono font-bold text-xs">{venue.orderCount}</TableCell>
+                              <TableCell className="text-right font-mono font-bold text-xs">${venue.grossSales.toFixed(2)}</TableCell>
+                              <TableCell className="text-right font-mono font-black text-xs text-indigo-600">${venue.koopRevenue.toFixed(2)}</TableCell>
+                              <TableCell className="text-right font-mono font-bold text-xs text-muted-foreground">${venue.monthlyFee}</TableCell>
+                              <TableCell className="text-right font-mono font-bold text-xs text-muted-foreground">${venue.launchFee}</TableCell>
+                            </TableRow>
+                          ))
+                        ) : (
+                          <TableRow>
+                            <TableCell colSpan={6} className="h-32 text-center text-muted-foreground italic text-sm">
+                              No sales data found for the selected date range.
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </TableBody>
+                    </Table>
+                  </ScrollArea>
                 </div>
               </CardContent>
             </Card>
