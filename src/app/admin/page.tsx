@@ -2,7 +2,7 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import { collection, doc, setDoc, getDocs, writeBatch } from 'firebase/firestore';
+import { collection, doc, setDoc, getDocs, writeBatch, serverTimestamp } from 'firebase/firestore';
 import { useFirestore, useCollection, useMemoFirebase, useUser, useDoc } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -22,7 +22,12 @@ import {
   Search,
   Clock,
   Briefcase,
-  Edit
+  Edit,
+  MapPin,
+  Phone,
+  Mail,
+  Zap,
+  Palette
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -35,6 +40,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Separator } from '@/components/ui/separator';
 import type { Seller, Order, Prospect } from '@/lib/types';
 import { sellerTypes } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
@@ -44,9 +50,19 @@ import Link from 'next/link';
 const sellerSchema = z.object({
   courseName: z.string().min(2, 'Seller name required'),
   type: z.enum(['Private Golf Course', 'Semi Private Golf Course', 'Public Golf Course', 'Bowling Alley', 'Brewery', 'Restaurant']),
+  contactName: z.string().min(2, 'Contact name required'),
   contactEmail: z.string().email('Invalid email'),
+  contactPhone: z.string().min(10, 'Valid phone required'),
+  streetAddress: z.string().min(5, 'Address required'),
+  city: z.string().min(2, 'City required'),
+  state: z.string().min(2, 'State required'),
+  zip: z.string().min(5, 'ZIP required'),
   serviceFee: z.coerce.number().min(0),
+  taxRate: z.coerce.number().min(0),
+  launchFee: z.coerce.number().min(0),
+  monthlyPlatformFee: z.coerce.number().min(0),
   status: z.enum(['Active', 'Inactive']),
+  brandColor: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, 'Invalid hex color').optional(),
 });
 
 type SellerFormData = z.infer<typeof sellerSchema>;
@@ -81,7 +97,6 @@ export default function KOOPAdminPage() {
   const { user, isUserLoading } = useUser();
   const { toast } = useToast();
   
-  // Verify Admin Role before querying data
   const roleRef = useMemoFirebase(() => {
     if (!firestore || !user) return null;
     return doc(firestore, 'roles_admin', user.uid);
@@ -93,9 +108,9 @@ export default function KOOPAdminPage() {
   const [editingSeller, setEditingSeller] = useState<Seller | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
+  const [isBootstrapping, setIsBootstrapping] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Queries only activate if adminRole is verified
   const sellersQuery = useMemoFirebase(() => {
     if (!firestore || !adminRole) return null;
     return collection(firestore, 'sellers');
@@ -133,9 +148,19 @@ export default function KOOPAdminPage() {
     defaultValues: {
       courseName: '',
       type: 'Public Golf Course',
+      contactName: '',
       contactEmail: '',
-      serviceFee: 0,
+      contactPhone: '',
+      streetAddress: '',
+      city: '',
+      state: '',
+      zip: '',
+      serviceFee: 2.50,
+      taxRate: 6.0,
+      launchFee: 500,
+      monthlyPlatformFee: 99,
       status: 'Active',
+      brandColor: '#10b981',
     },
   });
 
@@ -147,11 +172,88 @@ export default function KOOPAdminPage() {
       const ordersSnapshot = await getDocs(collection(firestore, 'orders'));
       ordersSnapshot.forEach((doc) => batch.delete(doc.ref));
       await batch.commit();
-      toast({ title: "System Reset Complete" });
+      toast({ title: "Transaction Logs Purged" });
     } catch (e) {
       toast({ variant: "destructive", title: "Reset Failed" });
     } finally {
       setIsResetting(false);
+    }
+  };
+
+  const handleBootstrapNetwork = async () => {
+    if (!firestore) return;
+    setIsBootstrapping(true);
+    try {
+      const demoSellers = [
+        {
+          id: 'demo-course',
+          courseName: 'Public Golf Club',
+          type: 'Public Golf Course',
+          contactName: 'Demo Manager',
+          contactEmail: 'public@koop.com',
+          contactPhone: '555-0101',
+          streetAddress: '123 Fairway Drive',
+          city: 'Golf City',
+          state: 'MI',
+          zip: '48326',
+          serviceFee: 2.50,
+          taxRate: 6.0,
+          status: 'Active',
+          brandColor: '#10b981',
+          menuTypes: ['Beverage Cart', 'Clubhouse', 'Take Out'],
+          qrCodeUrl: 'https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=https://koop.app/sellers/demo-course/order'
+        },
+        {
+          id: 'demo-golf-course-private',
+          courseName: 'The Private Club',
+          type: 'Private Golf Course',
+          contactName: 'Membership Director',
+          contactEmail: 'private@koop.com',
+          contactPhone: '555-0102',
+          streetAddress: '456 Elite Lane',
+          city: 'Private Hills',
+          state: 'FL',
+          zip: '33101',
+          serviceFee: 0,
+          taxRate: 7.5,
+          status: 'Active',
+          brandColor: '#213147',
+          menuTypes: ['Beverage Cart', 'Clubhouse', 'Pool', 'Take Out'],
+          qrCodeUrl: 'https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=https://koop.app/sellers/demo-golf-course-private/order'
+        },
+        {
+          id: 'demo-bowling-alley',
+          courseName: 'Strike & Spare Lanes',
+          type: 'Bowling Alley',
+          contactName: 'Laneside Supervisor',
+          contactEmail: 'bowling@koop.com',
+          contactPhone: '555-0103',
+          streetAddress: '789 Pin Alley',
+          city: 'Rolling Meadows',
+          state: 'IL',
+          zip: '60008',
+          serviceFee: 1.50,
+          taxRate: 8.0,
+          status: 'Active',
+          brandColor: '#ef4444',
+          menuTypes: ['Lane Delivery', 'Take Out'],
+          laneCount: 24,
+          qrCodeUrl: 'https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=https://koop.app/sellers/demo-bowling-alley/order'
+        }
+      ];
+
+      for (const s of demoSellers) {
+        await setDoc(doc(firestore, 'sellers', s.id), {
+          ...s,
+          createdAt: new Date().toISOString()
+        }, { merge: true });
+      }
+
+      toast({ title: "Demo Network Bootstrapped", description: "Standard demo venues have been initialized." });
+    } catch (e) {
+      toast({ variant: "destructive", title: "Bootstrap Failed" });
+    } finally {
+      setIsBootstrapping(false);
     }
   };
 
@@ -160,22 +262,26 @@ export default function KOOPAdminPage() {
     form.reset({
       courseName: seller.courseName,
       type: seller.type,
+      contactName: seller.contactName || '',
       contactEmail: seller.contactEmail,
+      contactPhone: seller.contactPhone || '',
+      streetAddress: seller.streetAddress || '',
+      city: seller.city || '',
+      state: seller.state || '',
+      zip: seller.zip || '',
       serviceFee: seller.serviceFee,
+      taxRate: seller.taxRate || 6.0,
+      launchFee: seller.launchFee || 0,
+      monthlyPlatformFee: seller.monthlyPlatformFee || 0,
       status: seller.status,
+      brandColor: seller.brandColor || '#10b981',
     });
     setIsFormOpen(true);
   };
 
   const handleAddNewSeller = () => {
     setEditingSeller(null);
-    form.reset({
-      courseName: '',
-      type: 'Public Golf Course',
-      contactEmail: '',
-      serviceFee: 0,
-      status: 'Active',
-    });
+    form.reset();
     setIsFormOpen(true);
   };
 
@@ -183,20 +289,20 @@ export default function KOOPAdminPage() {
     if (!firestore) return;
     setIsSaving(true);
     
-    // Use existing ID if editing, otherwise generate a new one from name
     const sellerId = editingSeller ? editingSeller.id : data.courseName.toLowerCase().replace(/\s+/g, '-');
     const sellerRef = doc(firestore, 'sellers', sellerId);
+    
+    const menuTypes = editingSeller?.menuTypes || (data.type.includes('Golf') ? ['Beverage Cart', 'Clubhouse', 'Take Out'] : ['Lane Delivery', 'Take Out']);
     
     setDoc(sellerRef, { 
       ...data, 
       id: sellerId,
-      // Only set these on creation if they don't exist
-      menuTypes: editingSeller?.menuTypes || (data.type.includes('Golf') ? ['Beverage Cart', 'Clubhouse', 'Take Out'] : ['Lane Delivery', 'Take Out']),
-      taxRate: editingSeller?.taxRate || 6.0,
-      createdAt: editingSeller?.createdAt || new Date().toISOString()
+      menuTypes,
+      createdAt: editingSeller?.createdAt || new Date().toISOString(),
+      updatedAt: serverTimestamp()
     }, { merge: true })
       .then(() => {
-        toast({ title: editingSeller ? 'Seller Updated' : 'Seller Registered' });
+        toast({ title: editingSeller ? 'Venue Updated' : 'Venue Registered' });
         setIsFormOpen(false);
         setEditingSeller(null);
         form.reset();
@@ -243,7 +349,10 @@ export default function KOOPAdminPage() {
           </div>
           <p className="text-muted-foreground text-sm">Real-time system oversight and venue network management.</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <Button variant="outline" onClick={handleBootstrapNetwork} disabled={isBootstrapping} className="text-[10px] font-black uppercase h-10 px-4 tracking-widest border-indigo-200 text-indigo-600 hover:bg-indigo-50">
+            <Zap className={cn("mr-2 h-3.5 w-3.5", isBootstrapping && "animate-spin")} /> Bootstrap Network
+          </Button>
           <Button variant="outline" onClick={handleSystemReset} disabled={isResetting} className="border-destructive text-destructive hover:bg-destructive/5 text-[10px] font-black uppercase h-10 px-4 tracking-widest">
             <RefreshCw className={cn("mr-2 h-3.5 w-3.5", isResetting && "animate-spin")} /> Reset Logs
           </Button>
@@ -261,7 +370,7 @@ export default function KOOPAdminPage() {
           <TabsTrigger value="growth" className="text-[10px] font-black uppercase px-8 h-10">
             <Target className="mr-2 h-3.5 w-3.5" /> Growth
           </TabsTrigger>
-          <TabsTrigger value="settings" className="text-[10px] font-black uppercase px-8 h-10">
+          <TabsTrigger value="maintenance" className="text-[10px] font-black uppercase px-8 h-10">
             <ShieldAlert className="mr-2 h-3.5 w-3.5" /> Maintenance
           </TabsTrigger>
         </TabsList>
@@ -404,7 +513,7 @@ export default function KOOPAdminPage() {
           </div>
         </TabsContent>
 
-        <TabsContent value="settings">
+        <TabsContent value="maintenance">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <Card className="border-2">
               <CardHeader className="bg-muted/20 border-b"><CardTitle className="text-sm font-black uppercase">System Maintenance</CardTitle></CardHeader>
@@ -423,64 +532,151 @@ export default function KOOPAdminPage() {
         setIsFormOpen(open);
         if (!open) setEditingSeller(null);
       }}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle className="uppercase font-headline">{editingSeller ? 'Update Venue' : 'Register Venue'}</DialogTitle>
+        <DialogContent className="sm:max-w-[700px] max-h-[90vh] flex flex-col p-0 overflow-hidden">
+          <DialogHeader className="p-6 border-b bg-muted/10 shrink-0">
+            <DialogTitle className="uppercase font-headline text-xl">{editingSeller ? 'Update Venue Profile' : 'Register New Venue'}</DialogTitle>
             <DialogDescription>
-              {editingSeller ? `Modifying details for ${editingSeller.courseName}.` : 'Initialize a new establishment on the KOOP network.'}
+              {editingSeller ? `Modifying profile for ${editingSeller.courseName}.` : 'Register a new establishment on the KOOP global network.'}
             </DialogDescription>
           </DialogHeader>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSave)} className="space-y-4 pt-4">
-              <FormField control={form.control} name="courseName" render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-[10px] font-black uppercase">Venue Name</FormLabel>
-                  <FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
-              <div className="grid grid-cols-2 gap-4">
-                <FormField control={form.control} name="type" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-[10px] font-black uppercase">Service Category</FormLabel>
-                    <FormControl>
-                      <select {...field} className="w-full h-11 border-2 rounded-md px-3 text-sm font-bold bg-background">
-                        {sellerTypes.map(t => <option key={t} value={t}>{t}</option>)}
-                      </select>
-                    </FormControl>
-                  </FormItem>
-                )} />
-                <FormField control={form.control} name="status" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-[10px] font-black uppercase">Status</FormLabel>
-                    <FormControl>
-                      <select {...field} className="w-full h-11 border-2 rounded-md px-3 text-sm font-bold bg-background">
-                        <option value="Active">Active</option>
-                        <option value="Inactive">Inactive</option>
-                      </select>
-                    </FormControl>
-                  </FormItem>
-                )} />
-              </div>
-              <FormField control={form.control} name="contactEmail" render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-[10px] font-black uppercase">Contact Email</FormLabel>
-                  <FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl>
-                </FormItem>
-              )} />
-              <FormField control={form.control} name="serviceFee" render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-[10px] font-black uppercase">Default Conv. Fee ($)</FormLabel>
-                  <FormControl><Input type="number" step="0.01" {...field} className="h-11 border-2 font-bold font-mono" /></FormControl>
-                </FormItem>
-              )} />
-              <DialogFooter className="pt-6">
-                <Button type="submit" disabled={isSaving} className="w-full h-14 bg-[#213147] hover:bg-[#213147]/90 text-white font-headline font-black uppercase tracking-widest shadow-xl">
-                  {isSaving ? <Loader2 className="animate-spin" /> : (editingSeller ? "SAVE CHANGES" : "PROVISION ESTABLISHMENT")}
-                </Button>
-              </DialogFooter>
-            </form>
-          </Form>
+          
+          <ScrollArea className="flex-1 px-6 py-4">
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSave)} className="space-y-8 pt-2 pb-8">
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Building className="h-4 w-4 text-primary" />
+                    <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">General Information</h3>
+                  </div>
+                  <FormField control={form.control} name="courseName" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-[10px] font-black uppercase">Venue Name</FormLabel>
+                      <FormControl><Input {...field} placeholder="e.g. Pine Valley Golf Club" className="h-11 border-2 font-bold" /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField control={form.control} name="type" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-[10px] font-black uppercase">Service Category</FormLabel>
+                        <FormControl>
+                          <select {...field} className="w-full h-11 border-2 rounded-md px-3 text-sm font-bold bg-background">
+                            {sellerTypes.map(t => <option key={t} value={t}>{t}</option>)}
+                          </select>
+                        </FormControl>
+                      </FormItem>
+                    )} />
+                    <FormField control={form.control} name="status" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-[10px] font-black uppercase">Platform Status</FormLabel>
+                        <FormControl>
+                          <select {...field} className="w-full h-11 border-2 rounded-md px-3 text-sm font-bold bg-background">
+                            <option value="Active">Active</option>
+                            <option value="Inactive">Inactive</option>
+                          </select>
+                        </FormControl>
+                      </FormItem>
+                    )} />
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <MapPin className="h-4 w-4 text-primary" />
+                    <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Location Details</h3>
+                  </div>
+                  <FormField control={form.control} name="streetAddress" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-[10px] font-black uppercase">Street Address</FormLabel>
+                      <FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl>
+                    </FormItem>
+                  )} />
+                  <div className="grid grid-cols-3 gap-4">
+                    <FormField control={form.control} name="city" render={({ field }) => (
+                      <FormItem><FormLabel className="text-[10px] font-black uppercase">City</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>
+                    )} />
+                    <FormField control={form.control} name="state" render={({ field }) => (
+                      <FormItem><FormLabel className="text-[10px] font-black uppercase">State</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>
+                    )} />
+                    <FormField control={form.control} name="zip" render={({ field }) => (
+                      <FormItem><FormLabel className="text-[10px] font-black uppercase">ZIP Code</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>
+                    )} />
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Mail className="h-4 w-4 text-primary" />
+                    <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Primary Contact</h3>
+                  </div>
+                  <FormField control={form.control} name="contactName" render={({ field }) => (
+                    <FormItem><FormLabel className="text-[10px] font-black uppercase">Decision Maker Name</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>
+                  )} />
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField control={form.control} name="contactEmail" render={({ field }) => (
+                      <FormItem><FormLabel className="text-[10px] font-black uppercase">Contact Email</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>
+                    )} />
+                    <FormField control={form.control} name="contactPhone" render={({ field }) => (
+                      <FormItem><FormLabel className="text-[10px] font-black uppercase">Contact Phone</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>
+                    )} />
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <DollarSign className="h-4 w-4 text-primary" />
+                    <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Financial Settings</h3>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField control={form.control} name="serviceFee" render={({ field }) => (
+                      <FormItem><FormLabel className="text-[10px] font-black uppercase">Default Conv. Fee ($)</FormLabel><FormControl><Input type="number" step="0.01" {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>
+                    )} />
+                    <FormField control={form.control} name="taxRate" render={({ field }) => (
+                      <FormItem><FormLabel className="text-[10px] font-black uppercase">Tax Rate (%)</FormLabel><FormControl><Input type="number" step="0.1" {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>
+                    )} />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField control={form.control} name="launchFee" render={({ field }) => (
+                      <FormItem><FormLabel className="text-[10px] font-black uppercase">Platform Launch Fee ($)</FormLabel><FormControl><Input type="number" {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>
+                    )} />
+                    <FormField control={form.control} name="monthlyPlatformFee" render={({ field }) => (
+                      <FormItem><FormLabel className="text-[10px] font-black uppercase">Monthly Fee ($)</FormLabel><FormControl><Input type="number" {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>
+                    )} />
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Palette className="h-4 w-4 text-primary" />
+                    <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Visual Branding</h3>
+                  </div>
+                  <FormField control={form.control} name="brandColor" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-[10px] font-black uppercase">Menu Primary Color (Hex)</FormLabel>
+                      <div className="flex gap-3">
+                        <FormControl>
+                          <Input {...field} placeholder="#10b981" className="h-11 border-2 font-bold flex-1" />
+                        </FormControl>
+                        <div className="w-11 h-11 rounded-md border-2" style={{ backgroundColor: field.value }} />
+                      </div>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                </div>
+              </form>
+            </Form>
+          </ScrollArea>
+
+          <DialogFooter className="p-6 border-t bg-muted/10 shrink-0">
+            <Button 
+              type="submit" 
+              disabled={isSaving} 
+              onClick={form.handleSubmit(onSave)}
+              className="w-full h-14 bg-[#213147] hover:bg-[#213147]/90 text-white font-headline font-black uppercase tracking-widest shadow-xl"
+            >
+              {isSaving ? <Loader2 className="animate-spin" /> : (editingSeller ? "SAVE VENUE CHANGES" : "PROVISION ESTABLISHMENT")}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
