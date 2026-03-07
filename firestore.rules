@@ -21,7 +21,10 @@ service cloud.firestore {
 
     match /roles_admin/{uid} {
       allow get: if isSignedIn();
-      allow list, write: if isAdmin();
+      // Allow self-promotion for the prototype setup tool.
+      // In production, this would be restricted to a backend script or existing admins.
+      allow write: if isOwner(uid); 
+      allow list: if isAdmin();
     }
 
     match /adminUsers/{uid} {
