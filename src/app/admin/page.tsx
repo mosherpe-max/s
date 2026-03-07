@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -358,7 +359,7 @@ export default function KOOPAdminPage() {
   const { toast } = useToast();
   const [isMounted, setIsMounted] = useState(false);
   
-  // Guard Logic
+  // Guard Logic: Wait for role verification before attempting data queries
   const roleRef = useMemoFirebase(() => {
     if (!firestore || !user) return null;
     return doc(firestore, 'roles_admin', user.uid);
@@ -397,25 +398,26 @@ export default function KOOPAdminPage() {
   const [selectedInvoice, setSelectedInvoice] = useState<any | null>(null);
   const [billingMonth, setBillingMonth] = useState(format(subMonths(new Date(), 1), 'yyyy-MM'));
 
+  // Critical: Only build queries if adminRole is confirmed to avoid permission errors
   const sellersQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
+    if (!firestore || !adminRole) return null;
     return collection(firestore, 'sellers');
-  }, [firestore]);
+  }, [firestore, adminRole]);
 
   const ordersQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
+    if (!firestore || !adminRole) return null;
     return collection(firestore, 'orders');
-  }, [firestore]);
+  }, [firestore, adminRole]);
 
   const prospectsQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
+    if (!firestore || !adminRole) return null;
     return collection(firestore, 'prospects');
-  }, [firestore]);
+  }, [firestore, adminRole]);
 
   const activitiesQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
+    if (!firestore || !adminRole) return null;
     return collection(firestore, 'activities');
-  }, [firestore]);
+  }, [firestore, adminRole]);
 
   const { data: sellers, isLoading: isSellersLoading } = useCollection<Seller>(sellersQuery);
   const { data: orders, isLoading: isOrdersLoading } = useCollection<Order>(ordersQuery);
@@ -767,7 +769,7 @@ export default function KOOPAdminPage() {
     );
   }
 
-  if (!user || !adminRole) return null; // Redirect handled by useEffect
+  if (!user || !adminRole) return null;
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-7xl relative">

@@ -46,9 +46,13 @@ service cloud.firestore {
     match /orders/{orderId} {
       allow get: if true; // For tracking via unique ID
       allow create: if true; // Guest checkout
-      // Scoped list for regular users, global list for admins
-      allow list: if isAdmin() || (isSignedIn() && request.query.limit <= 10); 
-      allow update: if isAdmin() || isSignedIn();
+      
+      // Scoped list: Admins see all, users see their own, sellers see their venue's
+      allow list: if isAdmin() || (isSignedIn() && (resource.data.customerId == request.auth.uid || resource.data.sellerId == request.auth.uid));
+      
+      // Update: Admins, the patron, or the seller
+      allow update: if isAdmin() || (isSignedIn() && (resource.data.customerId == request.auth.uid || resource.data.sellerId == request.auth.uid));
+      
       allow delete: if isAdmin();
     }
 
