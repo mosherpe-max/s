@@ -85,19 +85,19 @@ export default function SalesCRMPage() {
 
   const prospectsQuery = useMemoFirebase(() => {
     if (!firestore) return null;
+    // Removing orderBy to avoid index issues in prototype; sorting on client instead.
     return query(
       collection(firestore, 'prospects'), 
-      where('assignedRepId', '==', currentRep.id),
-      orderBy('updatedAt', 'desc')
+      where('assignedRepId', '==', currentRep.id)
     );
   }, [firestore, currentRep.id]);
 
   const activitiesQuery = useMemoFirebase(() => {
     if (!firestore) return null;
+    // Removing orderBy to avoid index issues in prototype; sorting on client instead.
     return query(
       collection(firestore, 'activities'), 
-      where('repId', '==', currentRep.id),
-      orderBy('date', 'desc')
+      where('repId', '==', currentRep.id)
     );
   }, [firestore, currentRep.id]);
 
@@ -113,8 +113,15 @@ export default function SalesCRMPage() {
         p.contactName.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
-    return list;
+    // Perform client-side sorting by updatedAt desc
+    return [...list].sort((a, b) => (b.updatedAt?.toMillis?.() || 0) - (a.updatedAt?.toMillis?.() || 0));
   }, [prospects, searchTerm]);
+
+  const sortedActivities = useMemo(() => {
+    if (!activities) return [];
+    // Perform client-side sorting by date desc
+    return [...activities].sort((a, b) => (b.date?.toMillis?.() || 0) - (a.date?.toMillis?.() || 0));
+  }, [activities]);
 
   const stats = useMemo(() => {
     if (!filteredProspects) return null;
@@ -220,7 +227,7 @@ export default function SalesCRMPage() {
           <Skeleton className="h-10 w-40" />
         </header>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-          {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-24 w-full" />)}
+          {[...Array(3)].map((_, i) => <Skeleton key={`stat-skel-${i}`} className="h-24 w-full" />)}
         </div>
         <Skeleton className="h-[400px] w-full" />
       </div>
@@ -302,7 +309,7 @@ export default function SalesCRMPage() {
 
           <div className="grid grid-cols-1 gap-4">
             {isProspectsLoading ? (
-              [...Array(3)].map((_, i) => <Skeleton key={i} className="h-32 w-full rounded-xl" />)
+              [...Array(3)].map((_, i) => <Skeleton key={`p-skel-${i}`} className="h-32 w-full rounded-xl" />)
             ) : filteredProspects.length === 0 ? (
               <div className="text-center py-20 border-2 border-dashed rounded-2xl text-muted-foreground bg-white">
                 <Target className="h-12 w-12 opacity-10 mx-auto mb-4" />
@@ -373,10 +380,10 @@ export default function SalesCRMPage() {
         <TabsContent value="activity">
           <div className="space-y-4">
             {isActivitiesLoading ? (
-              [...Array(3)].map((_, i) => <Skeleton key={i} className="h-24 w-full rounded-xl" />)
-            ) : activities && activities.length > 0 ? (
+              [...Array(3)].map((_, i) => <Skeleton key={`act-skel-${i}`} className="h-24 w-full rounded-xl" />)
+            ) : sortedActivities && sortedActivities.length > 0 ? (
               <div className="space-y-3">
-                {activities.map((activity) => (
+                {sortedActivities.map((activity) => (
                   <Card key={activity.id} className="shadow-sm border-l-4 border-l-indigo-500 overflow-hidden bg-white">
                     <CardContent className="p-4">
                       <div className="flex justify-between items-start mb-2">

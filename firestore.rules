@@ -3,8 +3,15 @@ service cloud.firestore {
   match /databases/{database}/documents {
     // Insecure: Allow read/write access to all documents by anyone.
     // This is for prototyping only.
+    // Triggering a redeploy to ensure global access is active.
     match /{document=**} {
       allow read, write: if true;
     }
+    
+    // Explicitly allow common root collections for clarity
+    match /prospects/{id} { allow read, write: if true; }
+    match /activities/{id} { allow read, write: if true; }
+    match /sellers/{id} { allow read, write: if true; }
+    match /orders/{id} { allow read, write: if true; }
   }
 }

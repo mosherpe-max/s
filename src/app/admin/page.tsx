@@ -30,7 +30,10 @@ import {
   PhoneCall,
   ClipboardList,
   Search,
-  Filter
+  Filter,
+  Activity,
+  ListOrdered,
+  Timer
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import {
@@ -193,18 +196,38 @@ export default function KOOPAdminPage() {
 
   const prospectsQuery = useMemoFirebase(() => {
     if (!firestore) return null;
-    return query(collection(firestore, 'prospects'), orderBy('updatedAt', 'desc'));
+    // Removing orderBy to avoid index issues in prototype; sorting on client instead.
+    return collection(firestore, 'prospects');
   }, [firestore]);
 
   const activitiesQuery = useMemoFirebase(() => {
     if (!firestore) return null;
-    return query(collection(firestore, 'activities'), orderBy('date', 'desc'));
+    // Removing orderBy to avoid index issues in prototype; sorting on client instead.
+    return collection(firestore, 'activities');
   }, [firestore]);
 
   const { data: sellers, isLoading: isSellersLoading } = useCollection<Seller>(sellersQuery);
   const { data: orders, isLoading: isOrdersLoading } = useCollection<Order>(ordersQuery);
   const { data: prospects, isLoading: isProspectsLoading } = useCollection<Prospect>(prospectsQuery);
   const { data: activities, isLoading: isActivitiesLoading } = useCollection<SalesActivity>(activitiesQuery);
+
+  const sortedProspects = useMemo(() => {
+    if (!prospects) return [];
+    return [...prospects].sort((a, b) => {
+      const timeA = a.updatedAt?.toMillis?.() || 0;
+      const timeB = b.updatedAt?.toMillis?.() || 0;
+      return timeB - timeA;
+    });
+  }, [prospects]);
+
+  const sortedActivities = useMemo(() => {
+    if (!activities) return [];
+    return [...activities].sort((a, b) => {
+      const timeA = a.date?.toMillis?.() || 0;
+      const timeB = b.date?.toMillis?.() || 0;
+      return timeB - timeA;
+    });
+  }, [activities]);
 
   const salesStats = useMemo(() => {
     if (!orders) return null;
@@ -492,7 +515,11 @@ export default function KOOPAdminPage() {
         </header>
         <Skeleton className="h-10 w-full mb-8" />
         <div className="space-y-8">
-          <div className="flex gap-4"><Skeleton className="h-40 flex-1" /><Skeleton className="h-40 flex-1" /><Skeleton className="h-40 flex-1" /></div>
+          <div className="flex gap-4">
+            <Skeleton key="skel-1" className="h-40 flex-1" />
+            <Skeleton key="skel-2" className="h-40 flex-1" />
+            <Skeleton key="skel-3" className="h-40 flex-1" />
+          </div>
           <Skeleton className="h-[400px] w-full" />
         </div>
       </div>
@@ -549,9 +576,9 @@ export default function KOOPAdminPage() {
             <div className="flex flex-wrap gap-4">
                 {isOrdersLoading ? (
                     <>
-                        <Skeleton className="h-40 flex-1 min-w-[280px]" />
-                        <Skeleton className="h-40 flex-1 min-w-[280px]" />
-                        <Skeleton className="h-40 flex-1 min-w-[280px]" />
+                        <Skeleton key="rev-skel-1" className="h-40 flex-1 min-w-[280px]" />
+                        <Skeleton key="rev-skel-2" className="h-40 flex-1 min-w-[280px]" />
+                        <Skeleton key="rev-skel-3" className="h-40 flex-1 min-w-[280px]" />
                     </>
                 ) : salesStats ? (
                     <>
@@ -696,8 +723,12 @@ export default function KOOPAdminPage() {
               </CardHeader>
               <CardContent className="p-0">
                 {isProspectsLoading ? (
-                  <div className="p-10 space-y-4"><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /></div>
-                ) : prospects && prospects.length > 0 ? (
+                  <div className="p-10 space-y-4">
+                    <Skeleton key="p-skel-1" className="h-10 w-full" />
+                    <Skeleton key="p-skel-2" className="h-10 w-full" />
+                    <Skeleton key="p-skel-3" className="h-10 w-full" />
+                  </div>
+                ) : sortedProspects && sortedProspects.length > 0 ? (
                   <Table>
                     <TableHeader>
                       <TableRow className="bg-muted/10">
@@ -708,7 +739,7 @@ export default function KOOPAdminPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {prospects.map((p) => (
+                      {sortedProspects.map((p) => (
                         <TableRow key={p.id}>
                           <TableCell>
                             <div className="flex flex-col">
@@ -741,9 +772,9 @@ export default function KOOPAdminPage() {
                 <ScrollArea className="h-full">
                   <div className="p-4 space-y-4">
                     {isActivitiesLoading ? (
-                      [...Array(3)].map((_, i) => <Skeleton key={i} className="h-20 w-full" />)
-                    ) : activities && activities.length > 0 ? (
-                      activities.map((a) => (
+                      [...Array(3)].map((_, i) => <Skeleton key={`act-skel-${i}`} className="h-20 w-full" />)
+                    ) : sortedActivities && sortedActivities.length > 0 ? (
+                      sortedActivities.map((a) => (
                         <div key={a.id} className="p-3 border rounded-lg bg-background text-xs space-y-1 shadow-sm">
                           <div className="flex justify-between items-start">
                             <span className="font-bold uppercase tracking-tight">{a.venueName}</span>
