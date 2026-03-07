@@ -302,16 +302,6 @@ function OrderTrackingContent() {
       )}
 
       <div className="flex-1 p-4 space-y-4 max-w-2xl mx-auto w-full pb-20">
-        <Card className="shadow-lg border-primary/10 overflow-hidden bg-white/80 backdrop-blur-sm">
-            <CardHeader className="py-4 px-6">
-                <div className="flex justify-between items-center mb-4">
-                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Live Tracking</span>
-                    <Badge variant="outline" className="font-mono text-[9px] h-5 px-2 border-primary/20 bg-primary/5">#{numericId}</Badge>
-                </div>
-                <OrderStatus currentStatus={order.status} menuType={order.menuType} />
-            </CardHeader>
-        </Card>
-
         {isDelivered && (
             <Card className="text-center shadow-xl border-green-200 bg-green-50 overflow-hidden">
                 <div className="h-2 bg-green-500 w-full" />
@@ -325,6 +315,16 @@ function OrderTrackingContent() {
                 </CardContent>
             </Card>
         )}
+
+        <Card className="shadow-lg border-primary/10 overflow-hidden bg-white/80 backdrop-blur-sm">
+            <CardHeader className="py-4 px-6">
+                <div className="flex justify-between items-center mb-4">
+                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">{isDelivered ? 'Order Summary' : 'Live Tracking'}</span>
+                    <Badge variant="outline" className="font-mono text-[9px] h-5 px-2 border-primary/20 bg-primary/5">#{numericId}</Badge>
+                </div>
+                <OrderStatus currentStatus={order.status} menuType={order.menuType} />
+            </CardHeader>
+        </Card>
 
         {isOrderActive && (
           <div className="px-1">
