@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -14,7 +15,8 @@ import {
   Menu,
   ChevronRight,
   Database,
-  Users
+  Users,
+  Target
 } from 'lucide-react';
 import { useCart } from '@/lib/cart-context';
 import { useState, useEffect, useMemo } from 'react';
@@ -87,18 +89,18 @@ export function AppHeader() {
   
   const showSellerName = (isBuyerView || isTrackingPage) && !isDriverPage;
 
-  // Hamburger visibility rules: Home, KOOP Admin, Seller Admin only
   const isHomePage = pathname === '/';
   const isKoopAdmin = pathname === '/admin';
   const isSellerAdmin = sellerId && pathname === `/sellers/${sellerId}`;
-  const showHamburger = isHomePage || isKoopAdmin || isSellerAdmin;
+  const isSalesCrm = pathname === '/sales';
+  const showHamburger = isHomePage || isKoopAdmin || isSellerAdmin || isSalesCrm;
 
   if (isDriverPage) return null;
 
   const NavigationLinks = ({ mobile = false }: { mobile?: boolean }) => {
     const itemClass = mobile 
       ? "flex items-center gap-3 py-3 px-4 hover:bg-muted/50 rounded-lg transition-colors border-b last:border-0"
-      : "flex items-center gap-2 cursor-pointer py-2";
+      : "flex items-center gap-2 cursor-pointer py-2 w-full";
     
     const labelClass = mobile
       ? "text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground mt-6 mb-2 px-4"
@@ -116,7 +118,7 @@ export function AppHeader() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuLabel className={labelClass}>Platform Admin</DropdownMenuLabel>
+              <DropdownMenuLabel className={labelClass}>Internal Tools</DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem asChild>
                 <Link href="/admin" className={itemClass}>
@@ -124,14 +126,27 @@ export function AppHeader() {
                   <span className="font-bold text-xs uppercase tracking-tight">KOOP ADMIN</span>
                 </Link>
               </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/sales" className={itemClass}>
+                  <Target className="h-4 w-4 text-indigo-600" />
+                  <span className="font-bold text-xs uppercase tracking-tight">SALES CRM</span>
+                </Link>
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         ) : (
-          <Link href="/admin" onClick={() => setIsMobileMenuOpen(false)} className={itemClass}>
-            <ShieldCheck className="h-5 w-5 text-primary" />
-            <span className="font-bold text-sm uppercase tracking-tight">KOOP ADMIN</span>
-            <ChevronRight className="ml-auto h-4 w-4 text-muted-foreground/30" />
-          </Link>
+          <>
+            <Link href="/admin" onClick={() => setIsMobileMenuOpen(false)} className={itemClass}>
+              <ShieldCheck className="h-5 w-5 text-primary" />
+              <span className="font-bold text-sm uppercase tracking-tight">KOOP ADMIN</span>
+              <ChevronRight className="ml-auto h-4 w-4 text-muted-foreground/30" />
+            </Link>
+            <Link href="/sales" onClick={() => setIsMobileMenuOpen(false)} className={itemClass}>
+              <Target className="h-5 w-5 text-indigo-600" />
+              <span className="font-bold text-sm uppercase tracking-tight">SALES CRM</span>
+              <ChevronRight className="ml-auto h-4 w-4 text-muted-foreground/30" />
+            </Link>
+          </>
         )}
 
         {/* MANAGE SELLERS (IMPERSONATION) */}

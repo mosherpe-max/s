@@ -136,3 +136,36 @@ export interface Order {
   lastGpsUpdate?: Timestamp;
   buyerDeviceStatus?: 'ios-browser' | 'standalone' | 'android' | 'standard';
 }
+
+// CRM TYPES
+export type ProspectStage = 'Contacted' | 'Demo Scheduled' | 'Proposal Sent' | 'Closed' | 'Lost';
+export type CRMVenueType = 'Golf Course' | 'Bowling Alley' | 'Brewery/Restaurant';
+
+export interface Prospect {
+  id: string;
+  venueName: string;
+  venueType: CRMVenueType;
+  stage: ProspectStage;
+  contactName: string;
+  contactEmail: string;
+  contactPhone: string;
+  notes: string;
+  launchFeeQuoted: number;
+  monthlyFee: number;
+  estVolume: number;
+  assignedRepId: string;
+  assignedRepName: string;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
+export interface SalesActivity {
+  id: string;
+  prospectId: string;
+  venueName: string;
+  type: 'Call' | 'Email' | 'Visit' | 'Meeting';
+  notes: string;
+  date: Timestamp;
+  repId: string;
+  repName: string;
+}

@@ -7,337 +7,47 @@
       "type": "object",
       "description": "Represents a seller in the KOOP application.",
       "properties": {
-        "ownerId": {
-          "type": "string",
-          "description": "The UID of the user who owns this seller profile. Optional for prototyping."
-        },
-        "courseName": {
-          "type": "string",
-          "description": "The name of the golf course or establishment."
-        },
-        "type": {
-          "type": "string",
-          "enum": ["Private Golf Course", "Semi Private Golf Course", "Public Golf Course", "Bowling Alley", "Brewery", "Restaurant"],
-          "description": "The type of establishment for the seller."
-        },
-        "menuTypes": {
-          "type": "array",
-          "items": { "type": "string" },
-          "description": "The service types/menu categories enabled for this seller."
-        },
-        "halfwayHouseCount": {
-          "type": "number",
-          "description": "Number of halfway houses if applicable."
-        },
-        "halfwayHouseNames": {
-          "type": "array",
-          "items": { "type": "string" },
-          "description": "Names for each halfway house."
-        },
-        "laneCount": {
-          "type": "number",
-          "description": "Number of bowling lanes if applicable."
-        },
-        "tableCount": {
-          "type": "number",
-          "description": "Number of dining tables if applicable."
-        },
-        "streetAddress": {
-          "type": "string",
-          "description": "The street address of the establishment."
-        },
-        "city": {
-          "type": "string",
-          "description": "The city where the establishment is located."
-        },
-        "state": {
-          "type": "string",
-          "description": "The state where the establishment is located."
-        },
-        "zip": {
-          "type": "string",
-          "description": "The postal/zip code of the establishment."
-        },
-        "latitude": {
-          "type": "number",
-          "description": "The latitude of the golf course."
-        },
-        "longitude": {
-          "type": "number",
-          "description": "The longitude of the golf course."
-        },
-        "contactName": {
-          "type": "string",
-          "description": "The primary contact person for the seller."
-        },
-        "contactEmail": {
-          "type": "string",
-          "description": "The contact email address for the seller.",
-          "format": "email"
-        },
-        "contactPhone": {
-          "type": "string",
-          "description": "The contact phone number for the seller."
-        },
-        "serviceFee": {
-          "type": "number",
-          "description": "The default convenience fee charged by the establishment per order."
-        },
-        "taxRate": {
-          "type": "number",
-          "description": "The sales tax rate for the establishment (percentage)."
-        },
-        "menuServiceFees": {
-          "type": "object",
-          "description": "A map of service menu types to their specific convenience fees."
-        },
-        "status": {
-          "type": "string",
-          "enum": ["Active", "Inactive"],
-          "description": "The general status of the seller."
-        },
-        "bevcartActive": {
-          "type": "boolean",
-          "description": "Whether the Beverage Cart service is active."
-        },
-        "clubhouseActive": {
-          "type": "boolean",
-          "description": "Whether the Clubhouse service is active."
-        },
-        "brandColor": {
-          "type": "string",
-          "description": "The primary brand color for the menu (e.g. #22c55e)."
-        },
-        "logoUrl": {
-          "type": "string",
-          "description": "URL for the seller's logo image."
-        },
-        "categoryVisibility": {
-          "type": "object",
-          "description": "Map of menu types to enabled categories."
-        },
-        "welcomeMessage": {
-          "type": "string",
-          "description": "A welcome message displayed to buyers."
-        },
-        "lastActive": {
-          "type": "string",
-          "format": "date-time",
-          "description": "Timestamp of the last driver heartbeat."
-        }
-      },
-      "required": [
-        "courseName",
-        "type",
-        "streetAddress",
-        "city",
-        "state",
-        "zip",
-        "contactName",
-        "contactEmail",
-        "status"
-      ]
+        "ownerId": { "type": "string" },
+        "courseName": { "type": "string" },
+        "type": { "type": "string" },
+        "menuTypes": { "type": "array", "items": { "type": "string" } },
+        "status": { "type": "string", "enum": ["Active", "Inactive"] }
+      }
     },
-    "MenuItem": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "MenuItem",
+    "Prospect": {
+      "title": "Prospect",
       "type": "object",
-      "description": "Represents a single item on a menu.",
+      "description": "Represents a potential venue in the sales pipeline.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the menu item entity."
-        },
-        "name": {
-          "type": "string",
-          "description": "The name of the menu item (e.g., 'Bud Light', 'Chips')."
-        },
-        "description": {
-          "type": "string",
-          "description": "A description of the menu item."
-        },
-        "price": {
-          "type": "number",
-          "description": "The price of the menu item."
-        },
-        "category": {
-          "type": "string",
-          "description": "The category of the menu item."
-        },
-        "rank": {
-          "type": "number",
-          "description": "The display order of the menu item within its category."
-        },
-        "imageUrl": {
-          "type": "string",
-          "description": "URL for the item's display image."
-        },
-        "availableOn": {
-          "type": "array",
-          "items": { "type": "string" },
-          "description": "The specific menu types (e.g., 'Beverage Cart') this item is available for."
-        }
-      },
-      "required": [
-        "id",
-        "name",
-        "price",
-        "category",
-        "rank"
-      ]
+        "venueName": { "type": "string" },
+        "venueType": { "type": "string", "enum": ["Golf Course", "Bowling Alley", "Brewery/Restaurant"] },
+        "stage": { "type": "string", "enum": ["Contacted", "Demo Scheduled", "Proposal Sent", "Closed", "Lost"] },
+        "contactName": { "type": "string" },
+        "contactEmail": { "type": "string", "format": "email" },
+        "assignedRepId": { "type": "string" }
+      }
     },
-    "Member": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Member",
+    "SalesActivity": {
+      "title": "SalesActivity",
       "type": "object",
-      "description": "Represents a club member for Private/Semi-Private courses.",
+      "description": "Log of interactions with prospects.",
       "properties": {
-        "id": { "type": "string" },
-        "name": { "type": "string" },
-        "memberNumber": { "type": "string" },
-        "status": {
-          "type": "string",
-          "enum": ["Active", "Inactive"],
-          "description": "Whether the member account is active and can be charged."
-        }
-      },
-      "required": ["id", "name", "memberNumber", "status"]
-    },
-    "Order": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Order",
-      "type": "object",
-      "description": "Represents a customer's order.",
-      "properties": {
-        "sellerId": {
-          "type": "string",
-          "description": "The ID of the seller this order belongs to."
-        },
-        "customerId": {
-          "type": "string",
-          "description": "The ID of the customer who placed the order."
-        },
-        "customerName": {
-          "type": "string",
-          "description": "The name of the customer."
-        },
-        "menuType": {
-          "type": "string",
-          "description": "The specific service mode selected (e.g., 'Beverage Cart', 'Clubhouse')."
-        },
-        "menuTypeLocation": {
-          "type": "string",
-          "description": "Specific location details like House Name, Lane Number, or Table Number."
-        },
-        "paymentMethod": {
-          "type": "string",
-          "enum": ["Credit Card", "Member Account", "Pay at Delivery", "Pay with Cash or Credit Card to Beverage Cart Operator"]
-        },
-        "memberId": {
-          "type": "string",
-          "description": "The ID of the member if paymentMethod is Member Account."
-        },
-        "memberLastName": {
-          "type": "string",
-          "description": "The last name of the member if paymentMethod is Member Account."
-        },
-        "deliveryLocation": {
-          "type": "object",
-          "properties": {
-            "latitude": { "type": "number" },
-            "longitude": { "type": "number" }
-          },
-          "required": ["latitude", "longitude"]
-        },
-        "items": {
-          "type": "array",
-          "items": { "$ref": "#/backend/entities/MenuItem" }
-        },
-        "subtotal": { "type": "number" },
-        "serviceFee": { "type": "number", "description": "The convenience fee charged for this order." },
-        "tax": { "type": "number", "description": "The calculated tax for the order." },
-        "tip": { "type": "number", "description": "The tip provided by the customer." },
-        "total": { "type": "number" },
-        "status": {
-          "type": "string",
-          "enum": ["Placed", "Preparing", "Out for Delivery", "Delivered", "Cancelled"]
-        },
-        "createdAt": {
-          "type": "string",
-          "format": "date-time"
-        },
-        "deliveredAt": {
-          "type": "string",
-          "format": "date-time",
-          "description": "The time when the order was successfully delivered."
-        }
-      },
-      "required": ["sellerId", "customerId", "deliveryLocation", "items", "total", "status", "createdAt", "menuType"]
+        "prospectId": { "type": "string" },
+        "type": { "type": "string", "enum": ["Call", "Email", "Visit", "Meeting"] },
+        "notes": { "type": "string" },
+        "repId": { "type": "string" }
+      }
     }
   },
   "auth": {
-    "providers": [
-      "password",
-      "anonymous"
-    ]
+    "providers": ["password", "anonymous"]
   },
   "firestore": {
     "structure": [
-      {
-        "path": "/sellers/{sellerId}",
-        "definition": {
-          "entityName": "Seller",
-          "schema": {
-            "$ref": "#/backend/entities/Seller"
-          },
-          "description": "Stores seller profiles.",
-          "params": [
-            { "name": "sellerId", "description": "The unique identifier of the seller." }
-          ]
-        }
-      },
-      {
-        "path": "/sellers/{sellerId}/menuItems/{menuItemId}",
-        "definition": {
-          "entityName": "MenuItem",
-          "schema": {
-            "$ref": "#/backend/entities/MenuItem"
-          },
-          "description": "Stores menu items associated with a specific seller.",
-          "params": [
-            { "name": "sellerId", "description": "The unique identifier of the seller." },
-            { "name": "menuItemId", "description": "The unique identifier of the menu item." }
-          ]
-        }
-      },
-      {
-        "path": "/sellers/{sellerId}/members/{memberId}",
-        "definition": {
-          "entityName": "Member",
-          "schema": {
-            "$ref": "#/backend/entities/Member"
-          },
-          "description": "Stores member list for Private/Semi-Private courses.",
-          "params": [
-            { "name": "sellerId", "description": "The unique identifier of the seller." },
-            { "name": "memberId", "description": "The unique identifier of the member." }
-          ]
-        }
-      },
-      {
-        "path": "/orders/{orderId}",
-        "definition": {
-          "entityName": "Order",
-          "schema": {
-            "$ref": "#/backend/entities/Order"
-          },
-          "description": "Stores all customer orders for all sellers.",
-          "params": [
-             { "name": "orderId", "description": "The unique identifier of the order." }
-          ]
-        }
-      }
-    ],
-    "reasoning": "Standard hierarchical structure with subcollections for menu items and members."
+      { "path": "/sellers/{sellerId}", "definition": { "entityName": "Seller", "description": "Stores seller profiles." } },
+      { "path": "/orders/{orderId}", "definition": { "entityName": "Order", "description": "Stores customer orders." } },
+      { "path": "/prospects/{prospectId}", "definition": { "entityName": "Prospect", "description": "Sales pipeline prospects." } },
+      { "path": "/activities/{activityId}", "definition": { "entityName": "SalesActivity", "description": "Sales activity logs." } }
+    ]
   }
 }
