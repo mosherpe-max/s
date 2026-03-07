@@ -1,166 +1,62 @@
+
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    /**
-     * CORE PHILOSOPHY
-     * This ruleset enforces a multi-tenant security model for the Koop platform.
-     * Access is partitioned between Koop Administrators, Buyers, and Sellers.
-     * 
-     * DATA STRUCTURE
-     * - /roles_admin: Security markers for Admin privileges.
-     * - /adminUsers, /buyerProfiles, /sellerProfiles: Root-level identity documents.
-     * - /sellerProfiles/{id}/menus/...: Seller-owned content.
-     * - /orders: Shared transactional data between Buyers and Sellers.
-     * 
-     * KEY SECURITY DECISIONS
-     * 1. Admin Supremacy: Users with a document in /roles_admin/{uid} gain broad access.
-     * 2. Denormalization for Performance: Critical IDs (buyerId, sellerId) are duplicated
-     *    onto sub-documents (OrderItems, MenuItems) to avoid expensive 'get()' calls.
-     * 3. Identity-to-Path Binding: Root profile IDs must match the Authenticated UID.
-     * 4. Prototyping Mode: Schema validation is ignored except for relational integrity fields.
-     */
-
     // --- Helper Functions ---
 
-    /** @description Checks if the user is authenticated with Firebase Auth. */
     function isSignedIn() {
       return request.auth != null;
     }
 
-    /** @description Checks if the authenticated user's UID matches the provided ID. */
-    function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
-    }
-
-    /** @description Checks if the user exists in the admin roles collection. */
     function isAdmin() {
       return isSignedIn() && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
     }
 
-    /** @description Combines ownership check with existence check for destructive/update actions. */
-    function isExistingOwner(userId) {
-      return resource != null && isOwner(userId);
-    }
-
-    /** @description Validates that a field is not being changed during an update. */
-    function isUnchanged(fieldName) {
-      return request.resource.data[fieldName] == resource.data[fieldName];
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
     }
 
     // --- Collection Rules ---
 
-    /**
-     * @description Authorization markers for Koop Administrators.
-     * @path /roles_admin/{uid}
-     * @allow (get) Signed-in user checking their own role.
-     * @deny (list) General users trying to see the list of admins.
-     * @principle Role-based access control via dedicated marker collection.
-     */
     match /roles_admin/{uid} {
       allow get: if isSignedIn();
-      allow list: if isAdmin();
-      allow create, update, delete: if isAdmin();
+      allow list, create, update, delete: if isAdmin();
     }
 
-    /**
-     * @description Profile information for Koop administrators.
-     * @path /adminUsers/{adminUserId}
-     * @allow (create) User creating their own admin profile if authorized.
-     * @deny (update) Changing another admin's profile.
-     * @principle Identity-to-Path binding for user-specific root documents.
-     */
     match /adminUsers/{adminUserId} {
       allow get: if isOwner(adminUserId) || isAdmin();
       allow list: if isAdmin();
-      allow create: if isOwner(adminUserId) && request.resource.data.id == adminUserId;
-      allow update: if (isExistingOwner(adminUserId) || isAdmin()) && isUnchanged('id');
-      allow delete: if isAdmin();
+      allow create: if isOwner(adminUserId);
+      allow update: if isOwner(adminUserId) || isAdmin();
     }
 
-    /**
-     * @description Profile information for beverage buyers.
-     * @path /buyerProfiles/{buyerId}
-     * @allow (get) The buyer themselves or a Koop Admin.
-     * @deny (create) Mismatched UID and document ID.
-     * @principle Strict user-ownership model for private profiles.
-     */
-    match /buyerProfiles/{buyerId} {
-      allow get: if isOwner(buyerId) || isAdmin();
-      allow list: if isAdmin();
-      allow create: if isOwner(buyerId) && request.resource.data.id == buyerId;
-      allow update: if (isExistingOwner(buyerId) || isAdmin()) && isUnchanged('id');
-      allow delete: if isAdmin();
-    }
+    match /sellers/{sellerId} {
+      allow get: if true; // Publicly readable for ordering
+      allow list: if isSignedIn();
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin() || isOwner(sellerId);
 
-    /**
-     * @description Profile information for beverage cart sellers.
-     * @path /sellerProfiles/{sellerId}
-     * @allow (list) Signed-in users looking for beverage carts.
-     * @deny (update) A buyer trying to modify a seller's GPS coordinates.
-     * @principle Identity-to-Path binding with public read for discovery.
-     */
-    match /sellerProfiles/{sellerId} {
-      allow get, list: if isSignedIn();
-      allow create: if isOwner(sellerId) && request.resource.data.id == sellerId;
-      allow update: if (isExistingOwner(sellerId) || isAdmin()) && isUnchanged('id');
-      allow delete: if isAdmin();
-
-      /**
-       * @description Menus owned by a specific seller.
-       * @path /sellerProfiles/{sellerId}/menus/{menuId}
-       * @allow (get) Any user if the menu is active.
-       * @deny (create) A seller creating a menu in someone else's profile tree.
-       * @principle Path-based ownership enforced via sub-collection nesting.
-       */
-      match /menus/{menuId} {
-        allow get, list: if resource.data.isActive == true || isOwner(sellerId) || isAdmin();
-        allow create: if isOwner(sellerId) && request.resource.data.sellerId == sellerId;
-        allow update: if (isExistingOwner(sellerId) || isAdmin()) && isUnchanged('sellerId');
-        allow delete: if isExistingOwner(sellerId) || isAdmin();
-
-        /**
-         * @description Individual items within a seller's menu.
-         * @path /sellerProfiles/{sellerId}/menus/{menuId}/menuItems/{menuItemId}
-         * @allow (get) Public access if item is available and user is signed in.
-         * @deny (update) Changing the denormalized sellerId link.
-         * @principle Relational integrity via denormalized ownership fields.
-         */
-        match /menuItems/{menuItemId} {
-          allow get, list: if resource.data.isAvailable == true || isOwner(sellerId) || isAdmin();
-          allow create: if isOwner(sellerId) && request.resource.data.sellerId == sellerId;
-          allow update: if (isExistingOwner(sellerId) || isAdmin()) && isUnchanged('sellerId');
-          allow delete: if isExistingOwner(sellerId) || isAdmin();
-        }
+      match /menuItems/{itemId} {
+        allow get, list: if true;
+        allow create, update, delete: if isAdmin() || isOwner(sellerId);
       }
     }
 
-    /**
-     * @description Transactional orders between buyers and sellers.
-     * @path /orders/{orderId}
-     * @allow (create) Authenticated buyer setting themselves as the 'buyerId'.
-     * @deny (list) A user trying to list all orders in the system without filters.
-     * @principle Shared access (Closed Collaborators) via denormalized UIDs.
-     */
     match /orders/{orderId} {
-      allow get: if isOwner(resource.data.buyerId) || isOwner(resource.data.sellerId) || isAdmin();
-      allow list: if isSignedIn(); // Queries must be filtered by buyerId or sellerId
-      allow create: if isOwner(request.resource.data.buyerId);
-      allow update: if (isOwner(resource.data.buyerId) || isOwner(resource.data.sellerId) || isAdmin()) && isUnchanged('buyerId');
+      allow get: if true; // For tracking via unique ID
+      allow create: if true; // Guest checkout
+      allow list: if isAdmin() || isSignedIn();
+      allow update: if isAdmin() || isSignedIn();
       allow delete: if isAdmin();
+    }
 
-      /**
-       * @description Line items associated with a specific order.
-       * @path /orders/{orderId}/orderItems/{orderItemId}
-       * @allow (get) The buyer or seller associated with the parent order.
-       * @principle Denormalization of buyer/seller IDs for O(1) authorization checks.
-       */
-      match /orderItems/{orderItemId} {
-        allow get, list: if isOwner(resource.data.buyerId) || isOwner(resource.data.sellerId) || isAdmin();
-        allow create: if isOwner(request.resource.data.buyerId);
-        allow update: if (isOwner(resource.data.buyerId) || isOwner(resource.data.sellerId) || isAdmin()) && isUnchanged('buyerId');
-        allow delete: if isAdmin();
-      }
+    match /prospects/{prospectId} {
+      allow read, write: if isAdmin() || isSignedIn();
+    }
+
+    match /activities/{activityId} {
+      allow read, write: if isAdmin() || isSignedIn();
     }
   }
 }

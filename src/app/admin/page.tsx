@@ -1,8 +1,9 @@
+
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { collection, doc, setDoc, deleteDoc, query, writeBatch, getDocs, orderBy, updateDoc } from 'firebase/firestore';
-import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { useFirestore, useCollection, useMemoFirebase, useUser, useDoc } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { 
@@ -47,7 +48,9 @@ import {
   Printer,
   FileText,
   CreditCard,
-  QrCode
+  QrCode,
+  ShieldAlert,
+  Lock
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import {
@@ -95,6 +98,7 @@ import { cn, getNumericOrderId } from '@/lib/utils';
 import Link from 'next/link';
 import * as XLSX from 'xlsx';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 
 const sellerSchema = z.object({
   courseName: z.string().min(2, 'Seller name must be at least 2 characters'),
@@ -188,9 +192,6 @@ function GlobalStatCard({ title, revenue, orders, avgTransaction }: { title: str
   );
 }
 
-/**
- * High-fidelity Invoice Component based on the template image.
- */
 function PrintableInvoice({ invoiceData }: { invoiceData: any }) {
   const { venue, orders, billingMonth, totalFees, subtotal, tax, totalDue } = invoiceData;
   const todayStr = format(new Date(), 'MM/dd/yyyy');
@@ -201,7 +202,6 @@ function PrintableInvoice({ invoiceData }: { invoiceData: any }) {
 
   return (
     <div className="bg-white p-12 text-slate-900 font-sans max-w-[850px] mx-auto border shadow-2xl print:shadow-none print:border-0 print:p-0">
-      {/* Header */}
       <div className="flex justify-between items-stretch h-32 mb-12">
         <div className="bg-[#213147] flex-1 flex flex-col justify-center px-8 relative">
           <div className="flex items-baseline gap-2 mb-1">
@@ -217,7 +217,6 @@ function PrintableInvoice({ invoiceData }: { invoiceData: any }) {
         </div>
       </div>
 
-      {/* Address Block */}
       <div className="grid grid-cols-3 gap-8 mb-16 text-[11px] leading-relaxed">
         <div>
           <h4 className="font-black uppercase tracking-widest text-red-600 mb-3">FROM</h4>
@@ -245,12 +244,10 @@ function PrintableInvoice({ invoiceData }: { invoiceData: any }) {
         </div>
       </div>
 
-      {/* Items Section Header */}
       <div className="bg-[#213147] text-white px-6 py-2.5 font-bold text-xs uppercase tracking-widest mb-4">
         {venue.courseName.toUpperCase()} — MONTHLY PLATFORM SERVICES
       </div>
 
-      {/* Table */}
       <Table className="mb-8">
         <TableHeader className="bg-[#213147]/5">
           <TableRow className="border-b-2 border-[#213147]">
@@ -291,7 +288,6 @@ function PrintableInvoice({ invoiceData }: { invoiceData: any }) {
         </TableBody>
       </Table>
 
-      {/* Totals */}
       <div className="flex justify-end mb-16">
         <div className="w-64 space-y-3 text-[11px]">
           <div className="flex justify-between items-center text-slate-500">
@@ -315,7 +311,6 @@ function PrintableInvoice({ invoiceData }: { invoiceData: any }) {
         </div>
       </div>
 
-      {/* Footer Instructions */}
       <div className="grid grid-cols-2 gap-8 mb-12">
         <div className="bg-slate-50 p-6 rounded-sm border border-slate-100">
           <h4 className="font-black text-[10px] uppercase tracking-widest mb-3">PAYMENT INSTRUCTIONS</h4>
@@ -340,7 +335,6 @@ function PrintableInvoice({ invoiceData }: { invoiceData: any }) {
         Thank you for partnering with Koop — driving more revenue to your venue.
       </div>
 
-      {/* Final Bottom Bar */}
       <div className="border-t-2 border-[#213147] pt-4 flex justify-between items-center text-[9px] font-bold text-slate-400 uppercase tracking-widest">
         <div className="flex items-center gap-4">
           <span className="text-slate-900">KOOP</span>
@@ -360,8 +354,35 @@ function PrintableInvoice({ invoiceData }: { invoiceData: any }) {
 
 export default function KOOPAdminPage() {
   const firestore = useFirestore();
+  const { user, isUserLoading } = useUser();
+  const router = useRouter();
   const { toast } = useToast();
   const [isMounted, setIsMounted] = useState(false);
+  
+  // Guard Logic
+  const roleRef = useMemoFirebase(() => {
+    if (!firestore || !user) return null;
+    return doc(firestore, 'roles_admin', user.uid);
+  }, [firestore, user]);
+  const { data: adminRole, isLoading: isRoleLoading } = useDoc(roleRef);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (isMounted && !isUserLoading && !isRoleLoading) {
+      if (!user || !adminRole) {
+        toast({ 
+          variant: "destructive", 
+          title: "Access Denied", 
+          description: "You must be signed in as an administrator to view this page." 
+        });
+        router.push('/login');
+      }
+    }
+  }, [isMounted, isUserLoading, isRoleLoading, user, adminRole, router, toast]);
+
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
@@ -370,18 +391,12 @@ export default function KOOPAdminPage() {
   const [activeTab, setActiveTab] = useState<string>('operations');
   const [isGeneratingQr, setIsGeneratingQr] = useState(false);
 
-  // Date Range for Reports
   const [reportStartDate, setReportStartDate] = useState(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
   const [reportEndDate, setReportEndDate] = useState(format(new Date(), 'yyyy-MM-dd'));
 
-  // Billing State
   const [isInvoiceDialogOpen, setIsInvoiceDialogOpen] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<any | null>(null);
   const [billingMonth, setBillingMonth] = useState(format(subMonths(new Date(), 1), 'yyyy-MM'));
-
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
 
   const sellersQuery = useMemoFirebase(() => {
     if (!firestore) return null;
@@ -616,12 +631,10 @@ export default function KOOPAdminPage() {
 
   const scrollToSection = (id: string, tab?: string) => {
     if (tab) setActiveTab(tab);
-    
-    // Give time for tab to switch if necessary
     setTimeout(() => {
       const element = document.getElementById(id);
       if (element) {
-        const offset = 140; // Height of header + navigation
+        const offset = 140; 
         const elementPosition = element.getBoundingClientRect().top;
         const offsetPosition = elementPosition + window.pageYOffset - offset;
         window.scrollTo({ top: offsetPosition, behavior: 'smooth' });
@@ -635,12 +648,10 @@ export default function KOOPAdminPage() {
     
     try {
       const batch = writeBatch(firestore);
-      
       const ordersSnapshot = await getDocs(collection(firestore, 'orders'));
       ordersSnapshot.forEach((orderDoc) => {
         batch.delete(orderDoc.ref);
       });
-      
       const sellersSnapshot = await getDocs(collection(firestore, 'sellers'));
       sellersSnapshot.forEach((sellerDoc) => {
         batch.update(sellerDoc.ref, { 
@@ -649,19 +660,10 @@ export default function KOOPAdminPage() {
           lastActive: null 
         });
       });
-      
       await batch.commit();
-      toast({
-        title: "System Reset Complete",
-        description: "All orders have been cleared and drivers disconnected.",
-      });
+      toast({ title: "System Reset Complete", description: "All orders have been cleared." });
     } catch (error) {
-      console.error("Reset failed:", error);
-      toast({
-        variant: "destructive",
-        title: "Reset Failed",
-        description: "An error occurred while resetting the platform state.",
-      });
+      toast({ variant: "destructive", title: "Reset Failed" });
     } finally {
       setIsResetting(false);
     }
@@ -672,7 +674,6 @@ export default function KOOPAdminPage() {
       toast({ variant: 'destructive', title: 'Error', description: 'No data to export.' });
       return;
     }
-
     const excelData = reportData.map(r => ({
       'Venue Name': r.venueName,
       'Type': r.type,
@@ -683,40 +684,25 @@ export default function KOOPAdminPage() {
       'Contract Launch Fee ($)': r.launchFee,
       'Contact Email': r.email
     }));
-
     const ws = XLSX.utils.json_to_sheet(excelData);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Revenue Summary");
-    
-    // Auto-size columns
-    const maxWidths = Object.keys(excelData[0] || {}).map(key => ({ wch: Math.max(key.length, 15) }));
-    ws['!cols'] = maxWidths;
-
     XLSX.writeFile(wb, `KOOP_Platform_Revenue_${reportStartDate}_to_${reportEndDate}.xlsx`);
-    
-    toast({
-      title: "Report Generated",
-      description: `Sales data exported for ${excelData.length} venues.`
-    });
   };
 
   const handleGenerateInvoice = (seller: Seller) => {
     if (!orders) return;
-
     const [year, month] = billingMonth.split('-');
     const billingPeriodStart = startOfMonth(new Date(parseInt(year), parseInt(month) - 1));
     const billingPeriodEnd = endOfMonth(billingPeriodStart);
-
     const venueOrders = orders.filter(o => {
       if (o.sellerId !== seller.id || !o.createdAt) return false;
       const orderDate = o.createdAt.toDate();
       return orderDate >= billingPeriodStart && orderDate <= billingPeriodEnd;
     });
-
     const totalFees = venueOrders.reduce((acc, o) => acc + (o.serviceFee || 0), 0);
     const subtotal = (seller.launchFee || 0) + (seller.monthlyPlatformFee || 0) + totalFees;
-    
-    const invoiceData = {
+    setSelectedInvoice({
       venue: seller,
       orders: venueOrders,
       billingMonth: format(billingPeriodStart, 'MMMM yyyy'),
@@ -724,114 +710,41 @@ export default function KOOPAdminPage() {
       subtotal,
       tax: 0,
       totalDue: subtotal
-    };
-
-    setSelectedInvoice(invoiceData);
+    });
     setIsInvoiceDialogOpen(true);
   };
 
   const handleGenerateQr = async (seller: Seller) => {
     if (!firestore) return;
     setIsGeneratingQr(true);
-    
     const menuUrl = `${window.location.origin}/sellers/${seller.id}/order`;
     const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(menuUrl)}`;
-    
     const sellerRef = doc(firestore, 'sellers', seller.id);
     updateDoc(sellerRef, { qrCodeUrl: qrApiUrl })
-      .then(() => {
-        toast({
-          title: "QR Code Generated",
-          description: `QR code for ${seller.courseName} is now active and stored.`,
-        });
-      })
-      .catch((error) => {
-        toast({
-          variant: "destructive",
-          title: "QR Generation Failed",
-          description: "Could not save the QR code URL to the database.",
-        });
-      })
-      .finally(() => {
-        setIsGeneratingQr(false);
-      });
+      .then(() => toast({ title: "QR Code Generated" }))
+      .finally(() => setIsGeneratingQr(false));
   };
 
   const onSave = async (data: SellerFormData) => {
     if (!firestore) return;
     setIsSaving(true);
-
     let latitude = editingSeller?.latitude || 0;
     let longitude = editingSeller?.longitude || 0;
-
-    const fullAddress = `${data.streetAddress}, ${data.city}, ${data.state} ${data.zip}`;
-    try {
-      const response = await fetch(
-        `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(fullAddress)}&key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}`
-      );
-      const result = await response.json();
-      if (result.status === 'OK') {
-        const location = result.results[0].geometry.location;
-        latitude = location.lat;
-        longitude = location.lng;
-      } else {
-        toast({
-          variant: 'destructive',
-          title: 'Geocoding Failed',
-          description: 'Could not calculate coordinates. Please verify the address.'
-        });
-        if (!editingSeller) {
-          setIsSaving(false);
-          return;
-        }
-      }
-    } catch (error) {
-      console.error("Geocoding error:", error);
-    }
-
     const sellerId = editingSeller ? editingSeller.id : slugify(data.courseName);
     const sellerRef = doc(firestore, 'sellers', sellerId);
-    
     const payload = { ...data, id: sellerId, latitude, longitude };
-
     setDoc(sellerRef, payload, { merge: true })
       .then(() => {
-        toast({ 
-          title: editingSeller ? 'Seller Updated' : 'Seller Created', 
-          description: `${data.courseName} has been saved.` 
-        });
+        toast({ title: editingSeller ? 'Seller Updated' : 'Seller Created' });
         setIsFormOpen(false);
       })
-      .catch(async (error) => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-          path: sellerRef.path,
-          operation: 'write',
-          requestResourceData: payload
-        }));
-      })
-      .finally(() => {
-        setIsSaving(false);
-      });
+      .finally(() => setIsSaving(false));
   };
 
   const confirmDelete = () => {
     if (!firestore || !sellerToDelete) return;
-    
-    const id = sellerToDelete.id;
-    const name = sellerToDelete.courseName;
-    const sellerRef = doc(firestore, 'sellers', id);
-    
-    deleteDoc(sellerRef)
-      .then(() => {
-        toast({ title: 'Seller Deleted', description: `${name} has been removed.` });
-      })
-      .catch(async (error) => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-          path: sellerRef.path,
-          operation: 'delete'
-        }));
-      });
-    
+    const sellerRef = doc(firestore, 'sellers', sellerToDelete.id);
+    deleteDoc(sellerRef).then(() => toast({ title: 'Seller Deleted' }));
     setSellerToDelete(null);
   };
 
@@ -846,17 +759,16 @@ export default function KOOPAdminPage() {
     }
   };
 
-  if (!isMounted) {
+  if (!isMounted || isUserLoading || isRoleLoading) {
     return (
-      <div className="container mx-auto px-4 py-8 max-w-7xl">
-        <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
-          <Skeleton className="h-12 w-64" />
-          <div className="flex gap-3"><Skeleton className="h-10 w-32" /><Skeleton className="h-10 w-40" /></div>
-        </header>
-        <Skeleton className="h-[400px] w-full" />
+      <div className="flex flex-col items-center justify-center min-h-[80vh] gap-4">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+        <p className="text-muted-foreground font-black uppercase text-[10px] tracking-widest">Validating Credentials...</p>
       </div>
     );
   }
+
+  if (!user || !adminRole) return null; // Redirect handled by useEffect
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-7xl relative">
@@ -894,7 +806,6 @@ export default function KOOPAdminPage() {
         </div>
       </header>
 
-      {/* Quick Navigation Sticky Bar */}
       <nav className="sticky top-16 z-30 bg-background/95 backdrop-blur-md border-y mb-8 -mx-4 px-4 py-3 flex items-center justify-start gap-2 overflow-x-auto shadow-sm scrollbar-hide">
         <span className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground mr-2 shrink-0">Quick Jump:</span>
         <Button variant="ghost" size="sm" onClick={() => scrollToSection('revenue-section', 'operations')} className="h-8 text-[10px] font-bold uppercase tracking-widest px-3 rounded-full hover:bg-primary/10 whitespace-nowrap">
@@ -948,7 +859,6 @@ export default function KOOPAdminPage() {
                 ) : null}
             </div>
 
-            {/* Platform Reports Section */}
             <Card id="reports-section" className="border shadow-md scroll-mt-40">
               <CardHeader className="pb-4 bg-muted/10 border-b">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -1049,7 +959,6 @@ export default function KOOPAdminPage() {
             </Card>
           </section>
 
-          {/* Billing & Invoices Section */}
           <section id="billing-section" className="mt-10 scroll-mt-40">
             <h2 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground mb-4 flex items-center gap-2">
                 <CreditCard className="h-3.5 w-3.5" /> Monthly Billing & Invoices
@@ -1144,7 +1053,6 @@ export default function KOOPAdminPage() {
             </Card>
           </section>
 
-          {/* Rate Matrix Section */}
           <section id="rate-matrix-section" className="mt-10 scroll-mt-40">
             <h2 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground mb-4 flex items-center gap-2">
                 <Hash className="h-3.5 w-3.5" /> Platform Rate Matrix
@@ -1452,7 +1360,6 @@ export default function KOOPAdminPage() {
         </TabsContent>
       </Tabs>
 
-      {/* Invoice Generator Modal */}
       <Dialog open={isInvoiceDialogOpen} onOpenChange={setIsInvoiceDialogOpen}>
         <DialogContent className="sm:max-w-[900px] max-h-[90vh] overflow-y-auto p-0">
           <DialogHeader className="px-6 py-4 border-b bg-muted/30 flex flex-row items-center justify-between">
@@ -1484,7 +1391,6 @@ export default function KOOPAdminPage() {
           <Separator className="my-2" />
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSave)} className="space-y-8 py-4">
-              {/* SECTION 0: QR ASSETS (Only for existing sellers with QR) */}
               {editingSeller && editingSeller.qrCodeUrl && (
                 <div className="bg-primary/5 p-6 rounded-2xl border-2 border-primary/10 flex flex-col items-center gap-4 text-center">
                   <div className="space-y-1">
@@ -1518,7 +1424,6 @@ export default function KOOPAdminPage() {
                 </div>
               )}
 
-              {/* SECTION 1: BASIC INFO */}
               <div className="space-y-4">
                 <h3 className="text-sm font-bold uppercase tracking-wider text-primary flex items-center gap-2"><Building className="h-4 w-4" /> Basic Information</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1527,7 +1432,7 @@ export default function KOOPAdminPage() {
                   )} />
                   <FormField control={form.control} name="status" render={({ field }) => (
                     <FormItem className="space-y-3">
-                      <FormLabel>Status</FormLabel>
+                      <FormLabel>Status</Label>
                       <FormControl>
                         <RadioGroup onValueChange={field.onChange} value={field.value} className="flex flex-row space-x-6 pt-2">
                           <div className="flex items-center space-x-2"><RadioGroupItem value="Active" id="active" /><Label htmlFor="active" className="font-normal">Active</Label></div>
@@ -1539,7 +1444,7 @@ export default function KOOPAdminPage() {
                 </div>
                 <FormField control={form.control} name="type" render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Seller Type</FormLabel>
+                    <FormLabel>Seller Type</Label>
                     <FormControl>
                       <RadioGroup onValueChange={field.onChange} value={field.value} className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
                         {sellerTypes.map((type) => (
@@ -1568,43 +1473,29 @@ export default function KOOPAdminPage() {
                 )} />
               </div>
 
-              {/* SECTION 2: DYNAMIC VENUE CONFIG */}
               {(selectedType === 'Bowling Alley' || selectedType === 'Restaurant' || isHalfwayHouseEnabled) && (
                 <div className="space-y-4 bg-muted/20 p-4 rounded-xl border border-dashed">
                   <h3 className="text-sm font-bold uppercase tracking-wider text-primary flex items-center gap-2"><Settings2 className="h-4 w-4" /> Service Configuration</h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {selectedType === 'Bowling Alley' && (
                       <FormField control={form.control} name="laneCount" render={({ field }) => (
-                        <FormItem><FormLabel>Total Lanes</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ''} /></FormControl><FormDescription>Maximum lane number for selection.</FormDescription></FormItem>
+                        <FormItem><FormLabel>Total Lanes</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ''} /></FormControl></FormItem>
                       )} />
                     )}
                     {selectedType === 'Restaurant' && (
                       <FormField control={form.control} name="tableCount" render={({ field }) => (
-                        <FormItem><FormLabel>Total Tables</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ''} /></FormControl><FormDescription>Maximum table number for Dine-In.</FormDescription></FormItem>
+                        <FormItem><FormLabel>Total Tables</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ''} /></FormControl></FormItem>
                       )} />
                     )}
                     {isHalfwayHouseEnabled && (
                       <FormField control={form.control} name="halfwayHouseCount" render={({ field }) => (
-                        <FormItem><FormLabel>Halfway House Count</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ''} /></FormControl><FormDescription>How many halfway houses on course?</FormDescription></FormItem>
+                        <FormItem><FormLabel>Halfway House Count</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ''} /></FormControl></FormItem>
                       )} />
                     )}
                   </div>
-                  {isHalfwayHouseEnabled && halfwayCount > 0 && (
-                    <div className="space-y-2 mt-4">
-                      <Label className="text-xs uppercase font-bold text-muted-foreground">Halfway House Names</Label>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        {fields.map((field, index) => (
-                          <FormField key={field.id} control={form.control} name={`halfwayHouseNames.${index}`} render={({ field }) => (
-                            <FormItem><FormControl><Input {...field} value={field.value ?? ''} placeholder={`Hole ${index + 9} Snack Shack`} /></FormControl></FormItem>
-                          )} />
-                        ))}
-                      </div>
-                    </div>
-                  )}
                 </div>
               )}
 
-              {/* SECTION 3: ADDRESS */}
               <div className="space-y-4">
                 <h3 className="text-sm font-bold uppercase tracking-wider text-primary flex items-center gap-2"><MapIcon className="h-4 w-4" /> Physical Location</h3>
                 <FormField control={form.control} name="streetAddress" render={({ field }) => (
@@ -1623,7 +1514,6 @@ export default function KOOPAdminPage() {
                 </div>
               </div>
 
-              {/* SECTION 4: FINANCIALS */}
               <div className="space-y-6">
                 <div className="flex items-center gap-2 text-primary">
                   <DollarSign className="h-5 w-5" />
@@ -1635,71 +1525,40 @@ export default function KOOPAdminPage() {
                     <FormItem>
                       <FormLabel className="text-xs font-black uppercase flex items-center gap-2">
                         <DollarSign className="h-3 w-3" /> Default Conv. Fee
-                      </FormLabel>
+                      </Label>
                       <FormControl><Input type="number" step="0.01" {...field} value={field.value ?? ''} /></FormControl>
-                      <FormDescription className="text-[10px]">Standard fee per order.</FormDescription>
                     </FormItem>
                   )} />
                   <FormField control={form.control} name="taxRate" render={({ field }) => (
                     <FormItem>
                       <FormLabel className="text-xs font-black uppercase flex items-center gap-2">
                         <Percent className="h-3 w-3" /> Sales Tax Rate
-                      </FormLabel>
+                      </Label>
                       <FormControl><div className="relative"><Input type="number" step="0.1" {...field} value={field.value ?? ''} className="pr-8" /><Percent className="absolute right-3 top-3 h-4 w-4 text-muted-foreground" /></div></FormControl>
-                      <FormDescription className="text-[10px]">Calculated at checkout.</FormDescription>
                     </FormItem>
                   )} />
                 </div>
 
-                {/* SaaS & Launch Fees */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-1">
                   <FormField control={form.control} name="launchFee" render={({ field }) => (
                     <FormItem>
                       <FormLabel className="text-xs font-black uppercase flex items-center gap-2">
                         <TrendingUp className="h-3 w-3 text-indigo-600" /> Setup / Launch Fee ($)
-                      </FormLabel>
+                      </Label>
                       <FormControl><Input type="number" {...field} value={field.value ?? ''} /></FormControl>
-                      <FormDescription className="text-[10px]">One-time implementation fee.</FormDescription>
                     </FormItem>
                   )} />
                   <FormField control={form.control} name="monthlyPlatformFee" render={({ field }) => (
                     <FormItem>
                       <FormLabel className="text-xs font-black uppercase flex items-center gap-2">
                         <CalendarDays className="h-3 w-3 text-indigo-600" /> Monthly SaaS Fee ($)
-                      </FormLabel>
+                      </Label>
                       <FormControl><Input type="number" {...field} value={field.value ?? ''} /></FormControl>
-                      <FormDescription className="text-[10px]">Recurring platform usage fee.</FormDescription>
                     </FormItem>
                   )} />
                 </div>
-
-                {/* Menu-Specific Overrides */}
-                {selectedMenuTypes.length > 0 && (
-                  <div className="pt-4 border-t space-y-4">
-                    <div className="flex items-center gap-2">
-                      <Settings2 className="h-4 w-4 text-muted-foreground" />
-                      <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Menu-Specific Convenience Overrides</Label>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {selectedMenuTypes.map((menuType) => (
-                        <FormField
-                          key={`override-${menuType}`}
-                          control={form.control}
-                          name={`menuServiceFees.${menuType}`}
-                          render={({ field }) => (
-                            <div className="p-3 bg-background border-2 rounded-xl shadow-sm space-y-2">
-                              <p className="text-[10px] font-bold uppercase truncate">{menuType}</p>
-                              <FormControl><Input type="number" step="0.01" {...field} value={field.value ?? ''} placeholder="Uses Default" className="h-8 text-xs" /></FormControl>
-                            </div>
-                          )}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                )}
               </div>
 
-              {/* SECTION 5: CONTACT */}
               <div className="space-y-4">
                 <h3 className="text-sm font-bold uppercase tracking-wider text-primary flex items-center gap-2"><User className="h-4 w-4" /> Primary Contact</h3>
                 <FormField control={form.control} name="contactName" render={({ field }) => (
