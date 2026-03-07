@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Separator } from '@/components/ui/separator';
@@ -18,7 +19,13 @@ interface OrderSummaryProps {
 }
 
 export function OrderSummary({ items, serviceFee = 0, tax = 0, tip = 0, taxRate = 6.0 }: OrderSummaryProps) {
-  const subtotal = items.reduce((acc, item) => acc + item.price * item.quantity, 0);
+  const subtotal = items.reduce((acc, item) => {
+    const basePrice = item.price;
+    const modifiersPrice = item.selectedModifiers ? 
+      Object.values(item.selectedModifiers).flat().reduce((sum, mod) => sum + mod.price, 0) : 0;
+    return acc + (basePrice + modifiersPrice) * item.quantity;
+  }, 0);
+  
   const total = subtotal + serviceFee + tax + tip;
 
   return (
@@ -27,14 +34,28 @@ export function OrderSummary({ items, serviceFee = 0, tax = 0, tip = 0, taxRate 
         <p className="text-muted-foreground text-center py-8">Your cart is empty.</p>
       ) : (
         <div className="space-y-4">
-          <div className="space-y-2">
+          <div className="space-y-3">
             {items.map(item => (
-              <div key={item.id} className="flex justify-between items-start text-sm">
+              <div key={item.cartId} className="flex justify-between items-start text-sm">
                 <div className="flex-1 pr-4">
-                  <p className="font-medium text-foreground">{item.name}</p>
-                  <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-tight">Quantity: {item.quantity}</p>
+                  <p className="font-bold text-foreground">{item.name}</p>
+                  <p className="text-[9px] text-muted-foreground font-black uppercase tracking-tight">Quantity: {item.quantity}</p>
+                  
+                  {item.selectedModifiers && Object.values(item.selectedModifiers).flat().length > 0 && (
+                    <div className="mt-1 flex flex-wrap gap-1">
+                      {Object.entries(item.selectedModifiers).map(([groupId, options]) => (
+                        options.map(opt => (
+                          <span key={`${item.cartId}-${groupId}-${opt.id}`} className="text-[8px] font-bold bg-primary/10 text-primary px-1.5 py-0.5 rounded uppercase">
+                            + {opt.name} {opt.price > 0 ? `($${opt.price.toFixed(2)})` : ''}
+                          </span>
+                        ))
+                      ))}
+                    </div>
+                  )}
                 </div>
-                <p className="font-mono font-bold text-xs">${(item.price * item.quantity).toFixed(2)}</p>
+                <p className="font-mono font-bold text-xs">
+                  ${((item.price + (item.selectedModifiers ? Object.values(item.selectedModifiers).flat().reduce((s, m) => s + m.price, 0) : 0)) * item.quantity).toFixed(2)}
+                </p>
               </div>
             ))}
           </div>

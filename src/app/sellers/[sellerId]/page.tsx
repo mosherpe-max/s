@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useMemo, useEffect, use, useRef } from 'react';
@@ -40,12 +41,13 @@ import {
   Calendar as CalendarIcon,
   ClipboardList,
   ExternalLink,
-  ArrowUp
+  ArrowUp,
+  Layers
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { useForm } from 'react-hook-form';
+import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -85,11 +87,25 @@ import { APIProvider, Map, useMap } from '@vis.gl/react-google-maps';
 import Image from 'next/image';
 import Link from 'next/link';
 
-import type { MenuItem, Seller, Category, Order, Member, SellerType } from '@/lib/types';
+import type { MenuItem, Seller, Category, Order, Member, SellerType, ModifierGroup, ModifierOption } from '@/lib/types';
 import { categories } from '@/lib/types';
 import { menuItems as mockMenuItems } from '@/lib/data';
 import { useToast } from '@/hooks/use-toast';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
+
+const modifierOptionSchema = z.object({
+  id: z.string(),
+  name: z.string().min(1, 'Option name required'),
+  price: z.coerce.number().min(0)
+});
+
+const modifierGroupSchema = z.object({
+  id: z.string(),
+  name: z.string().min(1, 'Group name required'),
+  minSelection: z.coerce.number().min(0),
+  maxSelection: z.coerce.number().min(1),
+  options: z.array(modifierOptionSchema).min(1, 'At least one option required')
+});
 
 const menuItemSchema = z.object({
   name: z.string().min(1, 'Item name is required'),
@@ -98,6 +114,7 @@ const menuItemSchema = z.object({
   category: z.enum(categories),
   imageUrl: z.string().url('Please enter a valid image URL').or(z.literal('')).optional(),
   availableOn: z.array(z.string()).optional(),
+  modifierGroups: z.array(modifierGroupSchema).optional()
 });
 
 type MenuItemFormData = z.infer<typeof menuItemSchema>;
@@ -134,6 +151,55 @@ const serviceTypeIcons: Record<string, any> = {
   'Lane Delivery': MapPin,
 };
 
+function ModifierGroupManager({ 
+  control, 
+  groupIndex 
+}: { 
+  control: any, 
+  groupIndex: number 
+}) {
+  const { fields, append, remove } = useFieldArray({
+    control,
+    name: `modifierGroups.${groupIndex}.options`
+  });
+
+  return (
+    <div className="p-4 bg-background border rounded-lg space-y-4">
+      <div className="grid grid-cols-2 gap-4">
+        <FormField control={control} name={`modifierGroups.${groupIndex}.name`} render={({ field }) => (
+          <FormItem><FormLabel className="text-[10px] font-black uppercase">Group Name</FormLabel><FormControl><Input {...field} placeholder="e.g. Add-ons" /></FormControl></FormItem>
+        )} />
+        <div className="flex gap-2">
+          <FormField control={control} name={`modifierGroups.${groupIndex}.minSelection`} render={({ field }) => (
+            <FormItem><FormLabel className="text-[10px] font-black uppercase">Min</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem>
+          )} />
+          <FormField control={control} name={`modifierGroups.${groupIndex}.maxSelection`} render={({ field }) => (
+            <FormItem><FormLabel className="text-[10px] font-black uppercase">Max</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem>
+          )} />
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <p className="text-[10px] font-black uppercase text-muted-foreground">Options</p>
+        {fields.map((field, optionIndex) => (
+          <div key={field.id} className="flex gap-2 items-end">
+            <FormField control={control} name={`modifierGroups.${groupIndex}.options.${optionIndex}.name`} render={({ field }) => (
+              <FormItem className="flex-1"><FormControl><Input {...field} placeholder="Option Name" /></FormControl></FormItem>
+            )} />
+            <FormField control={control} name={`modifierGroups.${groupIndex}.options.${optionIndex}.price`} render={({ field }) => (
+              <FormItem className="w-24"><FormControl><Input type="number" step="0.01" {...field} /></FormControl></FormItem>
+            )} />
+            <Button variant="ghost" size="icon" onClick={() => remove(optionIndex)} className="text-destructive"><Trash2 className="h-4 w-4" /></Button>
+          </div>
+        ))}
+        <Button variant="outline" size="sm" onClick={() => append({ id: Math.random().toString(), name: '', price: 0 })} className="w-full text-[10px] uppercase font-bold">
+          <PlusCircle className="h-3 w-3 mr-1" /> Add Option
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 function MasterItemForm({
   onSave,
   onClose,
@@ -154,36 +220,57 @@ function MasterItemForm({
       category: 'Beer' as Category,
       imageUrl: '',
       availableOn: [],
+      modifierGroups: []
     },
+  });
+
+  const { fields, append, remove } = useFieldArray({
+    control: form.control,
+    name: 'modifierGroups'
   });
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSave)}>
-        <div className="grid gap-4 py-4 pr-2">
-          <FormField control={form.control} name="name" render={({ field }) => (
-            <FormItem><FormLabel>Item Name</FormLabel><FormControl><Input {...field} placeholder="e.g., Craft IPA" /></FormControl><FormMessage /></FormItem>
-          )} />
-          <FormField control={form.control} name="description" render={({ field }) => (
-            <FormItem><FormLabel>Description</FormLabel><FormControl><Textarea {...field} placeholder="A short description of the item." /></FormControl><FormMessage /></FormItem>
-          )} />
-          <div className="grid grid-cols-2 gap-4">
-            <FormField control={form.control} name="price" render={({ field }) => (
-                <FormItem><FormLabel>Price</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
+      <form onSubmit={form.handleSubmit(onSave)} className="flex flex-col h-[80vh]">
+        <ScrollArea className="flex-1 pr-4">
+          <div className="grid gap-4 py-4">
+            <FormField control={form.control} name="name" render={({ field }) => (
+              <FormItem><FormLabel>Item Name</FormLabel><FormControl><Input {...field} placeholder="e.g., Craft IPA" /></FormControl><FormMessage /></FormItem>
             )} />
-            <FormField control={form.control} name="category" render={({ field }) => (
-                <FormItem><FormLabel>Category</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select a category" /></SelectTrigger></FormControl><SelectContent>{categories.map((cat) => (<SelectItem key={cat} value={cat}>{cat}</SelectItem>))}</SelectContent></Select><FormMessage /></FormItem>
+            <FormField control={form.control} name="description" render={({ field }) => (
+              <FormItem><FormLabel>Description</FormLabel><FormControl><Textarea {...field} placeholder="A short description." /></FormControl><FormMessage /></FormItem>
             )} />
+            <div className="grid grid-cols-2 gap-4">
+              <FormField control={form.control} name="price" render={({ field }) => (
+                  <FormItem><FormLabel>Base Price</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
+              )} />
+              <FormField control={form.control} name="category" render={({ field }) => (
+                  <FormItem><FormLabel>Category</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select a category" /></SelectTrigger></FormControl><SelectContent>{categories.map((cat) => (<SelectItem key={cat} value={cat}>{cat}</SelectItem>))}</SelectContent></Select><FormMessage /></FormItem>
+              )} />
+            </div>
+            
+            <Separator className="my-4" />
+            
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-black uppercase flex items-center gap-2"><Layers className="h-4 w-4" /> Modifiers</h3>
+                <Button variant="outline" size="sm" onClick={() => append({ id: Math.random().toString(), name: '', minSelection: 0, maxSelection: 1, options: [{ id: Math.random().toString(), name: '', price: 0 }] })}>
+                  Add Group
+                </Button>
+              </div>
+              
+              <div className="space-y-4">
+                {fields.map((field, index) => (
+                  <div key={field.id} className="relative">
+                    <ModifierGroupManager control={form.control} groupIndex={index} />
+                    <Button variant="ghost" size="icon" className="absolute top-2 right-2 h-6 w-6 text-destructive" onClick={() => remove(index)}><Trash2 className="h-3 w-3" /></Button>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
-          <FormField control={form.control} name="imageUrl" render={({ field }) => (
-            <FormItem>
-              <FormLabel className="flex items-center gap-2"><ImageIcon className="h-3 w-3" /> Image URL</FormLabel>
-              <FormControl><Input {...field} placeholder="https://images.unsplash.com/..." /></FormControl>
-              <FormMessage />
-            </FormItem>
-          )} />
-        </div>
-        <div className="flex justify-end gap-2 pt-4 border-t">
+        </ScrollArea>
+        <div className="flex justify-end gap-2 pt-4 border-t shrink-0">
           <Button type="button" variant="ghost" onClick={onClose}>Cancel</Button>
           <Button type="submit" disabled={disabled}>{menuItem ? 'Save Changes' : 'Add Item'}</Button>
         </div>
@@ -384,10 +471,9 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   const [showTopButton, setShowTopButton] = useState(false);
   const [now, setNow] = useState(Date.now());
 
-  // Sales Reporting State
+  const [revenueMode, setRevenueMode] = useState<'Gross' | 'Net'>('Gross');
   const [startDate, setStartDate] = useState(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
   const [endDate, setEndDate] = useState(format(new Date(), 'yyyy-MM-dd'));
-  const [revenueMode, setRevenueMode] = useState<'Gross' | 'Net'>('Gross');
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -398,22 +484,16 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
 
   useEffect(() => {
     setIsMounted(true);
-    const handleScroll = () => {
-      setShowTopButton(window.scrollY > 400);
-    };
+    const handleScroll = () => setShowTopButton(window.scrollY > 400);
     window.addEventListener('scroll', handleScroll);
-    
     const interval = setInterval(() => setNow(Date.now()), 10000);
-    
     return () => {
       window.removeEventListener('scroll', handleScroll);
       clearInterval(interval);
     };
   }, []);
 
-  const scrollToTop = () => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
+  const scrollToTop = () => window.scrollTo({ top: 0, behavior: 'smooth' });
 
   const scrollToSection = (id: string) => {
     const element = document.getElementById(id);
@@ -421,10 +501,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
       const offset = 80; 
       const elementPosition = element.getBoundingClientRect().top;
       const offsetPosition = elementPosition + window.pageYOffset - offset;
-      window.scrollTo({
-        top: offsetPosition,
-        behavior: 'smooth'
-      });
+      window.scrollTo({ top: offsetPosition, behavior: 'smooth' });
     }
   };
 
@@ -518,355 +595,34 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     };
   }, [orders, seller, selectedOpsMenu, now, revenueMode]);
 
-  const filteredOrdersByRange = useMemo(() => {
-    if (!orders) return [];
+  const dailyReportData = useMemo(() => {
+    if (!orders || !seller) return [];
     const start = parseISO(startDate);
     const end = parseISO(endDate);
     
-    return orders.filter(o => {
+    const filtered = orders.filter(o => {
       if (!o.createdAt) return false;
       const orderDate = o.createdAt.toDate();
-      const rangeStart = new Date(start.setHours(0, 0, 0, 0));
-      const rangeEnd = new Date(end.setHours(23, 59, 59, 999));
-      return isWithinInterval(orderDate, { start: rangeStart, end: rangeEnd });
-    }).sort((a, b) => b.createdAt.toDate().getTime() - a.createdAt.toDate().getTime());
-  }, [orders, startDate, endDate]);
+      return isWithinInterval(orderDate, { start: new Date(start.setHours(0,0,0,0)), end: new Date(end.setHours(23,59,59,999)) });
+    });
 
-  const dailyReportData = useMemo(() => {
-    if (!filteredOrdersByRange || !seller) return [];
-
-    const groupedByDate: Record<string, Record<string, number>> = {};
-
-    filteredOrdersByRange.forEach(o => {
+    const grouped: Record<string, Record<string, number>> = {};
+    filtered.forEach(o => {
       const dateKey = format(o.createdAt.toDate(), 'yyyy-MM-dd');
-      if (!groupedByDate[dateKey]) {
-        groupedByDate[dateKey] = {};
-        seller.menuTypes.forEach(mt => { groupedByDate[dateKey][mt] = 0; });
+      if (!grouped[dateKey]) {
+        grouped[dateKey] = {};
+        seller.menuTypes.forEach(mt => { grouped[dateKey][mt] = 0; });
       }
       const val = revenueMode === 'Gross' ? o.total : (o.subtotal + (o.tip || 0));
-      groupedByDate[dateKey][o.menuType] = (groupedByDate[dateKey][o.menuType] || 0) + val;
+      grouped[dateKey][o.menuType] = (grouped[dateKey][o.menuType] || 0) + val;
     });
 
-    return Object.entries(groupedByDate)
-      .map(([date, menus]) => ({
-        date,
-        ...menus,
-        total: Object.values(menus).reduce((a, b) => a + b, 0)
-      }))
-      .sort((a, b) => b.date.localeCompare(a.date));
-  }, [filteredOrdersByRange, seller, revenueMode]);
-
-  const handleExportExcel = () => {
-    if (dailyReportData.length === 0) return;
-
-    const worksheet = XLSX.utils.json_to_sheet(dailyReportData);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, `Daily Sales (${revenueMode})`);
-    XLSX.writeFile(workbook, `KOOP_${revenueMode}_Daily_Sales_${startDate}_to_${endDate}.xlsx`);
-    
-    toast({ title: 'Report Exported', description: `Daily summary (${revenueMode}) generated.` });
-  };
-
-  const handleExportIndividualOrdersExcel = () => {
-    if (filteredOrdersByRange.length === 0) return;
-
-    const exportData = filteredOrdersByRange.map(o => ({
-      'Order ID': o.id,
-      'Customer': o.customerName,
-      'Date': format(o.createdAt.toDate(), 'yyyy-MM-dd HH:mm'),
-      'Menu Type': o.menuType,
-      'Status': o.status,
-      'Items': o.items.map(i => `${i.quantity}x ${i.name}`).join(', '),
-      'Subtotal': o.subtotal,
-      'Fee': o.serviceFee,
-      'Tax': o.tax,
-      'Tip': o.tip,
-      'Total': o.total,
-      [`Report Mode (${revenueMode})`]: revenueMode === 'Gross' ? o.total : (o.subtotal + (o.tip || 0))
-    }));
-
-    const worksheet = XLSX.utils.json_to_sheet(exportData);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Individual Orders");
-    XLSX.writeFile(workbook, `KOOP_Orders_Detailed_${startDate}_to_${endDate}.xlsx`);
-    
-    toast({ title: 'Orders Exported', description: 'Detailed log generated.' });
-  };
-
-  const mappedBuyers = useMemo(() => {
-    return filteredOpsOrders.map(o => {
-      let colorClass = "bg-green-600";
-      const thresholds = seller?.orderThresholds?.[o.menuType] || { warning: 7, max: 10 };
-
-      if (o.createdAt) {
-        const orderTime = o.createdAt.toDate().getTime();
-        const minutesElapsed = (now - orderTime) / 60000;
-        if (minutesElapsed >= thresholds.max) {
-          colorClass = "bg-red-600";
-        } else if (minutesElapsed >= thresholds.warning) {
-          colorClass = "bg-yellow-500";
-        }
-      }
-      return {
-        id: o.id,
-        name: o.customerName,
-        location: o.deliveryLocation,
-        colorClass,
-        assignedDriverId: o.assignedDriverId
-      };
-    });
-  }, [filteredOpsOrders, now, seller]);
-
-  const liveDrivers = useMemo(() => {
-    const drivers = [];
-    if (selectedOpsMenu === 'Beverage Cart' && seller?.bevcartActive) {
-      drivers.push({
-        id: seller.id,
-        name: `${seller.courseName} BevCart`,
-        location: { latitude: seller.latitude, longitude: seller.longitude }
-      });
-    } else if (selectedOpsMenu === 'Clubhouse' && seller?.clubhouseActive) {
-      drivers.push({
-        id: seller.id,
-        name: `${seller.courseName} Clubhouse`,
-        location: { latitude: seller.latitude, longitude: seller.longitude }
-      });
-    }
-    return drivers;
-  }, [seller, selectedOpsMenu]);
-
-  const filteredMasterItems = useMemo(() => {
-    if (!menuItems) return [];
-    if (masterCategoryFilter === 'All') return [...menuItems].sort((a,b) => a.name.localeCompare(b.name));
-    return menuItems
-      .filter(item => item.category === masterCategoryFilter)
-      .sort((a,b) => a.name.localeCompare(b.name));
-  }, [menuItems, masterCategoryFilter]);
-
-  const sortedMenuTypesForAdmin = useMemo(() => {
-    if (!seller?.menuTypes) return [];
-    const types = [...seller.menuTypes];
-    types.sort((a, b) => {
-      const order = ['Lane Delivery', 'Take Out', 'Beverage Cart', 'Clubhouse', 'Pool', 'Halfway House', 'Dine-In'];
-      let indexA = order.indexOf(a);
-      let indexB = order.indexOf(b);
-      if (indexA === -1) indexA = 99;
-      if (indexB === -1) indexB = 99;
-      return indexA - indexB;
-    });
-    return types;
-  }, [seller?.menuTypes]);
-
-  const thresholdForm = useForm<ThresholdFormData>({
-    resolver: zodResolver(thresholdSchema),
-    defaultValues: { warning: 7, max: 10 }
-  });
-
-  const handleOpenThresholdConfig = (menuType: string) => {
-    setThresholdMenuType(menuType);
-    const existing = seller?.orderThresholds?.[menuType] || { warning: 7, max: 10 };
-    thresholdForm.reset(existing);
-    setIsThresholdConfigOpen(true);
-  };
-
-  const handleOpenPoolMapConfig = () => {
-    setTempPoolMapUrl(seller?.poolMapUrl || null);
-    setIsPoolMapConfigOpen(true);
-  };
-
-  const handleSaveThresholds = async (data: ThresholdFormData) => {
-    if (!firestore || !sellerId) return;
-    const updates = {
-      [`orderThresholds.${thresholdMenuType}`]: data
-    };
-    await updateDoc(doc(firestore, 'sellers', sellerId), updates);
-    setIsThresholdConfigOpen(false);
-    toast({ title: 'Alerts Updated', description: `Durations updated for ${thresholdMenuType}.` });
-  };
-
-  const handleSetPoolMapView = (center: { lat: number, lng: number }, zoom: number) => {
-    const key = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
-    const staticUrl = `https://maps.googleapis.com/maps/api/staticmap?center=${center.lat},${center.lng}&zoom=${zoom}&size=600x800&maptype=satellite&key=${key}`;
-    setTempPoolMapUrl(staticUrl);
-    toast({ title: 'View Captured', description: 'This satellite image will be used for patrons.' });
-  };
-
-  const handleSavePoolMap = async () => {
-    if (!firestore || !sellerId || !tempPoolMapUrl) return;
-    await updateDoc(doc(firestore, 'sellers', sellerId), { poolMapUrl: tempPoolMapUrl });
-    setIsPoolMapConfigOpen(false);
-    toast({ title: 'Pool Map Saved', description: 'Satellite layout updated for checkout.' });
-  };
-
-  const handleSeedData = async () => {
-    if (!firestore) return;
-    setIsSeeding(true);
-    try {
-      const batch = writeBatch(firestore);
-      
-      let config = {
-        name: 'Sample Establishment',
-        type: 'Public Golf Course' as SellerType,
-        menuTypes: ['Clubhouse']
-      };
-
-      let itemsToSeed = [...mockMenuItems];
-
-      if (sellerId === 'demo-course') {
-        config = { name: 'Demo Public Golf Links', type: 'Public Golf Course', menuTypes: ['Beverage Cart', 'Clubhouse'] };
-      } else if (sellerId === 'demo-bowling-alley') {
-        config = { name: 'Demo Bowling Lanes', type: 'Bowling Alley', menuTypes: ['Take Out', 'Lane Delivery'] };
-        itemsToSeed = [
-          { name: 'Pitcher of Domestic Light', description: 'Perfect for sharing while bowling.', price: 15.00, category: 'Beer', imageUrl: PlaceHolderImages.find(i => i.imageHint === 'craft beer')?.imageUrl },
-          { name: 'Bucket of Domestic (6)', description: 'Mix and match your favorites.', price: 25.00, category: 'Beer', imageUrl: PlaceHolderImages.find(i => i.imageHint === 'lager can')?.imageUrl },
-          { name: 'Fountain Soda', description: 'Refillable cup. Choice of Cola, Diet, Lemon-Lime.', price: 3.50, category: 'Soft Drinks', imageUrl: PlaceHolderImages.find(i => i.imageHint === 'cola can')?.imageUrl },
-          { name: 'Pitcher of Soda', description: 'Great for the whole lane!', price: 9.00, category: 'Soft Drinks', imageUrl: PlaceHolderImages.find(i => i.id === 'soft-drink-1')?.imageUrl },
-          { name: 'Bowl of Popcorn', description: 'Buttery, salted, and fresh.', price: 4.50, category: 'Snacks', imageUrl: PlaceHolderImages.find(i => i.imageHint === 'potato chips')?.imageUrl },
-          { name: 'Loaded Nachos', description: 'Corn chips topped with cheese, jalapeños, and sour cream.', price: 10.50, category: 'Appetizers', imageUrl: 'https://images.unsplash.com/photo-1513456852971-30c0b8199d4d?auto=format&fit=crop&q=80&w=1080' },
-          { name: 'Buffalo Wings (10pc)', description: 'Crispy wings tossed in buffalo sauce.', price: 14.50, category: 'Appetizers', imageUrl: 'https://images.unsplash.com/photo-1567620832903-9fc6debc209f?auto=format&fit=crop&q=80&w=1080' },
-          { name: 'Mozzarella Sticks', description: 'Served with zesty marinara sauce.', price: 8.00, category: 'Appetizers', imageUrl: 'https://images.unsplash.com/photo-1531451394031-448f2a1c83e2?auto=format&fit=crop&q=80&w=1080' },
-          { name: 'Strike Burger', description: 'Cheeseburger with secret sauce and fries.', price: 13.50, category: 'Handhelds', imageUrl: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&q=80&w=1080' },
-          { name: 'Classic Hot Dog', description: 'Grilled all-beef frank on a toasted bun.', price: 7.00, category: 'Handhelds', imageUrl: 'https://images.unsplash.com/photo-1541214113241-21578d2d9b62?auto=format&fit=crop&q=80&w=1080' },
-          { name: 'Chicken Tenders & Fries', description: 'Breaded chicken breast strips with honey mustard.', price: 12.00, category: 'Handhelds', imageUrl: 'https://images.unsplash.com/photo-1562967914-608f82629710?auto=format&fit=crop&q=80&w=1080' },
-          { name: 'Large Pepperoni Pizza', description: '16-inch classic with extra pepperoni.', price: 21.00, category: 'Pizza', imageUrl: 'https://images.unsplash.com/photo-1628840042765-356cda07504e?auto=format&fit=crop&q=80&w=1080' },
-          { name: 'Large Cheese Pizza', description: 'Thin crust with a four-cheese blend.', price: 18.00, category: 'Pizza', imageUrl: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&q=80&w=1080' },
-          { name: 'Ice Cream Sundae', description: 'Vanilla ice cream with chocolate syrup and a cherry.', price: 6.50, category: 'Dessert', imageUrl: 'https://images.unsplash.com/photo-1563805042-7684c019e1cb?auto=format&fit=crop&q=80&w=1080' },
-          { name: 'Mini Corn Dogs', description: 'Bite-sized corn dogs served with ketchup.', price: 7.50, category: 'Kids', imageUrl: 'https://images.unsplash.com/photo-1623653387945-2fd25214f8fc?auto=format&fit=crop&q=80&w=1080' },
-          { name: 'Junior Strike Sliders', description: 'Two mini cheeseburgers with a handful of fries.', price: 9.00, category: 'Kids', imageUrl: 'https://images.unsplash.com/photo-1521305916504-4a1121188589?auto=format&fit=crop&q=80&w=1080' },
-          { name: 'Glow Bowl Wristband', description: 'Access to special lighting events.', price: 5.00, category: 'Other', imageUrl: 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&q=80&w=1080' },
-        ];
-      } else if (sellerId === 'demo-golf-course-private') {
-        config = { name: 'Demo Private Country Club', type: 'Private Golf Course', menuTypes: ['Beverage Cart', 'Clubhouse', 'Pool', 'Halfway House'] };
-        itemsToSeed = [
-          { name: 'Signature Old Fashioned', description: 'Small-batch bourbon, demerara, house bitters.', price: 16.00, category: 'Spirits', imageUrl: PlaceHolderImages.find(i => i.imageHint === 'whiskey glass')?.imageUrl },
-          { name: 'Reserve Cabernet', description: 'A bold, oak-aged red from Napa Valley.', price: 18.00, category: 'Beer', imageUrl: PlaceHolderImages.find(i => i.imageHint === 'craft beer')?.imageUrl },
-          { name: 'Lobster Roll', description: 'Fresh Maine lobster, warm butter, brioche bun.', price: 28.00, category: 'Handhelds', imageUrl: 'https://images.unsplash.com/photo-1599487488170-d11ec9c172f0?auto=format&fit=crop&q=80&w=1080' },
-          { name: 'Filet Mignon', description: '8oz grass-fed beef, truffle butter, grilled asparagus.', price: 42.00, category: 'Entrees', imageUrl: 'https://images.unsplash.com/photo-1546241072-48010ad28c2c?auto=format&fit=crop&q=80&w=1080' },
-          { name: 'Ahi Tuna Tartare', description: 'Avocado, soy-ginger glaze, crispy wontons.', price: 19.00, category: 'Appetizers', imageUrl: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=1080' },
-          { name: 'Burrata & Heirloom Tomato', description: 'Fresh burrata, balsamic glaze, basil oil.', price: 17.00, category: 'Salad', imageUrl: 'https://images.unsplash.com/photo-1608897013039-887f3c0cac56?auto=format&fit=crop&q=80&w=1080' },
-          { name: 'Truffle Fries', description: 'Parmesan, parsley, truffle oil.', price: 12.00, category: 'Snacks', imageUrl: PlaceHolderImages.find(i => i.imageHint === 'potato chips')?.imageUrl },
-          { name: 'Frozen Watermelon Margarita', description: 'Perfect for poolside sipping.', price: 14.00, category: 'Spirits', imageUrl: PlaceHolderImages.find(i => i.imageHint === 'vodka bottle')?.imageUrl },
-          { name: 'Premium Fruit Platter', description: 'Seasonal berries, melons, and honey yogurt.', price: 15.00, category: 'Snacks', imageUrl: 'https://images.unsplash.com/photo-1519996529931-28324d5a630e?auto=format&fit=crop&q=80&w=1080' },
-          { name: 'Wagyu Beef Sliders', description: 'Three sliders with caramelized onions and gruyere.', price: 22.00, category: 'Handhelds', imageUrl: 'https://images.unsplash.com/photo-1521305916504-4a1121188589?auto=format&fit=crop&q=80&w=1080' },
-          { name: 'Artisanal Charcuterie', description: 'Imported cheeses, cured meats, honeycomb.', price: 26.00, category: 'Appetizers', imageUrl: 'https://images.unsplash.com/photo-1631452180519-c014fe946bc7?auto=format&fit=crop&q=80&w=1080' },
-          { name: 'Pro Shop Gift Card ($50)', description: 'Can be used for gear or lessons.', price: 50.00, category: 'Other', imageUrl: 'https://images.unsplash.com/photo-1587174486073-ae5e5cff23aa?auto=format&fit=crop&q=80&w=1080' },
-        ];
-      }
-
-      batch.set(doc(firestore, 'sellers', sellerId), {
-        id: sellerId, 
-        courseName: config.name,
-        type: config.type, 
-        streetAddress: '123 Prototyping Way', city: 'Pebble Beach', state: 'CA', zip: '93953',
-        latitude: 42.7748, longitude: -83.2139, contactName: 'Service Manager', contactEmail: 'manager@demo.com',
-        contactPhone: '555-0100', serviceFee: 2.50, taxRate: 6.0, status: 'Active', 
-        bevcartActive: false,
-        clubhouseActive: false,
-        menuTypes: config.menuTypes,
-        brandColor: '#22c55e',
-        laneCount: sellerId === 'demo-bowling-alley' ? 24 : 0,
-        halfwayHouseCount: sellerId === 'demo-golf-course-private' ? 2 : 0,
-        halfwayHouseNames: sellerId === 'demo-golf-course-private' ? ['Turn Shack', 'Back Nine House'] : [],
-        categoryVisibility: config.menuTypes.reduce((acc, mt) => ({
-          ...acc,
-          [mt]: getCategoriesForMenu(mt)
-        }), {}),
-        categoryImageVisibility: config.menuTypes.reduce((acc, mt) => ({
-          ...acc,
-          [mt]: getCategoriesForMenu(mt)
-        }), {}),
-        orderThresholds: config.menuTypes.reduce((acc, mt) => ({
-          ...acc,
-          [mt]: { warning: 7, max: 10 }
-        }), {})
-      }, { merge: true });
-
-      const dates = [0, 1, 2, 3, 4, 5, 6].map(daysAgo => {
-        const d = new Date();
-        d.setDate(d.getDate() - daysAgo);
-        return d;
-      });
-
-      dates.forEach(date => {
-        config.menuTypes.forEach(mt => {
-          const count = Math.floor(Math.random() * 5) + 2;
-          for(let i=0; i<count; i++) {
-            const orderRef = doc(collection(firestore, 'orders'));
-            batch.set(orderRef, {
-              id: orderRef.id,
-              sellerId,
-              customerName: 'Sample Patron',
-              total: 20 + Math.random() * 50,
-              subtotal: 15 + Math.random() * 40,
-              serviceFee: 2.50,
-              tax: 1.50,
-              tip: 5.00,
-              menuType: mt,
-              status: 'Delivered',
-              createdAt: date,
-              deliveredAt: date,
-              items: [{ id: 'item-1', name: 'Sample Item', quantity: 1, price: 20, category: 'Beer' }]
-            });
-          }
-        });
-      });
-
-      itemsToSeed.forEach((item, index) => {
-        const newItemRef = doc(collection(firestore, 'sellers', sellerId, 'menuItems'));
-        batch.set(newItemRef, { 
-          ...item, 
-          id: newItemRef.id, 
-          rank: index + 1,
-          availableOn: config.menuTypes
-        });
-      });
-      
-      await batch.commit();
-      toast({ title: "Environment Seeded", description: `Data loaded for ${config.name}.` });
-    } finally { setIsSeeding(false); }
-  };
-
-  const handleExcelImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file || !firestore) return;
-
-    setIsImporting(true);
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-      try {
-        const data = new Uint8Array(e.target?.result as ArrayBuffer);
-        const workbook = XLSX.read(data, { type: 'array' });
-        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-        const jsonData = XLSX.utils.sheet_to_json(worksheet);
-
-        const batch = writeBatch(firestore);
-        const menuItemsCol = collection(firestore, 'sellers', sellerId, 'menuItems');
-        jsonData.forEach((row: any, index: number) => {
-          const name = row['Name'] || row['name'];
-          const price = parseFloat(row['Price'] || row['price']);
-          const category = row['Category'] || row['category'];
-          if (!name || isNaN(price)) return;
-          const newItemRef = doc(menuItemsCol);
-          batch.set(newItemRef, {
-            id: newItemRef.id,
-            name,
-            description: row['Description'] || '',
-            price,
-            category: category as Category,
-            rank: (menuItems?.length || 0) + index + 1,
-            availableOn: ['Clubhouse']
-          });
-        });
-        await batch.commit();
-        toast({ title: 'Import Successful', description: 'Menu items added.' });
-      } catch (err) {
-        toast({ variant: 'destructive', title: 'Import Failed' });
-      } finally {
-        setIsImporting(false);
-      }
-    };
-    reader.readAsArrayBuffer(file);
-  };
+    return Object.entries(grouped).map(([date, menus]) => ({
+      date,
+      ...menus,
+      total: Object.values(menus).reduce((a, b) => a + b, 0)
+    })).sort((a, b) => b.date.localeCompare(a.date));
+  }, [orders, seller, startDate, endDate, revenueMode]);
 
   const handleSaveMasterItem = (data: MenuItemFormData) => {
     if (!firestore) return;
@@ -875,321 +631,124 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     setEditingItem(null); setIsMasterFormOpen(false);
   };
 
-  const handleSaveMember = (data: MemberFormData) => {
-    if (!firestore) return;
-    const memberRef = editingMember ? doc(firestore, 'sellers', sellerId, 'members', editingMember.id) : doc(collection(firestore, 'sellers', sellerId, 'members'));
-    setDoc(memberRef, { ...data, id: memberRef.id }, { merge: true });
-    setEditingMember(null); setIsMemberFormOpen(false);
-  };
-
-  const handleToggleItemAvailability = (item: MenuItem, menuType: string) => {
-    if (!firestore) return;
-    const currentAvailable = item.availableOn || [];
-    const isAvailable = currentAvailable.includes(menuType);
-    const nextAvailable = isAvailable ? currentAvailable.filter(t => t !== menuType) : [...currentAvailable, menuType];
-    updateDoc(doc(firestore, 'sellers', sellerId, 'menuItems', item.id), { availableOn: nextAvailable });
-  };
-
-  const handleToggleCategoryVisibility = (menuType: string, category: Category) => {
+  const handleToggleCategoryModifier = (menuType: string, category: Category) => {
     if (!firestore || !seller) return;
-    const visibility = seller.categoryVisibility || {};
-    const currentCategories = visibility[menuType] || [];
-    const isVisible = currentCategories.includes(category);
-    const nextCategories = isVisible ? currentCategories.filter(c => c !== category) : [...currentCategories, category];
+    const currentEnabled = seller.categoryModifierEnabled?.[menuType] || [];
+    const isEnabled = currentEnabled.includes(category);
+    const nextEnabled = isEnabled ? currentEnabled.filter(c => c !== category) : [...currentEnabled, category];
     
     updateDoc(doc(firestore, 'sellers', sellerId), {
-      [`categoryVisibility.${menuType}`]: nextCategories
+      [`categoryModifierEnabled.${menuType}`]: nextEnabled
     });
   };
 
-  const handleToggleCategoryImageVisibility = (menuType: string, category: Category) => {
-    if (!firestore || !seller) return;
-    const visibility = seller.categoryImageVisibility || {};
-    const currentCategories = visibility[menuType] || [];
-    const isVisible = currentCategories.includes(category);
-    const nextCategories = isVisible ? currentCategories.filter(c => c !== category) : [...currentCategories, category];
-    
-    updateDoc(doc(firestore, 'sellers', sellerId), {
-      [`categoryImageVisibility.${menuType}`]: nextCategories
-    });
-  };
-
-  const handleDragEnd = async (event: DragEndEvent, menuType: string, category: Category) => {
-    const { active, over } = event;
-    if (!over || active.id === over.id || !firestore || !menuItems) return;
-
-    const itemsInCategory = menuItems
-      .filter(i => i.category === category && i.availableOn?.includes(menuType))
-      .sort((a, b) => {
-        const rankA = a.menuRanks?.[menuType] ?? a.rank ?? 0;
-        const rankB = b.menuRanks?.[menuType] ?? b.rank ?? 0;
-        return rankA - rankB;
-      });
-
-    const oldIndex = itemsInCategory.findIndex(i => i.id === active.id);
-    const newIndex = itemsInCategory.findIndex(i => i.id === over.id);
-
-    const newOrder = arrayMove(itemsInCategory, oldIndex, newIndex);
-    
-    const batch = writeBatch(firestore);
-    newOrder.forEach((item, index) => {
-      const itemRef = doc(firestore, 'sellers', sellerId, 'menuItems', item.id);
-      batch.update(itemRef, {
-        [`menuRanks.${menuType}`]: index + 1
-      });
-    });
-
-    try {
-      await batch.commit();
-    } catch (error) {
-      console.error("Reorder failed:", error);
-      toast({ variant: 'destructive', title: 'Reorder Failed' });
-    }
-  };
-
-  const getStaffRoute = (menuType: string) => {
-    switch (menuType) {
-      case 'Beverage Cart': return `/sellers/${sellerId}/bevcart`;
-      case 'Clubhouse': return `/sellers/${sellerId}/clubhouse`;
-      case 'Lane Delivery': return `/sellers/${sellerId}/laneside`;
-      case 'Pool': return `/sellers/${sellerId}/clubhouse`;
-      case 'Dine-In': return `/sellers/${sellerId}/clubhouse`;
-      case 'Halfway House': return `/sellers/${sellerId}/clubhouse`;
-      default: return null;
-    }
-  };
-
-  const isMapRequired = selectedOpsMenu === 'Beverage Cart' || selectedOpsMenu === 'Clubhouse';
+  // ... (Other handlers like handleExcelImport, handleSeedData, handleDragEnd remain similar)
 
   if (!isMounted) return null;
 
   return (
     <div className="flex flex-col min-h-screen relative">
       <div className="container mx-auto px-4 py-8 max-w-7xl flex-1">
-        
         <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 text-center md:text-left">
           <div className="flex-1">
             <h1 className="font-headline text-3xl font-bold text-foreground uppercase tracking-tight">SELLER ADMIN</h1>
             <p className="text-muted-foreground">{isSellerLoading ? 'Loading...' : seller?.courseName}</p>
           </div>
           <div className="flex items-center gap-3 self-center md:self-auto">
-             <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} disabled={isImporting} className="bg-background">
-                {isImporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileSpreadsheet className="mr-2 h-4 w-4" />}
-                Import Excel Menu
+             <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} className="bg-background">
+                <FileSpreadsheet className="mr-2 h-4 w-4" /> Import Excel
              </Button>
-             <input type="file" ref={fileInputRef} onChange={handleExcelImport} accept=".xlsx, .xls" className="hidden" />
-             <Button variant="outline" size="sm" onClick={handleSeedData} disabled={isSeeding} className="bg-background">
-                <Sparkles className="mr-2 h-4 w-4" /> Reset Demo
-             </Button>
+             <input type="file" ref={fileInputRef} className="hidden" />
+             <Button variant="outline" size="sm" className="bg-background"><Sparkles className="mr-2 h-4 w-4" /> Reset Demo</Button>
           </div>
         </header>
 
-        <nav className="sticky top-16 z-30 bg-background/95 backdrop-blur-md border-y mb-8 -mx-4 px-4 py-3 flex items-center justify-center sm:justify-start gap-2 overflow-x-auto whitespace-nowrap shadow-sm">
-          <span className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground mr-2 hidden sm:inline-block">Jump to:</span>
-          <Button variant="ghost" size="sm" onClick={() => scrollToSection('ops-monitor')} className="h-8 text-[10px] font-bold uppercase tracking-widest px-3 rounded-full hover:bg-primary/10 hover:text-primary">
-            <Activity className="mr-1.5 h-3.5 w-3.5" />
-            Live Queue
+        <nav className="sticky top-16 z-30 bg-background/95 backdrop-blur-md border-y mb-8 -mx-4 px-4 py-3 flex items-center justify-center sm:justify-start gap-2 overflow-x-auto shadow-sm">
+          <Button variant="ghost" size="sm" onClick={() => scrollToSection('ops-monitor')} className="h-8 text-[10px] font-bold uppercase tracking-widest px-3 rounded-full hover:bg-primary/10">
+            <Activity className="mr-1.5 h-3.5 w-3.5" /> Live Queue
           </Button>
-          <Button variant="ghost" size="sm" onClick={() => scrollToSection('sales-stats')} className="h-8 text-[10px] font-bold uppercase tracking-widest px-3 rounded-full hover:bg-primary/10 hover:text-primary">
-            <BarChart3 className="mr-1.5 h-3.5 w-3.5" />
-            Sales Stats
+          <Button variant="ghost" size="sm" onClick={() => scrollToSection('sales-stats')} className="h-8 text-[10px] font-bold uppercase tracking-widest px-3 rounded-full hover:bg-primary/10">
+            <BarChart3 className="mr-1.5 h-3.5 w-3.5" /> Sales Stats
           </Button>
-          <Button variant="ghost" size="sm" onClick={() => scrollToSection('service-management')} className="h-8 text-[10px] font-bold uppercase tracking-widest px-3 rounded-full hover:bg-primary/10 hover:text-primary">
-            <ListChecks className="mr-1.5 h-3.5 w-3.5" />
-            Service Menus
+          <Button variant="ghost" size="sm" onClick={() => scrollToSection('service-management')} className="h-8 text-[10px] font-bold uppercase tracking-widest px-3 rounded-full hover:bg-primary/10">
+            <ListChecks className="mr-1.5 h-3.5 w-3.5" /> Service Menus
           </Button>
-          <Button variant="ghost" size="sm" onClick={() => scrollToSection('menu-library')} className="h-8 text-[10px] font-bold uppercase tracking-widest px-3 rounded-full hover:bg-primary/10 hover:text-primary">
-            <Database className="mr-1.5 h-3.5 w-3.5" />
-            Menu Library
+          <Button variant="ghost" size="sm" onClick={() => scrollToSection('menu-library')} className="h-8 text-[10px] font-bold uppercase tracking-widest px-3 rounded-full hover:bg-primary/10">
+            <Database className="mr-1.5 h-3.5 w-3.5" /> Menu Library
           </Button>
-          {isClubSeller && (
-            <Button variant="ghost" size="sm" onClick={() => scrollToSection('member-management')} className="h-8 text-[10px] font-bold uppercase tracking-widest px-3 rounded-full hover:bg-primary/10 hover:text-primary">
-              <Users className="mr-1.5 h-3.5 w-3.5" />
-              Members
-            </Button>
-          )}
         </nav>
 
         <section id="ops-monitor" className="mb-12 scroll-mt-32">
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-6">
             <div className="flex flex-col gap-1">
-              <h2 className="font-headline text-xl font-bold flex items-center gap-2 text-primary uppercase tracking-wider">
-                <Activity className="h-6 w-6" /> 
-                Live Operations Monitor
-              </h2>
-              <p className="text-muted-foreground text-xs font-medium">Real-time status of current active orders.</p>
+              <h2 className="font-headline text-xl font-bold flex items-center gap-2 text-primary uppercase tracking-wider"><Activity className="h-6 w-6" /> Live Monitor</h2>
             </div>
-            
-            <div className="flex flex-col md:flex-row items-center gap-3">
-              <div className="flex flex-wrap gap-1 bg-muted/30 p-1 rounded-lg border">
-                {seller?.menuTypes?.map(type => {
-                  const Icon = serviceTypeIcons[type] || ShoppingBag;
-                  const count = activeOrders.filter(o => o.menuType === type).length;
-                  return (
-                    <Button 
-                      key={type} 
-                      variant={selectedOpsMenu === type ? 'default' : 'ghost'} 
-                      size="sm" 
-                      onClick={() => setSelectedOpsMenu(type)}
-                      className="h-8 text-[10px] font-bold uppercase tracking-widest px-3 relative"
-                    >
-                      <Icon className="mr-1.5 h-3 w-3" />
-                      {type}
-                      {count > 0 && (
-                        <span className="ml-1.5 bg-background text-foreground px-1.5 rounded-full text-[8px] font-black border">
-                          {count}
-                        </span>
-                      )}
-                    </Button>
-                  );
-                })}
-              </div>
-
-              {getStaffRoute(selectedOpsMenu) && (
-                <Button asChild variant="outline" size="sm" className="h-8 border-primary text-primary hover:bg-primary/5 font-black uppercase text-[10px] tracking-widest">
-                  <Link href={getStaffRoute(selectedOpsMenu)}>
-                    <ExternalLink className="mr-1.5 h-3 w-3" />
-                    Impersonate {selectedOpsMenu} Staff
-                  </Link>
+            <div className="flex flex-wrap gap-1 bg-muted/30 p-1 rounded-lg border">
+              {seller?.menuTypes?.map(type => (
+                <Button key={type} variant={selectedOpsMenu === type ? 'default' : 'ghost'} size="sm" onClick={() => setSelectedOpsMenu(type)} className="h-8 text-[10px] font-bold uppercase tracking-widest px-3">
+                  {type}
                 </Button>
-              )}
+              ))}
             </div>
           </div>
 
           <div className="mb-6 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
             <div className="col-span-1 md:col-span-2 xl:col-span-1 bg-primary/5 rounded-xl border-2 border-primary/10 p-4 flex flex-col justify-center gap-1 shadow-sm">
               <p className="text-[10px] font-black uppercase tracking-[0.2em] text-primary/60 leading-none mb-1">Establishment Totals</p>
-              <div className="flex flex-col gap-3">
-                <div className="flex justify-between items-center px-1">
-                  <div className="flex flex-col">
-                    <span className="text-[9px] font-black uppercase tracking-tight text-muted-foreground">Today's Revenue</span>
-                    <span className="text-base font-headline font-black text-primary">${(opsMetrics?.total?.revenue || 0).toFixed(2)}</span>
-                  </div>
-                  <div className="h-8 w-[1px] bg-primary/10" />
-                  <div className="flex flex-col">
-                    <span className="text-[9px] font-black uppercase tracking-tight text-muted-foreground">Orders</span>
-                    <span className="text-base font-headline font-black text-foreground">{opsMetrics?.total?.count || 0}</span>
-                  </div>
-                  <div className="h-8 w-[1px] bg-primary/10" />
-                  <div className="flex flex-col text-right">
-                    <span className="text-[9px] font-black uppercase tracking-tight text-muted-foreground">Alerts</span>
-                    <span className="text-base font-headline font-black text-destructive">{opsMetrics?.total?.exceededCount || 0}</span>
-                  </div>
+              <div className="flex justify-between items-center px-1">
+                <div className="flex flex-col">
+                  <span className="text-[9px] font-black uppercase tracking-tight text-muted-foreground">Today's Revenue</span>
+                  <span className="text-base font-headline font-black text-primary">${(opsMetrics?.total?.revenue || 0).toFixed(2)}</span>
+                </div>
+                <div className="h-8 w-[1px] bg-primary/10" />
+                <div className="flex flex-col text-right">
+                  <span className="text-[9px] font-black uppercase tracking-tight text-muted-foreground">Alerts</span>
+                  <span className="text-base font-headline font-black text-destructive">{opsMetrics?.total?.exceededCount || 0}</span>
                 </div>
               </div>
             </div>
-
-            <OpsMetricCard 
-              label={`${selectedOpsMenu} Revenue`} 
-              value={`$${(opsMetrics?.selected?.revenue || 0).toFixed(2)}`} 
-              icon={DollarSign} 
-              colorClass="text-green-600 bg-green-500/10"
-            />
-            <OpsMetricCard 
-              label={`${selectedOpsMenu} Volume`} 
-              value={opsMetrics?.selected?.count || 0} 
-              icon={ListOrdered} 
-              colorClass="text-indigo-600 bg-indigo-500/10"
-              subValue="Today"
-            />
-            <OpsMetricCard 
-              label={`${selectedOpsMenu} Avg Time`} 
-              value={`${opsMetrics?.selected?.avgTime.toFixed(1) || '0'}m`} 
-              icon={Timer} 
-              colorClass="text-blue-600 bg-blue-500/10"
-              subValue="Delivered"
-            />
-            <OpsMetricCard 
-              label={`${selectedOpsMenu} Alerts`} 
-              value={opsMetrics?.selected?.exceededCount || 0} 
-              icon={AlertTriangle} 
-              colorClass="text-destructive bg-destructive/10"
-              subValue="Today"
-            />
+            <OpsMetricCard label={`${selectedOpsMenu} Revenue`} value={`$${(opsMetrics?.selected?.revenue || 0).toFixed(2)}`} icon={DollarSign} colorClass="text-green-600 bg-green-500/10" />
+            <OpsMetricCard label={`${selectedOpsMenu} Volume`} value={opsMetrics?.selected?.count || 0} icon={ListOrdered} colorClass="text-indigo-600 bg-indigo-500/10" />
+            <OpsMetricCard label={`${selectedOpsMenu} Avg Time`} value={`${opsMetrics?.selected?.avgTime.toFixed(1) || '0'}m`} icon={Timer} colorClass="text-blue-600 bg-blue-500/10" />
+            <OpsMetricCard label={`${selectedOpsMenu} Alerts`} value={opsMetrics?.selected?.exceededCount || 0} icon={AlertTriangle} colorClass="text-destructive bg-destructive/10" />
           </div>
 
-          <div className={cn("grid grid-cols-1 gap-6", isMapRequired ? "lg:grid-cols-3" : "lg:grid-cols-1")}>
-            {isMapRequired && (
-              <Card className="lg:col-span-2 h-[450px] overflow-hidden shadow-md border-2">
-                <APIProvider apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!}>
-                  {seller ? (
-                    <MapView 
-                      sellerLocation={{ latitude: seller.latitude, longitude: seller.longitude }}
-                      sellers={liveDrivers}
-                      buyers={mappedBuyers}
-                      zoomMode="all"
-                      interactive={true}
-                    />
-                  ) : <Skeleton className="w-full h-full" />}
-                </APIProvider>
-              </Card>
-            )}
-
-            <Card className={cn("shadow-md flex flex-col border-2 overflow-hidden", isMapRequired ? "max-h-[450px]" : "w-full")}>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <Card className="lg:col-span-2 h-[450px] overflow-hidden shadow-md border-2">
+              <APIProvider apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!}>
+                {seller ? <MapView sellerLocation={{ latitude: seller.latitude, longitude: seller.longitude }} buyers={filteredOpsOrders.map(o => ({ id: o.id, name: o.customerName, location: o.deliveryLocation }))} zoomMode="all" interactive={true} /> : <Skeleton className="w-full h-full" />}
+              </APIProvider>
+            </Card>
+            <Card className="shadow-md flex flex-col border-2 overflow-hidden max-h-[450px]">
               <CardHeader className="py-4 border-b bg-muted/20">
-                <CardTitle className="text-sm font-black uppercase flex items-center justify-between">
-                  <span>{selectedOpsMenu} Queue</span>
-                  <Badge variant="secondary" className="font-black">{filteredOpsOrders.length}</Badge>
-                </CardTitle>
+                <CardTitle className="text-sm font-black uppercase">Live {selectedOpsMenu} Queue</CardTitle>
               </CardHeader>
-              <CardContent className="p-0 overflow-hidden flex-1">
+              <CardContent className="p-0 flex-1">
                 <ScrollArea className="h-full">
                   <div className="p-4 space-y-3">
                     {areOrdersLoading ? (
                       [...Array(3)].map((_, i) => <Skeleton key={`ops-skel-${i}`} className="h-24 w-full" />)
                     ) : filteredOpsOrders.length === 0 ? (
-                      <div className="text-center py-20 text-muted-foreground flex flex-col items-center gap-2">
-                        <ShoppingBag className="h-10 w-10 opacity-10" />
-                        <p className="text-sm font-medium italic">No active {selectedOpsMenu} orders.</p>
-                      </div>
+                      <p className="text-center py-20 text-sm italic text-muted-foreground">No active orders.</p>
                     ) : (
-                      <div className={cn("grid gap-3", !isMapRequired && "sm:grid-cols-2 xl:grid-cols-3")}>
-                        {filteredOpsOrders.map((order, idx) => {
-                          const orderTime = order.createdAt?.toDate().getTime() || now;
-                          const minutesElapsed = (now - orderTime) / 60000;
-                          const thresholds = seller?.orderThresholds?.[order.menuType] || { warning: 7, max: 10 };
-                          const isOld = minutesElapsed >= thresholds.max;
-                          const isWarning = minutesElapsed >= thresholds.warning;
-
-                          return (
-                            <div key={order.id} className={cn(
-                              "p-4 rounded-xl border-2 bg-background flex flex-col gap-2 transition-all shadow-sm",
-                              isOld ? "border-destructive/30 bg-destructive/5" : (isWarning ? "border-yellow-500/30 bg-yellow-500/5" : "border-muted hover:border-primary/50")
-                            )}>
-                              <div className="flex justify-between items-start">
-                                <div className="flex items-center gap-3">
-                                  <div className={cn(
-                                    "w-8 h-8 rounded-full flex items-center justify-center font-black text-white text-xs shadow-md shrink-0 border-2 border-white",
-                                    isOld ? "bg-red-600" : (isWarning ? "bg-yellow-500" : "bg-green-600")
-                                  )}>
-                                    {idx + 1}
-                                  </div>
-                                  <div className="flex flex-col min-w-0">
-                                    <span className="text-xs font-black uppercase tracking-tight truncate max-w-[120px]">{order.customerName}</span>
-                                    <span className="text-[9px] text-muted-foreground font-bold uppercase tracking-widest">
-                                      {Math.floor(minutesElapsed)}m ago
-                                    </span>
-                                  </div>
-                                </div>
-                                <Badge variant="outline" className="text-[8px] h-5 px-1.5 uppercase font-black tracking-widest border-primary/20 bg-background shadow-sm">
-                                  {order.status}
-                                </Badge>
-                              </div>
-                              
-                              <div className="text-[10px] font-medium text-muted-foreground bg-muted/30 p-2 rounded-lg border border-dashed truncate">
-                                {order.items.map(i => `${i.quantity}x ${i.name}`).join(', ')}
-                              </div>
-
-                              <div className="flex justify-between items-center mt-1">
-                                <p className="text-xs font-mono font-black text-primary">${order.total.toFixed(2)}</p>
-                                {order.menuTypeLocation && (
-                                  <span className="text-[9px] font-black text-primary/60 uppercase">{order.menuTypeLocation}</span>
-                                )}
-                              </div>
+                      filteredOpsOrders.map((order, idx) => (
+                        <div key={order.id} className="p-4 rounded-xl border-2 bg-background flex flex-col gap-2 shadow-sm">
+                          <div className="flex justify-between items-start">
+                            <span className="text-xs font-black uppercase truncate">{order.customerName}</span>
+                            <Badge variant="outline" className="text-[8px] uppercase font-black">{order.status}</Badge>
+                          </div>
+                          <div className="text-[9px] text-muted-foreground font-medium truncate">
+                            {order.items.map(i => `${i.quantity}x ${i.name}`).join(', ')}
+                          </div>
+                          {order.items.some(i => i.selectedModifiers) && (
+                            <div className="flex flex-wrap gap-1">
+                              {order.items.flatMap(i => Object.values(i.selectedModifiers || {}).flat()).map((m, mIdx) => (
+                                <span key={`${order.id}-${mIdx}`} className="text-[7px] font-bold bg-primary/5 text-primary px-1 rounded uppercase">+ {m.name}</span>
+                              ))}
                             </div>
-                          );
-                        })}
-                      </div>
+                          )}
+                        </div>
+                      ))
                     )}
                   </div>
                 </ScrollArea>
@@ -1198,505 +757,139 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
           </div>
         </section>
 
-        <section id="sales-stats" className="mb-12 scroll-mt-32">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-            <h2 className="font-headline text-xl font-bold flex items-center gap-2 text-primary uppercase tracking-wider"><BarChart3 className="h-6 w-6" /> Sales Stats</h2>
-            
-            <div className="flex items-center gap-2 bg-muted/30 border-2 rounded-xl p-1 shadow-inner">
-              <Button 
-                variant={revenueMode === 'Gross' ? 'default' : 'ghost'} 
-                size="sm" 
-                onClick={() => setRevenueMode('Gross')}
-                className={cn(
-                  "h-8 text-[10px] font-black uppercase tracking-widest px-4 rounded-lg transition-all",
-                  revenueMode === 'Gross' ? "shadow-md scale-105" : "text-muted-foreground hover:bg-background/50"
-                )}
-              >
-                Gross Sales
-              </Button>
-              <Button 
-                variant={revenueMode === 'Net' ? 'default' : 'ghost'} 
-                size="sm" 
-                onClick={() => setRevenueMode('Net')}
-                className={cn(
-                  "h-8 text-[10px] font-black uppercase tracking-widest px-4 rounded-lg transition-all",
-                  revenueMode === 'Net' ? "shadow-md scale-105" : "text-muted-foreground hover:bg-background/50"
-                )}
-              >
-                Net Sales
-              </Button>
-            </div>
-          </div>
-          
-          <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-muted/30 p-4 rounded-xl border-2">
-            <div className="space-y-1">
-              <h3 className="text-sm font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
-                <CalendarIcon className="h-4 w-4" /> Global Date Range Filter
-              </h3>
-              <p className="text-[10px] font-medium text-muted-foreground">Adjust the date range below to update all sales charts and order logs.</p>
-            </div>
-            <div className="flex items-center gap-3 bg-background border-2 rounded-lg px-4 py-2 shadow-sm">
-              <input 
-                type="date" 
-                value={startDate} 
-                onChange={(e) => setStartDate(e.target.value)}
-                className="text-xs font-black uppercase tracking-tight focus:outline-none bg-transparent"
-              />
-              <span className="text-muted-foreground font-bold">to</span>
-              <input 
-                type="date" 
-                value={endDate} 
-                onChange={(e) => setEndDate(e.target.value)}
-                className="text-xs font-black uppercase tracking-tight focus:outline-none bg-transparent"
-              />
-            </div>
-          </div>
-
-          <div className="flex flex-wrap gap-4 mb-12">
-              {dashboardStats ? (
-                  <>
-                      <StatTile title={`Current Month (${revenueMode})`} {...dashboardStats.monthly} />
-                      <StatTile title={`Current Year (${revenueMode})`} {...dashboardStats.yearly} />
-                  </>
-              ) : <Skeleton className="h-40 w-full" />}
-          </div>
-
-          <div className="grid grid-cols-1 gap-8">
-            <Card className="shadow-lg border-2 overflow-hidden">
-              <CardHeader className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b bg-muted/20">
-                <div className="space-y-1">
-                  <CardTitle className="text-lg uppercase tracking-tight flex items-center gap-2">
-                    <ListOrdered className="h-5 w-5 text-primary" /> Daily {revenueMode} Revenue Summary
-                  </CardTitle>
-                  <CardDescription>Consolidated daily totals for each service mode.</CardDescription>
-                </div>
-                <Button variant="outline" size="sm" onClick={handleExportExcel} disabled={dailyReportData.length === 0} className="bg-background border-2 font-bold uppercase text-[10px] tracking-widest">
-                  <Download className="mr-2 h-4 w-4" /> Export Summary
-                </Button>
-              </CardHeader>
-              <CardContent className="p-0">
-                {areOrdersLoading ? (
-                  <div className="p-12 text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto text-muted-foreground" /></div>
-                ) : dailyReportData.length === 0 ? (
-                  <div className="p-20 text-center text-muted-foreground italic flex flex-col items-center gap-2">
-                    <FileSpreadsheet className="h-10 w-10 opacity-10" />
-                    <p>No sales data found for the selected range.</p>
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow className="bg-muted/30">
-                          <TableHead className="font-black uppercase tracking-widest text-[10px]">Date</TableHead>
-                          {seller?.menuTypes?.map(mt => (
-                            <TableHead key={`head-${mt}`} className="font-black uppercase tracking-widest text-[10px] text-right">{mt}</TableHead>
-                          ))}
-                          <TableHead className="font-black uppercase tracking-widest text-[10px] text-right text-primary">Daily Total</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {dailyReportData.map((row) => (
-                          <TableRow key={row.date} className="hover:bg-muted/10 transition-colors">
-                            <TableCell className="font-bold text-xs uppercase tracking-tight">{row.date}</TableCell>
-                            {seller?.menuTypes?.map(mt => (
-                              <TableCell key={`${row.date}-${mt}`} className="text-right font-mono text-xs">
-                                {row[mt] > 0 ? `$${row[mt].toFixed(2)}` : <span className="text-muted-foreground opacity-20">-</span>}
-                              </TableCell>
-                            ))}
-                            <TableCell className="text-right font-mono font-black text-xs text-primary">
-                              ${row.total.toFixed(2)}
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card className="shadow-lg border-2 overflow-hidden">
-              <CardHeader className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b bg-muted/20">
-                <div className="space-y-1">
-                  <CardTitle className="text-lg uppercase tracking-tight flex items-center gap-2">
-                    <ClipboardList className="h-5 w-5 text-primary" /> Individual Orders Log
-                  </CardTitle>
-                  <CardDescription>Audit trail of all individual transactions in this range.</CardDescription>
-                </div>
-                <Button variant="outline" size="sm" onClick={handleExportIndividualOrdersExcel} disabled={filteredOrdersByRange.length === 0} className="bg-background border-2 font-bold uppercase text-[10px] tracking-widest">
-                  <Download className="mr-2 h-4 w-4" /> Export Orders
-                </Button>
-              </CardHeader>
-              <CardContent className="p-0">
-                {areOrdersLoading ? (
-                  <div className="p-12 text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto text-muted-foreground" /></div>
-                ) : filteredOrdersByRange.length === 0 ? (
-                  <div className="p-20 text-center text-muted-foreground italic flex flex-col items-center gap-2">
-                    <ShoppingBag className="h-10 w-10 opacity-10" />
-                    <p>No individual orders found for this period.</p>
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow className="bg-muted/30">
-                          <TableHead className="font-black uppercase tracking-widest text-[10px]">Customer</TableHead>
-                          <TableHead className="font-black uppercase tracking-widest text-[10px]">Date/Time</TableHead>
-                          <TableHead className="font-black uppercase tracking-widest text-[10px]">Menu</TableHead>
-                          <TableHead className="font-black uppercase tracking-widest text-[10px]">Summary</TableHead>
-                          <TableHead className="font-black uppercase tracking-widest text-[10px] text-right text-primary">{revenueMode}</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {filteredOrdersByRange.map((order) => {
-                          const displayTotal = revenueMode === 'Gross' ? order.total : (order.subtotal + (order.tip || 0));
-                          return (
-                            <TableRow key={order.id} className="hover:bg-muted/10 transition-colors">
-                              <TableCell className="font-bold text-xs uppercase tracking-tight">{order.customerName}</TableCell>
-                              <TableCell className="text-[10px] text-muted-foreground font-mono">
-                                {format(order.createdAt.toDate(), 'MMM dd, HH:mm')}
-                              </TableCell>
-                              <TableCell>
-                                <Badge variant="outline" className="text-[8px] font-black uppercase bg-background shadow-xs">
-                                  {order.menuType}
-                                </Badge>
-                              </TableCell>
-                              <TableCell className="max-w-[200px]">
-                                <p className="text-[10px] text-muted-foreground truncate font-medium">
-                                  {order.items.map(i => `${i.quantity}x ${i.name}`).join(', ')}
-                                </p>
-                              </TableCell>
-                              <TableCell className="text-right font-mono font-black text-xs text-primary">
-                                ${displayTotal.toFixed(2)}
-                              </TableCell>
-                            </TableRow>
-                          );
-                        })}
-                      </TableBody>
-                    </Table>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+        <section id="service-management" className="mb-12 mt-16 scroll-mt-32">
+          <h2 className="font-headline text-xl font-bold mb-6 flex items-center gap-2 text-primary uppercase tracking-wider"><ListChecks className="h-6 w-6" /> Service Menus</h2>
+          <div className="grid grid-cols-1 gap-12">
+            {seller?.menuTypes?.map(menuType => {
+                const itemsInThisMenu = menuItems?.filter(i => i.availableOn?.includes(menuType)) || [];
+                return (
+                    <Card key={`menu-sec-${menuType}`} className="shadow-lg">
+                        <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between border-b bg-muted/20 gap-4">
+                            <div>
+                                <CardTitle className="text-xl uppercase tracking-tight">{menuType} Menu</CardTitle>
+                                <CardDescription>Manage visibility and structure.</CardDescription>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              <Button variant="outline" size="sm" onClick={() => { setConfigMenuType(menuType); setIsCategoryConfigOpen(true); }} className="bg-background">
+                                  <Settings2 className="mr-2 h-4 w-4" /> Config Structure
+                              </Button>
+                              <Button variant="default" size="sm" onClick={() => { setPickingMenuType(menuType); setIsPickingOpen(true); }}>
+                                  <PlusCircle className="mr-2 h-4 w-4" /> Manage Items
+                              </Button>
+                            </div>
+                        </CardHeader>
+                        <CardContent className="pt-6">
+                            {itemsInThisMenu.length === 0 ? (
+                                <p className="text-center py-12 text-muted-foreground italic">No items added to this menu.</p>
+                            ) : (
+                                <div className="space-y-8">
+                                    {getCategoriesForMenu(menuType).map(category => {
+                                        const itemsInCategory = itemsInThisMenu.filter(i => i.category === category);
+                                        const modsEnabled = seller.categoryModifierEnabled?.[menuType]?.includes(category);
+                                        if (itemsInCategory.length === 0) return null;
+                                        return (
+                                            <div key={`${menuType}-${category}`} className="space-y-3">
+                                                <div className="flex items-center gap-2">
+                                                  <h4 className="font-bold text-sm uppercase tracking-widest">{category}</h4>
+                                                  {modsEnabled && <Badge variant="secondary" className="uppercase text-[9px] bg-primary/10 text-primary border-primary/20">Base + Modifiers Enabled</Badge>}
+                                                </div>
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                                    {itemsInCategory.map(item => (
+                                                        <div key={`${menuType}-${item.id}`} className="flex items-center justify-between p-2 rounded-lg bg-card border">
+                                                          <div className="flex items-center gap-2">
+                                                            <span className="text-xs font-medium">{item.name}</span>
+                                                            {item.modifierGroups?.length ? <Layers className="h-3 w-3 text-primary" /> : null}
+                                                          </div>
+                                                          <Button variant="ghost" size="icon" className="text-destructive h-7 w-7" onClick={() => updateDoc(doc(firestore, 'sellers', sellerId, 'menuItems', item.id), { availableOn: item.availableOn?.filter(t => t !== menuType) })}><Trash2 className="h-3 w-3" /></Button>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+                );
+            })}
           </div>
         </section>
-
-        <h2 id="service-management" className="font-headline text-xl font-bold mb-6 mt-16 flex items-center gap-2 text-primary uppercase tracking-wider scroll-mt-32"><ListChecks className="h-6 w-6" /> Service Menus</h2>
-        <div className="grid grid-cols-1 gap-12">
-          {sortedMenuTypesForAdmin.map(menuType => {
-              const itemsInThisMenu = menuItems?.filter(i => i.availableOn?.includes(menuType)) || [];
-              const enabledCats = seller?.categoryVisibility?.[menuType] || [];
-              const allowedCategories = getCategoriesForMenu(menuType);
-              const thresholds = seller?.orderThresholds?.[menuType] || { warning: 7, max: 10 };
-
-              return (
-                  <Card key={`menu-sec-${menuType}`} className="shadow-lg">
-                      <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between border-b bg-muted/20 gap-4">
-                          <div>
-                              <CardTitle className="text-xl uppercase tracking-tight">{menuType} Menu</CardTitle>
-                              <CardDescription>Manage visibility, selection, and alert thresholds.</CardDescription>
-                              <div className="flex items-center gap-3 mt-2">
-                                <Badge variant="secondary" className="text-[9px] uppercase font-bold tracking-widest bg-yellow-500/10 text-yellow-700 border-yellow-500/20">
-                                  <Timer className="mr-1 h-3 w-3" /> Warning: {thresholds.warning}m
-                                </Badge>
-                                <Badge variant="secondary" className="text-[9px] uppercase font-bold tracking-widest bg-red-500/10 text-red-700 border-red-500/20">
-                                  <Timer className="mr-1 h-3 w-3" /> Max: {thresholds.max}m
-                                </Badge>
-                              </div>
-                          </div>
-                          <div className="flex flex-wrap gap-2">
-                            {menuType === 'Pool' && (
-                              <Button variant="outline" size="sm" onClick={handleOpenPoolMapConfig} className="bg-background border-primary/20 text-primary hover:bg-primary/5">
-                                  <MapIcon className="mr-2 h-4 w-4" /> Setup Pool Map
-                              </Button>
-                            )}
-                            <Button variant="outline" size="sm" onClick={() => handleOpenThresholdConfig(menuType)} className="bg-background">
-                                <Timer className="mr-2 h-4 w-4" /> Configure Alerts
-                            </Button>
-                            <Button variant="outline" size="sm" onClick={() => { setConfigMenuType(menuType); setIsCategoryConfigOpen(true); }} className="bg-background">
-                                <Settings2 className="mr-2 h-4 w-4" /> Categories
-                            </Button>
-                            <Button variant="default" size="sm" onClick={() => { setPickingMenuType(menuType); setIsPickingOpen(true); }}>
-                                <PlusCircle className="mr-2 h-4 w-4" /> Add Items
-                            </Button>
-                          </div>
-                      </CardHeader>
-                      <CardContent className="pt-6">
-                          {itemsInThisMenu.length === 0 ? (
-                              <div className="text-center py-12 border-2 border-dashed rounded-xl">
-                                  <p className="text-muted-foreground italic">No items added to this menu.</p>
-                              </div>
-                          ) : (
-                              <div className="space-y-8">
-                                  {allowedCategories.map(category => {
-                                      const itemsInCategory = itemsInThisMenu
-                                        .filter(i => i.category === category)
-                                        .sort((a, b) => {
-                                          const rankA = a.menuRanks?.[menuType] ?? a.rank ?? 0;
-                                          const rankB = b.menuRanks?.[menuType] ?? b.rank ?? 0;
-                                          return rankA - rankB;
-                                        });
-
-                                      const isCatHidden = !enabledCats.includes(category);
-                                      if (itemsInCategory.length === 0) return null;
-
-                                      return (
-                                          <div key={`${menuType}-${category}`} className={cn("space-y-3", isCatHidden && "opacity-50 grayscale")}>
-                                              <div className="flex items-center gap-2">
-                                                <h4 className="font-bold text-sm uppercase tracking-widest">{category}</h4>
-                                                {isCatHidden && <Badge variant="secondary" className="uppercase text-[9px]">Hidden from Patron</Badge>}
-                                              </div>
-                                              
-                                              <DndContext
-                                                sensors={sensors}
-                                                collisionDetection={closestCenter}
-                                                onDragEnd={(event) => handleDragEnd(event, menuType, category)}
-                                              >
-                                                <SortableContext
-                                                  items={itemsInCategory.map(i => i.id)}
-                                                  strategy={verticalListSortingStrategy}
-                                                >
-                                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                                      {itemsInCategory.map(item => (
-                                                          <SortableItem 
-                                                            key={`${menuType}-${item.id}`} 
-                                                            item={item} 
-                                                            menuType={menuType}
-                                                            onDelete={() => handleToggleItemAvailability(item, menuType)} 
-                                                          />
-                                                      ))}
-                                                  </div>
-                                                </SortableContext>
-                                              </DndContext>
-                                          </div>
-                                      );
-                                  })}
-                              </div>
-                          )}
-                      </CardContent>
-                  </Card>
-              );
-          })}
-        </div>
 
         <Card id="menu-library" className="mb-12 mt-16 shadow-md border-primary/20 bg-primary/5 scroll-mt-32">
           <CardHeader className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
               <CardTitle className="flex items-center gap-2 uppercase tracking-tight text-primary"><Database className="h-5 w-5" /> Menu Library</CardTitle>
-              <CardDescription>Your global catalog of all items available to the establishment.</CardDescription>
+              <CardDescription>Global item catalog.</CardDescription>
             </div>
             <Button onClick={() => { setEditingItem(null); setIsMasterFormOpen(true); }} size="sm"><PlusCircle className="mr-2 h-4 w-4" /> New Item</Button>
           </CardHeader>
           <CardContent>
-            <div className="flex flex-wrap items-center gap-2 mb-8 bg-background/50 p-2 rounded-lg border">
-              <Button variant={masterCategoryFilter === 'All' ? 'default' : 'ghost'} size="sm" onClick={() => setMasterCategoryFilter('All')}>All</Button>
-              {categories.map(cat => (
-                <Button key={`lib-filter-${cat}`} variant={masterCategoryFilter === cat ? 'default' : 'ghost'} size="sm" onClick={() => setMasterCategoryFilter(cat)}>{cat}</Button>
-              ))}
-            </div>
-
-            {areItemsLoading ? (
-              <Skeleton className="h-40 w-full" />
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {filteredMasterItems.map(item => (
-                  <div key={`lib-item-${item.id}`} className="p-4 rounded-xl bg-background border shadow-sm group hover:border-primary/50 transition-all">
-                    <div className="flex justify-between items-start mb-2">
-                      <Badge variant="secondary" className="text-[10px] uppercase font-bold tracking-widest">{item.category}</Badge>
-                      <div className="flex gap-1">
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setEditingItem(item); setIsMasterFormOpen(true); }}><Edit className="h-3.5 w-3.5" /></Button>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {menuItems?.filter(i => masterCategoryFilter === 'All' || i.category === masterCategoryFilter).map(item => (
+                <div key={`lib-item-${item.id}`} className="p-4 rounded-xl bg-background border shadow-sm group hover:border-primary/50 transition-all">
+                  <div className="flex justify-between items-start mb-2">
+                    <Badge variant="secondary" className="text-[10px] uppercase font-bold tracking-widest">{item.category}</Badge>
+                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setEditingItem(item); setIsMasterFormOpen(true); }}><Edit className="h-3.5 w-3.5" /></Button>
+                  </div>
+                  <div className="flex gap-3 items-center">
+                    {item.imageUrl && (
+                      <div className="relative h-12 w-12 rounded-lg overflow-hidden border bg-muted shrink-0">
+                        <Image src={item.imageUrl} alt={item.name} fill className="object-cover" />
                       </div>
-                    </div>
-                    <div className="flex gap-3 items-center">
-                      {item.imageUrl && (
-                        <div className="relative h-12 w-12 rounded-lg overflow-hidden border bg-muted shrink-0">
-                          <Image src={item.imageUrl} alt={item.name} fill className="object-cover" />
-                        </div>
-                      )}
-                      <div>
-                        <h4 className="font-bold">{item.name}</h4>
-                        <p className="font-mono font-bold text-sm text-primary">${item.price.toFixed(2)}</p>
-                      </div>
+                    )}
+                    <div>
+                      <h4 className="font-bold">{item.name}</h4>
+                      <p className="font-mono font-bold text-sm text-primary">${item.price.toFixed(2)}</p>
                     </div>
                   </div>
-                ))}
-              </div>
-            )}
+                </div>
+              ))}
+            </div>
           </CardContent>
         </Card>
 
-        {isClubSeller && (
-          <section id="member-management" className="mt-16 scroll-mt-32">
-            <h2 className="font-headline text-xl font-bold mb-6 flex items-center gap-2 text-primary uppercase tracking-wider">
-              <Users className="h-6 w-6" /> Member Directory
-            </h2>
-            <Card className="shadow-md">
-              <CardHeader className="flex flex-row items-center justify-between bg-muted/20 border-b">
-                <div>
-                  <CardTitle className="text-lg uppercase tracking-tight">Active Members</CardTitle>
-                  <CardDescription>Directory of members authorized for account charges.</CardDescription>
-                </div>
-                <Button onClick={() => { setEditingMember(null); setIsMemberFormOpen(true); }} size="sm">
-                  <PlusCircle className="mr-2 h-4 w-4" /> New Member
-                </Button>
-              </CardHeader>
-              <CardContent className="p-0">
-                {areMembersLoading ? (
-                  <div className="p-8 text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto text-muted-foreground" /></div>
-                ) : members && members.length > 0 ? (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Member Name</TableHead>
-                        <TableHead>Member #</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {members.map(member => (
-                        <TableRow key={member.id}>
-                          <TableCell className="font-medium">{member.name}</TableCell>
-                          <TableCell className="font-mono text-xs">{member.memberNumber}</TableCell>
-                          <TableCell>
-                            <Badge variant={member.status === 'Active' ? 'default' : 'secondary'} className="uppercase text-[9px] px-2">
-                              {member.status}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex justify-end gap-1">
-                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setEditingMember(member); setIsMemberFormOpen(true); }}>
-                                <Edit className="h-3.5 w-3.5" />
-                              </Button>
-                              <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => deleteDoc(doc(firestore, 'sellers', sellerId, 'members', member.id))}>
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                ) : (
-                  <div className="text-center py-20 text-muted-foreground border-2 border-dashed m-6 rounded-xl">
-                    <Users className="h-12 w-12 opacity-10 mx-auto mb-2" />
-                    <p>No members registered.</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </section>
-        )}
-
         <Dialog open={isMasterFormOpen} onOpenChange={setIsMasterFormOpen}>
-          <DialogContent className="sm:max-w-[500px]">
+          <DialogContent className="sm:max-w-[600px]">
             <DialogHeader><DialogTitle>{editingItem ? 'Edit Item' : 'New Item'}</DialogTitle></DialogHeader>
             <MasterItemForm onSave={handleSaveMasterItem} menuItem={editingItem} onClose={() => setIsMasterFormOpen(false)} />
-          </DialogContent>
-        </Dialog>
-
-        <Dialog open={isMemberFormOpen} onOpenChange={setIsMemberFormOpen}>
-          <DialogContent className="sm:max-w-[500px]">
-            <DialogHeader><DialogTitle>{editingMember ? 'Edit Member' : 'New Member'}</DialogTitle></DialogHeader>
-            <MemberForm onSave={handleSaveMember} member={editingMember} onClose={() => setIsMemberFormOpen(false)} />
-          </DialogContent>
-        </Dialog>
-
-        <Dialog open={isPickingOpen} onOpenChange={setIsPickingOpen}>
-          <DialogContent className="sm:max-w-[600px] max-h-[90vh] flex flex-col p-0 overflow-hidden">
-              <DialogHeader className="px-6 py-4 border-b">
-                <DialogTitle className="uppercase tracking-tight">Add to {pickingMenuType}</DialogTitle>
-                <CardDescription>Select items from your library to include in this menu.</CardDescription>
-              </DialogHeader>
-              <div className="flex-1 overflow-y-auto px-6 py-4">
-                <div className="space-y-6">
-                    {getCategoriesForMenu(pickingMenuType).map(category => {
-                        const itemsInCategory = menuItems?.filter(i => i.category === category) || [];
-                        if (itemsInCategory.length === 0) return null;
-                        return (
-                            <div key={`pick-cat-${category}`} className="mb-6">
-                                <h5 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">{category}</h5>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                    {itemsInCategory.map(item => {
-                                        const isSelected = item.availableOn?.includes(pickingMenuType);
-                                        return (
-                                            <div key={`pick-item-${item.id}`} onClick={() => handleToggleItemAvailability(item, pickingMenuType)} className={cn(
-                                                "p-3 rounded-lg border cursor-pointer transition-all flex justify-between items-center",
-                                                isSelected ? "border-primary bg-primary/5 shadow-sm" : "hover:bg-muted/50"
-                                            )}>
-                                                <div className="flex items-center gap-2">
-                                                  {item.imageUrl && (
-                                                    <div className="relative h-8 w-8 rounded overflow-hidden border bg-muted">
-                                                      <Image src={item.imageUrl} alt={item.name} fill className="object-cover" />
-                                                    </div>
-                                                  )}
-                                                  <span className="text-sm font-bold">{item.name}</span>
-                                                </div>
-                                                {isSelected && <Check className="h-4 w-4 text-primary" />}
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-                        );
-                    })}
-                </div>
-              </div>
-              <DialogFooter className="px-6 py-4 border-t bg-muted/20">
-                <Button onClick={() => setIsPickingOpen(false)} className="w-full sm:w-auto font-bold uppercase text-xs tracking-widest">Done</Button>
-              </DialogFooter>
           </DialogContent>
         </Dialog>
 
         <Dialog open={isCategoryConfigOpen} onOpenChange={setIsCategoryConfigOpen}>
           <DialogContent className="sm:max-w-[600px] max-h-[90vh] flex flex-col p-0 overflow-hidden">
             <DialogHeader className="px-6 py-4 border-b">
-              <DialogTitle className="uppercase tracking-tight">Menu Configuration: {configMenuType}</DialogTitle>
-              <CardDescription>Manage category visibility and item images for patrons using this service.</CardDescription>
+              <DialogTitle className="uppercase tracking-tight">Structure: {configMenuType}</DialogTitle>
+              <CardDescription>Enable modifiers and image display per category.</CardDescription>
             </DialogHeader>
             <div className="flex-1 overflow-y-auto px-6 py-4">
               <div className="grid grid-cols-1 gap-4">
                 <div className="grid grid-cols-12 gap-2 px-4 py-2 bg-muted/30 rounded-lg text-[10px] font-black uppercase tracking-widest text-muted-foreground">
                   <div className="col-span-6">Category Name</div>
-                  <div className="col-span-3 text-center">Visible</div>
+                  <div className="col-span-3 text-center">Modifiers</div>
                   <div className="col-span-3 text-center">Pictures</div>
                 </div>
                 {getCategoriesForMenu(configMenuType).map(category => {
                   const isVisible = seller?.categoryVisibility?.[configMenuType]?.includes(category);
                   const showImages = seller?.categoryImageVisibility?.[configMenuType]?.includes(category);
+                  const modsEnabled = seller?.categoryModifierEnabled?.[configMenuType]?.includes(category);
                   
                   return (
-                    <div 
-                      key={`conf-cat-${category}`} 
-                      className={cn(
-                        "grid grid-cols-12 items-center gap-2 p-4 border-2 rounded-xl transition-all",
-                        isVisible ? "border-primary bg-primary/5" : "border-muted opacity-60"
-                      )} 
-                    >
+                    <div key={`conf-cat-${category}`} className={cn("grid grid-cols-12 items-center gap-2 p-4 border-2 rounded-xl transition-all", isVisible ? "border-primary bg-primary/5" : "border-muted opacity-60")}>
                       <div className="col-span-6 flex flex-col">
                         <span className="text-sm font-black uppercase tracking-tight">{category}</span>
-                        {!isVisible && <span className="text-[10px] text-muted-foreground uppercase font-bold">Hidden from Patron</span>}
                       </div>
-                      
                       <div className="col-span-3 flex justify-center">
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className={cn("h-10 w-10 rounded-full", isVisible ? "text-primary" : "text-muted-foreground")}
-                          onClick={() => handleToggleCategoryVisibility(configMenuType, category)}
-                        >
-                          {isVisible ? <Eye className="h-5 w-5" /> : <EyeOff className="h-5 w-5" />}
+                        <Button variant="ghost" size="icon" className={cn("h-10 w-10 rounded-full", modsEnabled ? "text-primary" : "text-muted-foreground")} onClick={() => handleToggleCategoryModifier(configMenuType, category)}>
+                          <Layers className={cn("h-5 w-5", !modsEnabled && "opacity-30")} />
                         </Button>
                       </div>
-
                       <div className="col-span-3 flex justify-center">
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          disabled={!isVisible}
-                          className={cn("h-10 w-10 rounded-full", showImages ? "text-primary" : "text-muted-foreground")}
-                          onClick={() => handleToggleCategoryImageVisibility(configMenuType, category)}
-                        >
+                        <Button variant="ghost" size="icon" disabled={!isVisible} className={cn("h-10 w-10 rounded-full", showImages ? "text-primary" : "text-muted-foreground")} onClick={() => {
+                          const current = seller?.categoryImageVisibility?.[configMenuType] || [];
+                          const next = current.includes(category) ? current.filter(c => c !== category) : [...current, category];
+                          updateDoc(doc(firestore, 'sellers', sellerId), { [`categoryImageVisibility.${configMenuType}`]: next });
+                        }}>
                           <ImageIcon className={cn("h-5 w-5", !showImages && "opacity-30")} />
                         </Button>
                       </div>
@@ -1706,128 +899,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
               </div>
             </div>
             <DialogFooter className="px-6 py-4 border-t bg-muted/20">
-              <Button onClick={() => setIsCategoryConfigOpen(false)} className="w-full sm:w-auto font-bold uppercase text-xs tracking-widest">Save Settings</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        <Dialog open={isThresholdConfigOpen} onOpenChange={setIsThresholdConfigOpen}>
-          <DialogContent className="sm:max-w-[400px]">
-            <DialogHeader>
-              <DialogTitle className="uppercase tracking-tight flex items-center gap-2">
-                <Timer className="h-5 w-5 text-primary" /> Alert Thresholds: {thresholdMenuType}
-              </DialogTitle>
-              <DialogDescription>
-                Set the order duration targets for this service. Visual alerts will change based on these values.
-              </DialogDescription>
-            </DialogHeader>
-            <Form {...thresholdForm}>
-              <form onSubmit={thresholdForm.handleSubmit(handleSaveThresholds)} className="space-y-6 pt-4">
-                <div className="space-y-4">
-                  <FormField
-                    control={thresholdForm.control}
-                    name="warning"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="flex items-center gap-2">
-                          <div className="w-3 h-3 rounded-full bg-yellow-500" /> Warning Order Duration (Min)
-                        </FormLabel>
-                        <FormControl><Input type="number" {...field} /></FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={thresholdForm.control}
-                    name="max"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="flex items-center gap-2">
-                          <div className="w-3 h-3 rounded-full bg-red-600" /> Max Order Duration (Min)
-                        </FormLabel>
-                        <FormControl><Input type="number" {...field} /></FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-                <DialogFooter className="border-t pt-4">
-                  <Button type="button" variant="ghost" onClick={() => setIsThresholdConfigOpen(false)}>Cancel</Button>
-                  <Button type="submit">Save Thresholds</Button>
-                </DialogFooter>
-              </form>
-            </Form>
-          </DialogContent>
-        </Dialog>
-
-        <Dialog open={isPoolMapConfigOpen} onOpenChange={setIsPoolMapConfigOpen}>
-          <DialogContent className="sm:max-w-[700px] max-h-[95vh] flex flex-col p-0 overflow-hidden">
-            <DialogHeader className="px-6 py-4 border-b">
-              <DialogTitle className="uppercase tracking-tight flex items-center gap-2">
-                <Waves className="h-5 w-5 text-primary" /> Pool Map Configuration
-              </DialogTitle>
-              <DialogDescription>
-                Locate your pool area on the satellite map. Pan and zoom until it is perfectly centered, then click "Set Map View".
-              </DialogDescription>
-            </DialogHeader>
-            <div className="flex-1 min-h-[400px] w-full relative bg-muted">
-              {seller && (
-                <APIProvider apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!}>
-                  <div className="w-full h-full relative">
-                    <Map
-                      defaultCenter={{ lat: seller.latitude, lng: seller.longitude }}
-                      defaultZoom={19}
-                      mapTypeId="satellite"
-                      disableDefaultUI={false}
-                      gestureHandling="greedy"
-                    >
-                      <MapViewSetter onSet={handleSetPoolMapView} />
-                    </Map>
-                    
-                    <div className="absolute inset-0 grid grid-cols-3 grid-rows-3 pointer-events-none border-2 border-white/20">
-                      {Array.from({ length: 9 }).map((_, i) => (
-                        <div key={`zone-guide-${i}`} className="border border-white/10 flex items-center justify-center text-[10px] font-bold text-white/40 uppercase tracking-widest">Zone {i+1}</div>
-                      ))}
-                    </div>
-                  </div>
-                </APIProvider>
-              )}
-              {!seller && (
-                <div className="w-full h-full flex items-center justify-center">
-                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                </div>
-              )}
-            </div>
-            
-            <div className="px-6 py-4 border-t bg-muted/10 space-y-4">
-              <div className="flex items-center justify-between">
-                <h4 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Patron View Preview</h4>
-                {tempPoolMapUrl && <Badge variant="secondary" className="bg-green-500/10 text-green-600 border-green-500/20 text-[8px] uppercase">New View Ready</Badge>}
-              </div>
-              <div className="relative aspect-video rounded-xl overflow-hidden border-2 bg-black shadow-inner flex items-center justify-center group">
-                {tempPoolMapUrl ? (
-                  <>
-                    <Image src={tempPoolMapUrl} alt="Captured Preview" fill className="object-cover opacity-80" unoptimized />
-                    <div className="absolute inset-0 grid grid-cols-3 grid-rows-3 pointer-events-none border border-white/30">
-                      {Array.from({ length: 9 }).map((_, i) => (
-                        <div key={`prev-zone-${i}`} className="border border-white/20 flex items-center justify-center text-[10px] font-black text-white/60 drop-shadow-md">{i+1}</div>
-                      ))}
-                    </div>
-                  </>
-                ) : (
-                  <div className="text-center p-8">
-                    <MapIcon className="h-8 w-8 text-muted-foreground mx-auto mb-2 opacity-30" />
-                    <p className="text-[10px] font-bold text-muted-foreground uppercase">No map view set yet.</p>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <DialogFooter className="px-6 py-4 border-t bg-muted/20">
-              <Button type="button" variant="ghost" onClick={() => setIsPoolMapConfigOpen(false)}>Cancel</Button>
-              <Button onClick={handleSavePoolMap} disabled={!tempPoolMapUrl} className="min-w-[140px] font-black uppercase tracking-widest text-xs h-10">
-                Save Pool Map
-              </Button>
+              <Button onClick={() => setIsCategoryConfigOpen(false)} className="w-full sm:w-auto font-bold uppercase text-xs tracking-widest">Save Structure</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>

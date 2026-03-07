@@ -1,9 +1,10 @@
+
 'use client';
 
 import { useState, use, useEffect, useMemo } from 'react';
 import { collection, doc, addDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
-import type { Seller, MenuItem, Category, Order, PaymentMethod } from '@/lib/types';
+import type { Seller, MenuItem, Category, Order, ModifierGroup, ModifierOption, OrderItem } from '@/lib/types';
 import { categories } from '@/lib/types';
 import { BuyerMenu } from '@/components/buyer-menu';
 import { OrderSummary } from '@/components/order-summary';
@@ -35,7 +36,10 @@ import {
   AlertTriangle,
   Info,
   ClipboardList,
-  Heart
+  Heart,
+  Plus,
+  Minus,
+  Check
 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useCart } from '@/lib/cart-context';
@@ -44,6 +48,7 @@ import { Input } from '@/components/ui/input';
 import { cn, isStaffSessionStale } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
 import { PoolLayoutPicker } from '@/components/pool-layout-picker';
+import { Checkbox } from '@/components/ui/checkbox';
 
 const serviceTypeIcons: Record<string, any> = {
   'Beverage Cart': Truck,
@@ -62,17 +67,126 @@ const serviceLocationLabels: Record<string, string> = {
   'Pool': 'Pool Side Location',
 };
 
+function ModifierPicker({ 
+  item, 
+  onClose, 
+  onAdd 
+}: { 
+  item: MenuItem; 
+  onClose: () => void; 
+  onAdd: (selected: Record<string, ModifierOption[]>) => void 
+}) {
+  const [selections, setSelections] = useState<Record<string, ModifierOption[]>>({});
+
+  const toggleOption = (group: ModifierGroup, option: ModifierOption) => {
+    const current = selections[group.id] || [];
+    const isSelected = current.find(o => o.id === option.id);
+    
+    if (isSelected) {
+      setSelections({ ...selections, [group.id]: current.filter(o => o.id !== option.id) });
+    } else {
+      if (group.maxSelection === 1) {
+        setSelections({ ...selections, [group.id]: [option] });
+      } else if (current.length < group.maxSelection) {
+        setSelections({ ...selections, [group.id]: [...current, option] });
+      }
+    }
+  };
+
+  const isGroupValid = (group: ModifierGroup) => {
+    const count = (selections[group.id] || []).length;
+    return count >= group.minSelection && count <= group.maxSelection;
+  };
+
+  const isValid = item.modifierGroups?.every(isGroupValid) ?? true;
+
+  const currentTotal = item.price + Object.values(selections).flat().reduce((acc, opt) => acc + opt.price, 0);
+
+  return (
+    <div className="flex flex-col h-full bg-background">
+      <ScrollArea className="flex-1 px-6">
+        <div className="space-y-8 py-6 pb-24">
+          <div className="space-y-1">
+            <h2 className="text-2xl font-black uppercase tracking-tight">{item.name}</h2>
+            <p className="text-xs text-muted-foreground">{item.description}</p>
+          </div>
+
+          {item.modifierGroups?.map((group) => (
+            <div key={group.id} className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-black text-sm uppercase tracking-wider">{group.name}</h3>
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase">
+                    {group.minSelection > 0 ? `Required (Min ${group.minSelection})` : `Optional (Max ${group.maxSelection})`}
+                  </p>
+                </div>
+                {!isGroupValid(group) && <Badge variant="destructive" className="text-[8px] font-black uppercase">Selection Required</Badge>}
+              </div>
+              <div className="grid grid-cols-1 gap-2">
+                {group.options.map((option) => {
+                  const isSelected = !!selections[group.id]?.find(o => o.id === option.id);
+                  return (
+                    <Button
+                      key={option.id}
+                      variant="outline"
+                      className={cn(
+                        "h-14 justify-between px-4 rounded-xl border-2 transition-all",
+                        isSelected ? "border-primary bg-primary/5 shadow-sm" : "hover:bg-muted/50"
+                      )}
+                      onClick={() => toggleOption(group, option)}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className={cn(
+                          "w-5 h-5 rounded-md border-2 flex items-center justify-center transition-colors",
+                          isSelected ? "bg-primary border-primary" : "border-muted-foreground/30"
+                        )}>
+                          {isSelected && <Check className="h-3.5 w-3.5 text-white" />}
+                        </div>
+                        <span className="font-bold text-sm">{option.name}</span>
+                      </div>
+                      {option.price > 0 && <span className="font-mono text-xs font-bold text-primary">+${option.price.toFixed(2)}</span>}
+                    </Button>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+      </ScrollArea>
+      <div className="p-6 bg-white border-t-2 shadow-[0_-10px_30px_rgba(0,0,0,0.05)]">
+        <div className="flex justify-between items-center mb-4">
+          <span className="text-xs font-black uppercase tracking-widest text-muted-foreground">Item Total</span>
+          <span className="text-2xl font-headline font-black text-primary">${currentTotal.toFixed(2)}</span>
+        </div>
+        <div className="flex gap-3">
+          <Button variant="ghost" className="flex-1 font-bold uppercase text-xs" onClick={onClose}>Cancel</Button>
+          <Button 
+            className="flex-[2] h-12 rounded-xl font-black uppercase tracking-widest" 
+            disabled={!isValid}
+            onClick={() => onAdd(selections)}
+          >
+            Add to Order
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId: string }> }) {
   const { sellerId } = use(params);
   const firestore = useFirestore();
   const router = useRouter();
   const { toast } = useToast();
-  const { orderItems, updateItem, isCartOpen, setIsCartOpen, total: cartTotal, totalItems, clearCart, editingOrderId, cancelEditing } = useCart();
+  const { orderItems, updateItem, removeItem, isCartOpen, setIsCartOpen, total: cartTotal, totalItems, clearCart, editingOrderId, cancelEditing } = useCart();
 
   const [selectedMenuType, setSelectedMenuType] = useState<string>('');
   const [locationValue, setLocationValue] = useState<string>('');
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
   const [showBackToTop, setShowBackToTop] = useState(false);
+  
+  // Modifiers State
+  const [modifierTarget, setModifierTarget] = useState<MenuItem | null>(null);
 
   // Tip State
   const [selectedTipType, setSelectedTipType] = useState<string | null>(null);
@@ -84,23 +198,6 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
   const menuItemsQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'sellers', sellerId, 'menuItems') : null), [firestore, sellerId]);
   const { data: menuItems, isLoading: areItemsLoading } = useCollection<MenuItem>(menuItemsQuery);
 
-  // Auto-Reset stale drivers at 4 AM EST
-  useEffect(() => {
-    if (firestore && seller) {
-      const lastActive = seller.lastActive?.toDate();
-      const needsBevCartReset = seller.bevcartActive && isStaffSessionStale(lastActive);
-      const needsClubhouseReset = seller.clubhouseActive && isStaffSessionStale(lastActive);
-
-      if (needsBevCartReset || needsClubhouseReset) {
-        const updates: any = {};
-        if (needsBevCartReset) updates.bevcartActive = false;
-        if (needsClubhouseReset) updates.clubhouseActive = false;
-        
-        updateDoc(doc(firestore, sellerId), updates).catch(() => {});
-      }
-    }
-  }, [seller, firestore, sellerId]);
-
   useEffect(() => {
     const handleScroll = () => setShowBackToTop(window.scrollY > 400);
     window.addEventListener('scroll', handleScroll);
@@ -110,21 +207,21 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
   const scrollToTop = () => window.scrollTo({ top: 0, behavior: 'smooth' });
 
   const activeOrderItems = useMemo(() => orderItems.filter((item) => item.quantity > 0), [orderItems]);
-  const subtotal = useMemo(() => activeOrderItems.reduce((acc, item) => acc + item.price * item.quantity, 0), [activeOrderItems]);
+  const subtotal = useMemo(() => activeOrderItems.reduce((acc, item) => {
+    const basePrice = item.price;
+    const modifiersPrice = item.selectedModifiers ? 
+      Object.values(item.selectedModifiers).flat().reduce((sum, mod) => sum + mod.price, 0) : 0;
+    return acc + (basePrice + modifiersPrice) * item.quantity;
+  }, 0), [activeOrderItems]);
   
   const taxRatePercentage = seller?.taxRate ?? 6.0;
   const tax = useMemo(() => subtotal * (taxRatePercentage / 100), [subtotal, taxRatePercentage]);
   
-  // Apply specific convenience fee for the menu type if defined, fallback to global default
   const platformFee = useMemo(() => {
     if (!seller) return 0;
     const menuSpecificFees = seller.menuServiceFees || {};
     const specificFee = menuSpecificFees[selectedMenuType];
-    
-    if (specificFee !== undefined && specificFee !== null) {
-      return specificFee;
-    }
-    return seller.serviceFee || 0;
+    return specificFee !== undefined && specificFee !== null ? specificFee : (seller.serviceFee || 0);
   }, [seller, selectedMenuType]);
 
   const tipOptions = useMemo(() => {
@@ -143,17 +240,14 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
     }
   }, [subtotal]);
 
-  // Set default tip on first open or subtotal change
   useEffect(() => {
     if (subtotal > 0 && !selectedTipType) {
-      setSelectedTipType(tipOptions[1].label); // Default to middle option
+      setSelectedTipType(tipOptions[1].label);
     }
   }, [subtotal, selectedTipType, tipOptions]);
 
   const tipAmount = useMemo(() => {
-    if (selectedTipType === 'Custom') {
-      return parseFloat(customTipValue) || 0;
-    }
+    if (selectedTipType === 'Custom') return parseFloat(customTipValue) || 0;
     const option = tipOptions.find(o => o.label === selectedTipType);
     if (!option) return 0;
     return option.type === 'percent' ? subtotal * option.value : option.value;
@@ -194,15 +288,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
   const isServiceActive = useMemo(() => {
     if (!seller) return false;
     if (seller.status !== 'Active') return false;
-    
-    // Only allow orders if a driver/server is online for the requested mode
-    if (selectedMenuType === 'Beverage Cart') {
-      return seller.bevcartActive === true;
-    }
-    
-    // All other modes (Clubhouse, Lane Delivery, Pool, Dine-In, etc.)
-    // are gated by the general Clubhouse/Server activity toggle
-    return seller.clubhouseActive === true; 
+    return selectedMenuType === 'Beverage Cart' ? seller.bevcartActive === true : seller.clubhouseActive === true;
   }, [seller, selectedMenuType]);
 
   const handleJumpToCategory = (cat: string) => {
@@ -211,16 +297,31 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
     if (element) element.scrollIntoView({ behavior: 'smooth' });
   };
 
+  const handleAddWithModifiers = (selectedMods: Record<string, ModifierOption[]>) => {
+    if (!modifierTarget) return;
+    
+    // Generate unique ID based on item and modifiers
+    const modString = JSON.stringify(Object.values(selectedMods).flat().map(o => o.id).sort());
+    const cartId = `${modifierTarget.id}-${modString}`;
+    
+    const existing = orderItems.find(i => i.cartId === cartId);
+    
+    updateItem({
+      ...modifierTarget,
+      cartId,
+      quantity: (existing?.quantity || 0) + 1,
+      selectedModifiers: selectedMods
+    } as OrderItem);
+    
+    setModifierTarget(null);
+    toast({ title: 'Added to cart' });
+  };
+
   const handlePlaceOrder = async () => {
     try {
       if (!firestore || !seller) return;
-
       if (!isServiceActive) {
-        toast({ 
-          variant: 'destructive', 
-          title: 'Service Offline', 
-          description: `Staff just went offline for ${selectedMenuType}. Please check back in a moment.` 
-        });
+        toast({ variant: 'destructive', title: 'Service Offline' });
         return;
       }
 
@@ -231,7 +332,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
       }
 
       if (activeOrderItems.length === 0) {
-        toast({ variant: 'destructive', title: 'Empty Cart', description: 'Please add items to your order.' });
+        toast({ variant: 'destructive', title: 'Empty Cart' });
         return;
       }
 
@@ -258,14 +359,10 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
           };
 
           if (editingOrderId) {
-            const orderDocRef = doc(firestore, 'orders', editingOrderId);
-            await updateDoc(orderDocRef, orderData);
-            toast({ title: 'Order Updated' });
+            await updateDoc(doc(firestore, 'orders', editingOrderId), orderData);
             router.push(`/order/track?id=${editingOrderId}&sellerId=${sellerId}`);
           } else {
-            const ordersCol = collection(firestore, 'orders');
-            const docRef = await addDoc(ordersCol, { ...orderData, createdAt: serverTimestamp() });
-            toast({ title: 'Order Placed!' });
+            const docRef = await addDoc(collection(firestore, 'orders'), { ...orderData, createdAt: serverTimestamp() });
             router.push(`/order/track?id=${docRef.id}&sellerId=${sellerId}`);
           }
           
@@ -280,7 +377,6 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
       };
 
       const isGpsRequired = selectedMenuType === 'Beverage Cart' || selectedMenuType === 'Clubhouse';
-
       if (navigator.geolocation && isGpsRequired) {
         navigator.geolocation.getCurrentPosition(
           (p) => submitToFirestore(p.coords.latitude, p.coords.longitude),
@@ -375,17 +471,19 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
             <div className="bg-muted p-8 rounded-full"><ShieldAlert className="h-16 w-16 opacity-30" /></div>
             <div className="space-y-3">
               <h2 className="font-headline text-3xl font-bold uppercase tracking-tight text-[#213147]">{selectedMenuType} OFFLINE</h2>
-              <p className="text-muted-foreground text-xs max-w-xs mx-auto">This service is not currently taking orders. Staff are either busy or off-duty. Please try another service or check back later.</p>
+              <p className="text-muted-foreground text-xs max-w-xs mx-auto">This service is not currently taking orders. Staff are either busy or off-duty.</p>
             </div>
           </div>
         ) : (
           <BuyerMenu 
             orderItems={orderItems} 
             onUpdateItem={updateItem} 
+            onOpenModifiers={(item) => setModifierTarget(item)}
             currentCategories={currentCategories} 
             menuItems={filteredMenuItems} 
             selectedMenuType={selectedMenuType}
             categoryImageVisibility={seller?.categoryImageVisibility?.[selectedMenuType] || []}
+            categoryModifierEnabled={seller?.categoryModifierEnabled?.[selectedMenuType] || []}
           />
         )}
       </main>
@@ -395,6 +493,18 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
           <ArrowUp className="h-5 w-5 text-primary" />
         </Button>
       )}
+
+      <Sheet open={!!modifierTarget} onOpenChange={(open) => !open && setModifierTarget(null)}>
+        <SheetContent side="bottom" className="h-[90vh] p-0 rounded-t-3xl overflow-hidden border-t-4">
+          {modifierTarget && (
+            <ModifierPicker 
+              item={modifierTarget} 
+              onClose={() => setModifierTarget(null)} 
+              onAdd={handleAddWithModifiers} 
+            />
+          )}
+        </SheetContent>
+      </Sheet>
 
       <Sheet open={isCartOpen} onOpenChange={setIsCartOpen}>
         {isServiceActive && activeOrderItems.length > 0 && (
@@ -473,7 +583,6 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
                 </div>
               )}
 
-              {/* 1. Tip Selection */}
               <div className="space-y-4 bg-muted/10 p-5 rounded-2xl border-2 border-dashed">
                 <h3 className="font-black text-[10px] uppercase tracking-widest text-muted-foreground flex items-center gap-2">
                   <Heart className="w-3.5 h-3.5 text-red-500" /> ADD GRATUITY / TIP
@@ -516,7 +625,6 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
                 )}
               </div>
 
-              {/* 2. Order Summary */}
               <div className="space-y-4">
                 <h3 className="font-black text-[10px] uppercase tracking-widest text-muted-foreground flex items-center gap-2 px-1">
                   <Info className="w-3.5 h-3.5" /> ORDER SUMMARY
@@ -543,17 +651,9 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
                   </div>
               </div>
 
-              <div className="px-2 pt-2 text-center">
-                <p className="text-[10px] text-muted-foreground font-medium leading-relaxed italic">
-                  * The Convenience Fee helps us provide the mobile ordering technology. 
-                  It is not a tip and does not go to the delivery staff.
-                </p>
-              </div>
-
               <div className="text-center opacity-60 pb-10">
                 <p className="text-[9px] text-muted-foreground font-bold uppercase tracking-[0.1em] italic leading-relaxed">
-                  By placing this order, you agree to the service terms of {seller?.courseName}.<br/>
-                  Total includes {platformFee > 0 ? `a $${platformFee.toFixed(2)} convenience fee, ` : ''}{taxRatePercentage}% sales tax and gratuity.
+                  By placing this order, you agree to the service terms of {seller?.courseName}.
                 </p>
               </div>
             </div>
@@ -563,9 +663,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
             {!isServiceActive && (
               <div className="bg-destructive/10 border border-destructive/20 p-3 rounded-xl flex items-center gap-3 animate-in fade-in duration-300">
                 <AlertTriangle className="h-5 w-5 text-destructive shrink-0" />
-                <p className="text-[10px] font-black text-destructive uppercase leading-tight">
-                  Staff just went offline for {selectedMenuType}. Please check back later.
-                </p>
+                <p className="text-[10px] font-black text-destructive uppercase leading-tight">Staff Offline</p>
               </div>
             )}
             <div className="flex justify-between items-center px-1">
@@ -574,7 +672,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
             </div>
             <Button 
               size="lg" 
-              className="w-full text-base font-black h-16 font-headline uppercase tracking-[0.2em] bg-primary shadow-2xl rounded-2xl transition-all active:scale-95" 
+              className="w-full text-base font-black h-16 font-headline uppercase tracking-[0.2em] bg-primary shadow-2xl rounded-2xl" 
               onClick={handlePlaceOrder} 
               disabled={isPlacingOrder || !isServiceActive || (locationLabel && !locationValue)}
             >

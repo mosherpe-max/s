@@ -3,7 +3,7 @@
 
 import { Button } from '@/components/ui/button';
 import type { OrderItem, MenuItem, Category } from '@/lib/types';
-import { PlusCircle, MinusCircle } from 'lucide-react';
+import { PlusCircle, MinusCircle, Edit2 } from 'lucide-react';
 import { categoryIcons } from './icons';
 import Image from 'next/image';
 
@@ -11,18 +11,45 @@ interface BuyerMenuProps {
   orderItems: OrderItem[];
   menuItems: MenuItem[];
   onUpdateItem: (item: OrderItem) => void;
+  onOpenModifiers: (item: MenuItem) => void;
   currentCategories: Category[];
   accentColor?: string;
   selectedMenuType?: string;
   categoryImageVisibility?: Category[];
+  categoryModifierEnabled?: Category[];
 }
 
-export function BuyerMenu({ orderItems, onUpdateItem, currentCategories, menuItems, accentColor, selectedMenuType, categoryImageVisibility = [] }: BuyerMenuProps) {
+export function BuyerMenu({ 
+  orderItems, 
+  onUpdateItem, 
+  onOpenModifiers,
+  currentCategories, 
+  menuItems, 
+  accentColor, 
+  selectedMenuType, 
+  categoryImageVisibility = [],
+  categoryModifierEnabled = []
+}: BuyerMenuProps) {
+  
   const handleQuantityChange = (item: MenuItem, change: number) => {
+    const isModifierEnabled = categoryModifierEnabled.includes(item.category);
+    
+    // If modifiers are enabled for this category, we always route through the modifier picker
+    // for addition. Subtraction is handled via cart management or direct matching if no mods.
+    if (isModifierEnabled && change > 0) {
+      onOpenModifiers(item);
+      return;
+    }
+
     const existingItem = orderItems.find(i => i.id === item.id);
     const currentQuantity = existingItem ? existingItem.quantity : 0;
     const newQuantity = Math.max(0, currentQuantity + change);
-    onUpdateItem({ ...item, quantity: newQuantity });
+    
+    onUpdateItem({ 
+      ...item, 
+      quantity: newQuantity, 
+      cartId: item.id // Use base ID if no modifiers
+    } as OrderItem);
   };
 
   return (
@@ -30,6 +57,8 @@ export function BuyerMenu({ orderItems, onUpdateItem, currentCategories, menuIte
       {currentCategories.map((category) => {
         const CategoryIcon = categoryIcons[category];
         const showImages = categoryImageVisibility.includes(category);
+        const isModifierEnabled = categoryModifierEnabled.includes(category);
+        
         const itemsInCategory = menuItems
           .filter((item) => item.category === category)
           .sort((a, b) => {
@@ -55,8 +84,11 @@ export function BuyerMenu({ orderItems, onUpdateItem, currentCategories, menuIte
             </div>
             <div className="space-y-3">
               {itemsInCategory.map((item) => {
-                const orderItem = orderItems.find(i => i.id === item.id);
-                const quantity = orderItem ? orderItem.quantity : 0;
+                // For non-modifier categories, we show a count. 
+                // For modifier categories, we show a count of ALL instances of this item in cart.
+                const relevantCartItems = orderItems.filter(i => i.id === item.id);
+                const totalQuantity = relevantCartItems.reduce((acc, i) => acc + i.quantity, 0);
+                
                 return (
                   <div key={item.id} className="flex items-start justify-between p-4 rounded-xl bg-card border shadow-sm transition-all hover:shadow-md active:scale-[0.98]">
                     <div className="flex items-start gap-4 flex-1 pr-2">
@@ -67,32 +99,50 @@ export function BuyerMenu({ orderItems, onUpdateItem, currentCategories, menuIte
                       )}
                       <div className="flex-1 min-w-0">
                         <p className="font-bold text-base leading-tight truncate">{item.name}</p>
-                        <p className="text-xs font-mono font-bold mt-0.5" style={{ color: accentColor || 'hsl(var(--primary))' }}>${item.price.toFixed(2)}</p>
+                        <p className="text-xs font-mono font-bold mt-0.5" style={{ color: accentColor || 'hsl(var(--primary))' }}>
+                          ${item.price.toFixed(2)}{isModifierEnabled && '+'}
+                        </p>
                         {item.description && <p className="text-[10px] text-muted-foreground mt-1.5 line-clamp-2 leading-relaxed">{item.description}</p>}
                       </div>
                     </div>
+                    
                     <div className="flex items-center gap-1.5 bg-muted/30 p-1 rounded-full border shrink-0 h-fit ml-2">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleQuantityChange(item, -1)}
-                          aria-label={`Decrease quantity of ${item.name}`}
-                          disabled={quantity === 0}
-                          className="h-8 w-8 rounded-full hover:bg-background transition-colors"
-                        >
-                          <MinusCircle className="h-4 w-4" />
-                        </Button>
-                        <span className="text-sm font-bold w-6 text-center">{quantity}</span>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleQuantityChange(item, 1)}
-                          aria-label={`Increase quantity of ${item.name}`}
-                          className="h-8 w-8 rounded-full hover:bg-background transition-colors"
-                          style={quantity > 0 ? { color: accentColor || 'hsl(var(--primary))' } : {}}
-                        >
-                          <PlusCircle className="h-5 w-5" />
-                        </Button>
+                        {isModifierEnabled ? (
+                          // For items with modifiers, addition always opens the picker
+                          <>
+                            {totalQuantity > 0 && <span className="text-[10px] font-black bg-primary/10 text-primary px-2 rounded-full border border-primary/20">{totalQuantity}</span>}
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleQuantityChange(item, 1)}
+                              className="h-8 w-8 rounded-full hover:bg-background transition-colors text-primary"
+                            >
+                              <PlusCircle className="h-5 w-5" />
+                            </Button>
+                          </>
+                        ) : (
+                          // For simple items, standard increment/decrement
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleQuantityChange(item, -1)}
+                              disabled={totalQuantity === 0}
+                              className="h-8 w-8 rounded-full hover:bg-background transition-colors"
+                            >
+                              <MinusCircle className="h-4 w-4" />
+                            </Button>
+                            <span className="text-sm font-bold w-6 text-center">{totalQuantity}</span>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleQuantityChange(item, 1)}
+                              className="h-8 w-8 rounded-full hover:bg-background transition-colors text-primary"
+                            >
+                              <PlusCircle className="h-5 w-5" />
+                            </Button>
+                          </>
+                        )}
                       </div>
                   </div>
                 );

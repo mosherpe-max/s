@@ -12,6 +12,20 @@ export const sellerTypes: readonly SellerType[] = [
   'Restaurant'
 ];
 
+export interface ModifierOption {
+  id: string;
+  name: string;
+  price: number;
+}
+
+export interface ModifierGroup {
+  id: string;
+  name: string;
+  minSelection: number;
+  maxSelection: number;
+  options: ModifierOption[];
+}
+
 export interface Seller {
   id: string;
   ownerId?: string;
@@ -43,13 +57,10 @@ export interface Seller {
   bodyBackgroundColor?: string;
   logoUrl?: string;
   lastActive?: Timestamp;
-  // Category visibility per menu type: { 'Beverage Cart': ['Beer', 'Snacks'], 'Clubhouse': [...] }
   categoryVisibility?: Record<string, Category[]>;
-  // Image visibility per menu type: { 'Beverage Cart': ['Snacks'], 'Clubhouse': ['Pizza'] }
   categoryImageVisibility?: Record<string, Category[]>;
-  // Thresholds for alerts: { 'Beverage Cart': { warning: 7, max: 10 } }
+  categoryModifierEnabled?: Record<string, Category[]>; // Which categories show modifiers per menuType
   orderThresholds?: Record<string, { warning: number; max: number }>;
-  // Pool Map Configuration
   poolMapUrl?: string;
 }
 
@@ -80,6 +91,7 @@ export interface MenuItem {
     imageUrl?: string;
     availableOn?: string[];
     menuRanks?: Record<string, number>;
+    modifierGroups?: ModifierGroup[];
 }
 
 export interface Member {
@@ -91,6 +103,8 @@ export interface Member {
 
 export interface OrderItem extends MenuItem {
   quantity: number;
+  cartId: string; // Unique ID for this item + modifier combination
+  selectedModifiers?: Record<string, ModifierOption[]>; // groupId -> selected options
 }
 
 export type PaymentMethod = 'Credit Card' | 'Member Account' | 'Pay at Delivery' | 'Pay with Cash or Credit Card to Beverage Cart Operator';

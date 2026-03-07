@@ -1,7 +1,8 @@
+
 'use client';
 
 import React, { createContext, useContext, useState, useMemo } from 'react';
-import type { OrderItem, Order } from './types';
+import type { OrderItem, Order, ModifierOption } from './types';
 
 interface CartContextType {
   orderItems: OrderItem[];
@@ -11,6 +12,7 @@ interface CartContextType {
   total: number;
   totalItems: number;
   updateItem: (item: OrderItem) => void;
+  removeItem: (cartId: string) => void;
   clearCart: () => void;
   editingOrderId: string | null;
   loadOrder: (order: Order) => void;
@@ -27,7 +29,12 @@ export function CartProvider({ children, serviceFee = 0 }: { children: React.Rea
   const activeItems = useMemo(() => orderItems.filter(i => i.quantity > 0), [orderItems]);
   
   const subtotal = useMemo(() => 
-    activeItems.reduce((acc, item) => acc + item.price * item.quantity, 0), 
+    activeItems.reduce((acc, item) => {
+      const basePrice = item.price;
+      const modifiersPrice = item.selectedModifiers ? 
+        Object.values(item.selectedModifiers).flat().reduce((sum, mod) => sum + mod.price, 0) : 0;
+      return acc + (basePrice + modifiersPrice) * item.quantity;
+    }, 0), 
   [activeItems]);
 
   const total = subtotal > 0 ? subtotal + serviceFee : 0;
@@ -35,17 +42,24 @@ export function CartProvider({ children, serviceFee = 0 }: { children: React.Rea
 
   const updateItem = (updatedItem: OrderItem) => {
     setOrderItems((prevItems) => {
-      const existingItemIndex = prevItems.findIndex((i) => i.id === updatedItem.id);
+      const existingItemIndex = prevItems.findIndex((i) => i.cartId === updatedItem.cartId);
+      
       if (updatedItem.quantity === 0) {
-        return prevItems.filter((i) => i.id !== updatedItem.id);
+        return prevItems.filter((i) => i.cartId !== updatedItem.cartId);
       }
+      
       if (existingItemIndex > -1) {
         const newItems = [...prevItems];
         newItems[existingItemIndex] = updatedItem;
         return newItems;
       }
+      
       return [...prevItems, updatedItem];
     });
+  };
+
+  const removeItem = (cartId: string) => {
+    setOrderItems(prev => prev.filter(i => i.cartId !== cartId));
   };
 
   const loadOrder = (order: Order) => {
@@ -72,6 +86,7 @@ export function CartProvider({ children, serviceFee = 0 }: { children: React.Rea
     total,
     totalItems,
     updateItem,
+    removeItem,
     clearCart,
     editingOrderId,
     loadOrder,
