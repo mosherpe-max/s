@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useMemo } from 'react';
@@ -27,7 +26,8 @@ import {
   Phone,
   Mail,
   Zap,
-  Palette
+  Palette,
+  Fingerprint
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -133,9 +133,11 @@ export default function KOOPAdminPage() {
   const filteredSellers = useMemo(() => {
     if (!sellers) return [];
     if (!searchTerm) return sellers;
+    const term = searchTerm.toLowerCase();
     return sellers.filter(s => 
-      s.courseName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      s.contactEmail.toLowerCase().includes(searchTerm.toLowerCase())
+      s.courseName.toLowerCase().includes(term) ||
+      s.contactEmail.toLowerCase().includes(term) ||
+      s.id.toLowerCase().includes(term)
     );
   }, [sellers, searchTerm]);
 
@@ -413,7 +415,7 @@ export default function KOOPAdminPage() {
                   <div className="relative w-64">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                     <Input 
-                      placeholder="Filter venues..." 
+                      placeholder="Filter by name or ID..." 
                       className="pl-9 h-9 text-xs border-2" 
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
@@ -425,6 +427,7 @@ export default function KOOPAdminPage() {
                     <TableHeader>
                       <TableRow className="bg-muted/10">
                         <TableHead className="text-[10px] uppercase font-black">Establishment</TableHead>
+                        <TableHead className="text-[10px] uppercase font-black">Seller ID</TableHead>
                         <TableHead className="text-[10px] uppercase font-black">Type</TableHead>
                         <TableHead className="text-[10px] uppercase font-black text-center">Status</TableHead>
                         <TableHead className="text-[10px] uppercase font-black text-right">Actions</TableHead>
@@ -433,7 +436,7 @@ export default function KOOPAdminPage() {
                     <TableBody>
                       {isSellersLoading ? (
                         [...Array(3)].map((_, i) => (
-                          <TableRow key={i}><TableCell colSpan={4}><Skeleton className="h-12 w-full" /></TableCell></TableRow>
+                          <TableRow key={i}><TableCell colSpan={5}><Skeleton className="h-12 w-full" /></TableCell></TableRow>
                         ))
                       ) : filteredSellers.map((seller) => (
                         <TableRow key={seller.id} className="group hover:bg-muted/5">
@@ -441,6 +444,12 @@ export default function KOOPAdminPage() {
                             <div className="flex flex-col">
                               <span className="font-bold text-sm">{seller.courseName}</span>
                               <span className="text-[9px] text-muted-foreground uppercase">{seller.contactEmail}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1.5">
+                              <Fingerprint className="h-3 w-3 text-muted-foreground/50" />
+                              <code className="text-[10px] font-mono bg-muted px-1.5 py-0.5 rounded text-muted-foreground">{seller.id}</code>
                             </div>
                           </TableCell>
                           <TableCell><span className="text-xs">{seller.type}</span></TableCell>
