@@ -467,8 +467,8 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
       </div>
 
       {isServiceActive && (
-        <div className="px-4 py-2 border-b bg-muted/5 shrink-0">
-          <div className="max-w-2xl mx-auto">
+        <div className="border-b bg-muted/5 shrink-0">
+          <div className="px-4 py-2 max-w-2xl mx-auto">
             <p className="text-[10px] font-bold text-muted-foreground leading-tight uppercase tracking-wide italic">
               {getFeeNotification(selectedMenuType)}
             </p>
