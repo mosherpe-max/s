@@ -1,4 +1,3 @@
-
 'use client';
 
 import { Button } from '@/components/ui/button';
@@ -14,8 +13,9 @@ export default function Home() {
   return (
     <div className="flex flex-col min-h-screen">
       <section className="relative w-full py-20 md:py-32 lg:py-40 overflow-hidden">
-        <div className="absolute inset-0 grid grid-cols-2 grid-rows-2">
-          <div className="relative">
+        {/* Simplified Hero Grid: Golf and Bowling only */}
+        <div className="absolute inset-0 grid grid-cols-1 md:grid-cols-2">
+          <div className="relative h-full w-full">
             <Image
               alt="Golf course"
               data-ai-hint="golf course"
@@ -25,44 +25,24 @@ export default function Home() {
               src={getImageUrl('hero-golf')}
             />
           </div>
-          <div className="relative">
+          <div className="relative h-full w-full">
             <Image
-              alt="Pool drinks"
-              data-ai-hint="pool drink"
-              priority
-              fill
-              className="object-cover"
-              src={getImageUrl('hero-pool')}
-            />
-          </div>
-          <div className="relative">
-            <Image
-              alt="People bowling"
-              data-ai-hint="bowling people"
+              alt="Bowling alley"
+              data-ai-hint="bowling lane"
               priority
               fill
               className="object-cover"
               src={getImageUrl('hero-bowling')}
             />
           </div>
-          <div className="relative">
-            <Image
-              alt="Brewery interior"
-              data-ai-hint="brewery"
-              priority
-              fill
-              className="object-cover"
-              src={getImageUrl('hero-brewery')}
-            />
-          </div>
         </div>
-        <div className="absolute inset-0 bg-black/65"></div>
+        <div className="absolute inset-0 bg-black/60"></div>
         <div className="container relative mx-auto px-4 text-center text-white">
           <h1 className="text-4xl font-bold tracking-tight sm:text-5xl md:text-6xl font-headline">
             Turn Convenience into Revenue
           </h1>
           <p className="mt-4 max-w-2xl mx-auto text-lg text-neutral-200">
-            Give your customers VIP treatment with KOOP's plug and play digital ordering platform, boosting your food and beverage sales.
+            Give your customers VIP treatment with KOOP's plug-and-play digital ordering platform, boosting your food and beverage sales.
           </p>
           <div className="mt-10 flex flex-wrap justify-center gap-4">
             <Button asChild size="lg" className="h-12 px-8 font-headline font-bold uppercase tracking-wider">
@@ -185,8 +165,8 @@ export default function Home() {
               dashboard provides all the tools you need to succeed.
             </p>
             <Button asChild size="lg" style={{backgroundColor: 'var(--accent)', color: 'var(--accent-foreground)'}}>
-                <Link href="/sellers/demo-course">
-                    Explore the Seller Dashboard
+                <Link href="/admin">
+                    Explore the Admin Dashboard
                     <ArrowRight className="ml-2 h-5 w-5" />
                 </Link>
             </Button>

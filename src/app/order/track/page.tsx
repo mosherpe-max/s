@@ -29,7 +29,6 @@ function OrderTrackingContent() {
   const { loadOrder } = useCart();
   
   const [isTrackingActive, setIsTrackingActive] = useState(false);
-  const [initialLocations, setInitialLocations] = useState<{ buyer: { latitude: number, longitude: number }, seller: { latitude: number, longitude: number } } | null>(null);
   const [isInstallPromptOpen, setIsInstallPromptOpen] = useState(false);
   const [isIos, setIsIos] = useState(false);
   const [isStandalone, setIsStandalone] = useState(false);
@@ -89,15 +88,6 @@ function OrderTrackingContent() {
     prevStatusRef.current = order?.status;
   }, [order?.status]);
 
-  useEffect(() => {
-    if (order && seller && !initialLocations && isGpsRequired) {
-      setInitialLocations({
-        buyer: order.deliveryLocation,
-        seller: { latitude: seller.latitude, longitude: seller.longitude }
-      });
-    }
-  }, [order, seller, initialLocations, isGpsRequired]);
-
   // Wide Wake Lock Window: Placed -> Delivered
   useEffect(() => {
     const requestWakeLock = async () => {
@@ -143,7 +133,11 @@ function OrderTrackingContent() {
   useEffect(() => {
     if (!order || !firestore || !isGpsRequired) return;
 
-    if (order.status === 'Out for Delivery') {
+    // We watch location throughout the order lifecycle if GPS is required,
+    // ensuring the staff can always find the buyer even if they move while order is 'Preparing'.
+    const isOrderActive = ['Placed', 'Preparing', 'Out for Delivery'].includes(order.status);
+
+    if (isOrderActive) {
       setIsTrackingActive(true);
       if (navigator.geolocation) {
         watchIdRef.current = navigator.geolocation.watchPosition(
@@ -230,8 +224,9 @@ function OrderTrackingContent() {
   const numericId = getNumericOrderId(order.id);
   const taxRatePercentage = seller?.taxRate || 6.0;
 
-  const mapBuyerLocation = isOutForDelivery ? order.deliveryLocation : initialLocations?.buyer;
-  const mapSellerLocation = isOutForDelivery ? { latitude: seller?.latitude || 0, longitude: seller?.longitude || 0 } : initialLocations?.seller;
+  // Always use live locations if available
+  const mapBuyerLocation = order.deliveryLocation;
+  const mapSellerLocation = seller ? { latitude: seller.latitude, longitude: seller.longitude } : null;
 
   const showHoleSelection = !isDelivered && isGolfService && (forceIosView || (isIos && !isStandalone));
 
@@ -277,7 +272,7 @@ function OrderTrackingContent() {
              )}
           </div>
           
-          {isTrackingActive && isOutForDelivery && (
+          {isTrackingActive && (
             <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10">
               <Badge className="bg-primary/90 backdrop-blur-md text-white border-2 border-white/20 shadow-xl px-4 py-1.5 rounded-full flex items-center gap-2 animate-in zoom-in-90">
                 <div className="relative">
@@ -307,7 +302,6 @@ function OrderTrackingContent() {
       )}
 
       <div className="flex-1 p-4 space-y-4 max-w-2xl mx-auto w-full pb-20">
-        {/* 1. Dedicated Live Progress Bar - Only Status Info here */}
         <Card className="shadow-lg border-primary/10 overflow-hidden bg-white/80 backdrop-blur-sm">
             <CardHeader className="py-4 px-6">
                 <div className="flex justify-between items-center mb-4">
@@ -409,7 +403,6 @@ function OrderTrackingContent() {
           </Card>
         )}
 
-        {/* 2. Order Details Card - Summary of items and payment */}
         <Card className="shadow-md border-primary/5 overflow-hidden">
             <CardHeader className="py-3 px-6 bg-muted/30 border-b">
                 <h3 className="font-headline text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">Order Details</h3>
