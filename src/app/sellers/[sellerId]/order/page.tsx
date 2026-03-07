@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, use, useEffect, useMemo } from 'react';
@@ -180,7 +179,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
   const firestore = useFirestore();
   const router = useRouter();
   const { toast } = useToast();
-  const { orderItems, updateItem, removeItem, isCartOpen, setIsCartOpen, total: cartTotal, totalItems, clearCart, editingOrderId, cancelEditing } = useCart();
+  const { orderItems, updateItem, removeItem, isCartOpen, setIsCartOpen, total: cartTotal, totalItems, clearCart, editingOrderId, loadOrder, cancelEditing } = useCart();
 
   const [selectedMenuType, setSelectedMenuType] = useState<string>('');
   const [locationValue, setLocationValue] = useState<string>('');
@@ -510,7 +509,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
           <div className="fixed bottom-7 left-0 right-0 p-4 bg-white/10 backdrop-blur-md border-t z-30 shadow-lg">
             <SheetTrigger asChild>
               <Button size="lg" className="w-full text-base h-12 shadow-xl font-headline font-black uppercase tracking-widest bg-primary">
-                {editingOrderId ? "Update Order" : "Review & Place Order"} ({totalItems})
+                {editingOrderId ? "Update Order" : "Review & Place Order"} ({totalItems}) — ${finalTotal.toFixed(2)}
               </Button>
             </SheetTrigger>
           </div>
