@@ -39,7 +39,8 @@ import {
   Heart,
   Plus,
   Minus,
-  Check
+  Check,
+  ChevronLeft
 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useCart } from '@/lib/cart-context';
@@ -49,6 +50,7 @@ import { cn, isStaffSessionStale } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
 import { PoolLayoutPicker } from '@/components/pool-layout-picker';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Badge } from '@/components/ui/badge';
 
 const serviceTypeIcons: Record<string, any> = {
   'Beverage Cart': Truck,
@@ -185,10 +187,8 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
   const [showBackToTop, setShowBackToTop] = useState(false);
   
-  // Modifiers State
   const [modifierTarget, setModifierTarget] = useState<MenuItem | null>(null);
 
-  // Tip State
   const [selectedTipType, setSelectedTipType] = useState<string | null>(null);
   const [customTipValue, setCustomTipValue] = useState<string>('');
 
@@ -300,7 +300,6 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
   const handleAddWithModifiers = (selectedMods: Record<string, ModifierOption[]>) => {
     if (!modifierTarget) return;
     
-    // Generate unique ID based on item and modifiers
     const modString = JSON.stringify(Object.values(selectedMods).flat().map(o => o.id).sort());
     const cartId = `${modifierTarget.id}-${modString}`;
     
@@ -527,18 +526,30 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
           <ScrollArea className="flex-1 w-full min-h-0">
             <div className="px-6 py-6 space-y-8 pb-32">
               
-              <div className="grid grid-cols-2 gap-4 py-4 px-4 bg-muted/30 rounded-2xl border border-dashed">
-                <div className="space-y-1">
-                  <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-1.5">
-                    <Store className="w-2.5 h-2.5" /> ESTABLISHMENT
-                  </p>
-                  <p className="text-xs font-black truncate">{seller?.courseName || 'Loading...'}</p>
-                </div>
-                <div className="space-y-1 text-right">
-                  <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-1.5 justify-end">
-                    <ClipboardList className="w-2.5 h-2.5" /> SERVICE MODE
-                  </p>
-                  <p className="text-xs font-black">{selectedMenuType}</p>
+              <div className="flex flex-col gap-3">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => setIsCartOpen(false)}
+                  className="w-fit h-8 text-[10px] font-black uppercase tracking-widest border-primary/20 text-primary hover:bg-primary/5 rounded-full px-4"
+                >
+                  <ChevronLeft className="mr-1 h-3.5 w-3.5" />
+                  Add More Items
+                </Button>
+
+                <div className="grid grid-cols-2 gap-4 py-4 px-4 bg-muted/30 rounded-2xl border border-dashed">
+                  <div className="space-y-1">
+                    <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-1.5">
+                      <Store className="w-2.5 h-2.5" /> ESTABLISHMENT
+                    </p>
+                    <p className="text-xs font-black truncate">{seller?.courseName || 'Loading...'}</p>
+                  </div>
+                  <div className="space-y-1 text-right">
+                    <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-1.5 justify-end">
+                      <ClipboardList className="w-2.5 h-2.5" /> SERVICE MODE
+                    </p>
+                    <p className="text-xs font-black">{selectedMenuType}</p>
+                  </div>
                 </div>
               </div>
 
@@ -635,6 +646,8 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
                   tax={tax}
                   tip={tipAmount}
                   taxRate={taxRatePercentage}
+                  onUpdateItem={updateItem}
+                  onRemoveItem={removeItem}
                 />
               </div>
 
@@ -674,7 +687,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
               size="lg" 
               className="w-full text-base font-black h-16 font-headline uppercase tracking-[0.2em] bg-primary shadow-2xl rounded-2xl" 
               onClick={handlePlaceOrder} 
-              disabled={isPlacingOrder || !isServiceActive || (locationLabel && !locationValue)}
+              disabled={isPlacingOrder || !isServiceActive || (locationLabel && !locationValue) || activeOrderItems.length === 0}
             >
               {isPlacingOrder ? <><Loader2 className="animate-spin mr-2" /> PROCESSING...</> : (editingOrderId ? "UPDATE ORDER" : "PLACE ORDER NOW")}
             </Button>
