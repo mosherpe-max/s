@@ -312,12 +312,14 @@ export function AppHeader() {
           ) : null}
 
           {/* Desktop Navigation */}
-          <div className="hidden lg:flex items-center gap-2">
-            <NavigationLinks />
-          </div>
+          {isMounted && (
+            <div className="hidden lg:flex items-center gap-2">
+              <NavigationLinks />
+            </div>
+          )}
 
           {/* Mobile Navigation Hamburger - Visible only on specific pages */}
-          {showHamburger && (
+          {isMounted && showHamburger && (
             <div className="lg:hidden">
               <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
                 <SheetTrigger asChild>
