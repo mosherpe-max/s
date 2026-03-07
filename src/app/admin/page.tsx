@@ -16,7 +16,15 @@ import {
   Target, 
   ShieldAlert, 
   ArrowRight,
-  ChevronRight
+  ChevronRight,
+  Activity,
+  TrendingUp,
+  Users,
+  Search,
+  Filter,
+  BarChart3,
+  Clock,
+  Briefcase
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -28,7 +36,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import type { Seller, Order } from '@/lib/types';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import type { Seller, Order, Prospect } from '@/lib/types';
 import { sellerTypes } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -43,6 +52,31 @@ const sellerSchema = z.object({
 });
 
 type SellerFormData = z.infer<typeof sellerSchema>;
+
+function MetricCard({ title, value, icon: Icon, description, trend }: { title: string, value: string | number, icon: any, description?: string, trend?: string }) {
+  return (
+    <Card className="shadow-sm border-2">
+      <CardContent className="pt-6">
+        <div className="flex items-start justify-between">
+          <div className="space-y-1">
+            <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">{title}</p>
+            <p className="text-2xl font-black font-headline">{value}</p>
+            {description && <p className="text-[9px] text-muted-foreground font-medium">{description}</p>}
+          </div>
+          <div className="p-2 bg-primary/10 rounded-lg">
+            <Icon className="h-5 w-5 text-primary" />
+          </div>
+        </div>
+        {trend && (
+          <div className="mt-3 flex items-center gap-1">
+            <TrendingUp className="h-3 w-3 text-green-600" />
+            <span className="text-[9px] font-bold text-green-600 uppercase">{trend} vs last month</span>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
 
 export default function KOOPAdminPage() {
   const firestore = useFirestore();
@@ -60,9 +94,9 @@ export default function KOOPAdminPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
 
   // CRITICAL: Queries only activate if adminRole is verified. 
-  // This prevents permission errors on page load.
   const sellersQuery = useMemoFirebase(() => {
     if (!firestore || !adminRole) return null;
     return collection(firestore, 'sellers');
@@ -73,8 +107,27 @@ export default function KOOPAdminPage() {
     return collection(firestore, 'orders');
   }, [firestore, adminRole]);
 
+  const prospectsQuery = useMemoFirebase(() => {
+    if (!firestore || !adminRole) return null;
+    return collection(firestore, 'prospects');
+  }, [firestore, adminRole]);
+
   const { data: sellers, isLoading: isSellersLoading } = useCollection<Seller>(sellersQuery);
   const { data: orders } = useCollection<Order>(ordersQuery);
+  const { data: prospects } = useCollection<Prospect>(prospectsQuery);
+
+  const filteredSellers = useMemo(() => {
+    if (!sellers) return [];
+    if (!searchTerm) return sellers;
+    return sellers.filter(s => 
+      s.courseName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      s.contactEmail.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [sellers, searchTerm]);
+
+  const activeOrders = useMemo(() => {
+    return orders?.filter(o => ['Placed', 'Preparing', 'Out for Delivery'].includes(o.status)) || [];
+  }, [orders]);
 
   const form = useForm<SellerFormData>({
     resolver: zodResolver(sellerSchema),
@@ -109,9 +162,15 @@ export default function KOOPAdminPage() {
     const sellerId = data.courseName.toLowerCase().replace(/\s+/g, '-');
     const sellerRef = doc(firestore, 'sellers', sellerId);
     
-    setDoc(sellerRef, { ...data, id: sellerId }, { merge: true })
+    setDoc(sellerRef, { 
+      ...data, 
+      id: sellerId,
+      menuTypes: data.type.includes('Golf') ? ['Beverage Cart', 'Clubhouse', 'Take Out'] : ['Lane Delivery', 'Take Out'],
+      taxRate: 6.0,
+      createdAt: new Date().toISOString()
+    }, { merge: true })
       .then(() => {
-        toast({ title: 'Seller Registered' });
+        toast({ title: 'Seller Registered', description: 'Access dashboard to setup menu.' });
         setIsFormOpen(false);
         form.reset();
       })
@@ -122,7 +181,7 @@ export default function KOOPAdminPage() {
     return (
       <div className="flex flex-col items-center justify-center min-h-[80vh] gap-4">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
-        <p className="text-muted-foreground font-black uppercase text-[10px] tracking-widest">Verifying Administrator Role...</p>
+        <p className="text-muted-foreground font-black uppercase text-[10px] tracking-widest">Verifying Security Privileges...</p>
       </div>
     );
   }
@@ -136,8 +195,8 @@ export default function KOOPAdminPage() {
         <div className="space-y-2">
           <h1 className="font-headline text-3xl font-black uppercase text-[#213147]">ACCESS RESTRICTED</h1>
           <p className="text-muted-foreground max-w-md mx-auto">
-            You are signed in, but your account has not been promoted to the **KOOP Admin** role. 
-            Please use the setup tool on the login page to initialize your admin session.
+            Authorized KOOP Platform Administrators only. 
+            Use the setup tool on the login page to promote your account.
           </p>
         </div>
         <Button asChild size="lg" className="h-14 px-8 font-headline font-black uppercase tracking-widest">
@@ -148,125 +207,244 @@ export default function KOOPAdminPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-7xl">
+    <div className="container mx-auto px-4 py-8 max-w-7xl pb-20">
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
         <div>
           <div className="flex items-center gap-3">
             <h1 className="font-headline text-3xl font-bold text-[#213147] uppercase tracking-tight">KOOP ADMIN</h1>
-            <Badge className="bg-primary/10 text-primary border-primary/20 uppercase text-[10px] font-black">Authorized Session</Badge>
+            <Badge className="bg-primary/10 text-primary border-primary/20 uppercase text-[10px] font-black">Platform Global</Badge>
           </div>
-          <p className="text-muted-foreground">Global oversight of established venues and growth pipeline.</p>
+          <p className="text-muted-foreground text-sm">System oversight, revenue tracking, and venue network management.</p>
         </div>
         <div className="flex items-center gap-3">
-          <Button variant="outline" onClick={handleSystemReset} disabled={isResetting} className="border-destructive text-destructive">
-            <RefreshCw className={cn("mr-2 h-4 w-4", isResetting && "animate-spin")} /> Reset Orders
+          <Button variant="outline" onClick={handleSystemReset} disabled={isResetting} className="border-destructive text-destructive hover:bg-destructive/5 text-[10px] font-black uppercase h-10 px-4 tracking-widest">
+            <RefreshCw className={cn("mr-2 h-3.5 w-3.5", isResetting && "animate-spin")} /> Reset Demo
           </Button>
-          <Button onClick={() => setIsFormOpen(true)}><PlusCircle className="mr-2 h-4 w-4" /> Register Venue</Button>
+          <Button onClick={() => setIsFormOpen(true)} className="h-10 px-6 font-black uppercase text-[10px] tracking-widest">
+            <PlusCircle className="mr-2 h-4 w-4" /> Register New Venue
+          </Button>
         </div>
       </header>
 
       <Tabs defaultValue="operations" className="space-y-8">
-        <TabsList className="bg-muted/50 p-1">
-          <TabsTrigger value="operations" className="text-[10px] font-black uppercase px-8">Venue Operations</TabsTrigger>
-          <TabsTrigger value="growth" className="text-[10px] font-black uppercase px-8">Growth Pipeline</TabsTrigger>
+        <TabsList className="bg-muted/50 p-1 h-12">
+          <TabsTrigger value="operations" className="text-[10px] font-black uppercase px-8 h-10">
+            <Activity className="mr-2 h-3.5 w-3.5" /> Venue Operations
+          </TabsTrigger>
+          <TabsTrigger value="growth" className="text-[10px] font-black uppercase px-8 h-10">
+            <Target className="mr-2 h-3.5 w-3.5" /> Growth Pipeline
+          </TabsTrigger>
+          <TabsTrigger value="settings" className="text-[10px] font-black uppercase px-8 h-10">
+            <ShieldAlert className="mr-2 h-3.5 w-3.5" /> System Health
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="operations" className="space-y-8">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Card className="shadow-sm border-2 border-primary/10">
-              <CardContent className="pt-6">
-                <div className="flex items-center gap-4">
-                  <div className="p-3 bg-primary/10 rounded-xl"><Building className="h-6 w-6 text-primary" /></div>
-                  <div>
-                    <p className="text-[10px] font-black uppercase text-muted-foreground">Active Venues</p>
-                    <p className="text-2xl font-black">{sellers?.length || 0}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="shadow-sm border-2">
-              <CardContent className="pt-6">
-                <div className="flex items-center gap-4">
-                  <div className="p-3 bg-muted rounded-xl"><ShoppingBag className="h-6 w-6 text-muted-foreground" /></div>
-                  <div>
-                    <p className="text-[10px] font-black uppercase text-muted-foreground">Lifetime Orders</p>
-                    <p className="text-2xl font-black">{orders?.length || 0}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="shadow-sm border-2">
-              <CardContent className="pt-6">
-                <div className="flex items-center gap-4">
-                  <div className="p-3 bg-indigo-50 rounded-xl"><DollarSign className="h-6 w-6 text-indigo-600" /></div>
-                  <div>
-                    <p className="text-[10px] font-black uppercase text-muted-foreground">Platform Volume</p>
-                    <p className="text-2xl font-black">${(orders?.reduce((acc, o) => acc + (o.total || 0), 0) || 0).toLocaleString()}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <MetricCard 
+              title="Active Venues" 
+              value={sellers?.length || 0} 
+              icon={Building} 
+              description="Registered sellers in network" 
+              trend="+2"
+            />
+            <MetricCard 
+              title="Live Volume" 
+              value={activeOrders.length} 
+              icon={ShoppingBag} 
+              description="Orders currently in progress"
+            />
+            <MetricCard 
+              title="Platform Gross" 
+              value={`$${(orders?.reduce((acc, o) => acc + (o.total || 0), 0) || 0).toLocaleString()}`} 
+              icon={DollarSign} 
+              description="Lifetime transaction volume"
+              trend="+12%"
+            />
+            <MetricCard 
+              title="Pipeline Value" 
+              value={`$${(prospects?.reduce((acc, p) => acc + (p.launchFeeQuoted || 0), 0) || 0).toLocaleString()}`} 
+              icon={Briefcase} 
+              description="Est. launch revenue in sales"
+            />
           </div>
 
-          <Card className="shadow-md">
-            <CardHeader className="bg-muted/30 border-b">
-              <CardTitle className="text-sm font-black uppercase">Registered Seller Network</CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-muted/10">
-                    <TableHead className="text-[10px] uppercase font-black">Venue</TableHead>
-                    <TableHead className="text-[10px] uppercase font-black text-center">Status</TableHead>
-                    <TableHead className="text-[10px] uppercase font-black text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {isSellersLoading ? (
-                    [...Array(3)].map((_, i) => (
-                      <TableRow key={i}><TableCell colSpan={3}><Skeleton className="h-10 w-full" /></TableCell></TableRow>
-                    ))
-                  ) : sellers?.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={3} className="text-center py-12 text-muted-foreground italic text-sm">
-                        No venues registered yet.
-                      </TableCell>
-                    </TableRow>
-                  ) : sellers?.map((seller) => (
-                    <TableRow key={seller.id}>
-                      <TableCell>
-                        <div className="flex flex-col">
-                          <span className="font-bold">{seller.courseName}</span>
-                          <span className="text-[9px] text-muted-foreground">{seller.contactEmail}</span>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="lg:col-span-2 space-y-6">
+              <Card className="shadow-md overflow-hidden">
+                <CardHeader className="bg-muted/30 border-b flex flex-row items-center justify-between py-4">
+                  <div>
+                    <CardTitle className="text-sm font-black uppercase">Registered Seller Network</CardTitle>
+                    <CardDescription className="text-[10px]">Manage established venue profiles and access.</CardDescription>
+                  </div>
+                  <div className="relative w-64">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                    <Input 
+                      placeholder="Filter venues..." 
+                      className="pl-9 h-9 text-xs border-2" 
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+                  </div>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-muted/10">
+                        <TableHead className="text-[10px] uppercase font-black">Establishment</TableHead>
+                        <TableHead className="text-[10px] uppercase font-black">Type</TableHead>
+                        <TableHead className="text-[10px] uppercase font-black text-center">Status</TableHead>
+                        <TableHead className="text-[10px] uppercase font-black text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {isSellersLoading ? (
+                        [...Array(3)].map((_, i) => (
+                          <TableRow key={i}><TableCell colSpan={4}><Skeleton className="h-12 w-full" /></TableCell></TableRow>
+                        ))
+                      ) : filteredSellers.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={4} className="text-center py-12 text-muted-foreground italic text-sm">
+                            {searchTerm ? "No venues matching search criteria." : "No venues registered yet."}
+                          </TableCell>
+                        </TableRow>
+                      ) : filteredSellers.map((seller) => (
+                        <TableRow key={seller.id} className="group hover:bg-muted/5">
+                          <TableCell>
+                            <div className="flex flex-col">
+                              <span className="font-bold text-sm text-[#213147]">{seller.courseName}</span>
+                              <span className="text-[9px] text-muted-foreground uppercase font-medium">{seller.contactEmail}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <span className="text-xs font-medium text-muted-foreground">{seller.type}</span>
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <Badge className={cn("text-[8px] uppercase font-black px-2", seller.status === 'Active' ? 'bg-green-600' : 'bg-slate-400')}>
+                              {seller.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button variant="ghost" size="sm" asChild className="h-8 text-[10px] font-black uppercase tracking-wider group-hover:text-primary">
+                              <Link href={`/sellers/${seller.id}`}>
+                                Manage <ChevronRight className="ml-1 h-3 w-3" />
+                              </Link>
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="space-y-6">
+              <Card className="shadow-md border-2 border-primary/5">
+                <CardHeader className="bg-primary/5 border-b py-4">
+                  <CardTitle className="text-xs font-black uppercase flex items-center gap-2">
+                    <Activity className="h-4 w-4 text-primary" />
+                    Live Operations Activity
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <ScrollArea className="h-[400px]">
+                    <div className="p-4 space-y-4">
+                      {activeOrders.length === 0 ? (
+                        <div className="text-center py-20 opacity-30 space-y-2">
+                          <ShoppingBag className="h-8 w-8 mx-auto" />
+                          <p className="text-[10px] font-black uppercase">No active transactions</p>
                         </div>
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <Badge className={cn("text-[8px] uppercase", seller.status === 'Active' ? 'bg-green-600' : 'bg-slate-400')}>
-                          {seller.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button variant="ghost" size="sm" asChild className="h-8 text-[10px] font-bold">
-                          <Link href={`/sellers/${seller.id}`}>MANAGE <ChevronRight className="ml-1 h-3 w-3" /></Link>
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
+                      ) : (
+                        activeOrders.map((order) => (
+                          <div key={order.id} className="p-3 rounded-xl border-2 bg-white flex flex-col gap-2 shadow-sm animate-in fade-in duration-500">
+                            <div className="flex justify-between items-start">
+                              <div className="flex flex-col">
+                                <span className="text-[10px] font-black uppercase text-[#213147] truncate max-w-[140px]">{order.customerName}</span>
+                                <span className="text-[8px] font-bold text-muted-foreground uppercase">{order.menuType}</span>
+                              </div>
+                              <Badge variant="outline" className="text-[7px] uppercase font-black h-4 px-1.5 border-primary/20 bg-primary/5">{order.status}</Badge>
+                            </div>
+                            <div className="flex justify-between items-center mt-1">
+                              <span className="text-[9px] font-mono font-bold text-primary">${order.total.toFixed(2)}</span>
+                              <span className="text-[8px] text-muted-foreground font-medium flex items-center gap-1">
+                                <Clock className="h-2 w-2" /> 
+                                {order.createdAt ? `${Math.floor((Date.now() - order.createdAt.toDate().getTime()) / 60000)}m ago` : 'Just now'}
+                              </span>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </ScrollArea>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
         </TabsContent>
 
         <TabsContent value="growth">
-          <div className="flex items-center justify-center py-20 text-muted-foreground border-2 border-dashed rounded-3xl">
-            <div className="text-center space-y-4">
-              <Target className="h-12 w-12 mx-auto opacity-20" />
-              <p className="font-medium italic">Growth Pipeline functionality is restricted to authorized platform administrators.</p>
-              <Button variant="link" asChild className="text-indigo-600 font-bold uppercase text-[10px]">
-                <Link href="/sales">Go to My Pipeline</Link>
+          <div className="flex flex-col items-center justify-center py-20 bg-white border-2 border-dashed rounded-3xl text-center px-6">
+            <div className="p-6 bg-indigo-50 rounded-full mb-6 text-indigo-600">
+              <Target className="h-16 w-16" />
+            </div>
+            <h2 className="font-headline text-3xl font-black uppercase text-[#213147] mb-2">Growth CRM</h2>
+            <p className="text-muted-foreground max-w-lg mb-8 leading-relaxed">
+              Global oversight of the sales pipeline, decision makers, and launch quotes is managed within the dedicated Sales Portal.
+            </p>
+            <div className="flex flex-wrap justify-center gap-4">
+              <Button asChild size="lg" className="bg-indigo-600 hover:bg-indigo-700 h-14 px-8 font-headline font-black uppercase tracking-widest shadow-xl">
+                <Link href="/sales">
+                  Open Sales Portal
+                  <ArrowRight className="ml-2 h-5 w-5" />
+                </Link>
+              </Button>
+              <Button variant="outline" className="h-14 px-8 font-headline font-black uppercase tracking-widest border-2">
+                Download Sales Report
               </Button>
             </div>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="settings">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <Card className="border-2">
+              <CardHeader className="bg-muted/20 border-b">
+                <CardTitle className="text-sm font-black uppercase">System Permissions</CardTitle>
+                <CardDescription>Global administrative access control.</CardDescription>
+              </CardHeader>
+              <CardContent className="pt-6 space-y-4">
+                <div className="flex items-center justify-between p-4 bg-muted/30 rounded-xl border">
+                  <div className="flex items-center gap-3">
+                    <ShieldAlert className="h-5 w-5 text-indigo-600" />
+                    <div className="flex flex-col">
+                      <span className="text-xs font-bold uppercase">Self-Promotion Mode</span>
+                      <span className="text-[9px] text-muted-foreground uppercase font-medium">Currently: PROTOTYPE ACTIVE</span>
+                    </div>
+                  </div>
+                  <Badge className="bg-green-600 uppercase text-[8px] font-black">Enabled</Badge>
+                </div>
+                <p className="text-[10px] text-muted-foreground leading-relaxed">
+                  In this prototype phase, authenticated users can promote themselves to Admin via the Setup Tool. 
+                  In production, this collection is restricted to service account writes only.
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="border-2">
+              <CardHeader className="bg-muted/20 border-b">
+                <CardTitle className="text-sm font-black uppercase">Data Maintenance</CardTitle>
+                <CardDescription>Infrastructure and database utilities.</CardDescription>
+              </CardHeader>
+              <CardContent className="pt-6 space-y-4">
+                <Button variant="outline" onClick={handleSystemReset} className="w-full h-12 border-2 border-destructive text-destructive font-black uppercase text-[10px] tracking-widest gap-3">
+                  <RefreshCw className="h-4 w-4" /> Purge Global Transaction Logs
+                </Button>
+                <p className="text-[9px] text-center text-muted-foreground uppercase font-bold">
+                  WARNING: This action cannot be undone. All orders across all venues will be permanently deleted.
+                </p>
+              </CardContent>
+            </Card>
           </div>
         </TabsContent>
       </Tabs>
@@ -274,25 +452,57 @@ export default function KOOPAdminPage() {
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
-            <DialogTitle className="uppercase font-headline">Register New Venue</DialogTitle>
-            <DialogDescription>Initialize a new establishment on the platform.</DialogDescription>
+            <DialogTitle className="uppercase font-headline text-[#213147]">Register New Venue</DialogTitle>
+            <DialogDescription>Initialize a new establishment on the KOOP platform network.</DialogDescription>
           </DialogHeader>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSave)} className="space-y-4 pt-4">
               <FormField control={form.control} name="courseName" render={({ field }) => (
-                <FormItem><FormLabel>Venue Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                <FormItem>
+                  <FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Venue Name</FormLabel>
+                  <FormControl><Input {...field} placeholder="e.g. Pine Valley Golf Club" className="h-11 border-2 font-bold" /></FormControl>
+                  <FormMessage />
+                </FormItem>
               )} />
-              <FormField control={form.control} name="type" render={({ field }) => (
-                <FormItem><FormLabel>Type</FormLabel><FormControl><select {...field} className="w-full h-10 border rounded-md px-3 text-sm">{sellerTypes.map(t => <option key={t} value={t}>{t}</option>)}</select></FormControl></FormItem>
-              )} />
+              <div className="grid grid-cols-2 gap-4">
+                <FormField control={form.control} name="type" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Service Category</FormLabel>
+                    <FormControl>
+                      <select {...field} className="w-full h-11 border-2 rounded-md px-3 text-sm font-bold bg-background">
+                        {sellerTypes.map(t => <option key={t} value={t}>{t}</option>)}
+                      </select>
+                    </FormControl>
+                  </FormItem>
+                )} />
+                <FormField control={form.control} name="status" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Initial Status</FormLabel>
+                    <FormControl>
+                      <select {...field} className="w-full h-11 border-2 rounded-md px-3 text-sm font-bold bg-background">
+                        <option value="Active">Active</option>
+                        <option value="Inactive">Inactive</option>
+                      </select>
+                    </FormControl>
+                  </FormItem>
+                )} />
+              </div>
               <FormField control={form.control} name="contactEmail" render={({ field }) => (
-                <FormItem><FormLabel>Contact Email</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
+                <FormItem>
+                  <FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Contact Email</FormLabel>
+                  <FormControl><Input {...field} placeholder="manager@venue.com" className="h-11 border-2 font-bold" /></FormControl>
+                </FormItem>
               )} />
               <FormField control={form.control} name="serviceFee" render={({ field }) => (
-                <FormItem><FormLabel>Convenience Fee ($)</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl></FormItem>
+                <FormItem>
+                  <FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Default Conv. Fee ($)</FormLabel>
+                  <FormControl><Input type="number" step="0.01" {...field} className="h-11 border-2 font-bold font-mono" /></FormControl>
+                </FormItem>
               )} />
               <DialogFooter className="pt-6">
-                <Button type="submit" disabled={isSaving} className="w-full h-12">{isSaving ? "Registering..." : "Register Establishment"}</Button>
+                <Button type="submit" disabled={isSaving} className="w-full h-14 bg-[#213147] hover:bg-[#213147]/90 text-white font-headline font-black uppercase tracking-widest shadow-xl">
+                  {isSaving ? <Loader2 className="animate-spin" /> : "PROVISION ESTABLISHMENT"}
+                </Button>
               </DialogFooter>
             </form>
           </Form>
