@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useMemo, useEffect, use, useRef } from 'react';
@@ -86,6 +85,7 @@ import { MapView } from '@/components/map-view';
 import { APIProvider, Map, useMap } from '@vis.gl/react-google-maps';
 import Image from 'next/image';
 import Link from 'next/link';
+import { Separator } from '@/components/ui/separator';
 
 import type { MenuItem, Seller, Category, Order, Member, SellerType, ModifierGroup, ModifierOption } from '@/lib/types';
 import { categories } from '@/lib/types';
@@ -595,35 +595,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     };
   }, [orders, seller, selectedOpsMenu, now, revenueMode]);
 
-  const dailyReportData = useMemo(() => {
-    if (!orders || !seller) return [];
-    const start = parseISO(startDate);
-    const end = parseISO(endDate);
-    
-    const filtered = orders.filter(o => {
-      if (!o.createdAt) return false;
-      const orderDate = o.createdAt.toDate();
-      return isWithinInterval(orderDate, { start: new Date(start.setHours(0,0,0,0)), end: new Date(end.setHours(23,59,59,999)) });
-    });
-
-    const grouped: Record<string, Record<string, number>> = {};
-    filtered.forEach(o => {
-      const dateKey = format(o.createdAt.toDate(), 'yyyy-MM-dd');
-      if (!grouped[dateKey]) {
-        grouped[dateKey] = {};
-        seller.menuTypes.forEach(mt => { grouped[dateKey][mt] = 0; });
-      }
-      const val = revenueMode === 'Gross' ? o.total : (o.subtotal + (o.tip || 0));
-      grouped[dateKey][o.menuType] = (grouped[dateKey][o.menuType] || 0) + val;
-    });
-
-    return Object.entries(grouped).map(([date, menus]) => ({
-      date,
-      ...menus,
-      total: Object.values(menus).reduce((a, b) => a + b, 0)
-    })).sort((a, b) => b.date.localeCompare(a.date));
-  }, [orders, seller, startDate, endDate, revenueMode]);
-
   const handleSaveMasterItem = (data: MenuItemFormData) => {
     if (!firestore) return;
     const itemRef = editingItem ? doc(firestore, 'sellers', sellerId, 'menuItems', editingItem.id) : doc(collection(firestore, 'sellers', sellerId, 'menuItems'));
@@ -642,7 +613,14 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     });
   };
 
-  // ... (Other handlers like handleExcelImport, handleSeedData, handleDragEnd remain similar)
+  const getImpersonationLink = () => {
+    if (!selectedOpsMenu) return null;
+    switch (selectedOpsMenu) {
+      case 'Beverage Cart': return `/sellers/${sellerId}/bevcart`;
+      case 'Lane Delivery': return `/sellers/${sellerId}/laneside`;
+      default: return `/sellers/${sellerId}/clubhouse`;
+    }
+  };
 
   if (!isMounted) return null;
 
@@ -685,7 +663,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
             </div>
             <div className="flex flex-wrap gap-1 bg-muted/30 p-1 rounded-lg border">
               {seller?.menuTypes?.map(type => (
-                <Button key={type} variant={selectedOpsMenu === type ? 'default' : 'ghost'} size="sm" onClick={() => setSelectedOpsMenu(type)} className="h-8 text-[10px] font-bold uppercase tracking-widest px-3">
+                <Button key={`ops-menu-${type}`} variant={selectedOpsMenu === type ? 'default' : 'ghost'} size="sm" onClick={() => setSelectedOpsMenu(type)} className="h-8 text-[10px] font-bold uppercase tracking-widest px-3">
                   {type}
                 </Button>
               ))}
@@ -710,7 +688,23 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
             <OpsMetricCard label={`${selectedOpsMenu} Revenue`} value={`$${(opsMetrics?.selected?.revenue || 0).toFixed(2)}`} icon={DollarSign} colorClass="text-green-600 bg-green-500/10" />
             <OpsMetricCard label={`${selectedOpsMenu} Volume`} value={opsMetrics?.selected?.count || 0} icon={ListOrdered} colorClass="text-indigo-600 bg-indigo-500/10" />
             <OpsMetricCard label={`${selectedOpsMenu} Avg Time`} value={`${opsMetrics?.selected?.avgTime.toFixed(1) || '0'}m`} icon={Timer} colorClass="text-blue-600 bg-blue-500/10" />
-            <OpsMetricCard label={`${selectedOpsMenu} Alerts`} value={opsMetrics?.selected?.exceededCount || 0} icon={AlertTriangle} colorClass="text-destructive bg-destructive/10" />
+            
+            <div className="bg-background border rounded-xl p-3 shadow-sm flex flex-col justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-destructive/10 text-destructive">
+                  <AlertTriangle className="h-4 w-4" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground truncate">Alerts</p>
+                  <p className="text-sm font-black font-headline text-destructive">{opsMetrics?.selected?.exceededCount || 0}</p>
+                </div>
+              </div>
+              <Button asChild variant="link" className="h-6 p-0 text-[9px] font-black uppercase tracking-widest text-indigo-600 self-end">
+                <Link href={getImpersonationLink() || '#'}>
+                  Impersonate Staff <ExternalLink className="ml-1 h-2.5 w-2.5" />
+                </Link>
+              </Button>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -731,8 +725,8 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                     ) : filteredOpsOrders.length === 0 ? (
                       <p className="text-center py-20 text-sm italic text-muted-foreground">No active orders.</p>
                     ) : (
-                      filteredOpsOrders.map((order, idx) => (
-                        <div key={order.id} className="p-4 rounded-xl border-2 bg-background flex flex-col gap-2 shadow-sm">
+                      filteredOpsOrders.map((order) => (
+                        <div key={`queue-item-${order.id}`} className="p-4 rounded-xl border-2 bg-background flex flex-col gap-2 shadow-sm">
                           <div className="flex justify-between items-start">
                             <span className="text-xs font-black uppercase truncate">{order.customerName}</span>
                             <Badge variant="outline" className="text-[8px] uppercase font-black">{order.status}</Badge>
@@ -813,6 +807,26 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                     </Card>
                 );
             })}
+          </div>
+        </section>
+
+        <section id="sales-stats" className="mb-12 scroll-mt-32">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+            <h2 className="font-headline text-xl font-bold flex items-center gap-2 text-primary uppercase tracking-wider"><BarChart3 className="h-6 w-6" /> Sales Stats</h2>
+            <div className="flex items-center gap-2 bg-muted/30 p-1 rounded-lg border">
+              <Button variant={revenueMode === 'Gross' ? 'default' : 'ghost'} size="sm" onClick={() => setRevenueMode('Gross')} className="h-7 text-[10px] uppercase font-bold">Gross</Button>
+              <Button variant={revenueMode === 'Net' ? 'default' : 'ghost'} size="sm" onClick={() => setRevenueMode('Net')} className="h-7 text-[10px] uppercase font-bold">Net (No Tax)</Button>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-4 mb-8">
+            {dashboardStats ? (
+              <>
+                <StatTile title="Monthly Performance" revenue={dashboardStats.monthly.revenue} orders={dashboardStats.monthly.orders} longWait={dashboardStats.monthly.longWait} />
+                <StatTile title="Year-to-Date" revenue={dashboardStats.yearly.revenue} orders={dashboardStats.yearly.orders} longWait={dashboardStats.yearly.longWait} />
+              </>
+            ) : (
+              [...Array(2)].map((_, i) => <Skeleton key={`stat-tile-skel-${i}`} className="h-48 flex-1 min-w-[300px]" />)
+            )}
           </div>
         </section>
 
