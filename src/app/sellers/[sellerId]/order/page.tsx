@@ -7,6 +7,7 @@ import type { Seller, MenuItem, Category, Order, ModifierGroup, ModifierOption, 
 import { categories } from '@/lib/types';
 import { BuyerMenu } from '@/components/buyer-menu';
 import { OrderSummary } from '@/components/order-summary';
+import { PricingBreakdown } from '@/components/pricing-breakdown';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useRouter } from 'next/navigation';
@@ -593,6 +594,17 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
                 </div>
               )}
 
+              <div className="space-y-4">
+                <h3 className="font-black text-[10px] uppercase tracking-widest text-muted-foreground flex items-center gap-2 px-1">
+                  <Info className="w-3.5 h-3.5" /> ORDER ITEMS
+                </h3>
+                <OrderSummary 
+                  items={activeOrderItems} 
+                  onUpdateItem={updateItem}
+                  onRemoveItem={removeItem}
+                />
+              </div>
+
               <div className="space-y-4 bg-muted/10 p-5 rounded-2xl border-2 border-dashed">
                 <h3 className="font-black text-[10px] uppercase tracking-widest text-muted-foreground flex items-center gap-2">
                   <Heart className="w-3.5 h-3.5 text-red-500" /> ADD GRATUITY / TIP
@@ -637,16 +649,14 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
 
               <div className="space-y-4">
                 <h3 className="font-black text-[10px] uppercase tracking-widest text-muted-foreground flex items-center gap-2 px-1">
-                  <Info className="w-3.5 h-3.5" /> ORDER SUMMARY
+                  <ClipboardList className="w-3.5 h-3.5" /> PRICING BREAKDOWN
                 </h3>
-                <OrderSummary 
-                  items={activeOrderItems} 
+                <PricingBreakdown 
+                  subtotal={subtotal} 
                   serviceFee={platformFee} 
                   tax={tax}
                   tip={tipAmount}
                   taxRate={taxRatePercentage}
-                  onUpdateItem={updateItem}
-                  onRemoveItem={removeItem}
                 />
               </div>
 
