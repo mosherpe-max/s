@@ -92,6 +92,8 @@ import { categories } from '@/lib/types';
 import { menuItems as mockMenuItems } from '@/lib/data';
 import { useToast } from '@/hooks/use-toast';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 const modifierOptionSchema = z.object({
   id: z.string(),
@@ -279,49 +281,6 @@ function MasterItemForm({
   );
 }
 
-function MemberForm({
-  onSave,
-  onClose,
-  member,
-  disabled,
-}: {
-  onSave: (memberData: MemberFormData) => void;
-  onClose: () => void;
-  member?: Member | null;
-  disabled?: boolean;
-}) {
-  const form = useForm<MemberFormData>({
-    resolver: zodResolver(memberSchema),
-    defaultValues: member || {
-      name: '',
-      memberNumber: '',
-      status: 'Active',
-    },
-  });
-
-  return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSave)}>
-        <div className="grid gap-4 py-4 pr-2">
-          <FormField control={form.control} name="name" render={({ field }) => (
-            <FormItem><FormLabel>Member Name</FormLabel><FormControl><Input {...field} placeholder="Full Name" /></FormControl><FormMessage /></FormItem>
-          )} />
-          <FormField control={form.control} name="memberNumber" render={({ field }) => (
-            <FormItem><FormLabel>Member ID / Number</FormLabel><FormControl><Input {...field} placeholder="e.g. 12345" /></FormControl><FormMessage /></FormItem>
-          )} />
-          <FormField control={form.control} name="status" render={({ field }) => (
-            <FormItem><FormLabel>Account Status</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select status" /></SelectTrigger></FormControl><SelectContent><SelectItem value="Active">Active</SelectItem><SelectItem value="Inactive">Inactive</SelectItem></SelectContent></Select><FormMessage /></FormItem>
-          )} />
-        </div>
-        <div className="flex justify-end gap-2 pt-4 border-t">
-          <Button type="button" variant="ghost" onClick={onClose}>Cancel</Button>
-          <Button type="submit" disabled={disabled}>{member ? 'Update Member' : 'Add Member'}</Button>
-        </div>
-      </form>
-    </Form>
-  );
-}
-
 function StatTile({ title, revenue, orders, longWait }: { title: string, revenue: number, orders: number, longWait: number }) {
   return (
     <Card className="flex-1 min-w-[300px] shadow-sm">
@@ -373,71 +332,6 @@ function OpsMetricCard({ label, value, icon: Icon, colorClass, subValue }: { lab
   );
 }
 
-function SortableItem({ item, onDelete, menuType }: { item: MenuItem; onDelete: () => void; menuType: string }) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging
-  } = useSortable({ id: item.id });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    zIndex: isDragging ? 10 : 0
-  };
-
-  return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      className={cn(
-        "flex items-center justify-between p-2 rounded-lg bg-card border group",
-        isDragging && "opacity-50 shadow-lg border-primary"
-      )}
-    >
-      <div className="flex items-center gap-2 min-w-0">
-        <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-primary">
-          <GripVertical className="h-4 w-4" />
-        </div>
-        {item.imageUrl && (
-          <div className="relative h-6 w-6 rounded-md overflow-hidden border bg-muted flex-shrink-0">
-            <Image src={item.imageUrl} alt={item.name} fill className="object-cover" />
-          </div>
-        )}
-        <span className="text-xs font-medium truncate">{item.name}</span>
-      </div>
-      <Button variant="ghost" size="icon" className="text-destructive h-7 w-7" onClick={onDelete}>
-        <Trash2 className="h-3 w-3" />
-      </Button>
-    </div>
-  );
-}
-
-function MapViewSetter({ onSet }: { onSet: (center: { lat: number, lng: number }, zoom: number) => void }) {
-  const map = useMap();
-  
-  const handleSetView = () => {
-    if (!map) return;
-    const center = map.getCenter();
-    const zoom = map.getZoom();
-    if (center && zoom !== undefined) {
-      onSet({ lat: center.lat(), lng: center.lng() }, zoom);
-    }
-  };
-
-  return (
-    <div className="absolute bottom-4 right-4 z-10">
-      <Button size="sm" onClick={handleSetView} className="shadow-lg bg-primary text-white font-black uppercase text-[10px] tracking-widest px-4">
-        <MapIcon className="mr-2 h-3.5 w-3.5" />
-        Set Map View
-      </Button>
-    </div>
-  );
-}
-
 export default function SellerAdminPage({ params }: { params: Promise<{ sellerId: string }> }) {
   const { sellerId } = use(params);
   const firestore = useFirestore();
@@ -474,13 +368,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   const [revenueMode, setRevenueMode] = useState<'Gross' | 'Net'>('Gross');
   const [startDate, setStartDate] = useState(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
   const [endDate, setEndDate] = useState(format(new Date(), 'yyyy-MM-dd'));
-
-  const sensors = useSensors(
-    useSensor(PointerSensor),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    })
-  );
 
   useEffect(() => {
     setIsMounted(true);
@@ -600,6 +487,22 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     const itemRef = editingItem ? doc(firestore, 'sellers', sellerId, 'menuItems', editingItem.id) : doc(collection(firestore, 'sellers', sellerId, 'menuItems'));
     setDoc(itemRef, { ...data, id: itemRef.id, rank: editingItem?.rank || (menuItems?.length || 0) + 1 }, { merge: true });
     setEditingItem(null); setIsMasterFormOpen(false);
+  };
+
+  const handleDeleteLibraryItem = (itemId: string) => {
+    if (!firestore) return;
+    const itemRef = doc(firestore, 'sellers', sellerId, 'menuItems', itemId);
+    
+    deleteDoc(itemRef)
+      .then(() => {
+        toast({ title: 'Item Removed', description: 'The item has been deleted from your library.' });
+      })
+      .catch(async (error) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+          path: itemRef.path,
+          operation: 'delete'
+        }));
+      });
   };
 
   const handleToggleCategoryModifier = (menuType: string, category: Category) => {
@@ -844,7 +747,10 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                 <div key={`lib-item-${item.id}`} className="p-4 rounded-xl bg-background border shadow-sm group hover:border-primary/50 transition-all">
                   <div className="flex justify-between items-start mb-2">
                     <Badge variant="secondary" className="text-[10px] uppercase font-bold tracking-widest">{item.category}</Badge>
-                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setEditingItem(item); setIsMasterFormOpen(true); }}><Edit className="h-3.5 w-3.5" /></Button>
+                    <div className="flex gap-1">
+                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setEditingItem(item); setIsMasterFormOpen(true); }}><Edit className="h-3.5 w-3.5" /></Button>
+                      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:bg-destructive/10" onClick={() => handleDeleteLibraryItem(item.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                    </div>
                   </div>
                   <div className="flex gap-3 items-center">
                     {item.imageUrl && (
