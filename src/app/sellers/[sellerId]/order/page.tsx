@@ -400,6 +400,22 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
     }
   };
 
+  const getFeeNotification = (type: string) => {
+    switch (type) {
+      case 'Beverage Cart':
+      case 'Clubhouse':
+        return "A small convenience fee applies to all deliveries to your location on the course.";
+      case 'Lane Delivery':
+        return "A small convenience fee applies to all orders delivered to your lane.";
+      case 'Pool':
+        return "A small convenience fee applies to all orders delivered to your chair.";
+      case 'Take Out':
+        return "A small convenience fee applies to all takeout orders placed through Koop.";
+      default:
+        return "A small convenience fee applies to all orders placed through this venue.";
+    }
+  };
+
   const isLoading = isSellerLoading || areItemsLoading;
   const locationLabel = serviceLocationLabels[selectedMenuType];
 
@@ -449,6 +465,14 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
           </div>
         </div>
       </div>
+
+      {isServiceActive && (
+        <div className="px-4 py-2 border-b bg-primary/5 text-center shrink-0">
+          <p className="text-[10px] font-bold text-primary leading-tight max-w-xs mx-auto uppercase tracking-wide italic">
+            {getFeeNotification(selectedMenuType)}
+          </p>
+        </div>
+      )}
 
       {isServiceActive && currentCategories.length > 0 && (
         <div className="sticky top-16 z-20 bg-background/95 backdrop-blur-md border-b shadow-sm shrink-0">
