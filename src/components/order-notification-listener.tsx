@@ -35,6 +35,7 @@ export function OrderNotificationListener() {
 
   const latestOrderQuery = useMemoFirebase(() => {
     // Only query if we have a user identity and aren't on a staff page
+    // Using simple query to avoid permission issues during prototype load
     if (!firestore || !user?.uid || isSilentPath) return null;
     
     return query(
