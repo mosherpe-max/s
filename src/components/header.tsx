@@ -123,7 +123,7 @@ export function AppHeader() {
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="sm" className="text-white hover:bg-white/10 text-[10px] font-headline font-bold uppercase tracking-wider px-3 h-9">
-                Internal <ChevronDown className="ml-1 h-3 w-3" />
+                Platform <ChevronDown className="ml-1 h-3 w-3" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">
@@ -158,24 +158,24 @@ export function AppHeader() {
           </>
         )}
 
-        {/* MANAGE SELLERS (IMPERSONATION) */}
-        {mobile && <p className={labelClass}>Impersonate Sellers</p>}
+        {/* MANAGE SELLERS (ADMIN PORTALS) */}
+        {mobile && <p className={labelClass}>Seller Portals</p>}
         {!mobile ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="sm" className="text-white hover:bg-white/10 text-[10px] font-headline font-bold uppercase tracking-wider px-3 h-9">
-                Manage Sellers <ChevronDown className="ml-1 h-3 w-3" />
+                Sellers <ChevronDown className="ml-1 h-3 w-3" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-64">
-              <DropdownMenuLabel className={labelClass}>Access Seller Admin</DropdownMenuLabel>
+              <DropdownMenuLabel className={labelClass}>Seller Admin Access</DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem asChild>
                 <Link href="/sellers/demo-course" className={itemClass}>
                   <Building className="h-4 w-4 text-indigo-600" />
                   <div className="flex flex-col">
                     <span className="font-bold text-xs uppercase tracking-tight">Public GC Admin</span>
-                    <span className="text-[9px] text-muted-foreground">Setup menu & ops</span>
+                    <span className="text-[9px] text-muted-foreground">demo-course</span>
                   </div>
                 </Link>
               </DropdownMenuItem>
@@ -184,7 +184,7 @@ export function AppHeader() {
                   <Store className="h-4 w-4 text-indigo-600" />
                   <div className="flex flex-col">
                     <span className="font-bold text-xs uppercase tracking-tight">Bowling Admin</span>
-                    <span className="text-[9px] text-muted-foreground">Setup lanes & menu</span>
+                    <span className="text-[9px] text-muted-foreground">demo-bowling-alley</span>
                   </div>
                 </Link>
               </DropdownMenuItem>
@@ -193,7 +193,7 @@ export function AppHeader() {
                   <Building className="h-4 w-4 text-indigo-600" />
                   <div className="flex flex-col">
                     <span className="font-bold text-xs uppercase tracking-tight">Private Club Admin</span>
-                    <span className="text-[9px] text-muted-foreground">Setup members & pool</span>
+                    <span className="text-[9px] text-muted-foreground">demo-private</span>
                   </div>
                 </Link>
               </DropdownMenuItem>
@@ -202,30 +202,30 @@ export function AppHeader() {
         ) : (
           <>
             <Link href="/sellers/demo-course" onClick={() => setIsMobileMenuOpen(false)} className={itemClass}>
-              <Database className="h-5 w-5 text-indigo-600" />
+              <Building className="h-5 w-5 text-indigo-600" />
               <span className="font-bold text-sm uppercase tracking-tight">Public GC Admin</span>
               <ChevronRight className="ml-auto h-4 w-4 text-muted-foreground/30" />
             </Link>
             <Link href="/sellers/demo-bowling-alley" onClick={() => setIsMobileMenuOpen(false)} className={itemClass}>
-              <Database className="h-5 w-5 text-indigo-600" />
+              <Store className="h-5 w-5 text-indigo-600" />
               <span className="font-bold text-sm uppercase tracking-tight">Bowling Admin</span>
               <ChevronRight className="ml-auto h-4 w-4 text-muted-foreground/30" />
             </Link>
             <Link href="/sellers/demo-golf-course-private" onClick={() => setIsMobileMenuOpen(false)} className={itemClass}>
-              <Database className="h-5 w-5 text-indigo-600" />
+              <Building className="h-5 w-5 text-indigo-600" />
               <span className="font-bold text-sm uppercase tracking-tight">Private Club Admin</span>
               <ChevronRight className="ml-auto h-4 w-4 text-muted-foreground/30" />
             </Link>
           </>
         )}
 
-        {/* DRIVER SERVICES */}
+        {/* STAFF VIEWS (DRIVER/SERVER DASHBOARDS) */}
         {mobile && <p className={labelClass}>Staff Interfaces</p>}
         {!mobile ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="sm" className="text-white hover:bg-white/10 text-[10px] font-headline font-bold uppercase tracking-wider px-3 h-9">
-                Staff Views <ChevronDown className="ml-1 h-3 w-3" />
+                Staff <ChevronDown className="ml-1 h-3 w-3" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-64">
@@ -249,7 +249,7 @@ export function AppHeader() {
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuLabel className={labelClass}>Private GC Demo</DropdownMenuLabel>
+              <DropdownMenuLabel className={labelClass}>Private Club Demo</DropdownMenuLabel>
               <DropdownMenuItem asChild>
                 <Link href="/sellers/demo-golf-course-private/bevcart" className={itemClass}>
                   <Truck className="h-4 w-4 text-primary" />
