@@ -17,46 +17,40 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    // --- Role Management ---
-
-    match /roles_admin/{uid} {
-      allow get: if isSignedIn();
-      allow write: if isOwner(uid); 
-      allow list: if isAdmin();
-    }
-
-    match /adminUsers/{uid} {
-      allow read, write: if isAdmin() || isOwner(uid);
-    }
-
-    // --- Core Business Data ---
+    // --- Core Business Data (PUBLIC FOR PROTOTYPE) ---
 
     match /sellers/{sellerId} {
-      // Menus and venue info are public for discovery
-      allow read: if true; 
-      allow write: if isAdmin();
+      // Open access for frictionless browsing and demo management
+      allow read, write: if true; 
 
       match /menuItems/{itemId} {
-        allow read: if true;
-        allow write: if isAdmin();
+        allow read, write: if true;
       }
     }
 
     match /orders/{orderId} {
-      // Prototype: Anyone can place, view, and track orders for a frictionless demo.
-      // In a production app, we would restrict listing/updates to staff and the customer.
+      // Prototype: Anyone can place, view, track, and update orders for a frictionless demo.
+      // This ensures patrons can order without login and staff can manage without complex auth.
       allow read, create, update: if true; 
-      allow delete: if isAdmin();
+      allow delete: if true; 
     }
 
-    // --- CRM Data ---
+    // --- Role & CRM Management (OPEN FOR PROTOTYPE) ---
+
+    match /roles_admin/{uid} {
+      allow read, write: if true;
+    }
+
+    match /adminUsers/{uid} {
+      allow read, write: if true;
+    }
 
     match /prospects/{prospectId} {
-      allow read, write: if isAdmin();
+      allow read, write: if true;
     }
 
     match /activities/{activityId} {
-      allow read, write: if isAdmin();
+      allow read, write: if true;
     }
   }
 }

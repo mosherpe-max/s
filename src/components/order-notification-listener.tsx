@@ -12,7 +12,7 @@ import { useRouter, usePathname } from 'next/navigation';
 
 /**
  * A global listener that monitors order status for the buyer.
- * Only activates when a user is signed in and on a customer-facing page.
+ * Scoped to the current customer session.
  */
 export function OrderNotificationListener() {
   const firestore = useFirestore();
@@ -23,7 +23,7 @@ export function OrderNotificationListener() {
   const prevStatusRef = useRef<Order['status'] | undefined>(undefined);
   const prevOrderIdRef = useRef<string | undefined>(undefined);
 
-  // Silent mode for non-customer pages to avoid permission overhead
+  // Silent mode for admin/staff paths to avoid redundant notifications
   const isSilentPath = 
     pathname === '/' ||
     pathname === '/login' || 
@@ -34,7 +34,7 @@ export function OrderNotificationListener() {
     pathname?.startsWith('/sales');
 
   const latestOrderQuery = useMemoFirebase(() => {
-    // Only query if we have a user and aren't on a silent path
+    // Only query if we have a user identity and aren't on a staff page
     if (!firestore || !user?.uid || isSilentPath) return null;
     
     return query(
@@ -45,8 +45,6 @@ export function OrderNotificationListener() {
     );
   }, [firestore, user?.uid, isSilentPath]);
 
-  // We use the raw useCollection here but ignore local errors 
-  // because the security rules are set up to handle the "list" safely.
   const { data: orders } = useCollection<Order>(latestOrderQuery);
   const order = orders?.[0];
 
@@ -55,12 +53,14 @@ export function OrderNotificationListener() {
 
     const orderUrl = `/order/track?id=${order.id}&sellerId=${order.sellerId}`;
 
+    // Handle initial state or order change
     if (order.id !== prevOrderIdRef.current) {
       prevOrderIdRef.current = order.id;
       prevStatusRef.current = order.status;
       return;
     }
 
+    // Trigger toast on status change
     if (order.status !== prevStatusRef.current) {
       const trackAction = (
         <ToastAction altText="View Order" onClick={() => router.push(orderUrl)}>
@@ -77,13 +77,25 @@ export function OrderNotificationListener() {
 
       switch (order.status) {
         case 'Preparing':
-          toast({ title: title(<CheckCircle2 className="h-5 w-5 text-green-500" />, 'Order Confirmed'), description: 'Establishment received your order.', action: trackAction });
+          toast({ 
+            title: title(<CheckCircle2 className="h-5 w-5 text-green-500" />, 'Order Confirmed'), 
+            description: 'Establishment received your order.', 
+            action: trackAction 
+          });
           break;
         case 'Out for Delivery':
-          toast({ title: title(<Navigation className="h-5 w-5 text-primary" />, 'Heading Your Way!'), description: 'The driver is out for delivery.', action: trackAction });
+          toast({ 
+            title: title(<Navigation className="h-5 w-5 text-primary" />, 'Heading Your Way!'), 
+            description: 'The driver is out for delivery.', 
+            action: trackAction 
+          });
           break;
         case 'Delivered':
-          toast({ title: title(<PartyPopper className="h-5 w-5 text-green-600" />, 'Delivered!'), description: 'Your items have arrived. Enjoy!', action: trackAction });
+          toast({ 
+            title: title(<PartyPopper className="h-5 w-5 text-green-600" />, 'Delivered!'), 
+            description: 'Your items have arrived. Enjoy!', 
+            action: trackAction 
+          });
           break;
       }
       prevStatusRef.current = order.status;
