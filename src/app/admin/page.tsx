@@ -2,8 +2,8 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import { collection, doc, setDoc, getDocs, writeBatch, serverTimestamp } from 'firebase/firestore';
-import { useFirestore, useCollection, useMemoFirebase, useUser, useDoc } from '@/firebase';
+import { collection, doc, setDoc, getDocs, writeBatch, serverTimestamp, query } from 'firebase/firestore';
+import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { 
@@ -24,13 +24,11 @@ import {
   Briefcase,
   Edit,
   MapPin,
-  Phone,
   Mail,
   Zap,
   Fingerprint,
   Layers,
-  LayoutDashboard,
-  Check
+  LayoutDashboard
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -686,17 +684,17 @@ export default function KOOPAdminPage() {
                   <div className="space-y-4">
                     <div className="flex items-center gap-2 mb-2 border-b pb-2">
                       <Mail className="h-4 w-4 text-primary" />
-                      <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Primary Contact</h3>
+                      <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Decision Maker</h3>
                     </div>
                     <FormField control={form.control} name="contactName" render={({ field }) => (
-                      <FormItem><FormLabel className="text-[10px] font-black uppercase">Decision Maker Name</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>
+                      <FormItem><FormLabel className="text-[10px] font-black uppercase">Name</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>
                     )} />
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <FormField control={form.control} name="contactEmail" render={({ field }) => (
-                        <FormItem><FormLabel className="text-[10px] font-black uppercase">Contact Email</FormLabel><FormControl><Input {...field} type="email" /></FormControl></FormItem>
+                        <FormItem><FormLabel className="text-[10px] font-black uppercase">Email</FormLabel><FormControl><Input {...field} type="email" /></FormControl></FormItem>
                       )} />
                       <FormField control={form.control} name="contactPhone" render={({ field }) => (
-                        <FormItem><FormLabel className="text-[10px] font-black uppercase">Contact Phone</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>
+                        <FormItem><FormLabel className="text-[10px] font-black uppercase">Phone</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>
                       )} />
                     </div>
                   </div>
@@ -708,18 +706,10 @@ export default function KOOPAdminPage() {
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <FormField control={form.control} name="serviceFee" render={({ field }) => (
-                        <FormItem><FormLabel className="text-[10px] font-black uppercase">Default Conv. Fee ($)</FormLabel><FormControl><Input type="number" step="0.01" {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>
+                        <FormItem><FormLabel className="text-[10px] font-black uppercase">Conv. Fee ($)</FormLabel><FormControl><Input type="number" step="0.01" {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>
                       )} />
                       <FormField control={form.control} name="taxRate" render={({ field }) => (
                         <FormItem><FormLabel className="text-[10px] font-black uppercase">Tax Rate (%)</FormLabel><FormControl><Input type="number" step="0.1" {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>
-                      )} />
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <FormField control={form.control} name="launchFee" render={({ field }) => (
-                        <FormItem><FormLabel className="text-[10px] font-black uppercase">Platform Launch Fee ($)</FormLabel><FormControl><Input type="number" {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>
-                      )} />
-                      <FormField control={form.control} name="monthlyPlatformFee" render={({ field }) => (
-                        <FormItem><FormLabel className="text-[10px] font-black uppercase">Monthly Fee ($)</FormLabel><FormControl><Input type="number" {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>
                       )} />
                     </div>
                   </div>

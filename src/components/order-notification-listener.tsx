@@ -2,7 +2,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import { collection, query, orderBy, limit, where } from 'firebase/firestore';
+import { collection, query, limit, where } from 'firebase/firestore';
 import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import type { Order } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
@@ -23,31 +23,33 @@ export function OrderNotificationListener() {
   const prevStatusRef = useRef<Order['status'] | undefined>(undefined);
   const prevOrderIdRef = useRef<string | undefined>(undefined);
 
-  // Silent mode for admin/staff paths to avoid redundant notifications
+  // Silent mode for certain paths to avoid redundant notifications
   const isSilentPath = 
-    pathname === '/' ||
     pathname === '/login' || 
     pathname?.startsWith('/admin') || 
     pathname?.includes('/bevcart') || 
     pathname?.includes('/clubhouse') ||
-    pathname?.includes('/laneside') ||
-    pathname?.startsWith('/sales');
+    pathname?.includes('/laneside');
 
   const latestOrderQuery = useMemoFirebase(() => {
-    // Only query if we have a user identity and aren't on a staff page
-    // Using simple query to avoid permission issues during prototype load
+    // Only query if we have a user identity and aren't on a restricted path
+    // Simplified query without orderBy to avoid composite index requirements in prototype
     if (!firestore || !user?.uid || isSilentPath) return null;
     
     return query(
       collection(firestore, 'orders'),
       where('customerId', '==', user.uid),
-      orderBy('createdAt', 'desc'),
-      limit(1)
+      limit(5) // Just check recent ones
     );
   }, [firestore, user?.uid, isSilentPath]);
 
   const { data: orders } = useCollection<Order>(latestOrderQuery);
-  const order = orders?.[0];
+  
+  // Sort manually client-side if needed, but for prototype notifications, 
+  // the newest one often has the latest modified status.
+  const order = orders && orders.length > 0 
+    ? [...orders].sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0))[0] 
+    : null;
 
   useEffect(() => {
     if (!order || isSilentPath) return;
