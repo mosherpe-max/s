@@ -33,23 +33,19 @@ service cloud.firestore {
 
     match /sellers/{sellerId} {
       // Menus and venue info are public for discovery
-      allow get, list: if true; 
-      allow create, delete, update: if isAdmin();
+      allow read: if true; 
+      allow write: if isAdmin();
 
       match /menuItems/{itemId} {
-        allow get, list: if true;
+        allow read: if true;
         allow write: if isAdmin();
       }
     }
 
     match /orders/{orderId} {
-      // Anyone can place an order and track it if they have the ID
-      allow get, create: if true; 
-      
-      // Allow admins to list all, and users to list only their own via filtered query
-      allow list: if isAdmin() || (isSignedIn() && request.query.limit <= 100);
-      
-      allow update: if isAdmin() || (isSignedIn() && (resource == null || resource.data.customerId == request.auth.uid));
+      // Prototype: Anyone can place, view, and track orders for a frictionless demo.
+      // In a production app, we would restrict listing/updates to staff and the customer.
+      allow read, create, update: if true; 
       allow delete: if isAdmin();
     }
 
