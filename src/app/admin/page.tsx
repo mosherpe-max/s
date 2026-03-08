@@ -98,17 +98,9 @@ function MetricCard({ title, value, icon: Icon, description, trend }: { title: s
 
 export default function KOOPAdminPage() {
   const firestore = useFirestore();
-  const { user, isUserLoading } = useUser();
+  const { user } = useUser();
   const { toast } = useToast();
   
-  // Checking admin role silently, but not blocking the page for the prototype demo
-  const roleRef = useMemoFirebase(() => {
-    if (!firestore || !user) return null;
-    return doc(firestore, 'roles_admin', user.uid);
-  }, [firestore, user]);
-  
-  const { data: adminRole } = useDoc(roleRef);
-
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingSeller, setEditingSeller] = useState<Seller | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -352,15 +344,6 @@ export default function KOOPAdminPage() {
       })
       .finally(() => setIsSaving(false));
   };
-
-  if (isUserLoading) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[80vh] gap-4">
-        <Loader2 className="h-12 w-12 animate-spin text-primary" />
-        <p className="text-muted-foreground font-black uppercase text-[10px] tracking-widest">Authenticating Admin Session...</p>
-      </div>
-    );
-  }
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-7xl pb-20">

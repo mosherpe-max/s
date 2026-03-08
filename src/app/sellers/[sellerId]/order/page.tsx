@@ -339,7 +339,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
 
   const handlePlaceOrder = async () => {
     try {
-      if (!firestore || !seller || !user) return;
+      if (!firestore || !seller) return;
       if (!isServiceActive) {
         toast({ variant: 'destructive', title: 'Service Offline' });
         return;
@@ -362,8 +362,8 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
         try {
           const orderData: any = {
             sellerId,
-            customerId: user.uid,
-            customerName: user.email || 'Guest User',
+            customerId: user?.uid || 'guest-session',
+            customerName: user?.email || 'Guest User',
             deliveryLocation: { latitude, longitude },
             items: activeOrderItems,
             subtotal,

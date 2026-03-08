@@ -2,44 +2,9 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // --- Helper Functions ---
-
-    function isSignedIn() {
-      return request.auth != null;
-    }
-
-    // --- Core Business Data (OPEN FOR PROTOTYPE) ---
-    // Anyone can browse menus, place orders, and manage the venue network for demo purposes.
-
-    match /sellers/{sellerId} {
-      allow read, write: if true; 
-
-      match /menuItems/{itemId} {
-        allow read, write: if true;
-      }
-    }
-
-    match /orders/{orderId} {
-      allow read, write: if true; 
-    }
-
-    // --- Role & CRM Management (OPEN FOR PROTOTYPE) ---
-    // Full access enabled for frictionless exploration of the Admin and Sales portals.
-
-    match /roles_admin/{uid} {
-      allow read, write: if true;
-    }
-
-    match /adminUsers/{uid} {
-      allow read, write: if true;
-    }
-
-    match /prospects/{prospectId} {
-      allow read, write: if true;
-    }
-
-    match /activities/{activityId} {
+    // --- Global Prototype Access ---
+    // Full access enabled for frictionless exploration and QR code deployment.
+    match /{document=**} {
       allow read, write: if true;
     }
   }
