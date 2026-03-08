@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Suspense, useEffect, useRef, useState } from 'react';
@@ -13,7 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { PartyPopper, ShoppingBag, MapPin, Loader2, Store, ClipboardList, Satellite, Edit2, Flag, CheckCircle2, Zap, Eye, Sparkles } from 'lucide-react';
+import { PartyPopper, ShoppingBag, MapPin, Loader2, Store, ClipboardList, Satellite, Edit2, Flag, CheckCircle2, Zap, Eye, Sparkles, BellRing } from 'lucide-react';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { IosInstallPrompt } from '@/components/ios-install-prompt';
 import { getNumericOrderId } from '@/lib/utils';
@@ -46,15 +47,15 @@ function OrderTrackingContent() {
   }, [firestore, orderId]);
   
   const latestQuery = useMemoFirebase(() => {
-    // CRITICAL: Filter by user.uid to satisfy non-admin security rules for list operations
-    if (!firestore || !user || orderId) return null;
+    // If we have a specific ID, we don't need to query for the "latest"
+    if (!firestore || !user?.uid || orderId) return null;
     return query(
       collection(firestore, 'orders'), 
       where('customerId', '==', user.uid),
       orderBy('createdAt', 'desc'), 
       limit(1)
     );
-  }, [firestore, user, orderId]);
+  }, [firestore, user?.uid, orderId]);
 
   const { data: specificOrder, isLoading: isLoadingSpecific } = useDoc<Order>(orderRef);
   const { data: latestOrders, isLoading: isLoadingLatest } = useCollection<Order>(latestQuery);

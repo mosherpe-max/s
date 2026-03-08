@@ -98,7 +98,6 @@ function MetricCard({ title, value, icon: Icon, description, trend }: { title: s
 
 export default function KOOPAdminPage() {
   const firestore = useFirestore();
-  const { user } = useUser();
   const { toast } = useToast();
   
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -694,7 +693,7 @@ export default function KOOPAdminPage() {
                     )} />
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <FormField control={form.control} name="contactEmail" render={({ field }) => (
-                        <FormItem><FormLabel className="text-[10px] font-black uppercase">Contact Email</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>
+                        <FormItem><FormLabel className="text-[10px] font-black uppercase">Contact Email</FormLabel><FormControl><Input {...field} type="email" /></FormControl></FormItem>
                       )} />
                       <FormField control={form.control} name="contactPhone" render={({ field }) => (
                         <FormItem><FormLabel className="text-[10px] font-black uppercase">Contact Phone</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>

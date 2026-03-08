@@ -4,6 +4,7 @@ service cloud.firestore {
   match /databases/{database}/documents {
     // --- Global Prototype Access ---
     // Full access enabled for frictionless exploration and QR code deployment.
+    // This allows any user to browse menus, place orders, and access admin tools without login.
     match /{document=**} {
       allow read, write: if true;
     }
