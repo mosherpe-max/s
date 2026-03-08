@@ -14,12 +14,14 @@ import {
   Menu,
   ChevronRight,
   Target,
-  Users
+  Users,
+  LogIn,
+  User as UserIcon
 } from 'lucide-react';
 import { useCart } from '@/lib/cart-context';
 import { useState, useEffect, useMemo } from 'react';
 import { doc } from 'firebase/firestore';
-import { useFirestore, useDoc, useMemoFirebase } from '@/firebase';
+import { useFirestore, useDoc, useMemoFirebase, useUser } from '@/firebase';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -36,6 +38,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { cn, SUPER_ADMIN_ID } from '@/lib/utils';
 
 const KoopLogo = () => (
   <Link href="/" className="flex items-center transition-opacity hover:opacity-90 shrink-0">
@@ -55,6 +58,7 @@ export function AppHeader() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const firestore = useFirestore();
+  const { user } = useUser();
   const { total, totalItems, setIsCartOpen } = useCart();
   const [isMounted, setIsMounted] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -62,6 +66,8 @@ export function AppHeader() {
   useEffect(() => {
     setIsMounted(true);
   }, []);
+
+  const isSuperAdmin = user?.uid === SUPER_ADMIN_ID;
 
   const sellerId = useMemo(() => {
     if (pathname) {
@@ -100,7 +106,7 @@ export function AppHeader() {
   const isHomePage = pathname === '/';
   const isKoopAdmin = pathname === '/admin';
   const isSalesCrm = pathname === '/sales';
-  const showHamburger = isHomePage || isKoopAdmin || (sellerId && pathname === `/sellers/${sellerId}`) || isSalesCrm;
+  const showHamburger = true; // Always show hamburger for navigation accessibility
 
   if (isDriverPage) return null;
 
@@ -115,6 +121,30 @@ export function AppHeader() {
 
     return (
       <div className={mobile ? "flex flex-col pb-10" : ""}>
+        {/* AUTH SECTION */}
+        {mobile && <p className={labelClass}>Account</p>}
+        <Link 
+          href="/login" 
+          onClick={() => setIsMobileMenuOpen(false)} 
+          className={cn(itemClass, !mobile && "hidden")}
+        >
+          {user ? (
+            <>
+              <UserIcon className="h-5 w-5 text-green-600" />
+              <div className="flex flex-col">
+                <span className="font-bold text-sm uppercase tracking-tight">Account Settings</span>
+                <span className="text-[10px] text-muted-foreground truncate max-w-[200px]">{user.email || 'Guest Session'}</span>
+              </div>
+            </>
+          ) : (
+            <>
+              <LogIn className="h-5 w-5 text-primary" />
+              <span className="font-bold text-sm uppercase tracking-tight">Login / Authenticate</span>
+            </>
+          )}
+          <ChevronRight className="ml-auto h-4 w-4 text-muted-foreground/30" />
+        </Link>
+
         {/* PLATFORM ADMIN */}
         {mobile && <p className={labelClass}>Platform</p>}
         {!mobile ? (
@@ -341,6 +371,29 @@ export function AppHeader() {
           {isMounted && (
             <div className="hidden lg:flex items-center gap-2">
               <NavigationLinks />
+              {user ? (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" className="h-9 w-9 rounded-full border-white/20 bg-transparent text-white p-0">
+                      <UserIcon className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">My Session</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem asChild>
+                      <Link href="/login" className="flex items-center gap-2">
+                        <UserIcon className="h-4 w-4" />
+                        <span className="text-xs font-bold uppercase">Account</span>
+                      </Link>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : (
+                <Button asChild variant="outline" size="sm" className="h-9 px-4 border-white/20 bg-transparent text-white hover:bg-white/10 rounded-full font-headline font-bold uppercase text-[10px] tracking-widest">
+                  <Link href="/login">Login</Link>
+                </Button>
+              )}
             </div>
           )}
 

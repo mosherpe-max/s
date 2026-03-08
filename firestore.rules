@@ -1,12 +1,50 @@
-
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // --- Global Prototype Access ---
-    // Full access enabled for frictionless exploration and QR code deployment.
-    // This allows any user to browse menus, place orders, and access admin tools without login.
+    // --- Global Super Admin Access ---
+    // o9vAQy0aFRPSNPoG0ETvjiGt9If1 has god-like access bypass
+    function isSuperAdmin() {
+      return request.auth != null && request.auth.uid == 'o9vAQy0aFRPSNPoG0ETvjiGt9If1';
+    }
+
+    // --- Global Prototype Access for Public Functions ---
+    // Menus and Orders are public for frictionless QR code deployment.
+    match /sellers/{sellerId} {
+      allow read: if true;
+      allow write: if isSuperAdmin();
+      
+      match /menuItems/{itemId} {
+        allow read: if true;
+        allow write: if isSuperAdmin();
+      }
+    }
+
+    match /orders/{orderId} {
+      allow read, create, update: if true;
+      allow delete: if isSuperAdmin();
+    }
+
+    match /prospects/{prospectId} {
+      allow read, write: if isSuperAdmin();
+    }
+
+    match /activities/{activityId} {
+      allow read, write: if isSuperAdmin();
+    }
+
+    match /roles_admin/{uid} {
+      allow read: if true;
+      allow write: if isSuperAdmin();
+    }
+
+    match /adminUsers/{uid} {
+      allow read: if true;
+      allow write: if isSuperAdmin();
+    }
+
+    // Default catch-all
     match /{document=**} {
-      allow read, write: if true;
+      allow read, write: if isSuperAdmin();
     }
   }
 }

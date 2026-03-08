@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo, useEffect, use, useRef } from 'react';
 import { collection, doc, setDoc, deleteDoc, writeBatch, query, where, updateDoc } from 'firebase/firestore';
-import { useFirestore, useDoc, useCollection, useMemoFirebase } from '@/firebase';
+import { useFirestore, useDoc, useCollection, useMemoFirebase, useUser } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { 
@@ -45,7 +45,8 @@ import {
   QrCode,
   FileImage,
   Printer,
-  Info
+  Info,
+  Lock
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -63,8 +64,8 @@ import {
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { cn } from '@/lib/utils';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/table';
+import { cn, SUPER_ADMIN_ID } from '@/lib/utils';
 import { isToday, isThisMonth, isThisYear, format, startOfMonth, parseISO, isWithinInterval } from 'date-fns';
 import * as XLSX from 'xlsx';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -73,6 +74,7 @@ import { APIProvider } from '@vis.gl/react-google-maps';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Separator } from '@/components/ui/separator';
+import { useRouter } from 'next/navigation';
 
 import type { MenuItem, Seller, Category, Order, Member, SellerType, ModifierGroup, ModifierOption } from '@/lib/types';
 import { categories } from '@/lib/types';
@@ -295,6 +297,8 @@ function OpsMetricCard({ label, value, icon: Icon, colorClass, subValue }: { lab
 export default function SellerAdminPage({ params }: { params: Promise<{ sellerId: string }> }) {
   const { sellerId } = use(params);
   const firestore = useFirestore();
+  const { user, isUserLoading } = useUser();
+  const router = useRouter();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -315,6 +319,9 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
 
   const [revenueMode, setRevenueMode] = useState<'Gross' | 'Net'>('Gross');
 
+  // AUTHORIZATION GATE: GOD-MODE CHECK
+  const isSuperAdmin = user?.uid === SUPER_ADMIN_ID;
+
   useEffect(() => {
     setIsMounted(true);
     const handleScroll = () => setShowTopButton(window.scrollY > 400);
@@ -325,6 +332,12 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
       clearInterval(interval);
     };
   }, []);
+
+  useEffect(() => {
+    if (!isUserLoading && !user) {
+      router.push('/login');
+    }
+  }, [user, isUserLoading, router]);
 
   const scrollToTop = () => window.scrollTo({ top: 0, behavior: 'smooth' });
 
@@ -347,10 +360,10 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     }
   }, [seller, selectedOpsMenu]);
 
-  const menuItemsQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'sellers', sellerId, 'menuItems') : null), [firestore, sellerId]);
+  const menuItemsQuery = useMemoFirebase(() => (firestore && isSuperAdmin ? collection(firestore, 'sellers', sellerId, 'menuItems') : null), [firestore, sellerId, isSuperAdmin]);
   const { data: menuItems, isLoading: areItemsLoading } = useCollection<MenuItem>(menuItemsQuery);
 
-  const ordersQuery = useMemoFirebase(() => (firestore ? query(collection(firestore, 'orders'), where('sellerId', '==', sellerId)) : null), [firestore, sellerId]);
+  const ordersQuery = useMemoFirebase(() => (firestore && isSuperAdmin ? query(collection(firestore, 'orders'), where('sellerId', '==', sellerId)) : null), [firestore, sellerId, isSuperAdmin]);
   const { data: orders, isLoading: areOrdersLoading } = useCollection<Order>(ordersQuery);
 
   const activeOrders = useMemo(() => {
@@ -424,14 +437,14 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   }, [orders, seller, selectedOpsMenu, now, revenueMode]);
 
   const handleSaveMasterItem = (data: MenuItemFormData) => {
-    if (!firestore) return;
+    if (!firestore || !isSuperAdmin) return;
     const itemRef = editingItem ? doc(firestore, 'sellers', sellerId, 'menuItems', editingItem.id) : doc(collection(firestore, 'sellers', sellerId, 'menuItems'));
     setDoc(itemRef, { ...data, id: itemRef.id, rank: editingItem?.rank || (menuItems?.length || 0) + 1 }, { merge: true });
     setEditingItem(null); setIsMasterFormOpen(false);
   };
 
   const handleDeleteLibraryItem = (itemId: string) => {
-    if (!firestore) return;
+    if (!firestore || !isSuperAdmin) return;
     const itemRef = doc(firestore, 'sellers', sellerId, 'menuItems', itemId);
     
     deleteDoc(itemRef)
@@ -447,7 +460,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   };
 
   const handleToggleCategoryModifier = (menuType: string, category: Category) => {
-    if (!firestore || !seller) return;
+    if (!firestore || !seller || !isSuperAdmin) return;
     const currentEnabled = seller.categoryModifierEnabled?.[menuType] || [];
     const isEnabled = currentEnabled.includes(category);
     const nextEnabled = isEnabled ? currentEnabled.filter(c => c !== category) : [...currentEnabled, category];
@@ -466,7 +479,33 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     }
   };
 
-  if (!isMounted) return null;
+  if (isUserLoading || !isMounted) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen">
+        <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
+        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Verifying Authorization...</p>
+      </div>
+    );
+  }
+
+  if (!isSuperAdmin) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[calc(100vh-4rem)] p-4 text-center">
+        <div className="p-6 bg-red-50 border-2 border-red-100 rounded-[2.5rem] shadow-xl max-w-md w-full space-y-6">
+          <div className="p-4 bg-red-100 rounded-full inline-block">
+            <Lock className="h-12 w-12 text-red-600" />
+          </div>
+          <div className="space-y-2">
+            <h2 className="font-headline text-2xl font-black uppercase tracking-tight text-[#213147]">SELLER ADMIN ACCESS RESTRICTED</h2>
+            <p className="text-sm text-muted-foreground font-medium">You must be logged in as a Super Admin to manage venue settings, library, and sales data.</p>
+          </div>
+          <Button asChild className="w-full h-12 bg-[#213147] hover:bg-black font-bold uppercase tracking-widest">
+            <Link href="/login">Authenticate as Admin</Link>
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col min-h-screen relative">

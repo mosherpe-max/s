@@ -1,9 +1,8 @@
-
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { collection, doc, setDoc, getDocs, writeBatch, serverTimestamp, query } from 'firebase/firestore';
-import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { useFirestore, useCollection, useMemoFirebase, useUser } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { 
@@ -28,7 +27,9 @@ import {
   Zap,
   Fingerprint,
   Layers,
-  LayoutDashboard
+  LayoutDashboard,
+  ShieldCheck,
+  Lock
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -45,8 +46,9 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import type { Seller, Order, Prospect } from '@/lib/types';
 import { sellerTypes } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
-import { cn } from '@/lib/utils';
+import { cn, SUPER_ADMIN_ID } from '@/lib/utils';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 const sellerSchema = z.object({
   courseName: z.string().min(2, 'Seller name required'),
@@ -96,6 +98,8 @@ function MetricCard({ title, value, icon: Icon, description, trend }: { title: s
 
 export default function KOOPAdminPage() {
   const firestore = useFirestore();
+  const { user, isUserLoading } = useUser();
+  const router = useRouter();
   const { toast } = useToast();
   
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -105,20 +109,29 @@ export default function KOOPAdminPage() {
   const [isBootstrapping, setIsBootstrapping] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
+  // AUTHORIZATION GATE: GOD-MODE CHECK
+  const isSuperAdmin = user?.uid === SUPER_ADMIN_ID;
+
+  useEffect(() => {
+    if (!isUserLoading && !user) {
+      router.push('/login');
+    }
+  }, [user, isUserLoading, router]);
+
   const sellersQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
+    if (!firestore || !isSuperAdmin) return null;
     return collection(firestore, 'sellers');
-  }, [firestore]);
+  }, [firestore, isSuperAdmin]);
 
   const ordersQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
+    if (!firestore || !isSuperAdmin) return null;
     return collection(firestore, 'orders');
-  }, [firestore]);
+  }, [firestore, isSuperAdmin]);
 
   const prospectsQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
+    if (!firestore || !isSuperAdmin) return null;
     return collection(firestore, 'prospects');
-  }, [firestore]);
+  }, [firestore, isSuperAdmin]);
 
   const { data: sellers, isLoading: isSellersLoading } = useCollection<Seller>(sellersQuery);
   const { data: orders } = useCollection<Order>(ordersQuery);
@@ -185,7 +198,7 @@ export default function KOOPAdminPage() {
   }, [selectedType]);
 
   const handleSystemReset = async () => {
-    if (!firestore) return;
+    if (!firestore || !isSuperAdmin) return;
     setIsResetting(true);
     try {
       const batch = writeBatch(firestore);
@@ -201,7 +214,7 @@ export default function KOOPAdminPage() {
   };
 
   const handleBootstrapNetwork = async () => {
-    if (!firestore) return;
+    if (!firestore || !isSuperAdmin) return;
     setIsBootstrapping(true);
     try {
       const demoSellers = [
@@ -321,7 +334,7 @@ export default function KOOPAdminPage() {
   };
 
   const onSave = async (data: SellerFormData) => {
-    if (!firestore) return;
+    if (!firestore || !isSuperAdmin) return;
     setIsSaving(true);
     
     const sellerId = editingSeller ? editingSeller.id : data.courseName.toLowerCase().replace(/\s+/g, '-');
@@ -342,15 +355,43 @@ export default function KOOPAdminPage() {
       .finally(() => setIsSaving(false));
   };
 
+  if (isUserLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen">
+        <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
+        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Verifying Super Admin Session...</p>
+      </div>
+    );
+  }
+
+  if (!isSuperAdmin) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[calc(100vh-4rem)] p-4 text-center">
+        <div className="p-6 bg-red-50 border-2 border-red-100 rounded-[2.5rem] shadow-xl max-w-md w-full space-y-6">
+          <div className="p-4 bg-red-100 rounded-full inline-block">
+            <Lock className="h-12 w-12 text-red-600" />
+          </div>
+          <div className="space-y-2">
+            <h2 className="font-headline text-2xl font-black uppercase tracking-tight text-[#213147]">ACCESS RESTRICTED</h2>
+            <p className="text-sm text-muted-foreground font-medium">This interface requires Super Admin authorization. Your current identity does not have permission to view this page.</p>
+          </div>
+          <Button asChild className="w-full h-12 bg-[#213147] hover:bg-black font-bold uppercase tracking-widest">
+            <Link href="/login">Authenticate as Super Admin</Link>
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="container mx-auto px-4 py-8 max-w-7xl pb-20">
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
         <div>
           <div className="flex items-center gap-3">
             <h1 className="font-headline text-3xl font-bold text-[#213147] uppercase tracking-tight">KOOP ADMIN</h1>
-            <Badge className="bg-primary/10 text-primary border-primary/20 uppercase text-[10px] font-black">Platform Global</Badge>
+            <Badge className="bg-primary/10 text-primary border-primary/20 uppercase text-[10px] font-black">Super Admin Only</Badge>
           </div>
-          <p className="text-muted-foreground text-sm">Real-time system oversight and venue network management.</p>
+          <p className="text-muted-foreground text-sm">God-mode platform oversight and venue network management.</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <Button variant="outline" onClick={handleBootstrapNetwork} disabled={isBootstrapping} className="text-[10px] font-black uppercase h-10 px-4 tracking-widest border-indigo-200 text-indigo-600 hover:bg-indigo-50">
