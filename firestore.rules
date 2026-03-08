@@ -9,18 +9,10 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function isAdmin() {
-      return isSignedIn() && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
-    }
-
-    function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
-    }
-
-    // --- Core Business Data (PUBLIC FOR PROTOTYPE) ---
+    // --- Core Business Data (OPEN FOR PROTOTYPE) ---
+    // Anyone can browse menus, place orders, and manage the venue network for demo purposes.
 
     match /sellers/{sellerId} {
-      // Open access for frictionless browsing and demo management
       allow read, write: if true; 
 
       match /menuItems/{itemId} {
@@ -29,13 +21,11 @@ service cloud.firestore {
     }
 
     match /orders/{orderId} {
-      // Prototype: Anyone can place, view, track, and update orders for a frictionless demo.
-      // This ensures patrons can order without login and staff can manage without complex auth.
-      allow read, create, update: if true; 
-      allow delete: if true; 
+      allow read, write: if true; 
     }
 
     // --- Role & CRM Management (OPEN FOR PROTOTYPE) ---
+    // Full access enabled for frictionless exploration of the Admin and Sales portals.
 
     match /roles_admin/{uid} {
       allow read, write: if true;

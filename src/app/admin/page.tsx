@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useMemo } from 'react';
@@ -100,12 +101,13 @@ export default function KOOPAdminPage() {
   const { user, isUserLoading } = useUser();
   const { toast } = useToast();
   
+  // Checking admin role silently, but not blocking the page for the prototype demo
   const roleRef = useMemoFirebase(() => {
     if (!firestore || !user) return null;
     return doc(firestore, 'roles_admin', user.uid);
   }, [firestore, user]);
   
-  const { data: adminRole, isLoading: isRoleLoading } = useDoc(roleRef);
+  const { data: adminRole } = useDoc(roleRef);
 
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingSeller, setEditingSeller] = useState<Seller | null>(null);
@@ -115,19 +117,19 @@ export default function KOOPAdminPage() {
   const [searchTerm, setSearchTerm] = useState('');
 
   const sellersQuery = useMemoFirebase(() => {
-    if (!firestore || !adminRole) return null;
+    if (!firestore) return null;
     return collection(firestore, 'sellers');
-  }, [firestore, adminRole]);
+  }, [firestore]);
 
   const ordersQuery = useMemoFirebase(() => {
-    if (!firestore || !adminRole) return null;
+    if (!firestore) return null;
     return collection(firestore, 'orders');
-  }, [firestore, adminRole]);
+  }, [firestore]);
 
   const prospectsQuery = useMemoFirebase(() => {
-    if (!firestore || !adminRole) return null;
+    if (!firestore) return null;
     return collection(firestore, 'prospects');
-  }, [firestore, adminRole]);
+  }, [firestore]);
 
   const { data: sellers, isLoading: isSellersLoading } = useCollection<Seller>(sellersQuery);
   const { data: orders } = useCollection<Order>(ordersQuery);
@@ -351,31 +353,11 @@ export default function KOOPAdminPage() {
       .finally(() => setIsSaving(false));
   };
 
-  if (isUserLoading || isRoleLoading) {
+  if (isUserLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[80vh] gap-4">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
         <p className="text-muted-foreground font-black uppercase text-[10px] tracking-widest">Authenticating Admin Session...</p>
-      </div>
-    );
-  }
-
-  if (!user || !adminRole) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[80vh] p-8 text-center space-y-6">
-        <div className="p-6 bg-destructive/10 rounded-full text-destructive shadow-inner">
-          <ShieldAlert className="h-16 w-16" />
-        </div>
-        <div className="space-y-2">
-          <h1 className="font-headline text-3xl font-black uppercase text-[#213147]">ACCESS RESTRICTED</h1>
-          <p className="text-muted-foreground max-w-md mx-auto">
-            Authorized Platform Administrators only. 
-            Use the setup tool on the login page to promote your account.
-          </p>
-        </div>
-        <Button asChild size="lg" className="h-14 px-8 font-headline font-black uppercase tracking-widest">
-          <Link href="/login">RETURN TO LOGIN & SETUP</Link>
-        </Button>
       </div>
     );
   }
