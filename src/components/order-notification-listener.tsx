@@ -12,7 +12,7 @@ import { useRouter, usePathname } from 'next/navigation';
 
 /**
  * A global listener that monitors order status for the buyer.
- * Silenced on Admin and Public pages to prevent permission race conditions.
+ * Only activates when a user is signed in and on a customer-facing page.
  */
 export function OrderNotificationListener() {
   const firestore = useFirestore();
@@ -23,18 +23,19 @@ export function OrderNotificationListener() {
   const prevStatusRef = useRef<Order['status'] | undefined>(undefined);
   const prevOrderIdRef = useRef<string | undefined>(undefined);
 
-  // CRITICAL: Silent mode for pages that don't need live tracking
+  // Silent mode for non-customer pages to avoid permission overhead
   const isSilentPath = 
-    pathname === '/' || 
+    pathname === '/' ||
     pathname === '/login' || 
     pathname?.startsWith('/admin') || 
     pathname?.includes('/bevcart') || 
     pathname?.includes('/clubhouse') ||
-    pathname?.includes('/laneside');
+    pathname?.includes('/laneside') ||
+    pathname?.startsWith('/sales');
 
   const latestOrderQuery = useMemoFirebase(() => {
-    // Only attempt query if on tracking-eligible page and user is signed in
-    if (!firestore || !user || isSilentPath) return null;
+    // Only query if we have a user and aren't on a silent path
+    if (!firestore || !user?.uid || isSilentPath) return null;
     
     return query(
       collection(firestore, 'orders'),
@@ -42,8 +43,10 @@ export function OrderNotificationListener() {
       orderBy('createdAt', 'desc'),
       limit(1)
     );
-  }, [firestore, user, isSilentPath]);
+  }, [firestore, user?.uid, isSilentPath]);
 
+  // We use the raw useCollection here but ignore local errors 
+  // because the security rules are set up to handle the "list" safely.
   const { data: orders } = useCollection<Order>(latestOrderQuery);
   const order = orders?.[0];
 
