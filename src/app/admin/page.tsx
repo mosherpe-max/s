@@ -27,10 +27,13 @@ import {
   Mail,
   Zap,
   Fingerprint,
-  Layers
+  Layers,
+  LayoutDashboard,
+  Check
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from "zod";
@@ -63,6 +66,7 @@ const sellerSchema = z.object({
   monthlyPlatformFee: z.coerce.number().min(0),
   status: z.enum(['Active', 'Inactive']),
   laneCount: z.coerce.number().min(0).optional(),
+  menuTypes: z.array(z.string()).min(1, 'Select at least one menu type'),
 });
 
 type SellerFormData = z.infer<typeof sellerSchema>;
@@ -163,10 +167,32 @@ export default function KOOPAdminPage() {
       monthlyPlatformFee: 99,
       status: 'Active',
       laneCount: 0,
+      menuTypes: [],
     },
   });
 
   const selectedType = form.watch('type');
+
+  const availableMenuOptions = useMemo(() => {
+    if (selectedType.includes('Golf')) {
+      return [
+        { id: 'Beverage Cart', label: 'Beverage Cart' },
+        { id: 'Clubhouse', label: 'Clubhouse' },
+        { id: 'Pool', label: 'Pool Side' },
+        { id: 'Take Out', label: 'Take Out' }
+      ];
+    } else if (selectedType === 'Bowling Alley') {
+      return [
+        { id: 'Lane Delivery', label: 'Lane Side' },
+        { id: 'Take Out', label: 'Take Out' }
+      ];
+    } else {
+      return [
+        { id: 'Dine-In', label: 'Dine-In' },
+        { id: 'Take Out', label: 'Take Out' }
+      ];
+    }
+  }, [selectedType]);
 
   const handleSystemReset = async () => {
     if (!firestore) return;
@@ -276,13 +302,31 @@ export default function KOOPAdminPage() {
       monthlyPlatformFee: seller.monthlyPlatformFee || 0,
       status: seller.status,
       laneCount: seller.laneCount || 0,
+      menuTypes: seller.menuTypes || [],
     });
     setIsFormOpen(true);
   };
 
   const handleAddNewSeller = () => {
     setEditingSeller(null);
-    form.reset();
+    form.reset({
+      courseName: '',
+      type: 'Public Golf Course',
+      contactName: '',
+      contactEmail: '',
+      contactPhone: '',
+      streetAddress: '',
+      city: '',
+      state: '',
+      zip: '',
+      serviceFee: 2.50,
+      taxRate: 6.0,
+      launchFee: 500,
+      monthlyPlatformFee: 99,
+      status: 'Active',
+      laneCount: 0,
+      menuTypes: ['Beverage Cart', 'Clubhouse', 'Take Out'],
+    });
     setIsFormOpen(true);
   };
 
@@ -293,12 +337,9 @@ export default function KOOPAdminPage() {
     const sellerId = editingSeller ? editingSeller.id : data.courseName.toLowerCase().replace(/\s+/g, '-');
     const sellerRef = doc(firestore, 'sellers', sellerId);
     
-    const menuTypes = editingSeller?.menuTypes || (data.type.includes('Golf') ? ['Beverage Cart', 'Clubhouse', 'Take Out'] : (data.type === 'Bowling Alley' ? ['Lane Delivery', 'Take Out'] : ['Dine-In', 'Take Out']));
-    
     setDoc(sellerRef, { 
       ...data, 
       id: sellerId,
-      menuTypes,
       createdAt: editingSeller?.createdAt || new Date().toISOString(),
       updatedAt: serverTimestamp()
     }, { merge: true })
@@ -588,9 +629,60 @@ export default function KOOPAdminPage() {
                       )} />
                     </div>
 
+                    <div className="space-y-4 pt-2">
+                      <div className="flex items-center gap-2 mb-2 border-b pb-2">
+                        <LayoutDashboard className="h-4 w-4 text-primary" />
+                        <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Service Menus</h3>
+                      </div>
+                      <FormField
+                        control={form.control}
+                        name="menuTypes"
+                        render={() => (
+                          <FormItem className="space-y-3">
+                            <div className="grid grid-cols-2 gap-4 bg-muted/20 p-4 rounded-xl border">
+                              {availableMenuOptions.map((item) => (
+                                <FormField
+                                  key={item.id}
+                                  control={form.control}
+                                  name="menuTypes"
+                                  render={({ field }) => {
+                                    return (
+                                      <FormItem
+                                        key={item.id}
+                                        className="flex flex-row items-center space-x-3 space-y-0"
+                                      >
+                                        <FormControl>
+                                          <Checkbox
+                                            checked={field.value?.includes(item.id)}
+                                            onCheckedChange={(checked) => {
+                                              return checked
+                                                ? field.onChange([...field.value, item.id])
+                                                : field.onChange(
+                                                    field.value?.filter(
+                                                      (value) => value !== item.id
+                                                    )
+                                                  )
+                                            }}
+                                          />
+                                        </FormControl>
+                                        <FormLabel className="text-[11px] font-bold uppercase cursor-pointer">
+                                          {item.label}
+                                        </FormLabel>
+                                      </FormItem>
+                                    )
+                                  }}
+                                />
+                              ))}
+                            </div>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+
                     {selectedType === 'Bowling Alley' && (
                       <FormField control={form.control} name="laneCount" render={({ field }) => (
-                        <FormItem className="animate-in slide-in-from-top-2">
+                        <FormItem className="animate-in slide-in-from-top-2 pt-2">
                           <FormLabel className="text-[10px] font-black uppercase flex items-center gap-2">
                             <Layers className="h-3 w-3 text-primary" /> Lane Configuration
                           </FormLabel>
