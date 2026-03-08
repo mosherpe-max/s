@@ -13,9 +13,8 @@ import {
   Store,
   Menu,
   ChevronRight,
-  Database,
-  Users,
-  Target
+  Target,
+  Users
 } from 'lucide-react';
 import { useCart } from '@/lib/cart-context';
 import { useState, useEffect, useMemo } from 'react';
@@ -100,9 +99,8 @@ export function AppHeader() {
 
   const isHomePage = pathname === '/';
   const isKoopAdmin = pathname === '/admin';
-  const isSellerAdmin = sellerId && pathname === `/sellers/${sellerId}`;
   const isSalesCrm = pathname === '/sales';
-  const showHamburger = isHomePage || isKoopAdmin || isSellerAdmin || isSalesCrm;
+  const showHamburger = isHomePage || isKoopAdmin || (sellerId && pathname === `/sellers/${sellerId}`) || isSalesCrm;
 
   if (isDriverPage) return null;
 
@@ -158,7 +156,7 @@ export function AppHeader() {
           </>
         )}
 
-        {/* MANAGE SELLERS (ADMIN PORTALS) */}
+        {/* MANAGE SELLERS */}
         {mobile && <p className={labelClass}>Seller Portals</p>}
         {!mobile ? (
           <DropdownMenu>
@@ -219,7 +217,7 @@ export function AppHeader() {
           </>
         )}
 
-        {/* STAFF VIEWS (DRIVER/SERVER DASHBOARDS) */}
+        {/* STAFF VIEWS */}
         {mobile && <p className={labelClass}>Staff Interfaces</p>}
         {!mobile ? (
           <DropdownMenu>
@@ -340,14 +338,12 @@ export function AppHeader() {
             </Button>
           ) : null}
 
-          {/* Desktop Navigation */}
           {isMounted && (
             <div className="hidden lg:flex items-center gap-2">
               <NavigationLinks />
             </div>
           )}
 
-          {/* Mobile Navigation Hamburger - Visible only on specific pages */}
           {isMounted && showHamburger && (
             <div className="lg:hidden">
               <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>

@@ -1,8 +1,8 @@
 'use client';
 
 import { Suspense, useEffect, useRef, useState } from 'react';
-import { collection, query, orderBy, limit, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
-import { useCollection, useDoc, useFirestore, useMemoFirebase } from '@/firebase';
+import { collection, query, orderBy, limit, doc, updateDoc, serverTimestamp, where } from 'firebase/firestore';
+import { useCollection, useDoc, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import type { Order, Seller } from '@/lib/types';
 import { MapView } from '@/components/map-view';
 import { OrderStatus } from '@/components/order-status';
@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { PartyPopper, ShoppingBag, MapPin, Loader2, ArrowLeft, Store, ClipboardList, Satellite, Edit2, ChevronLeft, Smartphone, BellRing, Flag, CheckCircle2, Zap, Info, Eye, Sparkles } from 'lucide-react';
+import { PartyPopper, ShoppingBag, MapPin, Loader2, Store, ClipboardList, Satellite, Edit2, Flag, CheckCircle2, Zap, Eye, Sparkles } from 'lucide-react';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { IosInstallPrompt } from '@/components/ios-install-prompt';
 import { getNumericOrderId } from '@/lib/utils';
@@ -23,6 +23,7 @@ import { cn } from '@/lib/utils';
 
 function OrderTrackingContent() {
   const firestore = useFirestore();
+  const { user } = useUser();
   const router = useRouter();
   const searchParams = useSearchParams();
   const orderId = searchParams.get('id');
@@ -45,9 +46,15 @@ function OrderTrackingContent() {
   }, [firestore, orderId]);
   
   const latestQuery = useMemoFirebase(() => {
-    if (!firestore || orderId) return null;
-    return query(collection(firestore, 'orders'), orderBy('createdAt', 'desc'), limit(1));
-  }, [firestore, orderId]);
+    // CRITICAL: Filter by user.uid to satisfy non-admin security rules for list operations
+    if (!firestore || !user || orderId) return null;
+    return query(
+      collection(firestore, 'orders'), 
+      where('customerId', '==', user.uid),
+      orderBy('createdAt', 'desc'), 
+      limit(1)
+    );
+  }, [firestore, user, orderId]);
 
   const { data: specificOrder, isLoading: isLoadingSpecific } = useDoc<Order>(orderRef);
   const { data: latestOrders, isLoading: isLoadingLatest } = useCollection<Order>(latestQuery);
@@ -80,7 +87,6 @@ function OrderTrackingContent() {
     }
   }, [orderId, firestore]);
 
-  // Auto-scroll to top on completion
   useEffect(() => {
     if (order?.status === 'Delivered' && prevStatusRef.current && prevStatusRef.current !== 'Delivered') {
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -88,7 +94,6 @@ function OrderTrackingContent() {
     prevStatusRef.current = order?.status;
   }, [order?.status]);
 
-  // Wide Wake Lock Window: Placed -> Delivered
   useEffect(() => {
     const requestWakeLock = async () => {
       if ('wakeLock' in navigator && !wakeLockRef.current) {
@@ -107,14 +112,12 @@ function OrderTrackingContent() {
       }
     };
 
-    // Keep screen awake while order is active
     const isOrderActive = order && ['Placed', 'Preparing', 'Out for Delivery'].includes(order.status);
 
     if (isOrderActive) {
       requestWakeLock();
       
       const handleVisibilityChange = () => {
-        // Re-initiate when user returns to app (e.g. via push notification click)
         if (document.visibilityState === 'visible' && isOrderActive) {
           requestWakeLock();
         }
@@ -133,8 +136,6 @@ function OrderTrackingContent() {
   useEffect(() => {
     if (!order || !firestore || !isGpsRequired) return;
 
-    // We watch location throughout the order lifecycle if GPS is required,
-    // ensuring the staff can always find the buyer even if they move while order is 'Preparing'.
     const isOrderActive = ['Placed', 'Preparing', 'Out for Delivery'].includes(order.status);
 
     if (isOrderActive) {
@@ -184,7 +185,6 @@ function OrderTrackingContent() {
     const updates = { menuTypeLocation: `Hole ${hole}` };
     updateDoc(doc(firestore, 'orders', order.id), updates)
       .then(() => {
-        // Trigger the install bubble for iOS browser users upon manual location update
         if ((isIos || forceIosView) && !isStandalone) {
           setIsInstallPromptOpen(true);
         }
@@ -217,14 +217,12 @@ function OrderTrackingContent() {
   }
 
   const isDelivered = order.status === 'Delivered';
-  const isOutForDelivery = order.status === 'Out for Delivery';
   const isEditable = order.status === 'Placed' || order.status === 'Preparing';
   const isOrderActive = !isDelivered && order.status !== 'Cancelled';
   const brandColor = seller?.brandColor || 'hsl(var(--primary))';
   const numericId = getNumericOrderId(order.id);
   const taxRatePercentage = seller?.taxRate || 6.0;
 
-  // Always use live locations if available
   const mapBuyerLocation = order.deliveryLocation;
   const mapSellerLocation = seller ? { latitude: seller.latitude, longitude: seller.longitude } : null;
 
@@ -234,7 +232,6 @@ function OrderTrackingContent() {
     <div className="flex flex-col min-h-[calc(100vh-4rem)] bg-muted/10 overflow-y-auto">
       <IosInstallPrompt open={isInstallPromptOpen} onOpenChange={setIsInstallPromptOpen} />
 
-      {/* Prototype Preview Toggle - Visible only during chat session/dev */}
       <div className="fixed top-20 right-4 z-50 flex flex-col gap-2">
         <Button 
           size="sm" 
@@ -469,11 +466,6 @@ function OrderTrackingContent() {
                         <span className="font-headline uppercase tracking-tight text-base text-foreground">TOTAL PAID</span>
                         <span className="font-mono" style={{ color: brandColor }}>${order.total.toFixed(2)}</span>
                     </div>
-                </div>
-
-                <div className="p-4 bg-muted/30 rounded-xl border flex flex-col gap-2">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">PAYMENT METHOD</p>
-                    <p className="text-xs font-black text-foreground uppercase italic tracking-tight">"{order.paymentMethod}"</p>
                 </div>
             </CardContent>
         </Card>
