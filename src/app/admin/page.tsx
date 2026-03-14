@@ -550,7 +550,7 @@ export default function KOOPAdminPage() {
             <Activity className="mr-2 h-3.5 w-3.5" /> Operations
           </TabsTrigger>
           <TabsTrigger value="staff" className="text-[10px] font-black uppercase px-8 h-10">
-            <Users className="mr-2 h-3.5 w-3.5" /> Staff Access
+            <Users className="mr-2 h-3.5 w-3.5" /> Users
           </TabsTrigger>
           <TabsTrigger value="growth" className="text-[10px] font-black uppercase px-8 h-10">
             <Target className="mr-2 h-3.5 w-3.5" /> Growth
@@ -957,7 +957,7 @@ export default function KOOPAdminPage() {
                         <FormItem><FormLabel className="text-[10px] font-black uppercase">Email</FormLabel><FormControl><Input {...field} type="email" /></FormControl></FormItem>
                       )} />
                       <FormField control={form.control} name="contactPhone" render={({ field }) => (
-                        <FormItem><FormLabel className="text-[10px] font-black uppercase">Phone</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>
+                        <FormItem><FormLabel className="text-[10px) font-black uppercase">Phone</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>
                       )} />
                     </div>
                   </div>
