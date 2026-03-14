@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -18,43 +17,7 @@ import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import { Loader2, ShieldCheck, Mail, Lock, User, LogOut, CheckCircle2, AlertCircle, UserPlus, LogIn, KeyRound, ArrowRight } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-
-const StylizedLogo = () => (
-  <div className="flex items-center gap-0.5 font-headline font-black text-3xl tracking-tighter text-[#213147]">
-    <span>KO</span>
-    <div className="relative flex items-center justify-center w-8 h-8 mx-0.5">
-      <div className="absolute inset-0 border-[3px] border-red-600 rounded-full"></div>
-      <div className="absolute w-[16px] h-[18px] border-[2.5px] border-red-600 rounded-full"></div>
-      <div className="w-[5px] h-[5px] bg-red-600 rounded-full"></div>
-    </div>
-    <span>P</span>
-  </div>
-);
-
-const GolfBallIcon = (props: React.SVGProps<SVGSVGElement>) => (
-  <svg
-    {...props}
-    xmlns="http://www.w3.org/2000/svg"
-    width="24"
-    height="24"
-    viewBox="0 0 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <circle cx="12" cy="12" r="10" />
-    <path d="M12 12c-2 0-2.83 1-4 1s-2-1-4-1" />
-    <path d="m15.5 15.5-3-3" />
-    <path d="M20 16c-2 0-2.83-1-4-1s-2 1-4 1" />
-    <path d="M4 16c2 0 2.83-1 4-1s2 1 4 1" />
-    <path d="M12 12c2 0 2.83-1 4-1s2 1 4 1" />
-    <path d="M4 8c2 0 2.83 1 4 1s2-1-4-1" />
-    <path d="m8.5 8.5 3 3" />
-    <path d="M20 8c-2 0-2.83 1-4 1s-2-1-4-1" />
-  </svg>
-);
+import { StylizedKoopLogo } from '@/components/header';
 
 export default function LoginPage() {
   const auth = useAuth();
@@ -166,7 +129,7 @@ export default function LoginPage() {
       <Card className="w-full max-w-md mx-auto shadow-2xl border-2">
         <CardHeader className="text-center pb-8 border-b bg-muted/10">
           <div className="flex justify-center items-center mb-4">
-            <StylizedLogo />
+            <StylizedKoopLogo size="lg" colorClass="text-[#213147]" />
           </div>
           <CardTitle className="font-headline text-xl font-black uppercase tracking-[0.2em] text-[#213147]/60">
             ACCESS GATEWAY

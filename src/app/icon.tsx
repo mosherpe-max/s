@@ -21,11 +21,9 @@ export default function Icon() {
           width: '100%',
           height: '100%',
           display: 'flex',
-          flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
           borderRadius: '20%',
-          padding: '2px',
         }}
       >
         <div
@@ -33,51 +31,21 @@ export default function Icon() {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            width: 18,
-            height: 18,
-            position: 'relative',
-            marginTop: '2px',
+            width: 24,
+            height: 24,
           }}
         >
-          {/* Outer Ring */}
-          <div
-            style={{
-              position: 'absolute',
-              inset: 0,
-              border: '3px solid #E50000',
-              borderRadius: '50%',
-            }}
-          />
-          {/* Middle Ring */}
-          <div
-            style={{
-              position: 'absolute',
-              width: 10,
-              height: 10,
-              border: '2px solid #E50000',
-              borderRadius: '50%',
-            }}
-          />
-          {/* Center Dot */}
-          <div
-            style={{
-              width: 3,
-              height: 3,
-              background: '#E50000',
-              borderRadius: '50%',
-            }}
-          />
-        </div>
-        <div 
-          style={{ 
-            color: 'white', 
-            fontSize: 8, 
-            fontWeight: 900, 
-            marginTop: '1px',
-            fontFamily: 'sans-serif'
-          }}
-        >
-          KOOP
+          <svg
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <circle cx="12" cy="12" r="10" stroke="#FF0000" strokeWidth="3" />
+            <circle cx="12" cy="12" r="5" stroke="#FF0000" strokeWidth="3" />
+            <circle cx="12" cy="12" r="2" fill="#FF0000" />
+          </svg>
         </div>
       </div>
     ),

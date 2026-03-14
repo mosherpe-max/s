@@ -32,48 +32,33 @@ export default function Icon() {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            width: 100,
-            height: 100,
+            width: 120,
+            height: 120,
             position: 'relative',
             marginBottom: '10px',
           }}
         >
-          {/* Outer Ring */}
-          <div
-            style={{
-              position: 'absolute',
-              inset: 0,
-              border: '14px solid #E50000',
-              borderRadius: '50%',
-            }}
-          />
-          {/* Middle Ring */}
-          <div
-            style={{
-              position: 'absolute',
-              width: 55,
-              height: 55,
-              border: '10px solid #E50000',
-              borderRadius: '50%',
-            }}
-          />
-          {/* Center Dot */}
-          <div
-            style={{
-              width: 18,
-              height: 18,
-              background: '#E50000',
-              borderRadius: '50%',
-            }}
-          />
+          {/* Target Symbol Replacement for character 3 in KOOP */}
+          <svg
+            width="120"
+            height="120"
+            viewBox="0 0 24 24"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <circle cx="12" cy="12" r="10" stroke="#FF0000" strokeWidth="3" />
+            <circle cx="12" cy="12" r="5" stroke="#FF0000" strokeWidth="3" />
+            <circle cx="12" cy="12" r="2" fill="#FF0000" />
+          </svg>
         </div>
         <div 
           style={{ 
             color: 'white', 
-            fontSize: 38, 
+            fontSize: 32, 
             fontWeight: 900, 
             letterSpacing: '-0.05em',
-            fontFamily: 'sans-serif'
+            fontFamily: 'sans-serif',
+            marginTop: '5px'
           }}
         >
           KOOP

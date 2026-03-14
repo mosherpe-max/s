@@ -40,21 +40,23 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn, SUPER_ADMIN_ID } from '@/lib/utils';
 
-export const StylizedKoopLogo = ({ size = 'md', className = "" }: { size?: 'sm' | 'md' | 'lg', className?: string }) => {
+export const StylizedKoopLogo = ({ size = 'md', className = "", colorClass = "text-white" }: { size?: 'sm' | 'md' | 'lg', className?: string, colorClass?: string }) => {
   const sizes = {
-    sm: { text: 'text-lg', icon: 'w-4 h-4', ring1: 'border-[1.5px]', ring2: 'w-[8px] h-[10px] border-[1.2px]', dot: 'w-[2.5px] h-[2.5px]', gap: 'gap-0.5' },
-    md: { text: 'text-2xl', icon: 'w-6 h-6', ring1: 'border-[2.5px]', ring2: 'w-[12px] h-[14px] border-[2px]', dot: 'w-[4px] h-[4px]', gap: 'gap-0.5' },
-    lg: { text: 'text-3xl', icon: 'w-8 h-8', ring1: 'border-[3px]', ring2: 'w-[16px] h-[18px] border-[2.5px]', dot: 'w-[5px] h-[5px]', gap: 'gap-0.5' }
+    sm: { text: 'text-xl', icon: 'w-5 h-5', stroke: '2.5' },
+    md: { text: 'text-3xl', icon: 'w-7 h-7', stroke: '3' },
+    lg: { text: 'text-5xl', icon: 'w-12 h-12', stroke: '4' }
   };
   const s = sizes[size];
   
   return (
-    <div className={cn("flex items-center font-headline font-black tracking-tighter text-white", s.gap, s.text, className)}>
+    <div className={cn("flex items-center font-headline font-black tracking-tighter leading-none", colorClass, className, s.text)}>
       <span>KO</span>
-      <div className={cn("relative flex items-center justify-center mx-0.5", s.icon)}>
-        <div className={cn("absolute inset-0 border-red-600 rounded-full", s.ring1)}></div>
-        <div className={cn("absolute border-red-600 rounded-full", s.ring2)}></div>
-        <div className={cn("bg-red-600 rounded-full", s.dot)}></div>
+      <div className={cn("relative flex items-center justify-center mx-0.5 shrink-0", s.icon)}>
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
+          <circle cx="12" cy="12" r="10" stroke="#FF0000" strokeWidth={s.stroke} />
+          <circle cx="12" cy="12" r="5" stroke="#FF0000" strokeWidth={s.stroke} />
+          <circle cx="12" cy="12" r="2" fill="#FF0000" />
+        </svg>
       </div>
       <span>P</span>
     </div>
