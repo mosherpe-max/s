@@ -39,7 +39,8 @@ import {
   Users,
   Copy,
   Check,
-  AlertTriangle
+  AlertTriangle,
+  ExternalLink
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -83,7 +84,7 @@ const sellerSchema = z.object({
 type SellerFormData = z.infer<typeof sellerSchema>;
 
 const staffSchema = z.object({
-  email: z.string().email('Valid email required').toLowerCase(),
+  email: z.string().email('Valid email required').toLowerCase().trim(),
   password: z.string().min(6, 'Password must be at least 6 characters'),
   sellerId: z.string().min(1, 'Please select a venue'),
   role: z.enum(['Seller Admin']),
@@ -400,6 +401,8 @@ export default function KOOPAdminPage() {
     setIsSaving(true);
     
     try {
+      console.log(`Starting identity provisioning for: ${data.email}`);
+      
       // 1. Create Real Auth Account via REST API
       const signupResp = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${firebaseConfig.apiKey}`, {
         method: 'POST',
@@ -412,21 +415,22 @@ export default function KOOPAdminPage() {
       });
 
       const authResult = await signupResp.json();
-      let accountStatus: 'created' | 'existing' = 'created';
       
-      if (authResult.error) {
-        if (authResult.error.message === 'EMAIL_EXISTS') {
-          accountStatus = 'existing';
+      if (!signupResp.ok) {
+        if (authResult.error?.message === 'EMAIL_EXISTS') {
+          console.warn("Identity already exists in Auth provider.");
         } else {
-          throw new Error(authResult.error.message);
+          throw new Error(authResult.error?.message || "Failed to contact Identity Provider");
         }
       }
 
+      let accountStatus: 'created' | 'existing' = signupResp.ok ? 'created' : 'existing';
       const uid = authResult.localId || 'existing-user-lookup-required';
       const selectedSeller = sellers?.find(s => s.id === data.sellerId);
 
-      // 2. Create/Update Profile
-      await setDoc(doc(firestore, 'adminUsers', data.email), { // Use email as key for easier lookup in prototype if UID isn't available
+      // 2. Create/Update Profile in Firestore
+      // Using email as the document ID for explicit lookup in this prototype
+      await setDoc(doc(firestore, 'adminUsers', data.email), {
         id: uid,
         email: data.email,
         role: data.role,
@@ -447,11 +451,16 @@ export default function KOOPAdminPage() {
       staffForm.reset();
       
       toast({ 
-        title: accountStatus === 'created' ? "Account Created" : "Account Updated", 
-        description: `Profile for ${data.email} is active.` 
+        title: accountStatus === 'created' ? "Account Created" : "Account Verified", 
+        description: `Profile for ${data.email} is now synchronized.` 
       });
     } catch (e: any) {
-      toast({ variant: "destructive", title: "Provisioning Failed", description: e.message || "Unknown Error" });
+      console.error("Provisioning engine failure:", e);
+      toast({ 
+        variant: "destructive", 
+        title: "Provisioning Failed", 
+        description: e.message || "Identity Provider rejected the request." 
+      });
     } finally {
       setIsSaving(false);
     }
@@ -461,7 +470,6 @@ export default function KOOPAdminPage() {
     if (!auth) return;
     try {
       console.log(`Dispatching reset link to: ${email}`);
-      // We explicitly await this to catch any immediate provider errors
       await sendPasswordResetEmail(auth, email);
       toast({ 
         title: "Reset Request Queued", 
@@ -492,7 +500,7 @@ export default function KOOPAdminPage() {
     try {
       await deleteDoc(doc(firestore, 'adminUsers', email));
       await deleteDoc(doc(firestore, 'roles_seller_admin', email));
-      toast({ title: "Access Revoked" });
+      toast({ title: "Access Revoked", description: "Records removed. Note: Identity remains in Auth provider." });
     } catch (e) {
       toast({ variant: "destructive", title: "Failed to Remove" });
     }
@@ -1002,7 +1010,7 @@ export default function KOOPAdminPage() {
       <Dialog open={isStaffFormOpen} onOpenChange={setIsStaffFormOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="uppercase font-headline">Provision Seller Admin</DialogTitle>
+            <DialogTitle className="uppercase font-headline">Add Seller Admin</DialogTitle>
             <DialogDescription>Create a new administrator account and link it to a specific venue.</DialogDescription>
           </DialogHeader>
           <Form {...staffForm}>
@@ -1018,7 +1026,7 @@ export default function KOOPAdminPage() {
                 <FormItem>
                   <FormLabel className="text-[10px] font-black uppercase">Initial Security Key (Password)</FormLabel>
                   <FormControl><Input {...field} type="password" placeholder="••••••••" className="h-11 border-2 font-bold" /></FormControl>
-                  <FormDescription className="text-[9px] uppercase font-bold text-muted-foreground">Required to create the identity. They can change this later.</FormDescription>
+                  <FormDescription className="text-[9px] uppercase font-bold text-muted-foreground">Required to initialize the identity. They can change this later.</FormDescription>
                   <FormMessage />
                 </FormItem>
               )} />
@@ -1043,12 +1051,12 @@ export default function KOOPAdminPage() {
               <div className="bg-indigo-50 p-4 rounded-xl border border-indigo-100 flex items-start gap-3">
                 <ShieldCheck className="h-5 w-5 text-indigo-600 shrink-0 mt-0.5" />
                 <p className="text-[10px] text-indigo-800 font-medium leading-relaxed">
-                  Provisioning will create a real identity in the platform database. Once created, use the **Send Reset Link** tool to verify their inbox.
+                  Adding a Seller Admin will create a primary identity in the platform database. Once added, use the **Send Reset Link** tool to verify their inbox.
                 </p>
               </div>
               <DialogFooter className="px-0">
                 <Button type="submit" disabled={isSaving} className="w-full h-12 bg-indigo-600 hover:bg-indigo-700 font-bold uppercase tracking-widest">
-                  {isSaving ? <Loader2 className="animate-spin" /> : "Create Staff Account"}
+                  {isSaving ? <Loader2 className="animate-spin" /> : "Authorize Staff Member"}
                 </Button>
               </DialogFooter>
             </form>
@@ -1061,12 +1069,12 @@ export default function KOOPAdminPage() {
           <DialogHeader>
             <DialogTitle className={cn("uppercase font-headline flex items-center gap-2", provisionResult?.status === 'created' ? "text-green-600" : "text-amber-600")}>
               {provisionResult?.status === 'created' ? <Check className="h-5 w-5" /> : <AlertTriangle className="h-5 w-5" />}
-              {provisionResult?.status === 'created' ? "Account Provisioned" : "Profile Updated"}
+              {provisionResult?.status === 'created' ? "Identity Synchronized" : "Profile Re-linked"}
             </DialogTitle>
             <DialogDescription>
               {provisionResult?.status === 'created' 
-                ? "The administrator account has been successfully created in the identity provider." 
-                : "A profile already exists for this email. Venue assignments have been updated."}
+                ? "The administrator identity has been successfully established in the identity provider." 
+                : "A platform identity already exists for this email. Venue assignments have been synchronized."}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 pt-4">
@@ -1085,19 +1093,19 @@ export default function KOOPAdminPage() {
             <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 space-y-2">
               <div className="flex items-center gap-2 text-blue-700">
                 <Mail className="h-4 w-4" />
-                <p className="text-[10px] font-black uppercase tracking-wider">Communication Note</p>
+                <p className="text-[10px] font-black uppercase tracking-wider">Operational Note</p>
               </div>
               <p className="text-[11px] text-blue-800 leading-relaxed font-medium">
                 {provisionResult?.status === 'created' 
-                  ? "We recommend sending a reset link immediately to verify the user's inbox."
-                  : "Since the account already exists, the password was NOT changed. Use the reset link if they forgotten their key."}
+                  ? "We recommend sending a reset link immediately to verify the user's access to their inbox."
+                  : "Because the identity already exists, the existing password was preserved. Use the reset tool if the user requires a new key."}
               </p>
             </div>
             <Button 
               className="w-full h-12 gap-2 font-bold uppercase tracking-widest"
               onClick={() => {
                 navigator.clipboard.writeText(`KOOP Staff Access\nEmail: ${provisionResult?.email}\nTemporary Key: ${provisionResult?.key}\nLogin: ${window.location.origin}/login`);
-                toast({ title: "Copied to clipboard" });
+                toast({ title: "Access Memo Copied" });
               }}
             >
               <Copy className="h-4 w-4" /> Copy Access Memo
