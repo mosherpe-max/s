@@ -16,7 +16,8 @@ import {
   Target,
   Users,
   LogIn,
-  User as UserIcon
+  User as UserIcon,
+  KeyRound
 } from 'lucide-react';
 import { useCart } from '@/lib/cart-context';
 import { useState, useEffect, useMemo } from 'react';
@@ -159,6 +160,11 @@ export function AppHeader() {
         ) : (
           <>
             <p className={labelClass}>Platform</p>
+            <Link href="/login" onClick={() => setIsMobileMenuOpen(false)} className={cn(itemClass, "bg-indigo-50 border-indigo-100 mb-2")}>
+              <KeyRound className="h-5 w-5 text-indigo-600" />
+              <span className="font-black text-xs uppercase tracking-widest text-indigo-700">Admin Login</span>
+              <ChevronRight className="ml-auto h-4 w-4 text-indigo-300" />
+            </Link>
             <Link href="/admin" onClick={() => setIsMobileMenuOpen(false)} className={itemClass}>
               <ShieldCheck className="h-5 w-5 text-primary" />
               <span className="font-black text-xs uppercase tracking-widest">KOOP ADMIN</span>
