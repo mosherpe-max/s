@@ -18,8 +18,8 @@ import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
-import { format } from 'date-fns';
 import { isStaffSessionStale } from '@/lib/utils';
+import { StylizedKoopLogo } from '@/components/header';
 
 type LatLng = {
   latitude: number;
@@ -56,7 +56,6 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
   const isBevCartActive = primarySeller?.bevcartActive === true;
   const thresholds = primarySeller?.orderThresholds?.['Beverage Cart'] || { warning: 7, max: 10 };
 
-  // Request Notification Permission
   useEffect(() => {
     if ('Notification' in window && Notification.permission === 'default') {
       Notification.requestPermission();
@@ -75,7 +74,6 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
     }
   };
 
-  // Persistence: Wake Lock Management
   useEffect(() => {
     const requestWakeLock = async () => {
       if ('wakeLock' in navigator && isBevCartActive && !wakeLockRef.current) {
@@ -105,7 +103,6 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
     };
   }, [isBevCartActive]);
 
-  // 4 AM EST Auto-Reset Logic
   useEffect(() => {
     if (primarySeller && isBevCartActive && primarySeller.lastActive) {
       const lastActiveDate = primarySeller.lastActive.toDate();
@@ -145,7 +142,7 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
         title: (
           <div className="flex items-center gap-2">
             <Bell className="h-5 w-5 text-primary animate-bounce" />
-            <span className="font-headline font-bold text-lg text-primary uppercase">NEW ORDER RECEIVED!</span>
+            <span className="font-headline font-black text-lg text-primary uppercase">NEW ORDER RECEIVED!</span>
           </div>
         ),
         description: `You have ${newOrders.length} new order(s).`,
@@ -175,7 +172,7 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
           title: (
             <div className="flex items-center gap-2 text-white">
               <Clock className="h-5 w-5 animate-pulse" />
-              <span className="font-headline font-bold text-lg uppercase">MAX DURATION REACHED!</span>
+              <span className="font-headline font-black text-lg uppercase">MAX DURATION REACHED!</span>
             </div>
           ),
           description: `Order for ${o.customerName} has reached ${thresholds.max} minutes.`,
@@ -193,9 +190,7 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
 
   useEffect(() => {
     setNow(Date.now());
-    const interval = setInterval(() => {
-      setNow(Date.now());
-    }, 10000);
+    const interval = setInterval(() => setNow(Date.now()), 10000);
     return () => clearInterval(interval);
   }, []);
 
@@ -212,14 +207,8 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
             longitude: position.coords.longitude,
           });
         },
-        () => {
-          setSellerLocation(mockSellerLocation);
-        },
-        {
-          enableHighAccuracy: true,
-          timeout: 5000,
-          maximumAge: 60000,
-        }
+        () => setSellerLocation(mockSellerLocation),
+        { enableHighAccuracy: true, timeout: 5000, maximumAge: 60000 }
       );
       return () => navigator.geolocation.clearWatch(watchId);
     } else {
@@ -249,20 +238,16 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
     if (!firestore) return;
     const orderRef = doc(firestore, 'orders', orderId);
     const updates: any = { status };
-    if (driverId) {
-        updates.assignedDriverId = driverId;
-    }
-    if (status === 'Delivered') {
-      updates.deliveredAt = serverTimestamp();
-    }
-    updateDoc(orderRef, updates)
-      .catch(async () => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-          path: orderRef.path,
-          operation: 'update',
-          requestResourceData: updates
-        }));
-      });
+    if (driverId) updates.assignedDriverId = driverId;
+    if (status === 'Delivered') updates.deliveredAt = serverTimestamp();
+    
+    updateDoc(orderRef, updates).catch(async () => {
+      errorEmitter.emit('permission-error', new FirestorePermissionError({
+        path: orderRef.path,
+        operation: 'update',
+        requestResourceData: updates
+      }));
+    });
   };
 
   const handleHandoff = (orderId: string, targetDriverId: string) => {
@@ -270,20 +255,15 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
     const orderRef = doc(firestore, 'orders', orderId);
     const updates = { assignedDriverId: targetDriverId };
     
-    updateDoc(orderRef, updates)
-      .then(() => {
-        toast({
-          title: "Order Handed Off",
-          description: "Responsibility for the order has been transferred.",
-        });
-      })
-      .catch(async () => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-          path: orderRef.path,
-          operation: 'update',
-          requestResourceData: updates
-        }));
-      });
+    updateDoc(orderRef, updates).then(() => {
+      toast({ title: "Order Handed Off" });
+    }).catch(async () => {
+      errorEmitter.emit('permission-error', new FirestorePermissionError({
+        path: orderRef.path,
+        operation: 'update',
+        requestResourceData: updates
+      }));
+    });
   };
 
   const handleToggleActive = (checked: boolean) => {
@@ -293,30 +273,25 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
       bevcartActive: checked,
       lastActive: checked ? serverTimestamp() : null
     };
-    updateDoc(sellerDocRef, updates)
-      .catch(async () => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-          path: sellerDocRef.path,
-          operation: 'update',
-          requestResourceData: updates
-        }));
-      });
+    updateDoc(sellerDocRef, updates).catch(async () => {
+      errorEmitter.emit('permission-error', new FirestorePermissionError({
+        path: sellerDocRef.path,
+        operation: 'update',
+        requestResourceData: updates
+      }));
+    });
   };
 
   const otherActiveDrivers = useMemo(() => {
     if (!activeSellers || !now) return [];
-    const threshold = 120000; // 2 minutes heartbeat
+    const threshold = 120000;
     return activeSellers
         .filter(s => {
             if (s.id === sellerId) return false;
             if (!s.lastActive) return false;
-            const lastActiveTime = s.lastActive.toDate().getTime();
-            return (now - lastActiveTime) < threshold;
+            return (now - s.lastActive.toDate().getTime()) < threshold;
         })
-        .map(s => ({
-            id: s.id,
-            name: s.courseName
-        }));
+        .map(s => ({ id: s.id, name: s.courseName }));
   }, [activeSellers, now, sellerId]);
 
   const mappedSellers = useMemo(() => {
@@ -335,28 +310,13 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
     return driverOrders.map(o => {
       let colorClass = "bg-green-600";
       if (o.createdAt) {
-        const orderTime = o.createdAt.toDate().getTime();
-        const minutesElapsed = (now - orderTime) / (1000 * 60);
-        if (minutesElapsed >= thresholds.max) {
-          colorClass = "bg-red-600";
-        } else if (minutesElapsed >= thresholds.warning) {
-          colorClass = "bg-yellow-500";
-        }
+        const minutesElapsed = (now - o.createdAt.toDate().getTime()) / 60000;
+        if (minutesElapsed >= thresholds.max) colorClass = "bg-red-600";
+        else if (minutesElapsed >= thresholds.warning) colorClass = "bg-yellow-500";
       }
-      return {
-        id: o.id,
-        name: o.customerName,
-        location: o.deliveryLocation,
-        colorClass,
-        assignedDriverId: o.assignedDriverId
-      };
+      return { id: o.id, name: o.customerName, location: o.deliveryLocation, colorClass, assignedDriverId: o.assignedDriverId };
     });
   }, [driverOrders, now, thresholds]);
-
-  const handleFocusClick = () => {
-    setZoomMode(current => (current === 'radius' ? 'all' : 'radius'));
-    setFitTrigger(prev => prev + 1);
-  };
 
   const isLoading = areActiveOrdersLoading || isPrimaryLoading || areSellersLoading;
 
@@ -364,9 +324,9 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
       return (
           <div className="flex flex-col items-center justify-center h-screen p-8 text-center space-y-6 text-muted-foreground">
               <AlertCircle className="h-16 w-16 opacity-20" />
-              <h1 className="text-2xl font-headline font-bold uppercase">KOOP BEVCART DRIVER INTERFACE</h1>
+              <h1 className="text-2xl font-headline font-black uppercase">BEVCART DRIVER INTERFACE</h1>
               <p className="max-w-sm">Initialize your seller profile to access BevCart driver tools.</p>
-              <Button asChild><Link href={`/sellers/${sellerId}`}>Initialize BevCart Driver Profile</Link></Button>
+              <Button asChild><Link href={`/sellers/${sellerId}`}>Initialize Profile</Link></Button>
           </div>
       );
   }
@@ -375,25 +335,28 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
     <APIProvider apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!}>
       <div className="flex flex-col h-screen overflow-hidden bg-muted/20">
         <header className="flex-shrink-0 px-4 h-16 flex items-center justify-between border-b-2 border-[#E50000] bg-[#213147] z-20 shadow-sm">
-          <div className="flex flex-col min-w-0 flex-1 mr-4">
-            <h1 className="font-headline text-sm sm:text-base md:text-xl font-bold text-white uppercase tracking-tight truncate">
-              BEVCART DRIVER DASHBOARD
-            </h1>
-            <span className="text-[9px] sm:text-[10px] uppercase font-bold text-white/60 tracking-widest leading-none truncate">
-              BEVCART: {primarySeller?.courseName || 'Loading...'}
-            </span>
+          <div className="flex items-center gap-4 min-w-0 flex-1 mr-4">
+            <StylizedKoopLogo size="sm" />
+            <div className="flex flex-col min-w-0 border-l border-white/10 pl-4">
+              <h1 className="font-headline text-[10px] sm:text-xs font-black text-white uppercase tracking-tight truncate leading-tight">
+                BEVCART DASHBOARD
+              </h1>
+              <span className="text-[8px] uppercase font-black text-white/40 tracking-widest leading-none truncate">
+                {primarySeller?.courseName || 'Loading...'}
+              </span>
+            </div>
           </div>
           <div className="flex items-center space-x-3 shrink-0">
-            <Switch id="active-mode" checked={isBevCartActive} onCheckedChange={handleToggleActive} className="data-[state=checked]:bg-green-600" />
-            <Label htmlFor="active-mode" className="text-[10px] sm:text-sm font-semibold whitespace-nowrap text-white uppercase">
-              {isBevCartActive ? 'ACTIVE' : 'INACTIVE'}
+            <Switch id="active-mode" checked={isBevCartActive} onCheckedChange={handleToggleActive} className="data-[state=checked]:bg-green-600 shadow-lg" />
+            <Label htmlFor="active-mode" className="text-[10px] sm:text-xs font-black whitespace-nowrap text-white uppercase tracking-widest">
+              {isBevCartActive ? 'ACTIVE' : 'OFFLINE'}
             </Label>
           </div>
         </header>
 
         <div className="flex-1 flex flex-col md:flex-row overflow-hidden min-h-0 p-4 gap-4">
           <div className="relative w-full md:w-2/3 h-[40vh] md:h-full bg-muted shrink-0 md:shrink rounded-xl overflow-hidden border-2 shadow-sm">
-           <Button variant="outline" size="icon" className="absolute top-2 right-2 z-10 bg-background/80 hover:bg-background h-8 w-8" onClick={handleFocusClick}><Focus className="h-4 w-4" /></Button>
+           <Button variant="outline" size="icon" className="absolute top-2 right-2 z-10 bg-background/80 hover:bg-background h-8 w-8" onClick={() => setFitTrigger(p => p + 1)}><Focus className="h-4 w-4" /></Button>
             {sellerLocation ? (
               <MapView 
                 sellerLocation={sellerLocation} 
@@ -408,9 +371,9 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
             ) : <Skeleton className="w-full h-full" />}
           </div>
           <div className="w-full md:w-1/3 flex flex-col bg-background border-2 rounded-xl overflow-hidden min-h-0 shadow-sm">
-            <h2 className="font-headline text-base font-semibold px-4 pt-3 pb-2 shrink-0 border-b flex items-center justify-between uppercase bg-muted/10">
-              <span className="truncate mr-2">Your Active Orders</span>
-              <span className="bg-[#E50000] text-white text-[10px] rounded-full px-2 py-0.5 shrink-0">{driverOrders.length}</span>
+            <h2 className="font-headline text-sm font-black px-4 pt-3 pb-2 shrink-0 border-b flex items-center justify-between uppercase bg-muted/10 tracking-widest">
+              <span className="truncate mr-2">Assigned Orders</span>
+              <span className="bg-[#E50000] text-white text-[10px] font-black rounded-full px-2 py-0.5 shrink-0">{driverOrders.length}</span>
             </h2>
             <ScrollArea className="flex-1 w-full px-2">
               <div className="py-2.5 space-y-3 pb-12">
@@ -419,7 +382,7 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
                 ) : driverOrders.length === 0 ? (
                   <div className="flex flex-col items-center justify-center text-muted-foreground py-20 text-center px-4">
                     <Package className="h-10 w-10 opacity-20 mb-2" />
-                    <p className="italic text-sm">No active BevCart orders.</p>
+                    <p className="italic text-xs font-black uppercase tracking-widest opacity-40">No active orders</p>
                   </div>
                 ) : (
                   driverOrders.map((order, index) => (

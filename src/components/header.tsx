@@ -1,4 +1,3 @@
-
 'use client';
 
 import Link from 'next/link';
@@ -41,17 +40,30 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn, SUPER_ADMIN_ID } from '@/lib/utils';
 
-const KoopLogo = () => (
-  <Link href="/" className="flex items-center transition-opacity hover:opacity-90 shrink-0">
-    <div className="flex items-center gap-0.5 font-headline font-black text-2xl tracking-tighter text-white">
+export const StylizedKoopLogo = ({ size = 'md', className = "" }: { size?: 'sm' | 'md' | 'lg', className?: string }) => {
+  const sizes = {
+    sm: { text: 'text-lg', icon: 'w-4 h-4', ring1: 'border-[1.5px]', ring2: 'w-[8px] h-[10px] border-[1.2px]', dot: 'w-[2.5px] h-[2.5px]', gap: 'gap-0.5' },
+    md: { text: 'text-2xl', icon: 'w-6 h-6', ring1: 'border-[2.5px]', ring2: 'w-[12px] h-[14px] border-[2px]', dot: 'w-[4px] h-[4px]', gap: 'gap-0.5' },
+    lg: { text: 'text-3xl', icon: 'w-8 h-8', ring1: 'border-[3px]', ring2: 'w-[16px] h-[18px] border-[2.5px]', dot: 'w-[5px] h-[5px]', gap: 'gap-0.5' }
+  };
+  const s = sizes[size];
+  
+  return (
+    <div className={cn("flex items-center font-headline font-black tracking-tighter text-white", s.gap, s.text, className)}>
       <span>KO</span>
-      <div className="relative flex items-center justify-center w-6 h-6 mx-0.5">
-        <div className="absolute inset-0 border-[2.5px] border-red-600 rounded-full"></div>
-        <div className="absolute w-[12px] h-[14px] border-[2px] border-red-600 rounded-full"></div>
-        <div className="w-[4px] h-[4px] bg-red-600 rounded-full"></div>
+      <div className={cn("relative flex items-center justify-center mx-0.5", s.icon)}>
+        <div className={cn("absolute inset-0 border-red-600 rounded-full", s.ring1)}></div>
+        <div className={cn("absolute border-red-600 rounded-full", s.ring2)}></div>
+        <div className={cn("bg-red-600 rounded-full", s.dot)}></div>
       </div>
       <span>P</span>
     </div>
+  );
+};
+
+const KoopLogoLink = () => (
+  <Link href="/" className="flex items-center transition-opacity hover:opacity-90 shrink-0">
+    <StylizedKoopLogo size="md" />
   </Link>
 );
 
@@ -104,221 +116,106 @@ export function AppHeader() {
   const showServiceSubtext = (isBuyerView || isTrackingPage) && !isDriverPage;
   const activeMenuType = menuTypeParam || order?.menuType;
 
-  const isHomePage = pathname === '/';
-  const isKoopAdmin = pathname === '/admin';
-  const isSalesCrm = pathname === '/sales';
-  const showHamburger = true; // Always show hamburger for navigation accessibility
-
   if (isDriverPage) return null;
 
   const NavigationLinks = ({ mobile = false }: { mobile?: boolean }) => {
     const itemClass = mobile 
       ? "flex items-center gap-3 py-3 px-4 hover:bg-muted/50 rounded-lg transition-colors border-b last:border-0"
-      : "flex items-center gap-2 cursor-pointer py-2 w-full";
+      : "flex items-center gap-2 cursor-pointer py-2 w-full text-foreground hover:text-primary transition-colors";
     
     const labelClass = mobile
       ? "text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground mt-6 mb-2 px-4"
       : "text-[10px] font-bold uppercase tracking-widest text-muted-foreground";
 
     return (
-      <div className={mobile ? "flex flex-col pb-10" : ""}>
-        {/* AUTH SECTION */}
-        {mobile && <p className={labelClass}>Account</p>}
-        <Link 
-          href="/login" 
-          onClick={() => setIsMobileMenuOpen(false)} 
-          className={cn(itemClass, !mobile && "hidden")}
-        >
-          {user ? (
-            <>
-              <UserIcon className="h-5 w-5 text-green-600" />
-              <div className="flex flex-col">
-                <span className="font-bold text-sm uppercase tracking-tight">Account Settings</span>
-                <span className="text-[10px] text-muted-foreground truncate max-w-[200px]">{user.email || 'Guest Session'}</span>
-              </div>
-            </>
-          ) : (
-            <>
-              <LogIn className="h-5 w-5 text-primary" />
-              <span className="font-bold text-sm uppercase tracking-tight">Login / Authenticate</span>
-            </>
-          )}
-          <ChevronRight className="ml-auto h-4 w-4 text-muted-foreground/30" />
-        </Link>
-
+      <div className={mobile ? "flex flex-col pb-10" : "flex items-center gap-1"}>
         {/* PLATFORM ADMIN */}
-        {mobile && <p className={labelClass}>Platform</p>}
         {!mobile ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="text-white hover:bg-white/10 text-[10px] font-headline font-bold uppercase tracking-wider px-3 h-9">
-                Platform <ChevronDown className="ml-1 h-3 w-3" />
+              <Button variant="ghost" size="sm" className="text-white hover:bg-white/10 text-[10px] font-headline font-black uppercase tracking-wider px-3 h-9">
+                Platform <ChevronDown className="ml-1 h-3 w-3 opacity-50" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
+            <DropdownMenuContent align="end" className="w-48 shadow-xl border-2">
               <DropdownMenuLabel className={labelClass}>Internal Tools</DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem asChild>
                 <Link href="/admin" className={itemClass}>
                   <ShieldCheck className="h-4 w-4 text-primary" />
-                  <span className="font-bold text-xs uppercase tracking-tight">KOOP ADMIN</span>
+                  <span className="font-black text-[10px] uppercase tracking-widest">KOOP ADMIN</span>
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
                 <Link href="/sales" className={itemClass}>
                   <Target className="h-4 w-4 text-indigo-600" />
-                  <span className="font-bold text-xs uppercase tracking-tight">SALES CRM</span>
+                  <span className="font-black text-[10px] uppercase tracking-widest">SALES CRM</span>
                 </Link>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         ) : (
           <>
+            <p className={labelClass}>Platform</p>
             <Link href="/admin" onClick={() => setIsMobileMenuOpen(false)} className={itemClass}>
               <ShieldCheck className="h-5 w-5 text-primary" />
-              <span className="font-bold text-sm uppercase tracking-tight">KOOP ADMIN</span>
+              <span className="font-black text-xs uppercase tracking-widest">KOOP ADMIN</span>
               <ChevronRight className="ml-auto h-4 w-4 text-muted-foreground/30" />
             </Link>
             <Link href="/sales" onClick={() => setIsMobileMenuOpen(false)} className={itemClass}>
               <Target className="h-5 w-5 text-indigo-600" />
-              <span className="font-bold text-sm uppercase tracking-tight">SALES CRM</span>
-              <ChevronRight className="ml-auto h-4 w-4 text-muted-foreground/30" />
-            </Link>
-          </>
-        )}
-
-        {/* MANAGE SELLERS */}
-        {mobile && <p className={labelClass}>Seller Portals</p>}
-        {!mobile ? (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="text-white hover:bg-white/10 text-[10px] font-headline font-bold uppercase tracking-wider px-3 h-9">
-                Sellers <ChevronDown className="ml-1 h-3 w-3" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-64">
-              <DropdownMenuLabel className={labelClass}>Seller Admin Access</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem asChild>
-                <Link href="/sellers/demo-course" className={itemClass}>
-                  <Building className="h-4 w-4 text-indigo-600" />
-                  <div className="flex flex-col">
-                    <span className="font-bold text-xs uppercase tracking-tight">Public GC Admin</span>
-                    <span className="text-[9px] text-muted-foreground">demo-course</span>
-                  </div>
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link href="/sellers/demo-bowling-alley" className={itemClass}>
-                  <Store className="h-4 w-4 text-indigo-600" />
-                  <div className="flex flex-col">
-                    <span className="font-bold text-xs uppercase tracking-tight">Bowling Admin</span>
-                    <span className="text-[9px] text-muted-foreground">demo-bowling-alley</span>
-                  </div>
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link href="/sellers/demo-golf-course-private" className={itemClass}>
-                  <Building className="h-4 w-4 text-indigo-600" />
-                  <div className="flex flex-col">
-                    <span className="font-bold text-xs uppercase tracking-tight">Private Club Admin</span>
-                    <span className="text-[9px] text-muted-foreground">demo-private</span>
-                  </div>
-                </Link>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        ) : (
-          <>
-            <Link href="/sellers/demo-course" onClick={() => setIsMobileMenuOpen(false)} className={itemClass}>
-              <Building className="h-5 w-5 text-indigo-600" />
-              <span className="font-bold text-sm uppercase tracking-tight">Public GC Admin</span>
-              <ChevronRight className="ml-auto h-4 w-4 text-muted-foreground/30" />
-            </Link>
-            <Link href="/sellers/demo-bowling-alley" onClick={() => setIsMobileMenuOpen(false)} className={itemClass}>
-              <Store className="h-5 w-5 text-indigo-600" />
-              <span className="font-bold text-sm uppercase tracking-tight">Bowling Admin</span>
-              <ChevronRight className="ml-auto h-4 w-4 text-muted-foreground/30" />
-            </Link>
-            <Link href="/sellers/demo-golf-course-private" onClick={() => setIsMobileMenuOpen(false)} className={itemClass}>
-              <Building className="h-5 w-5 text-indigo-600" />
-              <span className="font-bold text-sm uppercase tracking-tight">Private Club Admin</span>
+              <span className="font-black text-xs uppercase tracking-widest">SALES CRM</span>
               <ChevronRight className="ml-auto h-4 w-4 text-muted-foreground/30" />
             </Link>
           </>
         )}
 
         {/* STAFF VIEWS */}
-        {mobile && <p className={labelClass}>Staff Interfaces</p>}
         {!mobile ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="text-white hover:bg-white/10 text-[10px] font-headline font-bold uppercase tracking-wider px-3 h-9">
-                Staff <ChevronDown className="ml-1 h-3 w-3" />
+              <Button variant="ghost" size="sm" className="text-white hover:bg-white/10 text-[10px] font-headline font-black uppercase tracking-wider px-3 h-9">
+                Staff <ChevronDown className="ml-1 h-3 w-3 opacity-50" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-64">
-              <DropdownMenuLabel className={labelClass}>Public GC & Bowling</DropdownMenuLabel>
+            <DropdownMenuContent align="end" className="w-64 shadow-xl border-2">
+              <DropdownMenuLabel className={labelClass}>Service Interfaces</DropdownMenuLabel>
               <DropdownMenuItem asChild>
                 <Link href="/sellers/demo-course/bevcart" className={itemClass}>
                   <Truck className="h-4 w-4 text-primary" />
-                  <span className="font-bold text-xs uppercase tracking-tight">Public BevCart Driver</span>
+                  <span className="font-black text-[10px] uppercase tracking-widest">Public BevCart</span>
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
                 <Link href="/sellers/demo-course/clubhouse" className={itemClass}>
                   <LayoutDashboard className="h-4 w-4 text-primary" />
-                  <span className="font-bold text-xs uppercase tracking-tight">Public Clubhouse Portal</span>
+                  <span className="font-black text-[10px] uppercase tracking-widest">Public Clubhouse</span>
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
                 <Link href="/sellers/demo-bowling-alley/laneside" className={itemClass}>
                   <Users className="h-4 w-4 text-primary" />
-                  <span className="font-bold text-xs uppercase tracking-tight">Laneside Server</span>
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuLabel className={labelClass}>Private Club Demo</DropdownMenuLabel>
-              <DropdownMenuItem asChild>
-                <Link href="/sellers/demo-golf-course-private/bevcart" className={itemClass}>
-                  <Truck className="h-4 w-4 text-primary" />
-                  <span className="font-bold text-xs uppercase tracking-tight">Private BevCart Driver</span>
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link href="/sellers/demo-golf-course-private/clubhouse" className={itemClass}>
-                  <LayoutDashboard className="h-4 w-4 text-primary" />
-                  <span className="font-bold text-xs uppercase tracking-tight">Private Clubhouse Driver</span>
+                  <span className="font-black text-[10px] uppercase tracking-widest">Laneside Server</span>
                 </Link>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         ) : (
           <>
+            <p className={labelClass}>Staff Interfaces</p>
             <Link href="/sellers/demo-course/bevcart" onClick={() => setIsMobileMenuOpen(false)} className={itemClass}>
               <Truck className="h-5 w-5 text-primary" />
-              <span className="font-bold text-sm uppercase tracking-tight">Public BevCart Driver</span>
+              <span className="font-black text-xs uppercase tracking-widest">Public BevCart</span>
               <ChevronRight className="ml-auto h-4 w-4 text-muted-foreground/30" />
             </Link>
             <Link href="/sellers/demo-course/clubhouse" onClick={() => setIsMobileMenuOpen(false)} className={itemClass}>
               <LayoutDashboard className="h-5 w-5 text-primary" />
-              <span className="font-bold text-sm uppercase tracking-tight">Public Clubhouse Portal</span>
+              <span className="font-black text-xs uppercase tracking-widest">Public Clubhouse</span>
               <ChevronRight className="ml-auto h-4 w-4 text-muted-foreground/30" />
             </Link>
             <Link href="/sellers/demo-bowling-alley/laneside" onClick={() => setIsMobileMenuOpen(false)} className={itemClass}>
               <Users className="h-5 w-5 text-primary" />
-              <span className="font-bold text-sm uppercase tracking-tight">Laneside Server</span>
-              <ChevronRight className="ml-auto h-4 w-4 text-muted-foreground/30" />
-            </Link>
-            <div className="h-4" />
-            <Link href="/sellers/demo-golf-course-private/bevcart" onClick={() => setIsMobileMenuOpen(false)} className={itemClass}>
-              <Truck className="h-5 w-5 text-primary" />
-              <span className="font-bold text-sm uppercase tracking-tight">Private BevCart Driver</span>
-              <ChevronRight className="ml-auto h-4 w-4 text-muted-foreground/30" />
-            </Link>
-            <Link href="/sellers/demo-golf-course-private/clubhouse" onClick={() => setIsMobileMenuOpen(false)} className={itemClass}>
-              <LayoutDashboard className="h-5 w-5 text-primary" />
-              <span className="font-bold text-sm uppercase tracking-tight">Private Clubhouse Driver</span>
+              <span className="font-black text-xs uppercase tracking-widest">Laneside Server</span>
               <ChevronRight className="ml-auto h-4 w-4 text-muted-foreground/30" />
             </Link>
           </>
@@ -330,75 +227,71 @@ export function AppHeader() {
   return (
     <header className="sticky top-0 z-40 bg-[#213147] border-b-2 border-[#E50000] shadow-md">
       <div className="container mx-auto flex h-16 items-center justify-between px-4">
-        <div className="flex items-center min-w-0">
-          {showServiceSubtext && seller ? (
-            <div className="flex flex-col min-w-0">
-               <span className="font-headline text-sm sm:text-base font-bold text-white uppercase tracking-tight truncate leading-tight">
-                {seller.courseName}
-              </span>
-              {activeMenuType && (
-                <span className="text-[9px] sm:text-[10px] font-black text-white/60 uppercase tracking-widest leading-none">
-                  {activeMenuType} Menu
+        <div className="flex items-center gap-4 min-w-0">
+          <KoopLogoLink />
+          
+          {isMounted && showServiceSubtext && seller && (
+            <div className="hidden sm:flex items-center gap-3 pl-4 border-l border-white/10 min-w-0">
+              <div className="flex flex-col min-w-0">
+                <span className="font-headline text-xs font-black text-white uppercase tracking-tight truncate leading-tight">
+                  {seller.courseName}
                 </span>
-              )}
+                {activeMenuType && (
+                  <span className="text-[9px] font-black text-white/40 uppercase tracking-widest leading-none">
+                    {activeMenuType}
+                  </span>
+                )}
+              </div>
             </div>
-          ) : (
-            <KoopLogo />
           )}
         </div>
         
         <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-          {isMounted && isBuyerView && !isTrackingPage ? (
+          {isMounted && isBuyerView && !isTrackingPage && (
             <Button 
               variant="outline" 
-              className="flex items-center gap-2 h-10 px-3 sm:px-4 border-white/20 text-white hover:bg-white/10 hover:text-white bg-transparent rounded-full"
+              className="flex items-center gap-2 h-10 px-3 sm:px-4 border-white/20 text-white hover:bg-white/10 hover:text-white bg-transparent rounded-full transition-all"
               onClick={() => setIsCartOpen(true)}
             >
               <div className="flex flex-col items-end leading-none mr-1 hidden sm:flex">
-                <span className="text-[9px] uppercase font-bold text-white/50 tracking-widest">My Order</span>
-                <span className="text-sm font-mono font-bold text-white">${total.toFixed(2)}</span>
+                <span className="text-[9px] uppercase font-black text-white/50 tracking-widest">Order</span>
+                <span className="text-sm font-mono font-black text-white">${total.toFixed(2)}</span>
               </div>
               <div className="relative">
                 <ShoppingCart className="h-5 w-5 text-white" />
                 {totalItems > 0 && (
-                  <span className="absolute -top-2 -right-2 bg-red-600 text-white text-[9px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
+                  <span className="absolute -top-2 -right-2 bg-red-600 text-white text-[9px] font-black rounded-full w-4 h-4 flex items-center justify-center shadow-lg">
                     {totalItems}
                   </span>
                 )}
               </div>
             </Button>
-          ) : null}
+          )}
 
           {isMounted && (
             <div className="hidden lg:flex items-center gap-2">
               <NavigationLinks />
-              {user ? (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" className="h-9 w-9 rounded-full border-white/20 bg-transparent text-white p-0">
-                      <UserIcon className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">My Session</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem asChild>
-                      <Link href="/login" className="flex items-center gap-2">
-                        <UserIcon className="h-4 w-4" />
-                        <span className="text-xs font-bold uppercase">Account</span>
-                      </Link>
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              ) : (
-                <Button asChild variant="outline" size="sm" className="h-9 px-4 border-white/20 bg-transparent text-white hover:bg-white/10 rounded-full font-headline font-bold uppercase text-[10px] tracking-widest">
-                  <Link href="/login">Login</Link>
-                </Button>
-              )}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="h-9 w-9 rounded-full border-white/20 bg-transparent text-white p-0 hover:bg-white/10">
+                    <UserIcon className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48 shadow-xl border-2">
+                  <DropdownMenuLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Account</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link href="/login" className="flex items-center gap-3 py-2 cursor-pointer font-black text-[10px] uppercase tracking-widest">
+                      <UserIcon className="h-4 w-4 text-primary" />
+                      <span>{user ? 'Manage Profile' : 'Login / Register'}</span>
+                    </Link>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           )}
 
-          {isMounted && showHamburger && (
+          {isMounted && (
             <div className="lg:hidden">
               <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
                 <SheetTrigger asChild>
@@ -406,17 +299,26 @@ export function AppHeader() {
                     <Menu className="h-6 w-6" />
                   </Button>
                 </SheetTrigger>
-                <SheetContent side="right" className="w-[300px] sm:w-[350px] p-0 border-l-2 border-primary">
-                  <SheetHeader className="px-6 py-6 border-b bg-[#213147] text-white">
+                <SheetContent side="right" className="w-[300px] sm:w-[350px] p-0 border-l-2 border-[#E50000] bg-background">
+                  <SheetHeader className="px-6 py-8 border-b bg-[#213147] text-white">
                     <div className="flex justify-center">
-                      <KoopLogo />
+                      <StylizedKoopLogo size="lg" />
                     </div>
-                    <SheetTitle className="text-center text-[10px] uppercase font-bold tracking-[0.3em] text-white/60 mt-4">
-                      PLATFORM NAVIGATION
+                    <SheetTitle className="text-center text-[10px] uppercase font-black tracking-[0.3em] text-white/40 mt-4">
+                      PLATFORM NAV
                     </SheetTitle>
                   </SheetHeader>
-                  <ScrollArea className="h-[calc(100vh-140px)]">
+                  <ScrollArea className="h-[calc(100vh-160px)]">
                     <NavigationLinks mobile />
+                    <div className="p-4 border-t mt-4">
+                      <Link href="/login" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-3 py-3 px-4 bg-muted/50 rounded-xl">
+                        <UserIcon className="h-5 w-5 text-primary" />
+                        <div className="flex flex-col">
+                          <span className="font-black text-xs uppercase tracking-widest">{user ? 'Account Settings' : 'Authentication'}</span>
+                          <span className="text-[10px] text-muted-foreground truncate max-w-[180px]">{user?.email || 'Guest Session'}</span>
+                        </div>
+                      </Link>
+                    </div>
                   </ScrollArea>
                 </SheetContent>
               </Sheet>
