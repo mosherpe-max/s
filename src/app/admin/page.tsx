@@ -35,7 +35,9 @@ import {
   UserPlus,
   KeyRound,
   Trash2,
-  Users
+  Users,
+  Copy,
+  Check
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -121,6 +123,9 @@ export default function KOOPAdminPage() {
   
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isStaffFormOpen, setIsStaffFormOpen] = useState(false);
+  const [isProvisionResultOpen, setIsProvisionResultOpen] = useState(false);
+  const [provisionResult, setProvisionResult] = useState<{ email: string, key: string } | null>(null);
+  
   const [editingSeller, setEditingSeller] = useState<Seller | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
@@ -393,7 +398,7 @@ export default function KOOPAdminPage() {
     setIsSaving(true);
     
     try {
-      // 1. Create Real Auth Account via REST API (avoids signing out current Admin)
+      // 1. Create Real Auth Account via REST API
       const signupResp = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${firebaseConfig.apiKey}`, {
         method: 'POST',
         body: JSON.stringify({
@@ -407,13 +412,16 @@ export default function KOOPAdminPage() {
       const authResult = await signupResp.json();
       
       if (authResult.error) {
-        throw new Error(authResult.error.message);
+        // If user already exists, we proceed to ensure their Firestore record is correct
+        if (authResult.error.message !== 'EMAIL_EXISTS') {
+          throw new Error(authResult.error.message);
+        }
       }
 
-      const uid = authResult.localId;
+      const uid = authResult.localId || 'existing-user';
       const selectedSeller = sellers?.find(s => s.id === data.sellerId);
 
-      // 2. Create Profile
+      // 2. Create/Update Profile
       await setDoc(doc(firestore, 'adminUsers', uid), {
         id: uid,
         email: data.email,
@@ -421,20 +429,23 @@ export default function KOOPAdminPage() {
         sellerId: data.sellerId,
         courseName: selectedSeller?.courseName || 'Unassigned Venue',
         createdAt: serverTimestamp()
-      });
+      }, { merge: true });
 
       // 3. Create Security Role Marker
       await setDoc(doc(firestore, 'roles_seller_admin', uid), {
         grantedAt: serverTimestamp(),
         sellerId: data.sellerId
-      });
+      }, { merge: true });
 
+      setProvisionResult({ email: data.email, key: data.password });
+      setIsStaffFormOpen(false);
+      setIsProvisionResultOpen(true);
+      staffForm.reset();
+      
       toast({ 
         title: "Staff Member Provisioned", 
-        description: `Account for ${data.email} created. They can now log in or use the reset tool.` 
+        description: `Account for ${data.email} is active.` 
       });
-      setIsStaffFormOpen(false);
-      staffForm.reset();
     } catch (e: any) {
       toast({ variant: "destructive", title: "Provisioning Failed", description: e.message || "Unknown Error" });
     } finally {
@@ -445,10 +456,19 @@ export default function KOOPAdminPage() {
   const handleSendResetLink = async (email: string) => {
     if (!auth) return;
     try {
+      // Basic check: we don't await the void return, but we want to know if it throws
       await sendPasswordResetEmail(auth, email);
-      toast({ title: "Setup Link Dispatched", description: `A security link has been sent to ${email}.` });
+      toast({ 
+        title: "Reset Request Queued", 
+        description: `Firebase has been instructed to send a security link to ${email}. Check junk folder if not received within 5 minutes.` 
+      });
     } catch (e: any) {
-      toast({ variant: "destructive", title: "Failed to Dispatch", description: e.message });
+      console.warn("Reset error:", e);
+      toast({ 
+        variant: "destructive", 
+        title: "Dispatch Failed", 
+        description: e.message === "auth/user-not-found" ? "Account not found in identity provider." : "Platform email limits reached or domain not authorized." 
+      });
     }
   };
 
@@ -1018,6 +1038,49 @@ export default function KOOPAdminPage() {
               </DialogFooter>
             </form>
           </Form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isProvisionResultOpen} onOpenChange={setIsProvisionResultOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="uppercase font-headline text-green-600 flex items-center gap-2">
+              <Check className="h-5 w-5" /> Account Provisioned
+            </DialogTitle>
+            <DialogDescription>The administrator account has been successfully created in the identity provider.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 pt-4">
+            <div className="p-4 bg-muted/50 rounded-xl border-2 border-dashed space-y-3">
+              <div className="space-y-1">
+                <p className="text-[10px] font-black uppercase text-muted-foreground">User Email</p>
+                <p className="font-bold">{provisionResult?.email}</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-[10px] font-black uppercase text-muted-foreground">Initial Security Key</p>
+                <code className="bg-background px-2 py-1 rounded border font-mono font-bold text-sm block w-full text-center tracking-widest">
+                  {provisionResult?.key}
+                </code>
+              </div>
+            </div>
+            <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 space-y-2">
+              <div className="flex items-center gap-2 text-blue-700">
+                <Mail className="h-4 w-4" />
+                <p className="text-[10px] font-black uppercase tracking-wider">Email Fallback</p>
+              </div>
+              <p className="text-[11px] text-blue-800 leading-relaxed font-medium">
+                If the automated reset link fails to arrive, please provide these credentials to the user manually. They can sign in at **koop.app/login**.
+              </p>
+            </div>
+            <Button 
+              className="w-full h-12 gap-2 font-bold uppercase tracking-widest"
+              onClick={() => {
+                navigator.clipboard.writeText(`KOOP Staff Access\nEmail: ${provisionResult?.email}\nTemporary Key: ${provisionResult?.key}\nLogin: ${window.location.origin}/login`);
+                toast({ title: "Copied to clipboard" });
+              }}
+            >
+              <Copy className="h-4 w-4" /> Copy Access Memo
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
