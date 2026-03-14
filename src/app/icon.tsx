@@ -17,14 +17,15 @@ export default function Icon() {
       // ImageResponse JSX element
       <div
         style={{
-          fontSize: 24,
           background: '#213147',
           width: '100%',
           height: '100%',
           display: 'flex',
+          flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
           borderRadius: '20%',
+          padding: '2px',
         }}
       >
         <div
@@ -32,9 +33,10 @@ export default function Icon() {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            width: 20,
-            height: 20,
+            width: 18,
+            height: 18,
             position: 'relative',
+            marginTop: '2px',
           }}
         >
           {/* Outer Ring */}
@@ -42,7 +44,7 @@ export default function Icon() {
             style={{
               position: 'absolute',
               inset: 0,
-              border: '2px solid #E50000',
+              border: '3px solid #E50000',
               borderRadius: '50%',
             }}
           />
@@ -50,21 +52,32 @@ export default function Icon() {
           <div
             style={{
               position: 'absolute',
-              width: 12,
-              height: 12,
-              border: '1.5px solid #E50000',
+              width: 10,
+              height: 10,
+              border: '2px solid #E50000',
               borderRadius: '50%',
             }}
           />
           {/* Center Dot */}
           <div
             style={{
-              width: 4,
-              height: 4,
+              width: 3,
+              height: 3,
               background: '#E50000',
               borderRadius: '50%',
             }}
           />
+        </div>
+        <div 
+          style={{ 
+            color: 'white', 
+            fontSize: 8, 
+            fontWeight: 900, 
+            marginTop: '1px',
+            fontFamily: 'sans-serif'
+          }}
+        >
+          KOOP
         </div>
       </div>
     ),

@@ -21,8 +21,10 @@ export default function Icon() {
           width: '100%',
           height: '100%',
           display: 'flex',
+          flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
+          padding: '20px',
         }}
       >
         <div
@@ -30,9 +32,10 @@ export default function Icon() {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            width: 120,
-            height: 120,
+            width: 100,
+            height: 100,
             position: 'relative',
+            marginBottom: '10px',
           }}
         >
           {/* Outer Ring */}
@@ -40,7 +43,7 @@ export default function Icon() {
             style={{
               position: 'absolute',
               inset: 0,
-              border: '10px solid #E50000',
+              border: '14px solid #E50000',
               borderRadius: '50%',
             }}
           />
@@ -48,21 +51,32 @@ export default function Icon() {
           <div
             style={{
               position: 'absolute',
-              width: 70,
-              height: 70,
-              border: '8px solid #E50000',
+              width: 55,
+              height: 55,
+              border: '10px solid #E50000',
               borderRadius: '50%',
             }}
           />
           {/* Center Dot */}
           <div
             style={{
-              width: 24,
-              height: 24,
+              width: 18,
+              height: 18,
               background: '#E50000',
               borderRadius: '50%',
             }}
           />
+        </div>
+        <div 
+          style={{ 
+            color: 'white', 
+            fontSize: 38, 
+            fontWeight: 900, 
+            letterSpacing: '-0.05em',
+            fontFamily: 'sans-serif'
+          }}
+        >
+          KOOP
         </div>
       </div>
     ),
