@@ -4,6 +4,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { collection, doc, setDoc, getDocs, writeBatch, serverTimestamp, query, deleteDoc } from 'firebase/firestore';
 import { sendPasswordResetEmail } from 'firebase/auth';
 import { useFirestore, useCollection, useMemoFirebase, useUser, useAuth } from '@/firebase';
+import { firebaseConfig } from '@/firebase/config';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { 
@@ -79,6 +80,7 @@ type SellerFormData = z.infer<typeof sellerSchema>;
 
 const staffSchema = z.object({
   email: z.string().email('Valid email required'),
+  password: z.string().min(6, 'Password must be at least 6 characters'),
   sellerId: z.string().min(1, 'Please select a venue'),
   role: z.enum(['Seller Admin']),
 });
@@ -199,6 +201,7 @@ export default function KOOPAdminPage() {
     resolver: zodResolver(staffSchema),
     defaultValues: {
       email: '',
+      password: '',
       sellerId: '',
       role: 'Seller Admin',
     },
@@ -389,13 +392,30 @@ export default function KOOPAdminPage() {
     if (!firestore || !isSuperAdmin) return;
     setIsSaving(true);
     
-    const selectedSeller = sellers?.find(s => s.id === data.sellerId);
-    const mockUid = `staff-${Math.random().toString(36).substring(7)}`;
-    
     try {
-      // 1. Create Detail Profile
-      await setDoc(doc(firestore, 'adminUsers', mockUid), {
-        id: mockUid,
+      // 1. Create Real Auth Account via REST API (avoids signing out current Admin)
+      const signupResp = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${firebaseConfig.apiKey}`, {
+        method: 'POST',
+        body: JSON.stringify({
+          email: data.email,
+          password: data.password,
+          returnSecureToken: true
+        }),
+        headers: { 'Content-Type': 'application/json' }
+      });
+
+      const authResult = await signupResp.json();
+      
+      if (authResult.error) {
+        throw new Error(authResult.error.message);
+      }
+
+      const uid = authResult.localId;
+      const selectedSeller = sellers?.find(s => s.id === data.sellerId);
+
+      // 2. Create Profile
+      await setDoc(doc(firestore, 'adminUsers', uid), {
+        id: uid,
         email: data.email,
         role: data.role,
         sellerId: data.sellerId,
@@ -403,20 +423,20 @@ export default function KOOPAdminPage() {
         createdAt: serverTimestamp()
       });
 
-      // 2. Create Security Role Marker
-      await setDoc(doc(firestore, 'roles_seller_admin', mockUid), {
+      // 3. Create Security Role Marker
+      await setDoc(doc(firestore, 'roles_seller_admin', uid), {
         grantedAt: serverTimestamp(),
         sellerId: data.sellerId
       });
 
       toast({ 
         title: "Staff Member Provisioned", 
-        description: `Access for ${data.email} created. Use the tool to send them a setup link.` 
+        description: `Account for ${data.email} created. They can now log in or use the reset tool.` 
       });
       setIsStaffFormOpen(false);
       staffForm.reset();
-    } catch (e) {
-      toast({ variant: "destructive", title: "Provisioning Failed" });
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Provisioning Failed", description: e.message || "Unknown Error" });
     } finally {
       setIsSaving(false);
     }
@@ -485,7 +505,7 @@ export default function KOOPAdminPage() {
           <Button variant="outline" onClick={handleBootstrapNetwork} disabled={isBootstrapping} className="text-[10px] font-black uppercase h-10 px-4 tracking-widest border-indigo-200 text-indigo-600 hover:bg-indigo-50">
             <Zap className={cn("mr-2 h-3.5 w-3.5", isBootstrapping && "animate-spin")} /> Bootstrap Network
           </Button>
-          <Button variant="outline" onClick={handleSystemReset} disabled={isResetting} className="border-destructive text-destructive hover:bg-destructive/5 text-[10px] font-black uppercase h-10 px-4 tracking-widest">
+          <Button variant="outline" onClick={handleSystemReset} disabled={isResetting} className="border-destructive text-destructive hover:bg-destructive/5 text-[10px) font-black uppercase h-10 px-4 tracking-widest">
             <RefreshCw className={cn("mr-2 h-3.5 w-3.5", isResetting && "animate-spin")} /> Reset Logs
           </Button>
           <Button onClick={handleAddNewSeller} className="h-10 px-6 font-black uppercase text-[10px] tracking-widest">
@@ -948,7 +968,7 @@ export default function KOOPAdminPage() {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="uppercase font-headline">Provision Seller Admin</DialogTitle>
-            <DialogDescription>Assign a new administrator to manage a specific venue's menu and operations.</DialogDescription>
+            <DialogDescription>Create a new administrator account and link it to a specific venue.</DialogDescription>
           </DialogHeader>
           <Form {...staffForm}>
             <form onSubmit={staffForm.handleSubmit(onProvisionStaff)} className="space-y-6 pt-4">
@@ -956,6 +976,14 @@ export default function KOOPAdminPage() {
                 <FormItem>
                   <FormLabel className="text-[10px] font-black uppercase">Admin Email Address</FormLabel>
                   <FormControl><Input {...field} placeholder="admin@venue.com" className="h-11 border-2 font-bold" /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <FormField control={staffForm.control} name="password" render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-[10px] font-black uppercase">Initial Security Key (Password)</FormLabel>
+                  <FormControl><Input {...field} type="password" placeholder="••••••••" className="h-11 border-2 font-bold" /></FormControl>
+                  <FormDescription className="text-[9px] uppercase font-bold text-muted-foreground">Required to create the identity. They can change this later.</FormDescription>
                   <FormMessage />
                 </FormItem>
               )} />
@@ -980,12 +1008,12 @@ export default function KOOPAdminPage() {
               <div className="bg-indigo-50 p-4 rounded-xl border border-indigo-100 flex items-start gap-3">
                 <ShieldCheck className="h-5 w-5 text-indigo-600 shrink-0 mt-0.5" />
                 <p className="text-[10px] text-indigo-800 font-medium leading-relaxed">
-                  Provisioning will create a security marker for this email. You must then send a **Setup Link** to the user so they can configure their security key.
+                  Provisioning will create a real identity in the platform database. Once created, use the **Send Reset Link** tool to verify their inbox.
                 </p>
               </div>
               <DialogFooter className="px-0">
                 <Button type="submit" disabled={isSaving} className="w-full h-12 bg-indigo-600 hover:bg-indigo-700 font-bold uppercase tracking-widest">
-                  {isSaving ? <Loader2 className="animate-spin" /> : "Authorize Staff Member"}
+                  {isSaving ? <Loader2 className="animate-spin" /> : "Create Staff Account"}
                 </Button>
               </DialogFooter>
             </form>
