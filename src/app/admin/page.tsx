@@ -637,7 +637,7 @@ export default function KOOPAdminPage() {
                                 <Edit className="h-4 w-4" />
                               </Button>
                               <Button variant="ghost" size="sm" asChild className="h-8 text-[10px] font-black uppercase">
-                                <Link href={`/sellers/${seller.id}`}>Manage <ChevronRight className="ml-1 h-3 w-3" /></Link>
+                                <Link href={`/sellers/${seller.id}`}>Impersonate <ChevronRight className="ml-1 h-3 w-3" /></Link>
                               </Button>
                             </div>
                           </TableCell>
