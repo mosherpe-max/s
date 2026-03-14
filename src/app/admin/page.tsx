@@ -1,9 +1,8 @@
-
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { collection, doc, setDoc, getDocs, writeBatch, serverTimestamp, query, deleteDoc } from 'firebase/firestore';
-import { sendPasswordResetEmail } from 'firebase/auth';
+import { signOut, sendPasswordResetEmail } from 'firebase/auth';
 import { useFirestore, useCollection, useMemoFirebase, useUser, useAuth } from '@/firebase';
 import { firebaseConfig } from '@/firebase/config';
 import { Button } from '@/components/ui/button';
@@ -40,7 +39,8 @@ import {
   Copy,
   Check,
   AlertTriangle,
-  ExternalLink
+  ExternalLink,
+  LogOut
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { 
@@ -158,6 +158,17 @@ export default function KOOPAdminPage() {
       router.push('/login');
     }
   }, [user, isUserLoading, router]);
+
+  const handleLogout = async () => {
+    if (!auth) return;
+    try {
+      await signOut(auth);
+      router.push('/login');
+      toast({ title: "Signed Out" });
+    } catch (e) {
+      toast({ variant: "destructive", title: "Logout Failed" });
+    }
+  };
 
   const sellersQuery = useMemoFirebase(() => {
     if (!firestore || !isSuperAdmin) return null;
@@ -574,6 +585,9 @@ export default function KOOPAdminPage() {
           <p className="text-muted-foreground text-sm">God-mode platform oversight and venue network management.</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
+          <Button variant="ghost" onClick={handleLogout} className="text-[10px] font-black uppercase h-10 px-4 tracking-widest text-muted-foreground hover:text-destructive">
+            <LogOut className="mr-2 h-3.5 w-3.5" /> Sign Out
+          </Button>
           <Button variant="outline" onClick={handleBootstrapNetwork} disabled={isBootstrapping} className="text-[10px] font-black uppercase h-10 px-4 tracking-widest border-indigo-200 text-indigo-600 hover:bg-indigo-50">
             <Zap className={cn("mr-2 h-3.5 w-3.5", isBootstrapping && "animate-spin")} /> Bootstrap Network
           </Button>

@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { Button } from './ui/button';
-import { usePathname, useSearchParams } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { 
   ShoppingCart, 
   ChevronDown, 
@@ -17,12 +17,15 @@ import {
   Users,
   LogIn,
   User as UserIcon,
-  KeyRound
+  KeyRound,
+  LogOut
 } from 'lucide-react';
 import { useCart } from '@/lib/cart-context';
 import { useState, useEffect, useMemo } from 'react';
 import { doc } from 'firebase/firestore';
-import { useFirestore, useDoc, useMemoFirebase, useUser } from '@/firebase';
+import { useFirestore, useDoc, useMemoFirebase, useUser, useAuth } from '@/firebase';
+import { signOut } from 'firebase/auth';
+import { useToast } from '@/hooks/use-toast';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -73,15 +76,29 @@ const KoopLogoLink = () => (
 export function AppHeader() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const router = useRouter();
   const firestore = useFirestore();
+  const auth = useAuth();
   const { user } = useUser();
   const { total, totalItems, setIsCartOpen } = useCart();
+  const { toast } = useToast();
   const [isMounted, setIsMounted] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     setIsMounted(true);
   }, []);
+
+  const handleLogout = async () => {
+    if (!auth) return;
+    try {
+      await signOut(auth);
+      toast({ title: "Signed Out" });
+      router.push('/login');
+    } catch (error: any) {
+      toast({ variant: "destructive", title: "Logout Failed", description: error.message });
+    }
+  };
 
   const isSuperAdmin = user?.uid === SUPER_ADMIN_ID;
 
@@ -228,6 +245,15 @@ export function AppHeader() {
             </Link>
           </>
         )}
+
+        {mobile && user && (
+          <div className="mt-auto pt-6 px-4">
+            <Button variant="destructive" onClick={handleLogout} className="w-full h-12 gap-2 font-black uppercase tracking-widest rounded-xl">
+              <LogOut className="h-5 w-5" />
+              Sign Out
+            </Button>
+          </div>
+        )}
       </div>
     );
   };
@@ -294,6 +320,15 @@ export function AppHeader() {
                       <span>{user ? 'Manage Profile' : 'Login / Register'}</span>
                     </Link>
                   </DropdownMenuItem>
+                  {user && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={handleLogout} className="flex items-center gap-3 py-2 cursor-pointer font-black text-[10px] uppercase tracking-widest text-destructive">
+                        <LogOut className="h-4 w-4" />
+                        <span>Sign Out</span>
+                      </DropdownMenuItem>
+                    </>
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>

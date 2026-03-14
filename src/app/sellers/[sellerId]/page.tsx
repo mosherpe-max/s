@@ -2,7 +2,8 @@
 
 import React, { useState, useMemo, useEffect, use, useRef } from 'react';
 import { collection, doc, setDoc, deleteDoc, writeBatch, query, where, updateDoc } from 'firebase/firestore';
-import { useFirestore, useDoc, useCollection, useMemoFirebase, useUser } from '@/firebase';
+import { useFirestore, useDoc, useCollection, useMemoFirebase, useUser, useAuth } from '@/firebase';
+import { signOut } from 'firebase/auth';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { 
@@ -46,7 +47,8 @@ import {
   FileImage,
   Printer,
   Info,
-  Lock
+  Lock,
+  LogOut
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -64,7 +66,6 @@ import {
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/table';
 import { cn, SUPER_ADMIN_ID } from '@/lib/utils';
 import { isToday, isThisMonth, isThisYear, format, startOfMonth, parseISO, isWithinInterval } from 'date-fns';
 import * as XLSX from 'xlsx';
@@ -297,6 +298,7 @@ function OpsMetricCard({ label, value, icon: Icon, colorClass, subValue }: { lab
 export default function SellerAdminPage({ params }: { params: Promise<{ sellerId: string }> }) {
   const { sellerId } = use(params);
   const firestore = useFirestore();
+  const auth = useAuth();
   const { user, isUserLoading } = useUser();
   const router = useRouter();
   const { toast } = useToast();
@@ -338,6 +340,17 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
       router.push('/login');
     }
   }, [user, isUserLoading, router]);
+
+  const handleLogout = async () => {
+    if (!auth) return;
+    try {
+      await signOut(auth);
+      router.push('/login');
+      toast({ title: "Signed Out" });
+    } catch (e) {
+      toast({ variant: "destructive", title: "Logout Failed" });
+    }
+  };
 
   const scrollToTop = () => window.scrollTo({ top: 0, behavior: 'smooth' });
 
@@ -516,6 +529,9 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
             <p className="text-muted-foreground">{isSellerLoading ? 'Loading...' : seller?.courseName}</p>
           </div>
           <div className="flex items-center gap-3 self-center md:self-auto">
+             <Button variant="ghost" onClick={handleLogout} className="h-9 text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-destructive hover:bg-destructive/5 mr-2">
+                <LogOut className="mr-2 h-4 w-4" /> Sign Out
+             </Button>
              <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} className="bg-background">
                 <FileSpreadsheet className="mr-2 h-4 w-4" /> Import Excel
              </Button>
