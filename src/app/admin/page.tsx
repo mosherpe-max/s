@@ -701,7 +701,7 @@ export default function KOOPAdminPage() {
               <p className="text-xs text-muted-foreground font-medium">Manage permissions and venue access for seller staff.</p>
             </div>
             <Button onClick={() => setIsStaffFormOpen(true)} className="gap-2 font-black uppercase text-[10px] tracking-widest h-10 px-6">
-              <UserPlus className="h-4 w-4" /> Provision Admin
+              <UserPlus className="h-4 w-4" /> Add Seller Admin
             </Button>
           </div>
 
