@@ -37,7 +37,8 @@ import {
   Trash2,
   Users,
   Copy,
-  Check
+  Check,
+  AlertTriangle
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -81,7 +82,7 @@ const sellerSchema = z.object({
 type SellerFormData = z.infer<typeof sellerSchema>;
 
 const staffSchema = z.object({
-  email: z.string().email('Valid email required'),
+  email: z.string().email('Valid email required').toLowerCase(),
   password: z.string().min(6, 'Password must be at least 6 characters'),
   sellerId: z.string().min(1, 'Please select a venue'),
   role: z.enum(['Seller Admin']),
@@ -124,7 +125,7 @@ export default function KOOPAdminPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isStaffFormOpen, setIsStaffFormOpen] = useState(false);
   const [isProvisionResultOpen, setIsProvisionResultOpen] = useState(false);
-  const [provisionResult, setProvisionResult] = useState<{ email: string, key: string } | null>(null);
+  const [provisionResult, setProvisionResult] = useState<{ email: string, key: string, status: 'created' | 'existing' } | null>(null);
   
   const [editingSeller, setEditingSeller] = useState<Seller | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -410,19 +411,21 @@ export default function KOOPAdminPage() {
       });
 
       const authResult = await signupResp.json();
+      let accountStatus: 'created' | 'existing' = 'created';
       
       if (authResult.error) {
-        // If user already exists, we proceed to ensure their Firestore record is correct
-        if (authResult.error.message !== 'EMAIL_EXISTS') {
+        if (authResult.error.message === 'EMAIL_EXISTS') {
+          accountStatus = 'existing';
+        } else {
           throw new Error(authResult.error.message);
         }
       }
 
-      const uid = authResult.localId || 'existing-user';
+      const uid = authResult.localId || 'existing-user-lookup-required';
       const selectedSeller = sellers?.find(s => s.id === data.sellerId);
 
       // 2. Create/Update Profile
-      await setDoc(doc(firestore, 'adminUsers', uid), {
+      await setDoc(doc(firestore, 'adminUsers', data.email), { // Use email as key for easier lookup in prototype if UID isn't available
         id: uid,
         email: data.email,
         role: data.role,
@@ -432,19 +435,19 @@ export default function KOOPAdminPage() {
       }, { merge: true });
 
       // 3. Create Security Role Marker
-      await setDoc(doc(firestore, 'roles_seller_admin', uid), {
+      await setDoc(doc(firestore, 'roles_seller_admin', data.email), {
         grantedAt: serverTimestamp(),
         sellerId: data.sellerId
       }, { merge: true });
 
-      setProvisionResult({ email: data.email, key: data.password });
+      setProvisionResult({ email: data.email, key: data.password, status: accountStatus });
       setIsStaffFormOpen(false);
       setIsProvisionResultOpen(true);
       staffForm.reset();
       
       toast({ 
-        title: "Staff Member Provisioned", 
-        description: `Account for ${data.email} is active.` 
+        title: accountStatus === 'created' ? "Account Created" : "Account Updated", 
+        description: `Profile for ${data.email} is active.` 
       });
     } catch (e: any) {
       toast({ variant: "destructive", title: "Provisioning Failed", description: e.message || "Unknown Error" });
@@ -456,7 +459,7 @@ export default function KOOPAdminPage() {
   const handleSendResetLink = async (email: string) => {
     if (!auth) return;
     try {
-      // Basic check: we don't await the void return, but we want to know if it throws
+      // We explicitly await this to catch any immediate provider errors
       await sendPasswordResetEmail(auth, email);
       toast({ 
         title: "Reset Request Queued", 
@@ -464,19 +467,26 @@ export default function KOOPAdminPage() {
       });
     } catch (e: any) {
       console.warn("Reset error:", e);
+      let errorMsg = "Platform email limits reached or domain not authorized.";
+      if (e.code === 'auth/user-not-found') {
+        errorMsg = "Account not found in identity provider. Please provision the user first.";
+      } else if (e.code === 'auth/invalid-email') {
+        errorMsg = "The email address provided is invalid.";
+      }
+      
       toast({ 
         variant: "destructive", 
         title: "Dispatch Failed", 
-        description: e.message === "auth/user-not-found" ? "Account not found in identity provider." : "Platform email limits reached or domain not authorized." 
+        description: errorMsg
       });
     }
   };
 
-  const handleRemoveStaff = async (id: string) => {
+  const handleRemoveStaff = async (email: string) => {
     if (!firestore || !isSuperAdmin) return;
     try {
-      await deleteDoc(doc(firestore, 'adminUsers', id));
-      await deleteDoc(doc(firestore, 'roles_seller_admin', id));
+      await deleteDoc(doc(firestore, 'adminUsers', email));
+      await deleteDoc(doc(firestore, 'roles_seller_admin', email));
       toast({ title: "Access Revoked" });
     } catch (e) {
       toast({ variant: "destructive", title: "Failed to Remove" });
@@ -712,7 +722,7 @@ export default function KOOPAdminPage() {
                   ) : admins?.length === 0 ? (
                     <TableRow><TableCell colSpan={4} className="text-center py-20 text-muted-foreground font-medium italic">No delegated admins found.</TableCell></TableRow>
                   ) : admins?.map((admin) => (
-                    <TableRow key={admin.id} className="hover:bg-muted/5 transition-colors">
+                    <TableRow key={admin.email} className="hover:bg-muted/5 transition-colors">
                       <TableCell>
                         <div className="flex items-center gap-3">
                           <div className="h-8 w-8 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600">
@@ -749,7 +759,7 @@ export default function KOOPAdminPage() {
                             <Button 
                               variant="ghost" 
                               size="icon" 
-                              onClick={() => handleRemoveStaff(admin.id)}
+                              onClick={() => handleRemoveStaff(admin.email)}
                               className="h-8 w-8 text-muted-foreground hover:text-destructive"
                             >
                               <Trash2 className="h-4 w-4" />
@@ -1044,10 +1054,15 @@ export default function KOOPAdminPage() {
       <Dialog open={isProvisionResultOpen} onOpenChange={setIsProvisionResultOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="uppercase font-headline text-green-600 flex items-center gap-2">
-              <Check className="h-5 w-5" /> Account Provisioned
+            <DialogTitle className={cn("uppercase font-headline flex items-center gap-2", provisionResult?.status === 'created' ? "text-green-600" : "text-amber-600")}>
+              {provisionResult?.status === 'created' ? <Check className="h-5 w-5" /> : <AlertTriangle className="h-5 w-5" />}
+              {provisionResult?.status === 'created' ? "Account Provisioned" : "Profile Updated"}
             </DialogTitle>
-            <DialogDescription>The administrator account has been successfully created in the identity provider.</DialogDescription>
+            <DialogDescription>
+              {provisionResult?.status === 'created' 
+                ? "The administrator account has been successfully created in the identity provider." 
+                : "A profile already exists for this email. Venue assignments have been updated."}
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 pt-4">
             <div className="p-4 bg-muted/50 rounded-xl border-2 border-dashed space-y-3">
@@ -1065,10 +1080,12 @@ export default function KOOPAdminPage() {
             <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 space-y-2">
               <div className="flex items-center gap-2 text-blue-700">
                 <Mail className="h-4 w-4" />
-                <p className="text-[10px] font-black uppercase tracking-wider">Email Fallback</p>
+                <p className="text-[10px] font-black uppercase tracking-wider">Communication Note</p>
               </div>
               <p className="text-[11px] text-blue-800 leading-relaxed font-medium">
-                If the automated reset link fails to arrive, please provide these credentials to the user manually. They can sign in at **koop.app/login**.
+                {provisionResult?.status === 'created' 
+                  ? "We recommend sending a reset link immediately to verify the user's inbox."
+                  : "Since the account already exists, the password was NOT changed. Use the reset link if they forgotten their key."}
               </p>
             </div>
             <Button 
