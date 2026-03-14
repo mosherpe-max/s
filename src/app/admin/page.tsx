@@ -43,6 +43,16 @@ import {
   ExternalLink
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { 
+  AlertDialog, 
+  AlertDialogAction, 
+  AlertDialogCancel, 
+  AlertDialogContent, 
+  AlertDialogDescription, 
+  AlertDialogFooter, 
+  AlertDialogHeader, 
+  AlertDialogTitle 
+} from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useForm } from 'react-hook-form';
@@ -134,6 +144,12 @@ export default function KOOPAdminPage() {
   const [isResetting, setIsResetting] = useState(false);
   const [isBootstrapping, setIsBootstrapping] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+
+  // Deletion States
+  const [adminToDelete, setAdminToDelete] = useState<AdminUser | null>(null);
+  const [isStaffDeleteDialogOpen, setIsStaffDeleteDialogOpen] = useState(false);
+  const [venueToDelete, setVenueToDelete] = useState<Seller | null>(null);
+  const [isVenueDeleteDialogOpen, setIsVenueDeleteDialogOpen] = useState(false);
 
   const isSuperAdmin = user?.uid === SUPER_ADMIN_ID;
 
@@ -403,7 +419,6 @@ export default function KOOPAdminPage() {
     try {
       console.log(`Starting identity provisioning for: ${data.email}`);
       
-      // 1. Create Real Auth Account via REST API
       const signupResp = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${firebaseConfig.apiKey}`, {
         method: 'POST',
         body: JSON.stringify({
@@ -428,8 +443,6 @@ export default function KOOPAdminPage() {
       const uid = authResult.localId || 'existing-user-lookup-required';
       const selectedSeller = sellers?.find(s => s.id === data.sellerId);
 
-      // 2. Create/Update Profile in Firestore
-      // Using email as the document ID for explicit lookup in this prototype
       await setDoc(doc(firestore, 'adminUsers', data.email), {
         id: uid,
         email: data.email,
@@ -439,7 +452,6 @@ export default function KOOPAdminPage() {
         createdAt: serverTimestamp()
       }, { merge: true });
 
-      // 3. Create Security Role Marker
       await setDoc(doc(firestore, 'roles_seller_admin', data.email), {
         grantedAt: serverTimestamp(),
         sellerId: data.sellerId
@@ -495,14 +507,31 @@ export default function KOOPAdminPage() {
     }
   };
 
-  const handleRemoveStaff = async (email: string) => {
-    if (!firestore || !isSuperAdmin) return;
+  const handleRemoveStaff = async () => {
+    if (!firestore || !isSuperAdmin || !adminToDelete) return;
     try {
-      await deleteDoc(doc(firestore, 'adminUsers', email));
-      await deleteDoc(doc(firestore, 'roles_seller_admin', email));
+      // Use the email (which is our standardized doc ID for staff)
+      await deleteDoc(doc(firestore, 'adminUsers', adminToDelete.id));
+      await deleteDoc(doc(firestore, 'roles_seller_admin', adminToDelete.id));
       toast({ title: "Access Revoked", description: "Records removed. Note: Identity remains in Auth provider." });
     } catch (e) {
       toast({ variant: "destructive", title: "Failed to Remove" });
+    } finally {
+      setIsStaffDeleteDialogOpen(false);
+      setAdminToDelete(null);
+    }
+  };
+
+  const handleRemoveVenue = async () => {
+    if (!firestore || !isSuperAdmin || !venueToDelete) return;
+    try {
+      await deleteDoc(doc(firestore, 'sellers', venueToDelete.id));
+      toast({ title: "Venue Decommissioned", description: `${venueToDelete.courseName} removed from network.` });
+    } catch (e) {
+      toast({ variant: "destructive", title: "Deletion Failed" });
+    } finally {
+      setIsVenueDeleteDialogOpen(false);
+      setVenueToDelete(null);
     }
   };
 
@@ -548,7 +577,7 @@ export default function KOOPAdminPage() {
           <Button variant="outline" onClick={handleBootstrapNetwork} disabled={isBootstrapping} className="text-[10px] font-black uppercase h-10 px-4 tracking-widest border-indigo-200 text-indigo-600 hover:bg-indigo-50">
             <Zap className={cn("mr-2 h-3.5 w-3.5", isBootstrapping && "animate-spin")} /> Bootstrap Network
           </Button>
-          <Button variant="outline" onClick={handleSystemReset} disabled={isResetting} className="border-destructive text-destructive hover:bg-destructive/5 text-[10px) font-black uppercase h-10 px-4 tracking-widest">
+          <Button variant="outline" onClick={handleSystemReset} disabled={isResetting} className="border-destructive text-destructive hover:bg-destructive/5 text-[10px] font-black uppercase h-10 px-4 tracking-widest">
             <RefreshCw className={cn("mr-2 h-3.5 w-3.5", isResetting && "animate-spin")} /> Reset Logs
           </Button>
           <Button onClick={handleAddNewSeller} className="h-10 px-6 font-black uppercase text-[10px] tracking-widest">
@@ -568,7 +597,7 @@ export default function KOOPAdminPage() {
           <TabsTrigger value="growth" className="text-[10px] font-black uppercase px-8 h-10">
             <Target className="mr-2 h-3.5 w-3.5" /> Growth
           </TabsTrigger>
-          <TabsTrigger value="maintenance" className="text-[10px) font-black uppercase px-8 h-10">
+          <TabsTrigger value="maintenance" className="text-[10px] font-black uppercase px-8 h-10">
             <ShieldAlert className="mr-2 h-3.5 w-3.5" /> Maintenance
           </TabsTrigger>
         </TabsList>
@@ -658,6 +687,17 @@ export default function KOOPAdminPage() {
                             <div className="flex justify-end gap-2">
                               <Button variant="ghost" size="icon" onClick={() => handleEditSeller(seller)} className="h-8 w-8 text-muted-foreground hover:text-primary">
                                 <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                onClick={() => {
+                                  setVenueToDelete(seller);
+                                  setIsVenueDeleteDialogOpen(true);
+                                }}
+                                className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                              >
+                                <Trash2 className="h-4 w-4" />
                               </Button>
                               <Button variant="ghost" size="sm" asChild className="h-8 text-[10px] font-black uppercase">
                                 <Link href={`/sellers/${seller.id}`}>Impersonate <ChevronRight className="ml-1 h-3 w-3" /></Link>
@@ -772,7 +812,10 @@ export default function KOOPAdminPage() {
                             <Button 
                               variant="ghost" 
                               size="icon" 
-                              onClick={() => handleRemoveStaff(admin.email)}
+                              onClick={() => {
+                                setAdminToDelete(admin);
+                                setIsStaffDeleteDialogOpen(true);
+                              }}
                               className="h-8 w-8 text-muted-foreground hover:text-destructive"
                             >
                               <Trash2 className="h-4 w-4" />
@@ -970,7 +1013,7 @@ export default function KOOPAdminPage() {
                         <FormItem><FormLabel className="text-[10px] font-black uppercase">Email</FormLabel><FormControl><Input {...field} type="email" /></FormControl></FormItem>
                       )} />
                       <FormField control={form.control} name="contactPhone" render={({ field }) => (
-                        <FormItem><FormLabel className="text-[10px) font-black uppercase">Phone</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>
+                        <FormItem><FormLabel className="text-[10px] font-black uppercase">Phone</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>
                       )} />
                     </div>
                   </div>
@@ -1113,6 +1156,53 @@ export default function KOOPAdminPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Staff Deletion Confirmation */}
+      <AlertDialog open={isStaffDeleteDialogOpen} onOpenChange={setIsStaffDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="uppercase font-headline text-destructive flex items-center gap-2">
+              <ShieldAlert className="h-5 w-5" /> Revoke Access?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently remove <strong>{adminToDelete?.email}</strong> from the administrative database. 
+              They will no longer be able to manage <strong>{adminToDelete?.courseName || 'any venue'}</strong>.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleRemoveStaff}
+              className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+            >
+              Confirm Removal
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Venue Deletion Confirmation */}
+      <AlertDialog open={isVenueDeleteDialogOpen} onOpenChange={setIsVenueDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="uppercase font-headline text-destructive flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5" /> Decommission Venue?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to remove <strong>{venueToDelete?.courseName}</strong>? This will take their digital menus offline and disrupt active service.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleRemoveVenue}
+              className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+            >
+              Confirm Deletion
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
