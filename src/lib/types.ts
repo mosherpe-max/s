@@ -139,6 +139,16 @@ export interface Order {
   buyerDeviceStatus?: 'ios-browser' | 'standalone' | 'android' | 'standard';
 }
 
+// ADMIN TYPES
+export interface AdminUser {
+  id: string;
+  email: string;
+  role: 'KOOP Platform Admin' | 'Seller Admin';
+  sellerId?: string; // Associated venue for Seller Admins
+  courseName?: string; // Cache for display
+  createdAt: Timestamp;
+}
+
 // CRM TYPES
 export type ProspectStage = 'Contacted' | 'Demo Scheduled' | 'Proposal Sent' | 'Closed' | 'Lost';
 export type CRMVenueType = 'Golf Course' | 'Bowling Alley' | 'Brewery/Restaurant';

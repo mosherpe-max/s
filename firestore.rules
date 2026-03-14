@@ -2,20 +2,26 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     // --- Global Super Admin Access ---
-    // o9vAQy0aFRPSNPoG0ETvjiGt9If1 has god-like access bypass
     function isSuperAdmin() {
       return request.auth != null && request.auth.uid == 'o9vAQy0aFRPSNPoG0ETvjiGt9If1';
     }
 
+    // --- Seller Admin Access ---
+    function isSellerAdmin(sellerId) {
+      return request.auth != null && (
+        exists(/databases/$(database)/documents/roles_seller_admin/$(request.auth.uid)) && 
+        get(/databases/$(database)/documents/roles_seller_admin/$(request.auth.uid)).data.sellerId == sellerId
+      );
+    }
+
     // --- Global Prototype Access for Public Functions ---
-    // Menus and Orders are public for frictionless QR code deployment.
     match /sellers/{sellerId} {
       allow read: if true;
-      allow write: if isSuperAdmin();
+      allow write: if isSuperAdmin() || isSellerAdmin(sellerId);
       
       match /menuItems/{itemId} {
         allow read: if true;
-        allow write: if isSuperAdmin();
+        allow write: if isSuperAdmin() || isSellerAdmin(sellerId);
       }
     }
 
@@ -38,6 +44,11 @@ service cloud.firestore {
     }
 
     match /adminUsers/{uid} {
+      allow read: if true;
+      allow write: if isSuperAdmin() || request.auth.uid == uid;
+    }
+
+    match /roles_seller_admin/{uid} {
       allow read: if true;
       allow write: if isSuperAdmin();
     }

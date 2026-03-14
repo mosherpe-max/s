@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { collection, doc, setDoc, getDocs, writeBatch, serverTimestamp, query } from 'firebase/firestore';
-import { useFirestore, useCollection, useMemoFirebase, useUser } from '@/firebase';
+import { collection, doc, setDoc, getDocs, writeBatch, serverTimestamp, query, deleteDoc } from 'firebase/firestore';
+import { sendPasswordResetEmail } from 'firebase/auth';
+import { useFirestore, useCollection, useMemoFirebase, useUser, useAuth } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { 
@@ -29,7 +30,11 @@ import {
   Layers,
   LayoutDashboard,
   ShieldCheck,
-  Lock
+  Lock,
+  UserPlus,
+  KeyRound,
+  Trash2,
+  Users
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -43,7 +48,8 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from '@/components/ui/scroll-area';
-import type { Seller, Order, Prospect } from '@/lib/types';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import type { Seller, Order, Prospect, AdminUser } from '@/lib/types';
 import { sellerTypes } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { cn, SUPER_ADMIN_ID } from '@/lib/utils';
@@ -70,6 +76,14 @@ const sellerSchema = z.object({
 });
 
 type SellerFormData = z.infer<typeof sellerSchema>;
+
+const staffSchema = z.object({
+  email: z.string().email('Valid email required'),
+  sellerId: z.string().min(1, 'Please select a venue'),
+  role: z.enum(['Seller Admin']),
+});
+
+type StaffFormData = z.infer<typeof staffSchema>;
 
 function MetricCard({ title, value, icon: Icon, description, trend }: { title: string, value: string | number, icon: any, description?: string, trend?: string }) {
   return (
@@ -98,18 +112,19 @@ function MetricCard({ title, value, icon: Icon, description, trend }: { title: s
 
 export default function KOOPAdminPage() {
   const firestore = useFirestore();
+  const auth = useAuth();
   const { user, isUserLoading } = useUser();
   const router = useRouter();
   const { toast } = useToast();
   
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [isStaffFormOpen, setIsStaffFormOpen] = useState(false);
   const [editingSeller, setEditingSeller] = useState<Seller | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
   const [isBootstrapping, setIsBootstrapping] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
-  // AUTHORIZATION GATE: GOD-MODE CHECK
   const isSuperAdmin = user?.uid === SUPER_ADMIN_ID;
 
   useEffect(() => {
@@ -133,9 +148,15 @@ export default function KOOPAdminPage() {
     return collection(firestore, 'prospects');
   }, [firestore, isSuperAdmin]);
 
+  const adminsQuery = useMemoFirebase(() => {
+    if (!firestore || !isSuperAdmin) return null;
+    return collection(firestore, 'adminUsers');
+  }, [firestore, isSuperAdmin]);
+
   const { data: sellers, isLoading: isSellersLoading } = useCollection<Seller>(sellersQuery);
   const { data: orders } = useCollection<Order>(ordersQuery);
   const { data: prospects } = useCollection<Prospect>(prospectsQuery);
+  const { data: admins, isLoading: isAdminsLoading } = useCollection<AdminUser>(adminsQuery);
 
   const filteredSellers = useMemo(() => {
     if (!sellers) return [];
@@ -171,6 +192,15 @@ export default function KOOPAdminPage() {
       status: 'Active',
       laneCount: 0,
       menuTypes: [],
+    },
+  });
+
+  const staffForm = useForm<StaffFormData>({
+    resolver: zodResolver(staffSchema),
+    defaultValues: {
+      email: '',
+      sellerId: '',
+      role: 'Seller Admin',
     },
   });
 
@@ -355,6 +385,64 @@ export default function KOOPAdminPage() {
       .finally(() => setIsSaving(false));
   };
 
+  const onProvisionStaff = async (data: StaffFormData) => {
+    if (!firestore || !isSuperAdmin) return;
+    setIsSaving(true);
+    
+    const selectedSeller = sellers?.find(s => s.id === data.sellerId);
+    const mockUid = `staff-${Math.random().toString(36).substring(7)}`;
+    
+    try {
+      // 1. Create Detail Profile
+      await setDoc(doc(firestore, 'adminUsers', mockUid), {
+        id: mockUid,
+        email: data.email,
+        role: data.role,
+        sellerId: data.sellerId,
+        courseName: selectedSeller?.courseName || 'Unassigned Venue',
+        createdAt: serverTimestamp()
+      });
+
+      // 2. Create Security Role Marker
+      await setDoc(doc(firestore, 'roles_seller_admin', mockUid), {
+        grantedAt: serverTimestamp(),
+        sellerId: data.sellerId
+      });
+
+      toast({ 
+        title: "Staff Member Provisioned", 
+        description: `Access for ${data.email} created. Use the tool to send them a setup link.` 
+      });
+      setIsStaffFormOpen(false);
+      staffForm.reset();
+    } catch (e) {
+      toast({ variant: "destructive", title: "Provisioning Failed" });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleSendResetLink = async (email: string) => {
+    if (!auth) return;
+    try {
+      await sendPasswordResetEmail(auth, email);
+      toast({ title: "Setup Link Dispatched", description: `A security link has been sent to ${email}.` });
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Failed to Dispatch", description: e.message });
+    }
+  };
+
+  const handleRemoveStaff = async (id: string) => {
+    if (!firestore || !isSuperAdmin) return;
+    try {
+      await deleteDoc(doc(firestore, 'adminUsers', id));
+      await deleteDoc(doc(firestore, 'roles_seller_admin', id));
+      toast({ title: "Access Revoked" });
+    } catch (e) {
+      toast({ variant: "destructive", title: "Failed to Remove" });
+    }
+  };
+
   if (isUserLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen">
@@ -410,6 +498,9 @@ export default function KOOPAdminPage() {
         <TabsList className="bg-muted/50 p-1 h-12">
           <TabsTrigger value="operations" className="text-[10px] font-black uppercase px-8 h-10">
             <Activity className="mr-2 h-3.5 w-3.5" /> Operations
+          </TabsTrigger>
+          <TabsTrigger value="staff" className="text-[10px] font-black uppercase px-8 h-10">
+            <Users className="mr-2 h-3.5 w-3.5" /> Staff Access
           </TabsTrigger>
           <TabsTrigger value="growth" className="text-[10px] font-black uppercase px-8 h-10">
             <Target className="mr-2 h-3.5 w-3.5" /> Growth
@@ -551,6 +642,87 @@ export default function KOOPAdminPage() {
               </CardContent>
             </Card>
           </div>
+        </TabsContent>
+
+        <TabsContent value="staff" className="space-y-6">
+          <div className="flex justify-between items-center">
+            <div>
+              <h2 className="font-headline text-xl font-black uppercase tracking-tight text-[#213147]">Administrator Registry</h2>
+              <p className="text-xs text-muted-foreground font-medium">Manage permissions and venue access for seller staff.</p>
+            </div>
+            <Button onClick={() => setIsStaffFormOpen(true)} className="gap-2 font-black uppercase text-[10px] tracking-widest h-10 px-6">
+              <UserPlus className="h-4 w-4" /> Provision Admin
+            </Button>
+          </div>
+
+          <Card className="shadow-md border-2 overflow-hidden">
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader className="bg-muted/30">
+                  <TableRow>
+                    <TableHead className="text-[10px] font-black uppercase">Staff Member</TableHead>
+                    <TableHead className="text-[10px] font-black uppercase">Role</TableHead>
+                    <TableHead className="text-[10px] font-black uppercase">Assigned Venue</TableHead>
+                    <TableHead className="text-[10px] font-black uppercase text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {isAdminsLoading ? (
+                    [...Array(3)].map((_, i) => <TableRow key={i}><TableCell colSpan={4}><Skeleton className="h-12 w-full" /></TableCell></TableRow>)
+                  ) : admins?.length === 0 ? (
+                    <TableRow><TableCell colSpan={4} className="text-center py-20 text-muted-foreground font-medium italic">No delegated admins found.</TableCell></TableRow>
+                  ) : admins?.map((admin) => (
+                    <TableRow key={admin.id} className="hover:bg-muted/5 transition-colors">
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          <div className="h-8 w-8 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600">
+                            <ShieldCheck className="h-4 w-4" />
+                          </div>
+                          <div className="flex flex-col">
+                            <span className="font-bold text-sm">{admin.email}</span>
+                            <span className="text-[9px] text-muted-foreground uppercase font-mono tracking-tighter">{admin.id}</span>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={admin.role.includes('Platform') ? 'default' : 'secondary'} className="text-[8px] font-black uppercase">
+                          {admin.role}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-col">
+                          <span className="text-xs font-bold">{admin.courseName || 'Global Access'}</span>
+                          <span className="text-[9px] text-muted-foreground font-mono">{admin.sellerId || 'N/A'}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={() => handleSendResetLink(admin.email)}
+                            className="h-8 text-[9px] font-black uppercase tracking-widest border-indigo-200 text-indigo-600 hover:bg-indigo-50"
+                          >
+                            <KeyRound className="mr-1.5 h-3 w-3" /> Send Reset Link
+                          </Button>
+                          {admin.id !== user.uid && (
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              onClick={() => handleRemoveStaff(admin.id)}
+                              className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="growth">
@@ -769,6 +941,55 @@ export default function KOOPAdminPage() {
               {isSaving ? <Loader2 className="animate-spin" /> : (editingSeller ? "SAVE VENUE CHANGES" : "PROVISION ESTABLISHMENT")}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isStaffFormOpen} onOpenChange={setIsStaffFormOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="uppercase font-headline">Provision Seller Admin</DialogTitle>
+            <DialogDescription>Assign a new administrator to manage a specific venue's menu and operations.</DialogDescription>
+          </DialogHeader>
+          <Form {...staffForm}>
+            <form onSubmit={staffForm.handleSubmit(onProvisionStaff)} className="space-y-6 pt-4">
+              <FormField control={staffForm.control} name="email" render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-[10px] font-black uppercase">Admin Email Address</FormLabel>
+                  <FormControl><Input {...field} placeholder="admin@venue.com" className="h-11 border-2 font-bold" /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <FormField control={staffForm.control} name="sellerId" render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-[10px] font-black uppercase">Assigned Venue</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                      <SelectTrigger className="h-11 border-2 font-bold">
+                        <SelectValue placeholder="Select a venue..." />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {sellers?.map(s => (
+                        <SelectItem key={s.id} value={s.id}>{s.courseName}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <div className="bg-indigo-50 p-4 rounded-xl border border-indigo-100 flex items-start gap-3">
+                <ShieldCheck className="h-5 w-5 text-indigo-600 shrink-0 mt-0.5" />
+                <p className="text-[10px] text-indigo-800 font-medium leading-relaxed">
+                  Provisioning will create a security marker for this email. You must then send a **Setup Link** to the user so they can configure their security key.
+                </p>
+              </div>
+              <DialogFooter className="px-0">
+                <Button type="submit" disabled={isSaving} className="w-full h-12 bg-indigo-600 hover:bg-indigo-700 font-bold uppercase tracking-widest">
+                  {isSaving ? <Loader2 className="animate-spin" /> : "Authorize Staff Member"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
         </DialogContent>
       </Dialog>
     </div>
