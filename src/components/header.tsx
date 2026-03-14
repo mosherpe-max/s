@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -42,11 +43,11 @@ import { cn, SUPER_ADMIN_ID } from '@/lib/utils';
 
 const KoopLogo = () => (
   <Link href="/" className="flex items-center transition-opacity hover:opacity-90 shrink-0">
-    <div className="flex items-center gap-0.5 font-headline font-bold text-2xl tracking-tighter text-white">
+    <div className="flex items-center gap-0.5 font-headline font-black text-2xl tracking-tighter text-white">
       <span>KO</span>
-      <div className="relative flex items-center justify-center w-6 h-6">
-        <div className="absolute inset-0 border-[2px] border-red-600 rounded-full"></div>
-        <div className="absolute w-[14px] h-[14px] border-[1.5px] border-red-600 rounded-full"></div>
+      <div className="relative flex items-center justify-center w-6 h-6 mx-0.5">
+        <div className="absolute inset-0 border-[2.5px] border-red-600 rounded-full"></div>
+        <div className="absolute w-[12px] h-[14px] border-[2px] border-red-600 rounded-full"></div>
         <div className="w-[4px] h-[4px] bg-red-600 rounded-full"></div>
       </div>
       <span>P</span>

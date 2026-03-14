@@ -19,6 +19,18 @@ import { useRouter } from 'next/navigation';
 import { Loader2, ShieldCheck, Mail, Lock, User, LogOut, CheckCircle2, AlertCircle, UserPlus, LogIn, KeyRound, ArrowRight } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
+const StylizedLogo = () => (
+  <div className="flex items-center gap-0.5 font-headline font-black text-3xl tracking-tighter text-[#213147]">
+    <span>KO</span>
+    <div className="relative flex items-center justify-center w-8 h-8 mx-0.5">
+      <div className="absolute inset-0 border-[3px] border-red-600 rounded-full"></div>
+      <div className="absolute w-[16px] h-[18px] border-[2.5px] border-red-600 rounded-full"></div>
+      <div className="w-[5px] h-[5px] bg-red-600 rounded-full"></div>
+    </div>
+    <span>P</span>
+  </div>
+);
+
 const GolfBallIcon = (props: React.SVGProps<SVGSVGElement>) => (
   <svg
     {...props}
@@ -154,15 +166,13 @@ export default function LoginPage() {
       <Card className="w-full max-w-md mx-auto shadow-2xl border-2">
         <CardHeader className="text-center pb-8 border-b bg-muted/10">
           <div className="flex justify-center items-center mb-4">
-            <div className="p-3 bg-primary/10 rounded-2xl">
-              <GolfBallIcon className="h-10 w-10 text-primary" />
-            </div>
+            <StylizedLogo />
           </div>
-          <CardTitle className="font-headline text-3xl font-black uppercase tracking-tight text-[#213147]">
-            KOOP ACCESS
+          <CardTitle className="font-headline text-xl font-black uppercase tracking-[0.2em] text-[#213147]/60">
+            ACCESS GATEWAY
           </CardTitle>
           <CardDescription className="font-medium">
-            Authorized Platform Gateway
+            Authorized Platform Portal
           </CardDescription>
         </CardHeader>
 

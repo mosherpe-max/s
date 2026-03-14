@@ -1,3 +1,4 @@
+
 'use client';
 
 import React from 'react';
@@ -13,7 +14,7 @@ export function BrandingFooter({ className }: BrandingFooterProps) {
       <span className="text-[10px] font-medium text-white">Copyright 2026</span>
       <div className="flex items-center gap-2">
         <span className="text-[10px] font-medium text-white">Powered by</span>
-        <div className="flex items-center gap-0.5 font-headline font-bold text-xs tracking-tight text-white">
+        <div className="flex items-center gap-0.5 font-headline font-black text-xs tracking-tight text-white">
           <span>KO</span>
           <div className="relative flex items-center justify-center w-3 h-3">
             <div className="absolute inset-0 border-[1.2px] border-red-600 rounded-full"></div>
