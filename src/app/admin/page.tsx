@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -459,19 +460,23 @@ export default function KOOPAdminPage() {
   const handleSendResetLink = async (email: string) => {
     if (!auth) return;
     try {
+      console.log(`Dispatching reset link to: ${email}`);
       // We explicitly await this to catch any immediate provider errors
       await sendPasswordResetEmail(auth, email);
       toast({ 
         title: "Reset Request Queued", 
-        description: `Firebase has been instructed to send a security link to ${email}. Check junk folder if not received within 5 minutes.` 
+        description: `Firebase reported success for ${email}. Please check spam and junk folders if not received within 5 minutes.` 
       });
     } catch (e: any) {
-      console.warn("Reset error:", e);
-      let errorMsg = "Platform email limits reached or domain not authorized.";
+      console.warn("Reset error details:", e);
+      let errorMsg = e.message || "Platform email limits reached or domain not authorized.";
+      
       if (e.code === 'auth/user-not-found') {
-        errorMsg = "Account not found in identity provider. Please provision the user first.";
+        errorMsg = "Account not found in identity database. Please ensure the user was added via 'Add Seller Admin' first.";
       } else if (e.code === 'auth/invalid-email') {
         errorMsg = "The email address provided is invalid.";
+      } else if (e.code === 'auth/too-many-requests') {
+        errorMsg = "Security limits exceeded. Please wait a few minutes before requesting another link.";
       }
       
       toast({ 
@@ -555,7 +560,7 @@ export default function KOOPAdminPage() {
           <TabsTrigger value="growth" className="text-[10px] font-black uppercase px-8 h-10">
             <Target className="mr-2 h-3.5 w-3.5" /> Growth
           </TabsTrigger>
-          <TabsTrigger value="maintenance" className="text-[10px] font-black uppercase px-8 h-10">
+          <TabsTrigger value="maintenance" className="text-[10px) font-black uppercase px-8 h-10">
             <ShieldAlert className="mr-2 h-3.5 w-3.5" /> Maintenance
           </TabsTrigger>
         </TabsList>
