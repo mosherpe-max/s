@@ -51,7 +51,8 @@ import {
   LogOut,
   Search,
   CheckCircle2,
-  XCircle
+  XCircle,
+  Calendar
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -69,8 +70,8 @@ import {
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { cn, SUPER_ADMIN_ID } from '@/lib/utils';
-import { isToday, isThisMonth, isThisYear, format, startOfMonth, parseISO, isWithinInterval } from 'date-fns';
+import { cn, SUPER_ADMIN_ID, getNumericOrderId } from '@/lib/utils';
+import { isToday, isThisMonth, isThisYear, format, startOfMonth, parseISO, isWithinInterval, subDays, startOfDay, endOfDay } from 'date-fns';
 import * as XLSX from 'xlsx';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { MapView } from '@/components/map-view';
@@ -79,6 +80,10 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Separator } from '@/components/ui/separator';
 import { useRouter } from 'next/navigation';
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { DateRange } from "react-day-picker";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 import type { MenuItem, Seller, Category, Order, Member, SellerType, ModifierGroup, ModifierOption } from '@/lib/types';
 import { categories } from '@/lib/types';
@@ -340,6 +345,10 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   const [now, setNow] = useState(Date.now());
 
   const [revenueMode, setRevenueMode] = useState<'Gross' | 'Net'>('Gross');
+  const [dateRange, setDateRange] = useState<DateRange | undefined>({
+    from: startOfMonth(new Date()),
+    to: new Date(),
+  });
 
   // AUTHORIZATION GATE: GOD-MODE CHECK
   const isSuperAdmin = user?.uid === SUPER_ADMIN_ID;
@@ -407,10 +416,25 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     return activeOrders.filter(o => o.menuType === selectedOpsMenu);
   }, [activeOrders, selectedOpsMenu]);
 
+  // Filtered orders for the specific date range table
+  const reportOrders = useMemo(() => {
+    if (!orders || !dateRange?.from) return [];
+    
+    return orders.filter(order => {
+      if (!order.createdAt) return false;
+      const orderDate = order.createdAt.toDate();
+      const from = startOfDay(dateRange.from!);
+      const to = endOfDay(dateRange.to || dateRange.from!);
+      
+      return isWithinInterval(orderDate, { start: from, end: to });
+    }).sort((a, b) => (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0));
+  }, [orders, dateRange]);
+
   const dashboardStats = useMemo(() => {
     if (!orders || !seller) return null;
     const calculate = (filtered: Order[]) => {
       const revenue = filtered.reduce((acc, o) => {
+        // Net: Subtotal + Tip (No Tax, No Convenience Fee)
         const val = revenueMode === 'Gross' ? o.total : (o.subtotal + (o.tip || 0));
         return acc + val;
       }, 0);
@@ -468,6 +492,41 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
       selected: selectedOpsMenu ? calculateMetrics(orders.filter(o => o.menuType === selectedOpsMenu)) : null
     };
   }, [orders, seller, selectedOpsMenu, now, revenueMode]);
+
+  const handleExportToExcel = () => {
+    if (!reportOrders.length) {
+      toast({ variant: "destructive", title: "No Data", description: "No orders found in this date range." });
+      return;
+    }
+
+    const exportData = reportOrders.map(o => {
+      const revenue = revenueMode === 'Gross' ? o.total : (o.subtotal + (o.tip || 0));
+      return {
+        'Order ID': getNumericOrderId(o.id),
+        'Date': o.createdAt ? format(o.createdAt.toDate(), 'yyyy-MM-dd HH:mm') : 'N/A',
+        'Customer': o.customerName,
+        'Service': o.menuType,
+        'Location': o.menuTypeLocation || 'N/A',
+        'Items': o.items.map(i => `${i.quantity}x ${i.name}`).join(', '),
+        'Subtotal': o.subtotal.toFixed(2),
+        'Convenience Fee': o.serviceFee.toFixed(2),
+        'Tax': o.tax.toFixed(2),
+        'Tip': o.tip.toFixed(2),
+        'Revenue Displayed': revenue.toFixed(2),
+        'Reporting Mode': revenueMode,
+        'Total Order Value': o.total.toFixed(2)
+      };
+    });
+
+    const worksheet = XLSX.utils.json_to_sheet(exportData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Sales Report");
+    
+    const fileName = `Sales_Report_${seller?.courseName.replace(/\s+/g, '_')}_${revenueMode}_${format(new Date(), 'yyyyMMdd')}.xlsx`;
+    XLSX.writeFile(workbook, fileName);
+    
+    toast({ title: "Report Generated", description: `Exported ${reportOrders.length} transactions.` });
+  };
 
   const handleSaveMasterItem = (data: MenuItemFormData) => {
     if (!firestore || !isSuperAdmin) return;
@@ -704,9 +763,10 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
             <h2 className="font-headline text-xl font-bold flex items-center gap-2 text-primary uppercase tracking-wider"><BarChart3 className="h-6 w-6" /> Sales Stats</h2>
             <div className="flex items-center gap-2 bg-muted/30 p-1 rounded-lg border">
               <Button variant={revenueMode === 'Gross' ? 'default' : 'ghost'} size="sm" onClick={() => setRevenueMode('Gross')} className="h-7 text-[10px] uppercase font-bold">Gross</Button>
-              <Button variant={revenueMode === 'Net' ? 'default' : 'ghost'} size="sm" onClick={() => setRevenueMode('Net')} className="h-7 text-[10px] uppercase font-bold">Net (No Tax)</Button>
+              <Button variant={revenueMode === 'Net' ? 'default' : 'ghost'} size="sm" onClick={() => setRevenueMode('Net')} className="h-7 text-[10px] uppercase font-bold">Net</Button>
             </div>
           </div>
+          
           <div className="flex flex-wrap gap-4 mb-8">
             {dashboardStats ? (
               <>
@@ -717,6 +777,101 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
               [...Array(2)].map((_, i) => <Skeleton key={`stat-tile-skel-${i}`} className="h-48 flex-1 min-w-[300px]" />)
             )}
           </div>
+
+          <Card className="shadow-lg border-2">
+            <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b bg-muted/10">
+              <div className="space-y-1">
+                <CardTitle className="text-sm font-black uppercase flex items-center gap-2">
+                  <Calendar className="h-4 w-4 text-primary" /> Sales Report Builder
+                </CardTitle>
+                <CardDescription className="text-[10px] uppercase font-bold text-muted-foreground">Select a range to view detailed transaction logs.</CardDescription>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      id="date"
+                      variant={"outline"}
+                      className={cn(
+                        "w-[260px] justify-start text-left font-normal h-10 border-2",
+                        !dateRange && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {dateRange?.from ? (
+                        dateRange.to ? (
+                          <>
+                            {format(dateRange.from, "LLL dd, y")} -{" "}
+                            {format(dateRange.to, "LLL dd, y")}
+                          </>
+                        ) : (
+                          format(dateRange.from, "LLL dd, y")
+                        )
+                      ) : (
+                        <span>Pick a date range</span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="end">
+                    <CalendarComponent
+                      initialFocus
+                      mode="range"
+                      defaultMonth={dateRange?.from}
+                      selected={dateRange}
+                      onSelect={setDateRange}
+                      numberOfMonths={2}
+                    />
+                  </PopoverContent>
+                </Popover>
+                <Button onClick={handleExportToExcel} className="h-10 bg-green-600 hover:bg-green-700 font-black uppercase text-[10px] tracking-widest gap-2">
+                  <Download className="h-4 w-4" /> Export Excel
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="border-b px-6 py-2 bg-muted/5 flex items-center justify-between">
+                <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                  Reporting in <span className="text-primary">{revenueMode}</span> mode
+                </span>
+                <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                  {reportOrders.length} Transactions Found
+                </span>
+              </div>
+              <ScrollArea className="h-[400px]">
+                <Table>
+                  <TableHeader className="bg-muted/30 sticky top-0 z-10">
+                    <TableRow>
+                      <TableHead className="text-[10px] font-black uppercase">Order ID</TableHead>
+                      <TableHead className="text-[10px] font-black uppercase">Date</TableHead>
+                      <TableHead className="text-[10px] font-black uppercase">Customer</TableHead>
+                      <TableHead className="text-[10px] font-black uppercase">Type</TableHead>
+                      <TableHead className="text-[10px] font-black uppercase text-right">Revenue ({revenueMode})</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {areOrdersLoading ? (
+                      [...Array(5)].map((_, i) => <TableRow key={i}><TableCell colSpan={5}><Skeleton className="h-10 w-full" /></TableCell></TableRow>)
+                    ) : reportOrders.length === 0 ? (
+                      <TableRow><TableCell colSpan={5} className="text-center py-20 text-muted-foreground italic text-sm">No data for the selected range.</TableCell></TableRow>
+                    ) : (
+                      reportOrders.map((order) => {
+                        const revenue = revenueMode === 'Gross' ? order.total : (order.subtotal + (order.tip || 0));
+                        return (
+                          <TableRow key={order.id} className="hover:bg-muted/5">
+                            <TableCell><code className="text-[10px] font-mono font-bold bg-muted px-1.5 py-0.5 rounded">#{getNumericOrderId(order.id)}</code></TableCell>
+                            <TableCell className="text-[10px] font-medium">{order.createdAt ? format(order.createdAt.toDate(), 'MMM d, h:mm a') : 'N/A'}</TableCell>
+                            <TableCell className="text-xs font-bold">{order.customerName}</TableCell>
+                            <TableCell><Badge variant="outline" className="text-[8px] font-black uppercase">{order.menuType}</Badge></TableCell>
+                            <TableCell className="text-right font-mono font-bold text-xs text-primary">${revenue.toFixed(2)}</TableCell>
+                          </TableRow>
+                        );
+                      })
+                    )}
+                  </TableBody>
+                </Table>
+              </ScrollArea>
+            </CardContent>
+          </Card>
         </section>
 
         <section id="service-management" className="mb-12 mt-16 scroll-mt-32">
