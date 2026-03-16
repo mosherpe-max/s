@@ -48,7 +48,10 @@ import {
   Printer,
   Info,
   Lock,
-  LogOut
+  LogOut,
+  Search,
+  CheckCircle2,
+  XCircle
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -310,6 +313,8 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   
   const [isPickingOpen, setIsPickingOpen] = useState(false);
   const [pickingMenuType, setPickingMenuType] = useState<string>('');
+  const [pickerSearch, setPickerSearch] = useState('');
+  const [pickerCategory, setPickerCategory] = useState<string>('All');
   
   const [isCategoryConfigOpen, setIsCategoryConfigOpen] = useState(false);
   const [configMenuType, setConfigMenuType] = useState<string>('');
@@ -483,6 +488,17 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     });
   };
 
+  const handleToggleMenuItemAvailability = (item: MenuItem, menuType: string) => {
+    if (!firestore || !isSuperAdmin) return;
+    const itemRef = doc(firestore, 'sellers', sellerId, 'menuItems', item.id);
+    const availableOn = item.availableOn || [];
+    const nextAvailableOn = availableOn.includes(menuType)
+      ? availableOn.filter(t => t !== menuType)
+      : [...availableOn, menuType];
+    
+    updateDoc(itemRef, { availableOn: nextAvailableOn });
+  };
+
   const getImpersonationLink = () => {
     if (!selectedOpsMenu) return null;
     switch (selectedOpsMenu) {
@@ -495,6 +511,15 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   const isGolfCourse = useMemo(() => {
     return seller?.type?.toLowerCase().includes('golf');
   }, [seller?.type]);
+
+  const filteredLibraryForPicker = useMemo(() => {
+    if (!menuItems) return [];
+    return menuItems.filter(item => {
+      const matchesSearch = item.name.toLowerCase().includes(pickerSearch.toLowerCase());
+      const matchesCategory = pickerCategory === 'All' || item.category === pickerCategory;
+      return matchesSearch && matchesCategory;
+    });
+  }, [menuItems, pickerSearch, pickerCategory]);
 
   if (isUserLoading || !isMounted) {
     return (
@@ -722,7 +747,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                                                             <span className="text-xs font-medium">{item.name}</span>
                                                             {item.modifierGroups?.length ? <Layers className="h-3 w-3 text-primary" /> : null}
                                                           </div>
-                                                          <Button variant="ghost" size="icon" className="text-destructive h-7 w-7" onClick={() => updateDoc(doc(firestore, 'sellers', sellerId, 'menuItems', item.id), { availableOn: item.availableOn?.filter(t => t !== menuType) })}><Trash2 className="h-3 w-3" /></Button>
+                                                          <Button variant="ghost" size="icon" className="text-destructive h-7 w-7" onClick={() => handleToggleMenuItemAvailability(item, menuType)}><Trash2 className="h-3 w-3" /></Button>
                                                         </div>
                                                     ))}
                                                 </div>
@@ -857,6 +882,110 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
           <DialogContent className="sm:max-w-[600px]">
             <DialogHeader><DialogTitle>{editingItem ? 'Edit Item' : 'New Item'}</DialogTitle></DialogHeader>
             <MasterItemForm onSave={handleSaveMasterItem} menuItem={editingItem} onClose={() => setIsMasterFormOpen(false)} />
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={isPickingOpen} onOpenChange={setIsPickingOpen}>
+          <DialogContent className="sm:max-w-[700px] max-h-[90vh] flex flex-col p-0 overflow-hidden">
+            <DialogHeader className="px-6 py-4 border-b bg-muted/10">
+              <DialogTitle className="uppercase font-headline flex items-center gap-2">
+                <PlusCircle className="h-5 w-5 text-primary" /> Manage {pickingMenuType} Items
+              </DialogTitle>
+              <DialogDescription>Assign items from your library to this specific service menu.</DialogDescription>
+            </DialogHeader>
+            
+            <div className="p-4 border-b bg-background space-y-4">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input 
+                  placeholder="Search your library..." 
+                  className="pl-10" 
+                  value={pickerSearch}
+                  onChange={(e) => setPickerSearch(e.target.value)}
+                />
+              </div>
+              <ScrollArea className="w-full whitespace-nowrap">
+                <div className="flex gap-1.5 pb-1">
+                  <Button 
+                    variant={pickerCategory === 'All' ? 'default' : 'outline'} 
+                    size="sm" 
+                    onClick={() => setPickerCategory('All')}
+                    className="h-7 text-[9px] font-black uppercase tracking-widest"
+                  >
+                    All Categories
+                  </Button>
+                  {categories.map(cat => (
+                    <Button 
+                      key={`picker-cat-${cat}`} 
+                      variant={pickerCategory === cat ? 'default' : 'outline'} 
+                      size="sm" 
+                      onClick={() => setPickerCategory(cat)}
+                      className="h-7 text-[9px] font-black uppercase tracking-widest"
+                    >
+                      {cat}
+                    </Button>
+                  ))}
+                </div>
+              </ScrollArea>
+            </div>
+
+            <ScrollArea className="flex-1 px-6 py-4">
+              <div className="grid grid-cols-1 gap-3 pb-8">
+                {filteredLibraryForPicker.length === 0 ? (
+                  <div className="text-center py-20 opacity-30">
+                    <Database className="h-12 w-12 mx-auto mb-2" />
+                    <p className="text-sm font-bold uppercase tracking-widest">No matching items found</p>
+                  </div>
+                ) : (
+                  filteredLibraryForPicker.map((item) => {
+                    const isSelected = item.availableOn?.includes(pickingMenuType);
+                    return (
+                      <div 
+                        key={`picker-item-${item.id}`} 
+                        className={cn(
+                          "flex items-center justify-between p-4 rounded-2xl border-2 transition-all cursor-pointer group",
+                          isSelected ? "border-primary bg-primary/5 shadow-sm" : "border-muted hover:border-primary/30"
+                        )}
+                        onClick={() => handleToggleMenuItemAvailability(item, pickingMenuType)}
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className={cn(
+                            "w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors",
+                            isSelected ? "bg-primary border-primary" : "bg-background border-muted-foreground/20 group-hover:border-primary/50"
+                          )}>
+                            {isSelected && <Check className="h-3.5 w-3.5 text-white" />}
+                          </div>
+                          <div className="space-y-0.5">
+                            <p className="font-bold text-sm leading-tight">{item.name}</p>
+                            <div className="flex items-center gap-2">
+                              <Badge variant="outline" className="text-[8px] uppercase font-black px-1.5 h-4">{item.category}</Badge>
+                              <span className="text-[10px] font-mono font-bold text-muted-foreground">${item.price.toFixed(2)}</span>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        {item.availableOn && item.availableOn.length > 0 && !isSelected && (
+                          <div className="flex flex-col items-end gap-1">
+                            <span className="text-[8px] font-black uppercase text-muted-foreground/60 tracking-tighter">Also Active On:</span>
+                            <div className="flex gap-1">
+                              {item.availableOn.map(t => (
+                                <div key={t} className="w-2 h-2 rounded-full bg-indigo-400/40" title={t} />
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </ScrollArea>
+
+            <DialogFooter className="px-6 py-4 border-t bg-muted/10">
+              <Button onClick={() => setIsPickingOpen(false)} className="w-full sm:w-auto font-black uppercase text-xs tracking-[0.2em]">
+                Finished Configuration
+              </Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
 
