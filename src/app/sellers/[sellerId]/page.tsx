@@ -659,6 +659,26 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
           </div>
         </section>
 
+        <section id="sales-stats" className="mb-12 scroll-mt-32">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+            <h2 className="font-headline text-xl font-bold flex items-center gap-2 text-primary uppercase tracking-wider"><BarChart3 className="h-6 w-6" /> Sales Stats</h2>
+            <div className="flex items-center gap-2 bg-muted/30 p-1 rounded-lg border">
+              <Button variant={revenueMode === 'Gross' ? 'default' : 'ghost'} size="sm" onClick={() => setRevenueMode('Gross')} className="h-7 text-[10px] uppercase font-bold">Gross</Button>
+              <Button variant={revenueMode === 'Net' ? 'default' : 'ghost'} size="sm" onClick={() => setRevenueMode('Net')} className="h-7 text-[10px] uppercase font-bold">Net (No Tax)</Button>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-4 mb-8">
+            {dashboardStats ? (
+              <>
+                <StatTile title="Monthly Performance" revenue={dashboardStats.monthly.revenue} orders={dashboardStats.monthly.orders} longWait={dashboardStats.monthly.longWait} />
+                <StatTile title="Year-to-Date" revenue={dashboardStats.yearly.revenue} orders={dashboardStats.yearly.orders} longWait={dashboardStats.yearly.longWait} />
+              </>
+            ) : (
+              [...Array(2)].map((_, i) => <Skeleton key={`stat-tile-skel-${i}`} className="h-48 flex-1 min-w-[300px]" />)
+            )}
+          </div>
+        </section>
+
         <section id="service-management" className="mb-12 mt-16 scroll-mt-32">
           <h2 className="font-headline text-xl font-bold mb-6 flex items-center gap-2 text-primary uppercase tracking-wider"><ListChecks className="h-6 w-6" /> Service Menus</h2>
           <div className="grid grid-cols-1 gap-12">
@@ -795,26 +815,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
               </div>
             </CardContent>
           </Card>
-        </section>
-
-        <section id="sales-stats" className="mb-12 scroll-mt-32">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-            <h2 className="font-headline text-xl font-bold flex items-center gap-2 text-primary uppercase tracking-wider"><BarChart3 className="h-6 w-6" /> Sales Stats</h2>
-            <div className="flex items-center gap-2 bg-muted/30 p-1 rounded-lg border">
-              <Button variant={revenueMode === 'Gross' ? 'default' : 'ghost'} size="sm" onClick={() => setRevenueMode('Gross')} className="h-7 text-[10px] uppercase font-bold">Gross</Button>
-              <Button variant={revenueMode === 'Net' ? 'default' : 'ghost'} size="sm" onClick={() => setRevenueMode('Net')} className="h-7 text-[10px] uppercase font-bold">Net (No Tax)</Button>
-            </div>
-          </div>
-          <div className="flex flex-wrap gap-4 mb-8">
-            {dashboardStats ? (
-              <>
-                <StatTile title="Monthly Performance" revenue={dashboardStats.monthly.revenue} orders={dashboardStats.monthly.orders} longWait={dashboardStats.monthly.longWait} />
-                <StatTile title="Year-to-Date" revenue={dashboardStats.yearly.revenue} orders={dashboardStats.yearly.orders} longWait={dashboardStats.yearly.longWait} />
-              </>
-            ) : (
-              [...Array(2)].map((_, i) => <Skeleton key={`stat-tile-skel-${i}`} className="h-48 flex-1 min-w-[300px]" />)
-            )}
-          </div>
         </section>
 
         <Card id="menu-library" className="mb-12 mt-16 shadow-md border-primary/20 bg-primary/5 scroll-mt-32">
