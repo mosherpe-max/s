@@ -492,6 +492,10 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     }
   };
 
+  const isGolfCourse = useMemo(() => {
+    return seller?.type?.toLowerCase().includes('golf');
+  }, [seller?.type]);
+
   if (isUserLoading || !isMounted) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen">
@@ -609,13 +613,15 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <Card className="lg:col-span-2 h-[450px] overflow-hidden shadow-md border-2">
-              <APIProvider apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!}>
-                {seller ? <MapView sellerLocation={{ latitude: seller.latitude, longitude: seller.longitude }} buyers={filteredOpsOrders.map(o => ({ id: o.id, name: o.customerName, location: o.deliveryLocation }))} zoomMode="all" interactive={true} /> : <Skeleton className="w-full h-full" />}
-              </APIProvider>
-            </Card>
-            <Card className="shadow-md flex flex-col border-2 overflow-hidden max-h-[450px]">
+          <div className={cn("grid grid-cols-1 gap-6", isGolfCourse ? "lg:grid-cols-3" : "lg:grid-cols-1")}>
+            {isGolfCourse && (
+              <Card className="lg:col-span-2 h-[450px] overflow-hidden shadow-md border-2">
+                <APIProvider apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!}>
+                  {seller ? <MapView sellerLocation={{ latitude: seller.latitude, longitude: seller.longitude }} buyers={filteredOpsOrders.map(o => ({ id: o.id, name: o.customerName, location: o.deliveryLocation }))} zoomMode="all" interactive={true} /> : <Skeleton className="w-full h-full" />}
+                </APIProvider>
+              </Card>
+            )}
+            <Card className={cn("shadow-md flex flex-col border-2 overflow-hidden", isGolfCourse ? "max-h-[450px]" : "max-h-[600px] w-full")}>
               <CardHeader className="py-4 border-b bg-muted/20">
                 <CardTitle className="text-sm font-black uppercase">Live {selectedOpsMenu} Queue</CardTitle>
               </CardHeader>
