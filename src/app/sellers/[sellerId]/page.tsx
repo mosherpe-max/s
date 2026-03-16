@@ -199,7 +199,7 @@ function MasterItemForm({
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSave)} className="flex flex-col h-[80vh]">
+      <form onSubmit={form.handleSubmit(onSave)} className="flex flex-col max-h-[80vh]">
         <ScrollArea className="flex-1 pr-4">
           <div className="grid gap-4 py-4">
             <FormField control={form.control} name="name" render={({ field }) => (
@@ -213,7 +213,7 @@ function MasterItemForm({
                   <FormItem><FormLabel>Base Price</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
               )} />
               <FormField control={form.control} name="category" render={({ field }) => (
-                  <FormItem><FormLabel>Category</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select a category" /></SelectTrigger></FormControl><SelectContent>{categories.map((cat) => (<SelectItem key={cat} value={cat}>{cat}</SelectItem>))}</SelectContent></Select><FormMessage /></FormItem>
+                  <FormItem><FormLabel>Category</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select a category" /></SelectTrigger></FormControl><SelectContent>{categories.map((cat) => (<SelectItem key={cat} value={cat}>{cat}</SelectItem>))}</Select><FormMessage /></FormItem>
               )} />
             </div>
             
@@ -650,7 +650,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
               <CardHeader className="py-4 border-b bg-muted/20">
                 <CardTitle className="text-sm font-black uppercase">Live {selectedOpsMenu} Queue</CardTitle>
               </CardHeader>
-              <CardContent className="p-0 flex-1">
+              <CardContent className="p-0 flex-1 min-h-0">
                 <ScrollArea className="h-full">
                   <div className="p-4 space-y-3">
                     {areOrdersLoading ? (
@@ -879,27 +879,29 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
         </Card>
 
         <Dialog open={isMasterFormOpen} onOpenChange={setIsMasterFormOpen}>
-          <DialogContent className="sm:max-w-[600px]">
-            <DialogHeader><DialogTitle>{editingItem ? 'Edit Item' : 'New Item'}</DialogTitle></DialogHeader>
-            <MasterItemForm onSave={handleSaveMasterItem} menuItem={editingItem} onClose={() => setIsMasterFormOpen(false)} />
+          <DialogContent className="sm:max-w-[600px] w-[95vw] p-0 overflow-hidden">
+            <DialogHeader className="p-6 border-b"><DialogTitle>{editingItem ? 'Edit Item' : 'New Item'}</DialogTitle></DialogHeader>
+            <div className="p-6">
+              <MasterItemForm onSave={handleSaveMasterItem} menuItem={editingItem} onClose={() => setIsMasterFormOpen(false)} />
+            </div>
           </DialogContent>
         </Dialog>
 
         <Dialog open={isPickingOpen} onOpenChange={setIsPickingOpen}>
-          <DialogContent className="sm:max-w-[700px] max-h-[90vh] flex flex-col p-0 overflow-hidden">
-            <DialogHeader className="px-6 py-4 border-b bg-muted/10">
+          <DialogContent className="sm:max-w-[700px] w-[95vw] max-h-[90vh] flex flex-col p-0 overflow-hidden shadow-2xl">
+            <DialogHeader className="px-6 py-4 border-b bg-muted/10 shrink-0">
               <DialogTitle className="uppercase font-headline flex items-center gap-2">
                 <PlusCircle className="h-5 w-5 text-primary" /> Manage {pickingMenuType} Items
               </DialogTitle>
               <DialogDescription>Assign items from your library to this specific service menu.</DialogDescription>
             </DialogHeader>
             
-            <div className="p-4 border-b bg-background space-y-4">
+            <div className="p-4 border-b bg-background space-y-4 shrink-0">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input 
                   placeholder="Search your library..." 
-                  className="pl-10" 
+                  className="pl-10 h-10" 
                   value={pickerSearch}
                   onChange={(e) => setPickerSearch(e.target.value)}
                 />
@@ -981,7 +983,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
               </div>
             </ScrollArea>
 
-            <DialogFooter className="px-6 py-4 border-t bg-muted/10">
+            <DialogFooter className="px-6 py-4 border-t bg-muted/10 shrink-0">
               <Button onClick={() => setIsPickingOpen(false)} className="w-full sm:w-auto font-black uppercase text-xs tracking-[0.2em]">
                 Finished Configuration
               </Button>
@@ -990,13 +992,13 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
         </Dialog>
 
         <Dialog open={isCategoryConfigOpen} onOpenChange={setIsCategoryConfigOpen}>
-          <DialogContent className="sm:max-w-[600px] max-h-[90vh] flex flex-col p-0 overflow-hidden">
-            <DialogHeader className="px-6 py-4 border-b">
+          <DialogContent className="sm:max-w-[600px] w-[95vw] max-h-[90vh] flex flex-col p-0 overflow-hidden shadow-2xl">
+            <DialogHeader className="px-6 py-4 border-b bg-muted/10 shrink-0">
               <DialogTitle className="uppercase tracking-tight">Structure: {configMenuType}</DialogTitle>
               <CardDescription>Enable modifiers and image display per category.</CardDescription>
             </DialogHeader>
-            <div className="flex-1 overflow-y-auto px-6 py-4">
-              <div className="grid grid-cols-1 gap-4">
+            <ScrollArea className="flex-1 px-6 py-4">
+              <div className="grid grid-cols-1 gap-4 pb-8">
                 <div className="grid grid-cols-12 gap-2 px-4 py-2 bg-muted/30 rounded-lg text-[10px] font-black uppercase tracking-widest text-muted-foreground">
                   <div className="col-span-6">Category Name</div>
                   <div className="col-span-3 text-center">Modifiers</div>
@@ -1030,8 +1032,8 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                   );
                 })}
               </div>
-            </div>
-            <DialogFooter className="px-6 py-4 border-t bg-muted/20">
+            </ScrollArea>
+            <DialogFooter className="px-6 py-4 border-t bg-muted/20 shrink-0">
               <Button onClick={() => setIsCategoryConfigOpen(false)} className="w-full sm:w-auto font-bold uppercase text-xs tracking-widest">Save Structure</Button>
             </DialogFooter>
           </DialogContent>
