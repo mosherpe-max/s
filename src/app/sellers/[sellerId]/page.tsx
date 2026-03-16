@@ -52,7 +52,9 @@ import {
   Search,
   CheckCircle2,
   XCircle,
-  Calendar
+  Calendar,
+  Settings,
+  Bell
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -350,6 +352,8 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     to: new Date(),
   });
 
+  const [isSavingThresholds, setIsSavingThresholds] = useState(false);
+
   // AUTHORIZATION GATE: GOD-MODE CHECK
   const isSuperAdmin = user?.uid === SUPER_ADMIN_ID;
 
@@ -416,7 +420,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     return activeOrders.filter(o => o.menuType === selectedOpsMenu);
   }, [activeOrders, selectedOpsMenu]);
 
-  // Filtered orders for the specific date range table
   const reportOrders = useMemo(() => {
     if (!orders || !dateRange?.from) return [];
     
@@ -434,7 +437,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     if (!orders || !seller) return null;
     const calculate = (filtered: Order[]) => {
       const revenue = filtered.reduce((acc, o) => {
-        // Net: Subtotal + Tip (No Tax, No Convenience Fee)
         const val = revenueMode === 'Gross' ? o.total : (o.subtotal + (o.tip || 0));
         return acc + val;
       }, 0);
@@ -573,6 +575,26 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     updateDoc(itemRef, { availableOn: nextAvailableOn });
   };
 
+  const handleUpdateThreshold = async (menuType: string, field: 'warning' | 'max', value: string) => {
+    if (!firestore || !seller || !isSuperAdmin) return;
+    const val = parseInt(value) || 0;
+    const currentThresholds = seller.orderThresholds || {};
+    const menuThresholds = currentThresholds[menuType] || { warning: 7, max: 10 };
+    
+    const updatedThresholds = {
+      ...currentThresholds,
+      [menuType]: {
+        ...menuThresholds,
+        [field]: val
+      }
+    };
+
+    setIsSavingThresholds(true);
+    updateDoc(doc(firestore, 'sellers', sellerId), {
+      orderThresholds: updatedThresholds
+    }).finally(() => setIsSavingThresholds(false));
+  };
+
   const getImpersonationLink = () => {
     if (!selectedOpsMenu) return null;
     switch (selectedOpsMenu) {
@@ -653,11 +675,11 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
           <Button variant="ghost" size="sm" onClick={() => scrollToSection('service-management')} className="h-8 text-[10px] font-bold uppercase tracking-widest px-3 rounded-full hover:bg-primary/10">
             <ListChecks className="mr-1.5 h-3.5 w-3.5" /> Service Menus
           </Button>
-          <Button variant="ghost" size="sm" onClick={() => scrollToSection('qr-signage')} className="h-8 text-[10px] font-bold uppercase tracking-widest px-3 rounded-full hover:bg-primary/10">
-            <QrCode className="mr-1.5 h-3.5 w-3.5" /> QR & Signage
-          </Button>
           <Button variant="ghost" size="sm" onClick={() => scrollToSection('menu-library')} className="h-8 text-[10px] font-bold uppercase tracking-widest px-3 rounded-full hover:bg-primary/10">
             <Database className="mr-1.5 h-3.5 w-3.5" /> Menu Library
+          </Button>
+          <Button variant="ghost" size="sm" onClick={() => scrollToSection('account-settings')} className="h-8 text-[10px] font-bold uppercase tracking-widest px-3 rounded-full hover:bg-primary/10">
+            <Settings className="mr-1.5 h-3.5 w-3.5" /> Account Settings
           </Button>
         </nav>
 
@@ -933,85 +955,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
           </div>
         </section>
 
-        <section id="qr-signage" className="mb-12 mt-16 scroll-mt-32">
-          <h2 className="font-headline text-xl font-bold mb-6 flex items-center gap-2 text-primary uppercase tracking-wider"><QrCode className="h-6 w-6" /> QR Code & Signage</h2>
-          <Card className="shadow-lg border-2 border-primary/10">
-            <CardHeader className="bg-primary/5 border-b">
-              <CardTitle className="text-lg font-headline uppercase">Operational Signage</CardTitle>
-              <CardDescription>Your unique QR code links directly to your digital ordering menu.</CardDescription>
-            </CardHeader>
-            <CardContent className="pt-8">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
-                <div className="flex flex-col items-center justify-center p-8 bg-white rounded-[2rem] shadow-2xl border-4 border-muted/20 relative aspect-square max-w-sm mx-auto overflow-hidden">
-                  {seller?.qrCodeUrl ? (
-                    <div className="text-center space-y-6">
-                      <Image 
-                        src={seller.qrCodeUrl} 
-                        alt="Seller QR Code" 
-                        width={250} 
-                        height={250} 
-                        className="mx-auto"
-                      />
-                      <div className="space-y-1">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-primary">Scan to Order</p>
-                        <p className="text-sm font-bold truncate max-w-[200px]">{seller.courseName}</p>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="text-center space-y-4">
-                      <div className="p-6 bg-muted rounded-full inline-block">
-                        <QrCode className="h-16 w-16 opacity-10" />
-                      </div>
-                      <p className="text-xs text-muted-foreground italic px-8">No QR code generated for this venue yet. Please contact KOOP Admin or initialize via settings.</p>
-                    </div>
-                  )}
-                </div>
-
-                <div className="space-y-6">
-                  <div className="space-y-2">
-                    <h3 className="font-headline text-xl font-bold text-[#213147]">High-Resolution QR Assets</h3>
-                    <p className="text-muted-foreground text-sm leading-relaxed">
-                      Download your venue's unique QR code for use on on-course signage, cart placards, menu boards, or table tents. This code points to your live digital ordering platform.
-                    </p>
-                  </div>
-
-                  <div className="grid grid-cols-1 gap-3">
-                    <Button 
-                      className="h-14 font-black uppercase tracking-widest shadow-lg rounded-xl gap-3"
-                      disabled={!seller?.qrCodeUrl}
-                      asChild
-                    >
-                      <a href={seller?.qrCodeUrl} download={`${seller?.courseName}_QR.png`} target="_blank">
-                        <Download className="h-5 w-5" />
-                        Download High-Res PNG
-                      </a>
-                    </Button>
-                    <Button 
-                      variant="outline"
-                      className="h-14 font-black uppercase tracking-widest border-2 rounded-xl gap-3"
-                      disabled={!seller?.qrCodeUrl}
-                      onClick={() => window.print()}
-                    >
-                      <Printer className="h-5 w-5" />
-                      Print Table Tent (PDF)
-                    </Button>
-                  </div>
-
-                  <div className="p-4 bg-muted/30 rounded-xl border border-dashed flex items-start gap-3">
-                    <Info className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-                    <div className="space-y-1">
-                      <p className="text-[10px] font-black uppercase tracking-widest">Signage Tip</p>
-                      <p className="text-[11px] text-muted-foreground leading-relaxed">
-                        For best results on golf courses, place QR codes on every hole marker and inside the beverage carts. For bowling alleys, place on the scoring consoles at each lane.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </section>
-
         <Card id="menu-library" className="mb-12 mt-16 shadow-md border-primary/20 bg-primary/5 scroll-mt-32">
           <CardHeader className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
@@ -1047,6 +990,133 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
             </div>
           </CardContent>
         </Card>
+
+        <section id="account-settings" className="mb-12 mt-16 scroll-mt-32">
+          <h2 className="font-headline text-xl font-bold mb-6 flex items-center gap-2 text-primary uppercase tracking-wider"><Settings className="h-6 w-6" /> Account Settings</h2>
+          <div className="grid grid-cols-1 gap-8">
+            {/* Service Thresholds */}
+            <Card className="shadow-lg border-2 border-primary/10">
+              <CardHeader className="bg-primary/5 border-b">
+                <CardTitle className="text-lg font-headline uppercase flex items-center gap-2">
+                  <Bell className="h-5 w-5 text-primary" /> Service Alert Thresholds
+                </CardTitle>
+                <CardDescription>Configure how long an order can remain active before alerting staff.</CardDescription>
+              </CardHeader>
+              <CardContent className="pt-6 space-y-6">
+                {seller?.menuTypes?.map(menuType => {
+                  const thresholds = seller.orderThresholds?.[menuType] || { warning: 7, max: 10 };
+                  return (
+                    <div key={`thresh-${menuType}`} className="p-4 rounded-xl bg-muted/30 border border-dashed grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
+                      <div className="space-y-1">
+                        <p className="font-bold text-sm uppercase tracking-tight">{menuType}</p>
+                        <p className="text-[10px] text-muted-foreground uppercase font-black tracking-widest">Active thresholds (min)</p>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4 col-span-2">
+                        <div className="space-y-2">
+                          <Label className="text-[10px] font-black uppercase text-yellow-600 flex items-center gap-1.5">
+                            <Clock className="h-3 w-3" /> Warning (Yellow)
+                          </Label>
+                          <Input 
+                            type="number" 
+                            defaultValue={thresholds.warning} 
+                            onBlur={(e) => handleUpdateThreshold(menuType, 'warning', e.target.value)}
+                            className="h-10 border-yellow-500/30 focus-visible:ring-yellow-500 font-bold"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-[10px] font-black uppercase text-red-600 flex items-center gap-1.5">
+                            <AlertTriangle className="h-3 w-3" /> Max (Red)
+                          </Label>
+                          <Input 
+                            type="number" 
+                            defaultValue={thresholds.max} 
+                            onBlur={(e) => handleUpdateThreshold(menuType, 'max', e.target.value)}
+                            className="h-10 border-red-500/30 focus-visible:ring-red-500 font-bold"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+                <div className="p-4 bg-primary/5 rounded-lg flex items-start gap-3">
+                  <Info className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    These timers start from the moment an order is <strong>Placed</strong>. Warning levels trigger a yellow indicator on driver/server maps and cards. Max levels trigger a red alert and an urgent system notification.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* QR & Signage */}
+            <Card className="shadow-lg border-2 border-primary/10">
+              <CardHeader className="bg-primary/5 border-b">
+                <CardTitle className="text-lg font-headline uppercase flex items-center gap-2">
+                  <QrCode className="h-5 w-5 text-primary" /> Operational Signage
+                </CardTitle>
+                <CardDescription>Your unique QR code links directly to your digital ordering menu.</CardDescription>
+              </CardHeader>
+              <CardContent className="pt-8">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
+                  <div className="flex flex-col items-center justify-center p-8 bg-white rounded-[2rem] shadow-2xl border-4 border-muted/20 relative aspect-square max-w-sm mx-auto overflow-hidden">
+                    {seller?.qrCodeUrl ? (
+                      <div className="text-center space-y-6">
+                        <Image 
+                          src={seller.qrCodeUrl} 
+                          alt="Seller QR Code" 
+                          width={250} 
+                          height={250} 
+                          className="mx-auto"
+                        />
+                        <div className="space-y-1">
+                          <p className="text-[10px] font-black uppercase tracking-widest text-primary">Scan to Order</p>
+                          <p className="text-sm font-bold truncate max-w-[200px]">{seller.courseName}</p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-center space-y-4">
+                        <div className="p-6 bg-muted rounded-full inline-block">
+                          <QrCode className="h-16 w-16 opacity-10" />
+                        </div>
+                        <p className="text-xs text-muted-foreground italic px-8">No QR code generated for this venue yet. Please contact KOOP Admin or initialize via settings.</p>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="space-y-6">
+                    <div className="space-y-2">
+                      <h3 className="font-headline text-xl font-bold text-[#213147]">High-Resolution QR Assets</h3>
+                      <p className="text-muted-foreground text-sm leading-relaxed">
+                        Download your venue's unique QR code for use on on-course signage, cart placards, menu boards, or table tents. This code points to your live digital ordering platform.
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-3">
+                      <Button 
+                        className="h-14 font-black uppercase tracking-widest shadow-lg rounded-xl gap-3"
+                        disabled={!seller?.qrCodeUrl}
+                        asChild
+                      >
+                        <a href={seller?.qrCodeUrl} download={`${seller?.courseName}_QR.png`} target="_blank">
+                          <Download className="h-5 w-5" />
+                          Download High-Res PNG
+                        </a>
+                      </Button>
+                      <Button 
+                        variant="outline"
+                        className="h-14 font-black uppercase tracking-widest border-2 rounded-xl gap-3"
+                        disabled={!seller?.qrCodeUrl}
+                        onClick={() => window.print()}
+                      >
+                        <Printer className="h-5 w-5" />
+                        Print Table Tent (PDF)
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </section>
 
         <Dialog open={isMasterFormOpen} onOpenChange={setIsMasterFormOpen}>
           <DialogContent className="sm:max-w-[600px] w-[95vw] p-0 overflow-hidden">
