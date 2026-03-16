@@ -13,13 +13,14 @@ import { mockSellerLocation } from '@/lib/data';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
-import { Focus, Bell, Package, AlertCircle, Clock } from 'lucide-react';
+import { Focus, Bell, Package, AlertCircle, Clock, DollarSign, Timer, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { isStaffSessionStale } from '@/lib/utils';
 import { StylizedKoopLogo } from '@/components/header';
+import { isToday } from 'date-fns';
 
 type LatLng = {
   latitude: number;
@@ -34,7 +35,7 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
   const sellerLocRef = useRef<LatLng | null>(null);
   const [zoomMode, setZoomMode] = useState<'radius' | 'all'>('radius');
   const [fitTrigger, setFitTrigger] = useState<number>(0);
-  const [now, setNow] = useState<number | null>(null);
+  const [now, setNow] = useState<number>(Date.now());
   
   const lastOrderIdsRef = useRef<Set<string>>(new Set());
   const notifiedOverdueRef = useRef<Set<string>>(new Set());
@@ -123,10 +124,55 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
 
   const { data: activeOrders, isLoading: areActiveOrdersLoading } = useCollection<Order>(activeOrdersQuery);
 
+  const allOrdersQuery = useMemoFirebase(() => {
+    if (!firestore || !sellerId) return null;
+    return query(collection(firestore, 'orders'), where('sellerId', '==', sellerId));
+  }, [firestore, sellerId]);
+
+  const { data: allOrders } = useCollection<Order>(allOrdersQuery);
+
   const driverOrders = useMemo(() => {
     if (!activeOrders) return [];
     return activeOrders.filter(o => o.menuType === 'Beverage Cart');
   }, [activeOrders]);
+
+  const metrics = useMemo(() => {
+    if (!allOrders) return null;
+    
+    const bevOrdersToday = allOrders.filter(o => 
+      o.menuType === 'Beverage Cart' && 
+      o.createdAt && 
+      isToday(o.createdAt.toDate())
+    );
+
+    const deliveredToday = bevOrdersToday.filter(o => o.status === 'Delivered');
+    const dailyTips = deliveredToday.reduce((acc, o) => acc + (o.tip || 0), 0);
+    
+    let totalMinutes = 0;
+    deliveredToday.forEach(o => {
+      if (o.deliveredAt && o.createdAt) {
+        const duration = (o.deliveredAt.toDate().getTime() - o.createdAt.toDate().getTime()) / 60000;
+        totalMinutes += duration;
+      }
+    });
+    
+    const avgTime = deliveredToday.length > 0 ? totalMinutes / deliveredToday.length : 0;
+    const thresholdMax = thresholds.max;
+    
+    const exceededCount = bevOrdersToday.filter(o => {
+      if (o.status === 'Delivered' && o.deliveredAt && o.createdAt) {
+        const duration = (o.deliveredAt.toDate().getTime() - o.createdAt.toDate().getTime()) / 60000;
+        return duration > thresholdMax;
+      }
+      if (o.createdAt) {
+        const duration = (now - o.createdAt.toDate().getTime()) / 60000;
+        return duration > thresholdMax;
+      }
+      return false;
+    }).length;
+
+    return { dailyTips, avgTime, exceededCount };
+  }, [allOrders, thresholds.max, now]);
 
   useEffect(() => {
     if (!driverOrders || !now) return;
@@ -353,6 +399,33 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
             </Label>
           </div>
         </header>
+
+        {/* Compact Metrics Bar */}
+        <div className="flex-shrink-0 px-4 py-2 bg-background border-b flex items-center justify-center gap-6 overflow-x-auto no-scrollbar">
+          <div className="flex items-center gap-2 shrink-0">
+            <div className="p-1.5 bg-green-500/10 rounded-lg"><DollarSign className="h-3.5 w-3.5 text-green-600" /></div>
+            <div className="flex flex-col">
+              <span className="text-[8px] font-black uppercase text-muted-foreground tracking-widest leading-none">Daily Tips</span>
+              <span className="text-xs font-bold">${metrics?.dailyTips.toFixed(2) || '0.00'}</span>
+            </div>
+          </div>
+          <div className="h-6 w-px bg-muted" />
+          <div className="flex items-center gap-2 shrink-0">
+            <div className="p-1.5 bg-blue-500/10 rounded-lg"><Timer className="h-3.5 w-3.5 text-blue-600" /></div>
+            <div className="flex flex-col">
+              <span className="text-[8px] font-black uppercase text-muted-foreground tracking-widest leading-none">Avg Duration</span>
+              <span className="text-xs font-bold">{metrics?.avgTime.toFixed(1) || '0'}m</span>
+            </div>
+          </div>
+          <div className="h-6 w-px bg-muted" />
+          <div className="flex items-center gap-2 shrink-0">
+            <div className="p-1.5 bg-red-500/10 rounded-lg"><AlertTriangle className="h-3.5 w-3.5 text-red-600" /></div>
+            <div className="flex flex-col">
+              <span className="text-[8px] font-black uppercase text-muted-foreground tracking-widest leading-none">Alerts</span>
+              <span className="text-xs font-bold text-red-600">{metrics?.exceededCount || '0'}</span>
+            </div>
+          </div>
+        </div>
 
         <div className="flex-1 flex flex-col md:flex-row overflow-hidden min-h-0 p-4 gap-4">
           <div className="relative w-full md:w-2/3 h-[40vh] md:h-full bg-muted shrink-0 md:shrink rounded-xl overflow-hidden border-2 shadow-sm">

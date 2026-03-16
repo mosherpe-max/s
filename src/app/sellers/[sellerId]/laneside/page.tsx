@@ -119,7 +119,7 @@ export default function LaneSideServerDashboardPage({ params }: { params: Promis
     );
 
     const deliveredToday = laneOrdersToday.filter(o => o.status === 'Delivered');
-    const totalDollars = deliveredToday.reduce((acc, o) => acc + (o.total || 0), 0);
+    const dailyTips = deliveredToday.reduce((acc, o) => acc + (o.tip || 0), 0);
     
     let totalMinutes = 0;
     deliveredToday.forEach(o => {
@@ -144,11 +144,7 @@ export default function LaneSideServerDashboardPage({ params }: { params: Promis
       return false;
     }).length;
 
-    return {
-      totalDollars,
-      avgTime,
-      exceededCount
-    };
+    return { dailyTips, avgTime, exceededCount };
   }, [allOrders, primarySeller, now, thresholds.max]);
 
   useEffect(() => {
@@ -251,32 +247,34 @@ export default function LaneSideServerDashboardPage({ params }: { params: Promis
         </div>
       </header>
 
-      <div className="flex-1 flex flex-col p-4 gap-3 overflow-hidden max-w-6xl mx-auto w-full">
-        {/* Compact Metrics Bar */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-1">
-           <div className="px-3 py-2 bg-white rounded-lg border shadow-sm flex items-center gap-2.5">
-              <div className="p-1.5 bg-green-500/10 rounded-md shrink-0"><DollarSign className="h-4 w-4 text-green-600" /></div>
-              <div className="min-w-0">
-                <p className="text-[8px] font-black uppercase text-muted-foreground truncate tracking-wider">Today</p>
-                <p className="text-lg font-headline font-black leading-none">${metrics?.totalDollars.toFixed(2) ?? '0.00'}</p>
-              </div>
-           </div>
-           <div className="px-3 py-2 bg-white rounded-lg border shadow-sm flex items-center gap-2.5">
-              <div className="p-1.5 bg-blue-500/10 rounded-md shrink-0"><Timer className="h-4 w-4 text-blue-600" /></div>
-              <div className="min-w-0">
-                <p className="text-[8px] font-black uppercase text-muted-foreground truncate tracking-wider">Avg Time</p>
-                <p className="text-lg font-headline font-black leading-none">{metrics?.avgTime.toFixed(1) ?? 0}m</p>
-              </div>
-           </div>
-           <div className="px-3 py-2 bg-white rounded-lg border shadow-sm flex items-center gap-2.5">
-              <div className="p-1.5 bg-red-500/10 rounded-md shrink-0"><AlertTriangle className="h-4 w-4 text-red-600" /></div>
-              <div className="min-w-0">
-                <p className="text-[8px] font-black uppercase text-muted-foreground truncate tracking-wider">Slow</p>
-                <p className="text-lg font-headline font-black text-red-600">{metrics?.exceededCount ?? 0}</p>
-              </div>
-           </div>
+      {/* Compact Metrics Bar */}
+      <div className="flex-shrink-0 px-4 py-2 bg-background border-b flex items-center justify-center gap-6 overflow-x-auto no-scrollbar">
+        <div className="flex items-center gap-2 shrink-0">
+          <div className="p-1.5 bg-green-500/10 rounded-lg"><DollarSign className="h-3.5 w-3.5 text-green-600" /></div>
+          <div className="flex flex-col">
+            <span className="text-[8px] font-black uppercase text-muted-foreground tracking-widest leading-none">Daily Tips</span>
+            <span className="text-xs font-bold">${metrics?.dailyTips.toFixed(2) || '0.00'}</span>
+          </div>
         </div>
+        <div className="h-6 w-px bg-muted" />
+        <div className="flex items-center gap-2 shrink-0">
+          <div className="p-1.5 bg-blue-500/10 rounded-lg"><Timer className="h-3.5 w-3.5 text-blue-600" /></div>
+          <div className="flex flex-col">
+            <span className="text-[8px] font-black uppercase text-muted-foreground tracking-widest leading-none">Avg Duration</span>
+            <span className="text-xs font-bold">{metrics?.avgTime.toFixed(1) || '0'}m</span>
+          </div>
+        </div>
+        <div className="h-6 w-px bg-muted" />
+        <div className="flex items-center gap-2 shrink-0">
+          <div className="p-1.5 bg-red-500/10 rounded-lg"><AlertTriangle className="h-3.5 w-3.5 text-red-600" /></div>
+          <div className="flex flex-col">
+            <span className="text-[8px] font-black uppercase text-muted-foreground tracking-widest leading-none">Alerts</span>
+            <span className="text-xs font-bold text-red-600">{metrics?.exceededCount || '0'}</span>
+          </div>
+        </div>
+      </div>
 
+      <div className="flex-1 flex flex-col p-4 gap-3 overflow-hidden max-w-6xl mx-auto w-full">
         <div className="flex-1 bg-white border-2 rounded-xl overflow-hidden flex flex-col shadow-sm min-h-0">
           <h2 className="font-headline text-base font-semibold px-4 py-3 border-b flex items-center justify-between uppercase bg-muted/10">
             <span>Pending Deliveries</span>
