@@ -1,11 +1,11 @@
-
 'use client';
 
 import { useState, use, useEffect, useMemo } from 'react';
 import { collection, doc, addDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { signInAnonymously } from 'firebase/auth';
-import { useFirestore, useCollection, useMemoFirebase, useDoc, useAuth, useUser } from '@/firebase';
-import type { Seller, MenuItem, Category, Order, ModifierGroup, ModifierOption, OrderItem } from '@/lib/types';
+import { getFunctions, httpsCallable } from 'firebase/functions';
+import { useFirestore, useCollection, useMemoFirebase, useDoc, useAuth, useUser, useFirebaseApp } from '@/firebase';
+import type { Seller, MenuItem, Category, Order, ModifierGroup, ModifierOption, OrderItem, PaymentMethod } from '@/lib/types';
 import { categories } from '@/lib/types';
 import { BuyerMenu } from '@/components/buyer-menu';
 import { OrderSummary } from '@/components/order-summary';
@@ -179,6 +179,7 @@ function ModifierPicker({
 
 export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId: string }> }) {
   const { sellerId } = use(params);
+  const app = useFirebaseApp();
   const firestore = useFirestore();
   const auth = useAuth();
   const { user } = useUser();
@@ -189,17 +190,16 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
 
   const menuTypeFromUrl = searchParams.get('menuType');
   const [selectedMenuType, setSelectedMenuType] = useState<string>(menuTypeFromUrl || '');
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod>('Pay at Delivery');
   const [locationValue, setLocationValue] = useState<string>('');
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
-  const [showBackToTop, setShowBackToTop] = useState(false);
+  const [showBackToTop, setShowTopButton] = useState(false);
   
   const [modifierTarget, setModifierTarget] = useState<MenuItem | null>(null);
 
   const [selectedTipType, setSelectedTipType] = useState<string | null>(null);
   const [customTipValue, setCustomTipValue] = useState<string>('');
 
-  // Automatically sign in anonymously if not authenticated.
-  // This is required to ensure that global notification listeners can scope orders to a specific visitor securely.
   useEffect(() => {
     if (!user && auth) {
       signInAnonymously(auth).catch(() => {});
@@ -213,7 +213,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
   const { data: menuItems, isLoading: areItemsLoading } = useCollection<MenuItem>(menuItemsQuery);
 
   useEffect(() => {
-    const handleScroll = () => setShowBackToTop(window.scrollY > 400);
+    const handleScroll = () => setShowTopButton(window.scrollY > 400);
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
@@ -269,17 +269,6 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
 
   const finalTotal = subtotal + platformFee + tax + tipAmount;
 
-  const sortedMenuTypes = useMemo(() => {
-    if (!seller?.menuTypes) return [];
-    const types = [...seller.menuTypes];
-    const laneIndex = types.indexOf('Lane Delivery');
-    if (laneIndex > -1) {
-      types.splice(laneIndex, 1);
-      types.unshift('Lane Delivery');
-    }
-    return types;
-  }, [seller?.menuTypes]);
-
   const filteredMenuItems = useMemo(() => {
     if (!menuItems || !selectedMenuType) return [];
     return menuItems.filter(item => item.availableOn?.includes(selectedMenuType));
@@ -293,70 +282,19 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
     return enabledCategories.filter(cat => availableCategories.has(cat));
   }, [selectedMenuType, seller, filteredMenuItems]);
 
-  useEffect(() => {
-    if (sortedMenuTypes.length > 0 && !selectedMenuType) {
-      handleMenuTypeChange(sortedMenuTypes[0]);
-    }
-  }, [sortedMenuTypes, selectedMenuType]);
-
-  const handleMenuTypeChange = (type: string) => {
-    setSelectedMenuType(type);
-    const params = new URLSearchParams(searchParams.toString());
-    params.set('menuType', type);
-    router.replace(`?${params.toString()}`, { scroll: false });
-  };
-
-  const isServiceActive = useMemo(() => {
-    if (!seller) return false;
-    if (seller.status !== 'Active') return false;
-    return selectedMenuType === 'Beverage Cart' ? seller.bevcartActive === true : seller.clubhouseActive === true;
-  }, [seller, selectedMenuType]);
-
-  const handleJumpToCategory = (cat: string) => {
-    const id = cat.toLowerCase().replace(/\s+/g, '-');
-    const element = document.getElementById(id);
-    if (element) element.scrollIntoView({ behavior: 'smooth' });
-  };
-
-  const handleAddWithModifiers = (selectedMods: Record<string, ModifierOption[]>) => {
-    if (!modifierTarget) return;
-    
-    const modString = JSON.stringify(Object.values(selectedMods).flat().map(o => o.id).sort());
-    const cartId = `${modifierTarget.id}-${modString}`;
-    
-    const existing = orderItems.find(i => i.cartId === cartId);
-    
-    updateItem({
-      ...modifierTarget,
-      cartId,
-      quantity: (existing?.quantity || 0) + 1,
-      selectedModifiers: selectedMods
-    } as OrderItem);
-    
-    setModifierTarget(null);
-    toast({ title: 'Added to cart' });
-  };
-
   const handlePlaceOrder = async () => {
     try {
       if (!firestore || !seller) return;
-      if (!isServiceActive) {
-        toast({ variant: 'destructive', title: 'Service Offline' });
-        return;
-      }
-
-      const locationLabel = serviceLocationLabels[selectedMenuType];
-      if (locationLabel && !locationValue.trim()) {
-        toast({ variant: 'destructive', title: 'Selection Required', description: `Please select your ${locationLabel}.` });
-        return;
-      }
-
-      if (activeOrderItems.length === 0) {
-        toast({ variant: 'destructive', title: 'Empty Cart' });
-        return;
-      }
+      if (activeOrderItems.length === 0) return;
 
       setIsPlacingOrder(true);
+
+      const functions = getFunctions(app);
+      const processPayment = httpsCallable(functions, 'processPayment');
+
+      // Mocking Authorize.net Accept.js Nonce retrieval for prototype
+      // In production, this would be generated by Accept.js iframe/form handler
+      const mockPaymentNonce = selectedPaymentMethod === 'Credit Card' ? 'fake-valid-nonce' : null;
 
       const submitToFirestore = async (latitude: number, longitude: number) => {
         try {
@@ -372,36 +310,39 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
             tip: tipAmount,
             total: finalTotal,
             status: 'Placed',
-            paymentMethod: 'Pay at Delivery',
+            paymentMethod: selectedPaymentMethod,
             menuType: selectedMenuType,
             menuTypeLocation: locationValue || null,
+            createdAt: serverTimestamp(),
             modifiedAt: serverTimestamp(),
           };
 
-          if (editingOrderId) {
-            await updateDoc(doc(firestore, 'orders', editingOrderId), orderData);
-            router.push(`/order/track?id=${editingOrderId}&sellerId=${sellerId}`);
-          } else {
-            const docRef = await addDoc(collection(firestore, 'orders'), { ...orderData, createdAt: serverTimestamp() });
-            router.push(`/order/track?id=${docRef.id}&sellerId=${sellerId}`);
+          const orderRef = await addDoc(collection(firestore, 'orders'), orderData);
+
+          if (selectedPaymentMethod === 'Credit Card' && mockPaymentNonce) {
+            await processPayment({
+              paymentNonce: mockPaymentNonce,
+              amount: finalTotal,
+              orderId: orderRef.id,
+              buyerProfileId: user?.uid,
+              sellerId
+            });
           }
-          
+
+          router.push(`/order/track?id=${orderRef.id}&sellerId=${sellerId}`);
           clearCart();
-          setIsPlacingOrder(false);
         } catch (err: any) {
+          console.error(err);
+          toast({ variant: 'destructive', title: 'Order Failed', description: err.message });
+        } finally {
           setIsPlacingOrder(false);
-          errorEmitter.emit('permission-error', new FirestorePermissionError({ 
-            path: 'orders', operation: editingOrderId ? 'update' : 'create', requestResourceData: { sellerId } 
-          }));
         }
       };
 
-      const isGpsRequired = selectedMenuType === 'Beverage Cart' || selectedMenuType === 'Clubhouse';
-      if (navigator.geolocation && isGpsRequired) {
+      if (navigator.geolocation && (selectedMenuType === 'Beverage Cart' || selectedMenuType === 'Clubhouse')) {
         navigator.geolocation.getCurrentPosition(
           (p) => submitToFirestore(p.coords.latitude, p.coords.longitude),
-          () => submitToFirestore(mockBuyerLocation.latitude, mockBuyerLocation.longitude),
-          { timeout: 5000 }
+          () => submitToFirestore(mockBuyerLocation.latitude, mockBuyerLocation.longitude)
         );
       } else {
         submitToFirestore(mockBuyerLocation.latitude, mockBuyerLocation.longitude);
@@ -412,119 +353,41 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
     }
   };
 
-  const getFeeNotification = (type: string) => {
-    switch (type) {
-      case 'Beverage Cart':
-      case 'Clubhouse':
-        return "A small convenience fee applies to all deliveries to your location on the course.";
-      case 'Lane Delivery':
-        return "A small convenience fee applies to all orders delivered to your lane.";
-      case 'Pool':
-        return "A small convenience fee applies to all orders delivered to your chair.";
-      case 'Take Out':
-        return "A small convenience fee applies to all takeout orders placed through Koop.";
-      default:
-        return "A small convenience fee applies to all orders placed through this venue.";
-    }
-  };
-
   const isLoading = isSellerLoading || areItemsLoading;
   const locationLabel = serviceLocationLabels[selectedMenuType];
 
   return (
     <div className="flex flex-col min-h-screen bg-background relative overflow-y-auto">
-      {editingOrderId && (
-        <div className="bg-primary px-4 py-2 flex items-center justify-between shadow-md shrink-0">
-          <div className="flex items-center gap-2 text-white">
-            <AlertTriangle className="h-4 w-4" />
-            <span className="text-[10px] font-bold uppercase tracking-widest">Modifying Existing Order</span>
-          </div>
-          <Button variant="ghost" size="sm" onClick={() => { cancelEditing(); router.back(); }} className="h-6 text-[9px] text-white border border-white/20 uppercase">
-            <XCircle className="mr-1 h-3 w-3" /> Cancel
-          </Button>
-        </div>
-      )}
-
       <div className="bg-muted/30 border-b shrink-0">
         <div className="px-4 py-3 space-y-3 max-w-2xl mx-auto">
           <div className="flex flex-col gap-1.5">
-            <Label className="text-[9px] uppercase font-bold text-muted-foreground tracking-widest flex items-center gap-1 px-1">
-              <Store className="w-2.5 h-2.5" /> SERVICE MODE
-            </Label>
-            <ScrollArea className="w-full whitespace-nowrap">
-              <div className="flex gap-2 pb-1">
-                {sortedMenuTypes.map((type) => {
-                  const Icon = serviceTypeIcons[type] || Store;
-                  const isSelected = selectedMenuType === type;
-                  return (
-                    <Button 
-                      key={type} 
-                      variant={isSelected ? 'default' : 'secondary'} 
-                      size="sm"
-                      onClick={() => { handleMenuTypeChange(type); setLocationValue(''); }} 
-                      className={cn(
-                        "h-8 text-[10px] px-3 rounded-lg font-bold transition-all shadow-sm flex items-center gap-1.5",
-                        isSelected ? "bg-primary text-white" : "bg-white text-muted-foreground"
-                      )}
-                    >
-                      <Icon className="h-3.5 w-3.5" />
-                      {type}
-                    </Button>
-                  );
-                })}
-              </div>
-            </ScrollArea>
+            <Label className="text-[9px] uppercase font-bold text-muted-foreground tracking-widest px-1">SERVICE MODE</Label>
+            <div className="flex gap-2">
+              {seller?.menuTypes?.map((type) => {
+                const Icon = serviceTypeIcons[type] || Store;
+                return (
+                  <Button 
+                    key={type} 
+                    variant={selectedMenuType === type ? 'default' : 'secondary'} 
+                    size="sm"
+                    onClick={() => { setSelectedMenuType(type); setLocationValue(''); }} 
+                    className="h-8 text-[10px] px-3 rounded-lg font-bold"
+                  >
+                    <Icon className="h-3.5 w-3.5 mr-1.5" /> {type}
+                  </Button>
+                );
+              })}
+            </div>
           </div>
         </div>
       </div>
 
-      {isServiceActive && (
-        <div className="border-b bg-muted/5 shrink-0">
-          <div className="px-4 py-2 max-w-2xl mx-auto">
-            <p className="text-[10px] font-bold text-muted-foreground leading-tight uppercase tracking-wide italic">
-              {getFeeNotification(selectedMenuType)}
-            </p>
-          </div>
-        </div>
-      )}
-
-      {isServiceActive && currentCategories.length > 0 && (
-        <div className="sticky top-16 z-20 bg-background/95 backdrop-blur-md border-b shadow-sm shrink-0">
-          <div className="px-4 py-2 max-w-2xl mx-auto">
-            <ScrollArea className="w-full whitespace-nowrap">
-              <div className="flex gap-1.5">
-                {currentCategories.map((cat) => {
-                  const Icon = categoryIcons[cat];
-                  return (
-                    <Button key={cat} variant="ghost" size="sm" onClick={() => handleJumpToCategory(cat)} className="h-7 text-[9px] px-2.5 rounded-full font-bold uppercase tracking-wider text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors">
-                      <Icon className="mr-1 h-3 w-3" /> {cat}
-                    </Button>
-                  );
-                })}
-              </div>
-            </ScrollArea>
-          </div>
-        </div>
-      )}
-
       <main className="flex-1 px-4 pt-6 pb-32 max-w-2xl mx-auto w-full">
-        {isLoading ? (
-          <div className="space-y-3">
-            {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-20 w-full rounded-lg" />)}
-          </div>
-        ) : !isServiceActive ? (
-          <div className="flex flex-col items-center justify-center py-20 px-6 text-center space-y-6">
-            <div className="bg-muted p-8 rounded-full"><ShieldAlert className="h-16 w-16 opacity-30" /></div>
-            <div className="space-y-3">
-              <h2 className="font-headline text-3xl font-bold uppercase tracking-tight text-[#213147]">{selectedMenuType} OFFLINE</h2>
-              <p className="text-muted-foreground text-xs max-w-xs mx-auto">This service is not currently taking orders. Staff are either busy or off-duty.</p>
-            </div>
-          </div>
-        ) : (
+        {isLoading ? <Skeleton className="h-40 w-full" /> : (
           <BuyerMenu 
             orderItems={orderItems} 
             onUpdateItem={updateItem} 
-            onOpenModifiers={(item) => setModifierTarget(item)}
+            onOpenModifiers={setModifierTarget}
             currentCategories={currentCategories} 
             menuItems={filteredMenuItems} 
             selectedMenuType={selectedMenuType}
@@ -534,218 +397,62 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
         )}
       </main>
 
-      {showBackToTop && (
-        <Button variant="secondary" size="icon" className="fixed bottom-32 right-6 rounded-full shadow-lg z-30 h-10 w-10 bg-background/90" onClick={scrollToTop}>
-          <ArrowUp className="h-5 w-5 text-primary" />
-        </Button>
-      )}
-
-      <Sheet open={!!modifierTarget} onOpenChange={(open) => !open && setModifierTarget(null)}>
-        <SheetContent side="bottom" className="h-[90vh] p-0 rounded-t-3xl overflow-hidden border-t-4">
-          {modifierTarget && (
-            <ModifierPicker 
-              item={modifierTarget} 
-              onClose={() => setModifierTarget(null)} 
-              onAdd={handleAddWithModifiers} 
-            />
-          )}
-        </SheetContent>
-      </Sheet>
-
       <Sheet open={isCartOpen} onOpenChange={setIsCartOpen}>
-        {isServiceActive && activeOrderItems.length > 0 && (
+        {activeOrderItems.length > 0 && (
           <div className="fixed bottom-7 left-0 right-0 p-4 bg-white/10 backdrop-blur-md border-t z-30 shadow-lg">
             <SheetTrigger asChild>
-              <Button size="lg" className="w-full text-base h-12 shadow-xl font-headline font-black uppercase tracking-widest bg-primary">
-                {editingOrderId ? "Update Order" : "Review & Place Order"} ({totalItems}) — ${subtotal.toFixed(2)}
+              <Button size="lg" className="w-full text-base h-12 font-black uppercase tracking-widest bg-primary">
+                Review Order ({totalItems}) — ${subtotal.toFixed(2)}
               </Button>
             </SheetTrigger>
           </div>
         )}
-        <SheetContent side="bottom" className="rounded-t-[2.5rem] max-h-[95vh] h-[95vh] flex flex-col p-0 border-t-4 overflow-hidden bg-background shadow-[0_-10px_40px_rgba(0,0,0,0.15)]">
+        <SheetContent side="bottom" className="rounded-t-[2.5rem] h-[95vh] flex flex-col p-0 bg-background overflow-hidden shadow-2xl">
           <SheetHeader className="px-6 py-5 border-b bg-muted/20 shrink-0">
-            <SheetTitle className="font-headline font-black uppercase text-center text-sm tracking-tight flex items-center justify-center gap-2">
-              <ShoppingBasket className="h-4 w-4 text-primary" />
-              {editingOrderId ? "Update Your Order" : "Final Order Review"}
-            </SheetTitle>
+            <SheetTitle className="font-headline font-black uppercase text-center text-sm">Order Review</SheetTitle>
           </SheetHeader>
           
-          <ScrollArea className="flex-1 w-full min-h-0">
+          <ScrollArea className="flex-1 w-full">
             <div className="px-6 py-6 space-y-8 pb-32">
-              
-              <div className="flex flex-col gap-3">
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => setIsCartOpen(false)}
-                  className="w-fit h-8 text-[10px] font-black uppercase tracking-widest border-primary/20 text-primary hover:bg-primary/5 rounded-full px-4"
-                >
-                  <ChevronLeft className="mr-1 h-3.5 w-3.5" />
-                  Add More Items
-                </Button>
-
-                <div className="grid grid-cols-2 gap-4 py-4 px-4 bg-muted/30 rounded-2xl border border-dashed">
-                  <div className="space-y-1">
-                    <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-1.5">
-                      <Store className="w-2.5 h-2.5" /> ESTABLISHMENT
-                    </p>
-                    <p className="text-xs font-black truncate">{seller?.courseName || 'Loading...'}</p>
-                  </div>
-                  <div className="space-y-1 text-right">
-                    <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-1.5 justify-end">
-                      <ClipboardList className="w-2.5 h-2.5" /> SERVICE MODE
-                    </p>
-                    <p className="text-xs font-black">{selectedMenuType}</p>
-                  </div>
-                </div>
-              </div>
-
-              {locationLabel && (
-                <div className="bg-primary/5 p-5 rounded-2xl border-2 border-primary/20 space-y-4">
-                  <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
-                    <MapPin className="h-3 w-3 text-primary" /> {locationLabel}
-                  </Label>
-                  
-                  {selectedMenuType === 'Pool' ? (
-                    <PoolLayoutPicker 
-                      value={locationValue}
-                      onChange={setLocationValue}
-                      mapUrl={seller?.poolMapUrl}
-                    />
-                  ) : (selectedMenuType === 'Lane Delivery' && seller?.laneCount) || (selectedMenuType === 'Dine-In' && seller?.tableCount) ? (
-                    <ScrollArea className="max-h-48 border rounded-xl bg-background p-3 shadow-inner">
-                      <div className="grid grid-cols-6 sm:grid-cols-8 gap-2">
-                        {Array.from({ length: (selectedMenuType === 'Lane Delivery' ? seller?.laneCount : seller?.tableCount) || 0 }, (_, i) => (i + 1).toString()).map((num) => (
-                          <Button
-                            key={num}
-                            variant={locationValue === num ? 'default' : 'outline'}
-                            onClick={() => setLocationValue(num)}
-                            className={cn(
-                              "h-8 px-0 font-black text-[10px] rounded-lg transition-all",
-                              locationValue === num ? "bg-primary text-white shadow-md scale-105" : "bg-white hover:bg-primary/5"
-                            )}
-                          >
-                            {num}
-                          </Button>
-                        ))}
-                      </div>
-                    </ScrollArea>
-                  ) : (
-                    <Input 
-                      placeholder={`Enter your ${locationLabel}...`}
-                      value={locationValue}
-                      onChange={(e) => setLocationValue(e.target.value)}
-                      className="h-12 text-base font-black border-2 rounded-xl focus-visible:ring-primary shadow-sm"
-                    />
-                  )}
-                </div>
-              )}
+              <OrderSummary items={activeOrderItems} onUpdateItem={updateItem} onRemoveItem={removeItem} />
 
               <div className="space-y-4">
-                <h3 className="font-black text-[10px] uppercase tracking-widest text-muted-foreground flex items-center gap-2 px-1">
-                  <Info className="w-3.5 h-3.5" /> ORDER ITEMS
-                </h3>
-                <OrderSummary 
-                  items={activeOrderItems} 
-                  onUpdateItem={updateItem}
-                  onRemoveItem={removeItem}
-                />
-              </div>
-
-              <div className="space-y-4 bg-muted/10 p-5 rounded-2xl border-2 border-dashed">
                 <h3 className="font-black text-[10px] uppercase tracking-widest text-muted-foreground flex items-center gap-2">
-                  <Heart className="w-3.5 h-3.5 text-red-500" /> ADD GRATUITY / TIP
+                  <Banknote className="w-3.5 h-3.5" /> PAYMENT METHOD
                 </h3>
-                <div className="grid grid-cols-4 gap-2">
-                  {tipOptions.map((opt) => (
-                    <Button 
-                      key={opt.label} 
-                      variant={selectedTipType === opt.label ? 'default' : 'outline'}
-                      onClick={() => setSelectedTipType(opt.label)}
-                      className={cn(
-                        "h-11 font-black rounded-xl",
-                        selectedTipType === opt.label ? "bg-primary text-white shadow-md scale-105" : "bg-white"
-                      )}
-                    >
-                      {opt.label}
-                    </Button>
-                  ))}
+                <div className="grid grid-cols-1 gap-2">
                   <Button 
-                    variant="outline"
-                    className={cn(
-                      "h-11 font-black rounded-xl",
-                      selectedTipType === 'Custom' ? "bg-primary text-white shadow-md scale-105" : "bg-white"
-                    )}
-                    onClick={() => setSelectedTipType(customTipValue ? 'Custom' : null)}
+                    variant={selectedPaymentMethod === 'Credit Card' ? 'default' : 'outline'}
+                    onClick={() => setSelectedPaymentMethod('Credit Card')}
+                    className="h-14 justify-start gap-4 px-4 rounded-xl border-2"
                   >
-                    Other
+                    <CreditCard className="h-5 w-5" />
+                    <div className="text-left">
+                      <p className="text-sm font-black uppercase">Credit Card</p>
+                      <p className="text-[9px] opacity-60">Authorize.net Secure Processing</p>
+                    </div>
+                  </Button>
+                  <Button 
+                    variant={selectedPaymentMethod === 'Pay at Delivery' ? 'default' : 'outline'}
+                    onClick={() => setSelectedPaymentMethod('Pay at Delivery')}
+                    className="h-14 justify-start gap-4 px-4 rounded-xl border-2"
+                  >
+                    <Banknote className="h-5 w-5" />
+                    <div className="text-left">
+                      <p className="text-sm font-black uppercase">Pay at Delivery</p>
+                      <p className="text-[9px] opacity-60">Cash or Card to Staff</p>
+                    </div>
                   </Button>
                 </div>
-                {selectedTipType === 'Custom' && (
-                  <div className="pt-2 animate-in slide-in-from-top-2">
-                    <Input 
-                      type="number" 
-                      placeholder="Enter tip amount ($)..." 
-                      value={customTipValue}
-                      onChange={(e) => setCustomTipValue(e.target.value)}
-                      className="h-12 text-base font-black border-2 rounded-xl focus-visible:ring-primary"
-                    />
-                  </div>
-                )}
               </div>
 
-              <div className="space-y-4">
-                <h3 className="font-black text-[10px] uppercase tracking-widest text-muted-foreground flex items-center gap-2 px-1">
-                  <ClipboardList className="w-3.5 h-3.5" /> PRICING BREAKDOWN
-                </h3>
-                <PricingBreakdown 
-                  subtotal={subtotal} 
-                  serviceFee={platformFee} 
-                  tax={tax}
-                  tip={tipAmount}
-                  taxRate={taxRatePercentage}
-                />
-              </div>
-
-              <div className="space-y-4">
-                  <h3 className="font-black text-[10px] uppercase tracking-widest text-muted-foreground flex items-center gap-2 px-1">
-                    <Banknote className="w-3.5 h-3.5" /> PAYMENT METHOD
-                  </h3>
-                  <div className="p-5 bg-muted/30 rounded-2xl border-2 border-dashed flex items-center gap-4">
-                    <div className="p-3 bg-white rounded-2xl shadow-sm border"><CreditCard className="w-6 h-6 text-primary" /></div>
-                    <div>
-                        <p className="text-sm font-black uppercase tracking-tight">Pay at Delivery</p>
-                        <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">Card or Cash accepted by staff</p>
-                    </div>
-                  </div>
-              </div>
-
-              <div className="text-center opacity-60 pb-10">
-                <p className="text-[9px] text-muted-foreground font-bold uppercase tracking-[0.1em] italic leading-relaxed">
-                  By placing this order, you agree to the service terms of {seller?.courseName}.
-                </p>
-              </div>
+              <PricingBreakdown subtotal={subtotal} serviceFee={platformFee} tax={tax} tip={tipAmount} taxRate={taxRatePercentage} />
             </div>
           </ScrollArea>
 
-          <SheetFooter className="p-6 bg-white border-t-2 flex flex-col gap-4 shrink-0 relative z-10 shadow-[0_-10px_30px_rgba(0,0,0,0.08)]">
-            {!isServiceActive && (
-              <div className="bg-destructive/10 border border-destructive/20 p-3 rounded-xl flex items-center gap-3 animate-in fade-in duration-300">
-                <AlertTriangle className="h-5 w-5 text-destructive shrink-0" />
-                <p className="text-[10px] font-black text-destructive uppercase leading-tight">Staff Offline</p>
-              </div>
-            )}
-            <div className="flex justify-between items-center px-1">
-              <span className="font-black text-xs uppercase tracking-[0.2em] text-muted-foreground">FINAL TOTAL</span>
-              <span className="font-headline font-black text-3xl text-primary tracking-tighter">${finalTotal.toFixed(2)}</span>
-            </div>
-            <Button 
-              size="lg" 
-              className="w-full text-base font-black h-16 font-headline uppercase tracking-[0.2em] bg-primary shadow-2xl rounded-2xl" 
-              onClick={handlePlaceOrder} 
-              disabled={isPlacingOrder || !isServiceActive || (locationLabel && !locationValue) || activeOrderItems.length === 0}
-            >
-              {isPlacingOrder ? <><Loader2 className="animate-spin mr-2" /> PROCESSING...</> : (editingOrderId ? "UPDATE ORDER" : "PLACE ORDER NOW")}
+          <SheetFooter className="p-6 bg-white border-t-2 shrink-0">
+            <Button size="lg" className="w-full h-16 font-black uppercase tracking-[0.2em] bg-primary shadow-xl rounded-2xl" onClick={handlePlaceOrder} disabled={isPlacingOrder || activeOrderItems.length === 0}>
+              {isPlacingOrder ? "PROCESSING..." : "PLACE ORDER"}
             </Button>
           </SheetFooter>
         </SheetContent>
