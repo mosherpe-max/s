@@ -1,4 +1,3 @@
-
 'use client';
 
 import { Suspense, useEffect, useRef, useState } from 'react';
@@ -47,11 +46,10 @@ function OrderTrackingContent() {
   }, [firestore, orderId]);
   
   const latestQuery = useMemoFirebase(() => {
-    // If we have a specific ID, we don't need to query for the "latest"
     if (!firestore || !user?.uid || orderId) return null;
     return query(
       collection(firestore, 'orders'), 
-      where('customerId', '==', user.uid),
+      where('buyerProfileId', '==', user.uid),
       orderBy('createdAt', 'desc'), 
       limit(1)
     );

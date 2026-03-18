@@ -114,7 +114,7 @@ export type PaymentMethod = 'Credit Card' | 'Member Account' | 'Pay at Delivery'
 export interface Order {
   id: string;
   sellerId: string;
-  customerId: string;
+  buyerProfileId: string; // Matches Rules and Backend definition
   customerName: string;
   menuType: string;
   menuTypeLocation?: string;

@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useEffect, useRef } from 'react';
@@ -33,20 +32,18 @@ export function OrderNotificationListener() {
 
   const latestOrderQuery = useMemoFirebase(() => {
     // Only query if we have a user identity and aren't on a restricted path
-    // Simplified query without orderBy to avoid composite index requirements in prototype
     if (!firestore || !user?.uid || isSilentPath) return null;
     
     return query(
       collection(firestore, 'orders'),
-      where('customerId', '==', user.uid),
-      limit(5) // Just check recent ones
+      where('buyerProfileId', '==', user.uid),
+      limit(5)
     );
   }, [firestore, user?.uid, isSilentPath]);
 
   const { data: orders } = useCollection<Order>(latestOrderQuery);
   
-  // Sort manually client-side if needed, but for prototype notifications, 
-  // the newest one often has the latest modified status.
+  // Sort manually client-side
   const order = orders && orders.length > 0 
     ? [...orders].sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0))[0] 
     : null;
