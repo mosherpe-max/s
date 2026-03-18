@@ -73,6 +73,15 @@ service cloud.firestore {
       allow create: if isAdmin() || isOwner(sellerId);
       allow update: if isExistingOwner(sellerId) || isAdmin();
       allow delete: if isAdmin();
+
+      /**
+       * @description Global menu items for a specific seller.
+       * @path /sellers/{sellerId}/menuItems/{itemId}
+       */
+      match /menuItems/{itemId} {
+        allow get, list: if true; // Publicly accessible for guest ordering
+        allow create, update, delete: if isOwner(sellerId) || isAdmin();
+      }
     }
 
     /**
