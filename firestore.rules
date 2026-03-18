@@ -19,8 +19,8 @@ service cloud.firestore {
      *   expensive get() calls, fields like 'buyerProfileId', 'sellerId', and 
      *   'menuIsActive' are stored directly on child documents.
      * - Admin Access: A dedicated /roles_admin collection is used for DBAC (Database Access Control).
-     * - Public vs. Private: Product catalogs are readable by all authenticated users, 
-     *   while specific order details are restricted to the participants.
+     * - Public vs. Private: Product catalogs and active menus are publicly readable 
+     *   to support guest access, while order details are restricted to participants.
      */
 
     // --- HELPER FUNCTIONS ---
@@ -55,9 +55,6 @@ service cloud.firestore {
     /**
      * @description Stores private profile data for each buyer.
      * @path /users/{userId}/buyerProfile
-     * @allow (create) if the userId in the path matches the auth UID.
-     * @deny (read) if the user is not the owner or an admin.
-     * @principle Path-based ownership for private user data.
      */
     match /users/{userId}/buyerProfile {
       allow get, list: if isOwner(userId) || isAdmin();
@@ -69,12 +66,10 @@ service cloud.firestore {
     /**
      * @description Core seller profiles, including location for tracking.
      * @path /sellers/{sellerId}
-     * @allow (get) if the user is signed in (for map display).
-     * @deny (update) if the user is not the seller owner or an admin.
-     * @principle Public authenticated read with owner-only writes.
+     * @allow (get) Public read access to support guest browsing and map display.
      */
     match /sellers/{sellerId} {
-      allow get, list: if isSignedIn();
+      allow get, list: if true; // Publicly accessible for discovery
       allow create: if isAdmin() || isOwner(sellerId);
       allow update: if isExistingOwner(sellerId) || isAdmin();
       allow delete: if isAdmin();
@@ -83,24 +78,20 @@ service cloud.firestore {
     /**
      * @description Master list of all products in the system.
      * @path /products/{productId}
-     * @allow (list) if any authenticated user is browsing the catalog.
-     * @deny (create) if the user is not a Koop Admin.
-     * @principle Centralized catalog with admin-only write permissions.
+     * @allow (get, list) Public read access for guest menu rendering.
      */
     match /products/{productId} {
-      allow get, list: if isSignedIn();
+      allow get, list: if true; // Public catalog
       allow create, update, delete: if isAdmin();
     }
 
     /**
      * @description Menus offered by a specific seller.
      * @path /sellers/{sellerId}/menus/{menuId}
-     * @allow (get) if menu is active OR user is the seller owner.
-     * @deny (create) if the sellerId doesn't match the user's UID.
-     * @principle Hierarchical ownership with conditional public visibility.
+     * @allow (get) Public access if menu is active OR user is owner/admin.
      */
     match /sellers/{sellerId}/menus/{menuId} {
-      allow get, list: if isSignedIn() && (resource.data.isActive == true || isOwner(sellerId) || isAdmin());
+      allow get, list: if (resource.data.isActive == true || isOwner(sellerId) || isAdmin());
       allow create: if isOwner(sellerId) || isAdmin();
       allow update: if isExistingOwner(sellerId) || isAdmin();
       allow delete: if isAdmin();
@@ -109,12 +100,10 @@ service cloud.firestore {
     /**
      * @description Individual items within a seller's menu.
      * @path /sellers/{sellerId}/menus/{menuId}/items/{itemId}
-     * @allow (get) if item is available and menu is active.
-     * @deny (update) if the user is not the seller owner.
-     * @principle Denormalized status fields ('menuIsActive') allow standalone authorization.
+     * @allow (get) Public access if item is available and menu is active.
      */
     match /sellers/{sellerId}/menus/{menuId}/items/{itemId} {
-      allow get, list: if isSignedIn() && ((resource.data.isAvailable == true && resource.data.menuIsActive == true) || isOwner(sellerId) || isAdmin());
+      allow get, list: if ((resource.data.isAvailable == true && resource.data.menuIsActive == true) || isOwner(sellerId) || isAdmin());
       allow create: if isOwner(sellerId) || isAdmin();
       allow update: if isExistingOwner(sellerId) || isAdmin();
       allow delete: if isAdmin();
@@ -123,9 +112,6 @@ service cloud.firestore {
     /**
      * @description Centralized collection for all customer orders.
      * @path /orders/{orderId}
-     * @allow (create) if the buyerProfileId in the data matches the authenticated user.
-     * @deny (get) if the user is not the buyer, the seller, or an admin.
-     * @principle Participant-based authorization using denormalized buyer and seller IDs.
      */
     match /orders/{orderId} {
       allow get: if isOrderParticipant(resource.data) || isAdmin();
@@ -136,13 +122,10 @@ service cloud.firestore {
 
       /**
        * @description Individual items within an order.
-       * @path /orders/{orderId}/items/{orderItemId}
-       * @allow (get) if the user is a participant of the parent order.
-       * @principle Denormalized participant IDs for flat-path authorization.
        */
       match /items/{orderItemId} {
         allow get: if isOrderParticipant(resource.data) || isAdmin();
-        allow list: if isSignedIn(); // Queries must filter by participant IDs
+        allow list: if isSignedIn();
         allow create: if isSignedIn() && request.resource.data.buyerProfileId == request.auth.uid;
         allow update, delete: if isAdmin();
       }
@@ -150,23 +133,15 @@ service cloud.firestore {
 
     /**
      * @description Records of payment transactions.
-     * @path /paymentTransactions/{transactionId}
-     * @allow (get) if the user is the buyer who made the transaction.
-     * @deny (write) to all client-side requests (System/Admin SDK only).
-     * @principle Read-only for users; writes restricted to backend processes for financial integrity.
      */
     match /paymentTransactions/{transactionId} {
       allow get: if isSignedIn() && (resource.data.buyerProfileId == request.auth.uid || isAdmin());
-      allow list: if isSignedIn(); // Queries must filter by buyerProfileId
-      allow create, update, delete: if isAdmin(); // Transactions handled via Cloud Functions (Admin SDK)
+      allow list: if isSignedIn();
+      allow create, update, delete: if isAdmin();
     }
 
     /**
      * @description Administrative roles control collection.
-     * @path /roles_admin/{adminUid}
-     * @allow (get) if the user is looking up their own status.
-     * @deny (write) if the user is not already an admin.
-     * @principle Existence-over-content pattern for global role management.
      */
     match /roles_admin/{adminUid} {
       allow get: if isOwner(adminUid) || isAdmin();
