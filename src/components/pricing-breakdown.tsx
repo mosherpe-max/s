@@ -37,7 +37,19 @@ export function PricingBreakdown({
           <p className="font-mono text-foreground">${subtotal.toFixed(2)}</p>
         </div>
 
-        {/* CONVENIENCE FEE WITH KOOP BADGE */}
+        {/* TAX */}
+        <div className="flex justify-between items-center px-1">
+          <p>Estimated Tax ({taxRate}%)</p>
+          <p className="font-mono text-foreground">${tax.toFixed(2)}</p>
+        </div>
+
+        {/* TIP */}
+        <div className="flex justify-between items-center px-1">
+          <p>Gratuity / Tip</p>
+          <p className="font-mono text-foreground">${tip.toFixed(2)}</p>
+        </div>
+
+        {/* CONVENIENCE FEE WITH KOOP BADGE - MOVED TO END */}
         <div className="flex justify-between items-center px-1">
           <div className="flex items-center gap-2">
             <p>Convenience Fee</p>
@@ -65,18 +77,6 @@ export function PricingBreakdown({
             </Popover>
           </div>
           <p className="font-mono text-foreground">${serviceFee.toFixed(2)}</p>
-        </div>
-
-        {/* TAX */}
-        <div className="flex justify-between items-center px-1">
-          <p>Estimated Tax ({taxRate}%)</p>
-          <p className="font-mono text-foreground">${tax.toFixed(2)}</p>
-        </div>
-
-        {/* TIP */}
-        <div className="flex justify-between items-center px-1">
-          <p>Gratuity / Tip</p>
-          <p className="font-mono text-foreground">${tip.toFixed(2)}</p>
         </div>
       </div>
 

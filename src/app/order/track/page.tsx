@@ -449,16 +449,16 @@ function OrderTrackingContent() {
                         <span className="font-mono text-foreground">${order.subtotal.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between">
-                        <span>CONVENIENCE FEE</span>
-                        <span className="font-mono text-foreground">${order.serviceFee.toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between">
                         <span>EST. TAX ({taxRatePercentage}%)</span>
                         <span className="font-mono text-foreground">${(order.tax || 0).toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between">
                         <span>GRATUITY / TIP</span>
                         <span className="font-mono text-foreground">${(order.tip || 0).toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                        <span>CONVENIENCE FEE</span>
+                        <span className="font-mono text-foreground">${order.serviceFee.toFixed(2)}</span>
                     </div>
                     <Separator className="my-2 border-dashed" />
                     <div className="flex justify-between items-center pt-1 font-black text-lg">
