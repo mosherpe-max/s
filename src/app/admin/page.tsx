@@ -1,7 +1,8 @@
+
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { collection, doc, setDoc, getDocs, writeBatch, serverTimestamp, query, deleteDoc } from 'firebase/firestore';
+import { collection, doc, setDoc, getDocs, writeBatch, serverTimestamp, query, deleteDoc, getDoc } from 'firebase/firestore';
 import { signOut, sendPasswordResetEmail } from 'firebase/auth';
 import { useFirestore, useCollection, useMemoFirebase, useUser, useAuth } from '@/firebase';
 import { firebaseConfig } from '@/firebase/config';
@@ -307,41 +308,6 @@ export default function KOOPAdminPage() {
           status: 'Active',
           menuTypes: ['Beverage Cart', 'Clubhouse', 'Take Out'],
           qrCodeUrl: 'https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=https://koop.app/sellers/demo-course/order'
-        },
-        {
-          id: 'demo-golf-course-private',
-          courseName: 'The Private Club',
-          type: 'Private Golf Course',
-          contactName: 'Membership Director',
-          contactEmail: 'private@koop.com',
-          contactPhone: '555-0102',
-          streetAddress: '456 Elite Lane',
-          city: 'Private Hills',
-          state: 'FL',
-          zip: '33101',
-          serviceFee: 0,
-          taxRate: 7.5,
-          status: 'Active',
-          menuTypes: ['Beverage Cart', 'Clubhouse', 'Pool', 'Take Out'],
-          qrCodeUrl: 'https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=https://koop.app/sellers/demo-golf-course-private/order'
-        },
-        {
-          id: 'demo-bowling-alley',
-          courseName: 'Strike & Spare Lanes',
-          type: 'Bowling Alley',
-          contactName: 'Laneside Supervisor',
-          contactEmail: 'bowling@koop.com',
-          contactPhone: '555-0103',
-          streetAddress: '789 Pin Alley',
-          city: 'Rolling Meadows',
-          state: 'IL',
-          zip: '60008',
-          serviceFee: 1.50,
-          taxRate: 8.0,
-          status: 'Active',
-          menuTypes: ['Lane Delivery', 'Take Out'],
-          laneCount: 24,
-          qrCodeUrl: 'https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=https://koop.app/sellers/demo-bowling-alley/order'
         }
       ];
 
@@ -352,7 +318,7 @@ export default function KOOPAdminPage() {
         }, { merge: true });
       }
 
-      toast({ title: "Demo Network Bootstrapped", description: "Standard demo venues have been initialized." });
+      toast({ title: "Demo Network Bootstrapped" });
     } catch (e) {
       toast({ variant: "destructive", title: "Bootstrap Failed" });
     } finally {
@@ -360,8 +326,18 @@ export default function KOOPAdminPage() {
     }
   };
 
-  const handleEditSeller = (seller: Seller) => {
+  const handleEditSeller = async (seller: Seller) => {
     setEditingSeller(seller);
+    
+    // Fetch private vault data
+    let privateData = { authorizeNetLoginId: '', authorizeNetTransactionKey: '' };
+    if (firestore) {
+      const vaultDoc = await getDoc(doc(firestore, 'sellers_private', seller.id));
+      if (vaultDoc.exists()) {
+        privateData = vaultDoc.data() as any;
+      }
+    }
+
     form.reset({
       courseName: seller.courseName,
       type: seller.type,
@@ -379,8 +355,8 @@ export default function KOOPAdminPage() {
       status: seller.status,
       laneCount: seller.laneCount || 0,
       menuTypes: seller.menuTypes || [],
-      authorizeNetLoginId: seller.authorizeNetLoginId || '',
-      authorizeNetTransactionKey: seller.authorizeNetTransactionKey || '',
+      authorizeNetLoginId: privateData.authorizeNetLoginId || '',
+      authorizeNetTransactionKey: privateData.authorizeNetTransactionKey || '',
     });
     setIsFormOpen(true);
   };
@@ -415,14 +391,29 @@ export default function KOOPAdminPage() {
     setIsSaving(true);
     
     const sellerId = editingSeller ? editingSeller.id : data.courseName.toLowerCase().replace(/\s+/g, '-');
-    const sellerRef = doc(firestore, 'sellers', sellerId);
     
-    setDoc(sellerRef, { 
-      ...data, 
+    // Split the data: Public vs Private Vault
+    const { authorizeNetLoginId, authorizeNetTransactionKey, ...publicData } = data;
+    
+    const batch = writeBatch(firestore);
+    
+    // 1. Save Public Profile
+    batch.set(doc(firestore, 'sellers', sellerId), { 
+      ...publicData, 
       id: sellerId,
       createdAt: editingSeller?.createdAt || new Date().toISOString(),
       updatedAt: serverTimestamp()
-    }, { merge: true })
+    }, { merge: true });
+
+    // 2. Save Private Vault (Secrets)
+    batch.set(doc(firestore, 'sellers_private', sellerId), {
+      id: sellerId,
+      authorizeNetLoginId: authorizeNetLoginId || '',
+      authorizeNetTransactionKey: authorizeNetTransactionKey || '',
+      updatedAt: serverTimestamp()
+    }, { merge: true });
+    
+    batch.commit()
       .then(() => {
         toast({ title: editingSeller ? 'Venue Updated' : 'Venue Registered' });
         setIsFormOpen(false);
@@ -437,8 +428,6 @@ export default function KOOPAdminPage() {
     setIsSaving(true);
     
     try {
-      console.log(`Starting identity provisioning for: ${data.email}`);
-      
       const signupResp = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${firebaseConfig.apiKey}`, {
         method: 'POST',
         body: JSON.stringify({
@@ -451,12 +440,8 @@ export default function KOOPAdminPage() {
 
       const authResult = await signupResp.json();
       
-      if (!signupResp.ok) {
-        if (authResult.error?.message === 'EMAIL_EXISTS') {
-          console.warn("Identity already exists in Auth provider.");
-        } else {
-          throw new Error(authResult.error?.message || "Failed to contact Identity Provider");
-        }
+      if (!signupResp.ok && authResult.error?.message !== 'EMAIL_EXISTS') {
+        throw new Error(authResult.error?.message || "Failed to contact Identity Provider");
       }
 
       let accountStatus: 'created' | 'existing' = signupResp.ok ? 'created' : 'existing';
@@ -482,17 +467,9 @@ export default function KOOPAdminPage() {
       setIsProvisionResultOpen(true);
       staffForm.reset();
       
-      toast({ 
-        title: accountStatus === 'created' ? "Account Created" : "Account Verified", 
-        description: `Profile for ${data.email} is now synchronized.` 
-      });
+      toast({ title: "Account Provisioned" });
     } catch (e: any) {
-      console.error("Provisioning engine failure:", e);
-      toast({ 
-        variant: "destructive", 
-        title: "Provisioning Failed", 
-        description: e.message || "Identity Provider rejected the request." 
-      });
+      toast({ variant: "destructive", title: "Provisioning Failed", description: e.message });
     } finally {
       setIsSaving(false);
     }
@@ -501,39 +478,19 @@ export default function KOOPAdminPage() {
   const handleSendResetLink = async (email: string) => {
     if (!auth) return;
     try {
-      console.log(`Dispatching reset link to: ${email}`);
       await sendPasswordResetEmail(auth, email);
-      toast({ 
-        title: "Reset Request Queued", 
-        description: `Firebase reported success for ${email}. Please check spam and junk folders if not received within 5 minutes.` 
-      });
+      toast({ title: "Reset Link Dispatched", description: `Success for ${email}.` });
     } catch (e: any) {
-      console.warn("Reset error details:", e);
-      let errorMsg = e.message || "Platform email limits reached or domain not authorized.";
-      
-      if (e.code === 'auth/user-not-found') {
-        errorMsg = "Account not found in identity database. Please ensure the user was added via 'Add Seller Admin' first.";
-      } else if (e.code === 'auth/invalid-email') {
-        errorMsg = "The email address provided is invalid.";
-      } else if (e.code === 'auth/too-many-requests') {
-        errorMsg = "Security limits exceeded. Please wait a few minutes before requesting another link.";
-      }
-      
-      toast({ 
-        variant: "destructive", 
-        title: "Dispatch Failed", 
-        description: errorMsg
-      });
+      toast({ variant: "destructive", title: "Dispatch Failed", description: e.message });
     }
   };
 
   const handleRemoveStaff = async () => {
     if (!firestore || !isSuperAdmin || !adminToDelete) return;
     try {
-      // Use the email (which is our standardized doc ID for staff)
       await deleteDoc(doc(firestore, 'adminUsers', adminToDelete.id));
       await deleteDoc(doc(firestore, 'roles_seller_admin', adminToDelete.id));
-      toast({ title: "Access Revoked", description: "Records removed. Note: Identity remains in Auth provider." });
+      toast({ title: "Access Revoked" });
     } catch (e) {
       toast({ variant: "destructive", title: "Failed to Remove" });
     } finally {
@@ -546,7 +503,8 @@ export default function KOOPAdminPage() {
     if (!firestore || !isSuperAdmin || !venueToDelete) return;
     try {
       await deleteDoc(doc(firestore, 'sellers', venueToDelete.id));
-      toast({ title: "Venue Decommissioned", description: `${venueToDelete.courseName} removed from network.` });
+      await deleteDoc(doc(firestore, 'sellers_private', venueToDelete.id));
+      toast({ title: "Venue Decommissioned" });
     } catch (e) {
       toast({ variant: "destructive", title: "Deletion Failed" });
     } finally {
@@ -573,7 +531,7 @@ export default function KOOPAdminPage() {
           </div>
           <div className="space-y-2">
             <h2 className="font-headline text-2xl font-black uppercase tracking-tight text-[#213147]">ACCESS RESTRICTED</h2>
-            <p className="text-sm text-muted-foreground font-medium">This interface requires Super Admin authorization. Your current identity does not have permission to view this page.</p>
+            <p className="text-sm text-muted-foreground font-medium">This interface requires Super Admin authorization.</p>
           </div>
           <Button asChild className="w-full h-12 bg-[#213147] hover:bg-black font-bold uppercase tracking-widest">
             <Link href="/login">Authenticate as Super Admin</Link>
@@ -591,7 +549,7 @@ export default function KOOPAdminPage() {
             <h1 className="font-headline text-3xl font-bold text-[#213147] uppercase tracking-tight">KOOP ADMIN</h1>
             <Badge className="bg-primary/10 text-primary border-primary/20 uppercase text-[10px] font-black">Super Admin Only</Badge>
           </div>
-          <p className="text-muted-foreground text-sm">God-mode platform oversight and venue network management.</p>
+          <p className="text-muted-foreground text-sm">Platform oversight and venue network management.</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <Button variant="ghost" onClick={handleLogout} className="text-[10px] font-black uppercase h-10 px-4 tracking-widest text-muted-foreground hover:text-destructive">
@@ -627,47 +585,20 @@ export default function KOOPAdminPage() {
 
         <TabsContent value="operations" className="space-y-8">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <MetricCard 
-              title="Active Venues" 
-              value={sellers?.length || 0} 
-              icon={Building} 
-              description="Live establishments" 
-            />
-            <MetricCard 
-              title="Active Volume" 
-              value={activeOrders.length} 
-              icon={ShoppingBag} 
-              description="Orders in progress"
-            />
-            <MetricCard 
-              title="Platform Gross" 
-              value={`$${(orders?.reduce((acc, o) => acc + (o.total || 0), 0) || 0).toLocaleString()}`} 
-              icon={DollarSign} 
-              description="Lifetime volume"
-            />
-            <MetricCard 
-              title="Pipeline Value" 
-              value={`$${(prospects?.reduce((acc, p) => acc + (p.launchFeeQuoted || 0), 0) || 0).toLocaleString()}`} 
-              icon={Briefcase} 
-              description="Est. launch revenue"
-            />
+            <MetricCard title="Active Venues" value={sellers?.length || 0} icon={Building} />
+            <MetricCard title="Active Volume" value={activeOrders.length} icon={ShoppingBag} />
+            <MetricCard title="Platform Gross" value={`$${(orders?.reduce((acc, o) => acc + (o.total || 0), 0) || 0).toLocaleString()}`} icon={DollarSign} />
+            <MetricCard title="Pipeline Value" value={`$${(prospects?.reduce((acc, p) => acc + (p.launchFeeQuoted || 0), 0) || 0).toLocaleString()}`} icon={Briefcase} />
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2">
               <Card className="shadow-md overflow-hidden">
                 <CardHeader className="bg-muted/30 border-b flex flex-row items-center justify-between py-4">
-                  <div>
-                    <CardTitle className="text-sm font-black uppercase">Venue Network</CardTitle>
-                  </div>
+                  <CardTitle className="text-sm font-black uppercase">Venue Network</CardTitle>
                   <div className="relative w-64">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                    <Input 
-                      placeholder="Filter by name or ID..." 
-                      className="pl-9 h-9 text-xs border-2" 
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                    />
+                    <Input placeholder="Filter..." className="pl-9 h-9 text-xs border-2" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
                   </div>
                 </CardHeader>
                 <CardContent className="p-0">
@@ -683,9 +614,7 @@ export default function KOOPAdminPage() {
                     </TableHeader>
                     <TableBody>
                       {isSellersLoading ? (
-                        [...Array(3)].map((_, i) => (
-                          <TableRow key={i}><TableCell colSpan={5}><Skeleton className="h-12 w-full" /></TableCell></TableRow>
-                        ))
+                        [...Array(3)].map((_, i) => <TableRow key={i}><TableCell colSpan={5}><Skeleton className="h-12 w-full" /></TableCell></TableRow>)
                       ) : filteredSellers.map((seller) => (
                         <TableRow key={seller.id} className="group hover:bg-muted/5">
                           <TableCell>
@@ -694,37 +623,16 @@ export default function KOOPAdminPage() {
                               <span className="text-[9px] text-muted-foreground uppercase">{seller.contactEmail}</span>
                             </div>
                           </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-1.5">
-                              <Fingerprint className="h-3 w-3 text-muted-foreground/50" />
-                              <code className="text-[10px] font-mono bg-muted px-1.5 py-0.5 rounded text-muted-foreground">{seller.id}</code>
-                            </div>
-                          </TableCell>
+                          <TableCell><code className="text-[10px] font-mono bg-muted px-1.5 py-0.5 rounded">{seller.id}</code></TableCell>
                           <TableCell><span className="text-xs">{seller.type}</span></TableCell>
                           <TableCell className="text-center">
-                            <Badge className={cn("text-[8px] uppercase font-black", seller.status === 'Active' ? 'bg-green-600' : 'bg-slate-400')}>
-                              {seller.status}
-                            </Badge>
+                            <Badge className={cn("text-[8px] uppercase font-black", seller.status === 'Active' ? 'bg-green-600' : 'bg-slate-400')}>{seller.status}</Badge>
                           </TableCell>
                           <TableCell className="text-right">
                             <div className="flex justify-end gap-2">
-                              <Button variant="ghost" size="icon" onClick={() => handleEditSeller(seller)} className="h-8 w-8 text-muted-foreground hover:text-primary">
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                              <Button 
-                                variant="ghost" 
-                                size="icon" 
-                                onClick={() => {
-                                  setVenueToDelete(seller);
-                                  setIsVenueDeleteDialogOpen(true);
-                                }}
-                                className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                              <Button variant="ghost" size="sm" asChild className="h-8 text-[10px] font-black uppercase">
-                                <Link href={`/sellers/${seller.id}`}>Impersonate <ChevronRight className="ml-1 h-3 w-3" /></Link>
-                              </Button>
+                              <Button variant="ghost" size="icon" onClick={() => handleEditSeller(seller)} className="h-8 w-8"><Edit className="h-4 w-4" /></Button>
+                              <Button variant="ghost" size="icon" onClick={() => { setVenueToDelete(seller); setIsVenueDeleteDialogOpen(true); }} className="h-8 w-8 text-destructive"><Trash2 className="h-4 w-4" /></Button>
+                              <Button variant="ghost" size="sm" asChild className="h-8 text-[10px] font-black uppercase"><Link href={`/sellers/${seller.id}`}>Manage</Link></Button>
                             </div>
                           </TableCell>
                         </TableRow>
@@ -745,10 +653,7 @@ export default function KOOPAdminPage() {
                 <ScrollArea className="h-[400px]">
                   <div className="p-4 space-y-4">
                     {activeOrders.length === 0 ? (
-                      <div className="text-center py-20 opacity-30">
-                        <ShoppingBag className="h-8 w-8 mx-auto mb-2" />
-                        <p className="text-[10px] font-black uppercase">No active orders</p>
-                      </div>
+                      <div className="text-center py-20 opacity-30"><ShoppingBag className="h-8 w-8 mx-auto mb-2" /><p className="text-[10px] font-black uppercase">No active orders</p></div>
                     ) : (
                       activeOrders.map((order) => (
                         <div key={order.id} className="p-3 rounded-xl border-2 bg-white flex flex-col gap-2">
@@ -773,8 +678,8 @@ export default function KOOPAdminPage() {
         <TabsContent value="staff" className="space-y-6">
           <div className="flex justify-between items-center">
             <div>
-              <h2 className="font-headline text-xl font-black uppercase tracking-tight text-[#213147]">Administrator Registry</h2>
-              <p className="text-xs text-muted-foreground font-medium">Manage permissions and venue access for seller staff.</p>
+              <h2 className="font-headline text-xl font-black uppercase text-[#213147]">Administrator Registry</h2>
+              <p className="text-xs text-muted-foreground">Manage permissions and venue access for seller staff.</p>
             </div>
             <Button onClick={() => setIsStaffFormOpen(true)} className="gap-2 font-black uppercase text-[10px] tracking-widest h-10 px-6">
               <UserPlus className="h-4 w-4" /> Add Seller Admin
@@ -795,55 +700,20 @@ export default function KOOPAdminPage() {
                 <TableBody>
                   {isAdminsLoading ? (
                     [...Array(3)].map((_, i) => <TableRow key={i}><TableCell colSpan={4}><Skeleton className="h-12 w-full" /></TableCell></TableRow>)
-                  ) : admins?.length === 0 ? (
-                    <TableRow><TableCell colSpan={4} className="text-center py-20 text-muted-foreground font-medium italic">No delegated admins found.</TableCell></TableRow>
                   ) : admins?.map((admin) => (
-                    <TableRow key={admin.email} className="hover:bg-muted/5 transition-colors">
+                    <TableRow key={admin.email} className="hover:bg-muted/5">
                       <TableCell>
                         <div className="flex items-center gap-3">
-                          <div className="h-8 w-8 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600">
-                            <ShieldCheck className="h-4 w-4" />
-                          </div>
-                          <div className="flex flex-col">
-                            <span className="font-bold text-sm">{admin.email}</span>
-                            <span className="text-[9px] text-muted-foreground uppercase font-mono tracking-tighter">{admin.id}</span>
-                          </div>
+                          <div className="h-8 w-8 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600"><ShieldCheck className="h-4 w-4" /></div>
+                          <div className="flex flex-col"><span className="font-bold text-sm">{admin.email}</span><span className="text-[9px] text-muted-foreground font-mono">{admin.id}</span></div>
                         </div>
                       </TableCell>
-                      <TableCell>
-                        <Badge variant={admin.role.includes('Platform') ? 'default' : 'secondary'} className="text-[8px] font-black uppercase">
-                          {admin.role}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-col">
-                          <span className="text-xs font-bold">{admin.courseName || 'Global Access'}</span>
-                          <span className="text-[9px] text-muted-foreground font-mono">{admin.sellerId || 'N/A'}</span>
-                        </div>
-                      </TableCell>
+                      <TableCell><Badge variant={admin.role.includes('Platform') ? 'default' : 'secondary'} className="text-[8px] font-black uppercase">{admin.role}</Badge></TableCell>
+                      <TableCell><div className="flex flex-col"><span className="text-xs font-bold">{admin.courseName || 'Global Access'}</span><span className="text-[9px] text-muted-foreground font-mono">{admin.sellerId || 'N/A'}</span></div></TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            onClick={() => handleSendResetLink(admin.email)}
-                            className="h-8 text-[9px] font-black uppercase tracking-widest border-indigo-200 text-indigo-600 hover:bg-indigo-50"
-                          >
-                            <KeyRound className="mr-1.5 h-3 w-3" /> Send Reset Link
-                          </Button>
-                          {admin.id !== user.uid && (
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
-                              onClick={() => {
-                                setAdminToDelete(admin);
-                                setIsStaffDeleteDialogOpen(true);
-                              }}
-                              className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          )}
+                          <Button variant="outline" size="sm" onClick={() => handleSendResetLink(admin.email)} className="h-8 text-[9px] font-black uppercase tracking-widest border-indigo-200 text-indigo-600 hover:bg-indigo-50"><KeyRound className="mr-1.5 h-3 w-3" /> Send Reset Link</Button>
+                          {admin.id !== user.uid && <Button variant="ghost" size="icon" onClick={() => { setAdminToDelete(admin); setIsStaffDeleteDialogOpen(true); }} className="h-8 w-8 text-muted-foreground hover:text-destructive"><Trash2 className="h-4 w-4" /></Button>}
                         </div>
                       </TableCell>
                     </TableRow>
@@ -866,30 +736,23 @@ export default function KOOPAdminPage() {
         </TabsContent>
 
         <TabsContent value="maintenance">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <Card className="border-2">
-              <CardHeader className="bg-muted/20 border-b"><CardTitle className="text-sm font-black uppercase">System Maintenance</CardTitle></CardHeader>
-              <CardContent className="pt-6 space-y-4">
-                <Button variant="outline" onClick={handleSystemReset} className="w-full h-12 border-2 border-destructive text-destructive font-black uppercase text-[10px]">
-                  Purge Global Transaction Logs
-                </Button>
-                <p className="text-[9px] text-center text-muted-foreground uppercase font-bold">WARNING: Permanently deletes all orders across the network.</p>
-              </CardContent>
-            </Card>
-          </div>
+          <Card className="border-2 max-w-md mx-auto">
+            <CardHeader className="bg-muted/20 border-b"><CardTitle className="text-sm font-black uppercase text-center">System Maintenance</CardTitle></CardHeader>
+            <CardContent className="pt-6 space-y-4">
+              <Button variant="outline" onClick={handleSystemReset} className="w-full h-12 border-2 border-destructive text-destructive font-black uppercase text-[10px]">
+                Purge Global Transaction Logs
+              </Button>
+              <p className="text-[9px] text-center text-muted-foreground uppercase font-bold">WARNING: This is irreversible.</p>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
 
-      <Dialog open={isFormOpen} onOpenChange={(open) => {
-        setIsFormOpen(open);
-        if (!open) setEditingSeller(null);
-      }}>
+      <Dialog open={isFormOpen} onOpenChange={(open) => { setIsFormOpen(open); if (!open) setEditingSeller(null); }}>
         <DialogContent className="sm:max-w-[700px] w-[95vw] max-h-[95vh] flex flex-col p-0 overflow-hidden shadow-2xl">
           <DialogHeader className="p-6 border-b bg-muted/10 shrink-0">
-            <DialogTitle className="uppercase font-headline text-xl">{editingSeller ? 'Update Venue Profile' : 'Register New Venue'}</DialogTitle>
-            <DialogDescription>
-              {editingSeller ? `Modifying profile for ${editingSeller.courseName}.` : 'Register a new establishment on the KOOP global network.'}
-            </DialogDescription>
+            <DialogTitle className="uppercase font-headline text-xl">{editingSeller ? 'Update Venue' : 'Register Venue'}</DialogTitle>
+            <DialogDescription>Establishment configuration and payment vault settings.</DialogDescription>
           </DialogHeader>
           
           <div className="flex-1 overflow-y-auto min-h-0">
@@ -899,159 +762,17 @@ export default function KOOPAdminPage() {
                   <div className="space-y-4">
                     <div className="flex items-center gap-2 mb-2 border-b pb-2">
                       <Building className="h-4 w-4 text-primary" />
-                      <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">General Information</h3>
+                      <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">General Info</h3>
                     </div>
                     <FormField control={form.control} name="courseName" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-[10px] font-black uppercase">Venue Name</FormLabel>
-                        <FormControl><Input {...field} placeholder="e.g. Pine Valley Golf Club" className="h-11 border-2 font-bold" /></FormControl>
-                        <FormMessage />
-                      </FormItem>
+                      <FormItem><FormLabel className="text-[10px] font-black uppercase">Venue Name</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl><FormMessage /></FormItem>
                     )} />
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-2 gap-4">
                       <FormField control={form.control} name="type" render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-[10px] font-black uppercase">Service Category</FormLabel>
-                          <FormControl>
-                            <select {...field} className="w-full h-11 border-2 rounded-md px-3 text-sm font-bold bg-background">
-                              {sellerTypes.map(t => <option key={t} value={t}>{t}</option>)}
-                            </select>
-                          </FormControl>
-                        </FormItem>
+                        <FormItem><FormLabel className="text-[10px] font-black uppercase">Category</FormLabel><FormControl><select {...field} className="w-full h-11 border-2 rounded-md px-3 text-sm font-bold bg-background">{sellerTypes.map(t => <option key={t} value={t}>{t}</option>)}</select></FormControl></FormItem>
                       )} />
                       <FormField control={form.control} name="status" render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-[10px] font-black uppercase">Platform Status</FormLabel>
-                          <FormControl>
-                            <select {...field} className="w-full h-11 border-2 rounded-md px-3 text-sm font-bold bg-background">
-                              <option value="Active">Active</option>
-                              <option value="Inactive">Inactive</option>
-                            </select>
-                          </FormControl>
-                        </FormItem>
-                      )} />
-                    </div>
-
-                    <div className="space-y-4 pt-2">
-                      <div className="flex items-center gap-2 mb-2 border-b pb-2">
-                        <LayoutDashboard className="h-4 w-4 text-primary" />
-                        <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Service Menus</h3>
-                      </div>
-                      <FormField
-                        control={form.control}
-                        name="menuTypes"
-                        render={() => (
-                          <FormItem className="space-y-3">
-                            <div className="grid grid-cols-2 gap-4 bg-muted/20 p-4 rounded-xl border">
-                              {availableMenuOptions.map((item) => (
-                                <FormField
-                                  key={item.id}
-                                  control={form.control}
-                                  name="menuTypes"
-                                  render={({ field }) => {
-                                    return (
-                                      <FormItem
-                                        key={item.id}
-                                        className="flex flex-row items-center space-x-3 space-y-0"
-                                      >
-                                        <FormControl>
-                                          <Checkbox
-                                            checked={field.value?.includes(item.id)}
-                                            onCheckedChange={(checked) => {
-                                              return checked
-                                                ? field.onChange([...field.value, item.id])
-                                                : field.onChange(
-                                                    field.value?.filter(
-                                                      (value) => value !== item.id
-                                                    )
-                                                  )
-                                            }}
-                                          />
-                                        </FormControl>
-                                        <FormLabel className="text-[11px] font-bold uppercase cursor-pointer">
-                                          {item.label}
-                                        </FormLabel>
-                                      </FormItem>
-                                    )
-                                  }}
-                                />
-                              ))}
-                            </div>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-
-                    {selectedType === 'Bowling Alley' && (
-                      <FormField control={form.control} name="laneCount" render={({ field }) => (
-                        <FormItem className="animate-in slide-in-from-top-2 pt-2">
-                          <FormLabel className="text-[10px] font-black uppercase flex items-center gap-2">
-                            <Layers className="h-3 w-3 text-primary" /> Lane Configuration
-                          </FormLabel>
-                          <FormControl>
-                            <Input type="number" {...field} placeholder="Number of lanes" className="h-11 border-2 font-bold" />
-                          </FormControl>
-                          <FormDescription className="text-[9px] uppercase font-bold text-muted-foreground">This defines the available lane selections for customers.</FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )} />
-                    )}
-                  </div>
-
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-2 mb-2 border-b pb-2">
-                      <MapPin className="h-4 w-4 text-primary" />
-                      <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Location Details</h3>
-                    </div>
-                    <FormField control={form.control} name="streetAddress" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-[10px] font-black uppercase">Street Address</FormLabel>
-                        <FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl>
-                      </FormItem>
-                    )} />
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                      <FormField control={form.control} name="city" render={({ field }) => (
-                        <FormItem><FormLabel className="text-[10px] font-black uppercase">City</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>
-                      )} />
-                      <FormField control={form.control} name="state" render={({ field }) => (
-                        <FormItem><FormLabel className="text-[10px] font-black uppercase">State</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>
-                      )} />
-                      <FormField control={form.control} name="zip" render={({ field }) => (
-                        <FormItem><FormLabel className="text-[10px] font-black uppercase">ZIP Code</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>
-                      )} />
-                    </div>
-                  </div>
-
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-2 mb-2 border-b pb-2">
-                      <Mail className="h-4 w-4 text-primary" />
-                      <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Decision Maker</h3>
-                    </div>
-                    <FormField control={form.control} name="contactName" render={({ field }) => (
-                      <FormItem><FormLabel className="text-[10px] font-black uppercase">Name</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>
-                    )} />
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <FormField control={form.control} name="contactEmail" render={({ field }) => (
-                        <FormItem><FormLabel className="text-[10px] font-black uppercase">Email</FormLabel><FormControl><Input {...field} type="email" /></FormControl></FormItem>
-                      )} />
-                      <FormField control={form.control} name="contactPhone" render={({ field }) => (
-                        <FormItem><FormLabel className="text-[10px] font-black uppercase">Phone</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>
-                      )} />
-                    </div>
-                  </div>
-
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-2 mb-2 border-b pb-2">
-                      <DollarSign className="h-4 w-4 text-primary" />
-                      <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Financial Settings</h3>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <FormField control={form.control} name="serviceFee" render={({ field }) => (
-                        <FormItem><FormLabel className="text-[10px] font-black uppercase">Conv. Fee ($)</FormLabel><FormControl><Input type="number" step="0.01" {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>
-                      )} />
-                      <FormField control={form.control} name="taxRate" render={({ field }) => (
-                        <FormItem><FormLabel className="text-[10px] font-black uppercase">Tax Rate (%)</FormLabel><FormControl><Input type="number" step="0.1" {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>
+                        <FormItem><FormLabel className="text-[10px] font-black uppercase">Status</FormLabel><FormControl><select {...field} className="w-full h-11 border-2 rounded-md px-3 text-sm font-bold bg-background"><option value="Active">Active</option><option value="Inactive">Inactive</option></select></FormControl></FormItem>
                       )} />
                     </div>
                   </div>
@@ -1059,24 +780,43 @@ export default function KOOPAdminPage() {
                   <div className="space-y-4">
                     <div className="flex items-center gap-2 mb-2 border-b pb-2">
                       <CreditCard className="h-4 w-4 text-primary" />
-                      <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Payment Integration</h3>
+                      <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Payment Private Vault</h3>
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <FormField control={form.control} name="authorizeNetLoginId" render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="text-[10px] font-black uppercase">Authorize.net API Login ID</FormLabel>
-                          <FormControl><Input {...field} placeholder="API Login ID" className="h-11 border-2 font-bold" /></FormControl>
-                          <FormDescription className="text-[9px] uppercase font-bold">Managed by KOOP Admin only.</FormDescription>
-                          <FormMessage />
+                          <FormLabel className="text-[10px] font-black uppercase">API Login ID</FormLabel>
+                          <FormControl><Input {...field} placeholder="Vaulted ID" className="h-11 border-2 font-bold" /></FormControl>
+                          <FormDescription className="text-[9px] uppercase font-bold">Stored in restricted collection.</FormDescription>
                         </FormItem>
                       )} />
                       <FormField control={form.control} name="authorizeNetTransactionKey" render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="text-[10px] font-black uppercase">Authorize.net Transaction Key</FormLabel>
-                          <FormControl><Input {...field} type="password" placeholder="Transaction Key" className="h-11 border-2 font-bold" /></FormControl>
-                          <FormDescription className="text-[9px] uppercase font-bold">Encrypted at rest.</FormDescription>
-                          <FormMessage />
+                          <FormLabel className="text-[10px] font-black uppercase">Transaction Key</FormLabel>
+                          <FormControl><Input {...field} type="password" placeholder="Vaulted Key" className="h-11 border-2 font-bold" /></FormControl>
+                          <FormDescription className="text-[9px] uppercase font-bold">Accessed only by secure Cloud Functions.</FormDescription>
                         </FormItem>
+                      )} />
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 mb-2 border-b pb-2">
+                      <MapPin className="h-4 w-4 text-primary" />
+                      <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Location</h3>
+                    </div>
+                    <FormField control={form.control} name="streetAddress" render={({ field }) => (
+                      <FormItem><FormLabel className="text-[10px] font-black uppercase">Street</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>
+                    )} />
+                    <div className="grid grid-cols-3 gap-4">
+                      <FormField control={form.control} name="city" render={({ field }) => (
+                        <FormItem><FormLabel className="text-[10px] font-black uppercase">City</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>
+                      )} />
+                      <FormField control={form.control} name="state" render={({ field }) => (
+                        <FormItem><FormLabel className="text-[10px] font-black uppercase">ST</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>
+                      )} />
+                      <FormField control={form.control} name="zip" render={({ field }) => (
+                        <FormItem><FormLabel className="text-[10px] font-black uppercase">ZIP</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>
                       )} />
                     </div>
                   </div>
@@ -1086,13 +826,8 @@ export default function KOOPAdminPage() {
           </div>
 
           <DialogFooter className="p-6 border-t bg-muted/10 shrink-0">
-            <Button 
-              type="submit" 
-              form="venue-form"
-              disabled={isSaving} 
-              className="w-full h-14 bg-[#213147] hover:bg-[#213147]/90 text-white font-headline font-black uppercase tracking-widest shadow-xl"
-            >
-              {isSaving ? <Loader2 className="animate-spin" /> : (editingSeller ? "SAVE VENUE CHANGES" : "PROVISION ESTABLISHMENT")}
+            <Button type="submit" form="venue-form" disabled={isSaving} className="w-full h-14 bg-[#213147] hover:bg-[#213147]/90 text-white font-headline font-black uppercase tracking-widest shadow-xl">
+              {isSaving ? <Loader2 className="animate-spin" /> : (editingSeller ? "SAVE VENUE & SECRETS" : "PROVISION VENUE")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1100,56 +835,24 @@ export default function KOOPAdminPage() {
 
       <Dialog open={isStaffFormOpen} onOpenChange={setIsStaffFormOpen}>
         <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="uppercase font-headline">Add Seller Admin</DialogTitle>
-            <DialogDescription>Create a new administrator account and link it to a specific venue.</DialogDescription>
-          </DialogHeader>
+          <DialogHeader><DialogTitle className="uppercase font-headline">Add Seller Admin</DialogTitle></DialogHeader>
           <Form {...staffForm}>
             <form onSubmit={staffForm.handleSubmit(onProvisionStaff)} className="space-y-6 pt-4">
               <FormField control={staffForm.control} name="email" render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-[10px] font-black uppercase">Admin Email Address</FormLabel>
-                  <FormControl><Input {...field} placeholder="admin@venue.com" className="h-11 border-2 font-bold" /></FormControl>
-                  <FormMessage />
-                </FormItem>
+                <FormItem><FormLabel className="text-[10px] font-black uppercase">Admin Email</FormLabel><FormControl><Input {...field} placeholder="admin@venue.com" className="h-11 border-2 font-bold" /></FormControl><FormMessage /></FormItem>
               )} />
               <FormField control={staffForm.control} name="password" render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-[10px] font-black uppercase">Initial Security Key (Password)</FormLabel>
-                  <FormControl><Input {...field} type="password" placeholder="••••••••" className="h-11 border-2 font-bold" /></FormControl>
-                  <FormDescription className="text-[9px] uppercase font-bold text-muted-foreground">Required to initialize the identity. They can change this later.</FormDescription>
-                  <FormMessage />
-                </FormItem>
+                <FormItem><FormLabel className="text-[10px] font-black uppercase">Initial Password</FormLabel><FormControl><Input {...field} type="password" placeholder="••••••••" className="h-11 border-2 font-bold" /></FormControl><FormMessage /></FormItem>
               )} />
               <FormField control={staffForm.control} name="sellerId" render={({ field }) => (
                 <FormItem>
                   <FormLabel className="text-[10px] font-black uppercase">Assigned Venue</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
-                    <FormControl>
-                      <SelectTrigger className="h-11 border-2 font-bold">
-                        <SelectValue placeholder="Select a venue..." />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {sellers?.map(s => (
-                        <SelectItem key={s.id} value={s.id}>{s.courseName}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
+                  <Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger className="h-11 border-2 font-bold"><SelectValue placeholder="Select venue..." /></SelectTrigger></FormControl><SelectContent>{sellers?.map(s => (<SelectItem key={s.id} value={s.id}>{s.courseName}</SelectItem>))}</SelectContent></Select>
                 </FormItem>
               )} />
-              <div className="bg-indigo-50 p-4 rounded-xl border border-indigo-100 flex items-start gap-3">
-                <ShieldCheck className="h-5 w-5 text-indigo-600 shrink-0 mt-0.5" />
-                <p className="text-[10px] text-indigo-800 font-medium leading-relaxed">
-                  Adding a Seller Admin will create a primary identity in the platform database. Once added, use the **Send Reset Link** tool to verify their inbox.
-                </p>
-              </div>
-              <DialogFooter className="px-0">
-                <Button type="submit" disabled={isSaving} className="w-full h-12 bg-indigo-600 hover:bg-indigo-700 font-bold uppercase tracking-widest">
-                  {isSaving ? <Loader2 className="animate-spin" /> : "Authorize Staff Member"}
-                </Button>
-              </DialogFooter>
+              <Button type="submit" disabled={isSaving} className="w-full h-12 bg-indigo-600 hover:bg-indigo-700 font-bold uppercase tracking-widest">
+                {isSaving ? <Loader2 className="animate-spin" /> : "Authorize Staff"}
+              </Button>
             </form>
           </Form>
         </DialogContent>
@@ -1157,98 +860,28 @@ export default function KOOPAdminPage() {
 
       <Dialog open={isProvisionResultOpen} onOpenChange={setIsProvisionResultOpen}>
         <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className={cn("uppercase font-headline flex items-center gap-2", provisionResult?.status === 'created' ? "text-green-600" : "text-amber-600")}>
-              {provisionResult?.status === 'created' ? <Check className="h-5 w-5" /> : <AlertTriangle className="h-5 w-5" />}
-              {provisionResult?.status === 'created' ? "Identity Synchronized" : "Profile Re-linked"}
-            </DialogTitle>
-            <DialogDescription>
-              {provisionResult?.status === 'created' 
-                ? "The administrator identity has been successfully established in the identity provider." 
-                : "A platform identity already exists for this email. Venue assignments have been synchronized."}
-            </DialogDescription>
-          </DialogHeader>
+          <DialogHeader><DialogTitle className="uppercase font-headline">Identity Synchronized</DialogTitle></DialogHeader>
           <div className="space-y-4 pt-4">
             <div className="p-4 bg-muted/50 rounded-xl border-2 border-dashed space-y-3">
-              <div className="space-y-1">
-                <p className="text-[10px] font-black uppercase text-muted-foreground">User Email</p>
-                <p className="font-bold">{provisionResult?.email}</p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-[10px] font-black uppercase text-muted-foreground">Initial Security Key</p>
-                <code className="bg-background px-2 py-1 rounded border font-mono font-bold text-sm block w-full text-center tracking-widest">
-                  {provisionResult?.key}
-                </code>
-              </div>
+              <div className="space-y-1"><p className="text-[10px] font-black uppercase text-muted-foreground">User Email</p><p className="font-bold">{provisionResult?.email}</p></div>
+              <div className="space-y-1"><p className="text-[10px] font-black uppercase text-muted-foreground">Initial Key</p><code className="bg-background px-2 py-1 rounded border font-mono font-bold text-sm block w-full text-center tracking-widest">{provisionResult?.key}</code></div>
             </div>
-            <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 space-y-2">
-              <div className="flex items-center gap-2 text-blue-700">
-                <Mail className="h-4 w-4" />
-                <p className="text-[10px] font-black uppercase tracking-wider">Operational Note</p>
-              </div>
-              <p className="text-[11px] text-blue-800 leading-relaxed font-medium">
-                {provisionResult?.status === 'created' 
-                  ? "We recommend sending a reset link immediately to verify the user's access to their inbox."
-                  : "Because the identity already exists, the existing password was preserved. Use the reset tool if the user requires a new key."}
-              </p>
-            </div>
-            <Button 
-              className="w-full h-12 gap-2 font-bold uppercase tracking-widest"
-              onClick={() => {
-                navigator.clipboard.writeText(`KOOP Staff Access\nEmail: ${provisionResult?.email}\nTemporary Key: ${provisionResult?.key}\nLogin: ${window.location.origin}/login`);
-                toast({ title: "Access Memo Copied" });
-              }}
-            >
-              <Copy className="h-4 w-4" /> Copy Access Memo
-            </Button>
+            <Button className="w-full h-12 gap-2 font-bold uppercase tracking-widest" onClick={() => { navigator.clipboard.writeText(`Email: ${provisionResult?.email}\nKey: ${provisionResult?.key}\nLogin: ${window.location.origin}/login`); toast({ title: "Copied" }); }}><Copy className="h-4 w-4" /> Copy Access Memo</Button>
           </div>
         </DialogContent>
       </Dialog>
 
-      {/* Staff Deletion Confirmation */}
       <AlertDialog open={isStaffDeleteDialogOpen} onOpenChange={setIsStaffDeleteDialogOpen}>
         <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="uppercase font-headline text-destructive flex items-center gap-2">
-              <ShieldAlert className="h-5 w-5" /> Revoke Access?
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              This will permanently remove <strong>{adminToDelete?.email}</strong> from the administrative database. 
-              They will no longer be able to manage <strong>{adminToDelete?.courseName || 'any venue'}</strong>.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={handleRemoveStaff}
-              className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
-            >
-              Confirm Removal
-            </AlertDialogAction>
-          </AlertDialogFooter>
+          <AlertDialogHeader><AlertDialogTitle className="uppercase font-headline text-destructive">Revoke Access?</AlertDialogTitle><AlertDialogDescription>This removes administrative records for <strong>{adminToDelete?.email}</strong>.</AlertDialogDescription></AlertDialogHeader>
+          <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={handleRemoveStaff} className="bg-destructive hover:bg-destructive/90">Confirm Removal</AlertDialogAction></AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Venue Deletion Confirmation */}
       <AlertDialog open={isVenueDeleteDialogOpen} onOpenChange={setIsVenueDeleteDialogOpen}>
         <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="uppercase font-headline text-destructive flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5" /> Decommission Venue?
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to remove <strong>{venueToDelete?.courseName}</strong>? This will take their digital menus offline and disrupt active service.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={handleRemoveVenue}
-              className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
-            >
-              Confirm Deletion
-            </AlertDialogAction>
-          </AlertDialogFooter>
+          <AlertDialogHeader><AlertDialogTitle className="uppercase font-headline text-destructive">Decommission Venue?</AlertDialogTitle><AlertDialogDescription>Are you sure you want to remove <strong>{venueToDelete?.courseName}</strong>? This includes vault keys.</AlertDialogDescription></AlertDialogHeader>
+          <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={handleRemoveVenue} className="bg-destructive hover:bg-destructive/90">Confirm Deletion</AlertDialogAction></AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
     </div>

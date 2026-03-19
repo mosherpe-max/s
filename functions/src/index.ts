@@ -1,31 +1,50 @@
+
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
 import { APIContracts, APIControllers } from 'authorizenet';
 
 admin.initializeApp();
 
-// Platform-level secrets for Authorize.net
-// These must be set via: firebase functions:secrets:set AUTHORIZENET_API_LOGIN_ID
-const apiLoginId = functions.defineSecret('AUTHORIZENET_API_LOGIN_ID');
-const transactionKey = functions.defineSecret('AUTHORIZENET_TRANSACTION_KEY');
+// Platform-level fallback secrets
+const platformApiLoginId = functions.defineSecret('AUTHORIZENET_API_LOGIN_ID');
+const platformTransactionKey = functions.defineSecret('AUTHORIZENET_TRANSACTION_KEY');
 
 /**
  * Securely processes a one-time payment using Authorize.net Accept.js Nonce.
+ * Dynamically fetches venue-specific credentials from the Private Vault.
  */
 export const processPayment = functions.https.onCall({
-  secrets: [apiLoginId, transactionKey]
+  secrets: [platformApiLoginId, platformTransactionKey]
 }, async (request) => {
   const { paymentNonce, amount, orderId, buyerProfileId, sellerId } = request.data;
 
   // 1. Validation
-  if (!paymentNonce || !amount || !orderId || !buyerProfileId) {
+  if (!paymentNonce || !amount || !orderId || !buyerProfileId || !sellerId) {
     throw new functions.https.HttpsError('invalid-argument', 'Missing transaction parameters.');
   }
 
-  // 2. Configure Authorize.net Transaction
+  // 2. Fetch Venue Credentials from Private Vault
+  let activeLoginId = platformApiLoginId.value();
+  let activeTransKey = platformTransactionKey.value();
+
+  try {
+    const vaultDoc = await admin.firestore().doc(`sellers_private/${sellerId}`).get();
+    if (vaultDoc.exists) {
+      const vaultData = vaultDoc.data();
+      if (vaultData?.authorizeNetLoginId && vaultData?.authorizeNetTransactionKey) {
+        console.log(`Using venue-specific credentials for: ${sellerId}`);
+        activeLoginId = vaultData.authorizeNetLoginId;
+        activeTransKey = vaultData.authorizeNetTransactionKey;
+      }
+    }
+  } catch (err) {
+    console.warn(`Could not access Private Vault for ${sellerId}. Falling back to platform keys.`);
+  }
+
+  // 3. Configure Authorize.net Transaction
   const merchantAuthenticationType = new APIContracts.MerchantAuthenticationType();
-  merchantAuthenticationType.setName(apiLoginId.value());
-  merchantAuthenticationType.setTransactionKey(transactionKey.value());
+  merchantAuthenticationType.setName(activeLoginId);
+  merchantAuthenticationType.setTransactionKey(activeTransKey);
 
   const opaqueData = new APIContracts.OpaqueDataType();
   opaqueData.setDataDescriptor('COMMON.ACCEPT.INAPP.PAYMENT');

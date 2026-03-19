@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "BuyerProfile": {
@@ -102,6 +103,18 @@
         "updatedAt"
       ]
     },
+    "SellerPrivateConfig": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "SellerPrivateConfig",
+      "type": "object",
+      "description": "Stores sensitive venue configuration like payment API keys. Controlled by Admin only.",
+      "properties": {
+        "id": { "type": "string" },
+        "authorizeNetLoginId": { "type": "string" },
+        "authorizeNetTransactionKey": { "type": "string" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      }
+    },
     "Product": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Product",
@@ -149,99 +162,6 @@
         "updatedAt"
       ]
     },
-    "SellerMenu": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "SellerMenu",
-      "type": "object",
-      "description": "Represents a specific menu configuration offered by a seller, which groups various menu items.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the SellerMenu entity."
-        },
-        "sellerId": {
-          "type": "string",
-          "description": "Reference to the Seller who owns this menu. (Relationship: Seller 1:N SellerMenu)"
-        },
-        "name": {
-          "type": "string",
-          "description": "The name of the menu (e.g., 'Main Beverage Menu', 'Snack Bar Menu')."
-        },
-        "description": {
-          "type": "string",
-          "description": "A brief description of the menu."
-        },
-        "isActive": {
-          "type": "boolean",
-          "description": "Indicates if this menu is currently active and visible to buyers."
-        },
-        "createdAt": {
-          "type": "string",
-          "description": "Timestamp when the seller menu was created.",
-          "format": "date-time"
-        },
-        "updatedAt": {
-          "type": "string",
-          "description": "Timestamp when the seller menu was last updated.",
-          "format": "date-time"
-        }
-      },
-      "required": [
-        "id",
-        "sellerId",
-        "name",
-        "isActive",
-        "createdAt",
-        "updatedAt"
-      ]
-    },
-    "MenuItem": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "MenuItem",
-      "type": "object",
-      "description": "Represents a specific product offered on a SellerMenu, including its price and availability.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the MenuItem entity."
-        },
-        "sellerMenuId": {
-          "type": "string",
-          "description": "Reference to the SellerMenu this item belongs to. (Relationship: SellerMenu 1:N MenuItem)"
-        },
-        "productId": {
-          "type": "string",
-          "description": "Reference to the Product being offered. (Relationship: Product 1:N MenuItem)"
-        },
-        "price": {
-          "type": "number",
-          "description": "The price of the product when sold through this menu item."
-        },
-        "isAvailable": {
-          "type": "boolean",
-          "description": "Indicates if the product is currently available for purchase through this menu item."
-        },
-        "createdAt": {
-          "type": "string",
-          "description": "Timestamp when the menu item was created.",
-          "format": "date-time"
-        },
-        "updatedAt": {
-          "type": "string",
-          "description": "Timestamp when the menu item was last updated.",
-          "format": "date-time"
-        }
-      },
-      "required": [
-        "id",
-        "sellerMenuId",
-        "productId",
-        "price",
-        "isAvailable",
-        "createdAt",
-        "updatedAt"
-      ]
-    },
     "Order": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Order",
@@ -249,51 +169,30 @@
       "description": "Represents a customer's placed order for items from a specific seller.",
       "properties": {
         "id": {
-          "type": "string",
-          "description": "Unique identifier for the Order entity."
+          "type": "string"
         },
         "buyerProfileId": {
-          "type": "string",
-          "description": "Reference to the BuyerProfile who placed the order. (Relationship: BuyerProfile 1:N Order)"
+          "type": "string"
         },
         "sellerId": {
-          "type": "string",
-          "description": "Reference to the Seller who will fulfill the order. (Relationship: Seller 1:N Order)"
+          "type": "string"
         },
         "orderDateTime": {
           "type": "string",
-          "description": "The date and time the order was placed.",
           "format": "date-time"
         },
         "status": {
-          "type": "string",
-          "description": "The current status of the order (e.g., 'Placed', 'Preparing', 'Out for Delivery', 'Delivered', 'Cancelled')."
+          "type": "string"
         },
         "totalAmount": {
-          "type": "number",
-          "description": "The total monetary amount of the order, including all items and taxes/fees."
-        },
-        "deliveryLatitude": {
-          "type": "number",
-          "description": "The latitude of the specified delivery location for this order."
-        },
-        "deliveryLongitude": {
-          "type": "number",
-          "description": "The longitude of the specified delivery location for this order."
-        },
-        "estimatedDeliveryTime": {
-          "type": "string",
-          "description": "The estimated time of delivery for the order.",
-          "format": "date-time"
+          "type": "number"
         },
         "createdAt": {
           "type": "string",
-          "description": "Timestamp when the order was created.",
           "format": "date-time"
         },
         "updatedAt": {
           "type": "string",
-          "description": "Timestamp when the order was last updated.",
           "format": "date-time"
         }
       },
@@ -301,114 +200,8 @@
         "id",
         "buyerProfileId",
         "sellerId",
-        "orderDateTime",
         "status",
         "totalAmount",
-        "createdAt",
-        "updatedAt"
-      ]
-    },
-    "OrderItem": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "OrderItem",
-      "type": "object",
-      "description": "Represents a single item included in an Order, linking to a specific menu item.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the OrderItem entity."
-        },
-        "orderId": {
-          "type": "string",
-          "description": "Reference to the Order this item belongs to. (Relationship: Order 1:N OrderItem)"
-        },
-        "menuItemId": {
-          "type": "string",
-          "description": "Reference to the MenuItem that was ordered. (Relationship: MenuItem 1:N OrderItem)"
-        },
-        "quantity": {
-          "type": "number",
-          "description": "The quantity of the item ordered."
-        },
-        "priceAtTimeOfOrder": {
-          "type": "number",
-          "description": "The price of the item at the moment the order was placed, to ensure historical accuracy."
-        },
-        "createdAt": {
-          "type": "string",
-          "description": "Timestamp when the order item was created.",
-          "format": "date-time"
-        },
-        "updatedAt": {
-          "type": "string",
-          "description": "Timestamp when the order item was last updated.",
-          "format": "date-time"
-        }
-      },
-      "required": [
-        "id",
-        "orderId",
-        "menuItemId",
-        "quantity",
-        "priceAtTimeOfOrder",
-        "createdAt",
-        "updatedAt"
-      ]
-    },
-    "PaymentTransaction": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "PaymentTransaction",
-      "type": "object",
-      "description": "Records details of a payment transaction, primarily for orders processed via Authorize.net.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the PaymentTransaction entity."
-        },
-        "orderId": {
-          "type": "string",
-          "description": "Reference to the Order associated with this payment. (Relationship: Order 1:1 PaymentTransaction)"
-        },
-        "buyerProfileId": {
-          "type": "string",
-          "description": "Reference to the BuyerProfile who made the payment. (Relationship: BuyerProfile 1:N PaymentTransaction)"
-        },
-        "transactionDateTime": {
-          "type": "string",
-          "description": "The date and time when the payment transaction occurred.",
-          "format": "date-time"
-        },
-        "amount": {
-          "type": "number",
-          "description": "The total amount processed in this transaction."
-        },
-        "status": {
-          "type": "string",
-          "description": "The status of the payment transaction (e.g., 'Pending', 'Success', 'Failed', 'Refunded', 'Voided')."
-        },
-        "paymentGatewayTransactionId": {
-          "type": "string",
-          "description": "The unique transaction ID provided by the payment gateway (e.g., Authorize.net)."
-        },
-        "createdAt": {
-          "type": "string",
-          "description": "Timestamp when the payment transaction record was created.",
-          "format": "date-time"
-        },
-        "updatedAt": {
-          "type": "string",
-          "description": "Timestamp when the payment transaction record was last updated.",
-          "format": "date-time"
-        }
-      },
-      "required": [
-        "id",
-        "orderId",
-        "buyerProfileId",
-        "transactionDateTime",
-        "amount",
-        "status",
-        "paymentGatewayTransactionId",
         "createdAt",
         "updatedAt"
       ]
@@ -429,13 +222,7 @@
           "schema": {
             "$ref": "#/backend/entities/BuyerProfile"
           },
-          "description": "Stores private profile data for each buyer. `userId` matches the authenticated user's `uid`. This path ensures private data is isolated and controlled by the owner.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier of the authenticated buyer."
-            }
-          ]
+          "description": "Stores private profile data for each buyer."
         }
       },
       {
@@ -445,73 +232,17 @@
           "schema": {
             "$ref": "#/backend/entities/Seller"
           },
-          "description": "Stores core seller profiles. `sellerId` matches the authenticated seller's `uid`. Essential fields like `currentLatitude`, `currentLongitude`, and `name` are publicly readable by authenticated users for map display, while sensitive fields are restricted. Write access is limited to the seller owner or Koop Admin.",
-          "params": [
-            {
-              "name": "sellerId",
-              "description": "The unique identifier of the authenticated seller."
-            }
-          ]
+          "description": "Stores core seller profiles. Publicly readable for maps and discovery."
         }
       },
       {
-        "path": "/products/{productId}",
+        "path": "/sellers_private/{sellerId}",
         "definition": {
-          "entityName": "Product",
+          "entityName": "SellerPrivateConfig",
           "schema": {
-            "$ref": "#/backend/entities/Product"
+            "$ref": "#/backend/entities/SellerPrivateConfig"
           },
-          "description": "Master list of all products available in the system. Readable by all authenticated users; writable only by Koop Admin.",
-          "params": [
-            {
-              "name": "productId",
-              "description": "The unique identifier for a product."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/sellers/{sellerId}/menus/{menuId}",
-        "definition": {
-          "entityName": "SellerMenu",
-          "schema": {
-            "$ref": "#/backend/entities/SellerMenu"
-          },
-          "description": "Represents menus offered by a specific seller. `sellerId` is implicit in the path for clear ownership and authorization. Buyer reads are allowed only if `resource.data.isActive` is true.",
-          "params": [
-            {
-              "name": "sellerId",
-              "description": "The unique identifier of the seller who owns this menu."
-            },
-            {
-              "name": "menuId",
-              "description": "The unique identifier for a specific seller menu."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/sellers/{sellerId}/menus/{menuId}/items/{itemId}",
-        "definition": {
-          "entityName": "MenuItem",
-          "schema": {
-            "$ref": "#/backend/entities/MenuItem"
-          },
-          "description": "Represents individual items within a seller's menu. Includes denormalized `sellerId` (implicit in path) and `menuIsActive` (denormalized from parent `SellerMenu`) for authorization independence. Buyer reads are allowed only if `resource.data.isAvailable` is true AND `resource.data.menuIsActive` is true.",
-          "params": [
-            {
-              "name": "sellerId",
-              "description": "The unique identifier of the seller who owns this menu item."
-            },
-            {
-              "name": "menuId",
-              "description": "The unique identifier of the menu this item belongs to."
-            },
-            {
-              "name": "itemId",
-              "description": "The unique identifier for a specific menu item."
-            }
-          ]
+          "description": "Vault for sensitive venue credentials. Accessible only to Koop Admins and Cloud Functions."
         }
       },
       {
@@ -521,68 +252,9 @@
           "schema": {
             "$ref": "#/backend/entities/Order"
           },
-          "description": "Centralized collection for all customer orders. Includes `buyerProfileId` and `sellerId` for robust authorization without `get()` calls, enabling efficient queries for both buyers and sellers.",
-          "params": [
-            {
-              "name": "orderId",
-              "description": "The unique identifier for an order."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/orders/{orderId}/items/{orderItemId}",
-        "definition": {
-          "entityName": "OrderItem",
-          "schema": {
-            "$ref": "#/backend/entities/OrderItem"
-          },
-          "description": "Represents individual items within an order. Includes denormalized `buyerProfileId` and `sellerId` from the parent `Order` for authorization independence, allowing direct rule evaluation.",
-          "params": [
-            {
-              "name": "orderId",
-              "description": "The unique identifier of the parent order."
-            },
-            {
-              "name": "orderItemId",
-              "description": "The unique identifier for a specific order item."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/paymentTransactions/{transactionId}",
-        "definition": {
-          "entityName": "PaymentTransaction",
-          "schema": {
-            "$ref": "#/backend/entities/PaymentTransaction"
-          },
-          "description": "Records details of payment transactions. Includes `buyerProfileId` and `orderId` for authorization independence. Primarily written by Cloud Functions upon payment processing success and readable by the buyer owner or Koop Admin.",
-          "params": [
-            {
-              "name": "transactionId",
-              "description": "The unique identifier for a payment transaction."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/roles_admin/{adminUid}",
-        "definition": {
-          "entityName": "AdminRole",
-          "schema": {
-            "$ref": "#/backend/entities/AdminRole"
-          },
-          "description": "A control collection used for Database Access Control (DBAC). The existence of a document at this path signifies that the user (`adminUid`) holds the Koop Admin role. This is a conceptual entity for role management and adheres to 'Existence over Content' for global roles.",
-          "params": [
-            {
-              "name": "adminUid",
-              "description": "The unique identifier of a user who is designated as a Koop Admin."
-            }
-          ]
+          "description": "Centralized collection for all customer orders."
         }
       }
-    ],
-    "reasoning": "The Firestore data structure is meticulously designed to prioritize Authorization Independence, ensure Queryable Access Patterns (QAPs), and establish explicit Database Access Control (DBAC). This approach minimizes complexity in security rules, enhances debuggability, and scales efficiently.\n\nAuthorization Independence and Denormalization (Mandate A):\nTo eliminate the need for `get()` calls in security rules, which can break atomic operations and complicate debugging, critical authorization context is denormalized directly into relevant documents:\n*   MenuItem: Each `MenuItem` document within `/sellers/{sellerId}/menus/{menuId}/items/{itemId}` will include `menuIsActive` (a boolean denormalized from its parent `SellerMenu`) and `sellerId` (implicit in the path, but valuable for direct rule checks). This ensures that a buyer's read access to a menu item can be determined solely by checking `resource.data.isAvailable` and `resource.data.menuIsActive` on the item itself.\n*   OrderItem: Each `OrderItem` document within `/orders/{orderId}/items/{orderItemId}` will denormalize `buyerProfileId` and `sellerId` from its parent `Order` document. This allows security rules to grant access to order items based on the authenticated user's `uid` matching either the buyer or the seller, without requiring a `get()` call to the parent `Order` document.\n*   Order and PaymentTransaction: These top-level collections (`/orders/{orderId}` and `/paymentTransactions/{transactionId}`) are designed with `buyerProfileId` and `sellerId` (for Order) or `buyerProfileId` (for PaymentTransaction) as inherent fields in their schemas. This directly supports authorization checks and QAPs without needing external document lookups.\n\nQueryable Access Patterns (QAPs) and Structural Segregation (Mandate B & C):\nThe structure enables efficient and secure `list` operations, a critical aspect for app performance and robust security rules:\n*   Buyer Profiles (`/users/{userId}/buyerProfile`): This private, path-based ownership collection directly links a buyer's profile to their Firebase `uid`, making personal data retrieval simple and secure. QAP: `db.collection('users').doc(request.auth.uid).collection('buyerProfile')`.\n*   Seller Profiles (`/sellers/{sellerId}`): This collection allows sellers to manage their own profiles. For public display on buyer maps, fields like `currentLatitude`, `currentLongitude`, and `name` are made readable by authenticated users, while sensitive data remains restricted. QAP: `db.collection('sellers').where(...)` for public visibility.\n*   Global Products (`/products/{productId}`): A top-level collection providing a universal product catalog. It is efficiently queryable by all authenticated users, with write access strictly limited to Koop Admins. QAP: `db.collection('products')`.\n*   Seller-Owned Menus and Items (`/sellers/{sellerId}/menus/{menuId}` and `/sellers/{sellerId}/menus/{menuId}/items/{itemId}`): These collections leverage hierarchical paths to clearly establish seller ownership. Buyers can perform `list` queries for active menus and their available items by first identifying a `sellerId` and then executing scoped queries, relying on `isActive`, `isAvailable`, and the denormalized `menuIsActive` for secure filtering. QAP for buyer menu items: `db.collection('sellers').doc(sellerId).collection('menus').doc(menuId).collection('items').where('isAvailable', '==', true).where('menuIsActive', '==', true)`.\n*   Centralized Orders (`/orders/{orderId}`): This collection serves as a central hub for all orders. The explicit inclusion of `buyerProfileId` and `sellerId` within each document enables efficient `list` queries for both buyers (`.where('buyerProfileId', '==', request.auth.uid)`) and sellers (`.where('sellerId', '==', request.auth.uid)`), facilitating order tracking and driver management. This eliminates the need for complex multi-collection queries or `get()` calls.\n*   Payment Transactions (`/paymentTransactions/{transactionId}`): This collection stores payment records and includes `buyerProfileId` and `orderId` for direct authorization. It provides efficient QAPs for buyers to view their transaction history (`.where('buyerProfileId', '==', request.auth.uid)`). This collection also serves as the trigger point for a Cloud Function to update `buyerProfile.subscriberStatus` upon successful payment.\n*   Admin Roles (`/roles_admin/{adminUid}`): A dedicated, lightweight collection for DBAC. The mere existence of a document with an `adminUid` indicates an administrator role, enabling clear and robust rules like `allow read, write: if exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));`.\n\nThis architecture ensures that security rules are intuitive, maintainable, and highly performant, as all necessary authorization context is available within the `resource.data` object or implicitly within the request path."
+    ]
   }
 }

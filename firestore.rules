@@ -1,3 +1,4 @@
+
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -5,35 +6,22 @@ service cloud.firestore {
     /**
      * CORE PHILOSOPHY:
      * This ruleset implements a robust, multi-role security model for the Koop platform.
-     * It distinguishes between Buyers, Sellers, and Koop Admins using a combination 
-     * of path-based ownership and document-level role verification.
-     *
-     * DATA STRUCTURE:
-     * - Buyer data is isolated under /users/{userId}/buyerProfile.
-     * - Sellers manage their profiles and hierarchical menus under /sellers/{sellerId}.
-     * - Orders and Transactions are centralized top-level collections, secured via 
-     *   denormalized participant IDs (buyerProfileId, sellerId).
-     * - Sales CRM and Admin Registry are restricted to authenticated staff.
      */
 
     // --- HELPER FUNCTIONS ---
 
-    /** @description Checks if the user is authenticated. */
     function isSignedIn() {
       return request.auth != null;
     }
 
-    /** @description Checks if the user's UID matches the provided userId. */
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    /** @description Checks if the user is an existing owner of the document. */
     function isExistingOwner(userId) {
       return resource != null && isOwner(userId);
     }
 
-    /** @description Checks if the authenticated user has the Admin role via the roles_admin collection. */
     function isAdmin() {
       return isSignedIn() && (
         exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid)) ||
@@ -41,12 +29,18 @@ service cloud.firestore {
       );
     }
 
-    /** @description Checks if the user is a participant in an order (Buyer or Seller). */
     function isOrderParticipant(data) {
       return isSignedIn() && (data.buyerProfileId == request.auth.uid || data.sellerId == request.auth.uid);
     }
 
     // --- RULES ---
+
+    /**
+     * @description Vault for sensitive credentials. Controlled by Admin only.
+     */
+    match /sellers_private/{sellerId} {
+      allow read, write: if isAdmin();
+    }
 
     /**
      * @description Stores private profile data for each buyer.
@@ -67,26 +61,17 @@ service cloud.firestore {
       allow update: if isExistingOwner(sellerId) || isAdmin();
       allow delete: if isAdmin();
 
-      /**
-       * @description Global menu items for a specific seller.
-       */
       match /menuItems/{itemId} {
         allow get, list: if true; // Publicly accessible for guest ordering
         allow create, update, delete: if isOwner(sellerId) || isAdmin();
       }
 
-      /**
-       * @description Menus offered by a specific seller.
-       */
       match /menus/{menuId} {
         allow get, list: if (resource.data.isActive == true || isOwner(sellerId) || isAdmin());
         allow create: if isOwner(sellerId) || isAdmin();
         allow update: if isExistingOwner(sellerId) || isAdmin();
         allow delete: if isAdmin();
 
-        /**
-         * @description Individual items within a seller's menu.
-         */
         match /items/{itemId} {
           allow get, list: if ((resource.data.isAvailable == true && resource.data.menuIsActive == true) || isOwner(sellerId) || isAdmin());
           allow create: if isOwner(sellerId) || isAdmin();
@@ -100,7 +85,7 @@ service cloud.firestore {
      * @description Master list of all products in the system.
      */
     match /products/{productId} {
-      allow get, list: if true; // Public catalog
+      allow get, list: if true; 
       allow create, update, delete: if isAdmin();
     }
 
@@ -109,14 +94,11 @@ service cloud.firestore {
      */
     match /orders/{orderId} {
       allow get: if isOrderParticipant(resource.data) || isAdmin();
-      allow list: if isSignedIn(); // Queries must filter by buyerProfileId or sellerId
+      allow list: if isSignedIn(); 
       allow create: if isSignedIn() && request.resource.data.buyerProfileId == request.auth.uid;
       allow update: if (resource != null && isOrderParticipant(resource.data)) || isAdmin();
       allow delete: if isAdmin();
 
-      /**
-       * @description Individual items within an order.
-       */
       match /items/{orderItemId} {
         allow get: if isOrderParticipant(resource.data) || isAdmin();
         allow list: if isSignedIn();
@@ -134,37 +116,22 @@ service cloud.firestore {
       allow create, update, delete: if isAdmin();
     }
 
-    /**
-     * @description Sales CRM Prospects.
-     */
     match /prospects/{prospectId} {
       allow read, write: if isSignedIn();
     }
 
-    /**
-     * @description Sales CRM Activities.
-     */
     match /activities/{activityId} {
       allow read, write: if isSignedIn();
     }
 
-    /**
-     * @description Platform Admin Users registry.
-     */
     match /adminUsers/{email} {
       allow read, write: if isSignedIn();
     }
 
-    /**
-     * @description Seller Admin role markers.
-     */
     match /roles_seller_admin/{email} {
       allow read, write: if isSignedIn();
     }
 
-    /**
-     * @description Administrative roles control collection.
-     */
     match /roles_admin/{adminUid} {
       allow get: if isOwner(adminUid) || isAdmin();
       allow list, create, update, delete: if isAdmin();
