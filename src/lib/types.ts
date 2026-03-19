@@ -122,6 +122,7 @@ export interface Order {
   memberId?: string;
   memberLastName?: string;
   assignedDriverId?: string;
+  specialInstructions?: string;
   deliveryLocation: {
     latitude: number;
     longitude: number;

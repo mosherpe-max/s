@@ -42,7 +42,9 @@ import {
   Plus,
   Minus,
   Check,
-  ChevronLeft
+  ChevronLeft,
+  Pencil,
+  ChevronRight
 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useCart } from '@/lib/cart-context';
@@ -53,6 +55,7 @@ import { Separator } from '@/components/ui/separator';
 import { PoolLayoutPicker } from '@/components/pool-layout-picker';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
+import { Textarea } from '@/components/ui/textarea';
 
 const serviceTypeIcons: Record<string, any> = {
   'Beverage Cart': Truck,
@@ -62,13 +65,6 @@ const serviceTypeIcons: Record<string, any> = {
   'Halfway House': Home,
   'Dine-In': Utensils,
   'Lane Delivery': MapPin,
-};
-
-const serviceLocationLabels: Record<string, string> = {
-  'Lane Delivery': 'Lane Number',
-  'Dine-In': 'Table Number',
-  'Halfway House': 'Location Name',
-  'Pool': 'Pool Side Location',
 };
 
 function ModifierPicker({ 
@@ -192,6 +188,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
   const [selectedMenuType, setSelectedMenuType] = useState<string>(menuTypeFromUrl || '');
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod>('Pay at Delivery');
   const [locationValue, setLocationValue] = useState<string>('');
+  const [specialInstructions, setSpecialInstructions] = useState<string>('');
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
   const [showBackToTop, setShowTopButton] = useState(false);
   
@@ -233,32 +230,25 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
   }, [seller, selectedMenuType]);
 
   const tipOptions = useMemo(() => {
-    if (subtotal > 20) {
-      return [
-        { label: '15%', value: 0.15, type: 'percent' },
-        { label: '20%', value: 0.20, type: 'percent' },
-        { label: '25%', value: 0.25, type: 'percent' },
-      ];
-    } else {
-      return [
-        { label: '$2', value: 2, type: 'fixed' },
-        { label: '$3', value: 3, type: 'fixed' },
-        { label: '$4', value: 4, type: 'fixed' },
-      ];
-    }
-  }, [subtotal]);
+    const options = [
+      { label: '10%', value: 0.10, type: 'percent' },
+      { label: '15%', value: 0.15, type: 'percent' },
+      { label: '20%', value: 0.20, type: 'percent' },
+    ];
+    return options;
+  }, []);
 
   useEffect(() => {
     if (subtotal > 0 && !selectedTipType) {
-      setSelectedTipType(tipOptions[1].label);
+      setSelectedTipType('15%');
     }
-  }, [subtotal, selectedTipType, tipOptions]);
+  }, [subtotal, selectedTipType]);
 
   const tipAmount = useMemo(() => {
     if (selectedTipType === 'Custom') return parseFloat(customTipValue) || 0;
     const option = tipOptions.find(o => o.label === selectedTipType);
     if (!option) return 0;
-    return option.type === 'percent' ? subtotal * option.value : option.value;
+    return subtotal * option.value;
   }, [selectedTipType, customTipValue, subtotal, tipOptions]);
 
   const finalTotal = subtotal + platformFee + tax + tipAmount;
@@ -283,7 +273,6 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
 
       setIsPlacingOrder(true);
 
-      // Deferred Auth: Authenticate only during submission if not already signed in
       let currentUser = user;
       if (!currentUser && auth) {
         try {
@@ -300,14 +289,13 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
       const functions = getFunctions(app);
       const processPayment = httpsCallable(functions, 'processPayment');
 
-      // Mocking Authorize.net Accept.js Nonce retrieval for prototype
       const mockPaymentNonce = selectedPaymentMethod === 'Credit Card' ? 'fake-valid-nonce' : null;
 
       const submitToFirestore = async (latitude: number, longitude: number) => {
         try {
           const orderData: any = {
             sellerId,
-            buyerProfileId: currentUser!.uid, // Use buyerProfileId to match rules
+            buyerProfileId: currentUser!.uid,
             customerName: currentUser!.email || 'Guest User',
             deliveryLocation: { latitude, longitude },
             items: activeOrderItems,
@@ -320,6 +308,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
             paymentMethod: selectedPaymentMethod,
             menuType: selectedMenuType,
             menuTypeLocation: locationValue || null,
+            specialInstructions: specialInstructions || null,
             createdAt: serverTimestamp(),
             modifiedAt: serverTimestamp(),
           };
@@ -413,40 +402,127 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
             </SheetTrigger>
           </div>
         )}
-        <SheetContent side="bottom" className="rounded-t-[2.5rem] h-[95vh] flex flex-col p-0 bg-background overflow-hidden shadow-2xl">
-          <SheetHeader className="px-6 py-5 border-b bg-muted/20 shrink-0">
-            <SheetTitle className="font-headline font-black uppercase text-center text-sm">Order Review</SheetTitle>
+        <SheetContent side="bottom" className="rounded-t-[2.5rem] h-[95vh] flex flex-col p-0 bg-[#F2F4F7] overflow-hidden shadow-2xl">
+          <SheetHeader className="px-6 py-5 border-b bg-white shrink-0">
+            <SheetTitle className="font-headline font-black uppercase text-center text-sm tracking-widest">Order Review</SheetTitle>
           </SheetHeader>
           
           <ScrollArea className="flex-1 w-full">
             <div className="px-6 py-6 space-y-8 pb-32">
+              {/* YOUR ORDER SECTION */}
               <OrderSummary items={activeOrderItems} onUpdateItem={updateItem} onRemoveItem={removeItem} />
 
-              <div className="space-y-4">
-                <h3 className="font-black text-[10px] uppercase tracking-widest text-muted-foreground flex items-center gap-2">
-                  <Banknote className="w-3.5 h-3.5" /> PAYMENT METHOD
-                </h3>
+              {/* SPECIAL INSTRUCTIONS SECTION */}
+              <div className="space-y-3">
+                <div className="bg-white rounded-2xl border shadow-sm p-4 flex items-center justify-between cursor-pointer hover:bg-muted/5 transition-colors group">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-yellow-50 rounded-xl text-yellow-600">
+                      <Pencil className="h-5 w-5" />
+                    </div>
+                    <div className="flex flex-col">
+                      <Input 
+                        placeholder="Add special instructions..." 
+                        value={specialInstructions}
+                        onChange={(e) => setSpecialInstructions(e.target.value)}
+                        className="border-none bg-transparent p-0 h-auto focus-visible:ring-0 font-bold text-[#213147] placeholder:text-muted-foreground/60 w-full min-w-[200px]"
+                      />
+                    </div>
+                  </div>
+                  <ChevronRight className="h-4 w-4 text-muted-foreground/40 group-hover:text-muted-foreground transition-colors" />
+                </div>
+              </div>
+
+              {/* ADD A TIP SECTION */}
+              <div className="space-y-3">
+                <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground px-1">ADD A TIP</h3>
+                <div className="bg-white rounded-[1.5rem] border shadow-sm p-5 space-y-5">
+                  <div className="flex justify-between items-center">
+                    <h4 className="font-bold text-[#213147] text-lg">Tip Your Server</h4>
+                    <span className="font-black text-[#10B981] text-lg">+{tipAmount > 0 ? `$${tipAmount.toFixed(2)}` : '—'}</span>
+                  </div>
+                  
+                  <div className="grid grid-cols-4 gap-2">
+                    {tipOptions.map((option) => {
+                      const isSelected = selectedTipType === option.label;
+                      const calculatedAmount = subtotal * option.value;
+                      return (
+                        <button
+                          key={option.label}
+                          onClick={() => setSelectedTipType(option.label)}
+                          className={cn(
+                            "flex flex-col items-center justify-center py-3 rounded-2xl border-2 transition-all duration-300",
+                            isSelected 
+                              ? "bg-[#213147] border-[#213147] text-white shadow-lg" 
+                              : "bg-white border-muted hover:border-muted-foreground/20"
+                          )}
+                        >
+                          <span className={cn("text-xs font-black", isSelected ? "text-white" : "text-[#213147]")}>{option.label}</span>
+                          <span className={cn("text-[9px] font-bold mt-0.5", isSelected ? "text-white/60" : "text-muted-foreground")}>
+                            ${calculatedAmount.toFixed(2)}
+                          </span>
+                        </button>
+                      );
+                    })}
+                    <button
+                      onClick={() => setSelectedTipType('Custom')}
+                      className={cn(
+                        "flex flex-col items-center justify-center py-3 rounded-2xl border-2 transition-all duration-300",
+                        selectedTipType === 'Custom'
+                          ? "bg-[#213147] border-[#213147] text-white shadow-lg" 
+                          : "bg-white border-muted hover:border-muted-foreground/20"
+                      )}
+                    >
+                      <span className={cn("text-xs font-black", selectedTipType === 'Custom' ? "text-white" : "text-[#213147]")}>Custom</span>
+                      <span className={cn("text-[9px] font-bold mt-0.5", selectedTipType === 'Custom' ? "text-white/60" : "text-muted-foreground")}>—</span>
+                    </button>
+                  </div>
+
+                  {selectedTipType === 'Custom' && (
+                    <div className="animate-in slide-in-from-top-2 duration-300">
+                      <Label className="text-[9px] font-black uppercase text-muted-foreground mb-1 block">Amount ($)</Label>
+                      <Input 
+                        type="number" 
+                        step="0.01" 
+                        value={customTipValue}
+                        onChange={(e) => setCustomTipValue(e.target.value)}
+                        placeholder="0.00"
+                        className="h-12 border-2 rounded-xl font-bold"
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* PAYMENT METHOD SECTION */}
+              <div className="space-y-3">
+                <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground px-1">PAYMENT METHOD</h3>
                 <div className="grid grid-cols-1 gap-2">
                   <Button 
                     variant={selectedPaymentMethod === 'Credit Card' ? 'default' : 'outline'}
                     onClick={() => setSelectedPaymentMethod('Credit Card')}
-                    className="h-14 justify-start gap-4 px-4 rounded-xl border-2"
+                    className={cn(
+                      "h-16 justify-start gap-4 px-5 rounded-2xl border-2 shadow-sm transition-all",
+                      selectedPaymentMethod === 'Credit Card' ? "bg-[#213147] border-[#213147]" : "bg-white border-muted"
+                    )}
                   >
                     <CreditCard className="h-5 w-5" />
                     <div className="text-left">
                       <p className="text-sm font-black uppercase">Credit Card</p>
-                      <p className="text-[9px] opacity-60">Authorize.net Secure Processing</p>
+                      <p className="text-[9px] font-bold opacity-60">Authorize.net Secure Processing</p>
                     </div>
                   </Button>
                   <Button 
                     variant={selectedPaymentMethod === 'Pay at Delivery' ? 'default' : 'outline'}
                     onClick={() => setSelectedPaymentMethod('Pay at Delivery')}
-                    className="h-14 justify-start gap-4 px-4 rounded-xl border-2"
+                    className={cn(
+                      "h-16 justify-start gap-4 px-5 rounded-2xl border-2 shadow-sm transition-all",
+                      selectedPaymentMethod === 'Pay at Delivery' ? "bg-[#213147] border-[#213147]" : "bg-white border-muted"
+                    )}
                   >
                     <Banknote className="h-5 w-5" />
                     <div className="text-left">
                       <p className="text-sm font-black uppercase">Pay at Delivery</p>
-                      <p className="text-[9px] opacity-60">Cash or Card to Staff</p>
+                      <p className="text-[9px] font-bold opacity-60">Cash or Card to Staff</p>
                     </div>
                   </Button>
                 </div>
@@ -458,6 +534,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
 
           <SheetFooter className="p-6 bg-white border-t-2 shrink-0">
             <Button size="lg" className="w-full h-16 font-black uppercase tracking-[0.2em] bg-primary shadow-xl rounded-2xl" onClick={handlePlaceOrder} disabled={isPlacingOrder || activeOrderItems.length === 0}>
+              {isPlacingOrder ? <Loader2 className="animate-spin mr-2 h-5 w-5" /> : null}
               {isPlacingOrder ? "PROCESSING..." : "PLACE ORDER"}
             </Button>
           </SheetFooter>

@@ -1,8 +1,9 @@
 'use client';
 
 import type { OrderItem } from '@/lib/types';
-import { Plus, Minus, Trash2 } from 'lucide-react';
+import { MinusCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
 interface OrderSummaryProps {
   items: OrderItem[];
@@ -11,7 +12,7 @@ interface OrderSummaryProps {
 }
 
 /**
- * Focuses exclusively on listing the cart items and providing quantity controls.
+ * Redesigned to match the reference image: Rounded white card with sub-items.
  */
 export function OrderSummary({ 
   items, 
@@ -28,69 +29,56 @@ export function OrderSummary({
     }
   };
 
+  if (items.length === 0) {
+    return <p className="text-muted-foreground text-center py-8">Your cart is empty.</p>;
+  }
+
   return (
-    <>
-      {items.length === 0 ? (
-        <p className="text-muted-foreground text-center py-8">Your cart is empty.</p>
-      ) : (
-        <div className="space-y-4">
-          {items.map(item => (
-            <div key={item.cartId} className="flex flex-col gap-2 p-3 rounded-xl border bg-background/50">
-              <div className="flex justify-between items-start text-sm">
-                <div className="flex-1 pr-4">
-                  <p className="font-bold text-foreground">{item.name}</p>
-                  {item.selectedModifiers && Object.values(item.selectedModifiers).flat().length > 0 && (
-                    <div className="mt-1 flex flex-wrap gap-1">
-                      {Object.entries(item.selectedModifiers).map(([groupId, options]) => (
-                        options.map(opt => (
-                          <span key={`${item.cartId}-${groupId}-${opt.id}`} className="text-[8px] font-bold bg-primary/10 text-primary px-1.5 py-0.5 rounded uppercase">
-                            + {opt.name} {opt.price > 0 ? `($${opt.price.toFixed(2)})` : ''}
-                          </span>
-                        ))
-                      ))}
-                    </div>
-                  )}
-                </div>
-                <p className="font-mono font-bold text-xs">
-                  ${((item.price + (item.selectedModifiers ? Object.values(item.selectedModifiers).flat().reduce((s, m) => s + m.price, 0) : 0)) * item.quantity).toFixed(2)}
-                </p>
+    <div className="space-y-3">
+      <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground px-1">YOUR ORDER</h3>
+      <div className="bg-white rounded-[1.5rem] border shadow-sm overflow-hidden divide-y">
+        {items.map(item => {
+          const modifierList = item.selectedModifiers ? 
+            Object.values(item.selectedModifiers).flat().map(m => m.name).join(' · ') : '';
+          
+          const unitPriceWithMods = item.price + (item.selectedModifiers ? 
+            Object.values(item.selectedModifiers).flat().reduce((s, m) => s + m.price, 0) : 0);
+
+          return (
+            <div key={item.cartId} className="p-4 flex items-center gap-4 bg-white hover:bg-muted/5 transition-colors">
+              {/* Quantity Circle */}
+              <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-[#213147] text-white shrink-0">
+                <span className="font-black text-sm">{item.quantity}</span>
               </div>
-              
-              <div className="flex items-center justify-between mt-1">
-                <div className="flex items-center gap-1.5 bg-muted/50 p-1 rounded-lg border shadow-sm h-8">
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className="h-6 w-6 rounded-md hover:bg-background"
-                    onClick={() => handleQuantityChange(item, -1)}
-                  >
-                    {item.quantity === 1 ? <Trash2 className="h-3.5 w-3.5 text-destructive" /> : <Minus className="h-3 w-3" />}
-                  </Button>
-                  <span className="text-xs font-black w-6 text-center">{item.quantity}</span>
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className="h-6 w-6 rounded-md hover:bg-background text-primary"
-                    onClick={() => handleQuantityChange(item, 1)}
-                  >
-                    <Plus className="h-3.5 w-3.5" />
-                  </Button>
-                </div>
-                {onRemoveItem && (
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    className="h-8 text-[9px] font-bold uppercase text-muted-foreground hover:text-destructive transition-colors"
-                    onClick={() => onRemoveItem(item.cartId)}
-                  >
-                    Remove
-                  </Button>
+
+              {/* Item Info */}
+              <div className="flex-1 min-w-0">
+                <p className="font-bold text-[#213147] leading-tight truncate">{item.name}</p>
+                {(modifierList || item.description) && (
+                  <p className="text-[10px] text-muted-foreground font-medium truncate mt-0.5">
+                    {modifierList || item.description}
+                  </p>
                 )}
               </div>
+
+              {/* Price and Action */}
+              <div className="flex items-center gap-3 shrink-0">
+                <span className="font-bold text-[#213147] text-sm">
+                  ${(unitPriceWithMods * item.quantity).toFixed(2)}
+                </span>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="h-8 w-8 rounded-full text-destructive hover:bg-destructive/10 border border-destructive/20"
+                  onClick={() => handleQuantityChange(item, -1)}
+                >
+                  <MinusCircle className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
-          ))}
-        </div>
-      )}
-    </>
+          );
+        })}
+      </div>
+    </div>
   );
 }
