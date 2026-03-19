@@ -19,7 +19,6 @@ import Link from 'next/link';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { isStaffSessionStale } from '@/lib/utils';
-import { StylizedKoopLogo } from '@/components/header';
 import { isToday } from 'date-fns';
 
 type LatLng = {
@@ -381,21 +380,18 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
     <APIProvider apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!}>
       <div className="flex flex-col h-screen overflow-hidden bg-muted/20">
         <header className="flex-shrink-0 px-4 h-16 flex items-center justify-between border-b-2 border-[#E50000] bg-[#213147] z-20 shadow-sm">
-          <div className="flex items-center gap-4 min-w-0 flex-1 mr-4">
-            <StylizedKoopLogo size="sm" />
-            <div className="flex flex-col min-w-0 border-l border-white/10 pl-4">
-              <h1 className="font-headline text-[10px] sm:text-xs font-black text-white uppercase tracking-tight truncate leading-tight">
-                BEVCART DASHBOARD
-              </h1>
-              <span className="text-[8px] uppercase font-black text-white/40 tracking-widest leading-none truncate">
-                {primarySeller?.courseName || 'Loading...'}
-              </span>
-            </div>
+          <div className="flex flex-col min-w-0 flex-1 mr-4">
+            <h1 className="font-headline text-sm sm:text-base md:text-xl font-bold text-white uppercase tracking-tight truncate">
+              BEVCART DASHBOARD
+            </h1>
+            <span className="text-[9px] sm:text-[10px] uppercase font-bold text-white/60 tracking-widest leading-none truncate">
+              ESTABLISHMENT: {primarySeller?.courseName || 'Loading...'}
+            </span>
           </div>
           <div className="flex items-center space-x-3 shrink-0">
-            <Switch id="active-mode" checked={isBevCartActive} onCheckedChange={handleToggleActive} className="data-[state=checked]:bg-green-600 shadow-lg" />
-            <Label htmlFor="active-mode" className="text-[10px] sm:text-xs font-black whitespace-nowrap text-white uppercase tracking-widest">
-              {isBevCartActive ? 'ACTIVE' : 'OFFLINE'}
+            <Switch id="active-mode" checked={isBevCartActive} onCheckedChange={handleToggleActive} className="data-[state=checked]:bg-green-600" />
+            <Label htmlFor="active-mode" className="text-[10px] sm:text-sm font-semibold whitespace-nowrap text-white uppercase">
+              {isBevCartActive ? 'ACTIVE' : 'INACTIVE'}
             </Label>
           </div>
         </header>
