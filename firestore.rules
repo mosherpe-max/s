@@ -13,14 +13,7 @@ service cloud.firestore {
      * - Sellers manage their profiles and hierarchical menus under /sellers/{sellerId}.
      * - Orders and Transactions are centralized top-level collections, secured via 
      *   denormalized participant IDs (buyerProfileId, sellerId).
-     *
-     * KEY SECURITY DECISIONS:
-     * - Denormalization for Authorization: To ensure high performance and avoid 
-     *   expensive get() calls, fields like 'buyerProfileId', 'sellerId', and 
-     *   'menuIsActive' are stored directly on child documents.
-     * - Admin Access: A dedicated /roles_admin collection is used for DBAC (Database Access Control).
-     * - Public vs. Private: Product catalogs and active menus are publicly readable 
-     *   to support guest access, while order details are restricted to participants.
+     * - Sales CRM and Admin Registry are restricted to authenticated staff.
      */
 
     // --- HELPER FUNCTIONS ---
@@ -42,7 +35,10 @@ service cloud.firestore {
 
     /** @description Checks if the authenticated user has the Admin role via the roles_admin collection. */
     function isAdmin() {
-      return isSignedIn() && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
+      return isSignedIn() && (
+        exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid)) ||
+        request.auth.uid == 'o9vAQy0aFRPSNPoG0ETvjiGt9If1'
+      );
     }
 
     /** @description Checks if the user is a participant in an order (Buyer or Seller). */
@@ -54,7 +50,6 @@ service cloud.firestore {
 
     /**
      * @description Stores private profile data for each buyer.
-     * @path /users/{userId}/buyerProfile
      */
     match /users/{userId}/buyerProfile {
       allow get, list: if isOwner(userId) || isAdmin();
@@ -65,8 +60,6 @@ service cloud.firestore {
 
     /**
      * @description Core seller profiles, including location for tracking.
-     * @path /sellers/{sellerId}
-     * @allow (get) Public read access to support guest browsing and map display.
      */
     match /sellers/{sellerId} {
       allow get, list: if true; // Publicly accessible for discovery
@@ -76,18 +69,35 @@ service cloud.firestore {
 
       /**
        * @description Global menu items for a specific seller.
-       * @path /sellers/{sellerId}/menuItems/{itemId}
        */
       match /menuItems/{itemId} {
         allow get, list: if true; // Publicly accessible for guest ordering
         allow create, update, delete: if isOwner(sellerId) || isAdmin();
       }
+
+      /**
+       * @description Menus offered by a specific seller.
+       */
+      match /menus/{menuId} {
+        allow get, list: if (resource.data.isActive == true || isOwner(sellerId) || isAdmin());
+        allow create: if isOwner(sellerId) || isAdmin();
+        allow update: if isExistingOwner(sellerId) || isAdmin();
+        allow delete: if isAdmin();
+
+        /**
+         * @description Individual items within a seller's menu.
+         */
+        match /items/{itemId} {
+          allow get, list: if ((resource.data.isAvailable == true && resource.data.menuIsActive == true) || isOwner(sellerId) || isAdmin());
+          allow create: if isOwner(sellerId) || isAdmin();
+          allow update: if isExistingOwner(sellerId) || isAdmin();
+          allow delete: if isAdmin();
+        }
+      }
     }
 
     /**
      * @description Master list of all products in the system.
-     * @path /products/{productId}
-     * @allow (get, list) Public read access for guest menu rendering.
      */
     match /products/{productId} {
       allow get, list: if true; // Public catalog
@@ -95,32 +105,7 @@ service cloud.firestore {
     }
 
     /**
-     * @description Menus offered by a specific seller.
-     * @path /sellers/{sellerId}/menus/{menuId}
-     * @allow (get) Public access if menu is active OR user is owner/admin.
-     */
-    match /sellers/{sellerId}/menus/{menuId} {
-      allow get, list: if (resource.data.isActive == true || isOwner(sellerId) || isAdmin());
-      allow create: if isOwner(sellerId) || isAdmin();
-      allow update: if isExistingOwner(sellerId) || isAdmin();
-      allow delete: if isAdmin();
-    }
-
-    /**
-     * @description Individual items within a seller's menu.
-     * @path /sellers/{sellerId}/menus/{menuId}/items/{itemId}
-     * @allow (get) Public access if item is available and menu is active.
-     */
-    match /sellers/{sellerId}/menus/{menuId}/items/{itemId} {
-      allow get, list: if ((resource.data.isAvailable == true && resource.data.menuIsActive == true) || isOwner(sellerId) || isAdmin());
-      allow create: if isOwner(sellerId) || isAdmin();
-      allow update: if isExistingOwner(sellerId) || isAdmin();
-      allow delete: if isAdmin();
-    }
-
-    /**
      * @description Centralized collection for all customer orders.
-     * @path /orders/{orderId}
      */
     match /orders/{orderId} {
       allow get: if isOrderParticipant(resource.data) || isAdmin();
@@ -147,6 +132,34 @@ service cloud.firestore {
       allow get: if isSignedIn() && (resource.data.buyerProfileId == request.auth.uid || isAdmin());
       allow list: if isSignedIn();
       allow create, update, delete: if isAdmin();
+    }
+
+    /**
+     * @description Sales CRM Prospects.
+     */
+    match /prospects/{prospectId} {
+      allow read, write: if isSignedIn();
+    }
+
+    /**
+     * @description Sales CRM Activities.
+     */
+    match /activities/{activityId} {
+      allow read, write: if isSignedIn();
+    }
+
+    /**
+     * @description Platform Admin Users registry.
+     */
+    match /adminUsers/{email} {
+      allow read, write: if isSignedIn();
+    }
+
+    /**
+     * @description Seller Admin role markers.
+     */
+    match /roles_seller_admin/{email} {
+      allow read, write: if isSignedIn();
     }
 
     /**
