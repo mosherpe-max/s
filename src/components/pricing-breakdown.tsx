@@ -17,7 +17,7 @@ interface PricingBreakdownProps {
 
 /**
  * Renders the financial calculation lines (Subtotal, Fees, Tax, Tip, and Final Total).
- * Redesigned to feature the "KOOP" convenience fee badge.
+ * Standardized typography across all lines while maintaining the "KOOP" convenience fee badge.
  */
 export function PricingBreakdown({ 
   subtotal, 
@@ -40,7 +40,7 @@ export function PricingBreakdown({
         {/* CONVENIENCE FEE WITH KOOP BADGE */}
         <div className="flex justify-between items-center px-1">
           <div className="flex items-center gap-2">
-            <p className="normal-case text-sm font-medium text-slate-500 tracking-tight">Convenience Fee</p>
+            <p>Convenience Fee</p>
             <Popover>
               <PopoverTrigger asChild>
                 <button 
@@ -64,7 +64,7 @@ export function PricingBreakdown({
               </PopoverContent>
             </Popover>
           </div>
-          <p className="font-mono text-slate-500 text-sm font-medium">${serviceFee.toFixed(2)}</p>
+          <p className="font-mono text-foreground">${serviceFee.toFixed(2)}</p>
         </div>
 
         {/* TAX */}
