@@ -40,7 +40,8 @@ import {
   Check,
   AlertTriangle,
   ExternalLink,
-  LogOut
+  LogOut,
+  CreditCard
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { 
@@ -62,7 +63,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDes
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/tabs";
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { Seller, Order, Prospect, AdminUser } from '@/lib/types';
@@ -89,6 +90,8 @@ const sellerSchema = z.object({
   status: z.enum(['Active', 'Inactive']),
   laneCount: z.coerce.number().min(0).optional(),
   menuTypes: z.array(z.string()).min(1, 'Select at least one menu type'),
+  authorizeNetLoginId: z.string().optional(),
+  authorizeNetTransactionKey: z.string().optional(),
 });
 
 type SellerFormData = z.infer<typeof sellerSchema>;
@@ -229,6 +232,8 @@ export default function KOOPAdminPage() {
       status: 'Active',
       laneCount: 0,
       menuTypes: [],
+      authorizeNetLoginId: '',
+      authorizeNetTransactionKey: '',
     },
   });
 
@@ -374,6 +379,8 @@ export default function KOOPAdminPage() {
       status: seller.status,
       laneCount: seller.laneCount || 0,
       menuTypes: seller.menuTypes || [],
+      authorizeNetLoginId: seller.authorizeNetLoginId || '',
+      authorizeNetTransactionKey: seller.authorizeNetTransactionKey || '',
     });
     setIsFormOpen(true);
   };
@@ -397,6 +404,8 @@ export default function KOOPAdminPage() {
       status: 'Active',
       laneCount: 0,
       menuTypes: ['Beverage Cart', 'Clubhouse', 'Take Out'],
+      authorizeNetLoginId: '',
+      authorizeNetTransactionKey: '',
     });
     setIsFormOpen(true);
   };
@@ -1043,6 +1052,31 @@ export default function KOOPAdminPage() {
                       )} />
                       <FormField control={form.control} name="taxRate" render={({ field }) => (
                         <FormItem><FormLabel className="text-[10px] font-black uppercase">Tax Rate (%)</FormLabel><FormControl><Input type="number" step="0.1" {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>
+                      )} />
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 mb-2 border-b pb-2">
+                      <CreditCard className="h-4 w-4 text-primary" />
+                      <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Payment Integration</h3>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <FormField control={form.control} name="authorizeNetLoginId" render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-[10px] font-black uppercase">Authorize.net API Login ID</FormLabel>
+                          <FormControl><Input {...field} placeholder="API Login ID" className="h-11 border-2 font-bold" /></FormControl>
+                          <FormDescription className="text-[9px] uppercase font-bold">Managed by KOOP Admin only.</FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )} />
+                      <FormField control={form.control} name="authorizeNetTransactionKey" render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-[10px] font-black uppercase">Authorize.net Transaction Key</FormLabel>
+                          <FormControl><Input {...field} type="password" placeholder="Transaction Key" className="h-11 border-2 font-bold" /></FormControl>
+                          <FormDescription className="text-[9px] uppercase font-bold">Encrypted at rest.</FormDescription>
+                          <FormMessage />
+                        </FormItem>
                       )} />
                     </div>
                   </div>

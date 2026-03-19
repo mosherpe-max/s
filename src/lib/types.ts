@@ -64,6 +64,8 @@ export interface Seller {
   categoryModifierEnabled?: Record<string, Category[]>; // Which categories show modifiers per menuType
   orderThresholds?: Record<string, { warning: number; max: number }>;
   poolMapUrl?: string;
+  authorizeNetLoginId?: string;
+  authorizeNetTransactionKey?: string;
 }
 
 export type Category = 'Beer' | 'Spirits' | 'Soft Drinks' | 'Snacks' | 'Other' | 'Handhelds' | 'Appetizers' | 'Entrees' | 'Pizza' | 'Salad' | 'Dessert' | 'Kids';
