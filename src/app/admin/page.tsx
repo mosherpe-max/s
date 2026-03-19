@@ -41,7 +41,12 @@ import {
   AlertTriangle,
   ExternalLink,
   LogOut,
-  CreditCard
+  CreditCard,
+  Phone,
+  User as UserIcon,
+  Percent,
+  ListChecks,
+  CheckCircle2
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { 
@@ -401,7 +406,8 @@ export default function KOOPAdminPage() {
       ...publicData, 
       id: sellerId,
       createdAt: editingSeller?.createdAt || new Date().toISOString(),
-      updatedAt: serverTimestamp()
+      updatedAt: serverTimestamp(),
+      qrCodeUrl: editingSeller?.qrCodeUrl || `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${window.location.origin}/sellers/${sellerId}/order`
     }, { merge: true });
 
     // 2. Save Private Vault (Secrets)
@@ -764,7 +770,7 @@ export default function KOOPAdminPage() {
                       <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">General Info</h3>
                     </div>
                     <FormField control={form.control} name="courseName" render={({ field }) => (
-                      <FormItem><FormLabel className="text-[10px] font-black uppercase">Venue Name</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl><FormMessage /></FormItem>
+                      <FormItem><FormLabel className="text-[10px] font-black uppercase">Venue Name</FormLabel><FormControl><Input {...field} placeholder="e.g. Whispering Pines GC" className="h-11 border-2 font-bold" /></FormControl><FormMessage /></FormItem>
                     )} />
                     <div className="grid grid-cols-2 gap-4">
                       <FormField control={form.control} name="type" render={({ field }) => (
@@ -774,6 +780,84 @@ export default function KOOPAdminPage() {
                         <FormItem><FormLabel className="text-[10px] font-black uppercase">Status</FormLabel><FormControl><select {...field} className="w-full h-11 border-2 rounded-md px-3 text-sm font-bold bg-background"><option value="Active">Active</option><option value="Inactive">Inactive</option></select></FormControl></FormItem>
                       )} />
                     </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 mb-2 border-b pb-2">
+                      <UserIcon className="h-4 w-4 text-primary" />
+                      <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Contact Intelligence</h3>
+                    </div>
+                    <FormField control={form.control} name="contactName" render={({ field }) => (
+                      <FormItem><FormLabel className="text-[10px] font-black uppercase">Decision Maker</FormLabel><FormControl><Input {...field} placeholder="John Doe" className="h-11 border-2 font-bold" /></FormControl></FormItem>
+                    )} />
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <FormField control={form.control} name="contactEmail" render={({ field }) => (
+                        <FormItem><FormLabel className="text-[10px] font-black uppercase">Official Email</FormLabel><FormControl><Input {...field} type="email" placeholder="manager@venue.com" className="h-11 border-2 font-bold" /></FormControl></FormItem>
+                      )} />
+                      <FormField control={form.control} name="contactPhone" render={({ field }) => (
+                        <FormItem><FormLabel className="text-[10px] font-black uppercase">Primary Phone</FormLabel><FormControl><Input {...field} placeholder="555-0123" className="h-11 border-2 font-bold" /></FormControl></FormItem>
+                      )} />
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 mb-2 border-b pb-2">
+                      <DollarSign className="h-4 w-4 text-primary" />
+                      <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Financial Configuration</h3>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                      <FormField control={form.control} name="serviceFee" render={({ field }) => (
+                        <FormItem><FormLabel className="text-[10px] font-black uppercase">Convenience Fee</FormLabel><FormControl><Input {...field} type="number" step="0.01" className="h-11 border-2 font-bold" /></FormControl></FormItem>
+                      )} />
+                      <FormField control={form.control} name="taxRate" render={({ field }) => (
+                        <FormItem><FormLabel className="text-[10px] font-black uppercase">Tax Rate %</FormLabel><FormControl><Input {...field} type="number" step="0.1" className="h-11 border-2 font-bold" /></FormControl></FormItem>
+                      )} />
+                      <FormField control={form.control} name="launchFee" render={({ field }) => (
+                        <FormItem><FormLabel className="text-[10px] font-black uppercase">Launch Fee</FormLabel><FormControl><Input {...field} type="number" className="h-11 border-2 font-bold" /></FormControl></FormItem>
+                      )} />
+                      <FormField control={form.control} name="monthlyPlatformFee" render={({ field }) => (
+                        <FormItem><FormLabel className="text-[10px] font-black uppercase">Monthly Fee</FormLabel><FormControl><Input {...field} type="number" className="h-11 border-2 font-bold" /></FormControl></FormItem>
+                      )} />
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 mb-2 border-b pb-2">
+                      <ListChecks className="h-4 w-4 text-primary" />
+                      <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Operational Profile</h3>
+                    </div>
+                    
+                    {selectedType === 'Bowling Alley' && (
+                      <FormField control={form.control} name="laneCount" render={({ field }) => (
+                        <FormItem><FormLabel className="text-[10px] font-black uppercase">Number of Lanes</FormLabel><FormControl><Input {...field} type="number" className="h-11 border-2 font-bold" /></FormControl></FormItem>
+                      )} />
+                    )}
+
+                    <FormField control={form.control} name="menuTypes" render={() => (
+                      <FormItem>
+                        <div className="mb-2"><FormLabel className="text-[10px] font-black uppercase">Active Service Menus</FormLabel></div>
+                        <div className="grid grid-cols-2 gap-3">
+                          {availableMenuOptions.map((item) => (
+                            <FormField key={item.id} control={form.control} name="menuTypes" render={({ field }) => (
+                              <FormItem className="flex flex-row items-center space-x-3 space-y-0 p-3 bg-muted/20 border-2 rounded-xl">
+                                <FormControl>
+                                  <Checkbox 
+                                    checked={field.value?.includes(item.id)} 
+                                    onCheckedChange={(checked) => {
+                                      return checked 
+                                        ? field.onChange([...field.value, item.id])
+                                        : field.onChange(field.value?.filter((value) => value !== item.id));
+                                    }} 
+                                  />
+                                </FormControl>
+                                <FormLabel className="text-xs font-bold uppercase cursor-pointer">{item.label}</FormLabel>
+                              </FormItem>
+                            )} />
+                          ))}
+                        </div>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
                   </div>
 
                   <div className="space-y-4">
@@ -805,17 +889,17 @@ export default function KOOPAdminPage() {
                       <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Location</h3>
                     </div>
                     <FormField control={form.control} name="streetAddress" render={({ field }) => (
-                      <FormItem><FormLabel className="text-[10px] font-black uppercase">Street</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>
+                      <FormItem><FormLabel className="text-[10px] font-black uppercase">Street</FormLabel><FormControl><Input {...field} placeholder="123 Main St" className="h-11 border-2 font-bold" /></FormControl></FormItem>
                     )} />
                     <div className="grid grid-cols-3 gap-4">
                       <FormField control={form.control} name="city" render={({ field }) => (
-                        <FormItem><FormLabel className="text-[10px] font-black uppercase">City</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>
+                        <FormItem><FormLabel className="text-[10px] font-black uppercase">City</FormLabel><FormControl><Input {...field} placeholder="Detroit" className="h-11 border-2 font-bold" /></FormControl></FormItem>
                       )} />
                       <FormField control={form.control} name="state" render={({ field }) => (
-                        <FormItem><FormLabel className="text-[10px] font-black uppercase">ST</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>
+                        <FormItem><FormLabel className="text-[10px] font-black uppercase">ST</FormLabel><FormControl><Input {...field} placeholder="MI" className="h-11 border-2 font-bold" /></FormControl></FormItem>
                       )} />
                       <FormField control={form.control} name="zip" render={({ field }) => (
-                        <FormItem><FormLabel className="text-[10px] font-black uppercase">ZIP</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>
+                        <FormItem><FormLabel className="text-[10px] font-black uppercase">ZIP</FormLabel><FormControl><Input {...field} placeholder="48201" className="h-11 border-2 font-bold" /></FormControl></FormItem>
                       )} />
                     </div>
                   </div>
