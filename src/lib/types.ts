@@ -146,7 +146,7 @@ export interface Order {
 export interface AdminUser {
   id: string;
   email: string;
-  role: 'KOOP Platform Admin' | 'Seller Admin';
+  role: 'KOOP Platform Admin' | 'Seller Admin' | 'Sales Rep';
   sellerId?: string; // Associated venue for Seller Admins
   courseName?: string; // Cache for display
   createdAt: Timestamp;

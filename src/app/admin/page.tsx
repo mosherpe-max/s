@@ -104,8 +104,14 @@ type SellerFormData = z.infer<typeof sellerSchema>;
 const staffSchema = z.object({
   email: z.string().email('Valid email required').toLowerCase().trim(),
   password: z.string().min(6, 'Password must be at least 6 characters'),
-  sellerId: z.string().min(1, 'Please select a venue'),
-  role: z.enum(['Seller Admin']),
+  sellerId: z.string().optional(),
+  role: z.enum(['Seller Admin', 'Sales Rep']),
+}).refine((data) => {
+  if (data.role === 'Seller Admin' && !data.sellerId) return false;
+  return true;
+}, {
+  message: "Venue selection required for Seller Admins",
+  path: ["sellerId"]
 });
 
 type StaffFormData = z.infer<typeof staffSchema>;
@@ -251,6 +257,8 @@ export default function KOOPAdminPage() {
       role: 'Seller Admin',
     },
   });
+
+  const selectedStaffRole = staffForm.watch('role');
 
   const selectedType = form.watch('type');
 
@@ -453,18 +461,21 @@ export default function KOOPAdminPage() {
       const uid = authResult.localId || 'existing-user-lookup-required';
       const selectedSeller = sellers?.find(s => s.id === data.sellerId);
 
+      // 1. Core Profile
       await setDoc(doc(firestore, 'adminUsers', data.email), {
         id: uid,
         email: data.email,
         role: data.role,
-        sellerId: data.sellerId,
-        courseName: selectedSeller?.courseName || 'Unassigned Venue',
+        sellerId: data.role === 'Seller Admin' ? data.sellerId : null,
+        courseName: data.role === 'Seller Admin' ? (selectedSeller?.courseName || 'Unassigned Venue') : 'Platform Global',
         createdAt: serverTimestamp()
       }, { merge: true });
 
-      await setDoc(doc(firestore, 'roles_seller_admin', data.email), {
+      // 2. Role Marker for Rules
+      const roleCollection = data.role === 'Seller Admin' ? 'roles_seller_admin' : 'roles_sales_rep';
+      await setDoc(doc(firestore, roleCollection, data.email), {
         grantedAt: serverTimestamp(),
-        sellerId: data.sellerId
+        sellerId: data.role === 'Seller Admin' ? data.sellerId : null
       }, { merge: true });
 
       setProvisionResult({ email: data.email, key: data.password, status: accountStatus });
@@ -493,8 +504,9 @@ export default function KOOPAdminPage() {
   const handleRemoveStaff = async () => {
     if (!firestore || !isSuperAdmin || !adminToDelete) return;
     try {
-      await deleteDoc(doc(firestore, 'adminUsers', adminToDelete.id));
-      await deleteDoc(doc(firestore, 'roles_seller_admin', adminToDelete.id));
+      await deleteDoc(doc(firestore, 'adminUsers', adminToDelete.email));
+      const roleCollection = adminToDelete.role === 'Seller Admin' ? 'roles_seller_admin' : 'roles_sales_rep';
+      await deleteDoc(doc(firestore, roleCollection, adminToDelete.email));
       toast({ title: "Access Revoked" });
     } catch (e) {
       toast({ variant: "destructive", title: "Failed to Remove" });
@@ -578,7 +590,7 @@ export default function KOOPAdminPage() {
             <Activity className="mr-2 h-3.5 w-3.5" /> Operations
           </TabsTrigger>
           <TabsTrigger value="staff" className="text-[10px] font-black uppercase px-8 h-10">
-            <Users className="mr-2 h-3.5 w-3.5" /> Users
+            <Users className="mr-2 h-3.5 w-3.5" /> User Registry
           </TabsTrigger>
           <TabsTrigger value="growth" className="text-[10px] font-black uppercase px-8 h-10">
             <Target className="mr-2 h-3.5 w-3.5" /> Growth
@@ -683,11 +695,11 @@ export default function KOOPAdminPage() {
         <TabsContent value="staff" className="space-y-6">
           <div className="flex justify-between items-center">
             <div>
-              <h2 className="font-headline text-xl font-black uppercase text-[#213147]">Administrator Registry</h2>
-              <p className="text-xs text-muted-foreground">Manage permissions and venue access for seller staff.</p>
+              <h2 className="font-headline text-xl font-black uppercase text-[#213147]">User Registry</h2>
+              <p className="text-xs text-muted-foreground">Manage permissions and venue access for all platform members.</p>
             </div>
             <Button onClick={() => setIsStaffFormOpen(true)} className="gap-2 font-black uppercase text-[10px] tracking-widest h-10 px-6">
-              <UserPlus className="h-4 w-4" /> Add Seller Admin
+              <UserPlus className="h-4 w-4" /> Add Platform User
             </Button>
           </div>
 
@@ -696,9 +708,9 @@ export default function KOOPAdminPage() {
               <Table>
                 <TableHeader className="bg-muted/30">
                   <TableRow>
-                    <TableHead className="text-[10px] font-black uppercase">Staff Member</TableHead>
-                    <TableHead className="text-[10px] font-black uppercase">Role</TableHead>
-                    <TableHead className="text-[10px] font-black uppercase">Assigned Venue</TableHead>
+                    <TableHead className="text-[10px] font-black uppercase">User Profile</TableHead>
+                    <TableHead className="text-[10px] font-black uppercase">Platform Role</TableHead>
+                    <TableHead className="text-[10px] font-black uppercase">Assignment Context</TableHead>
                     <TableHead className="text-[10px] font-black uppercase text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -709,7 +721,9 @@ export default function KOOPAdminPage() {
                     <TableRow key={admin.email} className="hover:bg-muted/5">
                       <TableCell>
                         <div className="flex items-center gap-3">
-                          <div className="h-8 w-8 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600"><ShieldCheck className="h-4 w-4" /></div>
+                          <div className={cn("h-8 w-8 rounded-lg flex items-center justify-center", admin.role === 'Sales Rep' ? 'bg-indigo-50 text-indigo-600' : 'bg-green-50 text-green-600')}>
+                            {admin.role === 'Sales Rep' ? <Target className="h-4 w-4" /> : <ShieldCheck className="h-4 w-4" />}
+                          </div>
                           <div className="flex flex-col"><span className="font-bold text-sm">{admin.email}</span><span className="text-[9px] text-muted-foreground font-mono">{admin.id}</span></div>
                         </div>
                       </TableCell>
@@ -918,23 +932,44 @@ export default function KOOPAdminPage() {
 
       <Dialog open={isStaffFormOpen} onOpenChange={setIsStaffFormOpen}>
         <DialogContent className="sm:max-w-md">
-          <DialogHeader><DialogTitle className="uppercase font-headline">Add Seller Admin</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle className="uppercase font-headline">Add Platform User</DialogTitle></DialogHeader>
           <Form {...staffForm}>
             <form onSubmit={staffForm.handleSubmit(onProvisionStaff)} className="space-y-6 pt-4">
+              <FormField control={staffForm.control} name="role" render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-[10px] font-black uppercase">Account Role</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl><SelectTrigger className="h-11 border-2 font-bold"><SelectValue placeholder="Select role..." /></SelectTrigger></FormControl>
+                    <SelectContent>
+                      <SelectItem value="Seller Admin">Seller Admin (Venue Staff)</SelectItem>
+                      <SelectItem value="Sales Rep">Sales Rep (Platform Growth)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </FormItem>
+              )} />
+              
               <FormField control={staffForm.control} name="email" render={({ field }) => (
-                <FormItem><FormLabel className="text-[10px] font-black uppercase">Admin Email</FormLabel><FormControl><Input {...field} placeholder="admin@venue.com" className="h-11 border-2 font-bold" /></FormControl><FormMessage /></FormItem>
+                <FormItem><FormLabel className="text-[10px] font-black uppercase">User Email</FormLabel><FormControl><Input {...field} placeholder="user@company.com" className="h-11 border-2 font-bold" /></FormControl><FormMessage /></FormItem>
               )} />
               <FormField control={staffForm.control} name="password" render={({ field }) => (
                 <FormItem><FormLabel className="text-[10px] font-black uppercase">Initial Password</FormLabel><FormControl><Input {...field} type="password" placeholder="••••••••" className="h-11 border-2 font-bold" /></FormControl><FormMessage /></FormItem>
               )} />
-              <FormField control={staffForm.control} name="sellerId" render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-[10px] font-black uppercase">Assigned Venue</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger className="h-11 border-2 font-bold"><SelectValue placeholder="Select venue..." /></SelectTrigger></FormControl><SelectContent>{sellers?.map(s => (<SelectItem key={s.id} value={s.id}>{s.courseName}</SelectItem>))}</SelectContent></Select>
-                </FormItem>
-              )} />
+              
+              {selectedStaffRole === 'Seller Admin' && (
+                <FormField control={staffForm.control} name="sellerId" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-[10px] font-black uppercase">Assigned Venue</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl><SelectTrigger className="h-11 border-2 font-bold"><SelectValue placeholder="Select venue..." /></SelectTrigger></FormControl>
+                      <SelectContent>{sellers?.map(s => (<SelectItem key={s.id} value={s.id}>{s.courseName}</SelectItem>))}</SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+              )}
+
               <Button type="submit" disabled={isSaving} className="w-full h-12 bg-indigo-600 hover:bg-indigo-700 font-bold uppercase tracking-widest">
-                {isSaving ? <Loader2 className="animate-spin" /> : "Authorize Staff"}
+                {isSaving ? <Loader2 className="animate-spin" /> : "Authorize User"}
               </Button>
             </form>
           </Form>
