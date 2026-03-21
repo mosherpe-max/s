@@ -17,6 +17,12 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    function getEmail() {
+      return isSignedIn() && "email" in request.auth.token 
+        ? request.auth.token.email.lower() 
+        : "";
+    }
+
     function isSuperAdmin() {
       return isSignedIn() && request.auth.uid == 'o9vAQy0aFRPSNPoG0ETvjiGt9If1';
     }
@@ -24,12 +30,6 @@ service cloud.firestore {
     function isAdmin() {
       return isSuperAdmin() || 
              (isSignedIn() && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid)));
-    }
-
-    function getEmail() {
-      return isSignedIn() && "email" in request.auth.token 
-        ? request.auth.token.email.lower() 
-        : "";
     }
 
     function isSellerAdmin(sellerId) {
@@ -42,7 +42,7 @@ service cloud.firestore {
     }
 
     function isSalesRep() {
-      return isSuperAdmin() || isAdmin() || (
+      return isSuperAdmin() || (
         isSignedIn() && 
         getEmail() != "" &&
         exists(/databases/$(database)/documents/roles_sales_rep/$(getEmail()))
@@ -166,17 +166,17 @@ service cloud.firestore {
 
     // Role Assignments & Profiles
     match /adminUsers/{email} {
-      allow get: if isSignedIn() && (getEmail() == email || isAdmin());
+      allow get: if isSignedIn() && (getEmail() == email.lower() || isAdmin());
       allow list, create, update, delete: if isAdmin();
     }
 
     match /roles_seller_admin/{email} {
-      allow get: if isSignedIn() && (getEmail() == email || isAdmin());
+      allow get: if isSignedIn() && (getEmail() == email.lower() || isAdmin());
       allow list, create, update, delete: if isAdmin();
     }
 
     match /roles_sales_rep/{email} {
-      allow get: if isSignedIn() && (getEmail() == email || isAdmin());
+      allow get: if isSignedIn() && (getEmail() == email.lower() || isAdmin());
       allow list, create, update, delete: if isAdmin();
     }
 
