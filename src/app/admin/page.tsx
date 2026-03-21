@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -48,7 +49,10 @@ import {
   ListChecks,
   CheckCircle2,
   Trophy,
-  PieChart
+  PieChart,
+  ChevronDown,
+  Truck,
+  Smartphone
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { 
@@ -73,6 +77,14 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import type { Seller, Order, Prospect, AdminUser } from '@/lib/types';
 import { sellerTypes } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
@@ -673,7 +685,49 @@ export default function KOOPAdminPage() {
                             <div className="flex justify-end gap-2">
                               <Button variant="ghost" size="icon" onClick={() => handleEditSeller(seller)} className="h-8 w-8"><Edit className="h-4 w-4" /></Button>
                               <Button variant="ghost" size="icon" onClick={() => { setVenueToDelete(seller); setIsVenueDeleteDialogOpen(true); }} className="h-8 w-8 text-destructive"><Trash2 className="h-4 w-4" /></Button>
-                              <Button variant="ghost" size="sm" asChild className="h-8 text-[10px] font-black uppercase"><Link href={`/sellers/${seller.id}`}>Impersonate</Link></Button>
+                              
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="sm" className="h-8 text-[10px] font-black uppercase tracking-widest gap-1.5 px-3 bg-muted/20 hover:bg-muted/40">
+                                    Impersonate <ChevronDown className="h-3 w-3" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="w-56 shadow-xl border-2">
+                                  <DropdownMenuLabel className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Admin Entry</DropdownMenuLabel>
+                                  <DropdownMenuItem asChild>
+                                    <Link href={`/sellers/${seller.id}`} className="flex items-center gap-3 cursor-pointer">
+                                      <ShieldCheck className="h-4 w-4 text-primary" />
+                                      <span className="text-xs font-bold uppercase">Seller Admin Portal</span>
+                                    </Link>
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuLabel className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Operational Entry</DropdownMenuLabel>
+                                  {seller.menuTypes.includes('Beverage Cart') && (
+                                    <DropdownMenuItem asChild>
+                                      <Link href={`/sellers/${seller.id}/bevcart`} className="flex items-center gap-3 cursor-pointer">
+                                        <Truck className="h-4 w-4 text-indigo-600" />
+                                        <span className="text-xs font-bold uppercase">Beverage Cart Driver</span>
+                                      </Link>
+                                    </DropdownMenuItem>
+                                  )}
+                                  {seller.menuTypes.includes('Clubhouse') && (
+                                    <DropdownMenuItem asChild>
+                                      <Link href={`/sellers/${seller.id}/clubhouse`} className="flex items-center gap-3 cursor-pointer">
+                                        <LayoutDashboard className="h-4 w-4 text-indigo-600" />
+                                        <span className="text-xs font-bold uppercase">Clubhouse Staff</span>
+                                      </Link>
+                                    </DropdownMenuItem>
+                                  )}
+                                  {seller.menuTypes.includes('Lane Delivery') && (
+                                    <DropdownMenuItem asChild>
+                                      <Link href={`/sellers/${seller.id}/laneside`} className="flex items-center gap-3 cursor-pointer">
+                                        <Users className="h-4 w-4 text-indigo-600" />
+                                        <span className="text-xs font-bold uppercase">Laneside Server</span>
+                                      </Link>
+                                    </DropdownMenuItem>
+                                  )}
+                                </DropdownMenuContent>
+                              </DropdownMenu>
                             </div>
                           </TableCell>
                         </TableRow>
