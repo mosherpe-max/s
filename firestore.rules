@@ -73,12 +73,12 @@ service cloud.firestore {
       allow delete: if isAdmin();
 
       match /staff/{staffId} {
-        // Admin/SellerAdmin can list all staff.
-        // We allow the list operation if the parent check passes.
+        // Allow listing for authorized managers
         allow list: if isAdmin() || isSellerAdmin(sellerId); 
-        // Get is allowed for PIN lookup logic in login portal
+        // Allow specific document access for anyone (needed for PIN lookup query)
         allow get: if true; 
-        allow create, update, delete: if isSellerAdmin(sellerId) || isAdmin();
+        // Modifications restricted to managers
+        allow create, update, delete: if isAdmin() || isSellerAdmin(sellerId);
       }
 
       match /menuItems/{itemId} {
