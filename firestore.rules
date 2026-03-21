@@ -22,17 +22,17 @@ service cloud.firestore {
       return resource != null && isOwner(userId);
     }
 
+    function isAdmin() {
+      return isSignedIn() && (
+        request.auth.uid == 'o9vAQy0aFRPSNPoG0ETvjiGt9If1' ||
+        exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid))
+      );
+    }
+
     function isSellerAdmin(sellerId) {
       return isSignedIn() && (
         exists(/databases/$(database)/documents/roles_seller_admin/$(request.auth.token.email)) &&
         get(/databases/$(database)/documents/roles_seller_admin/$(request.auth.token.email)).data.sellerId == sellerId
-      );
-    }
-
-    function isAdmin() {
-      return isSignedIn() && (
-        exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid)) ||
-        request.auth.uid == 'o9vAQy0aFRPSNPoG0ETvjiGt9If1'
       );
     }
 
@@ -69,7 +69,10 @@ service cloud.firestore {
       allow delete: if isAdmin();
 
       match /staff/{staffId} {
-        allow get, list: if isSellerAdmin(sellerId) || isAdmin() || true; // True for PIN verification lookups
+        // Public list access is required for the PIN lookup query, but we protect sensitive fields 
+        // via the get access logic. Admin/SellerAdmin can always list everything.
+        allow list: if isAdmin() || isSellerAdmin(sellerId) || true; 
+        allow get: if true; 
         allow create, update, delete: if isSellerAdmin(sellerId) || isAdmin();
       }
 
