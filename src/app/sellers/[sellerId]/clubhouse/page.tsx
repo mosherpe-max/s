@@ -1,7 +1,7 @@
 'use client';
 
 import { collection, query, where, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
-import { useCollection, useFirestore, useMemoFirebase, useDoc } from '@/firebase';
+import { useCollection, useFirestore, useMemoFirebase, useDoc, useUser } from '@/firebase';
 import { MapView } from '@/components/map-view';
 import { APIProvider } from '@vis.gl/react-google-maps';
 import { useEffect, useState, useMemo, useRef, use } from 'react';
@@ -13,13 +13,15 @@ import { mockSellerLocation } from '@/lib/data';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
-import { Focus, Bell, Package, AlertCircle, Clock, DollarSign, Timer, AlertTriangle } from 'lucide-react';
+import { Focus, Bell, Package, AlertCircle, Clock, DollarSign, Timer, AlertTriangle, LogOut, User } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import Link from 'next/link';
+import Link from 'next/navigation';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { format, isToday } from 'date-fns';
-import { isStaffSessionStale } from '@/lib/utils';
+import { isStaffSessionStale, SUPER_ADMIN_ID } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
+import { useRouter } from 'next/navigation';
 
 type LatLng = {
   latitude: number;
@@ -30,16 +32,48 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
   const { sellerId } = use(params);
   const firestore = useFirestore();
   const { toast } = useToast();
+  const router = useRouter();
+  const { user, isUserLoading } = useUser();
+  const isSuperAdmin = user?.uid === SUPER_ADMIN_ID;
+
   const [sellerLocation, setSellerLocation] = useState<LatLng | null>(null);
   const sellerLocRef = useRef<LatLng | null>(null);
   const [zoomMode, setZoomMode] = useState<'radius' | 'all'>('radius');
   const [fitTrigger, setFitTrigger] = useState<number>(0);
   const [now, setNow] = useState<number>(Date.now());
+  const [staffName, setStaffName] = useState('');
   
   const lastOrderIdsRef = useRef<Set<string>>(new Set());
   const notifiedOverdueRef = useRef<Set<string>>(new Set());
   const initialLoadRef = useRef(true);
   const wakeLockRef = useRef<any>(null);
+
+  // Staff Session Enforcement & Impersonation Bypass
+  useEffect(() => {
+    if (isUserLoading) return;
+
+    if (isSuperAdmin) {
+      setStaffName("Platform Admin");
+      return;
+    }
+
+    const storedStaffId = localStorage.getItem('koop_staff_id');
+    const storedVenueId = localStorage.getItem('koop_venue_id');
+    const name = localStorage.getItem('koop_staff_name');
+    
+    if (!storedStaffId || storedVenueId !== sellerId) {
+      router.push(`/sellers/${sellerId}/staff-login`);
+    } else if (name) {
+      setStaffName(name);
+    }
+  }, [sellerId, router, isSuperAdmin, isUserLoading]);
+
+  const handleStaffLogout = () => {
+    localStorage.removeItem('koop_staff_id');
+    localStorage.removeItem('koop_staff_name');
+    localStorage.removeItem('koop_staff_role');
+    router.push(`/sellers/${sellerId}/staff-login`);
+  };
 
   const primarySellerRef = useMemoFirebase(() => {
     if (!firestore || !sellerId) return null;
@@ -105,15 +139,15 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
     };
   }, [isClubhouseActive]);
 
-  // 4 AM EST Auto-Reset Logic
+  // 4 AM EST Auto-Reset Logic (Bypass for Super Admin)
   useEffect(() => {
-    if (primarySeller && isClubhouseActive && primarySeller.lastActive) {
+    if (primarySeller && isClubhouseActive && primarySeller.lastActive && !isSuperAdmin) {
       const lastActiveDate = primarySeller.lastActive.toDate();
       if (isStaffSessionStale(lastActiveDate)) {
         handleToggleActive(false);
       }
     }
-  }, [primarySeller, isClubhouseActive]);
+  }, [primarySeller, isClubhouseActive, isSuperAdmin]);
 
   const activeOrdersQuery = useMemoFirebase(() => {
     if (!firestore || !sellerId) return null;
@@ -135,7 +169,6 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
 
   const clubhouseOrders = useMemo(() => {
     if (!activeOrders) return [];
-    // Clubhouse driver handles all orders that are NOT specifically Beverage Cart
     return activeOrders.filter(o => o.menuType !== 'Beverage Cart');
   }, [activeOrders]);
 
@@ -258,14 +291,8 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
             longitude: position.coords.longitude,
           });
         },
-        () => {
-          setSellerLocation(mockSellerLocation);
-        },
-        {
-          enableHighAccuracy: true,
-          timeout: 5000,
-          maximumAge: 60000,
-        }
+        () => setSellerLocation(mockSellerLocation),
+        { enableHighAccuracy: true, timeout: 5000, maximumAge: 60000 }
       );
       return () => navigator.geolocation.clearWatch(watchId);
     } else {
@@ -295,20 +322,16 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
     if (!firestore) return;
     const orderRef = doc(firestore, 'orders', orderId);
     const updates: any = { status };
-    if (driverId) {
-        updates.assignedDriverId = driverId;
-    }
-    if (status === 'Delivered') {
-      updates.deliveredAt = serverTimestamp();
-    }
-    updateDoc(orderRef, updates)
-      .catch(async () => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-          path: orderRef.path,
-          operation: 'update',
-          requestResourceData: updates
-        }));
-      });
+    if (driverId) updates.assignedDriverId = driverId;
+    if (status === 'Delivered') updates.deliveredAt = serverTimestamp();
+    
+    updateDoc(orderRef, updates).catch(async () => {
+      errorEmitter.emit('permission-error', new FirestorePermissionError({
+        path: orderRef.path,
+        operation: 'update',
+        requestResourceData: updates
+      }));
+    });
   };
 
   const handleHandoff = (orderId: string, targetDriverId: string) => {
@@ -316,20 +339,15 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
     const orderRef = doc(firestore, 'orders', orderId);
     const updates = { assignedDriverId: targetDriverId };
     
-    updateDoc(orderRef, updates)
-      .then(() => {
-        toast({
-          title: "Order Handed Off",
-          description: "Responsibility for the order has been transferred.",
-        });
-      })
-      .catch(async () => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-          path: orderRef.path,
-          operation: 'update',
-          requestResourceData: updates
-        }));
-      });
+    updateDoc(orderRef, updates).then(() => {
+      toast({ title: "Order Handed Off" });
+    }).catch(async () => {
+      errorEmitter.emit('permission-error', new FirestorePermissionError({
+        path: orderRef.path,
+        operation: 'update',
+        requestResourceData: updates
+      }));
+    });
   };
 
   const handleToggleActive = (checked: boolean) => {
@@ -339,14 +357,13 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
         clubhouseActive: checked,
         lastActive: checked ? serverTimestamp() : null
     };
-    updateDoc(sellerDocRef, updates)
-      .catch(async () => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-          path: sellerDocRef.path,
-          operation: 'update',
-          requestResourceData: updates
-        }));
-      });
+    updateDoc(sellerDocRef, updates).catch(async () => {
+      errorEmitter.emit('permission-error', new FirestorePermissionError({
+        path: sellerDocRef.path,
+        operation: 'update',
+        requestResourceData: updates
+      }));
+    });
   };
 
   const otherActiveDrivers = useMemo(() => {
@@ -356,36 +373,21 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
         .filter(s => {
             if (s.id === sellerId) return false;
             if (!s.lastActive) return false;
-            const lastActiveTime = s.lastActive.toDate().getTime();
-            return (now - lastActiveTime) < threshold;
+            return (now - s.lastActive.toDate().getTime()) < threshold;
         })
-        .map(s => ({
-            id: s.id,
-            name: s.courseName
-        }));
+        .map(s => ({ id: s.id, name: s.courseName }));
   }, [activeSellers, now, sellerId]);
 
   const mappedBuyers = useMemo(() => {
     if (!now || !clubhouseOrders) return [];
-    // Only map orders where GPS is required: Clubhouse orders
     return clubhouseOrders.filter(o => o.menuType === 'Clubhouse').map(o => {
       let colorClass = "bg-green-600";
       if (o.createdAt) {
-        const orderTime = o.createdAt.toDate().getTime();
-        const minutesElapsed = (now - orderTime) / (1000 * 60);
-        if (minutesElapsed >= thresholds.max) {
-          colorClass = "bg-red-600";
-        } else if (minutesElapsed >= thresholds.warning) {
-          colorClass = "bg-yellow-500";
-        }
+        const minutesElapsed = (now - o.createdAt.toDate().getTime()) / 60000;
+        if (minutesElapsed >= thresholds.max) colorClass = "bg-red-600";
+        else if (minutesElapsed >= thresholds.warning) colorClass = "bg-yellow-500";
       }
-      return {
-        id: o.id,
-        name: o.customerName,
-        location: o.deliveryLocation,
-        colorClass,
-        assignedDriverId: o.assignedDriverId
-      };
+      return { id: o.id, name: o.customerName, location: o.deliveryLocation, colorClass, assignedDriverId: o.assignedDriverId };
     });
   }, [clubhouseOrders, now, thresholds]);
 
@@ -394,18 +396,7 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
     setFitTrigger(prev => prev + 1);
   };
 
-  const isLoading = areActiveOrdersLoading || isPrimaryLoading || areSellersLoading;
-
-  if (!isPrimaryLoading && !primarySeller) {
-      return (
-          <div className="flex flex-col items-center justify-center h-screen p-8 text-center space-y-6 text-muted-foreground">
-              <AlertCircle className="h-16 w-16 opacity-20" />
-              <h1 className="text-2xl font-headline font-bold uppercase text-[#213147]">KOOP CLUBHOUSE INTERFACE</h1>
-              <p className="max-w-sm">Initialize your seller profile to access driver tools.</p>
-              <Button asChild><Link href={`/sellers/${sellerId}`}>Initialize Seller Profile</Link></Button>
-          </div>
-      );
-  }
+  const isLoading = areActiveOrdersLoading || isPrimaryLoading || areSellersLoading || isUserLoading;
 
   return (
     <APIProvider apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!}>
@@ -415,15 +406,25 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
             <h1 className="font-headline text-sm sm:text-base md:text-xl font-bold text-white uppercase tracking-tight truncate">
               CLUBHOUSE DASHBOARD
             </h1>
-            <span className="text-[9px] sm:text-[10px] uppercase font-bold text-white/60 tracking-widest leading-none truncate">
-              ESTABLISHMENT: {primarySeller?.courseName || 'Loading...'}
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-[9px] sm:text-[10px] uppercase font-bold text-white/60 tracking-widest leading-none truncate">
+                {primarySeller?.courseName || 'Loading...'}
+              </span>
+              <Badge variant="outline" className="h-4 px-1.5 text-[8px] bg-white/5 border-white/10 text-white font-black uppercase">
+                <User className="h-2 w-2 mr-1" /> {staffName}
+              </Badge>
+            </div>
           </div>
-          <div className="flex items-center space-x-3 shrink-0">
-            <Switch id="clubhouse-active" checked={isClubhouseActive} onCheckedChange={handleToggleActive} className="data-[state=checked]:bg-green-600" />
-            <Label htmlFor="clubhouse-active" className="text-[10px] sm:text-sm font-semibold whitespace-nowrap text-white uppercase">
-              {isClubhouseActive ? 'ACTIVE' : 'INACTIVE'}
-            </Label>
+          <div className="flex items-center space-x-4 shrink-0">
+            <div className="flex items-center space-x-2">
+              <Switch id="clubhouse-active" checked={isClubhouseActive} onCheckedChange={handleToggleActive} className="data-[state=checked]:bg-green-600" />
+              <Label htmlFor="clubhouse-active" className="text-[10px] font-semibold whitespace-nowrap text-white uppercase">
+                {isClubhouseActive ? 'ACTIVE' : 'INACTIVE'}
+              </Label>
+            </div>
+            <Button variant="ghost" size="icon" onClick={handleStaffLogout} className="text-white/40 hover:text-white hover:bg-white/10 h-9 w-9 rounded-full">
+              <LogOut className="h-4 w-4" />
+            </Button>
           </div>
         </header>
 
@@ -470,9 +471,9 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
             ) : <Skeleton className="w-full h-full" />}
           </div>
           <div className="w-full md:w-1/3 flex flex-col bg-background border-2 rounded-xl overflow-hidden min-h-0 shadow-sm">
-            <h2 className="font-headline text-base font-semibold px-4 pt-3 pb-2 shrink-0 border-b flex items-center justify-between uppercase bg-muted/10">
+            <h2 className="font-headline text-sm font-black px-4 pt-3 pb-2 shrink-0 border-b flex items-center justify-between uppercase bg-muted/10 tracking-widest">
               <span className="truncate mr-2">Service Orders</span>
-              <span className="bg-[#E50000] text-white text-[10px] rounded-full px-2 py-0.5 shrink-0">{clubhouseOrders.length}</span>
+              <span className="bg-[#E50000] text-white text-[10px] font-black rounded-full px-2 py-0.5 shrink-0">{clubhouseOrders.length}</span>
             </h2>
             <ScrollArea className="flex-1 w-full px-2">
               <div className="py-2.5 space-y-3 pb-12">
@@ -481,7 +482,7 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
                 ) : clubhouseOrders.length === 0 ? (
                   <div className="flex flex-col items-center justify-center text-muted-foreground py-20 text-center px-4">
                     <Package className="h-10 w-10 opacity-20 mb-2" />
-                    <p className="italic text-sm">No active service orders.</p>
+                    <p className="italic text-xs font-black uppercase tracking-widest opacity-40">No active service orders</p>
                   </div>
                 ) : (
                   clubhouseOrders.map((order, index) => (

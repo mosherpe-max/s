@@ -1,8 +1,7 @@
-
 'use client';
 
 import { collection, query, where, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
-import { useCollection, useFirestore, useMemoFirebase, useDoc } from '@/firebase';
+import { useCollection, useFirestore, useMemoFirebase, useDoc, useUser } from '@/firebase';
 import { MapView } from '@/components/map-view';
 import { APIProvider } from '@vis.gl/react-google-maps';
 import { useEffect, useState, useMemo, useRef, use } from 'react';
@@ -20,8 +19,9 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
-import { isStaffSessionStale } from '@/lib/utils';
+import { isStaffSessionStale, SUPER_ADMIN_ID } from '@/lib/utils';
 import { isToday } from 'date-fns';
+import { Badge } from '@/components/ui/badge';
 
 type LatLng = {
   latitude: number;
@@ -33,6 +33,9 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
   const firestore = useFirestore();
   const { toast } = useToast();
   const router = useRouter();
+  const { user, isUserLoading } = useUser();
+  const isSuperAdmin = user?.uid === SUPER_ADMIN_ID;
+
   const [sellerLocation, setSellerLocation] = useState<LatLng | null>(null);
   const sellerLocRef = useRef<LatLng | null>(null);
   const [zoomMode, setZoomMode] = useState<'radius' | 'all'>('radius');
@@ -45,8 +48,15 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
   const initialLoadRef = useRef(true);
   const wakeLockRef = useRef<any>(null);
 
-  // Staff Session Enforcement
+  // Staff Session Enforcement & Impersonation Bypass
   useEffect(() => {
+    if (isUserLoading) return;
+
+    if (isSuperAdmin) {
+      setStaffName("Platform Admin");
+      return;
+    }
+
     const storedStaffId = localStorage.getItem('koop_staff_id');
     const storedVenueId = localStorage.getItem('koop_venue_id');
     const name = localStorage.getItem('koop_staff_name');
@@ -56,7 +66,7 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
     } else if (name) {
       setStaffName(name);
     }
-  }, [sellerId, router]);
+  }, [sellerId, router, isSuperAdmin, isUserLoading]);
 
   const handleStaffLogout = () => {
     localStorage.removeItem('koop_staff_id');
@@ -378,7 +388,7 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
     });
   }, [driverOrders, now, thresholds]);
 
-  const isLoading = areActiveOrdersLoading || isPrimaryLoading || areSellersLoading;
+  const isLoading = areActiveOrdersLoading || isPrimaryLoading || areSellersLoading || isUserLoading;
 
   return (
     <APIProvider apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!}>

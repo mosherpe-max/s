@@ -1,7 +1,7 @@
 'use client';
 
 import { collection, query, where, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
-import { useCollection, useFirestore, useMemoFirebase, useDoc } from '@/firebase';
+import { useCollection, useFirestore, useMemoFirebase, useDoc, useUser } from '@/firebase';
 import { useEffect, useState, useMemo, useRef, use } from 'react';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
@@ -11,22 +11,55 @@ import type { Order, Seller } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
-import { Bell, Package, AlertCircle, Clock, MapPin, DollarSign, Timer, AlertTriangle } from 'lucide-react';
+import { Bell, Package, AlertCircle, Clock, MapPin, DollarSign, Timer, AlertTriangle, LogOut, User } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import Link from 'next/link';
+import Link from 'next/navigation';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { format, isToday } from 'date-fns';
-import { isStaffSessionStale } from '@/lib/utils';
+import { isStaffSessionStale, SUPER_ADMIN_ID } from '@/lib/utils';
+import { useRouter } from 'next/navigation';
 
 export default function LaneSideServerDashboardPage({ params }: { params: Promise<{ sellerId: string }> }) {
   const { sellerId } = use(params);
   const firestore = useFirestore();
   const { toast } = useToast();
+  const router = useRouter();
+  const { user, isUserLoading } = useUser();
+  const isSuperAdmin = user?.uid === SUPER_ADMIN_ID;
+
   const [now, setNow] = useState<number>(Date.now());
+  const [staffName, setStaffName] = useState('');
   
   const lastOrderIdsRef = useRef<Set<string>>(new Set());
   const initialLoadRef = useRef(true);
+
+  // Staff Session Enforcement & Impersonation Bypass
+  useEffect(() => {
+    if (isUserLoading) return;
+
+    if (isSuperAdmin) {
+      setStaffName("Platform Admin");
+      return;
+    }
+
+    const storedStaffId = localStorage.getItem('koop_staff_id');
+    const storedVenueId = localStorage.getItem('koop_venue_id');
+    const name = localStorage.getItem('koop_staff_name');
+    
+    if (!storedStaffId || storedVenueId !== sellerId) {
+      router.push(`/sellers/${sellerId}/staff-login`);
+    } else if (name) {
+      setStaffName(name);
+    }
+  }, [sellerId, router, isSuperAdmin, isUserLoading]);
+
+  const handleStaffLogout = () => {
+    localStorage.removeItem('koop_staff_id');
+    localStorage.removeItem('koop_staff_name');
+    localStorage.removeItem('koop_staff_role');
+    router.push(`/sellers/${sellerId}/staff-login`);
+  };
 
   const primarySellerRef = useMemoFirebase(() => {
     if (!firestore || !sellerId) return null;
@@ -34,7 +67,6 @@ export default function LaneSideServerDashboardPage({ params }: { params: Promis
   }, [firestore, sellerId]);
   const { data: primarySeller, isLoading: isPrimaryLoading } = useDoc<Seller>(primarySellerRef);
 
-  // For Laneside, we use "clubhouseActive" as the toggle for simplicity in prototyping
   const isServerActive = primarySeller?.clubhouseActive === true;
   const thresholds = primarySeller?.orderThresholds?.['Lane Delivery'] || { warning: 7, max: 10 };
 
@@ -57,15 +89,15 @@ export default function LaneSideServerDashboardPage({ params }: { params: Promis
     }
   };
 
-  // 4 AM EST Auto-Reset Logic
+  // 4 AM EST Auto-Reset Logic (Bypass for Super Admin)
   useEffect(() => {
-    if (primarySeller && isServerActive && primarySeller.lastActive) {
+    if (primarySeller && isServerActive && primarySeller.lastActive && !isSuperAdmin) {
       const lastActiveDate = primarySeller.lastActive.toDate();
       if (isStaffSessionStale(lastActiveDate)) {
         handleToggleActive(false);
       }
     }
-  }, [primarySeller, isServerActive]);
+  }, [primarySeller, isServerActive, isSuperAdmin]);
 
   // Activity Heartbeat
   useEffect(() => {
@@ -79,7 +111,7 @@ export default function LaneSideServerDashboardPage({ params }: { params: Promis
     };
 
     const intervalId = setInterval(syncStatus, 30000);
-    syncStatus(); // Immediate first beat
+    syncStatus();
     return () => clearInterval(intervalId);
   }, [firestore, isServerActive, sellerId]);
 
@@ -189,14 +221,13 @@ export default function LaneSideServerDashboardPage({ params }: { params: Promis
     if (driverId) updates.assignedDriverId = driverId;
     if (status === 'Delivered') updates.deliveredAt = serverTimestamp();
     
-    updateDoc(orderRef, updates)
-      .catch(async () => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-          path: orderRef.path,
-          operation: 'update',
-          requestResourceData: updates
-        }));
-      });
+    updateDoc(orderRef, updates).catch(async () => {
+      errorEmitter.emit('permission-error', new FirestorePermissionError({
+        path: orderRef.path,
+        operation: 'update',
+        requestResourceData: updates
+      }));
+    });
   };
 
   const handleToggleActive = (checked: boolean) => {
@@ -215,18 +246,7 @@ export default function LaneSideServerDashboardPage({ params }: { params: Promis
       });
   };
 
-  const isLoading = areActiveOrdersLoading || isPrimaryLoading;
-
-  if (!isPrimaryLoading && !primarySeller) {
-    return (
-      <div className="flex flex-col items-center justify-center h-screen p-8 text-center space-y-6 text-muted-foreground">
-        <AlertCircle className="h-16 w-16 opacity-20" />
-        <h1 className="text-2xl font-headline font-bold uppercase text-[#213147]">LANESIDE SERVER INTERFACE</h1>
-        <p className="max-w-sm">Please ensure the bowling alley seller profile is initialized.</p>
-        <Button asChild><Link href="/admin">Go to Admin</Link></Button>
-      </div>
-    );
-  }
+  const isLoading = areActiveOrdersLoading || isPrimaryLoading || isUserLoading;
 
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-muted/20">
@@ -235,15 +255,25 @@ export default function LaneSideServerDashboardPage({ params }: { params: Promis
           <h1 className="font-headline text-sm sm:text-base md:text-xl font-bold text-white uppercase tracking-tight truncate">
             LANESIDE SERVER
           </h1>
-          <span className="text-[9px] sm:text-[10px] uppercase font-bold text-white/60 tracking-widest leading-none truncate">
-            {primarySeller?.courseName || 'Bowling Alley'}
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-[9px] sm:text-[10px] uppercase font-bold text-white/60 tracking-widest leading-none truncate">
+              {primarySeller?.courseName || 'Bowling Alley'}
+            </span>
+            <Badge variant="outline" className="h-4 px-1.5 text-[8px] bg-white/5 border-white/10 text-white font-black uppercase">
+              <User className="h-2 w-2 mr-1" /> {staffName}
+            </Badge>
+          </div>
         </div>
-        <div className="flex items-center space-x-3 shrink-0">
-          <Switch id="server-active" checked={isServerActive} onCheckedChange={handleToggleActive} className="data-[state=checked]:bg-green-600" />
-          <Label htmlFor="server-active" className="text-[10px] sm:text-sm font-semibold whitespace-nowrap text-white uppercase">
-            {isServerActive ? 'ONLINE' : 'OFFLINE'}
-          </Label>
+        <div className="flex items-center space-x-4 shrink-0">
+          <div className="flex items-center space-x-2">
+            <Switch id="server-active" checked={isServerActive} onCheckedChange={handleToggleActive} className="data-[state=checked]:bg-green-600" />
+            <Label htmlFor="server-active" className="text-[10px] sm:text-sm font-semibold whitespace-nowrap text-white uppercase">
+              {isServerActive ? 'ONLINE' : 'OFFLINE'}
+            </Label>
+          </div>
+          <Button variant="ghost" size="icon" onClick={handleStaffLogout} className="text-white/40 hover:text-white hover:bg-white/10 h-9 w-9 rounded-full">
+            <LogOut className="h-4 w-4" />
+          </Button>
         </div>
       </header>
 
