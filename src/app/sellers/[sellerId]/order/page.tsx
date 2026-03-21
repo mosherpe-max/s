@@ -266,10 +266,17 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
     return enabledCategories.filter(cat => availableCategories.has(cat));
   }, [selectedMenuType, seller, filteredMenuItems]);
 
+  const isLocationRequired = selectedMenuType === 'Lane Delivery';
+  const isLocationSelected = !!locationValue;
+
   const handlePlaceOrder = async () => {
     try {
       if (!firestore || !seller) return;
       if (activeOrderItems.length === 0) return;
+      if (isLocationRequired && !isLocationSelected) {
+        toast({ variant: 'destructive', title: 'Lane Required', description: 'Please select your lane number before placing your order.' });
+        return;
+      }
 
       setIsPlacingOrder(true);
 
@@ -357,7 +364,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
         <div className="px-4 py-3 space-y-3 max-w-2xl mx-auto">
           <div className="flex flex-col gap-1.5">
             <Label className="text-[9px] uppercase font-bold text-muted-foreground tracking-widest px-1">SERVICE MODE</Label>
-            <div className="flex gap-2">
+            <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
               {seller?.menuTypes?.map((type) => {
                 const Icon = serviceTypeIcons[type] || Store;
                 return (
@@ -366,7 +373,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
                     variant={selectedMenuType === type ? 'default' : 'secondary'} 
                     size="sm"
                     onClick={() => { setSelectedMenuType(type); setLocationValue(''); }} 
-                    className="h-8 text-[10px] px-3 rounded-lg font-bold"
+                    className="h-8 text-[10px] px-3 rounded-lg font-bold shrink-0"
                   >
                     <Icon className="h-3.5 w-3.5 mr-1.5" /> {type}
                   </Button>
@@ -376,6 +383,43 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
           </div>
         </div>
       </div>
+
+      {/* Lane Selection UI for Bowling Alleys */}
+      {selectedMenuType === 'Lane Delivery' && seller?.laneCount && seller.laneCount > 0 && (
+        <div className="bg-muted/10 border-b animate-in slide-in-from-top duration-300">
+          <div className="px-4 py-4 space-y-3 max-w-2xl mx-auto">
+            <div className="flex flex-col gap-3">
+              <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground px-1 flex items-center gap-2">
+                <MapPin className="h-3 w-3" /> Select Your Lane
+              </Label>
+              <div className="grid grid-cols-6 sm:grid-cols-10 gap-2">
+                {Array.from({ length: seller.laneCount }, (_, i) => (i + 1).toString()).map((lane) => {
+                  const isSelected = locationValue === `Lane ${lane}`;
+                  return (
+                    <Button
+                      key={lane}
+                      variant={isSelected ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setLocationValue(`Lane ${lane}`)}
+                      className={cn(
+                        "h-9 px-0 text-xs font-black rounded-lg transition-all",
+                        isSelected ? "bg-primary text-white scale-105 shadow-md border-primary" : "bg-white hover:bg-primary/5"
+                      )}
+                    >
+                      {lane}
+                    </Button>
+                  );
+                })}
+              </div>
+              {isLocationSelected && (
+                <p className="text-[9px] font-black text-primary uppercase text-center tracking-widest bg-primary/5 py-1 rounded-full border border-primary/10">
+                  Deliver to {locationValue}
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       <main className="flex-1 px-4 pt-6 pb-32 max-w-2xl mx-auto w-full">
         {isLoading ? <Skeleton className="h-40 w-full" /> : (
@@ -411,6 +455,31 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
             <div className="px-6 py-6 space-y-8 pb-32">
               {/* YOUR ORDER SECTION */}
               <OrderSummary items={activeOrderItems} onUpdateItem={updateItem} onRemoveItem={removeItem} />
+
+              {/* LOCATION PREVIEW FOR LANE SIDE */}
+              {selectedMenuType === 'Lane Delivery' && (
+                <div className={cn(
+                  "p-4 rounded-2xl border flex items-center justify-between transition-all",
+                  isLocationSelected ? "bg-primary text-white border-primary shadow-lg" : "bg-red-50 border-red-200 text-red-600"
+                )}>
+                  <div className="flex items-center gap-3">
+                    <MapPin className={cn("h-5 w-5", isLocationSelected ? "text-white" : "text-red-500")} />
+                    <div className="flex flex-col">
+                      <span className="text-[10px] font-black uppercase tracking-widest opacity-70">Delivery Destination</span>
+                      <span className="text-sm font-black uppercase">{isLocationSelected ? locationValue : 'NO LANE SELECTED'}</span>
+                    </div>
+                  </div>
+                  {!isLocationSelected && (
+                    <Button 
+                      variant="ghost" 
+                      className="text-red-600 font-bold text-[10px] uppercase hover:bg-red-100"
+                      onClick={() => { setIsCartOpen(false); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                    >
+                      Choose Lane
+                    </Button>
+                  )}
+                </div>
+              )}
 
               {/* SPECIAL INSTRUCTIONS SECTION */}
               <div className="space-y-3">
@@ -533,9 +602,14 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
           </ScrollArea>
 
           <SheetFooter className="p-6 bg-white border-t-2 shrink-0">
-            <Button size="lg" className="w-full h-16 font-black uppercase tracking-[0.2em] bg-primary shadow-xl rounded-2xl" onClick={handlePlaceOrder} disabled={isPlacingOrder || activeOrderItems.length === 0}>
+            <Button 
+              size="lg" 
+              className="w-full h-16 font-black uppercase tracking-[0.2em] bg-primary shadow-xl rounded-2xl" 
+              onClick={handlePlaceOrder} 
+              disabled={isPlacingOrder || activeOrderItems.length === 0 || (isLocationRequired && !isLocationSelected)}
+            >
               {isPlacingOrder ? <Loader2 className="animate-spin mr-2 h-5 w-5" /> : null}
-              {isPlacingOrder ? "PROCESSING..." : "PLACE ORDER"}
+              {isPlacingOrder ? "PROCESSING..." : (isLocationRequired && !isLocationSelected ? "SELECT LANE FIRST" : "PLACE ORDER")}
             </Button>
           </SheetFooter>
         </SheetContent>
