@@ -16,7 +16,6 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Focus, Bell, Package, AlertCircle, Clock, DollarSign, Timer, AlertTriangle, LogOut, User } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
@@ -84,9 +83,11 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
 
     const storedStaffId = localStorage.getItem('koop_staff_id');
     const storedVenueId = localStorage.getItem('koop_venue_id');
+    const storedRole = localStorage.getItem('koop_staff_role');
     const name = localStorage.getItem('koop_staff_name');
     
-    if (!storedStaffId || storedVenueId !== sellerId) {
+    // Requirement: Must be logged in, assigned to THIS venue, and in the correct role
+    if (!storedStaffId || storedVenueId !== sellerId || storedRole !== 'Beverage Cart') {
       router.push(`/sellers/${sellerId}/staff-login`);
     } else if (name) {
       setStaffName(name);

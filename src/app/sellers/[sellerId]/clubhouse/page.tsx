@@ -77,9 +77,11 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
 
     const storedStaffId = localStorage.getItem('koop_staff_id');
     const storedVenueId = localStorage.getItem('koop_venue_id');
+    const storedRole = localStorage.getItem('koop_staff_role');
     const name = localStorage.getItem('koop_staff_name');
     
-    if (!storedStaffId || storedVenueId !== sellerId) {
+    // Shift Validation
+    if (!storedStaffId || storedVenueId !== sellerId || storedRole !== 'Clubhouse') {
       router.push(`/sellers/${sellerId}/staff-login`);
     } else if (name) {
       setStaffName(name);

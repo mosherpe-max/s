@@ -101,7 +101,7 @@ import { FirestorePermissionError } from '@/firebase/errors';
 
 const staffSchema = z.object({
   name: z.string().min(2, 'Name required'),
-  role: z.enum(['Driver', 'Server', 'Manager']),
+  role: z.enum(['Driver', 'Server', 'Manager']).describe('Primary role for records'),
   pin: z.string().length(4, 'PIN must be 4 digits').regex(/^\d+$/, 'Numbers only'),
   isActive: z.boolean().default(true),
 });
@@ -861,7 +861,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
               <TableHeader className="bg-muted/30">
                 <TableRow>
                   <TableHead className="text-[10px] font-black uppercase">Staff Member</TableHead>
-                  <TableHead className="text-[10px] font-black uppercase">Service Role</TableHead>
+                  <TableHead className="text-[10px] font-black uppercase">Primary Role</TableHead>
                   <TableHead className="text-[10px] font-black uppercase text-center">4-Digit PIN</TableHead>
                   <TableHead className="text-[10px] font-black uppercase text-right">Actions</TableHead>
                 </TableRow>
@@ -883,7 +883,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                     </TableCell>
                     <TableCell><Badge variant="secondary" className="text-[8px] font-black uppercase">{member.role}</Badge></TableCell>
                     <TableCell className="text-center">
-                      <code className="text-xs font-mono font-black bg-muted px-2 py-1 rounded border tracking-widest">****</code>
+                      <code className="text-xs font-mono font-black bg-muted px-2 py-1 rounded border tracking-widest">{member.pin}</code>
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -1234,7 +1234,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
               <DialogTitle className="font-headline uppercase text-primary">{editingStaff ? 'Update Staff Member' : 'Add Staff Member'}</DialogTitle>
-              <DialogDescription>Assign a 4-digit PIN for device login.</DialogDescription>
+              <DialogDescription>Assign a 4-digit PIN for device login. They can assume any active role.</DialogDescription>
             </DialogHeader>
             <Form {...staffForm}>
               <form onSubmit={staffForm.handleSubmit(onSaveStaff)} className="space-y-4 pt-4">
@@ -1242,12 +1242,13 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                   <FormItem><FormLabel className="text-[10px] font-black uppercase">Staff Name</FormLabel><FormControl><Input {...field} placeholder="e.g. Sarah J." /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={staffForm.control} name="role" render={({ field }) => (
-                  <FormItem><FormLabel className="text-[10px] font-black uppercase">Service Role</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="Driver">Driver (BevCart/Mobile)</SelectItem><SelectItem value="Server">Server (Clubhouse/Laneside)</SelectItem><SelectItem value="Manager">Venue Manager</SelectItem></SelectContent></Select></FormItem>
+                  <FormItem><FormLabel className="text-[10px] font-black uppercase">Primary Role (for records)</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="Driver">Driver</SelectItem><SelectItem value="Server">Server</SelectItem><SelectItem value="Manager">Venue Manager</SelectItem></SelectContent></Select></FormItem>
                 )} />
                 <FormField control={staffForm.control} name="pin" render={({ field }) => (
                   <FormItem>
                     <FormLabel className="text-[10px] font-black uppercase">4-Digit Access PIN</FormLabel>
                     <FormControl><Input {...field} maxLength={4} placeholder="1234" className="font-mono font-black tracking-widest text-center text-lg" /></FormControl>
+                    <FormDescription className="text-[9px] uppercase font-bold">Staff will enter this to start their shift.</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )} />
