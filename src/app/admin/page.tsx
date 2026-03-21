@@ -46,7 +46,9 @@ import {
   User as UserIcon,
   Percent,
   ListChecks,
-  CheckCircle2
+  CheckCircle2,
+  Trophy,
+  PieChart
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { 
@@ -223,6 +225,26 @@ export default function KOOPAdminPage() {
   const activeOrders = useMemo(() => {
     return orders?.filter(o => ['Placed', 'Preparing', 'Out for Delivery'].includes(o.status)) || [];
   }, [orders]);
+
+  // SALES CRM ANALYTICS
+  const globalPipelineStats = useMemo(() => {
+    if (!prospects) return null;
+    
+    const byStage = prospects.reduce((acc, p) => {
+      acc[p.stage] = (acc[p.stage] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    const byRep = prospects.reduce((acc, p) => {
+      const rep = p.assignedRepName || 'Unassigned';
+      if (!acc[rep]) acc[rep] = { count: 0, value: 0 };
+      acc[rep].count += 1;
+      acc[rep].value += (p.launchFeeQuoted || 0);
+      return acc;
+    }, {} as Record<string, { count: number, value: number }>);
+
+    return { byStage, byRep };
+  }, [prospects]);
 
   const form = useForm<SellerFormData>({
     resolver: zodResolver(sellerSchema),
@@ -572,11 +594,13 @@ export default function KOOPAdminPage() {
           <Button variant="ghost" onClick={handleLogout} className="text-[10px] font-black uppercase h-10 px-4 tracking-widest text-muted-foreground hover:text-destructive">
             <LogOut className="mr-2 h-3.5 w-3.5" /> Sign Out
           </Button>
+          <Button variant="outline" asChild className="text-[10px] font-black uppercase h-10 px-4 tracking-widest border-indigo-200 text-indigo-600 hover:bg-indigo-50">
+            <Link href="/sales">
+              <Target className="mr-2 h-3.5 w-3.5" /> My Sales Pipeline
+            </Link>
+          </Button>
           <Button variant="outline" onClick={handleBootstrapNetwork} disabled={isBootstrapping} className="text-[10px] font-black uppercase h-10 px-4 tracking-widest border-indigo-200 text-indigo-600 hover:bg-indigo-50">
             <Zap className={cn("mr-2 h-3.5 w-3.5", isBootstrapping && "animate-spin")} /> Bootstrap Network
-          </Button>
-          <Button variant="outline" onClick={handleSystemReset} disabled={isResetting} className="border-destructive text-destructive hover:bg-destructive/5 text-[10px] font-black uppercase h-10 px-4 tracking-widest">
-            <RefreshCw className={cn("mr-2 h-3.5 w-3.5", isResetting && "animate-spin")} /> Reset Logs
           </Button>
           <Button onClick={handleAddNewSeller} className="h-10 px-6 font-black uppercase text-[10px] tracking-widest">
             <PlusCircle className="mr-2 h-4 w-4" /> Register Venue
@@ -743,14 +767,77 @@ export default function KOOPAdminPage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="growth">
-          <div className="flex flex-col items-center justify-center py-20 bg-white border-2 border-dashed rounded-3xl text-center px-6">
-            <Target className="h-16 w-16 text-indigo-600 mb-6" />
-            <h2 className="font-headline text-2xl font-black uppercase mb-2">Growth CRM</h2>
-            <p className="text-muted-foreground max-w-lg mb-8">Manage the sales pipeline and launch quotes in the Sales Portal.</p>
-            <Button asChild size="lg" className="bg-indigo-600 hover:bg-indigo-700 h-14 px-8 font-black uppercase tracking-widest">
-              <Link href="/sales">Open Sales Portal <ArrowRight className="ml-2 h-5 w-5" /></Link>
-            </Button>
+        <TabsContent value="growth" className="space-y-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <Card className="shadow-md border-2 overflow-hidden">
+              <CardHeader className="bg-indigo-50 border-b">
+                <CardTitle className="text-sm font-black uppercase flex items-center gap-2 text-indigo-700">
+                  <PieChart className="h-4 w-4" /> Pipeline Health
+                </CardTitle>
+                <CardDescription className="text-[10px] uppercase font-bold">Deal distribution across all reps.</CardDescription>
+              </CardHeader>
+              <CardContent className="pt-6">
+                <div className="space-y-4">
+                  {globalPipelineStats ? Object.entries(globalPipelineStats.byStage).map(([stage, count]) => (
+                    <div key={stage} className="space-y-1.5">
+                      <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest">
+                        <span>{stage}</span>
+                        <span className="text-indigo-600">{count} Deals</span>
+                      </div>
+                      <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
+                        <div 
+                          className="h-full bg-indigo-500 rounded-full" 
+                          style={{ width: `${(count / (prospects?.length || 1)) * 100}%` }} 
+                        />
+                      </div>
+                    </div>
+                  )) : <p className="text-xs text-muted-foreground italic">No pipeline data available.</p>}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="shadow-md border-2 overflow-hidden">
+              <CardHeader className="bg-green-50 border-b">
+                <CardTitle className="text-sm font-black uppercase flex items-center gap-2 text-green-700">
+                  <Trophy className="h-4 w-4" /> Rep Performance
+                </CardTitle>
+                <CardDescription className="text-[10px] uppercase font-bold">Active deals and pipeline value by user.</CardDescription>
+              </CardHeader>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/10">
+                      <TableHead className="text-[9px] uppercase font-black">Sales Professional</TableHead>
+                      <TableHead className="text-[9px] uppercase font-black text-center">Deals</TableHead>
+                      <TableHead className="text-[9px] uppercase font-black text-right">Est. Value</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {globalPipelineStats && Object.entries(globalPipelineStats.byRep).map(([repName, stats]) => (
+                      <TableRow key={repName} className="hover:bg-muted/5">
+                        <TableCell className="text-xs font-bold">{repName}</TableCell>
+                        <TableCell className="text-center"><Badge variant="outline" className="text-[10px] font-black">{stats.count}</Badge></TableCell>
+                        <TableCell className="text-right font-mono font-bold text-xs text-green-600">${stats.value.toLocaleString()}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="flex flex-col items-center justify-center py-12 bg-white border-2 border-dashed rounded-3xl text-center px-6">
+            <Target className="h-12 w-12 text-indigo-600 mb-4" />
+            <h2 className="font-headline text-xl font-black uppercase mb-2">Detailed CRM Access</h2>
+            <p className="text-muted-foreground max-w-lg mb-8 text-sm">Open the full Sales Portal to manage specific prospects, log interactions, and generate proposals.</p>
+            <div className="flex flex-wrap gap-4 justify-center">
+              <Button asChild variant="outline" className="h-12 px-8 font-black uppercase tracking-widest text-xs border-indigo-200 text-indigo-600">
+                <Link href="/sales/dashboard">Open Sales Hub</Link>
+              </Button>
+              <Button asChild className="bg-indigo-600 hover:bg-indigo-700 h-12 px-8 font-black uppercase tracking-widest text-xs">
+                <Link href="/sales">Launch CRM Portal <ArrowRight className="ml-2 h-4 w-4" /></Link>
+              </Button>
+            </div>
           </div>
         </TabsContent>
 
