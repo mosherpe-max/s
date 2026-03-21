@@ -193,6 +193,7 @@ export default function HomePage() {
           content: '';
           position: absolute; top: 0; left: 0; right: 0; bottom: 0;
           opacity: 0; transition: opacity 0.4s;
+          pointer-events: none;
         }
         .venue-card.golf::before  { background: radial-gradient(ellipse at 30% 30%, rgba(229,0,0,0.08), transparent 60%); }
         .venue-card.bowling::before { background: radial-gradient(ellipse at 70% 30%, rgba(229,0,0,0.08), transparent 60%); }
@@ -238,6 +239,8 @@ export default function HomePage() {
           display: flex;
           flex-direction: column;
           gap: 12px;
+          position: relative;
+          z-index: 5;
         }
         .venue-actions .btn-primary, .venue-actions .btn-secondary {
           width: 100%;
