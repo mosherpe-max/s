@@ -20,22 +20,68 @@ import {
   Download,
   Share2,
   Briefcase,
-  PlayCircle
+  PlayCircle,
+  Truck,
+  Users,
+  QrCode
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
+import Image from 'next/image';
 import { cn } from '@/lib/utils';
 
 export default function SalesDashboardPage() {
   const [isMounted, setIsMounted] = useState(false);
+  const [baseUrl, setBaseUrl] = useState('');
 
   useEffect(() => {
     setIsMounted(true);
+    setBaseUrl(window.location.origin);
   }, []);
 
   if (!isMounted) return null;
+
+  const demoVenues = [
+    {
+      id: 'demo-course',
+      title: 'Public Golf Menu',
+      sub: 'Beverage Cart & Clubhouse',
+      type: 'On-Course Ordering',
+      gradient: 'from-indigo-500 to-blue-600',
+      icon: <Globe className="text-white/20 h-16 w-16 absolute -right-2 -top-2" />,
+      buyerUrl: '/sellers/demo-course/order?menuType=Beverage Cart',
+      staffViews: [
+        { label: 'BevCart Driver', url: '/sellers/demo-course/bevcart', icon: <Truck className="h-3.5 w-3.5" /> },
+        { label: 'Clubhouse Staff', url: '/sellers/demo-course/clubhouse', icon: <LayoutDashboard className="h-3.5 w-3.5" /> }
+      ]
+    },
+    {
+      id: 'demo-private-course',
+      title: 'Private Golf Menu',
+      sub: 'Member-Only Clubhouse',
+      type: 'Private Experience',
+      gradient: 'from-[#213147] to-slate-700',
+      icon: <Lock className="text-white/20 h-16 w-16 absolute -right-2 -top-2" />,
+      buyerUrl: '/sellers/demo-private-course/order?menuType=Clubhouse',
+      staffViews: [
+        { label: 'Clubhouse Staff', url: '/sellers/demo-private-course/clubhouse', icon: <LayoutDashboard className="h-3.5 w-3.5" /> }
+      ]
+    },
+    {
+      id: 'demo-bowling-alley',
+      title: 'Bowling Alley',
+      sub: 'In-Game Food & Drinks',
+      type: 'Laneside Service',
+      gradient: 'from-pink-600 to-rose-500',
+      icon: <Smartphone className="text-white/20 h-16 w-16 absolute -right-2 -top-2" />,
+      buyerUrl: '/sellers/demo-bowling-alley/order?menuType=Lane Delivery',
+      staffViews: [
+        { label: 'Laneside Server', url: '/sellers/demo-bowling-alley/laneside', icon: <Users className="h-3.5 w-3.5" /> }
+      ]
+    }
+  ];
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-7xl pb-24">
@@ -69,59 +115,65 @@ export default function SalesDashboardPage() {
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <Card className="group hover:border-indigo-500 transition-all border-2 shadow-sm overflow-hidden">
-              <div className="h-24 bg-gradient-to-br from-indigo-500 to-blue-600 p-6 flex items-end">
-                <Globe className="text-white/20 h-16 w-16 absolute -right-2 -top-2" />
-                <Badge className="bg-white/20 text-white border-white/30 backdrop-blur-md uppercase text-[9px] font-black">On-Course Ordering</Badge>
-              </div>
-              <CardHeader className="pt-4">
-                <CardTitle className="text-lg font-black uppercase">Public Golf Menu</CardTitle>
-                <CardDescription className="text-xs">Beverage Cart & Clubhouse</CardDescription>
-              </CardHeader>
-              <CardFooter className="pt-0">
-                <Button asChild variant="outline" className="w-full justify-between group-hover:bg-indigo-50 transition-colors">
-                  <Link href="/sellers/demo-course/order?menuType=Beverage Cart">
-                    Launch Demo <PlayCircle className="h-4 w-4" />
-                  </Link>
-                </Button>
-              </CardFooter>
-            </Card>
+            {demoVenues.map((venue) => (
+              <Card key={venue.id} className="group hover:border-indigo-500 transition-all border-2 shadow-sm overflow-hidden flex flex-col h-full">
+                <div className={cn("h-24 bg-gradient-to-br p-6 flex items-end relative", venue.gradient)}>
+                  {venue.icon}
+                  <Badge className="bg-white/20 text-white border-white/30 backdrop-blur-md uppercase text-[9px] font-black">{venue.type}</Badge>
+                </div>
+                <CardHeader className="pt-4 space-y-1">
+                  <CardTitle className="text-lg font-black uppercase">{venue.title}</CardTitle>
+                  <CardDescription className="text-xs">{venue.sub}</CardDescription>
+                </CardHeader>
+                <CardContent className="flex-1 space-y-6">
+                  <div className="flex items-center gap-4 bg-muted/30 p-3 rounded-xl border border-dashed">
+                    <div className="bg-white p-1 rounded-lg border-2 shadow-sm">
+                      <Image 
+                        src={`https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${baseUrl}${venue.buyerUrl}`}
+                        alt="Menu QR"
+                        width={60}
+                        height={60}
+                        className="rounded-sm"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
+                        <QrCode className="h-2.5 w-2.5" /> Scan to Preview
+                      </p>
+                      <p className="text-[10px] font-bold text-slate-600 leading-tight">Live Mobile Order Interface</p>
+                    </div>
+                  </div>
 
-            <Card className="group hover:border-indigo-500 transition-all border-2 shadow-sm overflow-hidden">
-              <div className="h-24 bg-gradient-to-br from-[#213147] to-slate-700 p-6 flex items-end">
-                <Lock className="text-white/20 h-16 w-16 absolute -right-2 -top-2" />
-                <Badge className="bg-white/20 text-white border-white/30 backdrop-blur-md uppercase text-[9px] font-black">Private Experience</Badge>
-              </div>
-              <CardHeader className="pt-4">
-                <CardTitle className="text-lg font-black uppercase">Private Golf Menu</CardTitle>
-                <CardDescription className="text-xs">Member-Only Clubhouse</CardDescription>
-              </CardHeader>
-              <CardFooter className="pt-0">
-                <Button asChild variant="outline" className="w-full justify-between group-hover:bg-indigo-50 transition-colors">
-                  <Link href="/sellers/demo-private-course/order?menuType=Clubhouse">
-                    Launch Demo <PlayCircle className="h-4 w-4" />
-                  </Link>
-                </Button>
-              </CardFooter>
-            </Card>
-
-            <Card className="group hover:border-indigo-500 transition-all border-2 shadow-sm overflow-hidden">
-              <div className="h-24 bg-gradient-to-br from-pink-600 to-rose-500 p-6 flex items-end">
-                <Smartphone className="text-white/20 h-16 w-16 absolute -right-2 -top-2" />
-                <Badge className="bg-white/20 text-white border-white/30 backdrop-blur-md uppercase text-[9px] font-black">Laneside Service</Badge>
-              </div>
-              <CardHeader className="pt-4">
-                <CardTitle className="text-lg font-black uppercase">Bowling Alley</CardTitle>
-                <CardDescription className="text-xs">In-Game Food & Drinks</CardDescription>
-              </CardHeader>
-              <CardFooter className="pt-0">
-                <Button asChild variant="outline" className="w-full justify-between group-hover:bg-indigo-50 transition-colors">
-                  <Link href="/sellers/demo-bowling-alley/order?menuType=Lane Delivery">
-                    Launch Demo <PlayCircle className="h-4 w-4" />
-                  </Link>
-                </Button>
-              </CardFooter>
-            </Card>
+                  <div className="space-y-3">
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground px-1">Staff Impersonation</p>
+                    <div className="grid grid-cols-1 gap-2">
+                      {venue.staffViews.map((view) => (
+                        <Button 
+                          key={view.url}
+                          variant="outline" 
+                          size="sm" 
+                          asChild
+                          className="h-9 justify-start text-[10px] font-black uppercase tracking-widest border-indigo-100 text-indigo-600 hover:bg-indigo-50"
+                        >
+                          <Link href={view.url}>
+                            {view.icon}
+                            <span className="ml-2">{view.label}</span>
+                            <ExternalLink className="ml-auto h-3 w-3 opacity-30" />
+                          </Link>
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                </CardContent>
+                <CardFooter className="pt-4 border-t bg-muted/5">
+                  <Button asChild className="w-full justify-between h-11 bg-[#213147] hover:bg-black font-black uppercase tracking-widest text-[10px]">
+                    <Link href={venue.buyerUrl}>
+                      Launch Patron Menu <PlayCircle className="h-4 w-4" />
+                    </Link>
+                  </Button>
+                </CardFooter>
+              </Card>
+            ))}
           </div>
         </section>
 
