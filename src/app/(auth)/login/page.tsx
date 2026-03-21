@@ -225,7 +225,7 @@ export default function LoginPage() {
                       placeholder="admin@kooporders.com" 
                       className="pl-10 h-11 border-2 font-bold"
                       value={email}
-                      onChange={(e) => setEmail(target.value)}
+                      onChange={(e) => setEmail(e.target.value)}
                       required
                     />
                   </div>
@@ -240,7 +240,7 @@ export default function LoginPage() {
                       placeholder="••••••••"
                       className="pl-10 h-11 border-2 font-bold"
                       value={password}
-                      onChange={(e) => setPassword(target.value)}
+                      onChange={(e) => setPassword(e.target.value)}
                       required
                     />
                   </div>
