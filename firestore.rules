@@ -16,7 +16,8 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      // Prioritize UID check for immediate Super Admin bypass
+      // Priority 1: Direct UID match for Super Admin
+      // Priority 2: Registry lookup for Platform Admins
       return isSignedIn() && (
         request.auth.uid == 'o9vAQy0aFRPSNPoG0ETvjiGt9If1' ||
         exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid))
@@ -32,10 +33,11 @@ service cloud.firestore {
     }
 
     function isSellerAdmin(sellerId) {
-      return isSignedIn() && (
-        exists(/databases/$(database)/documents/roles_seller_admin/$(request.auth.token.email)) &&
-        get(/databases/$(database)/documents/roles_seller_admin/$(request.auth.token.email)).data.sellerId == sellerId
-      );
+      // Defensive check for email and document existence
+      return isSignedIn() && 
+             request.auth.token.email != null &&
+             exists(/databases/$(database)/documents/roles_seller_admin/$(request.auth.token.email.lower())) &&
+             get(/databases/$(database)/documents/roles_seller_admin/$(request.auth.token.email.lower())).data.sellerId == sellerId;
     }
 
     function isOrderParticipant(data) {
@@ -71,7 +73,8 @@ service cloud.firestore {
       allow delete: if isAdmin();
 
       match /staff/{staffId} {
-        // Admin/SellerAdmin can list all staff. Public list is restricted.
+        // Admin/SellerAdmin can list all staff.
+        // We allow the list operation if the parent check passes.
         allow list: if isAdmin() || isSellerAdmin(sellerId); 
         // Get is allowed for PIN lookup logic in login portal
         allow get: if true; 
