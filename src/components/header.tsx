@@ -101,6 +101,7 @@ export function AppHeader() {
   };
 
   const isSuperAdmin = user?.uid === SUPER_ADMIN_ID;
+  const isHomePage = pathname === '/';
 
   const sellerId = useMemo(() => {
     if (pathname) {
@@ -146,6 +147,21 @@ export function AppHeader() {
     const labelClass = mobile
       ? "text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground mt-6 mb-2 px-4"
       : "text-[10px] font-bold uppercase tracking-widest text-muted-foreground";
+
+    const homeLinkClass = mobile
+      ? "flex items-center gap-3 py-4 px-6 text-sm font-black uppercase tracking-widest border-b hover:bg-muted/50 transition-colors"
+      : "text-[11px] font-black uppercase tracking-[0.15em] text-white/80 hover:text-white transition-colors mx-4";
+
+    if (isHomePage) {
+      return (
+        <div className={mobile ? "flex flex-col py-2" : "flex items-center"}>
+          <a href="#venues" onClick={() => setIsMobileMenuOpen(false)} className={homeLinkClass}>Venues</a>
+          <a href="#how" onClick={() => setIsMobileMenuOpen(false)} className={homeLinkClass}>How It Works</a>
+          <a href="#why" onClick={() => setIsMobileMenuOpen(false)} className={homeLinkClass}>Why Koop</a>
+          <a href="#pricing" onClick={() => setIsMobileMenuOpen(false)} className={homeLinkClass}>Pricing</a>
+        </div>
+      );
+    }
 
     return (
       <div className={mobile ? "flex flex-col pb-10" : "flex items-center gap-1"}>
@@ -279,6 +295,12 @@ export function AppHeader() {
             </div>
           )}
         </div>
+
+        {isMounted && isHomePage && (
+          <div className="hidden lg:flex flex-1 justify-center">
+            <NavigationLinks />
+          </div>
+        )}
         
         <div className="flex items-center gap-2 sm:gap-3 shrink-0">
           {isMounted && isBuyerView && !isTrackingPage && (
@@ -302,7 +324,13 @@ export function AppHeader() {
             </Button>
           )}
 
-          {isMounted && (
+          {isMounted && isHomePage && (
+            <Button asChild className="h-9 px-6 font-headline font-black uppercase text-[11px] tracking-widest bg-[#E50000] hover:bg-[#c40000] text-white rounded-full transition-all shadow-lg">
+              <Link href="/login">LOGIN</Link>
+            </Button>
+          )}
+
+          {isMounted && !isHomePage && (
             <div className="hidden lg:flex items-center gap-2">
               <NavigationLinks />
               <DropdownMenu>
@@ -353,15 +381,17 @@ export function AppHeader() {
                   </SheetHeader>
                   <ScrollArea className="h-[calc(100vh-160px)]">
                     <NavigationLinks mobile />
-                    <div className="p-4 border-t mt-4">
-                      <Link href="/login" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-3 py-3 px-4 bg-muted/50 rounded-xl">
-                        <UserIcon className="h-5 w-5 text-primary" />
-                        <div className="flex flex-col">
-                          <span className="font-black text-xs uppercase tracking-widest">{user ? 'Account Settings' : 'Authentication'}</span>
-                          <span className="text-[10px] text-muted-foreground truncate max-w-[180px]">{user?.email || 'Guest Session'}</span>
-                        </div>
-                      </Link>
-                    </div>
+                    {!isHomePage && (
+                      <div className="p-4 border-t mt-4">
+                        <Link href="/login" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-3 py-3 px-4 bg-muted/50 rounded-xl">
+                          <UserIcon className="h-5 w-5 text-primary" />
+                          <div className="flex flex-col">
+                            <span className="font-black text-xs uppercase tracking-widest">{user ? 'Account Settings' : 'Authentication'}</span>
+                            <span className="text-[10px] text-muted-foreground truncate max-w-[180px]">{user?.email || 'Guest Session'}</span>
+                          </div>
+                        </Link>
+                      </div>
+                    )}
                   </ScrollArea>
                 </SheetContent>
               </Sheet>
