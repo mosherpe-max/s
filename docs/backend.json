@@ -103,6 +103,20 @@
         "updatedAt"
       ]
     },
+    "StaffMember": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "StaffMember",
+      "type": "object",
+      "description": "A venue-level employee (driver or server) with PIN access to dashboards.",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "role": { "type": "string", "enum": ["Driver", "Server", "Manager"] },
+        "pin": { "type": "string", "description": "4-digit numeric access code" },
+        "isActive": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
     "SellerPrivateConfig": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "SellerPrivateConfig",
@@ -233,6 +247,16 @@
             "$ref": "#/backend/entities/Seller"
           },
           "description": "Stores core seller profiles. Publicly readable for maps and discovery."
+        }
+      },
+      {
+        "path": "/sellers/{sellerId}/staff/{staffId}",
+        "definition": {
+          "entityName": "StaffMember",
+          "schema": {
+            "$ref": "#/backend/entities/StaffMember"
+          },
+          "description": "Local staff roster for a venue."
         }
       },
       {

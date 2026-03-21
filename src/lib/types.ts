@@ -1,3 +1,4 @@
+
 import { Timestamp } from "firebase/firestore";
 
 export type SellerType = 'Private Golf Course' | 'Semi Private Golf Course' | 'Public Golf Course' | 'Bowling Alley' | 'Brewery' | 'Restaurant';
@@ -23,6 +24,15 @@ export interface ModifierGroup {
   minSelection: number;
   maxSelection: number;
   options: ModifierOption[];
+}
+
+export interface StaffMember {
+  id: string;
+  name: string;
+  role: 'Driver' | 'Server' | 'Manager';
+  pin: string;
+  isActive: boolean;
+  createdAt: Timestamp;
 }
 
 export interface Seller {

@@ -1,7 +1,8 @@
+
 'use client';
 
 import React, { useState, useMemo, useEffect, use, useRef } from 'react';
-import { collection, doc, setDoc, deleteDoc, writeBatch, query, where, updateDoc } from 'firebase/firestore';
+import { collection, doc, setDoc, deleteDoc, writeBatch, query, where, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { useFirestore, useDoc, useCollection, useMemoFirebase, useUser, useAuth } from '@/firebase';
 import { signOut } from 'firebase/auth';
 import { Button } from '@/components/ui/button';
@@ -54,7 +55,11 @@ import {
   XCircle,
   Calendar,
   Settings,
-  Bell
+  Bell,
+  Smartphone,
+  KeyRound,
+  ShieldCheck,
+  UserPlus
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -88,11 +93,20 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { DateRange } from "react-day-picker";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
-import type { MenuItem, Seller, Category, Order, Member, SellerType, ModifierGroup, ModifierOption } from '@/lib/types';
+import type { MenuItem, Seller, Category, Order, Member, SellerType, ModifierGroup, ModifierOption, StaffMember } from '@/lib/types';
 import { categories } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
+
+const staffSchema = z.object({
+  name: z.string().min(2, 'Name required'),
+  role: z.enum(['Driver', 'Server', 'Manager']),
+  pin: z.string().length(4, 'PIN must be 4 digits').regex(/^\d+$/, 'Numbers only'),
+  isActive: z.boolean().default(true),
+});
+
+type StaffFormData = z.infer<typeof staffSchema>;
 
 const modifierOptionSchema = z.object({
   id: z.string(),
@@ -354,9 +368,20 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   });
 
   const [isSavingThresholds, setIsSavingThresholds] = useState(false);
+  const [isStaffFormOpen, setIsStaffFormOpen] = useState(false);
+  const [editingStaff, setEditingStaff] = useState<StaffMember | null>(null);
 
-  // AUTHORIZATION GATE: GOD-MODE CHECK
+  // AUTHORIZATION GATE
   const isSuperAdmin = user?.uid === SUPER_ADMIN_ID;
+
+  const roleRef = useMemoFirebase(() => {
+    if (!firestore || !user) return null;
+    return doc(firestore, 'roles_seller_admin', user.email || '');
+  }, [firestore, user]);
+  const { data: sellerRole } = useDoc(roleRef);
+
+  const isVenueAdmin = sellerRole?.sellerId === sellerId;
+  const hasAccess = isSuperAdmin || isVenueAdmin;
 
   useEffect(() => {
     setIsMounted(true);
@@ -407,11 +432,56 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     }
   }, [seller, selectedOpsMenu]);
 
-  const menuItemsQuery = useMemoFirebase(() => (firestore && isSuperAdmin ? collection(firestore, 'sellers', sellerId, 'menuItems') : null), [firestore, sellerId, isSuperAdmin]);
+  const menuItemsQuery = useMemoFirebase(() => (firestore && hasAccess ? collection(firestore, 'sellers', sellerId, 'menuItems') : null), [firestore, sellerId, hasAccess]);
   const { data: menuItems, isLoading: areItemsLoading } = useCollection<MenuItem>(menuItemsQuery);
 
-  const ordersQuery = useMemoFirebase(() => (firestore && isSuperAdmin ? query(collection(firestore, 'orders'), where('sellerId', '==', sellerId)) : null), [firestore, sellerId, isSuperAdmin]);
+  const ordersQuery = useMemoFirebase(() => (firestore && hasAccess ? query(collection(firestore, 'orders'), where('sellerId', '==', sellerId)) : null), [firestore, sellerId, hasAccess]);
   const { data: orders, isLoading: areOrdersLoading } = useCollection<Order>(ordersQuery);
+
+  const staffQuery = useMemoFirebase(() => (firestore && hasAccess ? collection(firestore, 'sellers', sellerId, 'staff') : null), [firestore, sellerId, hasAccess]);
+  const { data: staff, isLoading: isStaffLoading } = useCollection<StaffMember>(staffQuery);
+
+  const staffForm = useForm<StaffFormData>({
+    resolver: zodResolver(staffSchema),
+    defaultValues: {
+      name: '',
+      role: 'Driver',
+      pin: '',
+      isActive: true,
+    },
+  });
+
+  const onSaveStaff = async (data: StaffFormData) => {
+    if (!firestore || !hasAccess) return;
+    const staffId = editingStaff ? editingStaff.id : Math.random().toString(36).substr(2, 9);
+    const staffRef = doc(firestore, 'sellers', sellerId, 'staff', staffId);
+    
+    await setDoc(staffRef, {
+      ...data,
+      id: staffId,
+      createdAt: editingStaff?.createdAt || serverTimestamp(),
+    }, { merge: true });
+
+    toast({ title: editingStaff ? 'Staff Updated' : 'Staff Created' });
+    setIsStaffFormOpen(false);
+    setEditingStaff(null);
+    staffForm.reset();
+  };
+
+  const handleRemoveStaff = async (id: string) => {
+    if (!firestore || !hasAccess) return;
+    await deleteDoc(doc(firestore, 'sellers', sellerId, 'staff', id));
+    toast({ title: 'Staff Member Removed' });
+  };
+
+  const handleInitializeDevice = () => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('koop_venue_id', sellerId);
+      localStorage.setItem('koop_venue_name', seller?.courseName || 'This Venue');
+      router.push(`/sellers/${sellerId}/staff-login`);
+      toast({ title: "Device Initialized", description: "This browser is now locked to staff login mode." });
+    }
+  };
 
   const activeOrders = useMemo(() => {
     return orders?.filter(o => ['Placed', 'Preparing', 'Out for Delivery'].includes(o.status)) || [];
@@ -532,14 +602,14 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   };
 
   const handleSaveMasterItem = (data: MenuItemFormData) => {
-    if (!firestore || !isSuperAdmin) return;
+    if (!firestore || !hasAccess) return;
     const itemRef = editingItem ? doc(firestore, 'sellers', sellerId, 'menuItems', editingItem.id) : doc(collection(firestore, 'sellers', sellerId, 'menuItems'));
     setDoc(itemRef, { ...data, id: itemRef.id, rank: editingItem?.rank || (menuItems?.length || 0) + 1 }, { merge: true });
     setEditingItem(null); setIsMasterFormOpen(false);
   };
 
   const handleDeleteLibraryItem = (itemId: string) => {
-    if (!firestore || !isSuperAdmin) return;
+    if (!firestore || !hasAccess) return;
     const itemRef = doc(firestore, 'sellers', sellerId, 'menuItems', itemId);
     
     deleteDoc(itemRef)
@@ -555,7 +625,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   };
 
   const handleToggleCategoryModifier = (menuType: string, category: Category) => {
-    if (!firestore || !seller || !isSuperAdmin) return;
+    if (!firestore || !seller || !hasAccess) return;
     const currentEnabled = seller.categoryModifierEnabled?.[menuType] || [];
     const isEnabled = currentEnabled.includes(category);
     const nextEnabled = isEnabled ? currentEnabled.filter(c => c !== category) : [...currentEnabled, category];
@@ -566,7 +636,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   };
 
   const handleToggleMenuItemAvailability = (item: MenuItem, menuType: string) => {
-    if (!firestore || !isSuperAdmin) return;
+    if (!firestore || !hasAccess) return;
     const itemRef = doc(firestore, 'sellers', sellerId, 'menuItems', item.id);
     const availableOn = item.availableOn || [];
     const nextAvailableOn = availableOn.includes(menuType)
@@ -577,7 +647,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   };
 
   const handleUpdateThreshold = async (menuType: string, field: 'warning' | 'max', value: string) => {
-    if (!firestore || !seller || !isSuperAdmin) return;
+    if (!firestore || !seller || !hasAccess) return;
     const val = parseInt(value) || 0;
     const currentThresholds = seller.orderThresholds || {};
     const menuThresholds = currentThresholds[menuType] || { warning: 7, max: 10 };
@@ -627,7 +697,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     );
   }
 
-  if (!isSuperAdmin) {
+  if (!hasAccess) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-4rem)] p-4 text-center">
         <div className="p-6 bg-red-50 border-2 border-red-100 rounded-[2.5rem] shadow-xl max-w-md w-full space-y-6">
@@ -635,11 +705,11 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
             <Lock className="h-12 w-12 text-red-600" />
           </div>
           <div className="space-y-2">
-            <h2 className="font-headline text-2xl font-black uppercase tracking-tight text-[#213147]">SELLER ADMIN ACCESS RESTRICTED</h2>
-            <p className="text-sm text-muted-foreground font-medium">You must be logged in as a Super Admin to manage venue settings, library, and sales data.</p>
+            <h2 className="font-headline text-2xl font-black uppercase tracking-tight text-[#213147]">ACCESS RESTRICTED</h2>
+            <p className="text-sm text-muted-foreground font-medium">You must be authorized as a Seller Admin or Super Admin to manage this venue.</p>
           </div>
           <Button asChild className="w-full h-12 bg-[#213147] hover:bg-black font-bold uppercase tracking-widest">
-            <Link href="/login">Authenticate as Admin</Link>
+            <Link href="/login">Authenticate</Link>
           </Button>
         </div>
       </div>
@@ -651,17 +721,13 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
       <div className="container mx-auto px-4 py-8 max-w-7xl flex-1">
         <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 text-center md:text-left">
           <div className="flex-1">
-            <h1 className="font-headline text-3xl font-bold text-foreground uppercase tracking-tight">SELLER ADMIN</h1>
+            <h1 className="font-headline text-3xl font-bold text-foreground uppercase tracking-tight">ESTABLISHMENT ADMIN</h1>
             <p className="text-muted-foreground">{isSellerLoading ? 'Loading...' : seller?.courseName}</p>
           </div>
           <div className="flex items-center gap-3 self-center md:self-auto">
              <Button variant="ghost" onClick={handleLogout} className="h-9 text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-destructive hover:bg-destructive/5 mr-2">
                 <LogOut className="mr-2 h-4 w-4" /> Sign Out
              </Button>
-             <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} className="bg-background">
-                <FileSpreadsheet className="mr-2 h-4 w-4" /> Import Excel
-             </Button>
-             <input type="file" ref={fileInputRef} className="hidden" />
              <Button variant="outline" size="sm" className="bg-background"><Sparkles className="mr-2 h-4 w-4" /> Reset Demo</Button>
           </div>
         </header>
@@ -669,6 +735,9 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
         <nav className="sticky top-16 z-30 bg-background/95 backdrop-blur-md border-y mb-8 -mx-4 px-4 py-3 flex items-center justify-center sm:justify-start gap-2 overflow-x-auto shadow-sm">
           <Button variant="ghost" size="sm" onClick={() => scrollToSection('ops-monitor')} className="h-8 text-[10px] font-bold uppercase tracking-widest px-3 rounded-full hover:bg-primary/10">
             <Activity className="mr-1.5 h-3.5 w-3.5" /> Live Queue
+          </Button>
+          <Button variant="ghost" size="sm" onClick={() => scrollToSection('staff-management')} className="h-8 text-[10px] font-bold uppercase tracking-widest px-3 rounded-full hover:bg-primary/10">
+            <Users className="mr-1.5 h-3.5 w-3.5" /> Staff Registry
           </Button>
           <Button variant="ghost" size="sm" onClick={() => scrollToSection('sales-stats')} className="h-8 text-[10px] font-bold uppercase tracking-widest px-3 rounded-full hover:bg-primary/10">
             <BarChart3 className="mr-1.5 h-3.5 w-3.5" /> Sales Stats
@@ -764,13 +833,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                           <div className="text-[9px] text-muted-foreground font-medium truncate">
                             {order.items.map(i => `${i.quantity}x ${i.name}`).join(', ')}
                           </div>
-                          {order.items.some(i => i.selectedModifiers) && (
-                            <div className="flex flex-wrap gap-1">
-                              {order.items.flatMap(i => Object.values(i.selectedModifiers || {}).flat()).map((m, mIdx) => (
-                                <span key={`${order.id}-${mIdx}`} className="text-[7px] font-bold bg-primary/5 text-primary px-1 rounded uppercase">+ {m.name}</span>
-                              ))}
-                            </div>
-                          )}
                         </div>
                       ))
                     )}
@@ -779,6 +841,61 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
               </CardContent>
             </Card>
           </div>
+        </section>
+
+        <section id="staff-management" className="mb-12 scroll-mt-32">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+            <h2 className="font-headline text-xl font-bold flex items-center gap-2 text-primary uppercase tracking-wider"><Users className="h-6 w-6" /> Staff Registry</h2>
+            <div className="flex items-center gap-3">
+              <Button variant="outline" onClick={handleInitializeDevice} className="gap-2 font-black uppercase text-[10px] tracking-widest h-10 border-indigo-200 text-indigo-600 hover:bg-indigo-50">
+                <Smartphone className="h-4 w-4" /> Initialize This Device
+              </Button>
+              <Button onClick={() => { setEditingStaff(null); staffForm.reset(); setIsStaffFormOpen(true); }} className="gap-2 font-black uppercase text-[10px] tracking-widest h-10 shadow-lg">
+                <UserPlus className="h-4 w-4" /> Add Staff Member
+              </Button>
+            </div>
+          </div>
+
+          <Card className="shadow-lg border-2 overflow-hidden">
+            <Table>
+              <TableHeader className="bg-muted/30">
+                <TableRow>
+                  <TableHead className="text-[10px] font-black uppercase">Staff Member</TableHead>
+                  <TableHead className="text-[10px] font-black uppercase">Service Role</TableHead>
+                  <TableHead className="text-[10px] font-black uppercase text-center">4-Digit PIN</TableHead>
+                  <TableHead className="text-[10px] font-black uppercase text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {isStaffLoading ? (
+                  [...Array(3)].map((_, i) => <TableRow key={i}><TableCell colSpan={4}><Skeleton className="h-12 w-full" /></TableCell></TableRow>)
+                ) : staff?.length === 0 ? (
+                  <TableRow><TableCell colSpan={4} className="text-center py-20 text-muted-foreground italic text-sm">No staff members registered. Add your first driver or server above.</TableCell></TableRow>
+                ) : staff?.map((member) => (
+                  <TableRow key={member.id} className="hover:bg-muted/5 group">
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <div className={cn("h-8 w-8 rounded-lg flex items-center justify-center", member.role === 'Driver' ? 'bg-indigo-50 text-indigo-600' : 'bg-green-50 text-green-600')}>
+                          {member.role === 'Driver' ? <Truck className="h-4 w-4" /> : <Utensils className="h-4 w-4" />}
+                        </div>
+                        <span className="font-bold text-sm">{member.name}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell><Badge variant="secondary" className="text-[8px] font-black uppercase">{member.role}</Badge></TableCell>
+                    <TableCell className="text-center">
+                      <code className="text-xs font-mono font-black bg-muted px-2 py-1 rounded border tracking-widest">****</code>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Button variant="ghost" size="icon" onClick={() => { setEditingStaff(member); staffForm.reset(member); setIsStaffFormOpen(true); }} className="h-8 w-8"><Edit className="h-4 w-4" /></Button>
+                        <Button variant="ghost" size="icon" onClick={() => handleRemoveStaff(member.id)} className="h-8 w-8 text-destructive"><Trash2 className="h-4 w-4" /></Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </Card>
         </section>
 
         <section id="sales-stats" className="mb-12 scroll-mt-32">
@@ -1039,12 +1156,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                     </div>
                   );
                 })}
-                <div className="p-4 bg-primary/5 rounded-lg flex items-start gap-3">
-                  <Info className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-                  <p className="text-xs text-muted-foreground leading-relaxed">
-                    These timers start from the moment an order is <strong>Placed</strong>. Warning levels trigger a yellow indicator on driver/server maps and cards. Max levels trigger a red alert and an urgent system notification.
-                  </p>
-                </div>
               </CardContent>
             </Card>
 
@@ -1078,7 +1189,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                         <div className="p-6 bg-muted rounded-full inline-block">
                           <QrCode className="h-16 w-16 opacity-10" />
                         </div>
-                        <p className="text-xs text-muted-foreground italic px-8">No QR code generated for this venue yet. Please contact KOOP Admin or initialize via settings.</p>
+                        <p className="text-xs text-muted-foreground italic px-8">No QR code generated for this venue yet.</p>
                       </div>
                     )}
                   </div>
@@ -1087,7 +1198,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                     <div className="space-y-2">
                       <h3 className="font-headline text-xl font-bold text-[#213147]">High-Resolution QR Assets</h3>
                       <p className="text-muted-foreground text-sm leading-relaxed">
-                        Download your venue's unique QR code for use on on-course signage, cart placards, menu boards, or table tents. This code points to your live digital ordering platform.
+                        Download your venue's unique QR code for use on on-course signage, cart placards, menu boards, or table tents.
                       </p>
                     </div>
 
@@ -1118,6 +1229,35 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
             </Card>
           </div>
         </section>
+
+        <Dialog open={isStaffFormOpen} onOpenChange={setIsStaffFormOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="font-headline uppercase text-primary">{editingStaff ? 'Update Staff Member' : 'Add Staff Member'}</DialogTitle>
+              <DialogDescription>Assign a 4-digit PIN for device login.</DialogDescription>
+            </DialogHeader>
+            <Form {...staffForm}>
+              <form onSubmit={staffForm.handleSubmit(onSaveStaff)} className="space-y-4 pt-4">
+                <FormField control={staffForm.control} name="name" render={({ field }) => (
+                  <FormItem><FormLabel className="text-[10px] font-black uppercase">Staff Name</FormLabel><FormControl><Input {...field} placeholder="e.g. Sarah J." /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={staffForm.control} name="role" render={({ field }) => (
+                  <FormItem><FormLabel className="text-[10px] font-black uppercase">Service Role</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="Driver">Driver (BevCart/Mobile)</SelectItem><SelectItem value="Server">Server (Clubhouse/Laneside)</SelectItem><SelectItem value="Manager">Venue Manager</SelectItem></SelectContent></Select></FormItem>
+                )} />
+                <FormField control={staffForm.control} name="pin" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-[10px] font-black uppercase">4-Digit Access PIN</FormLabel>
+                    <FormControl><Input {...field} maxLength={4} placeholder="1234" className="font-mono font-black tracking-widest text-center text-lg" /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+                <DialogFooter className="pt-4">
+                  <Button type="submit" className="w-full font-black uppercase tracking-widest">{editingStaff ? 'Save Changes' : 'Create Staff Member'}</Button>
+                </DialogFooter>
+              </form>
+            </Form>
+          </DialogContent>
+        </Dialog>
 
         <Dialog open={isMasterFormOpen} onOpenChange={setIsMasterFormOpen}>
           <DialogContent className="sm:max-w-[600px] w-[95vw] p-0 overflow-hidden">
@@ -1206,17 +1346,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                             </div>
                           </div>
                         </div>
-                        
-                        {item.availableOn && item.availableOn.length > 0 && !isSelected && (
-                          <div className="flex flex-col items-end gap-1">
-                            <span className="text-[8px] font-black uppercase text-muted-foreground/60 tracking-tighter">Also Active On:</span>
-                            <div className="flex gap-1">
-                              {item.availableOn.map(t => (
-                                <div key={t} className="w-2 h-2 rounded-full bg-indigo-400/40" title={t} />
-                              ))}
-                            </div>
-                          </div>
-                        )}
                       </div>
                     );
                   })
@@ -1240,11 +1369,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
             </DialogHeader>
             <ScrollArea className="flex-1 px-6 py-4">
               <div className="grid grid-cols-1 gap-4 pb-8">
-                <div className="grid grid-cols-12 gap-2 px-4 py-2 bg-muted/30 rounded-lg text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                  <div className="col-span-6">Category Name</div>
-                  <div className="col-span-3 text-center">Modifiers</div>
-                  <div className="col-span-3 text-center">Pictures</div>
-                </div>
                 {getCategoriesForMenu(configMenuType).map(category => {
                   const isVisible = seller?.categoryVisibility?.[configMenuType]?.includes(category);
                   const showImages = seller?.categoryImageVisibility?.[configMenuType]?.includes(category);

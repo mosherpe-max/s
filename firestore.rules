@@ -22,6 +22,13 @@ service cloud.firestore {
       return resource != null && isOwner(userId);
     }
 
+    function isSellerAdmin(sellerId) {
+      return isSignedIn() && (
+        exists(/databases/$(database)/documents/roles_seller_admin/$(request.auth.token.email)) &&
+        get(/databases/$(database)/documents/roles_seller_admin/$(request.auth.token.email)).data.sellerId == sellerId
+      );
+    }
+
     function isAdmin() {
       return isSignedIn() && (
         exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid)) ||
@@ -58,24 +65,29 @@ service cloud.firestore {
     match /sellers/{sellerId} {
       allow get, list: if true; // Publicly accessible for discovery
       allow create: if isAdmin() || isOwner(sellerId);
-      allow update: if isExistingOwner(sellerId) || isAdmin();
+      allow update: if isExistingOwner(sellerId) || isAdmin() || isSellerAdmin(sellerId);
       allow delete: if isAdmin();
+
+      match /staff/{staffId} {
+        allow get, list: if isSellerAdmin(sellerId) || isAdmin() || true; // True for PIN verification lookups
+        allow create, update, delete: if isSellerAdmin(sellerId) || isAdmin();
+      }
 
       match /menuItems/{itemId} {
         allow get, list: if true; // Publicly accessible for guest ordering
-        allow create, update, delete: if isOwner(sellerId) || isAdmin();
+        allow create, update, delete: if isOwner(sellerId) || isAdmin() || isSellerAdmin(sellerId);
       }
 
       match /menus/{menuId} {
-        allow get, list: if (resource.data.isActive == true || isOwner(sellerId) || isAdmin());
-        allow create: if isOwner(sellerId) || isAdmin();
-        allow update: if isExistingOwner(sellerId) || isAdmin();
+        allow get, list: if (resource.data.isActive == true || isOwner(sellerId) || isAdmin() || isSellerAdmin(sellerId));
+        allow create: if isOwner(sellerId) || isAdmin() || isSellerAdmin(sellerId);
+        allow update: if isExistingOwner(sellerId) || isAdmin() || isSellerAdmin(sellerId);
         allow delete: if isAdmin();
 
         match /items/{itemId} {
-          allow get, list: if ((resource.data.isAvailable == true && resource.data.menuIsActive == true) || isOwner(sellerId) || isAdmin());
-          allow create: if isOwner(sellerId) || isAdmin();
-          allow update: if isExistingOwner(sellerId) || isAdmin();
+          allow get, list: if ((resource.data.isAvailable == true && resource.data.menuIsActive == true) || isOwner(sellerId) || isAdmin() || isSellerAdmin(sellerId));
+          allow create: if isOwner(sellerId) || isAdmin() || isSellerAdmin(sellerId);
+          allow update: if isExistingOwner(sellerId) || isAdmin() || isSellerAdmin(sellerId);
           allow delete: if isAdmin();
         }
       }
@@ -93,14 +105,14 @@ service cloud.firestore {
      * @description Centralized collection for all customer orders.
      */
     match /orders/{orderId} {
-      allow get: if isOrderParticipant(resource.data) || isAdmin();
+      allow get: if isOrderParticipant(resource.data) || isAdmin() || isSellerAdmin(resource.data.sellerId);
       allow list: if isSignedIn(); 
       allow create: if isSignedIn() && request.resource.data.buyerProfileId == request.auth.uid;
-      allow update: if (resource != null && isOrderParticipant(resource.data)) || isAdmin();
+      allow update: if (resource != null && (isOrderParticipant(resource.data) || isSellerAdmin(resource.data.sellerId))) || isAdmin();
       allow delete: if isAdmin();
 
       match /items/{orderItemId} {
-        allow get: if isOrderParticipant(resource.data) || isAdmin();
+        allow get: if isOrderParticipant(resource.data) || isAdmin() || isSellerAdmin(resource.data.sellerId);
         allow list: if isSignedIn();
         allow create: if isSignedIn() && request.resource.data.buyerProfileId == request.auth.uid;
         allow update, delete: if isAdmin();

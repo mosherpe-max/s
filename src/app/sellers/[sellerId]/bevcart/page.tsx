@@ -1,3 +1,4 @@
+
 'use client';
 
 import { collection, query, where, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
@@ -13,9 +14,10 @@ import { mockSellerLocation } from '@/lib/data';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
-import { Focus, Bell, Package, AlertCircle, Clock, DollarSign, Timer, AlertTriangle } from 'lucide-react';
+import { Focus, Bell, Package, AlertCircle, Clock, DollarSign, Timer, AlertTriangle, LogOut, User } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { isStaffSessionStale } from '@/lib/utils';
@@ -30,16 +32,38 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
   const { sellerId } = use(params);
   const firestore = useFirestore();
   const { toast } = useToast();
+  const router = useRouter();
   const [sellerLocation, setSellerLocation] = useState<LatLng | null>(null);
   const sellerLocRef = useRef<LatLng | null>(null);
   const [zoomMode, setZoomMode] = useState<'radius' | 'all'>('radius');
   const [fitTrigger, setFitTrigger] = useState<number>(0);
   const [now, setNow] = useState<number>(Date.now());
+  const [staffName, setStaffName] = useState('');
   
   const lastOrderIdsRef = useRef<Set<string>>(new Set());
   const notifiedOverdueRef = useRef<Set<string>>(new Set());
   const initialLoadRef = useRef(true);
   const wakeLockRef = useRef<any>(null);
+
+  // Staff Session Enforcement
+  useEffect(() => {
+    const storedStaffId = localStorage.getItem('koop_staff_id');
+    const storedVenueId = localStorage.getItem('koop_venue_id');
+    const name = localStorage.getItem('koop_staff_name');
+    
+    if (!storedStaffId || storedVenueId !== sellerId) {
+      router.push(`/sellers/${sellerId}/staff-login`);
+    } else if (name) {
+      setStaffName(name);
+    }
+  }, [sellerId, router]);
+
+  const handleStaffLogout = () => {
+    localStorage.removeItem('koop_staff_id');
+    localStorage.removeItem('koop_staff_name');
+    localStorage.removeItem('koop_staff_role');
+    router.push(`/sellers/${sellerId}/staff-login`);
+  };
 
   const primarySellerRef = useMemoFirebase(() => {
     if (!firestore || !sellerId) return null;
@@ -102,15 +126,6 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
       releaseWakeLock();
     };
   }, [isBevCartActive]);
-
-  useEffect(() => {
-    if (primarySeller && isBevCartActive && primarySeller.lastActive) {
-      const lastActiveDate = primarySeller.lastActive.toDate();
-      if (isStaffSessionStale(lastActiveDate)) {
-        handleToggleActive(false);
-      }
-    }
-  }, [primarySeller, isBevCartActive]);
 
   const activeOrdersQuery = useMemoFirebase(() => {
     if (!firestore || !sellerId) return null;
@@ -365,17 +380,6 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
 
   const isLoading = areActiveOrdersLoading || isPrimaryLoading || areSellersLoading;
 
-  if (!isPrimaryLoading && !primarySeller) {
-      return (
-          <div className="flex flex-col items-center justify-center h-screen p-8 text-center space-y-6 text-muted-foreground">
-              <AlertCircle className="h-16 w-16 opacity-20" />
-              <h1 className="text-2xl font-headline font-black uppercase">BEVCART DRIVER INTERFACE</h1>
-              <p className="max-w-sm">Initialize your seller profile to access BevCart driver tools.</p>
-              <Button asChild><Link href={`/sellers/${sellerId}`}>Initialize Profile</Link></Button>
-          </div>
-      );
-  }
-
   return (
     <APIProvider apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!}>
       <div className="flex flex-col h-screen overflow-hidden bg-muted/20">
@@ -384,15 +388,25 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
             <h1 className="font-headline text-sm sm:text-base md:text-xl font-bold text-white uppercase tracking-tight truncate">
               BEVCART DASHBOARD
             </h1>
-            <span className="text-[9px] sm:text-[10px] uppercase font-bold text-white/60 tracking-widest leading-none truncate">
-              ESTABLISHMENT: {primarySeller?.courseName || 'Loading...'}
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-[9px] sm:text-[10px] uppercase font-bold text-white/60 tracking-widest leading-none truncate">
+                {primarySeller?.courseName || 'Loading...'}
+              </span>
+              <Badge variant="outline" className="h-4 px-1.5 text-[8px] bg-white/5 border-white/10 text-white font-black uppercase">
+                <User className="h-2 w-2 mr-1" /> {staffName}
+              </Badge>
+            </div>
           </div>
-          <div className="flex items-center space-x-3 shrink-0">
-            <Switch id="active-mode" checked={isBevCartActive} onCheckedChange={handleToggleActive} className="data-[state=checked]:bg-green-600" />
-            <Label htmlFor="active-mode" className="text-[10px] sm:text-sm font-semibold whitespace-nowrap text-white uppercase">
-              {isBevCartActive ? 'ACTIVE' : 'INACTIVE'}
-            </Label>
+          <div className="flex items-center space-x-4 shrink-0">
+            <div className="flex items-center space-x-2">
+              <Switch id="active-mode" checked={isBevCartActive} onCheckedChange={handleToggleActive} className="data-[state=checked]:bg-green-600" />
+              <Label htmlFor="active-mode" className="text-[10px] font-semibold whitespace-nowrap text-white uppercase">
+                {isBevCartActive ? 'ACTIVE' : 'INACTIVE'}
+              </Label>
+            </div>
+            <Button variant="ghost" size="icon" onClick={handleStaffLogout} className="text-white/40 hover:text-white hover:bg-white/10 h-9 w-9 rounded-full">
+              <LogOut className="h-4 w-4" />
+            </Button>
           </div>
         </header>
 
