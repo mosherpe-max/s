@@ -58,49 +58,35 @@
       "type": "object",
       "description": "Represents a beverage cart driver or vendor managing menus and fulfilling orders.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the Seller entity."
-        },
-        "name": {
-          "type": "string",
-          "description": "The name of the seller or venue."
-        },
-        "email": {
-          "type": "string",
-          "description": "The email address of the seller for contact and login.",
-          "format": "email"
-        },
-        "contactPhone": {
-          "type": "string",
-          "description": "The primary contact phone number for the seller."
-        },
-        "currentLatitude": {
-          "type": "number",
-          "description": "The current latitude of the seller's beverage cart for real-time tracking."
-        },
-        "currentLongitude": {
-          "type": "number",
-          "description": "The current longitude of the seller's beverage cart for real-time tracking."
-        },
-        "createdAt": {
-          "type": "string",
-          "description": "Timestamp when the seller profile was created.",
-          "format": "date-time"
-        },
-        "updatedAt": {
-          "type": "string",
-          "description": "Timestamp when the seller profile was last updated.",
-          "format": "date-time"
-        }
+        "id": { "type": "string" },
+        "courseName": { "type": "string" },
+        "type": { "type": "string" },
+        "contactName": { "type": "string" },
+        "contactEmail": { "type": "string", "format": "email" },
+        "contactPhone": { "type": "string" },
+        "streetAddress": { "type": "string" },
+        "city": { "type": "string" },
+        "state": { "type": "string" },
+        "zip": { "type": "string" },
+        "latitude": { "type": "number" },
+        "longitude": { "type": "number" },
+        "serviceFee": { "type": "number" },
+        "taxRate": { "type": "number" },
+        "status": { "type": "string", "enum": ["Active", "Inactive"] },
+        "menuTypes": { "type": "array", "items": { "type": "string" } },
+        "qrCodeUrl": { "type": "string", "format": "uri" },
+        "bevcartActive": { "type": "boolean" },
+        "clubhouseActive": { "type": "boolean" },
+        "lastActive": { "type": "string", "format": "date-time" },
+        "orderThresholds": { "type": "object" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
       },
       "required": [
         "id",
-        "name",
-        "email",
-        "contactPhone",
-        "createdAt",
-        "updatedAt"
+        "courseName",
+        "contactEmail",
+        "status"
       ]
     },
     "StaffMember": {
@@ -117,108 +103,21 @@
         "createdAt": { "type": "string", "format": "date-time" }
       }
     },
-    "SellerPrivateConfig": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "SellerPrivateConfig",
-      "type": "object",
-      "description": "Stores sensitive venue configuration like payment API keys. Controlled by Admin only.",
-      "properties": {
-        "id": { "type": "string" },
-        "authorizeNetLoginId": { "type": "string" },
-        "authorizeNetTransactionKey": { "type": "string" },
-        "updatedAt": { "type": "string", "format": "date-time" }
-      }
-    },
-    "Product": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Product",
-      "type": "object",
-      "description": "Defines a generic item that can be sold, such as a beverage or snack.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the Product entity."
-        },
-        "name": {
-          "type": "string",
-          "description": "The name of the product (e.g., 'Bottled Water', 'Craft Beer A')."
-        },
-        "description": {
-          "type": "string",
-          "description": "A detailed description of the product."
-        },
-        "category": {
-          "type": "string",
-          "description": "The category the product belongs to (e.g., 'Beer', 'Spirits', 'Soft Drinks', 'Snacks')."
-        },
-        "imageUrl": {
-          "type": "string",
-          "description": "URL to an image of the product.",
-          "format": "uri"
-        },
-        "createdAt": {
-          "type": "string",
-          "description": "Timestamp when the product was created.",
-          "format": "date-time"
-        },
-        "updatedAt": {
-          "type": "string",
-          "description": "Timestamp when the product was last updated.",
-          "format": "date-time"
-        }
-      },
-      "required": [
-        "id",
-        "name",
-        "description",
-        "category",
-        "createdAt",
-        "updatedAt"
-      ]
-    },
     "Order": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Order",
       "type": "object",
-      "description": "Represents a customer's placed order for items from a specific seller.",
+      "description": "Represents a customer's placed order.",
       "properties": {
-        "id": {
-          "type": "string"
-        },
-        "buyerProfileId": {
-          "type": "string"
-        },
-        "sellerId": {
-          "type": "string"
-        },
-        "orderDateTime": {
-          "type": "string",
-          "format": "date-time"
-        },
-        "status": {
-          "type": "string"
-        },
-        "totalAmount": {
-          "type": "number"
-        },
-        "createdAt": {
-          "type": "string",
-          "format": "date-time"
-        },
-        "updatedAt": {
-          "type": "string",
-          "format": "date-time"
-        }
-      },
-      "required": [
-        "id",
-        "buyerProfileId",
-        "sellerId",
-        "status",
-        "totalAmount",
-        "createdAt",
-        "updatedAt"
-      ]
+        "id": { "type": "string" },
+        "buyerProfileId": { "type": "string" },
+        "sellerId": { "type": "string" },
+        "customerName": { "type": "string" },
+        "status": { "type": "string" },
+        "total": { "type": "number" },
+        "menuType": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
     }
   },
   "auth": {
@@ -233,50 +132,32 @@
         "path": "/users/{userId}/buyerProfile",
         "definition": {
           "entityName": "BuyerProfile",
-          "schema": {
-            "$ref": "#/backend/entities/BuyerProfile"
-          },
-          "description": "Stores private profile data for each buyer."
+          "schema": { "$ref": "#/backend/entities/BuyerProfile" },
+          "description": "Private buyer data."
         }
       },
       {
         "path": "/sellers/{sellerId}",
         "definition": {
           "entityName": "Seller",
-          "schema": {
-            "$ref": "#/backend/entities/Seller"
-          },
-          "description": "Stores core seller profiles. Publicly readable for maps and discovery."
+          "schema": { "$ref": "#/backend/entities/Seller" },
+          "description": "Core seller profiles."
         }
       },
       {
         "path": "/sellers/{sellerId}/staff/{staffId}",
         "definition": {
           "entityName": "StaffMember",
-          "schema": {
-            "$ref": "#/backend/entities/StaffMember"
-          },
-          "description": "Local staff roster for a venue."
-        }
-      },
-      {
-        "path": "/sellers_private/{sellerId}",
-        "definition": {
-          "entityName": "SellerPrivateConfig",
-          "schema": {
-            "$ref": "#/backend/entities/SellerPrivateConfig"
-          },
-          "description": "Vault for sensitive venue credentials. Accessible only to Koop Admins and Cloud Functions."
+          "schema": { "$ref": "#/backend/entities/StaffMember" },
+          "description": "Local staff roster."
         }
       },
       {
         "path": "/orders/{orderId}",
         "definition": {
           "entityName": "Order",
-          "schema": {
-            "$ref": "#/backend/entities/Order"
-          },
-          "description": "Centralized collection for all customer orders."
+          "schema": { "$ref": "#/backend/entities/Order" },
+          "description": "Global order collection."
         }
       }
     ]

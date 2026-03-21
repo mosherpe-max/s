@@ -26,12 +26,17 @@ service cloud.firestore {
              (isSignedIn() && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid)));
     }
 
-    function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
+    function getEmail() {
+      return isSignedIn() ? request.auth.token.get('email', '').lower() : '';
     }
 
-    function getEmail() {
-      return request.auth.token.get('email', '').lower();
+    function isSellerAdmin(sellerId) {
+      return isSuperAdmin() || (
+        isSignedIn() && 
+        getEmail() != "" &&
+        exists(/databases/$(database)/documents/roles_seller_admin/$(getEmail())) &&
+        get(/databases/$(database)/documents/roles_seller_admin/$(getEmail())).data.get('sellerId', '') == sellerId
+      );
     }
 
     function isSalesRep() {
@@ -46,17 +51,12 @@ service cloud.firestore {
       return sellerId.startsWith('demo-');
     }
 
-    function isSellerAdmin(sellerId) {
-      return isAdmin() || (
-        isSignedIn() && 
-        getEmail() != "" &&
-        exists(/databases/$(database)/documents/roles_seller_admin/$(getEmail())) &&
-        get(/databases/$(database)/documents/roles_seller_admin/$(getEmail())).data.get('sellerId', '') == sellerId
-      );
-    }
-
     function canImpersonate(sellerId) {
       return isAdmin() || isSellerAdmin(sellerId) || (isSalesRep() && isDemoVenue(sellerId));
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
     }
 
     function isOrderParticipant(data) {
@@ -65,7 +65,7 @@ service cloud.firestore {
 
     // --- RULES ---
 
-    // GOD MODE: Super Admin bypasses all checks
+    // GOD MODE: Super Admin bypasses all checks across the entire database
     match /{document=**} {
       allow read, write: if isSuperAdmin();
     }
