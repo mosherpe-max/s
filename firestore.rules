@@ -8,7 +8,7 @@ service cloud.firestore {
      * 1. Super Admin (God Mode): Hardcoded UID bypass for global access.
      * 2. Platform Admins: Managed via roles_admin registry (UID based).
      * 3. Seller Admins: Restricted to their specific venue data (Email based).
-     * 4. Sales Reps: Access to CRM and ONLY demo venue operational views (Email based).
+     * 4. Sales Reps: Access to CRM and demo venues only (Email based).
      */
 
     // --- HELPER FUNCTIONS ---
@@ -30,11 +30,16 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
+    function getEmail() {
+      return request.auth.token.get('email', '').lower();
+    }
+
     function isSalesRep() {
-      return isSuperAdmin() || 
-             (isSignedIn() && 
-              request.auth.token.get('email', '') != null &&
-              exists(/databases/$(database)/documents/roles_sales_rep/$(request.auth.token.get('email', '').lower())));
+      return isAdmin() || (
+        isSignedIn() && 
+        getEmail() != "" &&
+        exists(/databases/$(database)/documents/roles_sales_rep/$(getEmail()))
+      );
     }
 
     function isDemoVenue(sellerId) {
@@ -42,13 +47,12 @@ service cloud.firestore {
     }
 
     function isSellerAdmin(sellerId) {
-      // Return true immediately for global admins to prevent get() errors on non-existent role docs
-      if (isAdmin()) { return true; }
-      
-      return isSignedIn() && 
-             request.auth.token.get('email', '') != null &&
-             exists(/databases/$(database)/documents/roles_seller_admin/$(request.auth.token.get('email', '').lower())) &&
-             get(/databases/$(database)/documents/roles_seller_admin/$(request.auth.token.get('email', '').lower())).data.get('sellerId', '') == sellerId;
+      return isAdmin() || (
+        isSignedIn() && 
+        getEmail() != "" &&
+        exists(/databases/$(database)/documents/roles_seller_admin/$(getEmail())) &&
+        get(/databases/$(database)/documents/roles_seller_admin/$(getEmail())).data.get('sellerId', '') == sellerId
+      );
     }
 
     function canImpersonate(sellerId) {
@@ -160,17 +164,17 @@ service cloud.firestore {
 
     // Role Assignments & Profiles
     match /adminUsers/{email} {
-      allow get: if isSignedIn() && (request.auth.token.get('email', '').lower() == email || isAdmin());
+      allow get: if isSignedIn() && (getEmail() == email || isAdmin());
       allow list, create, update, delete: if isAdmin();
     }
 
     match /roles_seller_admin/{email} {
-      allow get: if isSignedIn() && (request.auth.token.get('email', '').lower() == email || isAdmin());
+      allow get: if isSignedIn() && (getEmail() == email || isAdmin());
       allow list, create, update, delete: if isAdmin();
     }
 
     match /roles_sales_rep/{email} {
-      allow get: if isSignedIn() && (request.auth.token.get('email', '').lower() == email || isAdmin());
+      allow get: if isSignedIn() && (getEmail() == email || isAdmin());
       allow list, create, update, delete: if isAdmin();
     }
 
