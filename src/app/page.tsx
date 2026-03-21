@@ -233,6 +233,19 @@ export default function HomePage() {
           font-family: 'Barlow Condensed', sans-serif;
         }
 
+        .venue-actions {
+          margin-top: 32px;
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+        }
+        .venue-actions .btn-primary, .venue-actions .btn-secondary {
+          width: 100%;
+          padding: 14px;
+          font-size: 14px;
+          text-align: center;
+        }
+
         .venue-divider {
           position: absolute; top: 0; bottom: 0; right: 0;
           width: 1px; background: rgba(255,255,255,0.06);
@@ -540,6 +553,14 @@ export default function HomePage() {
             <li>Dynamic delivery location tracking</li>
             <li>Works on any phone — no app download</li>
           </ul>
+          <div className="venue-actions">
+            <Link href="/sellers/demo-course/order?menuType=Beverage Cart" className="btn-primary">
+              Public Golf Menu Demo
+            </Link>
+            <Link href="/sellers/demo-private-course/order?menuType=Clubhouse" className="btn-secondary">
+              Private Golf Menu Demo
+            </Link>
+          </div>
         </div>
         <div className="venue-card bowling reveal">
           <span className="venue-icon">🎳</span>
