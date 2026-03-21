@@ -6,9 +6,9 @@ service cloud.firestore {
     /**
      * --- SECURITY PHILOSOPHY ---
      * 1. Super Admin (God Mode): Hardcoded UID bypass for global access.
-     * 2. Platform Admins: Managed via roles_admin registry.
-     * 3. Seller Admins: Restricted to their specific venue data and staff.
-     * 4. Sales Reps: Access to CRM and ONLY demo venue operational views.
+     * 2. Platform Admins: Managed via roles_admin registry (UID based).
+     * 3. Seller Admins: Restricted to their specific venue data (Email based).
+     * 4. Sales Reps: Access to CRM and ONLY demo venue operational views (Email based).
      */
 
     // --- HELPER FUNCTIONS ---
@@ -41,10 +41,13 @@ service cloud.firestore {
     }
 
     function isSellerAdmin(sellerId) {
+      // Return true immediately for global admins to prevent get() errors on non-existent role docs
+      if (isAdmin()) { return true; }
+      
       return isSignedIn() && 
              request.auth.token.email != null &&
              exists(/databases/$(database)/documents/roles_seller_admin/$(request.auth.token.email.lower())) &&
-             get(/databases/$(database)/documents/roles_seller_admin/$(request.auth.token.email.lower())).data.sellerId == sellerId;
+             get(/databases/$(database)/documents/roles_seller_admin/$(request.auth.token.email.lower())).data.get('sellerId', '') == sellerId;
     }
 
     function canImpersonate(sellerId) {
@@ -141,7 +144,7 @@ service cloud.firestore {
      */
     match /paymentTransactions/{transactionId} {
       allow get: if isSignedIn() && (resource.data.buyerProfileId == request.auth.uid || isAdmin());
-      allow list: if isSignedIn();
+      allow list: if isSignedIn(); 
       allow create, update, delete: if isAdmin();
     }
 
