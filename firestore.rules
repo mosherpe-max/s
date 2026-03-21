@@ -4,9 +4,11 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * CORE PHILOSOPHY:
-     * This ruleset implements a robust, multi-role security model for the Koop platform.
-     * Super Admins have global override privileges.
+     * --- SECURITY PHILOSOPHY ---
+     * 1. Super Admin (God Mode): Hardcoded UID bypass for global access.
+     * 2. Platform Admins: Managed via roles_admin registry.
+     * 3. Seller Admins: Restricted to their specific venue data and staff.
+     * 4. Sales Reps: Access to CRM and ONLY demo venue operational views.
      */
 
     // --- HELPER FUNCTIONS ---
@@ -15,21 +17,17 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    function isSuperAdmin() {
+      return isSignedIn() && request.auth.uid == 'o9vAQy0aFRPSNPoG0ETvjiGt9If1';
+    }
+
     function isAdmin() {
-      // Priority 1: Direct UID match for Super Admin
-      // Priority 2: Registry lookup for Platform Admins
-      return isSignedIn() && (
-        request.auth.uid == 'o9vAQy0aFRPSNPoG0ETvjiGt9If1' ||
-        exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid))
-      );
+      return isSuperAdmin() || 
+             (isSignedIn() && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid)));
     }
 
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
-    }
-
-    function isExistingOwner(userId) {
-      return resource != null && isOwner(userId);
     }
 
     function isSalesRep() {
@@ -43,7 +41,6 @@ service cloud.firestore {
     }
 
     function isSellerAdmin(sellerId) {
-      // Defensive check for email and document existence
       return isSignedIn() && 
              request.auth.token.email != null &&
              exists(/databases/$(database)/documents/roles_seller_admin/$(request.auth.token.email.lower())) &&
@@ -59,6 +56,11 @@ service cloud.firestore {
     }
 
     // --- RULES ---
+
+    // GOD MODE: Super Admin bypasses all checks
+    match /{document=**} {
+      allow read, write: if isSuperAdmin();
+    }
 
     /**
      * @description Vault for sensitive credentials. Controlled by Admin only.
@@ -81,36 +83,29 @@ service cloud.firestore {
      * @description Core seller profiles, including location for tracking.
      */
     match /sellers/{sellerId} {
-      allow get, list: if true; // Publicly accessible for discovery
-      allow create: if isAdmin() || isOwner(sellerId);
-      allow update: if isExistingOwner(sellerId) || isAdmin() || isSellerAdmin(sellerId);
+      allow get, list: if true; 
+      allow create: if isAdmin();
+      allow update: if isAdmin() || isSellerAdmin(sellerId);
       allow delete: if isAdmin();
 
       match /staff/{staffId} {
-        // Managers and Sales Reps (for demos) can list staff
+        allow get: if true; // Needed for PIN lookup query
         allow list: if canImpersonate(sellerId);
-        // Allow specific document access for anyone (needed for PIN lookup query)
-        allow get: if true; 
-        // Modifications restricted to actual managers
         allow create, update, delete: if isAdmin() || isSellerAdmin(sellerId);
       }
 
       match /menuItems/{itemId} {
-        allow get, list: if true; // Publicly accessible for guest ordering
-        allow create, update, delete: if isOwner(sellerId) || isAdmin() || isSellerAdmin(sellerId);
+        allow get, list: if true;
+        allow create, update, delete: if isAdmin() || isSellerAdmin(sellerId);
       }
 
       match /menus/{menuId} {
-        allow get, list: if (resource.data.isActive == true || isOwner(sellerId) || isAdmin() || isSellerAdmin(sellerId));
-        allow create: if isOwner(sellerId) || isAdmin() || isSellerAdmin(sellerId);
-        allow update: if isExistingOwner(sellerId) || isAdmin() || isSellerAdmin(sellerId);
-        allow delete: if isAdmin();
+        allow get, list: if (resource.data.isActive == true || canImpersonate(sellerId));
+        allow create, update, delete: if isAdmin() || isSellerAdmin(sellerId);
 
         match /items/{itemId} {
-          allow get, list: if ((resource.data.isAvailable == true && resource.data.menuIsActive == true) || isOwner(sellerId) || isAdmin() || isSellerAdmin(sellerId));
-          allow create: if isOwner(sellerId) || isAdmin() || isSellerAdmin(sellerId);
-          allow update: if isExistingOwner(sellerId) || isAdmin() || isSellerAdmin(sellerId);
-          allow delete: if isAdmin();
+          allow get, list: if (resource.data.isAvailable == true || canImpersonate(sellerId));
+          allow create, update, delete: if isAdmin() || isSellerAdmin(sellerId);
         }
       }
     }
@@ -129,14 +124,14 @@ service cloud.firestore {
     match /orders/{orderId} {
       allow get: if isOrderParticipant(resource.data) || canImpersonate(resource.data.sellerId);
       allow list: if isSignedIn(); 
-      allow create: if isSignedIn() && request.resource.data.buyerProfileId == request.auth.uid;
+      allow create: if isSignedIn() && (request.resource.data.buyerProfileId == request.auth.uid || isAdmin());
       allow update: if (resource != null && (isOrderParticipant(resource.data) || canImpersonate(resource.data.sellerId))) || isAdmin();
       allow delete: if isAdmin();
 
       match /items/{orderItemId} {
         allow get: if isOrderParticipant(resource.data) || canImpersonate(resource.data.sellerId);
         allow list: if isSignedIn();
-        allow create: if isSignedIn() && request.resource.data.buyerProfileId == request.auth.uid;
+        allow create: if isSignedIn();
         allow update, delete: if isAdmin();
       }
     }
@@ -150,28 +145,33 @@ service cloud.firestore {
       allow create, update, delete: if isAdmin();
     }
 
+    // CRM & Growth Data
     match /prospects/{prospectId} {
-      allow read, write: if isSignedIn();
+      allow read, write: if isAdmin() || isSalesRep();
     }
 
     match /activities/{activityId} {
-      allow read, write: if isSignedIn();
+      allow read, write: if isAdmin() || isSalesRep();
     }
 
+    // Role Assignments & Profiles
     match /adminUsers/{email} {
-      allow read, write: if isSignedIn();
+      allow get: if isSignedIn() && (request.auth.token.email.lower() == email.lower() || isAdmin());
+      allow list, create, update, delete: if isAdmin();
     }
 
     match /roles_seller_admin/{email} {
-      allow read, write: if isSignedIn();
+      allow get: if isSignedIn() && (request.auth.token.email.lower() == email.lower() || isAdmin());
+      allow list, create, update, delete: if isAdmin();
     }
 
     match /roles_sales_rep/{email} {
-      allow read, write: if isSignedIn();
+      allow get: if isSignedIn() && (request.auth.token.email.lower() == email.lower() || isAdmin());
+      allow list, create, update, delete: if isAdmin();
     }
 
     match /roles_admin/{adminUid} {
-      allow get: if isOwner(adminUid) || isAdmin();
+      allow get: if isSignedIn() && (request.auth.uid == adminUid || isAdmin());
       allow list, create, update, delete: if isAdmin();
     }
   }
