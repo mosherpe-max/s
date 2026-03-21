@@ -30,28 +30,30 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [isAdminSettingUp, setIsAdminSettingUp] = useState(false);
 
-  // 1. Check Global Admin Role (UID Based)
+  // Hardcoded Super Admin Check
+  const isSuperAdmin = user?.uid === SUPER_ADMIN_ID;
+
+  // 1. Check Global Admin Role (UID Based) - Skip for Super Admin to avoid permission errors
   const globalRoleRef = useMemoFirebase(() => {
-    if (!firestore || !user) return null;
+    if (!firestore || !user || isSuperAdmin) return null;
     return doc(firestore, 'roles_admin', user.uid);
-  }, [firestore, user]);
+  }, [firestore, user, isSuperAdmin]);
   const { data: globalRole } = useDoc(globalRoleRef);
 
-  // 2. Check Seller Admin Role (Email Based)
+  // 2. Check Seller Admin Role (Email Based) - Skip for Super Admin
   const sellerRoleRef = useMemoFirebase(() => {
-    if (!firestore || !user?.email) return null;
+    if (!firestore || !user?.email || isSuperAdmin) return null;
     return doc(firestore, 'roles_seller_admin', user.email.toLowerCase());
-  }, [firestore, user]);
+  }, [firestore, user, isSuperAdmin]);
   const { data: sellerRole } = useDoc(sellerRoleRef);
 
-  // 3. Check Sales Rep Role (Email Based)
+  // 3. Check Sales Rep Role (Email Based) - Skip for Super Admin
   const salesRoleRef = useMemoFirebase(() => {
-    if (!firestore || !user?.email) return null;
+    if (!firestore || !user?.email || isSuperAdmin) return null;
     return doc(firestore, 'roles_sales_rep', user.email.toLowerCase());
-  }, [firestore, user]);
+  }, [firestore, user, isSuperAdmin]);
   const { data: salesRole } = useDoc(salesRoleRef);
 
-  const isSuperAdmin = user?.uid === SUPER_ADMIN_ID;
   const isPlatformAdmin = isSuperAdmin || !!globalRole;
   const isVenueAdmin = !!sellerRole;
   const isSalesRep = !!salesRole;

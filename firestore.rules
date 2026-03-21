@@ -27,7 +27,9 @@ service cloud.firestore {
     }
 
     function getEmail() {
-      return isSignedIn() ? request.auth.token.get('email', '').lower() : '';
+      return isSignedIn() && "email" in request.auth.token 
+        ? request.auth.token.email.lower() 
+        : "";
     }
 
     function isSellerAdmin(sellerId) {
@@ -40,7 +42,7 @@ service cloud.firestore {
     }
 
     function isSalesRep() {
-      return isAdmin() || (
+      return isSuperAdmin() || isAdmin() || (
         isSignedIn() && 
         getEmail() != "" &&
         exists(/databases/$(database)/documents/roles_sales_rep/$(getEmail()))
@@ -52,7 +54,7 @@ service cloud.firestore {
     }
 
     function canImpersonate(sellerId) {
-      return isAdmin() || isSellerAdmin(sellerId) || (isSalesRep() && isDemoVenue(sellerId));
+      return isSuperAdmin() || isAdmin() || isSellerAdmin(sellerId) || (isSalesRep() && isDemoVenue(sellerId));
     }
 
     function isOwner(userId) {
