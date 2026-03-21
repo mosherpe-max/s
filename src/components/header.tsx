@@ -18,7 +18,8 @@ import {
   LogIn,
   User as UserIcon,
   KeyRound,
-  LogOut
+  LogOut,
+  Briefcase
 } from 'lucide-react';
 import { useCart } from '@/lib/cart-context';
 import { useState, useEffect, useMemo } from 'react';
@@ -177,6 +178,12 @@ export function AppHeader() {
               <DropdownMenuLabel className={labelClass}>Internal Tools</DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem asChild>
+                <Link href="/sales/dashboard" className={itemClass}>
+                  <Briefcase className="h-4 w-4 text-indigo-600" />
+                  <span className="font-black text-[10px] uppercase tracking-widest">SALES PORTAL</span>
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
                 <Link href="/admin" className={itemClass}>
                   <ShieldCheck className="h-4 w-4 text-primary" />
                   <span className="font-black text-[10px] uppercase tracking-widest">KOOP ADMIN</span>
@@ -197,6 +204,11 @@ export function AppHeader() {
               <KeyRound className="h-5 w-5 text-indigo-600" />
               <span className="font-black text-xs uppercase tracking-widest text-indigo-700">Admin Login</span>
               <ChevronRight className="ml-auto h-4 w-4 text-indigo-300" />
+            </Link>
+            <Link href="/sales/dashboard" onClick={() => setIsMobileMenuOpen(false)} className={itemClass}>
+              <Briefcase className="h-5 w-5 text-indigo-600" />
+              <span className="font-black text-xs uppercase tracking-widest">SALES PORTAL</span>
+              <ChevronRight className="ml-auto h-4 w-4 text-muted-foreground/30" />
             </Link>
             <Link href="/admin" onClick={() => setIsMobileMenuOpen(false)} className={itemClass}>
               <ShieldCheck className="h-5 w-5 text-primary" />
