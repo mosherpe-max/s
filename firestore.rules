@@ -32,12 +32,26 @@ service cloud.firestore {
       return resource != null && isOwner(userId);
     }
 
+    function isSalesRep() {
+      return isSignedIn() && 
+             request.auth.token.email != null &&
+             exists(/databases/$(database)/documents/roles_sales_rep/$(request.auth.token.email.lower()));
+    }
+
+    function isDemoVenue(sellerId) {
+      return sellerId.startsWith('demo-');
+    }
+
     function isSellerAdmin(sellerId) {
       // Defensive check for email and document existence
       return isSignedIn() && 
              request.auth.token.email != null &&
              exists(/databases/$(database)/documents/roles_seller_admin/$(request.auth.token.email.lower())) &&
              get(/databases/$(database)/documents/roles_seller_admin/$(request.auth.token.email.lower())).data.sellerId == sellerId;
+    }
+
+    function canImpersonate(sellerId) {
+      return isAdmin() || isSellerAdmin(sellerId) || (isSalesRep() && isDemoVenue(sellerId));
     }
 
     function isOrderParticipant(data) {
@@ -73,11 +87,11 @@ service cloud.firestore {
       allow delete: if isAdmin();
 
       match /staff/{staffId} {
-        // Allow listing for authorized managers
-        allow list: if isAdmin() || isSellerAdmin(sellerId); 
+        // Managers and Sales Reps (for demos) can list staff
+        allow list: if canImpersonate(sellerId);
         // Allow specific document access for anyone (needed for PIN lookup query)
         allow get: if true; 
-        // Modifications restricted to managers
+        // Modifications restricted to actual managers
         allow create, update, delete: if isAdmin() || isSellerAdmin(sellerId);
       }
 
@@ -113,14 +127,14 @@ service cloud.firestore {
      * @description Centralized collection for all customer orders.
      */
     match /orders/{orderId} {
-      allow get: if isOrderParticipant(resource.data) || isAdmin() || isSellerAdmin(resource.data.sellerId);
+      allow get: if isOrderParticipant(resource.data) || canImpersonate(resource.data.sellerId);
       allow list: if isSignedIn(); 
       allow create: if isSignedIn() && request.resource.data.buyerProfileId == request.auth.uid;
-      allow update: if (resource != null && (isOrderParticipant(resource.data) || isSellerAdmin(resource.data.sellerId))) || isAdmin();
+      allow update: if (resource != null && (isOrderParticipant(resource.data) || canImpersonate(resource.data.sellerId))) || isAdmin();
       allow delete: if isAdmin();
 
       match /items/{orderItemId} {
-        allow get: if isOrderParticipant(resource.data) || isAdmin() || isSellerAdmin(resource.data.sellerId);
+        allow get: if isOrderParticipant(resource.data) || canImpersonate(resource.data.sellerId);
         allow list: if isSignedIn();
         allow create: if isSignedIn() && request.resource.data.buyerProfileId == request.auth.uid;
         allow update, delete: if isAdmin();
@@ -149,6 +163,10 @@ service cloud.firestore {
     }
 
     match /roles_seller_admin/{email} {
+      allow read, write: if isSignedIn();
+    }
+
+    match /roles_sales_rep/{email} {
       allow read, write: if isSignedIn();
     }
 

@@ -1,3 +1,4 @@
+
 'use client';
 
 import { collection, query, where, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
@@ -13,7 +14,6 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Bell, Package, AlertCircle, Clock, MapPin, DollarSign, Timer, AlertTriangle, LogOut, User } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import Link from 'next/navigation';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { format, isToday } from 'date-fns';
@@ -26,10 +26,27 @@ export default function LaneSideServerDashboardPage({ params }: { params: Promis
   const { toast } = useToast();
   const router = useRouter();
   const { user, isUserLoading } = useUser();
+  const [staffName, setStaffName] = useState('');
+
+  // Role Checks
+  const sellerRoleRef = useMemoFirebase(() => {
+    if (!firestore || !user?.email) return null;
+    return doc(firestore, 'roles_seller_admin', user.email.toLowerCase());
+  }, [firestore, user]);
+  const { data: sellerRole } = useDoc(sellerRoleRef);
+
+  const salesRoleRef = useMemoFirebase(() => {
+    if (!firestore || !user?.email) return null;
+    return doc(firestore, 'roles_sales_rep', user.email.toLowerCase());
+  }, [firestore, user]);
+  const { data: salesRole } = useDoc(salesRoleRef);
+
   const isSuperAdmin = user?.uid === SUPER_ADMIN_ID;
+  const isVenueAdmin = sellerRole?.sellerId === sellerId;
+  const isSalesRepForDemo = !!salesRole && sellerId.startsWith('demo-');
+  const isImpersonating = isSuperAdmin || isVenueAdmin || isSalesRepForDemo;
 
   const [now, setNow] = useState<number>(Date.now());
-  const [staffName, setStaffName] = useState('');
   
   const lastOrderIdsRef = useRef<Set<string>>(new Set());
   const initialLoadRef = useRef(true);
@@ -38,8 +55,9 @@ export default function LaneSideServerDashboardPage({ params }: { params: Promis
   useEffect(() => {
     if (isUserLoading) return;
 
-    if (isSuperAdmin) {
-      setStaffName("Platform Admin");
+    if (isImpersonating) {
+      const identity = isSuperAdmin ? "Platform Admin" : isSalesRepForDemo ? "Sales Demo Mode" : "Venue Admin";
+      setStaffName(identity);
       return;
     }
 
@@ -52,9 +70,13 @@ export default function LaneSideServerDashboardPage({ params }: { params: Promis
     } else if (name) {
       setStaffName(name);
     }
-  }, [sellerId, router, isSuperAdmin, isUserLoading]);
+  }, [sellerId, router, isImpersonating, isUserLoading, isSuperAdmin, isSalesRepForDemo]);
 
   const handleStaffLogout = () => {
+    if (isImpersonating) {
+      router.back();
+      return;
+    }
     localStorage.removeItem('koop_staff_id');
     localStorage.removeItem('koop_staff_name');
     localStorage.removeItem('koop_staff_role');
@@ -89,15 +111,15 @@ export default function LaneSideServerDashboardPage({ params }: { params: Promis
     }
   };
 
-  // 4 AM EST Auto-Reset Logic (Bypass for Super Admin)
+  // 4 AM EST Auto-Reset Logic (Bypass for Impersonators)
   useEffect(() => {
-    if (primarySeller && isServerActive && primarySeller.lastActive && !isSuperAdmin) {
+    if (primarySeller && isServerActive && primarySeller.lastActive && !isImpersonating) {
       const lastActiveDate = primarySeller.lastActive.toDate();
       if (isStaffSessionStale(lastActiveDate)) {
         handleToggleActive(false);
       }
     }
-  }, [primarySeller, isServerActive, isSuperAdmin]);
+  }, [primarySeller, isServerActive, isImpersonating]);
 
   // Activity Heartbeat
   useEffect(() => {

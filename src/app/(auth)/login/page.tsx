@@ -1,6 +1,7 @@
+
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,7 +13,7 @@ import {
 } from 'firebase/auth';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
-import { Loader2, ShieldCheck, Mail, Lock, User, LogOut, CheckCircle2, LogIn, ArrowRight } from 'lucide-react';
+import { Loader2, ShieldCheck, Mail, Lock, User, LogOut, CheckCircle2, LogIn, ArrowRight, Target } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { StylizedKoopLogo } from '@/components/header';
 import { SUPER_ADMIN_ID } from '@/lib/utils';
@@ -43,9 +44,17 @@ export default function LoginPage() {
   }, [firestore, user]);
   const { data: sellerRole } = useDoc(sellerRoleRef);
 
+  // 3. Check Sales Rep Role (Email Based)
+  const salesRoleRef = useMemoFirebase(() => {
+    if (!firestore || !user?.email) return null;
+    return doc(firestore, 'roles_sales_rep', user.email.toLowerCase());
+  }, [firestore, user]);
+  const { data: salesRole } = useDoc(salesRoleRef);
+
   const isSuperAdmin = user?.uid === SUPER_ADMIN_ID;
   const isPlatformAdmin = isSuperAdmin || !!globalRole;
   const isVenueAdmin = !!sellerRole;
+  const isSalesRep = !!salesRole;
 
   // Handle Automatic Redirection
   useEffect(() => {
@@ -53,10 +62,12 @@ export default function LoginPage() {
 
     if (isPlatformAdmin) {
       router.push('/admin');
+    } else if (isSalesRep) {
+      router.push('/sales/dashboard');
     } else if (isVenueAdmin && sellerRole?.sellerId) {
       router.push(`/sellers/${sellerRole.sellerId}`);
     }
-  }, [user, isUserLoading, isPlatformAdmin, isVenueAdmin, sellerRole, router]);
+  }, [user, isUserLoading, isPlatformAdmin, isVenueAdmin, isSalesRep, sellerRole, router]);
 
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -154,17 +165,17 @@ export default function LoginPage() {
                 <CheckCircle2 className="h-5 w-5 text-green-500" />
               </div>
 
-              {isPlatformAdmin || isVenueAdmin ? (
+              {isPlatformAdmin || isVenueAdmin || isSalesRep ? (
                 <div className="space-y-4">
                   <div className="p-5 bg-primary/10 border-2 border-primary/20 rounded-2xl flex flex-col items-center text-center gap-2">
-                    <ShieldCheck className="h-10 w-10 text-primary" />
+                    {isSalesRep ? <Target className="h-10 w-10 text-indigo-600" /> : <ShieldCheck className="h-10 w-10 text-primary" />}
                     <h3 className="font-headline font-bold text-primary uppercase">STATUS VERIFIED</h3>
                     <p className="text-xs text-muted-foreground">
-                      {isPlatformAdmin ? 'Platform Administrator Access' : `Authorized Manager: ${sellerRole?.courseName || 'Assigned Venue'}`}
+                      {isPlatformAdmin ? 'Platform Administrator Access' : isSalesRep ? 'Authorized Sales Professional' : `Authorized Manager: ${sellerRole?.courseName || 'Assigned Venue'}`}
                     </p>
                   </div>
                   <Button asChild className="w-full h-14 bg-[#213147] hover:bg-[#213147]/90 text-white font-headline font-black uppercase tracking-widest shadow-xl">
-                    <a href={isPlatformAdmin ? '/admin' : `/sellers/${sellerRole?.sellerId}`}>
+                    <a href={isPlatformAdmin ? '/admin' : isSalesRep ? '/sales/dashboard' : `/sellers/${sellerRole?.sellerId}`}>
                       ENTER DASHBOARD
                       <ArrowRight className="ml-2 h-5 w-5" />
                     </a>
@@ -214,7 +225,7 @@ export default function LoginPage() {
                       placeholder="admin@kooporders.com" 
                       className="pl-10 h-11 border-2 font-bold"
                       value={email}
-                      onChange={(e) => setEmail(e.target.value)}
+                      onChange={(e) => setEmail(target.value)}
                       required
                     />
                   </div>
@@ -229,7 +240,7 @@ export default function LoginPage() {
                       placeholder="••••••••"
                       className="pl-10 h-11 border-2 font-bold"
                       value={password}
-                      onChange={(e) => setPassword(e.target.value)}
+                      onChange={(e) => setPassword(target.value)}
                       required
                     />
                   </div>
@@ -238,7 +249,7 @@ export default function LoginPage() {
 
               <div className="bg-amber-50 border border-amber-100 p-3 rounded-xl">
                 <p className="text-[9px] text-amber-800 font-bold uppercase tracking-wide leading-relaxed text-center">
-                  Account registration is restricted to platform administrators.
+                  Account registration is restricted to authorized platform members.
                 </p>
               </div>
 

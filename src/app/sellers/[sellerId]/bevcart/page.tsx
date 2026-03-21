@@ -1,3 +1,4 @@
+
 'use client';
 
 import { collection, query, where, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
@@ -34,14 +35,31 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
   const { toast } = useToast();
   const router = useRouter();
   const { user, isUserLoading } = useUser();
+  const [staffName, setStaffName] = useState('');
+
+  // Role Checks
+  const sellerRoleRef = useMemoFirebase(() => {
+    if (!firestore || !user?.email) return null;
+    return doc(firestore, 'roles_seller_admin', user.email.toLowerCase());
+  }, [firestore, user]);
+  const { data: sellerRole } = useDoc(sellerRoleRef);
+
+  const salesRoleRef = useMemoFirebase(() => {
+    if (!firestore || !user?.email) return null;
+    return doc(firestore, 'roles_sales_rep', user.email.toLowerCase());
+  }, [firestore, user]);
+  const { data: salesRole } = useDoc(salesRoleRef);
+
   const isSuperAdmin = user?.uid === SUPER_ADMIN_ID;
+  const isVenueAdmin = sellerRole?.sellerId === sellerId;
+  const isSalesRepForDemo = !!salesRole && sellerId.startsWith('demo-');
+  const isImpersonating = isSuperAdmin || isVenueAdmin || isSalesRepForDemo;
 
   const [sellerLocation, setSellerLocation] = useState<LatLng | null>(null);
   const sellerLocRef = useRef<LatLng | null>(null);
   const [zoomMode, setZoomMode] = useState<'radius' | 'all'>('radius');
   const [fitTrigger, setFitTrigger] = useState<number>(0);
   const [now, setNow] = useState<number>(Date.now());
-  const [staffName, setStaffName] = useState('');
   
   const lastOrderIdsRef = useRef<Set<string>>(new Set());
   const notifiedOverdueRef = useRef<Set<string>>(new Set());
@@ -58,8 +76,9 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
   useEffect(() => {
     if (isUserLoading) return;
 
-    if (isSuperAdmin) {
-      setStaffName("Platform Admin");
+    if (isImpersonating) {
+      const identity = isSuperAdmin ? "Platform Admin" : isSalesRepForDemo ? "Sales Demo Mode" : "Venue Admin";
+      setStaffName(identity);
       return;
     }
 
@@ -72,9 +91,13 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
     } else if (name) {
       setStaffName(name);
     }
-  }, [sellerId, router, isSuperAdmin, isUserLoading]);
+  }, [sellerId, router, isImpersonating, isUserLoading, isSuperAdmin, isSalesRepForDemo]);
 
   const handleStaffLogout = () => {
+    if (isImpersonating) {
+      router.back();
+      return;
+    }
     localStorage.removeItem('koop_staff_id');
     localStorage.removeItem('koop_staff_name');
     localStorage.removeItem('koop_staff_role');
@@ -147,15 +170,15 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
     });
   };
 
-  // 4 AM EST Auto-Reset Logic (Bypass for Super Admin)
+  // 4 AM EST Auto-Reset Logic (Bypass for Impersonators)
   useEffect(() => {
-    if (primarySeller && isBevCartActive && primarySeller.lastActive && !isSuperAdmin) {
+    if (primarySeller && isBevCartActive && primarySeller.lastActive && !isImpersonating) {
       const lastActiveDate = primarySeller.lastActive.toDate();
       if (isStaffSessionStale(lastActiveDate)) {
         handleToggleActive(false);
       }
     }
-  }, [primarySeller, isBevCartActive, isSuperAdmin]);
+  }, [primarySeller, isBevCartActive, isImpersonating]);
 
   const activeOrdersQuery = useMemoFirebase(() => {
     if (!firestore || !sellerId) return null;
