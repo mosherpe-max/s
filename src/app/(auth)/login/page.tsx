@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,6 +15,7 @@ import { useRouter } from 'next/navigation';
 import { Loader2, ShieldCheck, Mail, Lock, User, LogOut, CheckCircle2, LogIn, ArrowRight } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { StylizedKoopLogo } from '@/components/header';
+import { SUPER_ADMIN_ID } from '@/lib/utils';
 
 export default function LoginPage() {
   const auth = useAuth();
@@ -28,12 +29,34 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [isAdminSettingUp, setIsAdminSettingUp] = useState(false);
 
-  // Check if current user is already an admin
-  const roleRef = useMemoFirebase(() => {
+  // 1. Check Global Admin Role (UID Based)
+  const globalRoleRef = useMemoFirebase(() => {
     if (!firestore || !user) return null;
     return doc(firestore, 'roles_admin', user.uid);
   }, [firestore, user]);
-  const { data: adminRole } = useDoc(roleRef);
+  const { data: globalRole } = useDoc(globalRoleRef);
+
+  // 2. Check Seller Admin Role (Email Based)
+  const sellerRoleRef = useMemoFirebase(() => {
+    if (!firestore || !user?.email) return null;
+    return doc(firestore, 'roles_seller_admin', user.email.toLowerCase());
+  }, [firestore, user]);
+  const { data: sellerRole } = useDoc(sellerRoleRef);
+
+  const isSuperAdmin = user?.uid === SUPER_ADMIN_ID;
+  const isPlatformAdmin = isSuperAdmin || !!globalRole;
+  const isVenueAdmin = !!sellerRole;
+
+  // Handle Automatic Redirection
+  useEffect(() => {
+    if (!user || isUserLoading) return;
+
+    if (isPlatformAdmin) {
+      router.push('/admin');
+    } else if (isVenueAdmin && sellerRole?.sellerId) {
+      router.push(`/sellers/${sellerRole.sellerId}`);
+    }
+  }, [user, isUserLoading, isPlatformAdmin, isVenueAdmin, sellerRole, router]);
 
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -65,22 +88,22 @@ export default function LoginPage() {
   };
 
   const handleSetupAdmin = async () => {
-    if (!user || !firestore) return;
+    if (!user || !firestore || !user.email) return;
     setIsAdminSettingUp(true);
     try {
-      // 1. Create Role Marker
+      // 1. Create Role Marker (UID based for rules)
       await setDoc(doc(firestore, 'roles_admin', user.uid), {
         grantedAt: serverTimestamp(),
         grantedBy: 'Prototype Setup Tool'
       });
 
-      // 2. Create Admin Profile
-      await setDoc(doc(firestore, 'adminUsers', user.uid), {
+      // 2. Create Admin Profile (Email based for consistency)
+      await setDoc(doc(firestore, 'adminUsers', user.email.toLowerCase()), {
         id: user.uid,
-        email: user.email || 'authorized-user@koop.com',
+        email: user.email.toLowerCase(),
         role: 'KOOP Platform Admin',
         createdAt: serverTimestamp()
-      });
+      }, { merge: true });
 
       toast({ 
         title: "Admin Access Granted", 
@@ -131,16 +154,18 @@ export default function LoginPage() {
                 <CheckCircle2 className="h-5 w-5 text-green-500" />
               </div>
 
-              {adminRole ? (
+              {isPlatformAdmin || isVenueAdmin ? (
                 <div className="space-y-4">
                   <div className="p-5 bg-primary/10 border-2 border-primary/20 rounded-2xl flex flex-col items-center text-center gap-2">
                     <ShieldCheck className="h-10 w-10 text-primary" />
-                    <h3 className="font-headline font-bold text-primary uppercase">ADMIN STATUS VERIFIED</h3>
-                    <p className="text-xs text-muted-foreground">You have full administrative access to the platform.</p>
+                    <h3 className="font-headline font-bold text-primary uppercase">STATUS VERIFIED</h3>
+                    <p className="text-xs text-muted-foreground">
+                      {isPlatformAdmin ? 'Platform Administrator Access' : `Authorized Manager: ${sellerRole?.courseName || 'Assigned Venue'}`}
+                    </p>
                   </div>
                   <Button asChild className="w-full h-14 bg-[#213147] hover:bg-[#213147]/90 text-white font-headline font-black uppercase tracking-widest shadow-xl">
-                    <a href="/admin">
-                      ENTER ADMIN DASHBOARD
+                    <a href={isPlatformAdmin ? '/admin' : `/sellers/${sellerRole?.sellerId}`}>
+                      ENTER DASHBOARD
                       <ArrowRight className="ml-2 h-5 w-5" />
                     </a>
                   </Button>

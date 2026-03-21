@@ -48,6 +48,12 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
   const initialLoadRef = useRef(true);
   const wakeLockRef = useRef<any>(null);
 
+  const primarySellerRef = useMemoFirebase(() => {
+    if (!firestore || !sellerId) return null;
+    return doc(firestore, 'sellers', sellerId);
+  }, [firestore, sellerId]);
+  const { data: primarySeller, isLoading: isPrimaryLoading } = useDoc<Seller>(primarySellerRef);
+
   // Staff Session Enforcement & Impersonation Bypass
   useEffect(() => {
     if (isUserLoading) return;
@@ -74,18 +80,6 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
     localStorage.removeItem('koop_staff_role');
     router.push(`/sellers/${sellerId}/staff-login`);
   };
-
-  const primarySellerRef = useMemoFirebase(() => {
-    if (!firestore || !sellerId) return null;
-    return doc(firestore, 'sellers', sellerId);
-  }, [firestore, sellerId]);
-  const { data: primarySeller, isLoading: isPrimaryLoading } = useDoc<Seller>(primarySellerRef);
-
-  const activeSellersQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
-    return query(collection(firestore, 'sellers'), where('status', '==', 'Active'));
-  }, [firestore]);
-  const { data: activeSellers, isLoading: areSellersLoading } = useCollection<Seller>(activeSellersQuery);
 
   const isBevCartActive = primarySeller?.bevcartActive === true;
   const thresholds = primarySeller?.orderThresholds?.['Beverage Cart'] || { warning: 7, max: 10 };
@@ -136,6 +130,32 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
       releaseWakeLock();
     };
   }, [isBevCartActive]);
+
+  const handleToggleActive = (checked: boolean) => {
+    if (!firestore || !sellerId) return;
+    const sellerDocRef = doc(firestore, 'sellers', sellerId);
+    const updates = { 
+      bevcartActive: checked,
+      lastActive: checked ? serverTimestamp() : null
+    };
+    updateDoc(sellerDocRef, updates).catch(async () => {
+      errorEmitter.emit('permission-error', new FirestorePermissionError({
+        path: sellerDocRef.path,
+        operation: 'update',
+        requestResourceData: updates
+      }));
+    });
+  };
+
+  // 4 AM EST Auto-Reset Logic (Bypass for Super Admin)
+  useEffect(() => {
+    if (primarySeller && isBevCartActive && primarySeller.lastActive && !isSuperAdmin) {
+      const lastActiveDate = primarySeller.lastActive.toDate();
+      if (isStaffSessionStale(lastActiveDate)) {
+        handleToggleActive(false);
+      }
+    }
+  }, [primarySeller, isBevCartActive, isSuperAdmin]);
 
   const activeOrdersQuery = useMemoFirebase(() => {
     if (!firestore || !sellerId) return null;
@@ -242,7 +262,7 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
           title: (
             <div className="flex items-center gap-2 text-white">
               <Clock className="h-5 w-5 animate-pulse" />
-              <span className="font-headline font-black text-lg uppercase">MAX DURATION REACHED!</span>
+              <span className="font-headline font-bold text-lg uppercase">MAX DURATION REACHED!</span>
             </div>
           ),
           description: `Order for ${o.customerName} has reached ${thresholds.max} minutes.`,
@@ -336,21 +356,11 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
     });
   };
 
-  const handleToggleActive = (checked: boolean) => {
-    if (!firestore || !sellerId) return;
-    const sellerDocRef = doc(firestore, 'sellers', sellerId);
-    const updates = { 
-      bevcartActive: checked,
-      lastActive: checked ? serverTimestamp() : null
-    };
-    updateDoc(sellerDocRef, updates).catch(async () => {
-      errorEmitter.emit('permission-error', new FirestorePermissionError({
-        path: sellerDocRef.path,
-        operation: 'update',
-        requestResourceData: updates
-      }));
-    });
-  };
+  const activeSellersQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return query(collection(firestore, 'sellers'), where('status', '==', 'Active'));
+  }, [firestore]);
+  const { data: activeSellers, isLoading: areSellersLoading } = useCollection<Seller>(activeSellersQuery);
 
   const otherActiveDrivers = useMemo(() => {
     if (!activeSellers || !now) return [];
