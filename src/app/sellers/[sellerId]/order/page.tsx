@@ -201,9 +201,11 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
 
   // Credit Card Form State
   const [cardInfo, setCardInfo] = useState({
+    fullName: '',
     cardNumber: '',
     expiryDate: '',
     cardCode: '',
+    zipCode: '',
   });
 
   const sellerRef = useMemoFirebase(() => (firestore ? doc(firestore, 'sellers', sellerId) : null), [firestore, sellerId]);
@@ -304,8 +306,10 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
       const cardData = {
         cardNumber: cardInfo.cardNumber.replace(/\s/g, ''),
         month: expMonth,
-        year: `20${expYear}`, 
+        year: expYear?.length === 2 ? `20${expYear}` : expYear, 
         cardCode: cardInfo.cardCode,
+        fullName: cardInfo.fullName,
+        zip: cardInfo.zipCode,
       };
 
       const secureData = { authData, cardData };
@@ -659,6 +663,16 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
                     
                     <div className="space-y-4">
                       <div className="space-y-1.5">
+                        <Label className="text-[10px] font-bold uppercase tracking-widest ml-1">Cardholder Name</Label>
+                        <Input 
+                          placeholder="AS APPEARS ON CARD"
+                          value={cardInfo.fullName}
+                          onChange={(e) => setCardInfo({...cardInfo, fullName: e.target.value})}
+                          className="h-12 border-2 rounded-xl font-bold"
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
                         <Label className="text-[10px] font-bold uppercase tracking-widest ml-1">Card Number</Label>
                         <Input 
                           placeholder="0000 0000 0000 0000"
@@ -688,11 +702,21 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
                           />
                         </div>
                       </div>
+
+                      <div className="space-y-1.5">
+                        <Label className="text-[10px] font-bold uppercase tracking-widest ml-1">Billing Zip Code</Label>
+                        <Input 
+                          placeholder="90210"
+                          value={cardInfo.zipCode}
+                          onChange={(e) => setCardInfo({...cardInfo, zipCode: e.target.value})}
+                          className="h-12 border-2 rounded-xl font-bold"
+                        />
+                      </div>
                     </div>
                     
                     <div className="flex items-center gap-2 justify-center pt-2 opacity-40">
                       <LockIcon className="h-3 w-3" />
-                      <span className="text-[8px] font-black uppercase tracking-[0.2em]">Encrypted Connection</span>
+                      <span className="text-[8px] font-black uppercase tracking-[0.2em]">Encrypted by Authorize.net</span>
                     </div>
                   </div>
                 )}
