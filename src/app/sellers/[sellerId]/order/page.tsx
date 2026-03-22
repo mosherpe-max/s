@@ -209,6 +209,12 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
   const sellerRef = useMemoFirebase(() => (firestore ? doc(firestore, 'sellers', sellerId) : null), [firestore, sellerId]);
   const { data: seller, isLoading: isSellerLoading } = useDoc<Seller>(sellerRef);
 
+  const menuItemsQuery = useMemoFirebase(() => {
+    if (!firestore || !sellerId) return null;
+    return collection(firestore, 'sellers', sellerId, 'menuItems');
+  }, [firestore, sellerId]);
+  const { data: menuItems, isLoading: areItemsLoading } = useCollection<MenuItem>(menuItemsQuery);
+
   useEffect(() => {
     if (!seller) return;
     
