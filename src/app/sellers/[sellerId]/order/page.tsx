@@ -46,7 +46,8 @@ import {
   ChevronLeft,
   Pencil,
   ChevronRight,
-  ShieldCheck
+  ShieldCheck,
+  Lock // Fixed: Explicitly imported to avoid global constructor clash
 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useCart } from '@/lib/cart-context';
@@ -222,7 +223,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
   useEffect(() => {
     // Load Authorize.net Accept.js
     const script = document.createElement('script');
-    script.src = 'https://jstest.authorize.net/v1/Accept.js'; // Use test for prototype
+    script.src = 'https://jstest.authorize.net/v1/Accept.js'; 
     script.async = true;
     document.body.appendChild(script);
     return () => {
@@ -305,7 +306,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
       const cardData = {
         cardNumber: cardInfo.cardNumber.replace(/\s/g, ''),
         month: expMonth,
-        year: `20${expYear}`, // Assuming 2-digit year
+        year: `20${expYear}`, 
         cardCode: cardInfo.cardCode,
       };
 
@@ -336,14 +337,18 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
       setPaymentStatus('processing');
 
       let currentUser = user;
+      let isGuestCheckout = false;
       if (!currentUser && auth) {
         try {
           const authResult = await signInAnonymously(auth);
           currentUser = authResult.user;
+          isGuestCheckout = true;
         } catch (authErr) {
           console.error("Auth failed:", authErr);
           throw new Error("Failed to establish guest session.");
         }
+      } else if (currentUser?.isAnonymous) {
+        isGuestCheckout = true;
       }
 
       if (!currentUser) throw new Error("Security identity required to place order.");
@@ -381,6 +386,11 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
             menuType: selectedMenuType,
             menuTypeLocation: locationValue || null,
             specialInstructions: specialInstructions || null,
+            isGuestOrder: isGuestCheckout,
+            deviceMetadata: {
+              userAgent: window.navigator.userAgent,
+              timestamp: new Date().toISOString()
+            },
             createdAt: serverTimestamp(),
             modifiedAt: serverTimestamp(),
           };

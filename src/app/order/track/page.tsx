@@ -1,33 +1,40 @@
+
 'use client';
 
 import { Suspense, useEffect, useRef, useState } from 'react';
 import { collection, query, orderBy, limit, doc, updateDoc, serverTimestamp, where } from 'firebase/firestore';
-import { useCollection, useDoc, useFirestore, useMemoFirebase, useUser } from '@/firebase';
+import { useCollection, useDoc, useFirestore, useMemoFirebase, useUser, useAuth } from '@/firebase';
 import type { Order, Seller } from '@/lib/types';
 import { MapView } from '@/components/map-view';
 import { OrderStatus } from '@/components/order-status';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { PartyPopper, ShoppingBag, MapPin, Loader2, Store, ClipboardList, Satellite, Edit2, Flag, CheckCircle2, Zap, Eye, Sparkles, BellRing } from 'lucide-react';
+import { PartyPopper, ShoppingBag, MapPin, Loader2, Store, ClipboardList, Satellite, Edit2, Flag, CheckCircle2, Zap, Eye, Sparkles, BellRing, KeyRound, UserPlus } from 'lucide-react';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { IosInstallPrompt } from '@/components/ios-install-prompt';
 import { getNumericOrderId } from '@/lib/utils';
 import { useCart } from '@/lib/cart-context';
 import { APIProvider } from '@vis.gl/react-google-maps';
 import { cn } from '@/lib/utils';
+import { EmailAuthProvider, linkWithCredential } from 'firebase/auth';
+import { useToast } from '@/hooks/use-toast';
 
 function OrderTrackingContent() {
   const firestore = useFirestore();
+  const auth = useAuth();
   const { user } = useUser();
   const router = useRouter();
   const searchParams = useSearchParams();
   const orderId = searchParams.get('id');
   const { loadOrder } = useCart();
+  const { toast } = useToast();
   
   const [isTrackingActive, setIsTrackingActive] = useState(false);
   const [isInstallPromptOpen, setIsInstallPromptOpen] = useState(false);
@@ -35,6 +42,9 @@ function OrderTrackingContent() {
   const [isStandalone, setIsStandalone] = useState(false);
   const [isUpdatingHole, setIsUpdatingHole] = useState(false);
   const [forceIosView, setForceIosView] = useState(false);
+  
+  const [password, setPassword] = useState('');
+  const [isUpgrading, setIsUpgrading] = useState(false);
   
   const wakeLockRef = useRef<any>(null);
   const watchIdRef = useRef<number | null>(null);
@@ -193,6 +203,25 @@ function OrderTrackingContent() {
       });
   };
 
+  const handleUpgradeAccount = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user || !auth || !user.isAnonymous) return;
+    setIsUpgrading(true);
+    
+    try {
+      // In a real flow, we'd prompt for email if user.email is null. 
+      // For Koop prototype, we'll assume they want to save their details.
+      const credential = EmailAuthProvider.credential(user.email || `guest_${user.uid}@koop.com`, password);
+      await linkWithCredential(user, credential);
+      
+      toast({ title: "Account Created!", description: "Your information is now saved for future checkouts." });
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Save Failed", description: err.message });
+    } finally {
+      setIsUpgrading(false);
+    }
+  };
+
   if (isLoading || (order && isLoadingSeller)) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center p-8 space-y-4">
@@ -226,6 +255,7 @@ function OrderTrackingContent() {
   const mapSellerLocation = seller ? { latitude: seller.latitude, longitude: seller.longitude } : null;
 
   const showHoleSelection = !isDelivered && isGolfService && (forceIosView || (isIos && !isStandalone));
+  const showSaveAccountPrompt = user?.isAnonymous && !isUpgrading;
 
   return (
     <div className="flex flex-col min-h-[calc(100vh-4rem)] bg-muted/10 overflow-y-auto">
@@ -305,9 +335,11 @@ function OrderTrackingContent() {
                     <PartyPopper className="h-16 w-16 text-green-600 mx-auto mb-4" />
                     <h2 className="font-headline text-3xl font-bold text-green-800 uppercase tracking-tight">ORDER COMPLETE!</h2>
                     <p className="text-green-700/80 mt-2 mb-8 font-medium">Your refreshments have arrived. Enjoy!</p>
-                    <Button asChild size="lg" className="rounded-full px-8 bg-green-600 hover:bg-green-700 font-headline font-bold uppercase">
-                        <Link href={`/sellers/${order.sellerId}/order`}>ORDER AGAIN</Link>
-                    </Button>
+                    <div className="flex flex-col gap-3">
+                      <Button asChild size="lg" className="rounded-full px-8 bg-green-600 hover:bg-green-700 font-headline font-bold uppercase">
+                          <Link href={`/sellers/${order.sellerId}/order`}>ORDER AGAIN</Link>
+                      </Button>
+                    </div>
                 </CardContent>
             </Card>
         )}
@@ -321,6 +353,49 @@ function OrderTrackingContent() {
                 <OrderStatus currentStatus={order.status} menuType={order.menuType} />
             </CardHeader>
         </Card>
+
+        {showSaveAccountPrompt && (
+          <Card className="border-2 border-indigo-200 bg-indigo-50/50 shadow-xl overflow-hidden animate-in slide-in-from-bottom-4 duration-700 delay-500">
+            <div className="bg-indigo-600 px-4 py-2 border-b border-indigo-700 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <UserPlus className="h-3.5 w-3.5 text-white" />
+                <span className="text-[9px] font-black uppercase tracking-widest text-white">Faster Checkout Next Time</span>
+              </div>
+              <Badge variant="secondary" className="text-[8px] bg-white/20 text-white border-none uppercase font-black px-1.5 h-5">One-Tap Save</Badge>
+            </div>
+            <CardContent className="p-5">
+              <div className="flex flex-col md:flex-row items-center gap-6">
+                <div className="bg-white p-4 rounded-[1.5rem] shadow-md shrink-0 border-2 border-indigo-100">
+                  <Zap className="h-8 w-8 text-indigo-600 fill-indigo-600" />
+                </div>
+                <div className="flex-1 space-y-4">
+                  <div className="space-y-1">
+                    <h4 className="text-sm font-black uppercase text-indigo-900 tracking-tight leading-tight">Create your KOOP account</h4>
+                    <p className="text-[10px] text-indigo-700 font-bold uppercase tracking-widest opacity-70">Save your payment method and delivery history</p>
+                  </div>
+                  <form onSubmit={handleUpgradeAccount} className="space-y-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-[9px] font-black uppercase text-indigo-900/60 ml-1">Choose a Security Key</Label>
+                      <div className="flex gap-2">
+                        <Input 
+                          type="password" 
+                          placeholder="••••••••" 
+                          className="h-10 border-2 border-indigo-200 focus-visible:ring-indigo-500 font-bold bg-white"
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          required
+                        />
+                        <Button type="submit" disabled={isUpgrading} className="h-10 bg-indigo-600 hover:bg-indigo-700 font-black uppercase text-[10px] tracking-widest px-6 shadow-lg">
+                          {isUpgrading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save Info"}
+                        </Button>
+                      </div>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {isOrderActive && (
           <div className="px-1">
