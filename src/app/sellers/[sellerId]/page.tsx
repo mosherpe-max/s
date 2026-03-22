@@ -478,7 +478,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     const privateData = vaultDoc.exists() ? vaultDoc.data() as any : {};
     
     gatewayForm.reset({
-      authorizeNetLoginId: privateData.authorizeNetLoginId || '',
+      authorizeNetLoginId: seller?.authorizeNetLoginId || privateData.authorizeNetLoginId || '',
       authorizeNetClientKey: seller?.authorizeNetClientKey || '',
       authorizeNetTransactionKey: privateData.authorizeNetTransactionKey || '',
     });
@@ -491,13 +491,14 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     try {
       const batch = writeBatch(firestore);
       
-      // 1. Public Info
+      // 1. Public Info (Needed for Accept.js Frontend)
       batch.update(doc(firestore, 'sellers', sellerId), {
+        authorizeNetLoginId: data.authorizeNetLoginId,
         authorizeNetClientKey: data.authorizeNetClientKey,
         updatedAt: serverTimestamp()
       });
 
-      // 2. Private Vault
+      // 2. Private Vault (Secret Keys used only by Backend Cloud Functions)
       batch.set(doc(firestore, 'sellers_private', sellerId), {
         id: sellerId,
         authorizeNetLoginId: data.authorizeNetLoginId,
@@ -1331,13 +1332,13 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
             <Form {...gatewayForm}>
               <form onSubmit={gatewayForm.handleSubmit(onSaveGateway)} className="space-y-6 pt-4">
                 <FormField control={gatewayForm.control} name="authorizeNetLoginId" render={({ field }) => (
-                  <FormItem><FormLabel className="text-[10px] font-black uppercase">API Login ID</FormLabel><FormControl><Input {...field} placeholder="Login ID" className="h-11 border-2 font-bold" /></FormControl><FormMessage /></FormItem>
+                  <FormItem><FormLabel className="text-[10px] font-black uppercase">API Login ID</FormLabel><FormControl><Input {...field} placeholder="Merchant Login ID" className="h-11 border-2 font-bold" /></FormControl><FormDescription className="text-[9px] font-bold uppercase">Required for both phone and server communication.</FormDescription><FormMessage /></FormItem>
                 )} />
                 <FormField control={gatewayForm.control} name="authorizeNetClientKey" render={({ field }) => (
-                  <FormItem><FormLabel className="text-[10px] font-black uppercase">Public Client Key</FormLabel><FormControl><Input {...field} placeholder="Client Key" className="h-11 border-2 font-bold" /></FormControl><FormDescription className="text-[9px] font-bold uppercase">Required for frontend card tokenization.</FormDescription><FormMessage /></FormItem>
+                  <FormItem><FormLabel className="text-[10px] font-black uppercase">Public Client Key</FormLabel><FormControl><Input {...field} placeholder="Client Key" className="h-11 border-2 font-bold" /></FormControl><FormDescription className="text-[9px] font-bold uppercase">Required for secure browser-side card tokenization.</FormDescription><FormMessage /></FormItem>
                 )} />
                 <FormField control={gatewayForm.control} name="authorizeNetTransactionKey" render={({ field }) => (
-                  <FormItem><FormLabel className="text-[10px] font-black uppercase">Transaction Key</FormLabel><FormControl><Input {...field} type="password" placeholder="Transaction Key" className="h-11 border-2 font-bold" /></FormControl><FormDescription className="text-[9px] font-bold uppercase">Stored securely in the private vault.</FormDescription><FormMessage /></FormItem>
+                  <FormItem><FormLabel className="text-[10px] font-black uppercase">Secret Transaction Key</FormLabel><FormControl><Input {...field} type="password" placeholder="Vaulted Master Key" className="h-11 border-2 font-bold" /></FormControl><FormDescription className="text-[9px] font-bold uppercase">Stored securely in the private vault. Used only by backend.</FormDescription><FormMessage /></FormItem>
                 )} />
                 <DialogFooter>
                   <Button type="submit" disabled={isSavingGateway} className="w-full font-black uppercase tracking-widest h-12 shadow-xl">

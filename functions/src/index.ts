@@ -14,6 +14,7 @@ const platformTransactionKey = functions.defineSecret('AUTHORIZENET_TRANSACTION_
 /**
  * Securely processes a one-time payment using Authorize.net Accept.js Nonce.
  * Dynamically fetches venue-specific credentials from the Private Vault.
+ * Requirement: API Login ID and Transaction Key are mandatory for transaction execution.
  */
 export const processPayment = onCall({
   secrets: [platformApiLoginId, platformTransactionKey]
@@ -38,7 +39,7 @@ export const processPayment = onCall({
         console.log(`Using venue-specific credentials for: ${sellerId}`);
         activeLoginId = vaultData.authorizeNetLoginId;
         activeTransKey = vaultData.authorizeNetTransactionKey;
-        // Logic to determine production vs sandbox could go here
+        // Logic to determine production vs sandbox
         // For prototype purposes, we check if the ID starts with 'demo-'
         isSandbox = sellerId.startsWith('demo-');
       }
@@ -62,7 +63,7 @@ export const processPayment = onCall({
   const transactionRequestType = new APIContracts.TransactionRequestType();
   transactionRequestType.setTransactionType(APIContracts.TransactionTypeEnum.AUTHCAPTURETRANSACTION);
   transactionRequestType.setPayment(paymentType);
-  transactionRequestType.setAmount(amount.toString()); // Ensure amount is string
+  transactionRequestType.setAmount(amount.toString());
 
   const createRequest = new APIContracts.CreateTransactionRequest();
   createRequest.setMerchantAuthentication(merchantAuthenticationType);
@@ -70,7 +71,6 @@ export const processPayment = onCall({
 
   const ctrl = new APIControllers.CreateTransactionController(createRequest.getJSON());
   
-  // Explicitly set environment
   if (!isSandbox) {
     ctrl.setEnvironment(SDKConstants.endpoint.production);
   } else {
@@ -130,7 +130,6 @@ export const onPaymentSuccess = onDocumentCreated('paymentTransactions/{transact
   const data = snapshot.data();
   
   if (data.status === 'Success' && data.buyerProfileId) {
-    // Matches the path in backend.json: /users/{userId}/buyerProfile
     const buyerProfileRef = admin.firestore().doc(`users/${data.buyerProfileId}/buyerProfile`);
     
     console.log(`Promoting user ${data.buyerProfileId} to Subscriber.`);

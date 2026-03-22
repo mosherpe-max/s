@@ -378,7 +378,7 @@ export default function KOOPAdminPage() {
     setEditingSeller(seller);
     
     // Fetch private vault data
-    let privateData = { authorizeNetLoginId: '', authorizeNetClientKey: '', authorizeNetTransactionKey: '' };
+    let privateData = { authorizeNetLoginId: '', authorizeNetTransactionKey: '' };
     if (firestore) {
       const vaultDoc = await getDoc(doc(firestore, 'sellers_private', seller.id));
       if (vaultDoc.exists()) {
@@ -403,7 +403,7 @@ export default function KOOPAdminPage() {
       status: seller.status,
       laneCount: seller.laneCount || 0,
       menuTypes: seller.menuTypes || [],
-      authorizeNetLoginId: privateData.authorizeNetLoginId || '',
+      authorizeNetLoginId: seller.authorizeNetLoginId || privateData.authorizeNetLoginId || '',
       authorizeNetClientKey: seller.authorizeNetClientKey || '',
       authorizeNetTransactionKey: privateData.authorizeNetTransactionKey || '',
     });
@@ -442,22 +442,23 @@ export default function KOOPAdminPage() {
     
     const sellerId = editingSeller ? editingSeller.id : data.courseName.toLowerCase().replace(/\s+/g, '-');
     
-    // Split the data: Public vs Private Vault
     const { authorizeNetLoginId, authorizeNetTransactionKey, authorizeNetClientKey, ...publicData } = data;
     
     const batch = writeBatch(firestore);
     
-    // 1. Save Public Profile (Client Key is technically public for frontend usage)
+    // 1. Save Public Profile
+    // Login ID and Client Key are needed on the frontend for Accept.js to securely tokenize the card.
     batch.set(doc(firestore, 'sellers', sellerId), { 
       ...publicData, 
       id: sellerId,
+      authorizeNetLoginId: authorizeNetLoginId || '',
       authorizeNetClientKey: authorizeNetClientKey || '',
       createdAt: editingSeller?.createdAt || new Date().toISOString(),
       updatedAt: serverTimestamp(),
       qrCodeUrl: editingSeller?.qrCodeUrl || `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${window.location.origin}/sellers/${sellerId}/order`
     }, { merge: true });
 
-    // 2. Save Private Vault (Secrets)
+    // 2. Save Private Vault (Secrets used only by Cloud Functions)
     batch.set(doc(firestore, 'sellers_private', sellerId), {
       id: sellerId,
       authorizeNetLoginId: authorizeNetLoginId || '',
@@ -1029,22 +1030,22 @@ export default function KOOPAdminPage() {
                       <FormField control={form.control} name="authorizeNetLoginId" render={({ field }) => (
                         <FormItem>
                           <FormLabel className="text-[10px] font-black uppercase">API Login ID</FormLabel>
-                          <FormControl><Input {...field} placeholder="Vaulted ID" className="h-11 border-2 font-bold" /></FormControl>
-                          <FormDescription className="text-[9px] uppercase font-bold">Stored in restricted collection.</FormDescription>
+                          <FormControl><Input {...field} placeholder="Merchant Login ID" className="h-11 border-2 font-bold" /></FormControl>
+                          <FormDescription className="text-[9px] uppercase font-bold">Public identifier for frontend tokenization.</FormDescription>
                         </FormItem>
                       )} />
                       <FormField control={form.control} name="authorizeNetClientKey" render={({ field }) => (
                         <FormItem>
                           <FormLabel className="text-[10px] font-black uppercase">Public Client Key</FormLabel>
                           <FormControl><Input {...field} placeholder="Public Key" className="h-11 border-2 font-bold" /></FormControl>
-                          <FormDescription className="text-[9px] uppercase font-bold">Required for secure tokenization.</FormDescription>
+                          <FormDescription className="text-[9px] uppercase font-bold">Required for secure browser-to-gateway tokenization.</FormDescription>
                         </FormItem>
                       )} />
                       <FormField control={form.control} name="authorizeNetTransactionKey" render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="text-[10px] font-black uppercase">Transaction Key</FormLabel>
-                          <FormControl><Input {...field} type="password" placeholder="Vaulted Key" className="h-11 border-2 font-bold" /></FormControl>
-                          <FormDescription className="text-[9px] uppercase font-bold">Accessed only by secure Cloud Functions.</FormDescription>
+                          <FormLabel className="text-[10px] font-black uppercase">Secret Transaction Key</FormLabel>
+                          <FormControl><Input {...field} type="password" placeholder="Vaulted Master Key" className="h-11 border-2 font-bold" /></FormControl>
+                          <FormDescription className="text-[9px] uppercase font-bold">Never sent to phone. Accessed only by backend Cloud Functions.</FormDescription>
                         </FormItem>
                       )} />
                     </div>
