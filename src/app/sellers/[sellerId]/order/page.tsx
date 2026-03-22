@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, use, useEffect, useMemo } from 'react';
@@ -302,11 +301,15 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
         apiLoginID: seller.authorizeNetLoginId,
       };
 
-      const [expMonth, expYear] = cardInfo.expiryDate.split('/');
+      // Parse MMYY format
+      const expMonth = cardInfo.expiryDate.substring(0, 2);
+      const expYearShort = cardInfo.expiryDate.substring(2, 4);
+      const expYear = `20${expYearShort}`;
+
       const cardData = {
         cardNumber: cardInfo.cardNumber.replace(/\s/g, ''),
         month: expMonth,
-        year: expYear?.length === 2 ? `20${expYear}` : expYear, 
+        year: expYear, 
         cardCode: cardInfo.cardCode,
         fullName: cardInfo.fullName,
         zip: cardInfo.zipCode,
@@ -684,10 +687,11 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
                       
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-1.5">
-                          <Label className="text-[10px] font-bold uppercase tracking-widest ml-1">Expiry (MM/YY)</Label>
+                          <Label className="text-[10px] font-bold uppercase tracking-widest ml-1">Expiry (MMYY)</Label>
                           <Input 
-                            placeholder="MM/YY"
+                            placeholder="MMYY"
                             value={cardInfo.expiryDate}
+                            maxLength={4}
                             onChange={(e) => setCardInfo({...cardInfo, expiryDate: e.target.value})}
                             className="h-12 border-2 rounded-xl font-bold text-center"
                           />
