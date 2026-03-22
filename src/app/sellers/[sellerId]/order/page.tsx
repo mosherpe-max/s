@@ -384,43 +384,6 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
         </div>
       </div>
 
-      {/* Lane Selection UI for Bowling Alleys */}
-      {selectedMenuType === 'Lane Delivery' && seller?.laneCount && seller.laneCount > 0 && (
-        <div className="bg-muted/10 border-b animate-in slide-in-from-top duration-300">
-          <div className="px-4 py-4 space-y-3 max-w-2xl mx-auto">
-            <div className="flex flex-col gap-3">
-              <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground px-1 flex items-center gap-2">
-                <MapPin className="h-3 w-3" /> Select Your Lane
-              </Label>
-              <div className="grid grid-cols-6 sm:grid-cols-10 gap-2">
-                {Array.from({ length: seller.laneCount }, (_, i) => (i + 1).toString()).map((lane) => {
-                  const isSelected = locationValue === `Lane ${lane}`;
-                  return (
-                    <Button
-                      key={lane}
-                      variant={isSelected ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => setLocationValue(`Lane ${lane}`)}
-                      className={cn(
-                        "h-9 px-0 text-xs font-black rounded-lg transition-all",
-                        isSelected ? "bg-primary text-white scale-105 shadow-md border-primary" : "bg-white hover:bg-primary/5"
-                      )}
-                    >
-                      {lane}
-                    </Button>
-                  );
-                })}
-              </div>
-              {isLocationSelected && (
-                <p className="text-[9px] font-black text-primary uppercase text-center tracking-widest bg-primary/5 py-1 rounded-full border border-primary/10">
-                  Deliver to {locationValue}
-                </p>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
       <main className="flex-1 px-4 pt-6 pb-32 max-w-2xl mx-auto w-full">
         {isLoading ? <Skeleton className="h-40 w-full" /> : (
           <BuyerMenu 
@@ -456,28 +419,41 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
               {/* YOUR ORDER SECTION */}
               <OrderSummary items={activeOrderItems} onUpdateItem={updateItem} onRemoveItem={removeItem} />
 
-              {/* LOCATION PREVIEW FOR LANE SIDE */}
-              {selectedMenuType === 'Lane Delivery' && (
-                <div className={cn(
-                  "p-4 rounded-2xl border flex items-center justify-between transition-all",
-                  isLocationSelected ? "bg-primary text-white border-primary shadow-lg" : "bg-red-50 border-red-200 text-red-600"
-                )}>
-                  <div className="flex items-center gap-3">
-                    <MapPin className={cn("h-5 w-5", isLocationSelected ? "text-white" : "text-red-500")} />
-                    <div className="flex flex-col">
-                      <span className="text-[10px] font-black uppercase tracking-widest opacity-70">Delivery Destination</span>
-                      <span className="text-sm font-black uppercase">{isLocationSelected ? locationValue : 'NO LANE SELECTED'}</span>
+              {/* Lane Selection UI for Bowling Alleys - Moved to Checkout */}
+              {selectedMenuType === 'Lane Delivery' && seller?.laneCount && seller.laneCount > 0 && (
+                <div className="space-y-3 animate-in slide-in-from-top-2 duration-300">
+                  <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground px-1 flex items-center gap-2">
+                    <MapPin className="h-3 w-3" /> SELECT YOUR LANE
+                  </h3>
+                  <div className="bg-white rounded-[1.5rem] border shadow-sm p-5 space-y-4">
+                    <div className="grid grid-cols-6 sm:grid-cols-10 gap-2">
+                      {Array.from({ length: seller.laneCount }, (_, i) => (i + 1).toString()).map((lane) => {
+                        const isSelected = locationValue === `Lane ${lane}`;
+                        return (
+                          <Button
+                            key={lane}
+                            variant={isSelected ? 'default' : 'outline'}
+                            size="sm"
+                            onClick={() => setLocationValue(`Lane ${lane}`)}
+                            className={cn(
+                              "h-9 px-0 text-xs font-black rounded-lg transition-all",
+                              isSelected ? "bg-primary text-white scale-105 shadow-md border-primary" : "bg-white hover:bg-primary/5"
+                            )}
+                          >
+                            {lane}
+                          </Button>
+                        );
+                      })}
                     </div>
+                    {isLocationSelected ? (
+                      <div className="bg-primary/5 py-2 px-4 rounded-xl border border-primary/10 flex items-center justify-between">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-primary/60">Selected Destination</span>
+                        <span className="text-sm font-black text-primary uppercase">{locationValue}</span>
+                      </div>
+                    ) : (
+                      <p className="text-[9px] text-red-500 font-bold uppercase text-center tracking-widest">Selection Required for Delivery</p>
+                    )}
                   </div>
-                  {!isLocationSelected && (
-                    <Button 
-                      variant="ghost" 
-                      className="text-red-600 font-bold text-[10px] uppercase hover:bg-red-100"
-                      onClick={() => { setIsCartOpen(false); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
-                    >
-                      Choose Lane
-                    </Button>
-                  )}
                 </div>
               )}
 
