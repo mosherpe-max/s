@@ -192,6 +192,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
   const [locationValue, setLocationValue] = useState<string>('');
   const [specialInstructions, setSpecialInstructions] = useState<string>('');
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
+  const [paymentStatusText, setPaymentStatusText] = useState('PROCESSING...');
   
   const [modifierTarget, setModifierTarget] = useState<MenuItem | null>(null);
 
@@ -337,6 +338,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
       }
 
       setIsPlacingOrder(true);
+      setPaymentStatusText('PREPARING ORDER...');
 
       let currentUser = user;
       let isGuestCheckout = false;
@@ -352,10 +354,11 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
 
       let paymentResult: { dataValue: string, dataDescriptor: string } | null = null;
       if (selectedPaymentMethod === 'Credit Card') {
+        setPaymentStatusText('SECURING PAYMENT...');
         try {
           paymentResult = await tokenizeCard();
         } catch (err: any) {
-          toast({ variant: 'destructive', title: 'Payment Validation Error', description: err.message });
+          toast({ variant: 'destructive', title: 'Card Tokenization Error', description: err.message });
           setIsPlacingOrder(false);
           return;
         }
@@ -366,6 +369,8 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
 
       const submitToFirestore = async (latitude: number, longitude: number) => {
         try {
+          setPaymentStatusText('FINALIZING TRANSACTION...');
+          
           const orderData: any = {
             sellerId,
             buyerProfileId: currentUser!.uid,
@@ -401,10 +406,13 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
                 sellerId
               });
             } catch (payErr: any) {
-              // If payment fails, we might want to mark the order as "Payment Failed" or delete it.
-              // For now, we'll mark the status and let the user retry or staff handle it.
+              // If payment fails, mark the order as cancelled and explain why
               await updateDoc(doc(firestore, 'orders', orderRef.id), { status: 'Cancelled', paymentError: payErr.message });
-              toast({ variant: 'destructive', title: 'Payment Denied', description: payErr.message || 'Transaction denied by bank.' });
+              toast({ 
+                variant: 'destructive', 
+                title: 'Transaction Denied', 
+                description: payErr.message || 'The gateway refused the transaction. Please check your card details or use a different payment method.' 
+              });
               setIsPlacingOrder(false);
               return;
             }
@@ -413,7 +421,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
           router.push(`/order/track?id=${orderRef.id}&sellerId=${sellerId}`);
           clearCart();
         } catch (err: any) {
-          toast({ variant: 'destructive', title: 'Order Failed', description: err.message });
+          toast({ variant: 'destructive', title: 'Order Submission Error', description: err.message });
         } finally {
           setIsPlacingOrder(false);
         }
@@ -429,7 +437,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
       }
     } catch (error: any) {
       setIsPlacingOrder(false);
-      toast({ variant: 'destructive', title: 'Submission Error', description: error.message });
+      toast({ variant: 'destructive', title: 'Internal System Error', description: error.message });
     }
   };
 
@@ -699,7 +707,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
               disabled={isPlacingOrder || activeOrderItems.length === 0 || (isLocationRequired && !isLocationSelected)}
             >
               {isPlacingOrder ? <Loader2 className="animate-spin mr-2 h-5 w-5" /> : null}
-              {isPlacingOrder ? "PROCESSING..." : (isLocationRequired && !isLocationSelected ? "SELECT LANE FIRST" : "PLACE ORDER")}
+              {isPlacingOrder ? paymentStatusText : (isLocationRequired && !isLocationSelected ? "SELECT LANE FIRST" : "PLACE ORDER")}
             </Button>
           </SheetFooter>
         </SheetContent>

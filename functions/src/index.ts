@@ -47,7 +47,7 @@ export const processPayment = onCall(async (request) => {
     }
   } catch (err: any) {
     console.error(`Vault Access Error for ${sellerId}:`, err);
-    throw new HttpsError('internal', `Credential Error: ${err.message}`);
+    throw new HttpsError('failed-precondition', `Setup Error: ${err.message}`);
   }
 
   // 3. Configure Authorize.net Transaction
@@ -66,7 +66,7 @@ export const processPayment = onCall(async (request) => {
   const transactionRequestType = new APIContracts.TransactionRequestType();
   transactionRequestType.setTransactionType(APIContracts.TransactionTypeEnum.AUTHCAPTURETRANSACTION);
   transactionRequestType.setPayment(paymentType);
-  transactionRequestType.setAmount(amount.toString());
+  transactionRequestType.setAmount(amount.toFixed(2)); // Format as string with 2 decimals
 
   const createRequest = new APIContracts.CreateTransactionRequest();
   createRequest.setMerchantAuthentication(merchantAuthenticationType);
@@ -111,22 +111,26 @@ export const processPayment = onCall(async (request) => {
                 resolve({ success: true, transactionId: transId, warning: 'Transaction succeeded but logging failed' });
               });
             } else {
+              // Extract specific error from transaction response (e.g. Card Declined)
+              const errorCode = tresponse?.getErrors()?.getError()[0]?.getErrorCode();
               const errorText = tresponse?.getErrors()?.getError()[0]?.getErrorText() || 'Transaction Denied by Gateway';
-              reject(new HttpsError('permission-denied', errorText));
+              console.warn(`Gateway Refusal (${errorCode}): ${errorText}`);
+              reject(new HttpsError('permission-denied', `Payment Refused: ${errorText} (${errorCode})`));
             }
           } else {
+            // Gateway-level error (e.g. User Authentication Failed)
             const errorMsg = response.getMessages().getMessage()[0].getText();
             const errorCode = response.getMessages().getMessage()[0].getCode();
-            console.error(`Authorize.net API Error ${errorCode}: ${errorMsg}`);
-            reject(new HttpsError('internal', `Authorize.net Error: ${errorMsg} (${errorCode})`));
+            console.error(`Authorize.net System Error ${errorCode}: ${errorMsg}`);
+            reject(new HttpsError('unavailable', `Gateway System Error: ${errorMsg} (${errorCode})`));
           }
         } else {
-          reject(new HttpsError('internal', 'No response from Authorize.net gateway.'));
+          reject(new HttpsError('deadline-exceeded', 'No response received from Authorize.net gateway.'));
         }
       });
     } catch (err: any) {
       console.error('Controller Execution Crash:', err);
-      reject(new HttpsError('internal', `Payment Controller Error: ${err.message}`));
+      reject(new HttpsError('internal', `Payment Controller Crash: ${err.message}`));
     }
   });
 });
