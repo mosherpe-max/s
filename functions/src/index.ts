@@ -12,7 +12,7 @@ admin.initializeApp();
  * Dynamically fetches venue-specific credentials from the Private Vault.
  */
 export const processPayment = onCall(async (request) => {
-  const { paymentNonce, amount, orderId, buyerProfileId, sellerId } = request.data;
+  const { paymentNonce, dataDescriptor, amount, orderId, buyerProfileId, sellerId } = request.data;
 
   // 1. Validation
   if (!paymentNonce || !amount || !orderId || !buyerProfileId || !sellerId) {
@@ -30,19 +30,20 @@ export const processPayment = onCall(async (request) => {
       admin.firestore().doc(`sellers_private/${sellerId}`).get()
     ]);
 
-    if (!sellerDoc.exists || !vaultDoc.exists) {
-      throw new Error(`Venue ${sellerId} not properly configured in vault.`);
+    if (!sellerDoc.exists) {
+      throw new Error(`Venue ${sellerId} not found in registry.`);
     }
 
     const sellerData = sellerDoc.data();
-    const vaultData = vaultDoc.data();
+    const vaultData = vaultDoc.exists ? vaultDoc.data() : {};
 
+    // Favor vaulted credentials, fallback to public profile if necessary
     activeLoginId = vaultData?.authorizeNetLoginId || sellerData?.authorizeNetLoginId;
     activeTransKey = vaultData?.authorizeNetTransactionKey;
     isProduction = sellerData?.isProduction === true;
 
     if (!activeLoginId || !activeTransKey) {
-      throw new Error("Missing Merchant API Login ID or Transaction Key in secure vault.");
+      throw new Error(`Venue ${sellerId} is missing Merchant API credentials.`);
     }
   } catch (err: any) {
     console.error(`Vault Access Error for ${sellerId}:`, err);
@@ -55,7 +56,8 @@ export const processPayment = onCall(async (request) => {
   merchantAuthenticationType.setTransactionKey(activeTransKey);
 
   const opaqueData = new APIContracts.OpaqueDataType();
-  opaqueData.setDataDescriptor('COMMON.ACCEPT.INAPP.PAYMENT');
+  // CRITICAL: Use the descriptor passed from Accept.js (e.g. COMMON.ACCEPT.WEB.PAYMENT)
+  opaqueData.setDataDescriptor(dataDescriptor || 'COMMON.ACCEPT.WEB.PAYMENT');
   opaqueData.setDataValue(paymentNonce);
 
   const paymentType = new APIContracts.PaymentType();
@@ -79,46 +81,53 @@ export const processPayment = onCall(async (request) => {
   }
 
   return new Promise((resolve, reject) => {
-    ctrl.execute(() => {
-      const apiResponse = ctrl.getResponse();
-      const response = new APIContracts.CreateTransactionResponse(apiResponse);
+    try {
+      ctrl.execute(() => {
+        const apiResponse = ctrl.getResponse();
+        const response = new APIContracts.CreateTransactionResponse(apiResponse);
 
-      if (response != null) {
-        if (response.getMessages().getResultCode() === APIContracts.MessageTypeEnum.OK) {
-          const tresponse = response.getTransactionResponse();
-          if (tresponse != null && tresponse.getMessages() != null) {
-            const transId = tresponse.getTransId();
-            
-            // Record transaction in Firestore
-            admin.firestore().collection('paymentTransactions').add({
-              orderId,
-              buyerProfileId,
-              sellerId,
-              amount,
-              status: 'Success',
-              paymentGatewayTransactionId: transId,
-              environment: isProduction ? 'production' : 'sandbox',
-              transactionDateTime: admin.firestore.FieldValue.serverTimestamp(),
-              createdAt: admin.firestore.FieldValue.serverTimestamp(),
-              updatedAt: admin.firestore.FieldValue.serverTimestamp()
-            }).then(() => {
-              resolve({ success: true, transactionId: transId });
-            }).catch(err => {
-              console.error('Logging Error:', err);
-              resolve({ success: true, transactionId: transId, warning: 'Log failed' });
-            });
+        if (response != null) {
+          if (response.getMessages().getResultCode() === APIContracts.MessageTypeEnum.OK) {
+            const tresponse = response.getTransactionResponse();
+            if (tresponse != null && tresponse.getMessages() != null) {
+              const transId = tresponse.getTransId();
+              
+              // Record transaction in Firestore
+              admin.firestore().collection('paymentTransactions').add({
+                orderId,
+                buyerProfileId,
+                sellerId,
+                amount,
+                status: 'Success',
+                paymentGatewayTransactionId: transId,
+                environment: isProduction ? 'production' : 'sandbox',
+                transactionDateTime: admin.firestore.FieldValue.serverTimestamp(),
+                createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                updatedAt: admin.firestore.FieldValue.serverTimestamp()
+              }).then(() => {
+                resolve({ success: true, transactionId: transId });
+              }).catch(err => {
+                console.error('Logging Error:', err);
+                resolve({ success: true, transactionId: transId, warning: 'Transaction succeeded but logging failed' });
+              });
+            } else {
+              const errorText = tresponse?.getErrors()?.getError()[0]?.getErrorText() || 'Transaction Denied by Gateway';
+              reject(new HttpsError('permission-denied', errorText));
+            }
           } else {
-            const errorText = tresponse?.getErrors()?.getError()[0]?.getErrorText() || 'Transaction Denied by Gateway';
-            reject(new HttpsError('internal', errorText));
+            const errorMsg = response.getMessages().getMessage()[0].getText();
+            const errorCode = response.getMessages().getMessage()[0].getCode();
+            console.error(`Authorize.net API Error ${errorCode}: ${errorMsg}`);
+            reject(new HttpsError('internal', `Authorize.net Error: ${errorMsg} (${errorCode})`));
           }
         } else {
-          const errorText = response.getMessages().getMessage()[0].getText();
-          reject(new HttpsError('internal', `Authorize.net Error: ${errorText}`));
+          reject(new HttpsError('internal', 'No response from Authorize.net gateway.'));
         }
-      } else {
-        reject(new HttpsError('internal', 'Null response from Authorize.net. Check network connectivity.'));
-      }
-    });
+      });
+    } catch (err: any) {
+      console.error('Controller Execution Crash:', err);
+      reject(new HttpsError('internal', `Payment Controller Error: ${err.message}`));
+    }
   });
 });
 

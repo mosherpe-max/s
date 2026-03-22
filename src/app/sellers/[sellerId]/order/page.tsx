@@ -192,7 +192,6 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
   const [locationValue, setLocationValue] = useState<string>('');
   const [specialInstructions, setSpecialInstructions] = useState<string>('');
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
-  const [paymentStatus, setPaymentStatus] = useState<'idle' | 'processing' | 'failed'>('idle');
   
   const [modifierTarget, setModifierTarget] = useState<MenuItem | null>(null);
 
@@ -286,7 +285,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
   const isLocationRequired = selectedMenuType === 'Lane Delivery';
   const isLocationSelected = !!locationValue;
 
-  const tokenizeCard = async (): Promise<string | null> => {
+  const tokenizeCard = async (): Promise<{ dataValue: string, dataDescriptor: string } | null> => {
     if (!seller?.authorizeNetLoginId || !seller?.authorizeNetClientKey) {
       throw new Error("Venue payment gateway not configured. Please contact staff.");
     }
@@ -319,7 +318,10 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
           let errorMsg = response.messages.message[0].text;
           reject(new Error(errorMsg));
         } else {
-          resolve(response.opaqueData.dataValue);
+          resolve({
+            dataValue: response.opaqueData.dataValue,
+            dataDescriptor: response.opaqueData.dataDescriptor
+          });
         }
       });
     });
@@ -335,7 +337,6 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
       }
 
       setIsPlacingOrder(true);
-      setPaymentStatus('processing');
 
       let currentUser = user;
       let isGuestCheckout = false;
@@ -349,14 +350,13 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
 
       if (!currentUser) throw new Error("Security identity required.");
 
-      let paymentNonce = null;
+      let paymentResult: { dataValue: string, dataDescriptor: string } | null = null;
       if (selectedPaymentMethod === 'Credit Card') {
         try {
-          paymentNonce = await tokenizeCard();
+          paymentResult = await tokenizeCard();
         } catch (err: any) {
           toast({ variant: 'destructive', title: 'Payment Validation Error', description: err.message });
           setIsPlacingOrder(false);
-          setPaymentStatus('failed');
           return;
         }
       }
@@ -390,17 +390,20 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
 
           const orderRef = await addDoc(collection(firestore, 'orders'), orderData);
 
-          if (selectedPaymentMethod === 'Credit Card' && paymentNonce) {
+          if (selectedPaymentMethod === 'Credit Card' && paymentResult) {
             try {
               await processPaymentFn({
-                paymentNonce,
+                paymentNonce: paymentResult.dataValue,
+                dataDescriptor: paymentResult.dataDescriptor,
                 amount: finalTotal,
                 orderId: orderRef.id,
                 buyerProfileId: currentUser!.uid,
                 sellerId
               });
             } catch (payErr: any) {
-              setPaymentStatus('failed');
+              // If payment fails, we might want to mark the order as "Payment Failed" or delete it.
+              // For now, we'll mark the status and let the user retry or staff handle it.
+              await updateDoc(doc(firestore, 'orders', orderRef.id), { status: 'Cancelled', paymentError: payErr.message });
               toast({ variant: 'destructive', title: 'Payment Denied', description: payErr.message || 'Transaction denied by bank.' });
               setIsPlacingOrder(false);
               return;
@@ -410,7 +413,6 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
           router.push(`/order/track?id=${orderRef.id}&sellerId=${sellerId}`);
           clearCart();
         } catch (err: any) {
-          setPaymentStatus('failed');
           toast({ variant: 'destructive', title: 'Order Failed', description: err.message });
         } finally {
           setIsPlacingOrder(false);
@@ -427,7 +429,6 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
       }
     } catch (error: any) {
       setIsPlacingOrder(false);
-      setPaymentStatus('failed');
       toast({ variant: 'destructive', title: 'Submission Error', description: error.message });
     }
   };
