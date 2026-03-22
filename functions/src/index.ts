@@ -66,7 +66,7 @@ export const processPayment = onCall(async (request) => {
   const transactionRequestType = new APIContracts.TransactionRequestType();
   transactionRequestType.setTransactionType(APIContracts.TransactionTypeEnum.AUTHCAPTURETRANSACTION);
   transactionRequestType.setPayment(paymentType);
-  transactionRequestType.setAmount(amount.toFixed(2)); // Format as string with 2 decimals
+  transactionRequestType.setAmount(Number(amount).toFixed(2)); // Force strict 2-decimal string
 
   const createRequest = new APIContracts.CreateTransactionRequest();
   createRequest.setMerchantAuthentication(merchantAuthenticationType);
@@ -81,8 +81,14 @@ export const processPayment = onCall(async (request) => {
   }
 
   return new Promise((resolve, reject) => {
+    // Watchdog timer to prevent function hang
+    const timeout = setTimeout(() => {
+      reject(new HttpsError('deadline-exceeded', 'The payment gateway timed out. Please try again.'));
+    }, 25000);
+
     try {
       ctrl.execute(() => {
+        clearTimeout(timeout);
         const apiResponse = ctrl.getResponse();
         const response = new APIContracts.CreateTransactionResponse(apiResponse);
 
@@ -129,6 +135,7 @@ export const processPayment = onCall(async (request) => {
         }
       });
     } catch (err: any) {
+      clearTimeout(timeout);
       console.error('Controller Execution Crash:', err);
       reject(new HttpsError('internal', `Payment Controller Crash: ${err.message}`));
     }

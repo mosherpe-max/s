@@ -47,7 +47,7 @@ import {
   Pencil,
   ChevronRight,
   ShieldCheck,
-  Lock 
+  Lock as LockIcon 
 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useCart } from '@/lib/cart-context';
@@ -361,7 +361,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
         try {
           paymentResult = await tokenizeCard();
         } catch (err: any) {
-          toast({ variant: 'destructive', title: 'Card Tokenization Error', description: err.message });
+          toast({ variant: 'destructive', title: 'Card Entry Error', description: err.message });
           setIsPlacingOrder(false);
           return;
         }
@@ -691,7 +691,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
                     </div>
                     
                     <div className="flex items-center gap-2 justify-center pt-2 opacity-40">
-                      <Lock className="h-3 w-3" />
+                      <LockIcon className="h-3 w-3" />
                       <span className="text-[8px] font-black uppercase tracking-[0.2em]">Encrypted Connection</span>
                     </div>
                   </div>
