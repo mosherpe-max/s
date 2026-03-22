@@ -61,7 +61,8 @@ import {
   ShieldCheck,
   UserPlus,
   CreditCard,
-  Pencil
+  Pencil,
+  Zap
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -78,6 +79,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn, SUPER_ADMIN_ID, getNumericOrderId } from '@/lib/utils';
@@ -140,6 +142,8 @@ const gatewaySchema = z.object({
   authorizeNetLoginId: z.string().min(1, 'Login ID required'),
   authorizeNetClientKey: z.string().min(1, 'Public Client Key required'),
   authorizeNetTransactionKey: z.string().min(1, 'Transaction Key required'),
+  authorizeNetSignatureKey: z.string().optional(),
+  isProduction: z.boolean().default(false),
 });
 
 type GatewayFormData = z.infer<typeof gatewaySchema>;
@@ -352,7 +356,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   const { user, isUserLoading } = useUser();
   const router = useRouter();
   const { toast } = useToast();
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [isMounted, setIsMounted] = useState(false);
   const [isMasterFormOpen, setIsMasterFormOpen] = useState(false);
@@ -469,6 +472,8 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
       authorizeNetLoginId: '',
       authorizeNetClientKey: '',
       authorizeNetTransactionKey: '',
+      authorizeNetSignatureKey: '',
+      isProduction: false,
     },
   });
 
@@ -481,6 +486,8 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
       authorizeNetLoginId: seller?.authorizeNetLoginId || privateData.authorizeNetLoginId || '',
       authorizeNetClientKey: seller?.authorizeNetClientKey || '',
       authorizeNetTransactionKey: privateData.authorizeNetTransactionKey || '',
+      authorizeNetSignatureKey: privateData.authorizeNetSignatureKey || '',
+      isProduction: seller?.isProduction || false,
     });
     setIsGatewayFormOpen(true);
   };
@@ -495,6 +502,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
       batch.update(doc(firestore, 'sellers', sellerId), {
         authorizeNetLoginId: data.authorizeNetLoginId,
         authorizeNetClientKey: data.authorizeNetClientKey,
+        isProduction: data.isProduction,
         updatedAt: serverTimestamp()
       });
 
@@ -503,6 +511,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
         id: sellerId,
         authorizeNetLoginId: data.authorizeNetLoginId,
         authorizeNetTransactionKey: data.authorizeNetTransactionKey,
+        authorizeNetSignatureKey: data.authorizeNetSignatureKey || '',
         updatedAt: serverTimestamp()
       }, { merge: true });
 
@@ -1005,10 +1014,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                       <CalendarIcon className="mr-2 h-4 w-4" />
                       {dateRange?.from ? (
                         dateRange.to ? (
-                          <>
-                            {format(dateRange.from, "LLL dd, y")} -{" "}
-                            {format(dateRange.to, "LLL dd, y")}
-                          </>
+                          <>{format(dateRange.from, "LLL dd, y")} - {format(dateRange.to, "LLL dd, y")}</>
                         ) : (
                           format(dateRange.from, "LLL dd, y")
                         )
@@ -1193,12 +1199,17 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                   <div className="flex-1 space-y-4 text-center md:text-left">
                     <div>
                       <h3 className="font-bold text-lg text-[#213147]">Direct Merchant Deposits</h3>
-                      <p className="text-sm text-muted-foreground max-w-lg">
-                        Payments placed via credit card are securely tokenized and deposited into your own account. Koop never touches your funds.
+                      <p className="text-sm text-muted-foreground max-w-lg mb-2">
+                        Configure your secure gateway to receive funds directly into your bank account.
                       </p>
+                      <div className="flex items-center justify-center md:justify-start gap-2">
+                        <Badge variant={seller?.isProduction ? "default" : "secondary"} className="uppercase text-[9px] font-black">
+                          {seller?.isProduction ? "LIVE PRODUCTION" : "SANDBOX MODE"}
+                        </Badge>
+                      </div>
                     </div>
                     <Button onClick={onOpenGateway} className="h-12 px-8 font-black uppercase tracking-widest text-[10px] gap-2">
-                      <Pencil className="h-4 w-4" /> Manage Credentials
+                      <Pencil className="h-4 w-4" /> Manage Gateway Secrets
                     </Button>
                   </div>
                 </div>
@@ -1265,13 +1276,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                   <div className="flex flex-col items-center justify-center p-8 bg-white rounded-[2rem] shadow-2xl border-4 border-muted/20 relative aspect-square max-w-sm mx-auto overflow-hidden">
                     {seller?.qrCodeUrl ? (
                       <div className="text-center space-y-6">
-                        <Image 
-                          src={seller.qrCodeUrl} 
-                          alt="Seller QR Code" 
-                          width={250} 
-                          height={250} 
-                          className="mx-auto"
-                        />
+                        <Image src={seller.qrCodeUrl} alt="Seller QR Code" width={250} height={250} className="mx-auto" />
                         <div className="space-y-1">
                           <p className="text-[10px] font-black uppercase tracking-widest text-primary">Scan to Order</p>
                           <p className="text-sm font-bold truncate max-w-[200px]">{seller.courseName}</p>
@@ -1279,41 +1284,23 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                       </div>
                     ) : (
                       <div className="text-center space-y-4">
-                        <div className="p-6 bg-muted rounded-full inline-block">
-                          <QrCode className="h-16 w-16 opacity-10" />
-                        </div>
-                        <p className="text-xs text-muted-foreground italic px-8">No QR code generated for this venue yet.</p>
+                        <div className="p-6 bg-muted rounded-full inline-block"><QrCode className="h-16 w-16 opacity-10" /></div>
+                        <p className="text-xs text-muted-foreground italic px-8">No QR code generated.</p>
                       </div>
                     )}
                   </div>
 
                   <div className="space-y-6">
                     <div className="space-y-2">
-                      <h3 className="font-headline text-xl font-bold text-[#213147]">High-Resolution QR Assets</h3>
-                      <p className="text-muted-foreground text-sm leading-relaxed">
-                        Download your venue's unique QR code for use on on-course signage, cart placards, menu boards, or table tents.
-                      </p>
+                      <h3 className="font-headline text-xl font-bold text-[#213147]">High-Resolution Assets</h3>
+                      <p className="text-muted-foreground text-sm leading-relaxed">Download your QR code for use on-course, in carts, or at lanes.</p>
                     </div>
-
                     <div className="grid grid-cols-1 gap-3">
-                      <Button 
-                        className="h-14 font-black uppercase tracking-widest shadow-lg rounded-xl gap-3"
-                        disabled={!seller?.qrCodeUrl}
-                        asChild
-                      >
-                        <a href={seller?.qrCodeUrl} download={`${seller?.courseName}_QR.png`} target="_blank">
-                          <Download className="h-5 w-5" />
-                          Download High-Res PNG
-                        </a>
+                      <Button className="h-14 font-black uppercase tracking-widest shadow-lg rounded-xl gap-3" disabled={!seller?.qrCodeUrl} asChild>
+                        <a href={seller?.qrCodeUrl} download={`${seller?.courseName}_QR.png`} target="_blank"><Download className="h-5 w-5" /> Download High-Res</a>
                       </Button>
-                      <Button 
-                        variant="outline"
-                        className="h-14 font-black uppercase tracking-widest border-2 rounded-xl gap-3"
-                        disabled={!seller?.qrCodeUrl}
-                        onClick={() => window.print()}
-                      >
-                        <Printer className="h-5 w-5" />
-                        Print Table Tent (PDF)
+                      <Button variant="outline" className="h-14 font-black uppercase tracking-widest border-2 rounded-xl gap-3" disabled={!seller?.qrCodeUrl} onClick={() => window.print()}>
+                        <Printer className="h-5 w-5" /> Print Table Tent
                       </Button>
                     </div>
                   </div>
@@ -1331,17 +1318,31 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
             </DialogHeader>
             <Form {...gatewayForm}>
               <form onSubmit={gatewayForm.handleSubmit(onSaveGateway)} className="space-y-6 pt-4">
+                <FormField control={gatewayForm.control} name="isProduction" render={({ field }) => (
+                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4 bg-muted/20">
+                    <div className="space-y-0.5">
+                      <FormLabel className="text-xs font-black uppercase">Live Production Mode</FormLabel>
+                      <FormDescription className="text-[9px] uppercase font-bold">Use live Authorize.net endpoints.</FormDescription>
+                    </div>
+                    <FormControl>
+                      <Switch checked={field.value} onCheckedChange={field.onChange} />
+                    </FormControl>
+                  </FormItem>
+                )} />
                 <FormField control={gatewayForm.control} name="authorizeNetLoginId" render={({ field }) => (
-                  <FormItem><FormLabel className="text-[10px] font-black uppercase">API Login ID</FormLabel><FormControl><Input {...field} placeholder="Merchant Login ID" className="h-11 border-2 font-bold" /></FormControl><FormDescription className="text-[9px] font-bold uppercase">Required for both phone and server communication.</FormDescription><FormMessage /></FormItem>
+                  <FormItem><FormLabel className="text-[10px] font-black uppercase">API Login ID</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={gatewayForm.control} name="authorizeNetClientKey" render={({ field }) => (
-                  <FormItem><FormLabel className="text-[10px] font-black uppercase">Public Client Key</FormLabel><FormControl><Input {...field} placeholder="Client Key" className="h-11 border-2 font-bold" /></FormControl><FormDescription className="text-[9px] font-bold uppercase">Required for secure browser-side card tokenization.</FormDescription><FormMessage /></FormItem>
+                  <FormItem><FormLabel className="text-[10px] font-black uppercase">Public Client Key</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl><FormDescription className="text-[9px] font-bold uppercase">Required for phone tokenization.</FormDescription><FormMessage /></FormItem>
                 )} />
                 <FormField control={gatewayForm.control} name="authorizeNetTransactionKey" render={({ field }) => (
-                  <FormItem><FormLabel className="text-[10px] font-black uppercase">Secret Transaction Key</FormLabel><FormControl><Input {...field} type="password" placeholder="Vaulted Master Key" className="h-11 border-2 font-bold" /></FormControl><FormDescription className="text-[9px] font-bold uppercase">Stored securely in the private vault. Used only by backend.</FormDescription><FormMessage /></FormItem>
+                  <FormItem><FormLabel className="text-[10px] font-black uppercase">Secret Transaction Key</FormLabel><FormControl><Input {...field} type="password" className="h-11 border-2 font-bold" /></FormControl><FormDescription className="text-[9px] font-bold uppercase">Vaulted master secret.</FormDescription><FormMessage /></FormItem>
+                )} />
+                <FormField control={gatewayForm.control} name="authorizeNetSignatureKey" render={({ field }) => (
+                  <FormItem><FormLabel className="text-[10px] font-black uppercase">SHA-512 Signature Key</FormLabel><FormControl><Input {...field} type="password" className="h-11 border-2 font-bold" /></FormControl><FormDescription className="text-[9px] font-bold uppercase">Used for HMAC verification (Optional/Recommended).</FormDescription><FormMessage /></FormItem>
                 )} />
                 <DialogFooter>
-                  <Button type="submit" disabled={isSavingGateway} className="w-full font-black uppercase tracking-widest h-12 shadow-xl">
+                  <Button type="submit" disabled={isSavingGateway} className="w-full font-black uppercase h-12 shadow-xl">
                     {isSavingGateway ? <Loader2 className="animate-spin" /> : "Save Payment Profile"}
                   </Button>
                 </DialogFooter>
@@ -1354,21 +1355,20 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
               <DialogTitle className="font-headline uppercase text-primary">{editingStaff ? 'Update Staff Member' : 'Add Staff Member'}</DialogTitle>
-              <DialogDescription>Assign a 4-digit PIN for device login. They can assume any active role.</DialogDescription>
+              <DialogDescription>Assign a 4-digit PIN for device login.</DialogDescription>
             </DialogHeader>
             <Form {...staffForm}>
               <form onSubmit={staffForm.handleSubmit(onSaveStaff)} className="space-y-4 pt-4">
                 <FormField control={staffForm.control} name="name" render={({ field }) => (
-                  <FormItem><FormLabel className="text-[10px] font-black uppercase">Staff Name</FormLabel><FormControl><Input {...field} placeholder="e.g. Sarah J." /></FormControl><FormMessage /></FormItem>
+                  <FormItem><FormLabel className="text-[10px] font-black uppercase">Staff Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={staffForm.control} name="role" render={({ field }) => (
-                  <FormItem><FormLabel className="text-[10px] font-black uppercase">Primary Role (for records)</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="Driver">Driver</SelectItem><SelectItem value="Server">Server</SelectItem><SelectItem value="Manager">Venue Manager</SelectItem></SelectContent></Select></FormItem>
+                  <FormItem><FormLabel className="text-[10px] font-black uppercase">Primary Role</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="Driver">Driver</SelectItem><SelectItem value="Server">Server</SelectItem><SelectItem value="Manager">Venue Manager</SelectItem></SelectContent></Select></FormItem>
                 )} />
                 <FormField control={staffForm.control} name="pin" render={({ field }) => (
                   <FormItem>
                     <FormLabel className="text-[10px] font-black uppercase">4-Digit Access PIN</FormLabel>
-                    <FormControl><Input {...field} maxLength={4} placeholder="1234" className="font-mono font-black tracking-widest text-center text-lg" /></FormControl>
-                    <FormDescription className="text-[9px] uppercase font-bold">Staff will enter this to start their shift.</FormDescription>
+                    <FormControl><Input {...field} maxLength={4} className="font-mono font-black tracking-widest text-center text-lg" /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )} />
@@ -1395,89 +1395,44 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
               <DialogTitle className="uppercase font-headline flex items-center gap-2">
                 <PlusCircle className="h-5 w-5 text-primary" /> Manage {pickingMenuType} Items
               </DialogTitle>
-              <DialogDescription>Assign items from your library to this specific service menu.</DialogDescription>
             </DialogHeader>
-            
             <div className="p-4 border-b bg-background space-y-4 shrink-0">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input 
-                  placeholder="Search your library..." 
-                  className="pl-10 h-10" 
-                  value={pickerSearch}
-                  onChange={(e) => setPickerSearch(e.target.value)}
-                />
+                <Input placeholder="Search your library..." className="pl-10 h-10" value={pickerSearch} onChange={(e) => setPickerSearch(e.target.value)} />
               </div>
               <ScrollArea className="w-full whitespace-nowrap">
                 <div className="flex gap-1.5 pb-1">
-                  <Button 
-                    variant={pickerCategory === 'All' ? 'default' : 'outline'} 
-                    size="sm" 
-                    onClick={() => setPickerCategory('All')}
-                    className="h-7 text-[9px] font-black uppercase tracking-widest"
-                  >
-                    All Categories
-                  </Button>
-                  {categories.map(cat => (
-                    <Button 
-                      key={`picker-cat-${cat}`} 
-                      variant={pickerCategory === cat ? 'default' : 'outline'} 
-                      size="sm" 
-                      onClick={() => setPickerCategory(cat)}
-                      className="h-7 text-[9px] font-black uppercase tracking-widest"
-                    >
-                      {cat}
-                    </Button>
-                  ))}
+                  <Button variant={pickerCategory === 'All' ? 'default' : 'outline'} size="sm" onClick={() => setPickerCategory('All')} className="h-7 text-[9px] font-black uppercase">All Categories</Button>
+                  {categories.map(cat => <Button key={cat} variant={pickerCategory === cat ? 'default' : 'outline'} size="sm" onClick={() => setPickerCategory(cat)} className="h-7 text-[9px] font-black uppercase">{cat}</Button>)}
                 </div>
               </ScrollArea>
             </div>
-
             <ScrollArea className="flex-1 px-6 py-4">
               <div className="grid grid-cols-1 gap-3 pb-8">
-                {filteredLibraryForPicker.length === 0 ? (
-                  <div className="text-center py-20 opacity-30">
-                    <Database className="h-12 w-12 mx-auto mb-2" />
-                    <p className="text-sm font-bold uppercase tracking-widest">No matching items found</p>
-                  </div>
-                ) : (
-                  filteredLibraryForPicker.map((item) => {
-                    const isSelected = item.availableOn?.includes(pickingMenuType);
-                    return (
-                      <div 
-                        key={`picker-item-${item.id}`} 
-                        className={cn(
-                          "flex items-center justify-between p-4 rounded-2xl border-2 transition-all cursor-pointer group",
-                          isSelected ? "border-primary bg-primary/5 shadow-sm" : "border-muted hover:border-primary/30"
-                        )}
-                        onClick={() => handleToggleMenuItemAvailability(item, pickingMenuType)}
-                      >
-                        <div className="flex items-center gap-4">
-                          <div className={cn(
-                            "w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors",
-                            isSelected ? "bg-primary border-primary" : "bg-background border-muted-foreground/20 group-hover:border-primary/50"
-                          )}>
-                            {isSelected && <Check className="h-3.5 w-3.5 text-white" />}
-                          </div>
-                          <div className="space-y-0.5">
-                            <p className="font-bold text-sm leading-tight">{item.name}</p>
-                            <div className="flex items-center gap-2">
-                              <Badge variant="outline" className="text-[8px] uppercase font-black px-1.5 h-4">{item.category}</Badge>
-                              <span className="text-[10px] font-mono font-bold text-muted-foreground">${item.price.toFixed(2)}</span>
-                            </div>
+                {filteredLibraryForPicker.map((item) => {
+                  const isSelected = item.availableOn?.includes(pickingMenuType);
+                  return (
+                    <button key={item.id} className={cn("flex items-center justify-between p-4 rounded-2xl border-2 transition-all group", isSelected ? "border-primary bg-primary/5 shadow-sm" : "border-muted hover:border-primary/30")} onClick={() => handleToggleMenuItemAvailability(item, pickingMenuType)}>
+                      <div className="flex items-center gap-4">
+                        <div className={cn("w-6 h-6 rounded-full border-2 flex items-center justify-center", isSelected ? "bg-primary border-primary" : "bg-background border-muted-foreground/20")}>
+                          {isSelected && <Check className="h-3.5 w-3.5 text-white" />}
+                        </div>
+                        <div className="text-left">
+                          <p className="font-bold text-sm leading-tight">{item.name}</p>
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline" className="text-[8px] uppercase font-black px-1.5 h-4">{item.category}</Badge>
+                            <span className="text-[10px] font-mono font-bold text-muted-foreground">${item.price.toFixed(2)}</span>
                           </div>
                         </div>
                       </div>
-                    );
-                  })
-                )}
+                    </button>
+                  );
+                })}
               </div>
             </ScrollArea>
-
             <DialogFooter className="px-6 py-4 border-t bg-muted/10 shrink-0">
-              <Button onClick={() => setIsPickingOpen(false)} className="w-full sm:w-auto font-black uppercase text-xs tracking-[0.2em]">
-                Finished Configuration
-              </Button>
+              <Button onClick={() => setIsPickingOpen(false)} className="w-full sm:w-auto font-black uppercase text-xs">Finished Configuration</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -1486,7 +1441,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
           <DialogContent className="sm:max-w-[600px] w-[95vw] max-h-[90vh] flex flex-col p-0 overflow-hidden shadow-2xl">
             <DialogHeader className="px-6 py-4 border-b bg-muted/10 shrink-0">
               <DialogTitle className="uppercase tracking-tight">Structure: {configMenuType}</DialogTitle>
-              <CardDescription>Enable modifiers and image display per category.</CardDescription>
             </DialogHeader>
             <ScrollArea className="flex-1 px-6 py-4">
               <div className="grid grid-cols-1 gap-4 pb-8">
@@ -1494,12 +1448,9 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                   const isVisible = seller?.categoryVisibility?.[configMenuType]?.includes(category);
                   const showImages = seller?.categoryImageVisibility?.[configMenuType]?.includes(category);
                   const modsEnabled = seller?.categoryModifierEnabled?.[configMenuType]?.includes(category);
-                  
                   return (
-                    <div key={`conf-cat-${category}`} className={cn("grid grid-cols-12 items-center gap-2 p-4 border-2 rounded-xl transition-all", isVisible ? "border-primary bg-primary/5" : "border-muted opacity-60")}>
-                      <div className="col-span-6 flex flex-col">
-                        <span className="text-sm font-black uppercase tracking-tight">{category}</span>
-                      </div>
+                    <div key={category} className={cn("grid grid-cols-12 items-center gap-2 p-4 border-2 rounded-xl transition-all", isVisible ? "border-primary bg-primary/5" : "border-muted opacity-60")}>
+                      <div className="col-span-6 flex flex-col"><span className="text-sm font-black uppercase">{category}</span></div>
                       <div className="col-span-3 flex justify-center">
                         <Button variant="ghost" size="icon" className={cn("h-10 w-10 rounded-full", modsEnabled ? "text-primary" : "text-muted-foreground")} onClick={() => handleToggleCategoryModifier(configMenuType, category)}>
                           <Layers className={cn("h-5 w-5", !modsEnabled && "opacity-30")} />
@@ -1520,7 +1471,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
               </div>
             </ScrollArea>
             <DialogFooter className="px-6 py-4 border-t bg-muted/20 shrink-0">
-              <Button onClick={() => setIsCategoryConfigOpen(false)} className="w-full sm:w-auto font-bold uppercase text-xs tracking-widest">Save Structure</Button>
+              <Button onClick={() => setIsCategoryConfigOpen(false)} className="w-full sm:w-auto font-bold uppercase text-xs">Save Structure</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>

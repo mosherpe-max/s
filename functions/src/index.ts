@@ -7,18 +7,11 @@ import { APIContracts, APIControllers, SDKConstants } from 'authorizenet';
 
 admin.initializeApp();
 
-// Platform-level fallback secrets (Managed in Google Cloud Secret Manager)
-const platformApiLoginId = functions.defineSecret('AUTHORIZENET_API_LOGIN_ID');
-const platformTransactionKey = functions.defineSecret('AUTHORIZENET_TRANSACTION_KEY');
-
 /**
  * Securely processes a one-time payment using Authorize.net Accept.js Nonce.
  * Dynamically fetches venue-specific credentials from the Private Vault.
- * Requirement: API Login ID and Transaction Key are mandatory for transaction execution.
  */
-export const processPayment = onCall({
-  secrets: [platformApiLoginId, platformTransactionKey]
-}, async (request) => {
+export const processPayment = onCall(async (request) => {
   const { paymentNonce, amount, orderId, buyerProfileId, sellerId } = request.data;
 
   // 1. Validation
@@ -27,25 +20,33 @@ export const processPayment = onCall({
   }
 
   // 2. Fetch Venue Credentials from Private Vault
-  let activeLoginId = platformApiLoginId.value();
-  let activeTransKey = platformTransactionKey.value();
-  let isSandbox = true; // Default to sandbox for safety
+  let activeLoginId = '';
+  let activeTransKey = '';
+  let isProduction = false;
 
   try {
-    const vaultDoc = await admin.firestore().doc(`sellers_private/${sellerId}`).get();
-    if (vaultDoc.exists) {
-      const vaultData = vaultDoc.data();
-      if (vaultData?.authorizeNetLoginId && vaultData?.authorizeNetTransactionKey) {
-        console.log(`Using venue-specific credentials for: ${sellerId}`);
-        activeLoginId = vaultData.authorizeNetLoginId;
-        activeTransKey = vaultData.authorizeNetTransactionKey;
-        // Logic to determine production vs sandbox
-        // For prototype purposes, we check if the ID starts with 'demo-'
-        isSandbox = sellerId.startsWith('demo-');
-      }
+    const [sellerDoc, vaultDoc] = await Promise.all([
+      admin.firestore().doc(`sellers/${sellerId}`).get(),
+      admin.firestore().doc(`sellers_private/${sellerId}`).get()
+    ]);
+
+    if (!sellerDoc.exists || !vaultDoc.exists) {
+      throw new Error(`Venue ${sellerId} not properly configured in vault.`);
     }
-  } catch (err) {
-    console.warn(`Could not access Private Vault for ${sellerId}. Falling back to platform keys.`);
+
+    const sellerData = sellerDoc.data();
+    const vaultData = vaultDoc.data();
+
+    activeLoginId = vaultData?.authorizeNetLoginId || sellerData?.authorizeNetLoginId;
+    activeTransKey = vaultData?.authorizeNetTransactionKey;
+    isProduction = sellerData?.isProduction === true;
+
+    if (!activeLoginId || !activeTransKey) {
+      throw new Error("Missing Merchant API Login ID or Transaction Key in secure vault.");
+    }
+  } catch (err: any) {
+    console.error(`Vault Access Error for ${sellerId}:`, err);
+    throw new HttpsError('internal', `Credential Error: ${err.message}`);
   }
 
   // 3. Configure Authorize.net Transaction
@@ -71,7 +72,7 @@ export const processPayment = onCall({
 
   const ctrl = new APIControllers.CreateTransactionController(createRequest.getJSON());
   
-  if (!isSandbox) {
+  if (isProduction) {
     ctrl.setEnvironment(SDKConstants.endpoint.production);
   } else {
     ctrl.setEnvironment(SDKConstants.endpoint.sandbox);
@@ -96,6 +97,7 @@ export const processPayment = onCall({
               amount,
               status: 'Success',
               paymentGatewayTransactionId: transId,
+              environment: isProduction ? 'production' : 'sandbox',
               transactionDateTime: admin.firestore.FieldValue.serverTimestamp(),
               createdAt: admin.firestore.FieldValue.serverTimestamp(),
               updatedAt: admin.firestore.FieldValue.serverTimestamp()
@@ -106,7 +108,7 @@ export const processPayment = onCall({
               resolve({ success: true, transactionId: transId, warning: 'Log failed' });
             });
           } else {
-            const errorText = tresponse?.getErrors()?.getError()[0]?.getErrorText() || 'Transaction Denied';
+            const errorText = tresponse?.getErrors()?.getError()[0]?.getErrorText() || 'Transaction Denied by Gateway';
             reject(new HttpsError('internal', errorText));
           }
         } else {
@@ -114,7 +116,7 @@ export const processPayment = onCall({
           reject(new HttpsError('internal', `Authorize.net Error: ${errorText}`));
         }
       } else {
-        reject(new HttpsError('internal', 'No response from payment gateway.'));
+        reject(new HttpsError('internal', 'Null response from Authorize.net. Check network connectivity.'));
       }
     });
   });

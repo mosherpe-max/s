@@ -47,7 +47,7 @@ import {
   Pencil,
   ChevronRight,
   ShieldCheck,
-  Lock // Fixed: Explicitly imported to avoid global constructor clash
+  Lock 
 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useCart } from '@/lib/cart-context';
@@ -129,12 +129,11 @@ function ModifierPicker({
                 {group.options.map((option) => {
                   const isSelected = !!selections[group.id]?.find(o => o.id === option.id);
                   return (
-                    <Button
+                    <button
                       key={option.id}
-                      variant="outline"
                       className={cn(
-                        "h-14 justify-between px-4 rounded-xl border-2 transition-all",
-                        isSelected ? "border-primary bg-primary/5 shadow-sm" : "hover:bg-muted/50"
+                        "h-14 w-full flex items-center justify-between px-4 rounded-xl border-2 transition-all text-left",
+                        isSelected ? "border-primary bg-primary/5 shadow-sm" : "border-muted hover:bg-muted/50"
                       )}
                       onClick={() => toggleOption(group, option)}
                     >
@@ -148,7 +147,7 @@ function ModifierPicker({
                         <span className="font-bold text-sm">{option.name}</span>
                       </div>
                       {option.price > 0 && <span className="font-mono text-xs font-bold text-primary">+${option.price.toFixed(2)}</span>}
-                    </Button>
+                    </button>
                   );
                 })}
               </div>
@@ -194,7 +193,6 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
   const [specialInstructions, setSpecialInstructions] = useState<string>('');
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
   const [paymentStatus, setPaymentStatus] = useState<'idle' | 'processing' | 'failed'>('idle');
-  const [showBackToTop, setShowTopButton] = useState(false);
   
   const [modifierTarget, setModifierTarget] = useState<MenuItem | null>(null);
 
@@ -215,23 +213,23 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
   const { data: menuItems, isLoading: areItemsLoading } = useCollection<MenuItem>(menuItemsQuery);
 
   useEffect(() => {
-    const handleScroll = () => setShowTopButton(window.scrollY > 400);
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
+    if (!seller) return;
+    
+    // Dynamically load Authorize.net Accept.js based on environment
+    const isProd = seller.isProduction === true;
+    const scriptUrl = isProd 
+      ? 'https://js.authorize.net/v1/Accept.js' 
+      : 'https://jstest.authorize.net/v1/Accept.js';
 
-  useEffect(() => {
-    // Load Authorize.net Accept.js
     const script = document.createElement('script');
-    script.src = 'https://jstest.authorize.net/v1/Accept.js'; 
+    script.src = scriptUrl; 
     script.async = true;
     document.body.appendChild(script);
+    
     return () => {
       document.body.removeChild(script);
     };
-  }, []);
-
-  const scrollToTop = () => window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [seller?.isProduction]);
 
   const activeOrderItems = useMemo(() => orderItems.filter((item) => item.quantity > 0), [orderItems]);
   const subtotal = useMemo(() => activeOrderItems.reduce((acc, item) => {
@@ -251,14 +249,11 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
     return specificFee !== undefined && specificFee !== null ? specificFee : (seller.serviceFee || 0);
   }, [seller, selectedMenuType]);
 
-  const tipOptions = useMemo(() => {
-    const options = [
-      { label: '10%', value: 0.10, type: 'percent' },
-      { label: '15%', value: 0.15, type: 'percent' },
-      { label: '20%', value: 0.20, type: 'percent' },
-    ];
-    return options;
-  }, []);
+  const tipOptions = useMemo(() => ([
+    { label: '10%', value: 0.10, type: 'percent' },
+    { label: '15%', value: 0.15, type: 'percent' },
+    { label: '20%', value: 0.20, type: 'percent' },
+  ]), []);
 
   useEffect(() => {
     if (subtotal > 0 && !selectedTipType) {
@@ -293,7 +288,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
 
   const tokenizeCard = async (): Promise<string | null> => {
     if (!seller?.authorizeNetLoginId || !seller?.authorizeNetClientKey) {
-      throw new Error("Venue payment gateway not configured.");
+      throw new Error("Venue payment gateway not configured. Please contact staff.");
     }
 
     return new Promise((resolve, reject) => {
@@ -313,6 +308,12 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
       const secureData = { authData, cardData };
 
       // @ts-ignore
+      if (!window.Accept) {
+        reject(new Error("Payment security library not loaded. Check connection."));
+        return;
+      }
+
+      // @ts-ignore
       window.Accept.dispatchData(secureData, (response: any) => {
         if (response.messages.resultCode === "Error") {
           let errorMsg = response.messages.message[0].text;
@@ -329,7 +330,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
       if (!firestore || !seller) return;
       if (activeOrderItems.length === 0) return;
       if (isLocationRequired && !isLocationSelected) {
-        toast({ variant: 'destructive', title: 'Lane Required', description: 'Please select your lane number before placing your order.' });
+        toast({ variant: 'destructive', title: 'Lane Required', description: 'Please select your lane number.' });
         return;
       }
 
@@ -339,26 +340,21 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
       let currentUser = user;
       let isGuestCheckout = false;
       if (!currentUser && auth) {
-        try {
-          const authResult = await signInAnonymously(auth);
-          currentUser = authResult.user;
-          isGuestCheckout = true;
-        } catch (authErr) {
-          console.error("Auth failed:", authErr);
-          throw new Error("Failed to establish guest session.");
-        }
+        const authResult = await signInAnonymously(auth);
+        currentUser = authResult.user;
+        isGuestCheckout = true;
       } else if (currentUser?.isAnonymous) {
         isGuestCheckout = true;
       }
 
-      if (!currentUser) throw new Error("Security identity required to place order.");
+      if (!currentUser) throw new Error("Security identity required.");
 
       let paymentNonce = null;
       if (selectedPaymentMethod === 'Credit Card') {
         try {
           paymentNonce = await tokenizeCard();
         } catch (err: any) {
-          toast({ variant: 'destructive', title: 'Payment Validation Failed', description: err.message });
+          toast({ variant: 'destructive', title: 'Payment Validation Error', description: err.message });
           setIsPlacingOrder(false);
           setPaymentStatus('failed');
           return;
@@ -387,10 +383,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
             menuTypeLocation: locationValue || null,
             specialInstructions: specialInstructions || null,
             isGuestOrder: isGuestCheckout,
-            deviceMetadata: {
-              userAgent: window.navigator.userAgent,
-              timestamp: new Date().toISOString()
-            },
+            deviceMetadata: { userAgent: window.navigator.userAgent, timestamp: new Date().toISOString() },
             createdAt: serverTimestamp(),
             modifiedAt: serverTimestamp(),
           };
@@ -407,13 +400,8 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
                 sellerId
               });
             } catch (payErr: any) {
-              console.error("Payment Process Error:", payErr);
               setPaymentStatus('failed');
-              toast({ 
-                variant: 'destructive', 
-                title: 'Payment Denied', 
-                description: payErr.message || 'Transaction could not be completed. Please check your card or try another method.' 
-              });
+              toast({ variant: 'destructive', title: 'Payment Denied', description: payErr.message || 'Transaction denied by bank.' });
               setIsPlacingOrder(false);
               return;
             }
@@ -422,7 +410,6 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
           router.push(`/order/track?id=${orderRef.id}&sellerId=${sellerId}`);
           clearCart();
         } catch (err: any) {
-          console.error(err);
           setPaymentStatus('failed');
           toast({ variant: 'destructive', title: 'Order Failed', description: err.message });
         } finally {
@@ -508,7 +495,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
               <OrderSummary items={activeOrderItems} onUpdateItem={updateItem} onRemoveItem={removeItem} />
 
               {selectedMenuType === 'Lane Delivery' && seller?.laneCount && seller.laneCount > 0 && (
-                <div className="space-y-3 animate-in slide-in-from-top-2 duration-300">
+                <div className="space-y-3">
                   <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground px-1 flex items-center gap-2">
                     <MapPin className="h-3 w-3" /> SELECT YOUR LANE
                   </h3>
@@ -517,18 +504,16 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
                       {Array.from({ length: seller.laneCount }, (_, i) => (i + 1).toString()).map((lane) => {
                         const isSelected = locationValue === `Lane ${lane}`;
                         return (
-                          <Button
+                          <button
                             key={lane}
-                            variant={isSelected ? 'default' : 'outline'}
-                            size="sm"
                             onClick={() => setLocationValue(`Lane ${lane}`)}
                             className={cn(
-                              "h-9 px-0 text-xs font-black rounded-lg transition-all",
-                              isSelected ? "bg-primary text-white scale-105 shadow-md border-primary" : "bg-white hover:bg-primary/5"
+                              "h-9 w-full flex items-center justify-center text-xs font-black rounded-lg transition-all border-2",
+                              isSelected ? "bg-primary border-primary text-white scale-105 shadow-md" : "bg-white border-muted hover:bg-primary/5"
                             )}
                           >
                             {lane}
-                          </Button>
+                          </button>
                         );
                       })}
                     </div>
@@ -546,20 +531,17 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
 
               <div className="space-y-3">
                 <div className="bg-white rounded-2xl border shadow-sm p-4 flex items-center justify-between cursor-pointer hover:bg-muted/5 transition-colors group">
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 w-full">
                     <div className="p-2 bg-yellow-50 rounded-xl text-yellow-600">
                       <Pencil className="h-5 w-5" />
                     </div>
-                    <div className="flex flex-col">
-                      <Input 
-                        placeholder="Add special instructions..." 
-                        value={specialInstructions}
-                        onChange={(e) => setSpecialInstructions(e.target.value)}
-                        className="border-none bg-transparent p-0 h-auto focus-visible:ring-0 font-bold text-[#213147] placeholder:text-muted-foreground/60 w-full min-w-[200px]"
-                      />
-                    </div>
+                    <Input 
+                      placeholder="Add special instructions..." 
+                      value={specialInstructions}
+                      onChange={(e) => setSpecialInstructions(e.target.value)}
+                      className="border-none bg-transparent p-0 h-auto focus-visible:ring-0 font-bold text-[#213147] placeholder:text-muted-foreground/60 w-full"
+                    />
                   </div>
-                  <ChevronRight className="h-4 w-4 text-muted-foreground/40 group-hover:text-muted-foreground transition-colors" />
                 </div>
               </div>
 
@@ -637,7 +619,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
                     <CreditCard className="h-5 w-5" />
                     <div className="text-left">
                       <p className="text-sm font-black uppercase">Credit Card</p>
-                      <p className="text-[9px] font-bold opacity-60">Authorize.net Secure Processing</p>
+                      <p className="text-[9px] font-bold opacity-60">Secure Authorize.net Transaction</p>
                     </div>
                   </Button>
                   <Button 
@@ -698,7 +680,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
                     
                     <div className="flex items-center gap-2 justify-center pt-2 opacity-40">
                       <Lock className="h-3 w-3" />
-                      <span className="text-[8px] font-black uppercase tracking-[0.2em]">Encrypted by Authorize.net</span>
+                      <span className="text-[8px] font-black uppercase tracking-[0.2em]">Encrypted Connection</span>
                     </div>
                   </div>
                 )}
@@ -716,7 +698,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
               disabled={isPlacingOrder || activeOrderItems.length === 0 || (isLocationRequired && !isLocationSelected)}
             >
               {isPlacingOrder ? <Loader2 className="animate-spin mr-2 h-5 w-5" /> : null}
-              {isPlacingOrder ? (selectedPaymentMethod === 'Credit Card' ? "PROCESSING SECURE PAYMENT..." : "PLACING ORDER...") : (isLocationRequired && !isLocationSelected ? "SELECT LANE FIRST" : "PLACE ORDER")}
+              {isPlacingOrder ? "PROCESSING..." : (isLocationRequired && !isLocationSelected ? "SELECT LANE FIRST" : "PLACE ORDER")}
             </Button>
           </SheetFooter>
         </SheetContent>

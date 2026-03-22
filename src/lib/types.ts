@@ -74,9 +74,11 @@ export interface Seller {
   categoryModifierEnabled?: Record<string, Category[]>; // Which categories show modifiers per menuType
   orderThresholds?: Record<string, { warning: number; max: number }>;
   poolMapUrl?: string;
+  isProduction?: boolean; // Environment flag
   authorizeNetLoginId?: string;
   authorizeNetClientKey?: string; // Public key for Accept.js
   authorizeNetTransactionKey?: string; // Private key for backend
+  authorizeNetSignatureKey?: string; // Signature Key for verification
 }
 
 export type Category = 'Beer' | 'Spirits' | 'Soft Drinks' | 'Snacks' | 'Other' | 'Handhelds' | 'Appetizers' | 'Entrees' | 'Pizza' | 'Salad' | 'Dessert' | 'Kids';
@@ -151,6 +153,8 @@ export interface Order {
   deliveredAt?: Timestamp;
   lastGpsUpdate?: Timestamp;
   buyerDeviceStatus?: 'ios-browser' | 'standalone' | 'android' | 'standard';
+  isGuestOrder?: boolean;
+  deviceMetadata?: any;
 }
 
 // ADMIN TYPES
