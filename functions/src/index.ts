@@ -16,6 +16,7 @@ export const processPayment = onCall(async (request) => {
 
   // 1. Validation
   if (!paymentNonce || !amount || !orderId || !buyerProfileId || !sellerId) {
+    console.error("Payment Error: Missing transaction parameters.", { orderId, sellerId });
     throw new HttpsError('invalid-argument', 'Missing transaction parameters.');
   }
 
@@ -45,6 +46,8 @@ export const processPayment = onCall(async (request) => {
     if (!activeLoginId || !activeTransKey) {
       throw new Error(`Venue ${sellerId} is missing Merchant API credentials.`);
     }
+    
+    console.info(`Processing payment for ${sellerId} (${isProduction ? 'PRODUCTION' : 'SANDBOX'})`);
   } catch (err: any) {
     console.error(`Vault Access Error for ${sellerId}:`, err);
     throw new HttpsError('failed-precondition', `Setup Error: ${err.message}`);
@@ -83,6 +86,7 @@ export const processPayment = onCall(async (request) => {
   return new Promise((resolve, reject) => {
     // Watchdog timer to prevent function hang
     const timeout = setTimeout(() => {
+      console.error("Payment Error: Gateway Timeout", { orderId });
       reject(new HttpsError('deadline-exceeded', 'The payment gateway timed out. Please try again.'));
     }, 25000);
 
@@ -93,10 +97,15 @@ export const processPayment = onCall(async (request) => {
         const response = new APIContracts.CreateTransactionResponse(apiResponse);
 
         if (response != null) {
-          if (response.getMessages().getResultCode() === APIContracts.MessageTypeEnum.OK) {
+          const resultCode = response.getMessages()?.getResultCode();
+          
+          if (resultCode === APIContracts.MessageTypeEnum.OK) {
             const tresponse = response.getTransactionResponse();
+            
+            // Check if transaction was actually successful inside the OK response
             if (tresponse != null && tresponse.getMessages() != null) {
               const transId = tresponse.getTransId();
+              console.info(`Payment Successful: ${transId} for Order ${orderId}`);
               
               // Record transaction in Firestore
               admin.firestore().collection('paymentTransactions').add({
@@ -118,20 +127,25 @@ export const processPayment = onCall(async (request) => {
               });
             } else {
               // Extract specific error from transaction response (e.g. Card Declined)
-              const errorCode = tresponse?.getErrors()?.getError()[0]?.getErrorCode();
-              const errorText = tresponse?.getErrors()?.getError()[0]?.getErrorText() || 'Transaction Denied by Gateway';
-              console.warn(`Gateway Refusal (${errorCode}): ${errorText}`);
+              const errors = tresponse?.getErrors()?.getError();
+              const errorText = errors && errors.length > 0 ? errors[0].getErrorText() : 'Transaction Denied by Gateway';
+              const errorCode = errors && errors.length > 0 ? errors[0].getErrorCode() : 'N/A';
+              
+              console.warn(`Gateway Refusal (${errorCode}): ${errorText}`, { orderId });
               reject(new HttpsError('permission-denied', `Payment Refused: ${errorText} (${errorCode})`));
             }
           } else {
             // Gateway-level error (e.g. User Authentication Failed)
-            const errorMsg = response.getMessages().getMessage()[0].getText();
-            const errorCode = response.getMessages().getMessage()[0].getCode();
-            console.error(`Authorize.net System Error ${errorCode}: ${errorMsg}`);
+            const messages = response.getMessages()?.getMessage();
+            const errorMsg = messages && messages.length > 0 ? messages[0].getText() : 'Unknown Gateway Error';
+            const errorCode = messages && messages.length > 0 ? messages[0].getCode() : 'N/A';
+            
+            console.error(`Authorize.net System Error ${errorCode}: ${errorMsg}`, { orderId });
             reject(new HttpsError('unavailable', `Gateway System Error: ${errorMsg} (${errorCode})`));
           }
         } else {
-          reject(new HttpsError('deadline-exceeded', 'No response received from Authorize.net gateway.'));
+          console.error("Payment Error: Null response from Authorize.net", { orderId });
+          reject(new HttpsError('internal', 'No response received from Authorize.net gateway.'));
         }
       });
     } catch (err: any) {
