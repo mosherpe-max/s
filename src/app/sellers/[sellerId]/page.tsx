@@ -2,7 +2,7 @@
 'use client';
 
 import React, { useState, useMemo, useEffect, use, useRef } from 'react';
-import { collection, doc, setDoc, deleteDoc, writeBatch, query, where, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, doc, setDoc, deleteDoc, writeBatch, query, where, updateDoc, serverTimestamp, getDoc } from 'firebase/firestore';
 import { useFirestore, useDoc, useCollection, useMemoFirebase, useUser, useAuth } from '@/firebase';
 import { signOut } from 'firebase/auth';
 import { Button } from '@/components/ui/button';
@@ -59,7 +59,9 @@ import {
   Smartphone,
   KeyRound,
   ShieldCheck,
-  UserPlus
+  UserPlus,
+  CreditCard,
+  Pencil
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -68,7 +70,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import {
   Select,
   SelectContent,
@@ -133,6 +135,14 @@ const menuItemSchema = z.object({
 });
 
 type MenuItemFormData = z.infer<typeof menuItemSchema>;
+
+const gatewaySchema = z.object({
+  authorizeNetLoginId: z.string().min(1, 'Login ID required'),
+  authorizeNetClientKey: z.string().min(1, 'Public Client Key required'),
+  authorizeNetTransactionKey: z.string().min(1, 'Transaction Key required'),
+});
+
+type GatewayFormData = z.infer<typeof gatewaySchema>;
 
 const getCategoriesForMenu = (menuType: string): Category[] => {
   if (menuType === 'Beverage Cart') {
@@ -370,6 +380,8 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   const [isSavingThresholds, setIsSavingThresholds] = useState(false);
   const [isStaffFormOpen, setIsStaffFormOpen] = useState(false);
   const [editingStaff, setEditingStaff] = useState<StaffMember | null>(null);
+  const [isGatewayFormOpen, setIsGatewayFormOpen] = useState(false);
+  const [isSavingGateway, setIsSavingGateway] = useState(false);
 
   // AUTHORIZATION GATE
   const isSuperAdmin = user?.uid === SUPER_ADMIN_ID;
@@ -450,6 +462,58 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
       isActive: true,
     },
   });
+
+  const gatewayForm = useForm<GatewayFormData>({
+    resolver: zodResolver(gatewaySchema),
+    defaultValues: {
+      authorizeNetLoginId: '',
+      authorizeNetClientKey: '',
+      authorizeNetTransactionKey: '',
+    },
+  });
+
+  const onOpenGateway = async () => {
+    if (!firestore) return;
+    const vaultDoc = await getDoc(doc(firestore, 'sellers_private', sellerId));
+    const privateData = vaultDoc.exists() ? vaultDoc.data() as any : {};
+    
+    gatewayForm.reset({
+      authorizeNetLoginId: privateData.authorizeNetLoginId || '',
+      authorizeNetClientKey: seller?.authorizeNetClientKey || '',
+      authorizeNetTransactionKey: privateData.authorizeNetTransactionKey || '',
+    });
+    setIsGatewayFormOpen(true);
+  };
+
+  const onSaveGateway = async (data: GatewayFormData) => {
+    if (!firestore || !hasAccess) return;
+    setIsSavingGateway(true);
+    try {
+      const batch = writeBatch(firestore);
+      
+      // 1. Public Info
+      batch.update(doc(firestore, 'sellers', sellerId), {
+        authorizeNetClientKey: data.authorizeNetClientKey,
+        updatedAt: serverTimestamp()
+      });
+
+      // 2. Private Vault
+      batch.set(doc(firestore, 'sellers_private', sellerId), {
+        id: sellerId,
+        authorizeNetLoginId: data.authorizeNetLoginId,
+        authorizeNetTransactionKey: data.authorizeNetTransactionKey,
+        updatedAt: serverTimestamp()
+      }, { merge: true });
+
+      await batch.commit();
+      toast({ title: "Gateway Credentials Updated" });
+      setIsGatewayFormOpen(false);
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Save Failed", description: e.message });
+    } finally {
+      setIsSavingGateway(false);
+    }
+  };
 
   const onSaveStaff = async (data: StaffFormData) => {
     if (!firestore || !hasAccess) return;
@@ -1112,6 +1176,34 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
         <section id="account-settings" className="mb-12 mt-16 scroll-mt-32">
           <h2 className="font-headline text-xl font-bold mb-6 flex items-center gap-2 text-primary uppercase tracking-wider"><Settings className="h-6 w-6" /> Account Settings</h2>
           <div className="grid grid-cols-1 gap-8">
+            {/* Gateway Configuration */}
+            <Card className="shadow-lg border-2 border-primary/10">
+              <CardHeader className="bg-primary/5 border-b">
+                <CardTitle className="text-lg font-headline uppercase flex items-center gap-2">
+                  <CreditCard className="h-5 w-5 text-primary" /> Payment Gateway (Authorize.net)
+                </CardTitle>
+                <CardDescription>Configure your merchant credentials to receive payments directly.</CardDescription>
+              </CardHeader>
+              <CardContent className="pt-8">
+                <div className="flex flex-col md:flex-row items-center gap-8 bg-muted/30 p-6 rounded-2xl border border-dashed">
+                  <div className="bg-white p-6 rounded-[2rem] shadow-xl border-2 shrink-0">
+                    <ShieldCheck className="h-12 w-12 text-primary" />
+                  </div>
+                  <div className="flex-1 space-y-4 text-center md:text-left">
+                    <div>
+                      <h3 className="font-bold text-lg text-[#213147]">Direct Merchant Deposits</h3>
+                      <p className="text-sm text-muted-foreground max-w-lg">
+                        Payments placed via credit card are securely tokenized and deposited into your own account. Koop never touches your funds.
+                      </p>
+                    </div>
+                    <Button onClick={onOpenGateway} className="h-12 px-8 font-black uppercase tracking-widest text-[10px] gap-2">
+                      <Pencil className="h-4 w-4" /> Manage Credentials
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
             {/* Service Thresholds */}
             <Card className="shadow-lg border-2 border-primary/10">
               <CardHeader className="bg-primary/5 border-b">
@@ -1229,6 +1321,33 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
             </Card>
           </div>
         </section>
+
+        <Dialog open={isGatewayFormOpen} onOpenChange={setIsGatewayFormOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="uppercase font-headline text-primary">Gateway Configuration</DialogTitle>
+              <DialogDescription>Credentials for secure Authorize.net processing.</DialogDescription>
+            </DialogHeader>
+            <Form {...gatewayForm}>
+              <form onSubmit={gatewayForm.handleSubmit(onSaveGateway)} className="space-y-6 pt-4">
+                <FormField control={gatewayForm.control} name="authorizeNetLoginId" render={({ field }) => (
+                  <FormItem><FormLabel className="text-[10px] font-black uppercase">API Login ID</FormLabel><FormControl><Input {...field} placeholder="Login ID" className="h-11 border-2 font-bold" /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={gatewayForm.control} name="authorizeNetClientKey" render={({ field }) => (
+                  <FormItem><FormLabel className="text-[10px] font-black uppercase">Public Client Key</FormLabel><FormControl><Input {...field} placeholder="Client Key" className="h-11 border-2 font-bold" /></FormControl><FormDescription className="text-[9px] font-bold uppercase">Required for frontend card tokenization.</FormDescription><FormMessage /></FormItem>
+                )} />
+                <FormField control={gatewayForm.control} name="authorizeNetTransactionKey" render={({ field }) => (
+                  <FormItem><FormLabel className="text-[10px] font-black uppercase">Transaction Key</FormLabel><FormControl><Input {...field} type="password" placeholder="Transaction Key" className="h-11 border-2 font-bold" /></FormControl><FormDescription className="text-[9px] font-bold uppercase">Stored securely in the private vault.</FormDescription><FormMessage /></FormItem>
+                )} />
+                <DialogFooter>
+                  <Button type="submit" disabled={isSavingGateway} className="w-full font-black uppercase tracking-widest h-12 shadow-xl">
+                    {isSavingGateway ? <Loader2 className="animate-spin" /> : "Save Payment Profile"}
+                  </Button>
+                </DialogFooter>
+              </form>
+            </Form>
+          </DialogContent>
+        </Dialog>
 
         <Dialog open={isStaffFormOpen} onOpenChange={setIsStaffFormOpen}>
           <DialogContent className="sm:max-w-md">

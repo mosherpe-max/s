@@ -110,6 +110,7 @@ const sellerSchema = z.object({
   laneCount: z.coerce.number().min(0).optional(),
   menuTypes: z.array(z.string()).min(1, 'Select at least one menu type'),
   authorizeNetLoginId: z.string().optional(),
+  authorizeNetClientKey: z.string().optional(),
   authorizeNetTransactionKey: z.string().optional(),
 });
 
@@ -278,6 +279,7 @@ export default function KOOPAdminPage() {
       laneCount: 0,
       menuTypes: [],
       authorizeNetLoginId: '',
+      authorizeNetClientKey: '',
       authorizeNetTransactionKey: '',
     },
   });
@@ -376,7 +378,7 @@ export default function KOOPAdminPage() {
     setEditingSeller(seller);
     
     // Fetch private vault data
-    let privateData = { authorizeNetLoginId: '', authorizeNetTransactionKey: '' };
+    let privateData = { authorizeNetLoginId: '', authorizeNetClientKey: '', authorizeNetTransactionKey: '' };
     if (firestore) {
       const vaultDoc = await getDoc(doc(firestore, 'sellers_private', seller.id));
       if (vaultDoc.exists()) {
@@ -402,6 +404,7 @@ export default function KOOPAdminPage() {
       laneCount: seller.laneCount || 0,
       menuTypes: seller.menuTypes || [],
       authorizeNetLoginId: privateData.authorizeNetLoginId || '',
+      authorizeNetClientKey: seller.authorizeNetClientKey || '',
       authorizeNetTransactionKey: privateData.authorizeNetTransactionKey || '',
     });
     setIsFormOpen(true);
@@ -427,6 +430,7 @@ export default function KOOPAdminPage() {
       laneCount: 0,
       menuTypes: ['Beverage Cart', 'Clubhouse', 'Take Out'],
       authorizeNetLoginId: '',
+      authorizeNetClientKey: '',
       authorizeNetTransactionKey: '',
     });
     setIsFormOpen(true);
@@ -439,14 +443,15 @@ export default function KOOPAdminPage() {
     const sellerId = editingSeller ? editingSeller.id : data.courseName.toLowerCase().replace(/\s+/g, '-');
     
     // Split the data: Public vs Private Vault
-    const { authorizeNetLoginId, authorizeNetTransactionKey, ...publicData } = data;
+    const { authorizeNetLoginId, authorizeNetTransactionKey, authorizeNetClientKey, ...publicData } = data;
     
     const batch = writeBatch(firestore);
     
-    // 1. Save Public Profile
+    // 1. Save Public Profile (Client Key is technically public for frontend usage)
     batch.set(doc(firestore, 'sellers', sellerId), { 
       ...publicData, 
       id: sellerId,
+      authorizeNetClientKey: authorizeNetClientKey || '',
       createdAt: editingSeller?.createdAt || new Date().toISOString(),
       updatedAt: serverTimestamp(),
       qrCodeUrl: editingSeller?.qrCodeUrl || `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${window.location.origin}/sellers/${sellerId}/order`
@@ -1018,7 +1023,7 @@ export default function KOOPAdminPage() {
                   <div className="space-y-4">
                     <div className="flex items-center gap-2 mb-2 border-b pb-2">
                       <CreditCard className="h-4 w-4 text-primary" />
-                      <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Payment Private Vault</h3>
+                      <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Payment Vault</h3>
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <FormField control={form.control} name="authorizeNetLoginId" render={({ field }) => (
@@ -1026,6 +1031,13 @@ export default function KOOPAdminPage() {
                           <FormLabel className="text-[10px] font-black uppercase">API Login ID</FormLabel>
                           <FormControl><Input {...field} placeholder="Vaulted ID" className="h-11 border-2 font-bold" /></FormControl>
                           <FormDescription className="text-[9px] uppercase font-bold">Stored in restricted collection.</FormDescription>
+                        </FormItem>
+                      )} />
+                      <FormField control={form.control} name="authorizeNetClientKey" render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-[10px] font-black uppercase">Public Client Key</FormLabel>
+                          <FormControl><Input {...field} placeholder="Public Key" className="h-11 border-2 font-bold" /></FormControl>
+                          <FormDescription className="text-[9px] uppercase font-bold">Required for secure tokenization.</FormDescription>
                         </FormItem>
                       )} />
                       <FormField control={form.control} name="authorizeNetTransactionKey" render={({ field }) => (

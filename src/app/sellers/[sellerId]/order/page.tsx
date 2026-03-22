@@ -45,7 +45,8 @@ import {
   Check,
   ChevronLeft,
   Pencil,
-  ChevronRight
+  ChevronRight,
+  ShieldCheck
 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useCart } from '@/lib/cart-context';
@@ -199,6 +200,13 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
   const [selectedTipType, setSelectedTipType] = useState<string | null>(null);
   const [customTipValue, setCustomTipValue] = useState<string>('');
 
+  // Credit Card Form State
+  const [cardInfo, setCardInfo] = useState({
+    cardNumber: '',
+    expiryDate: '',
+    cardCode: '',
+  });
+
   const sellerRef = useMemoFirebase(() => (firestore ? doc(firestore, 'sellers', sellerId) : null), [firestore, sellerId]);
   const { data: seller, isLoading: isSellerLoading } = useDoc<Seller>(sellerRef);
 
@@ -209,6 +217,17 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
     const handleScroll = () => setShowTopButton(window.scrollY > 400);
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  useEffect(() => {
+    // Load Authorize.net Accept.js
+    const script = document.createElement('script');
+    script.src = 'https://jstest.authorize.net/v1/Accept.js'; // Use test for prototype
+    script.async = true;
+    document.body.appendChild(script);
+    return () => {
+      document.body.removeChild(script);
+    };
   }, []);
 
   const scrollToTop = () => window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -271,6 +290,39 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
   const isLocationRequired = selectedMenuType === 'Lane Delivery';
   const isLocationSelected = !!locationValue;
 
+  const tokenizeCard = async (): Promise<string | null> => {
+    if (!seller?.authorizeNetLoginId || !seller?.authorizeNetClientKey) {
+      throw new Error("Venue payment gateway not configured.");
+    }
+
+    return new Promise((resolve, reject) => {
+      const authData = {
+        clientKey: seller.authorizeNetClientKey,
+        apiLoginID: seller.authorizeNetLoginId,
+      };
+
+      const [expMonth, expYear] = cardInfo.expiryDate.split('/');
+      const cardData = {
+        cardNumber: cardInfo.cardNumber.replace(/\s/g, ''),
+        month: expMonth,
+        year: `20${expYear}`, // Assuming 2-digit year
+        cardCode: cardInfo.cardCode,
+      };
+
+      const secureData = { authData, cardData };
+
+      // @ts-ignore
+      window.Accept.dispatchData(secureData, (response: any) => {
+        if (response.messages.resultCode === "Error") {
+          let errorMsg = response.messages.message[0].text;
+          reject(new Error(errorMsg));
+        } else {
+          resolve(response.opaqueData.dataValue);
+        }
+      });
+    });
+  };
+
   const handlePlaceOrder = async () => {
     try {
       if (!firestore || !seller) return;
@@ -296,11 +348,20 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
 
       if (!currentUser) throw new Error("Security identity required to place order.");
 
+      let paymentNonce = null;
+      if (selectedPaymentMethod === 'Credit Card') {
+        try {
+          paymentNonce = await tokenizeCard();
+        } catch (err: any) {
+          toast({ variant: 'destructive', title: 'Payment Validation Failed', description: err.message });
+          setIsPlacingOrder(false);
+          setPaymentStatus('failed');
+          return;
+        }
+      }
+
       const functions = getFunctions(app);
       const processPaymentFn = httpsCallable(functions, 'processPayment');
-
-      // In a real environment, Accept.js would generate this nonce from the hosted form
-      const mockPaymentNonce = selectedPaymentMethod === 'Credit Card' ? 'fake-valid-nonce' : null;
 
       const submitToFirestore = async (latitude: number, longitude: number) => {
         try {
@@ -326,10 +387,10 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
 
           const orderRef = await addDoc(collection(firestore, 'orders'), orderData);
 
-          if (selectedPaymentMethod === 'Credit Card' && mockPaymentNonce) {
+          if (selectedPaymentMethod === 'Credit Card' && paymentNonce) {
             try {
               await processPaymentFn({
-                paymentNonce: mockPaymentNonce,
+                paymentNonce,
                 amount: finalTotal,
                 orderId: orderRef.id,
                 buyerProfileId: currentUser!.uid,
@@ -434,10 +495,8 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
           
           <ScrollArea className="flex-1 w-full">
             <div className="px-6 py-6 space-y-8 pb-32">
-              {/* YOUR ORDER SECTION */}
               <OrderSummary items={activeOrderItems} onUpdateItem={updateItem} onRemoveItem={removeItem} />
 
-              {/* Lane Selection UI for Bowling Alleys */}
               {selectedMenuType === 'Lane Delivery' && seller?.laneCount && seller.laneCount > 0 && (
                 <div className="space-y-3 animate-in slide-in-from-top-2 duration-300">
                   <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground px-1 flex items-center gap-2">
@@ -475,7 +534,6 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
                 </div>
               )}
 
-              {/* SPECIAL INSTRUCTIONS SECTION */}
               <div className="space-y-3">
                 <div className="bg-white rounded-2xl border shadow-sm p-4 flex items-center justify-between cursor-pointer hover:bg-muted/5 transition-colors group">
                   <div className="flex items-center gap-3">
@@ -495,7 +553,6 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
                 </div>
               </div>
 
-              {/* ADD A TIP SECTION */}
               <div className="space-y-3">
                 <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground px-1">ADD A TIP</h3>
                 <div className="bg-white rounded-[1.5rem] border shadow-sm p-5 space-y-5">
@@ -556,7 +613,6 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
                 </div>
               </div>
 
-              {/* PAYMENT METHOD SECTION */}
               <div className="space-y-3">
                 <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground px-1">PAYMENT METHOD</h3>
                 <div className="grid grid-cols-1 gap-2">
@@ -589,6 +645,53 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
                     </div>
                   </Button>
                 </div>
+
+                {selectedPaymentMethod === 'Credit Card' && (
+                  <div className="bg-white rounded-[1.5rem] border shadow-md p-6 space-y-4 animate-in slide-in-from-top-4 duration-500">
+                    <div className="flex items-center gap-2 border-b pb-3 mb-2">
+                      <ShieldCheck className="h-4 w-4 text-green-600" />
+                      <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Secure Card Entry</span>
+                    </div>
+                    
+                    <div className="space-y-4">
+                      <div className="space-y-1.5">
+                        <Label className="text-[10px] font-bold uppercase tracking-widest ml-1">Card Number</Label>
+                        <Input 
+                          placeholder="0000 0000 0000 0000"
+                          value={cardInfo.cardNumber}
+                          onChange={(e) => setCardInfo({...cardInfo, cardNumber: e.target.value})}
+                          className="h-12 border-2 rounded-xl font-bold tracking-widest"
+                        />
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1.5">
+                          <Label className="text-[10px] font-bold uppercase tracking-widest ml-1">Expiry (MM/YY)</Label>
+                          <Input 
+                            placeholder="MM/YY"
+                            value={cardInfo.expiryDate}
+                            onChange={(e) => setCardInfo({...cardInfo, expiryDate: e.target.value})}
+                            className="h-12 border-2 rounded-xl font-bold text-center"
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-[10px] font-bold uppercase tracking-widest ml-1">CVV</Label>
+                          <Input 
+                            placeholder="123"
+                            value={cardInfo.cardCode}
+                            onChange={(e) => setCardInfo({...cardInfo, cardCode: e.target.value})}
+                            className="h-12 border-2 rounded-xl font-bold text-center"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-2 justify-center pt-2 opacity-40">
+                      <Lock className="h-3 w-3" />
+                      <span className="text-[8px] font-black uppercase tracking-[0.2em]">Encrypted by Authorize.net</span>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <PricingBreakdown subtotal={subtotal} serviceFee={platformFee} tax={tax} tip={tipAmount} taxRate={taxRatePercentage} />
@@ -603,7 +706,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
               disabled={isPlacingOrder || activeOrderItems.length === 0 || (isLocationRequired && !isLocationSelected)}
             >
               {isPlacingOrder ? <Loader2 className="animate-spin mr-2 h-5 w-5" /> : null}
-              {isPlacingOrder ? (selectedPaymentMethod === 'Credit Card' ? "PROCESSING PAYMENT..." : "PLACING ORDER...") : (isLocationRequired && !isLocationSelected ? "SELECT LANE FIRST" : "PLACE ORDER")}
+              {isPlacingOrder ? (selectedPaymentMethod === 'Credit Card' ? "PROCESSING SECURE PAYMENT..." : "PLACING ORDER...") : (isLocationRequired && !isLocationSelected ? "SELECT LANE FIRST" : "PLACE ORDER")}
             </Button>
           </SheetFooter>
         </SheetContent>

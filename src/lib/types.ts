@@ -75,7 +75,8 @@ export interface Seller {
   orderThresholds?: Record<string, { warning: number; max: number }>;
   poolMapUrl?: string;
   authorizeNetLoginId?: string;
-  authorizeNetTransactionKey?: string;
+  authorizeNetClientKey?: string; // Public key for Accept.js
+  authorizeNetTransactionKey?: string; // Private key for backend
 }
 
 export type Category = 'Beer' | 'Spirits' | 'Soft Drinks' | 'Snacks' | 'Other' | 'Handhelds' | 'Appetizers' | 'Entrees' | 'Pizza' | 'Salad' | 'Dessert' | 'Kids';
