@@ -297,7 +297,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
       if (!currentUser) throw new Error("Security identity required to place order.");
 
       const functions = getFunctions(app);
-      const processPayment = httpsCallable(functions, 'processPayment');
+      const processPaymentFn = httpsCallable(functions, 'processPayment');
 
       // In a real environment, Accept.js would generate this nonce from the hosted form
       const mockPaymentNonce = selectedPaymentMethod === 'Credit Card' ? 'fake-valid-nonce' : null;
@@ -328,7 +328,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
 
           if (selectedPaymentMethod === 'Credit Card' && mockPaymentNonce) {
             try {
-              await processPayment({
+              await processPaymentFn({
                 paymentNonce: mockPaymentNonce,
                 amount: finalTotal,
                 orderId: orderRef.id,
@@ -336,10 +336,13 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
                 sellerId
               });
             } catch (payErr: any) {
-              // If payment fails, we might want to cancel the order or mark it as payment-failed
               console.error("Payment Process Error:", payErr);
               setPaymentStatus('failed');
-              toast({ variant: 'destructive', title: 'Payment Denied', description: payErr.message || 'Transaction could not be completed.' });
+              toast({ 
+                variant: 'destructive', 
+                title: 'Payment Denied', 
+                description: payErr.message || 'Transaction could not be completed. Please check your card or try another method.' 
+              });
               setIsPlacingOrder(false);
               return;
             }

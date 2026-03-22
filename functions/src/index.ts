@@ -1,7 +1,9 @@
 
 import * as functions from 'firebase-functions';
+import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import { onDocumentCreated } from 'firebase-functions/v2/firestore';
 import * as admin from 'firebase-admin';
-import { APIContracts, APIControllers } from 'authorizenet';
+import { APIContracts, APIControllers, SDKConstants } from 'authorizenet';
 
 admin.initializeApp();
 
@@ -13,19 +15,20 @@ const platformTransactionKey = functions.defineSecret('AUTHORIZENET_TRANSACTION_
  * Securely processes a one-time payment using Authorize.net Accept.js Nonce.
  * Dynamically fetches venue-specific credentials from the Private Vault.
  */
-export const processPayment = functions.https.onCall({
+export const processPayment = onCall({
   secrets: [platformApiLoginId, platformTransactionKey]
 }, async (request) => {
   const { paymentNonce, amount, orderId, buyerProfileId, sellerId } = request.data;
 
   // 1. Validation
   if (!paymentNonce || !amount || !orderId || !buyerProfileId || !sellerId) {
-    throw new functions.https.HttpsError('invalid-argument', 'Missing transaction parameters.');
+    throw new HttpsError('invalid-argument', 'Missing transaction parameters.');
   }
 
   // 2. Fetch Venue Credentials from Private Vault
   let activeLoginId = platformApiLoginId.value();
   let activeTransKey = platformTransactionKey.value();
+  let isSandbox = true; // Default to sandbox for safety
 
   try {
     const vaultDoc = await admin.firestore().doc(`sellers_private/${sellerId}`).get();
@@ -35,6 +38,9 @@ export const processPayment = functions.https.onCall({
         console.log(`Using venue-specific credentials for: ${sellerId}`);
         activeLoginId = vaultData.authorizeNetLoginId;
         activeTransKey = vaultData.authorizeNetTransactionKey;
+        // Logic to determine production vs sandbox could go here
+        // For prototype purposes, we check if the ID starts with 'demo-'
+        isSandbox = sellerId.startsWith('demo-');
       }
     }
   } catch (err) {
@@ -56,13 +62,20 @@ export const processPayment = functions.https.onCall({
   const transactionRequestType = new APIContracts.TransactionRequestType();
   transactionRequestType.setTransactionType(APIContracts.TransactionTypeEnum.AUTHCAPTURETRANSACTION);
   transactionRequestType.setPayment(paymentType);
-  transactionRequestType.setAmount(amount);
+  transactionRequestType.setAmount(amount.toString()); // Ensure amount is string
 
   const createRequest = new APIContracts.CreateTransactionRequest();
   createRequest.setMerchantAuthentication(merchantAuthenticationType);
   createRequest.setTransactionRequest(transactionRequestType);
 
   const ctrl = new APIControllers.CreateTransactionController(createRequest.getJSON());
+  
+  // Explicitly set environment
+  if (!isSandbox) {
+    ctrl.setEnvironment(SDKConstants.endpoint.production);
+  } else {
+    ctrl.setEnvironment(SDKConstants.endpoint.sandbox);
+  }
 
   return new Promise((resolve, reject) => {
     ctrl.execute(() => {
@@ -94,14 +107,14 @@ export const processPayment = functions.https.onCall({
             });
           } else {
             const errorText = tresponse?.getErrors()?.getError()[0]?.getErrorText() || 'Transaction Denied';
-            reject(new functions.https.HttpsError('internal', errorText));
+            reject(new HttpsError('internal', errorText));
           }
         } else {
           const errorText = response.getMessages().getMessage()[0].getText();
-          reject(new functions.https.HttpsError('internal', `Authorize.net Error: ${errorText}`));
+          reject(new HttpsError('internal', `Authorize.net Error: ${errorText}`));
         }
       } else {
-        reject(new functions.https.HttpsError('internal', 'No response from payment gateway.'));
+        reject(new HttpsError('internal', 'No response from payment gateway.'));
       }
     });
   });
@@ -110,20 +123,24 @@ export const processPayment = functions.https.onCall({
 /**
  * Trigger: Automatically promotes a user to 'Subscriber' status upon successful payment.
  */
-export const onPaymentSuccess = functions.firestore
-  .document('paymentTransactions/{transactionId}')
-  .onCreate(async (snapshot) => {
-    const data = snapshot.data();
+export const onPaymentSuccess = onDocumentCreated('paymentTransactions/{transactionId}', async (event) => {
+  const snapshot = event.data;
+  if (!snapshot) return;
+  
+  const data = snapshot.data();
+  
+  if (data.status === 'Success' && data.buyerProfileId) {
+    // Matches the path in backend.json: /users/{userId}/buyerProfile
+    const buyerProfileRef = admin.firestore().doc(`users/${data.buyerProfileId}/buyerProfile`);
     
-    if (data.status === 'Success' && data.buyerProfileId) {
-      // Matches the path in backend.json: /users/{userId}/buyerProfile
-      const buyerProfileRef = admin.firestore().doc(`users/${data.buyerProfileId}/buyerProfile`);
-      
-      console.log(`Promoting user ${data.buyerProfileId} to Subscriber.`);
-      return buyerProfileRef.update({
+    console.log(`Promoting user ${data.buyerProfileId} to Subscriber.`);
+    try {
+      await buyerProfileRef.update({
         subscriberStatus: true,
         updatedAt: admin.firestore.FieldValue.serverTimestamp()
-      }).catch(err => console.error("Promotion failed:", err));
+      });
+    } catch (err) {
+      console.error("Promotion failed:", err);
     }
-    return null;
-  });
+  }
+});
