@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, use, useEffect, useMemo } from 'react';
@@ -190,6 +191,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
   const [locationValue, setLocationValue] = useState<string>('');
   const [specialInstructions, setSpecialInstructions] = useState<string>('');
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
+  const [paymentStatus, setPaymentStatus] = useState<'idle' | 'processing' | 'failed'>('idle');
   const [showBackToTop, setShowTopButton] = useState(false);
   
   const [modifierTarget, setModifierTarget] = useState<MenuItem | null>(null);
@@ -279,6 +281,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
       }
 
       setIsPlacingOrder(true);
+      setPaymentStatus('processing');
 
       let currentUser = user;
       if (!currentUser && auth) {
@@ -296,6 +299,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
       const functions = getFunctions(app);
       const processPayment = httpsCallable(functions, 'processPayment');
 
+      // In a real environment, Accept.js would generate this nonce from the hosted form
       const mockPaymentNonce = selectedPaymentMethod === 'Credit Card' ? 'fake-valid-nonce' : null;
 
       const submitToFirestore = async (latitude: number, longitude: number) => {
@@ -323,19 +327,29 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
           const orderRef = await addDoc(collection(firestore, 'orders'), orderData);
 
           if (selectedPaymentMethod === 'Credit Card' && mockPaymentNonce) {
-            await processPayment({
-              paymentNonce: mockPaymentNonce,
-              amount: finalTotal,
-              orderId: orderRef.id,
-              buyerProfileId: currentUser!.uid,
-              sellerId
-            });
+            try {
+              await processPayment({
+                paymentNonce: mockPaymentNonce,
+                amount: finalTotal,
+                orderId: orderRef.id,
+                buyerProfileId: currentUser!.uid,
+                sellerId
+              });
+            } catch (payErr: any) {
+              // If payment fails, we might want to cancel the order or mark it as payment-failed
+              console.error("Payment Process Error:", payErr);
+              setPaymentStatus('failed');
+              toast({ variant: 'destructive', title: 'Payment Denied', description: payErr.message || 'Transaction could not be completed.' });
+              setIsPlacingOrder(false);
+              return;
+            }
           }
 
           router.push(`/order/track?id=${orderRef.id}&sellerId=${sellerId}`);
           clearCart();
         } catch (err: any) {
           console.error(err);
+          setPaymentStatus('failed');
           toast({ variant: 'destructive', title: 'Order Failed', description: err.message });
         } finally {
           setIsPlacingOrder(false);
@@ -352,6 +366,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
       }
     } catch (error: any) {
       setIsPlacingOrder(false);
+      setPaymentStatus('failed');
       toast({ variant: 'destructive', title: 'Submission Error', description: error.message });
     }
   };
@@ -419,7 +434,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
               {/* YOUR ORDER SECTION */}
               <OrderSummary items={activeOrderItems} onUpdateItem={updateItem} onRemoveItem={removeItem} />
 
-              {/* Lane Selection UI for Bowling Alleys - Moved to Checkout */}
+              {/* Lane Selection UI for Bowling Alleys */}
               {selectedMenuType === 'Lane Delivery' && seller?.laneCount && seller.laneCount > 0 && (
                 <div className="space-y-3 animate-in slide-in-from-top-2 duration-300">
                   <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground px-1 flex items-center gap-2">
@@ -585,11 +600,32 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
               disabled={isPlacingOrder || activeOrderItems.length === 0 || (isLocationRequired && !isLocationSelected)}
             >
               {isPlacingOrder ? <Loader2 className="animate-spin mr-2 h-5 w-5" /> : null}
-              {isPlacingOrder ? "PROCESSING..." : (isLocationRequired && !isLocationSelected ? "SELECT LANE FIRST" : "PLACE ORDER")}
+              {isPlacingOrder ? (selectedPaymentMethod === 'Credit Card' ? "PROCESSING PAYMENT..." : "PLACING ORDER...") : (isLocationRequired && !isLocationSelected ? "SELECT LANE FIRST" : "PLACE ORDER")}
             </Button>
           </SheetFooter>
         </SheetContent>
       </Sheet>
+
+      {modifierTarget && (
+        <Sheet open={!!modifierTarget} onOpenChange={(open) => !open && setModifierTarget(null)}>
+          <SheetContent side="bottom" className="h-[90vh] rounded-t-[2.5rem] p-0 overflow-hidden">
+            <ModifierPicker 
+              item={modifierTarget} 
+              onClose={() => setModifierTarget(null)} 
+              onAdd={(selections) => {
+                const cartId = `${modifierTarget.id}-${Object.values(selections).flat().map(o => o.id).sort().join('-')}`;
+                updateItem({
+                  ...modifierTarget,
+                  cartId,
+                  quantity: (orderItems.find(i => i.cartId === cartId)?.quantity || 0) + 1,
+                  selectedModifiers: selections
+                } as OrderItem);
+                setModifierTarget(null);
+              }}
+            />
+          </SheetContent>
+        </Sheet>
+      )}
     </div>
   );
 }

@@ -5,7 +5,7 @@ import { APIContracts, APIControllers } from 'authorizenet';
 
 admin.initializeApp();
 
-// Platform-level fallback secrets
+// Platform-level fallback secrets (Managed in Google Cloud Secret Manager)
 const platformApiLoginId = functions.defineSecret('AUTHORIZENET_API_LOGIN_ID');
 const platformTransactionKey = functions.defineSecret('AUTHORIZENET_TRANSACTION_KEY');
 
@@ -116,13 +116,14 @@ export const onPaymentSuccess = functions.firestore
     const data = snapshot.data();
     
     if (data.status === 'Success' && data.buyerProfileId) {
-      const buyerProfileRef = admin.firestore().doc(`users/${data.buyerProfileId}/buyerProfile/${data.buyerProfileId}`);
+      // Matches the path in backend.json: /users/{userId}/buyerProfile
+      const buyerProfileRef = admin.firestore().doc(`users/${data.buyerProfileId}/buyerProfile`);
       
       console.log(`Promoting user ${data.buyerProfileId} to Subscriber.`);
       return buyerProfileRef.update({
         subscriberStatus: true,
         updatedAt: admin.firestore.FieldValue.serverTimestamp()
-      });
+      }).catch(err => console.error("Promotion failed:", err));
     }
     return null;
   });
