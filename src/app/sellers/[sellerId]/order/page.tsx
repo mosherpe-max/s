@@ -635,7 +635,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
                     </div>
                   </Button>
                   <Button 
-                    variant={selectedPaymentMethod === 'Pay at Delivery' ? 'default' : 'outline'}
+                    variant="outline"
                     onClick={() => setSelectedPaymentMethod('Pay at Delivery')}
                     className={cn(
                       "h-16 justify-start gap-4 px-5 rounded-2xl border-2 shadow-sm transition-all",
