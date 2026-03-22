@@ -121,6 +121,22 @@
         "menuType": { "type": "string" },
         "createdAt": { "type": "string", "format": "date-time" }
       }
+    },
+    "PaymentTransaction": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "PaymentTransaction",
+      "type": "object",
+      "description": "Record of an Authorize.net transaction.",
+      "properties": {
+        "orderId": { "type": "string" },
+        "buyerProfileId": { "type": "string" },
+        "sellerId": { "type": "string" },
+        "amount": { "type": "number" },
+        "status": { "type": "string" },
+        "paymentGatewayTransactionId": { "type": "string" },
+        "environment": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
     }
   },
   "auth": {
@@ -161,6 +177,14 @@
           "entityName": "Order",
           "schema": { "$ref": "#/backend/entities/Order" },
           "description": "Global order collection."
+        }
+      },
+      {
+        "path": "/paymentTransactions/{transactionId}",
+        "definition": {
+          "entityName": "PaymentTransaction",
+          "schema": { "$ref": "#/backend/entities/PaymentTransaction" },
+          "description": "Historical transaction logs."
         }
       }
     ]
