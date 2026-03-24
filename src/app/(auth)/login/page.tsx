@@ -13,7 +13,7 @@ import {
 } from 'firebase/auth';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
-import { Loader2, ShieldCheck, Mail, Lock, User, LogOut, CheckCircle2, LogIn, ArrowRight, Target } from 'lucide-react';
+import { Loader2, ShieldCheck, Mail, Lock, User, LogOut, CheckCircle2, LogIn, ArrowRight, Target, Copy } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { StylizedKoopLogo } from '@/components/header';
 import { SUPER_ADMIN_ID } from '@/lib/utils';
@@ -33,25 +33,25 @@ export default function LoginPage() {
   // Hardcoded Super Admin Check
   const isSuperAdmin = user?.uid === SUPER_ADMIN_ID;
 
-  // 1. Check Global Admin Role (UID Based) - Skip for Super Admin to avoid permission errors
+  // 1. Check Global Admin Role (UID Based)
   const globalRoleRef = useMemoFirebase(() => {
-    if (!firestore || !user || isSuperAdmin) return null;
+    if (!firestore || !user) return null;
     return doc(firestore, 'roles_admin', user.uid);
-  }, [firestore, user, isSuperAdmin]);
+  }, [firestore, user]);
   const { data: globalRole } = useDoc(globalRoleRef);
 
-  // 2. Check Seller Admin Role (Email Based) - Skip for Super Admin
+  // 2. Check Seller Admin Role (Email Based)
   const sellerRoleRef = useMemoFirebase(() => {
-    if (!firestore || !user?.email || isSuperAdmin) return null;
+    if (!firestore || !user?.email) return null;
     return doc(firestore, 'roles_seller_admin', user.email.toLowerCase());
-  }, [firestore, user, isSuperAdmin]);
+  }, [firestore, user]);
   const { data: sellerRole } = useDoc(sellerRoleRef);
 
-  // 3. Check Sales Rep Role (Email Based) - Skip for Super Admin
+  // 3. Check Sales Rep Role (Email Based)
   const salesRoleRef = useMemoFirebase(() => {
-    if (!firestore || !user?.email || isSuperAdmin) return null;
+    if (!firestore || !user?.email) return null;
     return doc(firestore, 'roles_sales_rep', user.email.toLowerCase());
-  }, [firestore, user, isSuperAdmin]);
+  }, [firestore, user]);
   const { data: salesRole } = useDoc(salesRoleRef);
 
   const isPlatformAdmin = isSuperAdmin || !!globalRole;
@@ -129,6 +129,13 @@ export default function LoginPage() {
     }
   };
 
+  const copyUid = () => {
+    if (user?.uid) {
+      navigator.clipboard.writeText(user.uid);
+      toast({ title: "UID Copied to Clipboard" });
+    }
+  };
+
   if (isUserLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-4rem)] bg-background">
@@ -191,8 +198,15 @@ export default function LoginPage() {
                       <p className="text-[10px] font-black uppercase tracking-widest">Role Activation Required</p>
                     </div>
                     <p className="text-xs text-indigo-800 font-medium leading-relaxed">
-                      Your identity is recognized, but your administrative profile needs to be initialized.
+                      Your identity is recognized, but your account is not authorized for any platform roles.
                     </p>
+                    <div className="bg-white p-3 rounded-lg border-2 border-indigo-100 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[9px] font-black uppercase text-muted-foreground">Your Firebase UID</span>
+                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={copyUid}><Copy className="h-3 w-3" /></Button>
+                      </div>
+                      <code className="text-[10px] font-mono font-black break-all text-indigo-600">{user.uid}</code>
+                    </div>
                     <Button 
                       onClick={handleSetupAdmin} 
                       className="w-full h-12 bg-indigo-600 hover:bg-indigo-700 shadow-lg gap-3"
@@ -201,6 +215,9 @@ export default function LoginPage() {
                       {isAdminSettingUp ? <Loader2 className="h-5 w-5 animate-spin" /> : <ShieldCheck className="h-5 w-5" />}
                       <span className="font-headline font-bold uppercase tracking-wider">Initialize Admin Profile</span>
                     </Button>
+                    <p className="text-[8px] text-center text-muted-foreground uppercase font-bold italic">
+                      Note: Profile initialization requires Super Admin bypass (hardcoded UID).
+                    </p>
                   </div>
                 </div>
               )}
@@ -268,7 +285,7 @@ export default function LoginPage() {
         </CardContent>
         <CardFooter className="bg-muted/10 border-t py-4 text-center justify-center">
           <p className="text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground">
-            KOOP SECURE ACCESS v2.6
+            KOOP SECURE ACCESS v2.7
           </p>
         </CardFooter>
       </Card>

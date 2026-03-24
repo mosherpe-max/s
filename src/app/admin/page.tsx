@@ -4,7 +4,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { collection, doc, setDoc, getDocs, writeBatch, serverTimestamp, query, deleteDoc, getDoc } from 'firebase/firestore';
 import { signOut, sendPasswordResetEmail } from 'firebase/auth';
-import { useFirestore, useCollection, useMemoFirebase, useUser, useAuth } from '@/firebase';
+import { useFirestore, useCollection, useMemoFirebase, useUser, useAuth, useDoc } from '@/firebase';
 import { firebaseConfig } from '@/firebase/config';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -75,7 +75,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDes
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/tabs";
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
@@ -181,7 +181,15 @@ export default function KOOPAdminPage() {
   const [venueToDelete, setVenueToDelete] = useState<Seller | null>(null);
   const [isVenueDeleteDialogOpen, setIsVenueDeleteDialogOpen] = useState(false);
 
-  const isSuperAdmin = user?.uid === SUPER_ADMIN_ID;
+  // Authorization Check (Registry + Hardcoded Fallback)
+  const isHardcodedSuperAdmin = user?.uid === SUPER_ADMIN_ID;
+  const platformRoleRef = useMemoFirebase(() => {
+    if (!firestore || !user || isHardcodedSuperAdmin) return null;
+    return doc(firestore, 'roles_admin', user.uid);
+  }, [firestore, user, isHardcodedSuperAdmin]);
+  const { data: platformRoleMarker, isLoading: isRoleCheckLoading } = useDoc(platformRoleRef);
+
+  const isAuthorized = isHardcodedSuperAdmin || !!platformRoleMarker;
 
   useEffect(() => {
     if (!isUserLoading && !user) {
@@ -201,24 +209,24 @@ export default function KOOPAdminPage() {
   };
 
   const sellersQuery = useMemoFirebase(() => {
-    if (!firestore || !isSuperAdmin) return null;
+    if (!firestore || !isAuthorized) return null;
     return collection(firestore, 'sellers');
-  }, [firestore, isSuperAdmin]);
+  }, [firestore, isAuthorized]);
 
   const ordersQuery = useMemoFirebase(() => {
-    if (!firestore || !isSuperAdmin) return null;
+    if (!firestore || !isAuthorized) return null;
     return collection(firestore, 'orders');
-  }, [firestore, isSuperAdmin]);
+  }, [firestore, isAuthorized]);
 
   const prospectsQuery = useMemoFirebase(() => {
-    if (!firestore || !isSuperAdmin) return null;
+    if (!firestore || !isAuthorized) return null;
     return collection(firestore, 'prospects');
-  }, [firestore, isSuperAdmin]);
+  }, [firestore, isAuthorized]);
 
   const adminsQuery = useMemoFirebase(() => {
-    if (!firestore || !isSuperAdmin) return null;
+    if (!firestore || !isAuthorized) return null;
     return collection(firestore, 'adminUsers');
-  }, [firestore, isSuperAdmin]);
+  }, [firestore, isAuthorized]);
 
   const { data: sellers, isLoading: isSellersLoading } = useCollection<Seller>(sellersQuery);
   const { data: orders } = useCollection<Order>(ordersQuery);
@@ -351,7 +359,7 @@ export default function KOOPAdminPage() {
   };
 
   const onSave = async (data: SellerFormData) => {
-    if (!firestore || !isSuperAdmin) return;
+    if (!firestore || !isAuthorized) return;
     setIsSaving(true);
     const sellerId = editingSeller ? editingSeller.id : data.courseName.toLowerCase().replace(/\s+/g, '-');
     const { authorizeNetLoginId, authorizeNetTransactionKey, ...publicData } = data;
@@ -382,7 +390,7 @@ export default function KOOPAdminPage() {
   };
 
   const onProvisionStaff = async (data: StaffFormData) => {
-    if (!firestore || !isSuperAdmin) return;
+    if (!firestore || !isAuthorized) return;
     setIsSaving(true);
     try {
       const signupResp = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${firebaseConfig.apiKey}`, {
@@ -420,7 +428,7 @@ export default function KOOPAdminPage() {
   };
 
   const handleBootstrapNetwork = async () => {
-    if (!firestore || !isSuperAdmin) return;
+    if (!firestore || !isAuthorized) return;
     setIsBootstrapping(true);
     try {
       const demoSellers = [
@@ -455,7 +463,7 @@ export default function KOOPAdminPage() {
   };
 
   const handleRemoveVenue = async () => {
-    if (!firestore || !isSuperAdmin || !venueToDelete) return;
+    if (!firestore || !isAuthorized || !venueToDelete) return;
     try {
       await deleteDoc(doc(firestore, 'sellers', venueToDelete.id));
       await deleteDoc(doc(firestore, 'sellers_private', venueToDelete.id));
@@ -468,25 +476,40 @@ export default function KOOPAdminPage() {
     }
   };
 
-  if (isUserLoading) {
+  const handleSendResetLink = async (email: string) => {
+    if (!auth) return;
+    try {
+      await sendPasswordResetEmail(auth, email);
+      toast({ title: "Reset Link Dispatched", description: `Sent to ${email}` });
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Dispatch Failed", description: e.message });
+    }
+  };
+
+  const handleSystemReset = async () => {
+    // Logic for system purge if needed
+    toast({ title: "System Maintenance Not Available in Prototype" });
+  };
+
+  if (isUserLoading || isRoleCheckLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen">
         <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
-        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Verifying Super Admin Session...</p>
+        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Verifying Platform Authorization...</p>
       </div>
     );
   }
 
-  if (!isSuperAdmin) {
+  if (!isAuthorized) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-4rem)] p-4 text-center">
         <div className="p-6 bg-red-50 border-2 border-red-100 rounded-[2.5rem] shadow-xl max-w-md w-full space-y-6">
           <div className="p-4 bg-red-100 rounded-full inline-block"><Lock className="h-12 w-12 text-red-600" /></div>
           <div className="space-y-2">
             <h2 className="font-headline text-2xl font-black uppercase tracking-tight text-[#213147]">ACCESS RESTRICTED</h2>
-            <p className="text-sm text-muted-foreground font-medium">This interface requires Super Admin authorization.</p>
+            <p className="text-sm text-muted-foreground font-medium">This interface requires Administrator authorization.</p>
           </div>
-          <Button asChild className="w-full h-12 bg-[#213147] hover:bg-black font-bold uppercase tracking-widest"><Link href="/login">Authenticate as Super Admin</Link></Button>
+          <Button asChild className="w-full h-12 bg-[#213147] hover:bg-black font-bold uppercase tracking-widest"><Link href="/login">Authenticate</Link></Button>
         </div>
       </div>
     );
@@ -498,7 +521,7 @@ export default function KOOPAdminPage() {
         <div>
           <div className="flex items-center gap-3">
             <h1 className="font-headline text-3xl font-bold text-[#213147] uppercase tracking-tight">KOOP ADMIN</h1>
-            <Badge className="bg-primary/10 text-primary border-primary/20 uppercase text-[10px] font-black">Super Admin Only</Badge>
+            <Badge className="bg-primary/10 text-primary border-primary/20 uppercase text-[10px] font-black">Authorized Portal</Badge>
           </div>
           <p className="text-muted-foreground text-sm">Platform oversight and venue network management.</p>
         </div>
@@ -612,7 +635,7 @@ export default function KOOPAdminPage() {
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
                         <Button variant="outline" size="sm" onClick={() => handleSendResetLink(admin.email)} className="h-8 text-[9px] font-black uppercase border-indigo-200 text-indigo-600 hover:bg-indigo-50"><KeyRound className="mr-1.5 h-3 w-3" /> Reset Link</Button>
-                        {admin.id !== user.uid && <Button variant="ghost" size="icon" onClick={() => { setAdminToDelete(admin); setIsStaffDeleteDialogOpen(true); }} className="h-8 w-8 text-muted-foreground hover:text-destructive"><Trash2 className="h-4 w-4" /></Button>}
+                        {admin.id !== user?.uid && <Button variant="ghost" size="icon" onClick={() => { setAdminToDelete(admin); setIsStaffDeleteDialogOpen(true); }} className="h-8 w-8 text-muted-foreground hover:text-destructive"><Trash2 className="h-4 w-4" /></Button>}
                       </div>
                     </TableCell>
                   </TableRow>
