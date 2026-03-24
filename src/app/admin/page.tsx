@@ -112,9 +112,7 @@ const sellerSchema = z.object({
   menuTypes: z.array(z.string()).min(1, 'Select at least one menu type'),
   isProduction: z.boolean().default(false),
   authorizeNetLoginId: z.string().optional(),
-  authorizeNetClientKey: z.string().optional(),
   authorizeNetTransactionKey: z.string().optional(),
-  authorizeNetSignatureKey: z.string().optional(),
 });
 
 type SellerFormData = z.infer<typeof sellerSchema>;
@@ -279,9 +277,7 @@ export default function KOOPAdminPage() {
       menuTypes: [],
       isProduction: false,
       authorizeNetLoginId: '',
-      authorizeNetClientKey: '',
       authorizeNetTransactionKey: '',
-      authorizeNetSignatureKey: '',
     },
   });
 
@@ -295,84 +291,9 @@ export default function KOOPAdminPage() {
     },
   });
 
-  const selectedStaffRole = staffForm.watch('role');
-  const selectedType = form.watch('type');
-
-  const availableMenuOptions = useMemo(() => {
-    if (selectedType.includes('Golf')) {
-      return [
-        { id: 'Beverage Cart', label: 'Beverage Cart' },
-        { id: 'Clubhouse', label: 'Clubhouse' },
-        { id: 'Pool', label: 'Pool Side' },
-        { id: 'Take Out', label: 'Take Out' }
-      ];
-    } else if (selectedType === 'Bowling Alley') {
-      return [
-        { id: 'Lane Delivery', label: 'Lane Side' },
-        { id: 'Take Out', label: 'Take Out' }
-      ];
-    } else {
-      return [
-        { id: 'Dine-In', label: 'Dine-In' },
-        { id: 'Take Out', label: 'Take Out' }
-      ];
-    }
-  }, [selectedType]);
-
-  const handleSystemReset = async () => {
-    if (!firestore || !isSuperAdmin) return;
-    setIsResetting(true);
-    try {
-      const batch = writeBatch(firestore);
-      const ordersSnapshot = await getDocs(collection(firestore, 'orders'));
-      ordersSnapshot.forEach((doc) => batch.delete(doc.ref));
-      await batch.commit();
-      toast({ title: "Transaction Logs Purged" });
-    } catch (e) {
-      toast({ variant: "destructive", title: "Reset Failed" });
-    } finally {
-      setIsResetting(false);
-    }
-  };
-
-  const handleBootstrapNetwork = async () => {
-    if (!firestore || !isSuperAdmin) return;
-    setIsBootstrapping(true);
-    try {
-      const demoSellers = [
-        {
-          id: 'demo-course',
-          courseName: 'Public Golf Club',
-          type: 'Public Golf Course',
-          contactName: 'Demo Manager',
-          contactEmail: 'public@koop.com',
-          contactPhone: '555-0101',
-          streetAddress: '123 Fairway Drive',
-          city: 'Golf City',
-          state: 'MI',
-          zip: '48326',
-          serviceFee: 2.50,
-          taxRate: 6.0,
-          status: 'Active',
-          menuTypes: ['Beverage Cart', 'Clubhouse', 'Take Out'],
-          isProduction: false,
-          qrCodeUrl: 'https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=https://koop.app/sellers/demo-course/order'
-        }
-      ];
-      for (const s of demoSellers) {
-        await setDoc(doc(firestore, 'sellers', s.id), { ...s, createdAt: new Date().toISOString() }, { merge: true });
-      }
-      toast({ title: "Demo Network Bootstrapped" });
-    } catch (e) {
-      toast({ variant: "destructive", title: "Bootstrap Failed" });
-    } finally {
-      setIsBootstrapping(false);
-    }
-  };
-
   const handleEditSeller = async (seller: Seller) => {
     setEditingSeller(seller);
-    let privateData = { authorizeNetLoginId: '', authorizeNetTransactionKey: '', authorizeNetSignatureKey: '' };
+    let privateData = { authorizeNetLoginId: '', authorizeNetTransactionKey: '' };
     if (firestore) {
       const vaultDoc = await getDoc(doc(firestore, 'sellers_private', seller.id));
       if (vaultDoc.exists()) {
@@ -398,9 +319,7 @@ export default function KOOPAdminPage() {
       menuTypes: seller.menuTypes || [],
       isProduction: seller.isProduction || false,
       authorizeNetLoginId: seller.authorizeNetLoginId || privateData.authorizeNetLoginId || '',
-      authorizeNetClientKey: seller.authorizeNetClientKey || '',
       authorizeNetTransactionKey: privateData.authorizeNetTransactionKey || '',
-      authorizeNetSignatureKey: privateData.authorizeNetSignatureKey || '',
     });
     setIsFormOpen(true);
   };
@@ -426,9 +345,7 @@ export default function KOOPAdminPage() {
       menuTypes: ['Beverage Cart', 'Clubhouse', 'Take Out'],
       isProduction: false,
       authorizeNetLoginId: '',
-      authorizeNetClientKey: '',
       authorizeNetTransactionKey: '',
-      authorizeNetSignatureKey: '',
     });
     setIsFormOpen(true);
   };
@@ -437,24 +354,25 @@ export default function KOOPAdminPage() {
     if (!firestore || !isSuperAdmin) return;
     setIsSaving(true);
     const sellerId = editingSeller ? editingSeller.id : data.courseName.toLowerCase().replace(/\s+/g, '-');
-    const { authorizeNetLoginId, authorizeNetTransactionKey, authorizeNetClientKey, authorizeNetSignatureKey, ...publicData } = data;
+    const { authorizeNetLoginId, authorizeNetTransactionKey, ...publicData } = data;
     const batch = writeBatch(firestore);
+    
     batch.set(doc(firestore, 'sellers', sellerId), { 
       ...publicData, 
       id: sellerId,
       authorizeNetLoginId: authorizeNetLoginId || '',
-      authorizeNetClientKey: authorizeNetClientKey || '',
       createdAt: editingSeller?.createdAt || new Date().toISOString(),
       updatedAt: serverTimestamp(),
       qrCodeUrl: editingSeller?.qrCodeUrl || `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${window.location.origin}/sellers/${sellerId}/order`
     }, { merge: true });
+    
     batch.set(doc(firestore, 'sellers_private', sellerId), {
       id: sellerId,
       authorizeNetLoginId: authorizeNetLoginId || '',
       authorizeNetTransactionKey: authorizeNetTransactionKey || '',
-      authorizeNetSignatureKey: authorizeNetSignatureKey || '',
       updatedAt: serverTimestamp()
     }, { merge: true });
+    
     batch.commit().then(() => {
       toast({ title: editingSeller ? 'Venue Updated' : 'Venue Registered' });
       setIsFormOpen(false);
@@ -501,28 +419,38 @@ export default function KOOPAdminPage() {
     }
   };
 
-  const handleSendResetLink = async (email: string) => {
-    if (!auth) return;
+  const handleBootstrapNetwork = async () => {
+    if (!firestore || !isSuperAdmin) return;
+    setIsBootstrapping(true);
     try {
-      await sendPasswordResetEmail(auth, email);
-      toast({ title: "Reset Link Dispatched", description: `Success for ${email}.` });
-    } catch (e: any) {
-      toast({ variant: "destructive", title: "Dispatch Failed", description: e.message });
-    }
-  };
-
-  const handleRemoveStaff = async () => {
-    if (!firestore || !isSuperAdmin || !adminToDelete) return;
-    try {
-      await deleteDoc(doc(firestore, 'adminUsers', adminToDelete.email));
-      const roleCollection = adminToDelete.role === 'Seller Admin' ? 'roles_seller_admin' : 'roles_sales_rep';
-      await deleteDoc(doc(firestore, roleCollection, adminToDelete.email));
-      toast({ title: "Access Revoked" });
+      const demoSellers = [
+        {
+          id: 'demo-course',
+          courseName: 'Public Golf Club',
+          type: 'Public Golf Course',
+          contactName: 'Demo Manager',
+          contactEmail: 'public@koop.com',
+          contactPhone: '555-0101',
+          streetAddress: '123 Fairway Drive',
+          city: 'Golf City',
+          state: 'MI',
+          zip: '48326',
+          serviceFee: 2.50,
+          taxRate: 6.0,
+          status: 'Active',
+          menuTypes: ['Beverage Cart', 'Clubhouse', 'Take Out'],
+          isProduction: false,
+          qrCodeUrl: 'https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=https://koop.app/sellers/demo-course/order'
+        }
+      ];
+      for (const s of demoSellers) {
+        await setDoc(doc(firestore, 'sellers', s.id), { ...s, createdAt: new Date().toISOString() }, { merge: true });
+      }
+      toast({ title: "Demo Network Bootstrapped" });
     } catch (e) {
-      toast({ variant: "destructive", title: "Failed to Remove" });
+      toast({ variant: "destructive", title: "Bootstrap Failed" });
     } finally {
-      setIsStaffDeleteDialogOpen(false);
-      setAdminToDelete(null);
+      setIsBootstrapping(false);
     }
   };
 
@@ -756,9 +684,7 @@ export default function KOOPAdminPage() {
                     )} />
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <FormField control={form.control} name="authorizeNetLoginId" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase">API Login ID</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>)} />
-                      <FormField control={form.control} name="authorizeNetClientKey" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase">Public Client Key</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>)} />
                       <FormField control={form.control} name="authorizeNetTransactionKey" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase">Secret Transaction Key</FormLabel><FormControl><Input {...field} type="password" placeholder="Vaulted Master Secret" className="h-11 border-2 font-bold" /></FormControl></FormItem>)} />
-                      <FormField control={form.control} name="authorizeNetSignatureKey" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase">SHA-512 Signature Key</FormLabel><FormControl><Input {...field} type="password" placeholder="Vaulted Signature Key" className="h-11 border-2 font-bold" /></FormControl></FormItem>)} />
                     </div>
                   </div>
 

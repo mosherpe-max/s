@@ -140,9 +140,7 @@ type MenuItemFormData = z.infer<typeof menuItemSchema>;
 
 const gatewaySchema = z.object({
   authorizeNetLoginId: z.string().min(1, 'Login ID required'),
-  authorizeNetClientKey: z.string().min(1, 'Public Client Key required'),
   authorizeNetTransactionKey: z.string().min(1, 'Transaction Key required'),
-  authorizeNetSignatureKey: z.string().optional(),
   isProduction: z.boolean().default(false),
 });
 
@@ -470,9 +468,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     resolver: zodResolver(gatewaySchema),
     defaultValues: {
       authorizeNetLoginId: '',
-      authorizeNetClientKey: '',
       authorizeNetTransactionKey: '',
-      authorizeNetSignatureKey: '',
       isProduction: false,
     },
   });
@@ -484,9 +480,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     
     gatewayForm.reset({
       authorizeNetLoginId: seller?.authorizeNetLoginId || privateData.authorizeNetLoginId || '',
-      authorizeNetClientKey: seller?.authorizeNetClientKey || '',
       authorizeNetTransactionKey: privateData.authorizeNetTransactionKey || '',
-      authorizeNetSignatureKey: privateData.authorizeNetSignatureKey || '',
       isProduction: seller?.isProduction || false,
     });
     setIsGatewayFormOpen(true);
@@ -498,20 +492,16 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     try {
       const batch = writeBatch(firestore);
       
-      // 1. Public Info (Needed for Accept.js Frontend)
       batch.update(doc(firestore, 'sellers', sellerId), {
         authorizeNetLoginId: data.authorizeNetLoginId,
-        authorizeNetClientKey: data.authorizeNetClientKey,
         isProduction: data.isProduction,
         updatedAt: serverTimestamp()
       });
 
-      // 2. Private Vault (Secret Keys used only by Backend Cloud Functions)
       batch.set(doc(firestore, 'sellers_private', sellerId), {
         id: sellerId,
         authorizeNetLoginId: data.authorizeNetLoginId,
         authorizeNetTransactionKey: data.authorizeNetTransactionKey,
-        authorizeNetSignatureKey: data.authorizeNetSignatureKey || '',
         updatedAt: serverTimestamp()
       }, { merge: true });
 
@@ -1332,14 +1322,8 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                 <FormField control={gatewayForm.control} name="authorizeNetLoginId" render={({ field }) => (
                   <FormItem><FormLabel className="text-[10px] font-black uppercase">API Login ID</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl><FormMessage /></FormItem>
                 )} />
-                <FormField control={gatewayForm.control} name="authorizeNetClientKey" render={({ field }) => (
-                  <FormItem><FormLabel className="text-[10px] font-black uppercase">Public Client Key</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl><FormDescription className="text-[9px] font-bold uppercase">Required for phone tokenization.</FormDescription><FormMessage /></FormItem>
-                )} />
                 <FormField control={gatewayForm.control} name="authorizeNetTransactionKey" render={({ field }) => (
-                  <FormItem><FormLabel className="text-[10px] font-black uppercase">Secret Transaction Key</FormLabel><FormControl><Input {...field} type="password" className="h-11 border-2 font-bold" /></FormControl><FormDescription className="text-[9px] font-bold uppercase">Vaulted master secret.</FormDescription><FormMessage /></FormItem>
-                )} />
-                <FormField control={gatewayForm.control} name="authorizeNetSignatureKey" render={({ field }) => (
-                  <FormItem><FormLabel className="text-[10px] font-black uppercase">SHA-512 Signature Key</FormLabel><FormControl><Input {...field} type="password" className="h-11 border-2 font-bold" /></FormControl><FormDescription className="text-[9px] font-bold uppercase">Used for HMAC verification (Optional/Recommended).</FormDescription><FormMessage /></FormItem>
+                  <FormItem><FormLabel className="text-[10px] font-black uppercase">Secret Transaction Key</FormLabel><FormControl><Input {...field} type="password" placeholder="Vaulted Master Secret" className="h-11 border-2 font-bold" /></FormControl><FormDescription className="text-[9px] font-bold uppercase">Stored securely in the platform vault.</FormDescription><FormMessage /></FormItem>
                 )} />
                 <DialogFooter>
                   <Button type="submit" disabled={isSavingGateway} className="w-full font-black uppercase h-12 shadow-xl">

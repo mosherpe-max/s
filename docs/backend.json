@@ -81,7 +81,6 @@
         "orderThresholds": { "type": "object" },
         "isProduction": { "type": "boolean", "description": "Whether this venue uses live Authorize.net endpoints." },
         "authorizeNetLoginId": { "type": "string" },
-        "authorizeNetClientKey": { "type": "string" },
         "createdAt": { "type": "string", "format": "date-time" },
         "updatedAt": { "type": "string", "format": "date-time" }
       },

@@ -76,9 +76,7 @@ export interface Seller {
   poolMapUrl?: string;
   isProduction?: boolean; // Environment flag
   authorizeNetLoginId?: string;
-  authorizeNetClientKey?: string; // Public key for Accept.js
-  authorizeNetTransactionKey?: string; // Private key for backend
-  authorizeNetSignatureKey?: string; // Signature Key for verification
+  authorizeNetTransactionKey?: string; // Private key for backend (cached during admin session)
 }
 
 export type Category = 'Beer' | 'Spirits' | 'Soft Drinks' | 'Snacks' | 'Other' | 'Handhelds' | 'Appetizers' | 'Entrees' | 'Pizza' | 'Salad' | 'Dessert' | 'Kids';
