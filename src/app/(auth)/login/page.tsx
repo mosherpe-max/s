@@ -1,7 +1,6 @@
-
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,7 +12,7 @@ import {
 } from 'firebase/auth';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
-import { Loader2, ShieldCheck, Mail, Lock, User, LogOut, CheckCircle2, LogIn, ArrowRight, Target, Copy } from 'lucide-react';
+import { Loader2, ShieldCheck, Mail, Lock, User, LogOut, CheckCircle2, LogIn, ArrowRight, Target, Copy, Zap } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { StylizedKoopLogo } from '@/components/header';
 import { SUPER_ADMIN_ID } from '@/lib/utils';
@@ -38,29 +37,31 @@ export default function LoginPage() {
     if (!firestore || !user) return null;
     return doc(firestore, 'roles_admin', user.uid);
   }, [firestore, user]);
-  const { data: globalRole } = useDoc(globalRoleRef);
+  const { data: globalRole, isLoading: isGlobalRoleLoading } = useDoc(globalRoleRef);
 
   // 2. Check Seller Admin Role (Email Based)
   const sellerRoleRef = useMemoFirebase(() => {
     if (!firestore || !user?.email) return null;
     return doc(firestore, 'roles_seller_admin', user.email.toLowerCase());
   }, [firestore, user]);
-  const { data: sellerRole } = useDoc(sellerRoleRef);
+  const { data: sellerRole, isLoading: isSellerRoleLoading } = useDoc(sellerRoleRef);
 
   // 3. Check Sales Rep Role (Email Based)
   const salesRoleRef = useMemoFirebase(() => {
     if (!firestore || !user?.email) return null;
     return doc(firestore, 'roles_sales_rep', user.email.toLowerCase());
   }, [firestore, user]);
-  const { data: salesRole } = useDoc(salesRoleRef);
+  const { data: salesRole, isLoading: isSalesRoleLoading } = useDoc(salesRoleRef);
 
   const isPlatformAdmin = isSuperAdmin || !!globalRole;
   const isVenueAdmin = !!sellerRole;
   const isSalesRep = !!salesRole;
 
+  const isVerifyingRoles = isGlobalRoleLoading || isSellerRoleLoading || isSalesRoleLoading;
+
   // Handle Automatic Redirection
   useEffect(() => {
-    if (!user || isUserLoading) return;
+    if (!user || isUserLoading || isVerifyingRoles) return;
 
     if (isPlatformAdmin) {
       router.push('/admin');
@@ -69,7 +70,7 @@ export default function LoginPage() {
     } else if (isVenueAdmin && sellerRole?.sellerId) {
       router.push(`/sellers/${sellerRole.sellerId}`);
     }
-  }, [user, isUserLoading, isPlatformAdmin, isVenueAdmin, isSalesRep, sellerRole, router]);
+  }, [user, isUserLoading, isPlatformAdmin, isVenueAdmin, isSalesRep, sellerRole, router, isVerifyingRoles]);
 
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -123,7 +124,7 @@ export default function LoginPage() {
         description: "Your account now has global privileges." 
       });
     } catch (error: any) {
-      toast({ variant: "destructive", title: "Setup Failed", description: error.message });
+      toast({ variant: "destructive", title: "Setup Failed", description: "Authorization required to initialize registry. Please contact Super Admin." });
     } finally {
       setIsAdminSettingUp(false);
     }
@@ -174,7 +175,12 @@ export default function LoginPage() {
                 <CheckCircle2 className="h-5 w-5 text-green-500" />
               </div>
 
-              {isPlatformAdmin || isVenueAdmin || isSalesRep ? (
+              {isVerifyingRoles ? (
+                <div className="p-10 flex flex-col items-center gap-4">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Verifying Authorizations...</p>
+                </div>
+              ) : isPlatformAdmin || isVenueAdmin || isSalesRep ? (
                 <div className="space-y-4">
                   <div className="p-5 bg-primary/10 border-2 border-primary/20 rounded-2xl flex flex-col items-center text-center gap-2">
                     {isSalesRep ? <Target className="h-10 w-10 text-indigo-600" /> : <ShieldCheck className="h-10 w-10 text-primary" />}
@@ -207,17 +213,21 @@ export default function LoginPage() {
                       </div>
                       <code className="text-[10px] font-mono font-black break-all text-indigo-600">{user.uid}</code>
                     </div>
-                    <Button 
-                      onClick={handleSetupAdmin} 
-                      className="w-full h-12 bg-indigo-600 hover:bg-indigo-700 shadow-lg gap-3"
-                      disabled={isAdminSettingUp}
-                    >
-                      {isAdminSettingUp ? <Loader2 className="h-5 w-5 animate-spin" /> : <ShieldCheck className="h-5 w-5" />}
-                      <span className="font-headline font-bold uppercase tracking-wider">Initialize Admin Profile</span>
-                    </Button>
-                    <p className="text-[8px] text-center text-muted-foreground uppercase font-bold italic">
-                      Note: Profile initialization requires Super Admin bypass (hardcoded UID).
-                    </p>
+                    {isSuperAdmin && (
+                      <Button 
+                        onClick={handleSetupAdmin} 
+                        className="w-full h-12 bg-indigo-600 hover:bg-indigo-700 shadow-lg gap-3"
+                        disabled={isAdminSettingUp}
+                      >
+                        {isAdminSettingUp ? <Loader2 className="h-5 w-5 animate-spin" /> : <Zap className="h-5 w-5" />}
+                        <span className="font-headline font-bold uppercase tracking-wider">Claim Platform Role</span>
+                      </Button>
+                    )}
+                    {!isSuperAdmin && (
+                      <p className="text-[8px] text-center text-muted-foreground uppercase font-bold italic">
+                        Note: Super Admin (God Mode) bypass is required to initialize global roles.
+                      </p>
+                    )}
                   </div>
                 </div>
               )}
@@ -285,7 +295,7 @@ export default function LoginPage() {
         </CardContent>
         <CardFooter className="bg-muted/10 border-t py-4 text-center justify-center">
           <p className="text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground">
-            KOOP SECURE ACCESS v2.7
+            KOOP SECURE ACCESS v3.1
           </p>
         </CardFooter>
       </Card>

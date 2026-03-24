@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -75,7 +74,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDes
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
@@ -171,7 +170,6 @@ export default function KOOPAdminPage() {
   
   const [editingSeller, setEditingSeller] = useState<Seller | null>(null);
   const [isSaving, setIsSaving] = useState(false);
-  const [isResetting, setIsResetting] = useState(false);
   const [isBootstrapping, setIsBootstrapping] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -486,12 +484,7 @@ export default function KOOPAdminPage() {
     }
   };
 
-  const handleSystemReset = async () => {
-    // Logic for system purge if needed
-    toast({ title: "System Maintenance Not Available in Prototype" });
-  };
-
-  if (isUserLoading || isRoleCheckLoading) {
+  if (isUserLoading || (isRoleCheckLoading && !isHardcodedSuperAdmin)) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen">
         <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
@@ -500,7 +493,7 @@ export default function KOOPAdminPage() {
     );
   }
 
-  if (!isAuthorized) {
+  if (!user || !isAuthorized) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-4rem)] p-4 text-center">
         <div className="p-6 bg-red-50 border-2 border-red-100 rounded-[2.5rem] shadow-xl max-w-md w-full space-y-6">
@@ -537,7 +530,6 @@ export default function KOOPAdminPage() {
           <TabsTrigger value="operations" className="text-[10px] font-black uppercase px-8 h-10"><Activity className="mr-2 h-3.5 w-3.5" /> Operations</TabsTrigger>
           <TabsTrigger value="staff" className="text-[10px] font-black uppercase px-8 h-10"><Users className="mr-2 h-3.5 w-3.5" /> User Registry</TabsTrigger>
           <TabsTrigger value="growth" className="text-[10px] font-black uppercase px-8 h-10"><Target className="mr-2 h-3.5 w-3.5" /> Growth</TabsTrigger>
-          <TabsTrigger value="maintenance" className="text-[10px] font-black uppercase px-8 h-10"><ShieldAlert className="mr-2 h-3.5 w-3.5" /> Maintenance</TabsTrigger>
         </TabsList>
 
         <TabsContent value="operations" className="space-y-8">
@@ -596,9 +588,9 @@ export default function KOOPAdminPage() {
                             <DropdownMenuContent align="end" className="w-56 shadow-xl border-2">
                               <DropdownMenuItem asChild><Link href={`/sellers/${seller.id}`} className="flex items-center gap-3 cursor-pointer"><ShieldCheck className="h-4 w-4 text-primary" /><span className="text-xs font-bold uppercase">Seller Admin Portal</span></Link></DropdownMenuItem>
                               <DropdownMenuSeparator />
-                              {seller.menuTypes.includes('Beverage Cart') && <DropdownMenuItem asChild><Link href={`/sellers/${seller.id}/bevcart`} className="flex items-center gap-3 cursor-pointer"><Truck className="h-4 w-4 text-indigo-600" /><span className="text-xs font-bold uppercase">BevCart Driver</span></Link></DropdownMenuItem>}
-                              {seller.menuTypes.includes('Clubhouse') && <DropdownMenuItem asChild><Link href={`/sellers/${seller.id}/clubhouse`} className="flex items-center gap-3 cursor-pointer"><LayoutDashboard className="h-4 w-4 text-indigo-600" /><span className="text-xs font-bold uppercase">Clubhouse Staff</span></Link></DropdownMenuItem>}
-                              {seller.menuTypes.includes('Lane Delivery') && <DropdownMenuItem asChild><Link href={`/sellers/${seller.id}/laneside`} className="flex items-center gap-3 cursor-pointer"><Users className="h-4 w-4 text-indigo-600" /><span className="text-xs font-bold uppercase">Laneside Server</span></Link></DropdownMenuItem>}
+                              <DropdownMenuItem asChild><Link href={`/sellers/${seller.id}/bevcart`} className="flex items-center gap-3 cursor-pointer"><Truck className="h-4 w-4 text-indigo-600" /><span className="text-xs font-bold uppercase">BevCart Driver</span></Link></DropdownMenuItem>
+                              <DropdownMenuItem asChild><Link href={`/sellers/${seller.id}/clubhouse`} className="flex items-center gap-3 cursor-pointer"><LayoutDashboard className="h-4 w-4 text-indigo-600" /><span className="text-xs font-bold uppercase">Clubhouse Staff</span></Link></DropdownMenuItem>
+                              <DropdownMenuItem asChild><Link href={`/sellers/${seller.id}/laneside`} className="flex items-center gap-3 cursor-pointer"><Users className="h-4 w-4 text-indigo-600" /><span className="text-xs font-bold uppercase">Laneside Server</span></Link></DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </div>
@@ -668,16 +660,6 @@ export default function KOOPAdminPage() {
               </CardContent>
             </Card>
           </div>
-        </TabsContent>
-
-        <TabsContent value="maintenance">
-          <Card className="border-2 max-w-md mx-auto">
-            <CardHeader className="bg-muted/20 border-b"><CardTitle className="text-sm font-black uppercase text-center">System Maintenance</CardTitle></CardHeader>
-            <CardContent className="pt-6 space-y-4">
-              <Button variant="outline" onClick={handleSystemReset} className="w-full h-12 border-2 border-destructive text-destructive font-black uppercase text-[10px]">Purge Transaction Logs</Button>
-              <p className="text-[9px] text-center text-muted-foreground uppercase font-bold">WARNING: Irreversible.</p>
-            </CardContent>
-          </Card>
         </TabsContent>
       </Tabs>
 
