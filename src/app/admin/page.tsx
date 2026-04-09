@@ -86,7 +86,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { Seller, Order, Prospect, AdminUser } from '@/lib/types';
-import { sellerTypes } from '@/lib/types';
+import { sellerTypes, categories } from '@/lib/types';
+import { publicGolfItems, privateGolfItems, bowlingAlleyItems } from '@/lib/data';
 import { useToast } from '@/hooks/use-toast';
 import { cn, SUPER_ADMIN_ID } from '@/lib/utils';
 import Link from 'next/link';
@@ -111,7 +112,6 @@ const sellerSchema = z.object({
   menuTypes: z.array(z.string()).min(1, 'Select at least one menu type'),
   isProduction: z.boolean().default(false),
   authorizeNetLoginId: z.string().optional(),
-  authorizeNetTransactionKey: z.string().optional(),
 });
 
 type SellerFormData = z.infer<typeof sellerSchema>;
@@ -179,7 +179,7 @@ export default function KOOPAdminPage() {
   const [venueToDelete, setVenueToDelete] = useState<Seller | null>(null);
   const [isVenueDeleteDialogOpen, setIsVenueDeleteDialogOpen] = useState(false);
 
-  // Authorization Check (Registry + Hardcoded Fallback)
+  // Authorization Check
   const isHardcodedSuperAdmin = user?.uid === SUPER_ADMIN_ID;
   const platformRoleRef = useMemoFirebase(() => {
     if (!firestore || !user || isHardcodedSuperAdmin) return null;
@@ -283,7 +283,6 @@ export default function KOOPAdminPage() {
       menuTypes: [],
       isProduction: false,
       authorizeNetLoginId: '',
-      authorizeNetTransactionKey: '',
     },
   });
 
@@ -299,7 +298,7 @@ export default function KOOPAdminPage() {
 
   const handleEditSeller = async (seller: Seller) => {
     setEditingSeller(seller);
-    let privateData = { authorizeNetLoginId: '', authorizeNetTransactionKey: '' };
+    let privateData = { authorizeNetLoginId: '' };
     if (firestore) {
       const vaultDoc = await getDoc(doc(firestore, 'sellers_private', seller.id));
       if (vaultDoc.exists()) {
@@ -325,7 +324,6 @@ export default function KOOPAdminPage() {
       menuTypes: seller.menuTypes || [],
       isProduction: seller.isProduction || false,
       authorizeNetLoginId: seller.authorizeNetLoginId || privateData.authorizeNetLoginId || '',
-      authorizeNetTransactionKey: privateData.authorizeNetTransactionKey || '',
     });
     setIsFormOpen(true);
   };
@@ -351,7 +349,6 @@ export default function KOOPAdminPage() {
       menuTypes: ['Beverage Cart', 'Clubhouse', 'Take Out'],
       isProduction: false,
       authorizeNetLoginId: '',
-      authorizeNetTransactionKey: '',
     });
     setIsFormOpen(true);
   };
@@ -360,7 +357,7 @@ export default function KOOPAdminPage() {
     if (!firestore || !isAuthorized) return;
     setIsSaving(true);
     const sellerId = editingSeller ? editingSeller.id : data.courseName.toLowerCase().replace(/\s+/g, '-');
-    const { authorizeNetLoginId, authorizeNetTransactionKey, ...publicData } = data;
+    const { authorizeNetLoginId, ...publicData } = data;
     const batch = writeBatch(firestore);
     
     batch.set(doc(firestore, 'sellers', sellerId), { 
@@ -375,7 +372,6 @@ export default function KOOPAdminPage() {
     batch.set(doc(firestore, 'sellers_private', sellerId), {
       id: sellerId,
       authorizeNetLoginId: authorizeNetLoginId || '',
-      authorizeNetTransactionKey: authorizeNetTransactionKey || '',
       updatedAt: serverTimestamp()
     }, { merge: true });
     
@@ -434,7 +430,7 @@ export default function KOOPAdminPage() {
           id: 'demo-course',
           courseName: 'Public Golf Club',
           type: 'Public Golf Course',
-          contactName: 'Demo Manager',
+          contactName: 'Public Manager',
           contactEmail: 'public@koop.com',
           contactPhone: '555-0101',
           streetAddress: '123 Fairway Drive',
@@ -446,13 +442,68 @@ export default function KOOPAdminPage() {
           status: 'Active',
           menuTypes: ['Beverage Cart', 'Clubhouse', 'Take Out'],
           isProduction: false,
+          categoryVisibility: { 'Beverage Cart': [...categories], 'Clubhouse': [...categories], 'Take Out': [...categories] },
           qrCodeUrl: 'https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=https://koop.app/sellers/demo-course/order'
+        },
+        {
+          id: 'demo-private-course',
+          courseName: 'The Private Reserve',
+          type: 'Private Golf Course',
+          contactName: 'Club Manager',
+          contactEmail: 'private@koop.com',
+          contactPhone: '555-0202',
+          streetAddress: '456 Reserve Lane',
+          city: 'Highlands',
+          state: 'MI',
+          zip: '48327',
+          serviceFee: 3.50,
+          taxRate: 6.0,
+          status: 'Active',
+          menuTypes: ['Clubhouse', 'Pool', 'Take Out'],
+          isProduction: false,
+          categoryVisibility: { 'Clubhouse': [...categories], 'Pool': [...categories], 'Take Out': [...categories] },
+          qrCodeUrl: 'https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=https://koop.app/sellers/demo-private-course/order'
+        },
+        {
+          id: 'demo-bowling-alley',
+          courseName: 'Strike City Lanes',
+          type: 'Bowling Alley',
+          contactName: 'Alley Manager',
+          contactEmail: 'bowling@koop.com',
+          contactPhone: '555-0303',
+          streetAddress: '789 Pin Street',
+          city: 'Bowling Green',
+          state: 'MI',
+          zip: '48328',
+          serviceFee: 2.00,
+          taxRate: 6.0,
+          laneCount: 24,
+          status: 'Active',
+          menuTypes: ['Lane Delivery', 'Take Out'],
+          isProduction: false,
+          categoryVisibility: { 'Lane Delivery': [...categories], 'Take Out': [...categories] },
+          qrCodeUrl: 'https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=https://koop.app/sellers/demo-bowling-alley/order'
         }
       ];
+
       for (const s of demoSellers) {
         await setDoc(doc(firestore, 'sellers', s.id), { ...s, createdAt: new Date().toISOString() }, { merge: true });
+        
+        // Seed Menu Items
+        let itemsToSeed = publicGolfItems;
+        if (s.id === 'demo-private-course') itemsToSeed = privateGolfItems;
+        if (s.id === 'demo-bowling-alley') itemsToSeed = bowlingAlleyItems;
+
+        const batch = writeBatch(firestore);
+        itemsToSeed.forEach((item, idx) => {
+          const itemId = `${s.id}-item-${idx}`;
+          const itemRef = doc(firestore, 'sellers', s.id, 'menuItems', itemId);
+          batch.set(itemRef, { ...item, id: itemId, rank: idx });
+        });
+        await batch.commit();
       }
-      toast({ title: "Demo Network Bootstrapped" });
+      
+      toast({ title: "Demo Network Bootstrapped", description: "All venues and high-fidelity menus provisioned." });
     } catch (e) {
       toast({ variant: "destructive", title: "Bootstrap Failed" });
     } finally {
@@ -689,7 +740,6 @@ export default function KOOPAdminPage() {
                     )} />
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <FormField control={form.control} name="authorizeNetLoginId" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase">API Login ID</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>)} />
-                      <FormField control={form.control} name="authorizeNetTransactionKey" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase">Secret Transaction Key</FormLabel><FormControl><Input {...field} type="password" placeholder="Vaulted Master Secret" className="h-11 border-2 font-bold" /></FormControl></FormItem>)} />
                     </div>
                   </div>
 
