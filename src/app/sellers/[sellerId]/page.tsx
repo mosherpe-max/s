@@ -97,6 +97,24 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { DateRange } from "react-day-picker";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+
 import type { MenuItem, Seller, Category, Order, Member, SellerType, ModifierGroup, ModifierOption, StaffMember } from '@/lib/types';
 import { categories } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
@@ -152,6 +170,53 @@ const getCategoriesForMenu = (menuType: string): Category[] => {
   }
   return [...categories] as Category[];
 };
+
+function SortableMenuItem({ 
+  item, 
+  onRemove 
+}: { 
+  item: MenuItem; 
+  onRemove: (item: MenuItem) => void 
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging
+  } = useSortable({ id: item.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 50 : undefined,
+  };
+
+  return (
+    <div 
+      ref={setNodeRef} 
+      style={style} 
+      className={cn(
+        "flex items-center justify-between p-3 rounded-lg border bg-card transition-shadow",
+        isDragging ? "shadow-xl border-primary ring-2 ring-primary/20 opacity-90" : "shadow-sm"
+      )}
+    >
+      <div className="flex items-center gap-3">
+        <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing p-1 hover:bg-muted rounded text-muted-foreground">
+          <GripVertical className="h-4 w-4" />
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-medium">{item.name}</span>
+          {item.modifierGroups?.length ? <Layers className="h-3 w-3 text-primary" /> : null}
+        </div>
+      </div>
+      <Button variant="ghost" size="icon" className="text-destructive h-7 w-7" onClick={() => onRemove(item)}>
+        <Trash2 className="h-3.5 w-3.5" />
+      </Button>
+    </div>
+  );
+}
 
 function ModifierGroupManager({ 
   control, 
@@ -383,6 +448,13 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   const [editingStaff, setEditingStaff] = useState<StaffMember | null>(null);
   const [isGatewayFormOpen, setIsGatewayFormOpen] = useState(false);
   const [isSavingGateway, setIsSavingGateway] = useState(false);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   // AUTHORIZATION GATE
   const isSuperAdmin = user?.uid === SUPER_ADMIN_ID;
@@ -710,6 +782,28 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     updateDoc(itemRef, { availableOn: nextAvailableOn });
   };
 
+  const handleDragEnd = (event: DragEndEvent, menuType: string, items: MenuItem[]) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id || !firestore || !hasAccess) return;
+
+    const oldIndex = items.findIndex((i) => i.id === active.id);
+    const newIndex = items.findIndex((i) => i.id === over.id);
+
+    const reordered = arrayMove(items, oldIndex, newIndex);
+    
+    const batch = writeBatch(firestore);
+    reordered.forEach((item, index) => {
+      const itemRef = doc(firestore, 'sellers', sellerId, 'menuItems', item.id);
+      batch.update(itemRef, {
+        [`menuRanks.${menuType}`]: index
+      });
+    });
+
+    batch.commit().then(() => {
+      toast({ title: "Order Updated", description: `Display priority saved for ${menuType}.` });
+    });
+  };
+
   const handleUpdateThreshold = async (menuType: string, field: 'warning' | 'max', value: string) => {
     if (!firestore || !seller || !hasAccess) return;
     const val = parseInt(value) || 0;
@@ -831,7 +925,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
             </div>
           </div>
 
-          {/* Service Availability Controls */}
           <div className="mb-8 p-4 bg-muted/10 border-2 border-dashed rounded-xl">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="space-y-0.5">
@@ -1116,7 +1209,10 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
         </section>
 
         <section id="service-management" className="mb-12 mt-16 scroll-mt-32">
-          <h2 className="font-headline text-xl font-bold mb-6 flex items-center gap-2 text-primary uppercase tracking-wider"><ListChecks className="h-6 w-6" /> Service Menus</h2>
+          <div className="flex flex-col gap-1 mb-6">
+            <h2 className="font-headline text-xl font-bold flex items-center gap-2 text-primary uppercase tracking-wider"><ListChecks className="h-6 w-6" /> Service Menus</h2>
+            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Drag and drop items to set display priority for patrons.</p>
+          </div>
           <div className="grid grid-cols-1 gap-12">
             {seller?.menuTypes?.map(menuType => {
                 const itemsInThisMenu = menuItems?.filter(i => i.availableOn?.includes(menuType)) || [];
@@ -1125,7 +1221,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                         <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between border-b bg-muted/20 gap-4">
                             <div>
                                 <CardTitle className="text-xl uppercase tracking-tight">{menuType} Menu</CardTitle>
-                                <CardDescription>Manage visibility and structure.</CardDescription>
+                                <CardDescription>Manage priority and category visibility.</CardDescription>
                             </div>
                             <div className="flex flex-wrap gap-2">
                               <Button variant="outline" size="sm" onClick={() => { setConfigMenuType(menuType); setIsCategoryConfigOpen(true); }} className="bg-background">
@@ -1140,28 +1236,45 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                             {itemsInThisMenu.length === 0 ? (
                                 <p className="text-center py-12 text-muted-foreground italic">No items added to this menu.</p>
                             ) : (
-                                <div className="space-y-8">
+                                <div className="space-y-10">
                                     {getCategoriesForMenu(menuType).map(category => {
-                                        const itemsInCategory = itemsInThisMenu.filter(i => i.category === category);
+                                        const itemsInCategory = itemsInThisMenu
+                                          .filter(i => i.category === category)
+                                          .sort((a, b) => {
+                                            const rA = a.menuRanks?.[menuType] ?? a.rank ?? 0;
+                                            const rB = b.menuRanks?.[menuType] ?? b.rank ?? 0;
+                                            return rA - rB;
+                                          });
+                                        
                                         const modsEnabled = seller.categoryModifierEnabled?.[menuType]?.includes(category);
                                         if (itemsInCategory.length === 0) return null;
                                         return (
-                                            <div key={`${menuType}-${category}`} className="space-y-3">
-                                                <div className="flex items-center gap-2">
+                                            <div key={`${menuType}-${category}`} className="space-y-4">
+                                                <div className="flex items-center gap-2 border-b pb-2">
                                                   <h4 className="font-bold text-sm uppercase tracking-widest">{category}</h4>
                                                   {modsEnabled && <Badge variant="secondary" className="uppercase text-[9px] bg-primary/10 text-primary border-primary/20">Base + Modifiers Enabled</Badge>}
                                                 </div>
-                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                                    {itemsInCategory.map(item => (
-                                                        <div key={`${menuType}-${item.id}`} className="flex items-center justify-between p-2 rounded-lg bg-card border">
-                                                          <div className="flex items-center gap-2">
-                                                            <span className="text-xs font-medium">{item.name}</span>
-                                                            {item.modifierGroups?.length ? <Layers className="h-3 w-3 text-primary" /> : null}
-                                                          </div>
-                                                          <Button variant="ghost" size="icon" className="text-destructive h-7 w-7" onClick={() => handleToggleMenuItemAvailability(item, menuType)}><Trash2 className="h-3 w-3" /></Button>
-                                                        </div>
-                                                    ))}
-                                                </div>
+                                                
+                                                <DndContext 
+                                                  sensors={sensors}
+                                                  collisionDetection={closestCenter}
+                                                  onDragEnd={(e) => handleDragEnd(e, menuType, itemsInCategory)}
+                                                >
+                                                  <SortableContext 
+                                                    items={itemsInCategory.map(i => i.id)}
+                                                    strategy={verticalListSortingStrategy}
+                                                  >
+                                                    <div className="grid grid-cols-1 gap-2 max-w-2xl">
+                                                        {itemsInCategory.map(item => (
+                                                            <SortableMenuItem 
+                                                              key={item.id} 
+                                                              item={item} 
+                                                              onRemove={(it) => handleToggleMenuItemAvailability(it, menuType)} 
+                                                            />
+                                                        ))}
+                                                    </div>
+                                                  </SortableContext>
+                                                </DndContext>
                                             </div>
                                         );
                                     })}
@@ -1213,7 +1326,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
         <section id="account-settings" className="mb-12 mt-16 scroll-mt-32">
           <h2 className="font-headline text-xl font-bold mb-6 flex items-center gap-2 text-primary uppercase tracking-wider"><Settings className="h-6 w-6" /> Account Settings</h2>
           <div className="grid grid-cols-1 gap-8">
-            {/* Gateway Configuration */}
             <Card className="shadow-lg border-2 border-primary/10">
               <CardHeader className="bg-primary/5 border-b">
                 <CardTitle className="text-lg font-headline uppercase flex items-center gap-2">
@@ -1246,7 +1358,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
               </CardContent>
             </Card>
 
-            {/* Service Thresholds */}
             <Card className="shadow-lg border-2 border-primary/10">
               <CardHeader className="bg-primary/5 border-b">
                 <CardTitle className="text-lg font-headline uppercase flex items-center gap-2">
@@ -1293,7 +1404,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
               </CardContent>
             </Card>
 
-            {/* QR & Signage */}
             <Card className="shadow-lg border-2 border-primary/10">
               <CardHeader className="bg-primary/5 border-b">
                 <CardTitle className="text-lg font-headline uppercase flex items-center gap-2">
