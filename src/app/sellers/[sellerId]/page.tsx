@@ -831,6 +831,46 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
             </div>
           </div>
 
+          {/* Service Availability Controls */}
+          <div className="mb-8 p-4 bg-muted/10 border-2 border-dashed rounded-xl">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="space-y-0.5">
+                <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">Service Availability</h3>
+                <p className="text-[9px] text-muted-foreground uppercase font-bold">Toggle visibility of digital menus for patrons</p>
+              </div>
+              <div className="flex flex-wrap gap-3">
+                {seller?.menuTypes?.map(type => {
+                  const fieldMap: Record<string, keyof Seller> = {
+                    'Beverage Cart': 'bevcartActive',
+                    'Clubhouse': 'clubhouseActive',
+                    'Lane Delivery': 'lanedeliveryActive',
+                    'Take Out': 'takeoutActive'
+                  };
+                  const field = fieldMap[type];
+                  if (!field) return null;
+                  const isActive = (seller as any)[field] === true;
+                  
+                  return (
+                    <div key={`avail-${type}`} className="flex items-center gap-2 bg-background px-3 py-1.5 rounded-full border shadow-sm group hover:border-primary/30 transition-colors">
+                      <Switch 
+                        checked={isActive} 
+                        onCheckedChange={(checked) => {
+                          if (!firestore) return;
+                          updateDoc(doc(firestore, 'sellers', sellerId), { 
+                            [field]: checked,
+                            lastActive: checked ? serverTimestamp() : (seller.lastActive || null)
+                          });
+                        }}
+                        className="scale-75 data-[state=checked]:bg-green-600"
+                      />
+                      <span className="text-[9px] font-black uppercase tracking-tight pr-1">{type}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
           <div className="mb-6 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
             <div className="col-span-1 md:col-span-2 xl:col-span-1 bg-primary/5 rounded-xl border-2 border-primary/10 p-4 flex flex-col justify-center gap-1 shadow-sm">
               <p className="text-[10px] font-black uppercase tracking-[0.2em] text-primary/60 leading-none mb-1">Establishment Totals</p>

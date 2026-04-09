@@ -62,6 +62,8 @@ export interface Seller {
   status: 'Active' | 'Inactive';
   bevcartActive?: boolean;
   clubhouseActive?: boolean;
+  lanedeliveryActive?: boolean;
+  takeoutActive?: boolean;
   brandColor?: string;
   headerColor?: string;
   bottomBarColor?: string;

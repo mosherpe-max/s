@@ -91,7 +91,7 @@ export default function LaneSideServerDashboardPage({ params }: { params: Promis
   }, [firestore, sellerId]);
   const { data: primarySeller, isLoading: isPrimaryLoading } = useDoc<Seller>(primarySellerRef);
 
-  const isServerActive = primarySeller?.clubhouseActive === true;
+  const isServerActive = primarySeller?.lanedeliveryActive === true;
   const thresholds = primarySeller?.orderThresholds?.['Lane Delivery'] || { warning: 7, max: 10 };
 
   // Request Notification Permission
@@ -258,14 +258,14 @@ export default function LaneSideServerDashboardPage({ params }: { params: Promis
     if (!firestore || !sellerId) return;
     const sellerDocRef = doc(firestore, 'sellers', sellerId);
     updateDoc(sellerDocRef, { 
-      clubhouseActive: checked,
+      lanedeliveryActive: checked,
       lastActive: checked ? serverTimestamp() : null
     })
       .catch(async () => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({
           path: sellerDocRef.path,
           operation: 'update',
-          requestResourceData: { clubhouseActive: checked }
+          requestResourceData: { lanedeliveryActive: checked }
         }));
       });
   };
