@@ -347,7 +347,6 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
             currentCategories={currentCategories} 
             menuItems={filteredMenuItems} 
             selectedMenuType={selectedMenuType}
-            categoryImageVisibility={seller?.categoryImageVisibility?.[selectedMenuType] || []}
             categoryModifierEnabled={seller?.categoryModifierEnabled?.[selectedMenuType] || []}
           />
         )}

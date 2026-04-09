@@ -1,11 +1,11 @@
-
 'use client';
 
 import { Button } from '@/components/ui/button';
 import type { OrderItem, MenuItem, Category } from '@/lib/types';
-import { PlusCircle, MinusCircle, Edit2 } from 'lucide-react';
+import { PlusCircle, MinusCircle, Edit2, ImageIcon } from 'lucide-react';
 import { categoryIcons } from './icons';
 import Image from 'next/image';
+import { cn } from '@/lib/utils';
 
 interface BuyerMenuProps {
   orderItems: OrderItem[];
@@ -27,15 +27,12 @@ export function BuyerMenu({
   menuItems, 
   accentColor, 
   selectedMenuType, 
-  categoryImageVisibility = [],
   categoryModifierEnabled = []
 }: BuyerMenuProps) {
   
   const handleQuantityChange = (item: MenuItem, change: number) => {
     const isModifierEnabled = categoryModifierEnabled.includes(item.category);
     
-    // If modifiers are enabled for this category, we always route through the modifier picker
-    // for addition. Subtraction is handled via cart management or direct matching if no mods.
     if (isModifierEnabled && change > 0) {
       onOpenModifiers(item);
       return;
@@ -48,7 +45,7 @@ export function BuyerMenu({
     onUpdateItem({ 
       ...item, 
       quantity: newQuantity, 
-      cartId: item.id // Use base ID if no modifiers
+      cartId: item.id 
     } as OrderItem);
   };
 
@@ -56,7 +53,6 @@ export function BuyerMenu({
     <div className="space-y-12">
       {currentCategories.map((category) => {
         const CategoryIcon = categoryIcons[category];
-        const showImages = categoryImageVisibility.includes(category);
         const isModifierEnabled = categoryModifierEnabled.includes(category);
         
         const itemsInCategory = menuItems
@@ -78,72 +74,93 @@ export function BuyerMenu({
             id={category.toLowerCase().replace(/\s+/g, '-')}
             className="scroll-mt-32"
           >
-            <div className="flex items-center gap-2 mb-4 border-b-2 pb-2">
+            <div className="flex items-center gap-2 mb-6 border-b-2 pb-2">
               <CategoryIcon className="w-5 h-5 text-primary" style={accentColor ? { color: accentColor } : {}} />
               <h2 className="font-headline text-lg font-bold uppercase tracking-tight">{category}</h2>
             </div>
-            <div className="space-y-3">
+            
+            <div className="grid grid-cols-2 gap-4">
               {itemsInCategory.map((item) => {
-                // For non-modifier categories, we show a count. 
-                // For modifier categories, we show a count of ALL instances of this item in cart.
                 const relevantCartItems = orderItems.filter(i => i.id === item.id);
                 const totalQuantity = relevantCartItems.reduce((acc, i) => acc + i.quantity, 0);
                 
                 return (
-                  <div key={item.id} className="flex items-start justify-between p-4 rounded-xl bg-card border shadow-sm transition-all hover:shadow-md active:scale-[0.98]">
-                    <div className="flex items-start gap-4 flex-1 pr-2">
-                      {showImages && item.imageUrl && (
-                        <div className="relative h-20 w-20 rounded-lg overflow-hidden border bg-muted shrink-0 shadow-inner">
-                          <Image src={item.imageUrl} alt={item.name} fill className="object-cover" />
+                  <div 
+                    key={item.id} 
+                    className="flex flex-col p-3 rounded-[1.5rem] bg-card border shadow-sm transition-all hover:shadow-md active:scale-[0.98] overflow-hidden group h-full"
+                  >
+                    {/* Image Area - Forces 1:1 Aspect Ratio */}
+                    <div className="relative aspect-square w-full rounded-2xl overflow-hidden border bg-muted shrink-0 shadow-inner mb-3">
+                      {item.imageUrl ? (
+                        <Image 
+                          src={item.imageUrl} 
+                          alt={item.name} 
+                          fill 
+                          className="object-cover transition-transform duration-500 group-hover:scale-110" 
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-muted-foreground/20">
+                          <ImageIcon className="w-10 h-10" />
                         </div>
                       )}
-                      <div className="flex-1 min-w-0">
-                        <p className="font-bold text-base leading-tight truncate">{item.name}</p>
-                        <p className="text-xs font-mono font-bold mt-0.5" style={{ color: accentColor || 'hsl(var(--primary))' }}>
+                      
+                      {/* Quantity Badge Overlay */}
+                      {totalQuantity > 0 && (
+                        <div className="absolute top-2 right-2 bg-primary text-white text-[10px] font-black h-6 min-w-[24px] px-1.5 flex items-center justify-center rounded-full shadow-lg border border-white/20 animate-in zoom-in-50">
+                          {totalQuantity}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Content Area */}
+                    <div className="flex-1 flex flex-col min-w-0 px-1">
+                      <p className="font-black text-sm leading-tight text-[#213147] mb-1 line-clamp-2 uppercase tracking-tight">
+                        {item.name}
+                      </p>
+                      
+                      <div className="flex items-center justify-between mt-auto pt-2">
+                        <span className="font-mono text-xs font-black text-primary">
                           ${item.price.toFixed(2)}{isModifierEnabled && '+'}
-                        </p>
-                        {item.description && <p className="text-[10px] text-muted-foreground mt-1.5 line-clamp-2 leading-relaxed">{item.description}</p>}
+                        </span>
+                        
+                        <div className="flex items-center gap-1 bg-muted/50 p-0.5 rounded-full border">
+                          {isModifierEnabled ? (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleQuantityChange(item, 1)}
+                              className="h-7 w-7 rounded-full hover:bg-background transition-colors text-primary"
+                            >
+                              <PlusCircle className="h-4.5 w-4.5" />
+                            </Button>
+                          ) : (
+                            <>
+                              {totalQuantity > 0 && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handleQuantityChange(item, -1)}
+                                  className="h-7 w-7 rounded-full hover:bg-background transition-colors"
+                                >
+                                  <MinusCircle className="h-3.5 w-3.5" />
+                                </Button>
+                              )}
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleQuantityChange(item, 1)}
+                                className={cn(
+                                  "h-7 w-7 rounded-full hover:bg-background transition-colors text-primary",
+                                  totalQuantity === 0 && "bg-primary/5"
+                                )}
+                              >
+                                <PlusCircle className="h-4.5 w-4.5" />
+                              </Button>
+                            </>
+                          )}
+                        </div>
                       </div>
                     </div>
-                    
-                    <div className="flex items-center gap-1.5 bg-muted/30 p-1 rounded-full border shrink-0 h-fit ml-2">
-                        {isModifierEnabled ? (
-                          // For items with modifiers, addition always opens the picker
-                          <>
-                            {totalQuantity > 0 && <span className="text-[10px] font-black bg-primary/10 text-primary px-2 rounded-full border border-primary/20">{totalQuantity}</span>}
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleQuantityChange(item, 1)}
-                              className="h-8 w-8 rounded-full hover:bg-background transition-colors text-primary"
-                            >
-                              <PlusCircle className="h-5 w-5" />
-                            </Button>
-                          </>
-                        ) : (
-                          // For simple items, standard increment/decrement
-                          <>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleQuantityChange(item, -1)}
-                              disabled={totalQuantity === 0}
-                              className="h-8 w-8 rounded-full hover:bg-background transition-colors"
-                            >
-                              <MinusCircle className="h-4 w-4" />
-                            </Button>
-                            <span className="text-sm font-bold w-6 text-center">{totalQuantity}</span>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleQuantityChange(item, 1)}
-                              className="h-8 w-8 rounded-full hover:bg-background transition-colors text-primary"
-                            >
-                              <PlusCircle className="h-5 w-5" />
-                            </Button>
-                          </>
-                        )}
-                      </div>
                   </div>
                 );
               })}
