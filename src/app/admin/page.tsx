@@ -54,7 +54,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -387,7 +387,7 @@ export default function KOOPAdminPage() {
     }, { merge: true });
     
     batch.commit().then(() => {
-      toast({ title: editingSeller ? 'Venue Updated' : 'Venue Registered' });
+      toast({ title: sellerId ? 'Venue Updated' : 'Venue Registered' });
       setIsFormOpen(false);
       setEditingSeller(null);
       form.reset();
