@@ -3,6 +3,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { collection, doc, setDoc, getDocs, writeBatch, serverTimestamp, query, deleteDoc, getDoc } from 'firebase/firestore';
 import { signOut, sendPasswordResetEmail } from 'firebase/auth';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 import { useFirestore, useCollection, useMemoFirebase, useUser, useAuth, useDoc } from '@/firebase';
 import { firebaseConfig } from '@/firebase/config';
 import { Button } from '@/components/ui/button';
@@ -51,7 +52,8 @@ import {
   PieChart,
   ChevronDown,
   Truck,
-  Smartphone
+  Smartphone,
+  FlaskConical
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { 
@@ -171,6 +173,7 @@ export default function KOOPAdminPage() {
   const [editingSeller, setEditingSeller] = useState<Seller | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isBootstrapping, setIsBootstrapping] = useState(false);
+  const [isTestingGateway, setIsTestingGateway] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
   // Deletion States
@@ -203,6 +206,30 @@ export default function KOOPAdminPage() {
       toast({ title: "Signed Out" });
     } catch (e) {
       toast({ variant: "destructive", title: "Logout Failed" });
+    }
+  };
+
+  const handleTestAuthNet = async () => {
+    setIsTestingGateway(true);
+    const functions = getFunctions();
+    const testChargeFn = httpsCallable(functions, 'testCharge');
+    
+    try {
+      const result = await testChargeFn();
+      console.log('Authorize.net Test Result:', result.data);
+      toast({ 
+        title: "Test Complete", 
+        description: "Response received. Check browser console for full payload." 
+      });
+    } catch (error: any) {
+      console.error('Test Charge Error:', error);
+      toast({ 
+        variant: "destructive", 
+        title: "Connection Failed", 
+        description: error.message || "Failed to reach Sandbox." 
+      });
+    } finally {
+      setIsTestingGateway(false);
     }
   };
 
@@ -570,6 +597,15 @@ export default function KOOPAdminPage() {
           <p className="text-muted-foreground text-sm">Platform oversight and venue network management.</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
+          <Button 
+            variant="outline" 
+            onClick={handleTestAuthNet} 
+            disabled={isTestingGateway}
+            className="text-[10px] font-black uppercase h-10 px-4 tracking-widest border-amber-200 text-amber-600 hover:bg-amber-50"
+          >
+            {isTestingGateway ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <FlaskConical className="mr-2 h-3.5 w-3.5" />}
+            Test Auth.net Connection
+          </Button>
           <Button variant="ghost" onClick={handleLogout} className="text-[10px] font-black uppercase h-10 px-4 tracking-widest text-muted-foreground hover:text-destructive"><LogOut className="mr-2 h-3.5 w-3.5" /> Sign Out</Button>
           <Button variant="outline" onClick={handleBootstrapNetwork} disabled={isBootstrapping} className="text-[10px] font-black uppercase h-10 px-4 tracking-widest border-indigo-200 text-indigo-600 hover:bg-indigo-50"><Zap className={cn("mr-2 h-3.5 w-3.5", isBootstrapping && "animate-spin")} /> Bootstrap Network</Button>
           <Button onClick={handleAddNewSeller} className="h-10 px-6 font-black uppercase text-[10px] tracking-widest"><PlusCircle className="mr-2 h-4 w-4" /> Register Venue</Button>

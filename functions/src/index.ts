@@ -6,6 +6,51 @@ import * as admin from 'firebase-admin';
 admin.initializeApp();
 
 /**
+ * Prototype: Hardcoded test charge for Authorize.net connection verification.
+ * Uses hardcoded Sandbox credentials and test card.
+ */
+export const testCharge = onCall(async (request) => {
+  const payload = {
+    createTransactionRequest: {
+      merchantAuthentication: {
+        name: "9Nuy36TT",
+        transactionKey: "7fw2Y5hx2pK24ZNz"
+      },
+      transactionRequest: {
+        transactionType: "authCaptureTransaction",
+        amount: "1.00",
+        payment: {
+          creditCard: {
+            cardNumber: "5424000000000015",
+            expirationDate: "1226",
+            cardCode: "999"
+          }
+        }
+      }
+    }
+  };
+
+  try {
+    const response = await fetch('https://apitest.authorize.net/xml/v1/request.api', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+      throw new Error(`Gateway returned HTTP ${response.status}`);
+    }
+
+    const data = await response.json();
+    console.info('Authorize.net Sandbox Result:', JSON.stringify(data));
+    return data;
+  } catch (err: any) {
+    console.error('Test Charge Error:', err);
+    throw new HttpsError('internal', err.message || 'Failed to contact Authorize.net');
+  }
+});
+
+/**
  * Clean slate stub for processing payments.
  * Venue credentials can be retrieved from 'sellers_private/{sellerId}'.
  */
