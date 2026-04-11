@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { collection, doc, setDoc, getDocs, writeBatch, serverTimestamp, query, deleteDoc, getDoc } from 'firebase/firestore';
+import { collection, doc, setDoc, writeBatch, serverTimestamp, deleteDoc, getDoc } from 'firebase/firestore';
 import { signOut, sendPasswordResetEmail } from 'firebase/auth';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { useFirestore, useCollection, useMemoFirebase, useUser, useAuth, useDoc } from '@/firebase';
@@ -14,22 +14,14 @@ import {
   Building, 
   DollarSign, 
   ShoppingBag, 
-  RefreshCw, 
-  Target, 
-  ShieldAlert, 
+  TrendingUp, 
   ArrowRight,
-  ChevronRight,
   Activity,
-  TrendingUp,
   Search,
-  Clock,
   Briefcase,
   Edit,
   MapPin,
-  Mail,
   Zap,
-  Fingerprint,
-  Layers,
   LayoutDashboard,
   ShieldCheck,
   Lock,
@@ -37,25 +29,15 @@ import {
   KeyRound,
   Trash2,
   Users,
-  Copy,
-  Check,
-  AlertTriangle,
-  ExternalLink,
   LogOut,
   CreditCard,
-  Phone,
-  User as UserIcon,
-  Percent,
-  ListChecks,
-  CheckCircle2,
-  Trophy,
-  PieChart,
   ChevronDown,
   Truck,
-  Smartphone,
-  FlaskConical
+  FlaskConical,
+  PieChart,
+  Trophy
 } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { 
   AlertDialog, 
   AlertDialogAction, 
@@ -67,18 +49,16 @@ import {
   AlertDialogTitle 
 } from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Switch } from '@/components/ui/switch';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/table";
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -188,8 +168,12 @@ export default function KOOPAdminPage() {
     if (!firestore || !user || isHardcodedSuperAdmin) return null;
     return doc(firestore, 'roles_admin', user.uid);
   }, [firestore, user, isHardcodedSuperAdmin]);
+  
   const { data: platformRoleMarker, isLoading: isRoleCheckLoading } = useDoc(platformRoleRef);
 
+  // Final access logic: Must be logged in AND (be super admin OR have a role marker)
+  // We strictly wait for loading to finish if it's not the hardcoded super admin
+  const isVerifying = isUserLoading || (isRoleCheckLoading && !isHardcodedSuperAdmin);
   const isAuthorized = isHardcodedSuperAdmin || !!platformRoleMarker;
 
   useEffect(() => {
@@ -216,17 +200,17 @@ export default function KOOPAdminPage() {
     
     try {
       const result = await testChargeFn();
-      console.log('Authorize.net Test Result:', result.data);
+      console.log('Authorize.net SDK Test Result:', result.data);
       toast({ 
-        title: "Test Complete", 
-        description: "Response received. Check browser console for full payload." 
+        title: "SDK Test Complete", 
+        description: "Check developer console for official Authorize.net response." 
       });
     } catch (error: any) {
       console.error('Test Charge Error:', error);
       toast({ 
         variant: "destructive", 
-        title: "Connection Failed", 
-        description: error.message || "Failed to reach Sandbox." 
+        title: "SDK Connection Failed", 
+        description: error.message || "Failed to contact Sandbox via SDK." 
       });
     } finally {
       setIsTestingGateway(false);
@@ -562,7 +546,7 @@ export default function KOOPAdminPage() {
     }
   };
 
-  if (isUserLoading || (isRoleCheckLoading && !isHardcodedSuperAdmin)) {
+  if (isVerifying) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen">
         <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
@@ -604,7 +588,7 @@ export default function KOOPAdminPage() {
             className="text-[10px] font-black uppercase h-10 px-4 tracking-widest border-amber-200 text-amber-600 hover:bg-amber-50"
           >
             {isTestingGateway ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <FlaskConical className="mr-2 h-3.5 w-3.5" />}
-            Test Auth.net Connection
+            Test SDK Connection
           </Button>
           <Button variant="ghost" onClick={handleLogout} className="text-[10px] font-black uppercase h-10 px-4 tracking-widest text-muted-foreground hover:text-destructive"><LogOut className="mr-2 h-3.5 w-3.5" /> Sign Out</Button>
           <Button variant="outline" onClick={handleBootstrapNetwork} disabled={isBootstrapping} className="text-[10px] font-black uppercase h-10 px-4 tracking-widest border-indigo-200 text-indigo-600 hover:bg-indigo-50"><Zap className={cn("mr-2 h-3.5 w-3.5", isBootstrapping && "animate-spin")} /> Bootstrap Network</Button>
@@ -632,7 +616,7 @@ export default function KOOPAdminPage() {
               <CardTitle className="text-sm font-black uppercase">Venue Network</CardTitle>
               <div className="relative w-64">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                <Input placeholder="Filter..." className="pl-9 h-9 text-xs border-2" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+                <input placeholder="Filter..." className="pl-9 h-9 text-xs border-2 w-full rounded-md px-3" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
               </div>
             </CardHeader>
             <CardContent className="p-0">
@@ -708,7 +692,7 @@ export default function KOOPAdminPage() {
               <TableBody>
                 {isAdminsLoading ? [...Array(3)].map((_, i) => <TableRow key={i}><TableCell colSpan={4}><Skeleton className="h-12 w-full" /></TableCell></TableRow>) : admins?.map((admin) => (
                   <TableRow key={admin.email} className="hover:bg-muted/5">
-                    <TableCell><div className="flex items-center gap-3"><div className={cn("h-8 w-8 rounded-lg flex items-center justify-center", admin.role === 'Sales Rep' ? 'bg-indigo-50 text-indigo-600' : 'bg-green-50 text-green-600')}>{admin.role === 'Sales Rep' ? <Target className="h-4 w-4" /> : <ShieldCheck className="h-4 w-4" />}</div><div className="flex flex-col"><span className="font-bold text-sm">{admin.email}</span><span className="text-[9px] text-muted-foreground font-mono">{admin.id}</span></div></div></TableCell>
+                    <TableCell><div className="flex items-center gap-3"><div className={cn("h-8 w-8 rounded-lg flex items-center justify-center", admin.role === 'Sales Rep' ? 'bg-indigo-50 text-indigo-600' : 'bg-green-50 text-green-600')}>{(admin.role as any) === 'Sales Rep' ? <Activity className="h-4 w-4" /> : <ShieldCheck className="h-4 w-4" />}</div><div className="flex flex-col"><span className="font-bold text-sm">{admin.email}</span><span className="text-[9px] text-muted-foreground font-mono">{admin.id}</span></div></div></TableCell>
                     <TableCell><Badge variant={admin.role.includes('Platform') ? 'default' : 'secondary'} className="text-[8px] font-black uppercase">{admin.role}</Badge></TableCell>
                     <TableCell><div className="flex flex-col"><span className="text-xs font-bold">{admin.courseName || 'Global Access'}</span><span className="text-[9px] text-muted-foreground font-mono">{admin.sellerId || 'N/A'}</span></div></TableCell>
                     <TableCell className="text-right">
@@ -752,7 +736,7 @@ export default function KOOPAdminPage() {
 
       <Dialog open={isFormOpen} onOpenChange={(open) => { setIsFormOpen(open); if (!open) setEditingSeller(null); }}>
         <DialogContent className="sm:max-w-[700px] w-[95vw] max-h-[95vh] flex flex-col p-0 overflow-hidden shadow-2xl">
-          <DialogHeader className="p-6 border-b bg-muted/10 shrink-0"><DialogTitle className="uppercase font-headline text-xl">{editingSeller ? 'Update Venue' : 'Register Venue'}</DialogTitle></DialogHeader>
+          <DialogHeader className="p-6 border-b bg-muted/10 shrink-0"><CardTitle className="uppercase font-headline text-xl">{editingSeller ? 'Update Venue' : 'Register Venue'}</CardTitle></DialogHeader>
           <div className="flex-1 overflow-y-auto min-h-0">
             <div className="px-6 py-6">
               <Form {...form}>
