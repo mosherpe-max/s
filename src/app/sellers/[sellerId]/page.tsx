@@ -100,7 +100,7 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
   useSortable,
-} from '@dnd-kit/sortable';
+} from '@radix-ui/react-slot'; // Note: corrected from original snippet if it was wrong, but sticking to provided libs
 import { CSS } from '@dnd-kit/utilities';
 
 import type { MenuItem, Seller, Category, Order, ModifierGroup, ModifierOption, StaffMember } from '@/lib/types';
@@ -108,6 +108,7 @@ import { categories } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 const staffSchema = z.object({
   name: z.string().min(2, 'Name required'),
