@@ -3,7 +3,7 @@
 
 import React, { useState, useMemo, useEffect, use, useRef } from 'react';
 import { collection, doc, setDoc, deleteDoc, writeBatch, query, where, updateDoc, serverTimestamp } from 'firebase/firestore';
-import { useFirestore, useDoc, useCollection, useMemoFirebase, useUser, useAuth } from '@/firebase';
+import { useFirestore, useDoc, useCollection, useMemoFirebase, useUser, useAuth, useFirebaseApp } from '@/firebase';
 import { signOut } from 'firebase/auth';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -84,7 +84,6 @@ import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { DateRange } from "react-day-picker";
 import { httpsCallable, getFunctions } from 'firebase/functions';
-import { getFirebaseApp } from '@/firebase/provider';
 
 import {
   DndContext,
@@ -397,6 +396,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   const { sellerId } = use(params);
   const firestore = useFirestore();
   const auth = useAuth();
+  const firebaseApp = useFirebaseApp();
   const { user, isUserLoading } = useUser();
   const router = useRouter();
   const { toast } = useToast();
@@ -559,7 +559,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   const handleStripeOnboarding = async () => {
     if (!seller || !hasAccess) return;
     setIsOnboardingStripe(true);
-    const functions = getFunctions(getFirebaseApp());
+    const functions = getFunctions(firebaseApp);
     
     try {
       let accountId = seller.stripeAccountId;

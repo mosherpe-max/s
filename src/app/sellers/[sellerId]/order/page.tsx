@@ -4,7 +4,7 @@
 import { useState, use, useEffect, useMemo } from 'react';
 import { collection, doc, addDoc, serverTimestamp } from 'firebase/firestore';
 import { signInAnonymously } from 'firebase/auth';
-import { useFirestore, useCollection, useMemoFirebase, useDoc, useAuth, useUser } from '@/firebase';
+import { useFirestore, useCollection, useMemoFirebase, useDoc, useAuth, useUser, useFirebaseApp } from '@/firebase';
 import type { Seller, MenuItem, Category, Order, ModifierGroup, ModifierOption, OrderItem, PaymentMethod } from '@/lib/types';
 import { categories } from '@/lib/types';
 import { BuyerMenu } from '@/components/buyer-menu';
@@ -42,7 +42,6 @@ import { Badge } from '@/components/ui/badge';
 import { loadStripe } from '@stripe/stripe-js';
 import { EmbeddedCheckoutProvider, EmbeddedCheckout } from '@stripe/react-stripe-js';
 import { httpsCallable, getFunctions } from 'firebase/functions';
-import { getFirebaseApp } from '@/firebase/provider';
 
 // Initialize Stripe (use your publishable key)
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || 'pk_test_placeholder');
@@ -166,6 +165,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
   const { sellerId } = use(params);
   const firestore = useFirestore();
   const auth = useAuth();
+  const firebaseApp = useFirebaseApp();
   const { user } = useUser();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -302,7 +302,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
           const orderRef = await addDoc(collection(firestore, 'orders'), orderData);
           
           if (isStripe && seller.stripeAccountId) {
-            const functions = getFunctions(getFirebaseApp());
+            const functions = getFunctions(firebaseApp);
             const createSession = httpsCallable(functions, 'createStripeCheckoutSession');
             const result = await createSession({
               orderId: orderRef.id,
