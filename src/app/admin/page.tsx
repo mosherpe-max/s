@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -32,7 +33,10 @@ import {
   Truck,
   PieChart,
   Trophy,
-  Target
+  Target,
+  Banknote,
+  CreditCard,
+  Percent
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { 
@@ -56,7 +60,7 @@ import { Input } from '@/components/ui/input';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from "zod";
-import { Form, FormControl, FormField, FormItem, FormLabel } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -81,6 +85,7 @@ const sellerSchema = z.object({
   zip: z.string().min(5, 'ZIP required'),
   serviceFee: z.coerce.number().min(0),
   taxRate: z.coerce.number().min(0),
+  koopFeeOffsetCents: z.coerce.number().min(0).default(0),
   launchFee: z.coerce.number().min(0),
   monthlyPlatformFee: z.coerce.number().min(0),
   status: z.enum(['Active', 'Inactive']),
@@ -252,6 +257,7 @@ export default function KOOPAdminPage() {
       zip: '',
       serviceFee: 2.50,
       taxRate: 6.0,
+      koopFeeOffsetCents: 50,
       launchFee: 500,
       monthlyPlatformFee: 99,
       status: 'Active',
@@ -284,6 +290,7 @@ export default function KOOPAdminPage() {
       zip: seller.zip || '',
       serviceFee: seller.serviceFee,
       taxRate: seller.taxRate || 6.0,
+      koopFeeOffsetCents: seller.koopFeeOffsetCents || 0,
       launchFee: seller.launchFee || 0,
       monthlyPlatformFee: seller.monthlyPlatformFee || 0,
       status: seller.status,
@@ -307,6 +314,7 @@ export default function KOOPAdminPage() {
       zip: '',
       serviceFee: 2.50,
       taxRate: 6.0,
+      koopFeeOffsetCents: 50,
       launchFee: 500,
       monthlyPlatformFee: 99,
       status: 'Active',
@@ -394,6 +402,7 @@ export default function KOOPAdminPage() {
           zip: '48326',
           serviceFee: 2.50,
           taxRate: 6.0,
+          koopFeeOffsetCents: 50,
           status: 'Active',
           menuTypes: ['Beverage Cart', 'Clubhouse', 'Take Out'],
           categoryVisibility: { 'Beverage Cart': [...categories], 'Clubhouse': [...categories], 'Take Out': [...categories] },
@@ -412,6 +421,7 @@ export default function KOOPAdminPage() {
           zip: '48327',
           serviceFee: 3.50,
           taxRate: 6.0,
+          koopFeeOffsetCents: 75,
           status: 'Active',
           menuTypes: ['Clubhouse', 'Pool', 'Take Out'],
           categoryVisibility: { 'Clubhouse': [...categories], 'Pool': [...categories], 'Take Out': [...categories] },
@@ -430,6 +440,7 @@ export default function KOOPAdminPage() {
           zip: '48328',
           serviceFee: 2.00,
           taxRate: 6.0,
+          koopFeeOffsetCents: 40,
           laneCount: 24,
           status: 'Active',
           menuTypes: ['Lane Delivery', 'Take Out'],
@@ -680,6 +691,36 @@ export default function KOOPAdminPage() {
                       <FormField control={form.control} name="city" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase">City</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>)} />
                       <FormField control={form.control} name="state" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase">ST</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>)} />
                       <FormField control={form.control} name="zip" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase">ZIP</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>)} />
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 mb-2 border-b pb-2"><Banknote className="h-4 w-4 text-primary" /><h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Financial Configuration</h3></div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <FormField control={form.control} name="serviceFee" render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-[10px] font-black uppercase">Patron Convenience Fee ($)</FormLabel>
+                          <FormControl><Input type="number" step="0.01" {...field} className="h-11 border-2 font-bold" /></FormControl>
+                          <FormDescription className="text-[8px] uppercase font-bold">Total convenience fee paid by the customer.</FormDescription>
+                        </FormItem>
+                      )} />
+                      <FormField control={form.control} name="koopFeeOffsetCents" render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-[10px] font-black uppercase">Koop Fee Offset (Cents)</FormLabel>
+                          <FormControl><Input type="number" {...field} className="h-11 border-2 font-bold" /></FormControl>
+                          <FormDescription className="text-[8px] uppercase font-bold text-indigo-600">The portion Koop contributes to processing costs.</FormDescription>
+                        </FormItem>
+                      )} />
+                    </div>
+                    <div className="p-4 bg-muted/20 border-2 border-dashed rounded-xl flex items-start gap-3">
+                      <Percent className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
+                      <div className="space-y-1">
+                        <p className="text-[10px] font-black uppercase">Platform Revenue Share</p>
+                        <p className="text-[9px] text-muted-foreground leading-relaxed">
+                          Stripe Application Fee will be calculated as: <strong>(Patron Fee - Koop Offset)</strong>. 
+                          The venue is responsible for the remainder of the credit card processing fee.
+                        </p>
+                      </div>
                     </div>
                   </div>
                 </form>

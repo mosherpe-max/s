@@ -56,6 +56,7 @@ export interface Seller {
   contactPhone: string;
   serviceFee: number;
   taxRate: number;
+  koopFeeOffsetCents?: number;
   menuServiceFees?: Record<string, number>;
   monthlyPlatformFee?: number;
   launchFee?: number;

@@ -27,6 +27,8 @@
         "type": { "type": "string" },
         "contactEmail": { "type": "string", "format": "email" },
         "status": { "type": "string", "enum": ["Active", "Inactive"] },
+        "serviceFee": { "type": "number", "description": "The convenience fee charged to the patron" },
+        "koopFeeOffsetCents": { "type": "number", "description": "Amount in cents Koop contributes to the processing fee" },
         "stripeAccountId": { "type": "string", "description": "Linked Stripe Connect account ID" },
         "stripeOnboardingComplete": { "type": "boolean" },
         "createdAt": { "type": "string", "format": "date-time" },
@@ -45,6 +47,7 @@
         "status": { "type": "string", "enum": ["Pending Payment", "Placed", "Preparing", "Out for Delivery", "Delivered", "Cancelled"] },
         "stripeSessionId": { "type": "string" },
         "paymentStatus": { "type": "string", "enum": ["pending", "paid", "failed"] },
+        "serviceFee": { "type": "number", "description": "The convenience fee recorded at time of order" },
         "total": { "type": "number" },
         "createdAt": { "type": "string", "format": "date-time" }
       }

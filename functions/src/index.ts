@@ -63,16 +63,38 @@ export const getStripeOnboardingLink = onCall(async (request) => {
 
 /**
  * Creates a Checkout Session for a patron.
+ * Implements Koop Revenue Sharing logic.
  */
 export const createStripeCheckoutSession = onCall(async (request) => {
-  const { orderId, sellerId, amount, items, stripeAccountId } = request.data;
+  const { orderId, sellerId, stripeAccountId } = request.data;
   if (!orderId || !sellerId || !stripeAccountId) throw new HttpsError('invalid-argument', 'Missing parameters.');
 
   try {
+    const db = admin.firestore();
+    
+    // 1. Fetch Order and Seller data to determine shared fees
+    const [orderDoc, sellerDoc] = await Promise.all([
+      db.doc(`orders/${orderId}`).get(),
+      db.doc(`sellers/${sellerId}`).get()
+    ]);
+
+    if (!orderDoc.exists) throw new HttpsError('not-found', 'Order not found.');
+    if (!sellerDoc.exists) throw new HttpsError('not-found', 'Seller not found.');
+
+    const orderData = orderDoc.data()!;
+    const sellerData = sellerDoc.data()!;
+
+    // 2. Calculate Application Fee (Revenue Share)
+    // Koop takes (Convenience Fee - Koop Contribution)
+    const convenienceFeeCents = Math.round(orderData.serviceFee * 100);
+    const koopOffsetCents = sellerData.koopFeeOffsetCents || 0;
+    const applicationFeeAmount = Math.max(0, convenienceFeeCents - koopOffsetCents);
+
+    // 3. Create Checkout Session
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
       ui_mode: 'embedded',
-      line_items: items.map((item: any) => ({
+      line_items: orderData.items.map((item: any) => ({
         price_data: {
           currency: 'usd',
           product_data: { name: item.name },
@@ -80,17 +102,16 @@ export const createStripeCheckoutSession = onCall(async (request) => {
         },
         quantity: item.quantity,
       })),
-      // Add platform fees and taxes as separate line items if necessary, 
-      // or fold them into items. For this prototype, we'll keep it simple.
+      // Add platform fees and taxes as separate line items
       payment_intent_data: {
-        application_fee_amount: 100, // Example: $1.00 platform fee
+        application_fee_amount: applicationFeeAmount,
         transfer_data: { destination: stripeAccountId },
         metadata: { orderId, sellerId },
       },
       return_url: `${request.rawRequest.headers.origin}/order/track?id=${orderId}&session_id={CHECKOUT_SESSION_ID}`,
     });
 
-    await admin.firestore().doc(`orders/${orderId}`).update({
+    await db.doc(`orders/${orderId}`).update({
       stripeSessionId: session.id,
     });
 
@@ -121,7 +142,7 @@ export const stripeWebhook = onRequest(async (req, res) => {
 
     if (orderId) {
       await admin.firestore().doc(`orders/${orderId}`).update({
-        status: 'Placed', // Move from Pending Payment to Placed for staff visibility
+        status: 'Placed', 
         paymentStatus: 'paid',
         paidAt: admin.firestore.FieldValue.serverTimestamp(),
       });
