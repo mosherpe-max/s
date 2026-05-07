@@ -76,7 +76,7 @@ import * as XLSX from 'xlsx';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { MapView } from '@/components/map-view';
 import { APIProvider } from '@vis.gl/react-google-maps';
-import Image from 'next/image';
+import Image from 'image';
 import Link from 'next/link';
 import { Separator } from '@/components/ui/separator';
 import { useRouter } from 'next/navigation';
@@ -100,7 +100,7 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
   useSortable,
-} from '@radix-ui/react-slot'; // Note: corrected from original snippet if it was wrong, but sticking to provided libs
+} from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
 import type { MenuItem, Seller, Category, Order, ModifierGroup, ModifierOption, StaffMember } from '@/lib/types';
