@@ -1,8 +1,7 @@
-
 'use client';
 
 import React, { useState, useMemo, useEffect, use, useRef } from 'react';
-import { collection, doc, setDoc, deleteDoc, writeBatch, query, where, updateDoc, serverTimestamp, getDoc } from 'firebase/firestore';
+import { collection, doc, setDoc, deleteDoc, writeBatch, query, where, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { useFirestore, useDoc, useCollection, useMemoFirebase, useUser, useAuth } from '@/firebase';
 import { signOut } from 'firebase/auth';
 import { Button } from '@/components/ui/button';
@@ -14,7 +13,6 @@ import {
   Database, 
   Users, 
   Sparkles, 
-  FileSpreadsheet, 
   Loader2, 
   ListChecks, 
   Check, 
@@ -25,44 +23,30 @@ import {
   ShoppingBag,
   Clock,
   Activity,
-  Map as MapIcon,
   ImageIcon,
   Timer,
-  Eye,
-  EyeOff,
   Truck,
   Building,
   MapPin,
-  ShoppingBasket,
   Utensils,
   AlertTriangle,
-  Waves,
   ListOrdered,
   Download,
   Calendar as CalendarIcon,
-  ClipboardList,
   ExternalLink,
   ArrowUp,
   Layers,
   QrCode,
-  FileImage,
   Printer,
-  Info,
   Lock,
   LogOut,
   Search,
-  CheckCircle2,
-  XCircle,
   Calendar,
   Settings,
   Bell,
   Smartphone,
-  KeyRound,
-  ShieldCheck,
   UserPlus,
-  CreditCard,
-  Pencil,
-  Zap
+  Pencil
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -71,7 +55,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import {
   Select,
   SelectContent,
@@ -83,7 +67,7 @@ import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn, SUPER_ADMIN_ID, getNumericOrderId } from '@/lib/utils';
-import { isToday, isThisMonth, isThisYear, format, startOfMonth, parseISO, isWithinInterval, subDays, startOfDay, endOfDay } from 'date-fns';
+import { isToday, isThisMonth, isThisYear, format, startOfMonth, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import * as XLSX from 'xlsx';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { MapView } from '@/components/map-view';
@@ -95,7 +79,6 @@ import { useRouter } from 'next/navigation';
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { DateRange } from "react-day-picker";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 import {
   DndContext,
@@ -115,7 +98,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
-import type { MenuItem, Seller, Category, Order, Member, SellerType, ModifierGroup, ModifierOption, StaffMember } from '@/lib/types';
+import type { MenuItem, Seller, Category, Order, ModifierGroup, ModifierOption, StaffMember } from '@/lib/types';
 import { categories } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { errorEmitter } from '@/firebase/error-emitter';
@@ -155,14 +138,6 @@ const menuItemSchema = z.object({
 });
 
 type MenuItemFormData = z.infer<typeof menuItemSchema>;
-
-const gatewaySchema = z.object({
-  authorizeNetLoginId: z.string().min(1, 'Login ID required'),
-  authorizeNetTransactionKey: z.string().min(1, 'Transaction Key required'),
-  isProduction: z.boolean().default(false),
-});
-
-type GatewayFormData = z.infer<typeof gatewaySchema>;
 
 const getCategoriesForMenu = (menuType: string): Category[] => {
   if (menuType === 'Beverage Cart') {
@@ -446,8 +421,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   const [isSavingThresholds, setIsSavingThresholds] = useState(false);
   const [isStaffFormOpen, setIsStaffFormOpen] = useState(false);
   const [editingStaff, setEditingStaff] = useState<StaffMember | null>(null);
-  const [isGatewayFormOpen, setIsGatewayFormOpen] = useState(false);
-  const [isSavingGateway, setIsSavingGateway] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -456,7 +429,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     })
   );
 
-  // AUTHORIZATION GATE
   const isSuperAdmin = user?.uid === SUPER_ADMIN_ID;
 
   const roleRef = useMemoFirebase(() => {
@@ -535,57 +507,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
       isActive: true,
     },
   });
-
-  const gatewayForm = useForm<GatewayFormData>({
-    resolver: zodResolver(gatewaySchema),
-    defaultValues: {
-      authorizeNetLoginId: '',
-      authorizeNetTransactionKey: '',
-      isProduction: false,
-    },
-  });
-
-  const onOpenGateway = async () => {
-    if (!firestore) return;
-    const vaultDoc = await getDoc(doc(firestore, 'sellers_private', sellerId));
-    const privateData = vaultDoc.exists() ? vaultDoc.data() as any : {};
-    
-    gatewayForm.reset({
-      authorizeNetLoginId: seller?.authorizeNetLoginId || privateData.authorizeNetLoginId || '',
-      authorizeNetTransactionKey: privateData.authorizeNetTransactionKey || '',
-      isProduction: seller?.isProduction || false,
-    });
-    setIsGatewayFormOpen(true);
-  };
-
-  const onSaveGateway = async (data: GatewayFormData) => {
-    if (!firestore || !hasAccess) return;
-    setIsSavingGateway(true);
-    try {
-      const batch = writeBatch(firestore);
-      
-      batch.update(doc(firestore, 'sellers', sellerId), {
-        authorizeNetLoginId: data.authorizeNetLoginId,
-        isProduction: data.isProduction,
-        updatedAt: serverTimestamp()
-      });
-
-      batch.set(doc(firestore, 'sellers_private', sellerId), {
-        id: sellerId,
-        authorizeNetLoginId: data.authorizeNetLoginId,
-        authorizeNetTransactionKey: data.authorizeNetTransactionKey,
-        updatedAt: serverTimestamp()
-      }, { merge: true });
-
-      await batch.commit();
-      toast({ title: "Gateway Credentials Updated" });
-      setIsGatewayFormOpen(false);
-    } catch (e: any) {
-      toast({ variant: "destructive", title: "Save Failed", description: e.message });
-    } finally {
-      setIsSavingGateway(false);
-    }
-  };
 
   const onSaveStaff = async (data: StaffFormData) => {
     if (!firestore || !hasAccess) return;
@@ -1329,38 +1250,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
             <Card className="shadow-lg border-2 border-primary/10">
               <CardHeader className="bg-primary/5 border-b">
                 <CardTitle className="text-lg font-headline uppercase flex items-center gap-2">
-                  <CreditCard className="h-5 w-5 text-primary" /> Payment Gateway (Authorize.net)
-                </CardTitle>
-                <CardDescription>Configure your merchant credentials to receive payments directly.</CardDescription>
-              </CardHeader>
-              <CardContent className="pt-8">
-                <div className="flex flex-col md:flex-row items-center gap-8 bg-muted/30 p-6 rounded-2xl border border-dashed">
-                  <div className="bg-white p-6 rounded-[2rem] shadow-xl border-2 shrink-0">
-                    <ShieldCheck className="h-12 w-12 text-primary" />
-                  </div>
-                  <div className="flex-1 space-y-4 text-center md:text-left">
-                    <div>
-                      <h3 className="font-bold text-lg text-[#213147]">Direct Merchant Deposits</h3>
-                      <p className="text-sm text-muted-foreground max-w-lg mb-2">
-                        Configure your secure gateway to receive funds directly into your bank account.
-                      </p>
-                      <div className="flex items-center justify-center md:justify-start gap-2">
-                        <Badge variant={seller?.isProduction ? "default" : "secondary"} className="uppercase text-[9px] font-black">
-                          {seller?.isProduction ? "LIVE PRODUCTION" : "SANDBOX MODE"}
-                        </Badge>
-                      </div>
-                    </div>
-                    <Button onClick={onOpenGateway} className="h-12 px-8 font-black uppercase tracking-widest text-[10px] gap-2">
-                      <Pencil className="h-4 w-4" /> Manage Gateway Secrets
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="shadow-lg border-2 border-primary/10">
-              <CardHeader className="bg-primary/5 border-b">
-                <CardTitle className="text-lg font-headline uppercase flex items-center gap-2">
                   <Bell className="h-5 w-5 text-primary" /> Service Alert Thresholds
                 </CardTitle>
                 <CardDescription>Configure how long an order can remain active before alerting staff.</CardDescription>
@@ -1449,41 +1338,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
             </Card>
           </div>
         </section>
-
-        <Dialog open={isGatewayFormOpen} onOpenChange={setIsGatewayFormOpen}>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle className="uppercase font-headline text-primary">Gateway Configuration</DialogTitle>
-              <DialogDescription>Credentials for secure Authorize.net processing.</DialogDescription>
-            </DialogHeader>
-            <Form {...gatewayForm}>
-              <form onSubmit={gatewayForm.handleSubmit(onSaveGateway)} className="space-y-6 pt-4">
-                <FormField control={gatewayForm.control} name="isProduction" render={({ field }) => (
-                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4 bg-muted/20">
-                    <div className="space-y-0.5">
-                      <FormLabel className="text-xs font-black uppercase">Live Production Mode</FormLabel>
-                      <FormDescription className="text-[9px] uppercase font-bold">Use live Authorize.net endpoints.</FormDescription>
-                    </div>
-                    <FormControl>
-                      <Switch checked={field.value} onCheckedChange={field.onChange} />
-                    </FormControl>
-                  </FormItem>
-                )} />
-                <FormField control={gatewayForm.control} name="authorizeNetLoginId" render={({ field }) => (
-                  <FormItem><FormLabel className="text-[10px] font-black uppercase">API Login ID</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl><FormMessage /></FormItem>
-                )} />
-                <FormField control={gatewayForm.control} name="authorizeNetTransactionKey" render={({ field }) => (
-                  <FormItem><FormLabel className="text-[10px] font-black uppercase">Secret Transaction Key</FormLabel><FormControl><Input {...field} type="password" placeholder="Vaulted Master Secret" className="h-11 border-2 font-bold" /></FormControl><FormDescription className="text-[9px] font-bold uppercase">Stored securely in the platform vault.</FormDescription><FormMessage /></FormItem>
-                )} />
-                <DialogFooter>
-                  <Button type="submit" disabled={isSavingGateway} className="w-full font-black uppercase h-12 shadow-xl">
-                    {isSavingGateway ? <Loader2 className="animate-spin" /> : "Save Payment Profile"}
-                  </Button>
-                </DialogFooter>
-              </form>
-            </Form>
-          </DialogContent>
-        </Dialog>
 
         <Dialog open={isStaffFormOpen} onOpenChange={setIsStaffFormOpen}>
           <DialogContent className="sm:max-w-md">

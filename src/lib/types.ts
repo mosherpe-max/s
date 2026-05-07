@@ -1,4 +1,3 @@
-
 import { Timestamp } from "firebase/firestore";
 
 export type SellerType = 'Private Golf Course' | 'Semi Private Golf Course' | 'Public Golf Course' | 'Bowling Alley' | 'Brewery' | 'Restaurant';
@@ -73,12 +72,9 @@ export interface Seller {
   lastActive?: Timestamp;
   categoryVisibility?: Record<string, Category[]>;
   categoryImageVisibility?: Record<string, Category[]>;
-  categoryModifierEnabled?: Record<string, Category[]>; // Which categories show modifiers per menuType
+  categoryModifierEnabled?: Record<string, Category[]>;
   orderThresholds?: Record<string, { warning: number; max: number }>;
   poolMapUrl?: string;
-  isProduction?: boolean; // Environment flag
-  authorizeNetLoginId?: string;
-  authorizeNetTransactionKey?: string; // Private key for backend (cached during admin session)
 }
 
 export type Category = 'Beer' | 'Spirits' | 'Soft Drinks' | 'Snacks' | 'Other' | 'Handhelds' | 'Appetizers' | 'Entrees' | 'Pizza' | 'Salad' | 'Dessert' | 'Kids';
@@ -120,8 +116,8 @@ export interface Member {
 
 export interface OrderItem extends MenuItem {
   quantity: number;
-  cartId: string; // Unique ID for this item + modifier combination
-  selectedModifiers?: Record<string, ModifierOption[]>; // groupId -> selected options
+  cartId: string;
+  selectedModifiers?: Record<string, ModifierOption[]>;
 }
 
 export type PaymentMethod = 'Credit Card' | 'Member Account' | 'Pay at Delivery' | 'Pay with Cash or Credit Card to Beverage Cart Operator';
@@ -129,7 +125,7 @@ export type PaymentMethod = 'Credit Card' | 'Member Account' | 'Pay at Delivery'
 export interface Order {
   id: string;
   sellerId: string;
-  buyerProfileId: string; // Matches Rules and Backend definition
+  buyerProfileId: string;
   customerName: string;
   menuType: string;
   menuTypeLocation?: string;
@@ -157,17 +153,15 @@ export interface Order {
   deviceMetadata?: any;
 }
 
-// ADMIN TYPES
 export interface AdminUser {
   id: string;
   email: string;
   role: 'KOOP Platform Admin' | 'Seller Admin' | 'Sales Rep';
-  sellerId?: string; // Associated venue for Seller Admins
-  courseName?: string; // Cache for display
+  sellerId?: string;
+  courseName?: string;
   createdAt: Timestamp;
 }
 
-// CRM TYPES
 export type ProspectStage = 'Contacted' | 'Demo Scheduled' | 'Proposal Sent' | 'Closed' | 'Lost';
 export type CRMVenueType = 'Golf Course' | 'Bowling Alley' | 'Brewery/Restaurant';
 

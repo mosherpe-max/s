@@ -1,9 +1,8 @@
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { collection, doc, setDoc, writeBatch, serverTimestamp, deleteDoc, getDoc } from 'firebase/firestore';
+import { collection, doc, setDoc, writeBatch, serverTimestamp, deleteDoc } from 'firebase/firestore';
 import { signOut, sendPasswordResetEmail } from 'firebase/auth';
-import { getFunctions, httpsCallable } from 'firebase/functions';
 import { useFirestore, useCollection, useMemoFirebase, useUser, useAuth, useDoc } from '@/firebase';
 import { firebaseConfig } from '@/firebase/config';
 import { Button } from '@/components/ui/button';
@@ -15,7 +14,6 @@ import {
   DollarSign, 
   ShoppingBag, 
   TrendingUp, 
-  ArrowRight,
   Activity,
   Search,
   Briefcase,
@@ -30,10 +28,8 @@ import {
   Trash2,
   Users,
   LogOut,
-  CreditCard,
   ChevronDown,
   Truck,
-  FlaskConical,
   PieChart,
   Trophy
 } from 'lucide-react';
@@ -49,24 +45,14 @@ import {
   AlertDialogTitle 
 } from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
-import { Switch } from '@/components/ui/switch';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from "zod";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel } from '@/components/ui/form';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ScrollArea } from '@/components/ui/scroll-area';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import type { Seller, Order, Prospect, AdminUser } from '@/lib/types';
 import { sellerTypes, categories } from '@/lib/types';
 import { publicGolfItems, privateGolfItems, bowlingAlleyItems } from '@/lib/data';
@@ -92,8 +78,6 @@ const sellerSchema = z.object({
   status: z.enum(['Active', 'Inactive']),
   laneCount: z.coerce.number().min(0).optional(),
   menuTypes: z.array(z.string()).min(1, 'Select at least one menu type'),
-  isProduction: z.boolean().default(false),
-  authorizeNetLoginId: z.string().optional(),
 });
 
 type SellerFormData = z.infer<typeof sellerSchema>;
@@ -153,7 +137,6 @@ export default function KOOPAdminPage() {
   const [editingSeller, setEditingSeller] = useState<Seller | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isBootstrapping, setIsBootstrapping] = useState(false);
-  const [isTestingGateway, setIsTestingGateway] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
   // Deletion States
@@ -171,8 +154,6 @@ export default function KOOPAdminPage() {
   
   const { data: platformRoleMarker, isLoading: isRoleCheckLoading } = useDoc(platformRoleRef);
 
-  // Final access logic: Must be logged in AND (be super admin OR have a role marker)
-  // We strictly wait for loading to finish if it's not the hardcoded super admin
   const isVerifying = isUserLoading || (isRoleCheckLoading && !isHardcodedSuperAdmin);
   const isAuthorized = isHardcodedSuperAdmin || !!platformRoleMarker;
 
@@ -190,30 +171,6 @@ export default function KOOPAdminPage() {
       toast({ title: "Signed Out" });
     } catch (e) {
       toast({ variant: "destructive", title: "Logout Failed" });
-    }
-  };
-
-  const handleTestAuthNet = async () => {
-    setIsTestingGateway(true);
-    const functions = getFunctions();
-    const testChargeFn = httpsCallable(functions, 'testCharge');
-    
-    try {
-      const result = await testChargeFn();
-      console.log('Authorize.net SDK Test Result:', result.data);
-      toast({ 
-        title: "SDK Test Complete", 
-        description: "Check developer console for official Authorize.net response." 
-      });
-    } catch (error: any) {
-      console.error('Test Charge Error:', error);
-      toast({ 
-        variant: "destructive", 
-        title: "SDK Connection Failed", 
-        description: error.message || "Failed to contact Sandbox via SDK." 
-      });
-    } finally {
-      setIsTestingGateway(false);
     }
   };
 
@@ -292,8 +249,6 @@ export default function KOOPAdminPage() {
       status: 'Active',
       laneCount: 0,
       menuTypes: [],
-      isProduction: false,
-      authorizeNetLoginId: '',
     },
   });
 
@@ -307,15 +262,8 @@ export default function KOOPAdminPage() {
     },
   });
 
-  const handleEditSeller = async (seller: Seller) => {
+  const handleEditSeller = (seller: Seller) => {
     setEditingSeller(seller);
-    let privateData = { authorizeNetLoginId: '' };
-    if (firestore) {
-      const vaultDoc = await getDoc(doc(firestore, 'sellers_private', seller.id));
-      if (vaultDoc.exists()) {
-        privateData = vaultDoc.data() as any;
-      }
-    }
     form.reset({
       courseName: seller.courseName,
       type: seller.type,
@@ -333,8 +281,6 @@ export default function KOOPAdminPage() {
       status: seller.status,
       laneCount: seller.laneCount || 0,
       menuTypes: seller.menuTypes || [],
-      isProduction: seller.isProduction || false,
-      authorizeNetLoginId: seller.authorizeNetLoginId || privateData.authorizeNetLoginId || '',
     });
     setIsFormOpen(true);
   };
@@ -358,8 +304,6 @@ export default function KOOPAdminPage() {
       status: 'Active',
       laneCount: 0,
       menuTypes: ['Beverage Cart', 'Clubhouse', 'Take Out'],
-      isProduction: false,
-      authorizeNetLoginId: '',
     });
     setIsFormOpen(true);
   };
@@ -368,22 +312,14 @@ export default function KOOPAdminPage() {
     if (!firestore || !isAuthorized) return;
     setIsSaving(true);
     const sellerId = editingSeller ? editingSeller.id : data.courseName.toLowerCase().replace(/\s+/g, '-');
-    const { authorizeNetLoginId, ...publicData } = data;
     const batch = writeBatch(firestore);
     
     batch.set(doc(firestore, 'sellers', sellerId), { 
-      ...publicData, 
+      ...data, 
       id: sellerId,
-      authorizeNetLoginId: authorizeNetLoginId || '',
       createdAt: editingSeller?.createdAt || new Date().toISOString(),
       updatedAt: serverTimestamp(),
       qrCodeUrl: editingSeller?.qrCodeUrl || `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${window.location.origin}/sellers/${sellerId}/order`
-    }, { merge: true });
-    
-    batch.set(doc(firestore, 'sellers_private', sellerId), {
-      id: sellerId,
-      authorizeNetLoginId: authorizeNetLoginId || '',
-      updatedAt: serverTimestamp()
     }, { merge: true });
     
     batch.commit().then(() => {
@@ -452,7 +388,6 @@ export default function KOOPAdminPage() {
           taxRate: 6.0,
           status: 'Active',
           menuTypes: ['Beverage Cart', 'Clubhouse', 'Take Out'],
-          isProduction: false,
           categoryVisibility: { 'Beverage Cart': [...categories], 'Clubhouse': [...categories], 'Take Out': [...categories] },
           qrCodeUrl: 'https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=https://koop.app/sellers/demo-course/order'
         },
@@ -471,7 +406,6 @@ export default function KOOPAdminPage() {
           taxRate: 6.0,
           status: 'Active',
           menuTypes: ['Clubhouse', 'Pool', 'Take Out'],
-          isProduction: false,
           categoryVisibility: { 'Clubhouse': [...categories], 'Pool': [...categories], 'Take Out': [...categories] },
           qrCodeUrl: 'https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=https://koop.app/sellers/demo-private-course/order'
         },
@@ -491,7 +425,6 @@ export default function KOOPAdminPage() {
           laneCount: 24,
           status: 'Active',
           menuTypes: ['Lane Delivery', 'Take Out'],
-          isProduction: false,
           categoryVisibility: { 'Lane Delivery': [...categories], 'Take Out': [...categories] },
           qrCodeUrl: 'https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=https://koop.app/sellers/demo-bowling-alley/order'
         }
@@ -500,7 +433,6 @@ export default function KOOPAdminPage() {
       for (const s of demoSellers) {
         await setDoc(doc(firestore, 'sellers', s.id), { ...s, createdAt: new Date().toISOString() }, { merge: true });
         
-        // Seed Menu Items
         let itemsToSeed = publicGolfItems;
         if (s.id === 'demo-private-course') itemsToSeed = privateGolfItems;
         if (s.id === 'demo-bowling-alley') itemsToSeed = bowlingAlleyItems;
@@ -514,7 +446,7 @@ export default function KOOPAdminPage() {
         await batch.commit();
       }
       
-      toast({ title: "Demo Network Bootstrapped", description: "All venues and high-fidelity menus provisioned." });
+      toast({ title: "Demo Network Bootstrapped" });
     } catch (e) {
       toast({ variant: "destructive", title: "Bootstrap Failed" });
     } finally {
@@ -526,7 +458,6 @@ export default function KOOPAdminPage() {
     if (!firestore || !isAuthorized || !venueToDelete) return;
     try {
       await deleteDoc(doc(firestore, 'sellers', venueToDelete.id));
-      await deleteDoc(doc(firestore, 'sellers_private', venueToDelete.id));
       toast({ title: "Venue Decommissioned" });
     } catch (e) {
       toast({ variant: "destructive", title: "Deletion Failed" });
@@ -550,7 +481,7 @@ export default function KOOPAdminPage() {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen">
         <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
-        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Verifying Platform Authorization...</p>
+        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Verifying Authorization...</p>
       </div>
     );
   }
@@ -581,15 +512,6 @@ export default function KOOPAdminPage() {
           <p className="text-muted-foreground text-sm">Platform oversight and venue network management.</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          <Button 
-            variant="outline" 
-            onClick={handleTestAuthNet} 
-            disabled={isTestingGateway}
-            className="text-[10px] font-black uppercase h-10 px-4 tracking-widest border-amber-200 text-amber-600 hover:bg-amber-50"
-          >
-            {isTestingGateway ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <FlaskConical className="mr-2 h-3.5 w-3.5" />}
-            Test SDK Connection
-          </Button>
           <Button variant="ghost" onClick={handleLogout} className="text-[10px] font-black uppercase h-10 px-4 tracking-widest text-muted-foreground hover:text-destructive"><LogOut className="mr-2 h-3.5 w-3.5" /> Sign Out</Button>
           <Button variant="outline" onClick={handleBootstrapNetwork} disabled={isBootstrapping} className="text-[10px] font-black uppercase h-10 px-4 tracking-widest border-indigo-200 text-indigo-600 hover:bg-indigo-50"><Zap className={cn("mr-2 h-3.5 w-3.5", isBootstrapping && "animate-spin")} /> Bootstrap Network</Button>
           <Button onClick={handleAddNewSeller} className="h-10 px-6 font-black uppercase text-[10px] tracking-widest"><PlusCircle className="mr-2 h-4 w-4" /> Register Venue</Button>
@@ -624,7 +546,6 @@ export default function KOOPAdminPage() {
                 <TableHeader>
                   <TableRow className="bg-muted/10">
                     <TableHead className="text-[10px] uppercase font-black">Establishment</TableHead>
-                    <TableHead className="text-[10px] uppercase font-black">Environment</TableHead>
                     <TableHead className="text-[10px] uppercase font-black">Type</TableHead>
                     <TableHead className="text-[10px] uppercase font-black text-center">Status</TableHead>
                     <TableHead className="text-[10px] uppercase font-black text-right">Actions</TableHead>
@@ -632,7 +553,7 @@ export default function KOOPAdminPage() {
                 </TableHeader>
                 <TableBody>
                   {isSellersLoading ? (
-                    [...Array(3)].map((_, i) => <TableRow key={i}><TableCell colSpan={5}><Skeleton className="h-12 w-full" /></TableCell></TableRow>)
+                    [...Array(3)].map((_, i) => <TableRow key={i}><TableCell colSpan={4}><Skeleton className="h-12 w-full" /></TableCell></TableRow>)
                   ) : filteredSellers.map((seller) => (
                     <TableRow key={seller.id} className="group hover:bg-muted/5">
                       <TableCell>
@@ -640,11 +561,6 @@ export default function KOOPAdminPage() {
                           <span className="font-bold text-sm">{seller.courseName}</span>
                           <span className="text-[9px] text-muted-foreground uppercase">{seller.contactEmail}</span>
                         </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={seller.isProduction ? "default" : "outline"} className="text-[8px] font-black uppercase">
-                          {seller.isProduction ? "PRODUCTION" : "SANDBOX"}
-                        </Badge>
                       </TableCell>
                       <TableCell><span className="text-xs">{seller.type}</span></TableCell>
                       <TableCell className="text-center">
@@ -698,7 +614,6 @@ export default function KOOPAdminPage() {
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
                         <Button variant="outline" size="sm" onClick={() => handleSendResetLink(admin.email)} className="h-8 text-[9px] font-black uppercase border-indigo-200 text-indigo-600 hover:bg-indigo-50"><KeyRound className="mr-1.5 h-3 w-3" /> Reset Link</Button>
-                        {admin.id !== user?.uid && <Button variant="ghost" size="icon" onClick={() => { setAdminToDelete(admin); setIsStaffDeleteDialogOpen(true); }} className="h-8 w-8 text-muted-foreground hover:text-destructive"><Trash2 className="h-4 w-4" /></Button>}
                       </div>
                     </TableCell>
                   </TableRow>
@@ -751,19 +666,6 @@ export default function KOOPAdminPage() {
                   </div>
 
                   <div className="space-y-4">
-                    <div className="flex items-center gap-2 mb-2 border-b pb-2"><CreditCard className="h-4 w-4 text-primary" /><h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Payment Configuration</h3></div>
-                    <FormField control={form.control} name="isProduction" render={({ field }) => (
-                      <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4 bg-muted/20">
-                        <div className="space-y-0.5"><FormLabel className="text-xs font-black uppercase">Production Environment</FormLabel><FormDescription className="text-[9px] uppercase">Use Live Authorize.net Endpoints.</FormDescription></div>
-                        <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
-                      </FormItem>
-                    )} />
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <FormField control={form.control} name="authorizeNetLoginId" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase">API Login ID</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>)} />
-                    </div>
-                  </div>
-
-                  <div className="space-y-4">
                     <div className="flex items-center gap-2 mb-2 border-b pb-2"><MapPin className="h-4 w-4 text-primary" /><h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Location</h3></div>
                     <FormField control={form.control} name="streetAddress" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase">Street</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>)} />
                     <div className="grid grid-cols-3 gap-4">
@@ -776,12 +678,12 @@ export default function KOOPAdminPage() {
               </Form>
             </div>
           </div>
-          <DialogFooter className="p-6 border-t bg-muted/10 shrink-0"><Button type="submit" form="venue-form" disabled={isSaving} className="w-full h-14 bg-[#213147] hover:bg-[#213147]/90 text-white font-headline font-black uppercase tracking-widest shadow-xl">{isSaving ? <Loader2 className="animate-spin" /> : (editingSeller ? "SAVE VENUE & SECRETS" : "PROVISION VENUE")}</Button></DialogFooter>
+          <DialogFooter className="p-6 border-t bg-muted/10 shrink-0"><Button type="submit" form="venue-form" disabled={isSaving} className="w-full h-14 bg-[#213147] hover:bg-[#213147]/90 text-white font-headline font-black uppercase tracking-widest shadow-xl">{isSaving ? <Loader2 className="animate-spin" /> : (editingSeller ? "SAVE VENUE" : "PROVISION VENUE")}</Button></DialogFooter>
         </DialogContent>
       </Dialog>
 
       <AlertDialog open={isVenueDeleteDialogOpen} onOpenChange={setIsVenueDeleteDialogOpen}>
-        <AlertDialogContent><AlertDialogHeader><AlertDialogTitle className="uppercase font-headline text-destructive">Decommission Venue?</AlertDialogTitle><AlertDialogDescription>Confirm removal of <strong>{venueToDelete?.courseName}</strong> and all vaulted secrets.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={handleRemoveVenue} className="bg-destructive hover:bg-destructive/90">Confirm Deletion</AlertDialogAction></AlertDialogFooter></AlertDialogContent>
+        <AlertDialogContent><AlertDialogHeader><AlertDialogTitle className="uppercase font-headline text-destructive">Decommission Venue?</AlertDialogTitle><AlertDialogDescription>Confirm removal of <strong>{venueToDelete?.courseName}</strong>.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={handleRemoveVenue} className="bg-destructive hover:bg-destructive/90">Confirm Deletion</AlertDialogAction></AlertDialogFooter></AlertDialogContent>
       </AlertDialog>
     </div>
   );
