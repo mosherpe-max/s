@@ -83,9 +83,8 @@ import { useRouter } from 'next/navigation';
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { DateRange } from "react-day-picker";
-import { httpsCallable } from 'firebase/functions';
+import { httpsCallable, getFunctions } from 'firebase/functions';
 import { getFirebaseApp } from '@/firebase/provider';
-import { getFunctions } from 'firebase/functions';
 
 import {
   DndContext,
@@ -438,16 +437,24 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     })
   );
 
-  const isSuperAdmin = user?.uid === SUPER_ADMIN_ID;
+  // Authorization Checks
+  const isHardcodedSuperAdmin = user?.uid === SUPER_ADMIN_ID || user?.email === 'mosherpe@gmail.com';
 
   const roleRef = useMemoFirebase(() => {
-    if (!firestore || !user) return null;
-    return doc(firestore, 'roles_seller_admin', user.email || '');
+    if (!firestore || !user?.email) return null;
+    return doc(firestore, 'roles_seller_admin', user.email.toLowerCase());
   }, [firestore, user]);
   const { data: sellerRole } = useDoc(roleRef);
 
+  const platformRoleRef = useMemoFirebase(() => {
+    if (!firestore || !user) return null;
+    return doc(firestore, 'roles_admin', user.uid);
+  }, [firestore, user]);
+  const { data: platformRole } = useDoc(platformRoleRef);
+
+  const isPlatformAdmin = isHardcodedSuperAdmin || !!platformRole;
   const isVenueAdmin = sellerRole?.sellerId === sellerId;
-  const hasAccess = isSuperAdmin || isVenueAdmin;
+  const hasAccess = isPlatformAdmin || isVenueAdmin;
 
   useEffect(() => {
     setIsMounted(true);
@@ -809,7 +816,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     );
   }
 
-  if (!hasAccess) {
+  if (!user || !hasAccess) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-4rem)] p-4 text-center">
         <div className="p-6 bg-red-50 border-2 border-red-100 rounded-[2.5rem] shadow-xl max-w-md w-full space-y-6">
@@ -818,7 +825,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
           </div>
           <div className="space-y-2">
             <h2 className="font-headline text-2xl font-black uppercase tracking-tight text-[#213147]">ACCESS RESTRICTED</h2>
-            <p className="text-sm text-muted-foreground font-medium">You must be authorized as a Seller Admin or Super Admin to manage this venue.</p>
+            <p className="text-sm text-muted-foreground font-medium">You must be authorized as a Seller Admin or Platform Admin to manage this venue.</p>
           </div>
           <Button asChild className="w-full h-12 bg-[#213147] hover:bg-black font-bold uppercase tracking-widest">
             <Link href="/login">Authenticate</Link>

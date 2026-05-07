@@ -5,7 +5,7 @@ service cloud.firestore {
 
     /**
      * --- SECURITY PHILOSOPHY ---
-     * 1. Super Admin (God Mode): Hardcoded UID bypass for global access.
+     * 1. Super Admin (God Mode): Hardcoded UID or specific email bypass for global access.
      * 2. Platform Admins: Managed via roles_admin registry (UID based).
      * 3. Seller Admins: Restricted to their specific venue data (Email based).
      * 4. Sales Reps: Access to CRM and demo venues only (Email based).
@@ -24,7 +24,10 @@ service cloud.firestore {
     }
 
     function isSuperAdmin() {
-      return isSignedIn() && request.auth.uid == 'o9vAQy0aFRPSNPoG0ETvjiGt9If1';
+      return isSignedIn() && (
+        request.auth.uid == 'o9vAQy0aFRPSNPoG0ETvjiGt9If1' || 
+        getEmail() == 'mosherpe@gmail.com'
+      );
     }
 
     function isAdmin() {
@@ -33,7 +36,7 @@ service cloud.firestore {
     }
 
     function isSellerAdmin(sellerId) {
-      return isSuperAdmin() || (
+      return isAdmin() || (
         isSignedIn() && 
         getEmail() != "" &&
         exists(/databases/$(database)/documents/roles_seller_admin/$(getEmail())) &&
@@ -42,7 +45,7 @@ service cloud.firestore {
     }
 
     function isSalesRep() {
-      return isSuperAdmin() || (
+      return isAdmin() || (
         isSignedIn() && 
         getEmail() != "" &&
         exists(/databases/$(database)/documents/roles_sales_rep/$(getEmail()))
@@ -54,7 +57,7 @@ service cloud.firestore {
     }
 
     function canImpersonate(sellerId) {
-      return isSuperAdmin() || isAdmin() || isSellerAdmin(sellerId) || (isSalesRep() && isDemoVenue(sellerId));
+      return isAdmin() || isSellerAdmin(sellerId) || (isSalesRep() && isDemoVenue(sellerId));
     }
 
     function isOwner(userId) {

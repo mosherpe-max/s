@@ -158,8 +158,9 @@ export default function KOOPAdminPage() {
   const [venueToDelete, setVenueToDelete] = useState<Seller | null>(null);
   const [isVenueDeleteDialogOpen, setIsVenueDeleteDialogOpen] = useState(false);
 
-  // Authorization Check
-  const isHardcodedSuperAdmin = user?.uid === SUPER_ADMIN_ID;
+  // Authorization Check (UID or specific email for god-mode initialization)
+  const isHardcodedSuperAdmin = user?.uid === SUPER_ADMIN_ID || user?.email === 'mosherpe@gmail.com';
+  
   const platformRoleRef = useMemoFirebase(() => {
     if (!firestore || !user || isHardcodedSuperAdmin) return null;
     return doc(firestore, 'roles_admin', user.uid);

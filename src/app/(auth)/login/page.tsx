@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -29,8 +30,8 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [isAdminSettingUp, setIsAdminSettingUp] = useState(false);
 
-  // Hardcoded Super Admin Check
-  const isSuperAdmin = user?.uid === SUPER_ADMIN_ID;
+  // Hardcoded Super Admin Check (UID or specific email for initialization)
+  const isSuperAdmin = user?.uid === SUPER_ADMIN_ID || user?.email === 'mosherpe@gmail.com';
 
   // 1. Check Global Admin Role (UID Based)
   const globalRoleRef = useMemoFirebase(() => {
@@ -123,6 +124,9 @@ export default function LoginPage() {
         title: "Admin Access Granted", 
         description: "Your account now has global privileges." 
       });
+      
+      // Forces the effect to re-run and redirect
+      router.push('/admin');
     } catch (error: any) {
       toast({ variant: "destructive", title: "Setup Failed", description: "Authorization required to initialize registry. Please contact Super Admin." });
     } finally {
@@ -225,7 +229,7 @@ export default function LoginPage() {
                     )}
                     {!isSuperAdmin && (
                       <p className="text-[8px] text-center text-muted-foreground uppercase font-bold italic">
-                        Note: Super Admin (God Mode) bypass is required to initialize global roles.
+                        Note: Super Admin authorization is required to initialize global roles.
                       </p>
                     )}
                   </div>
