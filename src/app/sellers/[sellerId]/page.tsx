@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useMemo, useEffect, use, useRef } from 'react';
@@ -46,7 +47,10 @@ import {
   Bell,
   Smartphone,
   UserPlus,
-  Pencil
+  Pencil,
+  CreditCard,
+  Zap,
+  CheckCircle2
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -79,6 +83,9 @@ import { useRouter } from 'next/navigation';
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { DateRange } from "react-day-picker";
+import { httpsCallable } from 'firebase/functions';
+import { getFirebaseApp } from '@/firebase/provider';
+import { getFunctions } from 'firebase/functions';
 
 import {
   DndContext,
@@ -422,6 +429,8 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   const [isStaffFormOpen, setIsStaffFormOpen] = useState(false);
   const [editingStaff, setEditingStaff] = useState<StaffMember | null>(null);
 
+  const [isOnboardingStripe, setIsOnboardingStripe] = useState(false);
+
   const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, {
@@ -537,6 +546,30 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
       localStorage.setItem('koop_venue_name', seller?.courseName || 'This Venue');
       router.push(`/sellers/${sellerId}/staff-login`);
       toast({ title: "Device Initialized", description: "This browser is now locked to staff login mode." });
+    }
+  };
+
+  const handleStripeOnboarding = async () => {
+    if (!seller || !hasAccess) return;
+    setIsOnboardingStripe(true);
+    const functions = getFunctions(getFirebaseApp());
+    
+    try {
+      let accountId = seller.stripeAccountId;
+      
+      if (!accountId) {
+        const createAcc = httpsCallable(functions, 'createStripeConnectAccount');
+        const accResult = await createAcc({ sellerId, email: seller.contactEmail });
+        accountId = (accResult.data as any).accountId;
+      }
+
+      const getLink = httpsCallable(functions, 'getStripeOnboardingLink');
+      const linkResult = await getLink({ accountId, sellerId });
+      window.location.href = (linkResult.data as any).url;
+    } catch (err: any) {
+      toast({ variant: 'destructive', title: 'Onboarding Failed', description: err.message });
+    } finally {
+      setIsOnboardingStripe(false);
     }
   };
 
@@ -815,6 +848,9 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
           <Button variant="ghost" size="sm" onClick={() => scrollToSection('ops-monitor')} className="h-8 text-[10px] font-bold uppercase tracking-widest px-3 rounded-full hover:bg-primary/10">
             <Activity className="mr-1.5 h-3.5 w-3.5" /> Live Queue
           </Button>
+          <Button variant="ghost" size="sm" onClick={() => scrollToSection('stripe-onboarding')} className="h-8 text-[10px] font-bold uppercase tracking-widest px-3 rounded-full hover:bg-primary/10">
+            <CreditCard className="mr-1.5 h-3.5 w-3.5" /> Payments
+          </Button>
           <Button variant="ghost" size="sm" onClick={() => scrollToSection('staff-management')} className="h-8 text-[10px] font-bold uppercase tracking-widest px-3 rounded-full hover:bg-primary/10">
             <Users className="mr-1.5 h-3.5 w-3.5" /> Staff Registry
           </Button>
@@ -826,9 +862,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
           </Button>
           <Button variant="ghost" size="sm" onClick={() => scrollToSection('menu-library')} className="h-8 text-[10px] font-bold uppercase tracking-widest px-3 rounded-full hover:bg-primary/10">
             <Database className="mr-1.5 h-3.5 w-3.5" /> Menu Library
-          </Button>
-          <Button variant="ghost" size="sm" onClick={() => scrollToSection('account-settings')} className="h-8 text-[10px] font-bold uppercase tracking-widest px-3 rounded-full hover:bg-primary/10">
-            <Settings className="mr-1.5 h-3.5 w-3.5" /> Account Settings
           </Button>
         </nav>
 
@@ -959,6 +992,51 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
               </CardContent>
             </Card>
           </div>
+        </section>
+
+        <section id="stripe-onboarding" className="mb-12 scroll-mt-32">
+          <div className="flex flex-col gap-1 mb-6">
+            <h2 className="font-headline text-xl font-bold flex items-center gap-2 text-[#635BFF] uppercase tracking-wider"><CreditCard className="h-6 w-6" /> Stripe Connect</h2>
+            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Manage your digital payment integration.</p>
+          </div>
+          
+          <Card className="shadow-lg border-2 border-[#635BFF]/20 bg-[#635BFF]/5">
+            <CardContent className="p-8">
+              <div className="flex flex-col md:flex-row items-center gap-8">
+                <div className="bg-white p-6 rounded-[2.5rem] shadow-xl border-2 border-[#635BFF]/10 shrink-0">
+                  <Zap className="h-12 w-12 text-[#635BFF] fill-[#635BFF]" />
+                </div>
+                <div className="flex-1 space-y-4 text-center md:text-left">
+                  <div>
+                    <h3 className="font-headline text-2xl font-black uppercase text-[#213147] tracking-tight">
+                      {seller?.stripeAccountId ? 'Stripe Account Connected' : 'Activate Digital Payments'}
+                    </h3>
+                    <p className="text-sm text-slate-600 max-w-lg leading-relaxed">
+                      Connect your venue to Stripe to enable real-time mobile ordering and secure digital payments. Funds are transferred directly to your bank account.
+                    </p>
+                  </div>
+                  
+                  <div className="flex flex-wrap justify-center md:justify-start gap-4 pt-2">
+                    <Button 
+                      onClick={handleStripeOnboarding} 
+                      disabled={isOnboardingStripe}
+                      className="bg-[#635BFF] hover:bg-[#4b45e0] text-white h-12 px-8 font-black uppercase tracking-widest rounded-xl shadow-lg gap-3"
+                    >
+                      {isOnboardingStripe ? <Loader2 className="h-5 w-5 animate-spin" /> : <Zap className="h-5 w-5" />}
+                      {seller?.stripeAccountId ? 'Enter Stripe Dashboard' : 'Connect with Stripe'}
+                    </Button>
+                    
+                    {seller?.stripeAccountId && (
+                      <div className="flex items-center gap-2 px-4 py-2 bg-green-50 border-2 border-green-100 rounded-xl">
+                        <CheckCircle2 className="h-5 w-5 text-green-600" />
+                        <span className="text-[10px] font-black uppercase text-green-700 tracking-widest">Active Integration</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </section>
 
         <section id="staff-management" className="mb-12 scroll-mt-32">
@@ -1256,7 +1334,8 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
               </CardHeader>
               <CardContent className="pt-6 space-y-6">
                 {seller?.menuTypes?.map(menuType => {
-                  const thresholds = seller.orderThresholds?.[menuType] || { warning: 7, max: 10 };
+                  const thresholds = seller.orderThresholds || {};
+                  const t = thresholds[menuType] || { warning: 7, max: 10 };
                   return (
                     <div key={`thresh-${menuType}`} className="p-4 rounded-xl bg-muted/30 border border-dashed grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
                       <div className="space-y-1">
@@ -1270,7 +1349,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                           </Label>
                           <Input 
                             type="number" 
-                            defaultValue={thresholds.warning} 
+                            defaultValue={t.warning} 
                             onBlur={(e) => handleUpdateThreshold(menuType, 'warning', e.target.value)}
                             className="h-10 border-yellow-500/30 focus-visible:ring-yellow-500 font-bold"
                           />
@@ -1281,7 +1360,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                           </Label>
                           <Input 
                             type="number" 
-                            defaultValue={thresholds.max} 
+                            defaultValue={t.max} 
                             onBlur={(e) => handleUpdateThreshold(menuType, 'max', e.target.value)}
                             className="h-10 border-red-500/30 focus-visible:ring-red-500 font-bold"
                           />

@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, use, useEffect, useMemo } from 'react';
@@ -28,7 +29,8 @@ import {
   Plus,
   Minus,
   Check,
-  Pencil
+  Pencil,
+  CreditCard
 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useCart } from '@/lib/cart-context';
@@ -37,6 +39,13 @@ import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { mockBuyerLocation } from '@/lib/data';
 import { Badge } from '@/components/ui/badge';
+import { loadStripe } from '@stripe/stripe-js';
+import { EmbeddedCheckoutProvider, EmbeddedCheckout } from '@stripe/react-stripe-js';
+import { httpsCallable, getFunctions } from 'firebase/functions';
+import { getFirebaseApp } from '@/firebase/provider';
+
+// Initialize Stripe (use your publishable key)
+const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || 'pk_test_placeholder');
 
 const serviceTypeIcons: Record<string, any> = {
   'Beverage Cart': Truck,
@@ -165,7 +174,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
 
   const menuTypeFromUrl = searchParams.get('menuType');
   const [selectedMenuType, setSelectedMenuType] = useState<string>(menuTypeFromUrl || '');
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod>('Pay at Delivery');
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'Pay at Delivery' | 'Credit Card'>('Pay at Delivery');
   const [locationValue, setLocationValue] = useState<string>('');
   const [specialInstructions, setSpecialInstructions] = useState<string>('');
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
@@ -174,6 +183,9 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
 
   const [selectedTipType, setSelectedTipType] = useState<string | null>(null);
   const [customTipValue, setCustomTipValue] = useState<string>('');
+
+  const [stripeClientSecret, setStripeClientSecret] = useState<string | null>(null);
+  const [isStripeDrawerOpen, setIsStripeDrawerOpen] = useState(false);
 
   const sellerRef = useMemoFirebase(() => (firestore ? doc(firestore, 'sellers', sellerId) : null), [firestore, sellerId]);
   const { data: seller, isLoading: isSellerLoading } = useDoc<Seller>(sellerRef);
@@ -264,6 +276,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
 
       const submitToFirestore = async (latitude: number, longitude: number) => {
         try {
+          const isStripe = selectedPaymentMethod === 'Credit Card';
           const orderData: any = {
             sellerId,
             buyerProfileId: currentUser!.uid,
@@ -275,7 +288,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
             tax,
             tip: tipAmount,
             total: finalTotal,
-            status: 'Placed',
+            status: isStripe ? 'Pending Payment' : 'Placed',
             paymentMethod: selectedPaymentMethod,
             menuType: selectedMenuType,
             menuTypeLocation: locationValue || null,
@@ -287,8 +300,30 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
           };
 
           const orderRef = await addDoc(collection(firestore, 'orders'), orderData);
-          router.push(`/order/track?id=${orderRef.id}&sellerId=${sellerId}`);
-          clearCart();
+          
+          if (isStripe && seller.stripeAccountId) {
+            const functions = getFunctions(getFirebaseApp());
+            const createSession = httpsCallable(functions, 'createStripeCheckoutSession');
+            const result = await createSession({
+              orderId: orderRef.id,
+              sellerId,
+              amount: finalTotal,
+              stripeAccountId: seller.stripeAccountId,
+              items: activeOrderItems.map(i => ({
+                name: i.name,
+                price: i.price,
+                quantity: i.quantity,
+                modifiersPrice: i.selectedModifiers ? Object.values(i.selectedModifiers).flat().reduce((s, m) => s + m.price, 0) : 0
+              }))
+            });
+            
+            setStripeClientSecret((result.data as any).clientSecret);
+            setIsStripeDrawerOpen(true);
+            setIsCartOpen(false);
+          } else {
+            router.push(`/order/track?id=${orderRef.id}&sellerId=${sellerId}`);
+            clearCart();
+          }
         } catch (err: any) {
           toast({ variant: 'destructive', title: 'Order Submission Error', description: err.message });
         } finally {
@@ -490,7 +525,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
                     onClick={() => setSelectedPaymentMethod('Pay at Delivery')}
                     className={cn(
                       "h-16 justify-start gap-4 px-5 rounded-2xl border-2 shadow-sm transition-all",
-                      selectedPaymentMethod === 'Pay at Delivery' ? "bg-[#213147] border-[#213147] text-white" : "bg-white border-muted"
+                      selectedPaymentMethod === 'Pay at Delivery' ? "bg-[#213147] border-[#213147] text-white shadow-md" : "bg-white border-muted"
                     )}
                   >
                     <Banknote className="h-5 w-5" />
@@ -499,6 +534,23 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
                       <p className="text-[9px] font-bold opacity-60">Cash or Card to Staff</p>
                     </div>
                   </Button>
+                  
+                  {seller?.stripeAccountId && (
+                    <Button 
+                      variant="outline"
+                      onClick={() => setSelectedPaymentMethod('Credit Card')}
+                      className={cn(
+                        "h-16 justify-start gap-4 px-5 rounded-2xl border-2 shadow-sm transition-all",
+                        selectedPaymentMethod === 'Credit Card' ? "bg-[#635BFF] border-[#635BFF] text-white shadow-md" : "bg-white border-muted"
+                      )}
+                    >
+                      <CreditCard className="h-5 w-5" />
+                      <div className="text-left">
+                        <p className="text-sm font-black uppercase">Pay with Card</p>
+                        <p className="text-[9px] font-bold opacity-60">Secure Online Checkout</p>
+                      </div>
+                    </Button>
+                  )}
                 </div>
               </div>
 
@@ -509,14 +561,37 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
           <SheetFooter className="p-6 bg-white border-t-2 shrink-0">
             <Button 
               size="lg" 
-              className="w-full h-16 font-black uppercase tracking-[0.2em] bg-primary shadow-xl rounded-2xl" 
+              className={cn(
+                "w-full h-16 font-black uppercase tracking-[0.2em] shadow-xl rounded-2xl transition-all",
+                selectedPaymentMethod === 'Credit Card' ? "bg-[#635BFF] hover:bg-[#4b45e0]" : "bg-primary"
+              )} 
               onClick={handlePlaceOrder} 
               disabled={isPlacingOrder || activeOrderItems.length === 0 || (isLocationRequired && !isLocationSelected)}
             >
               {isPlacingOrder ? <Loader2 className="animate-spin mr-2 h-5 w-5" /> : null}
-              {isPlacingOrder ? "PROCESSING..." : (isLocationRequired && !isLocationSelected ? "SELECT LANE FIRST" : "PLACE ORDER")}
+              {isPlacingOrder ? "PROCESSING..." : (isLocationRequired && !isLocationSelected ? "SELECT LANE FIRST" : (selectedPaymentMethod === 'Credit Card' ? "CONTINUE TO STRIPE" : "PLACE ORDER"))}
             </Button>
           </SheetFooter>
+        </SheetContent>
+      </Sheet>
+
+      <Sheet open={isStripeDrawerOpen} onOpenChange={setIsStripeDrawerOpen}>
+        <SheetContent side="bottom" className="rounded-t-[2.5rem] h-[90vh] flex flex-col p-0 overflow-hidden shadow-2xl">
+          <SheetHeader className="px-6 py-5 border-b bg-white shrink-0">
+            <SheetTitle className="font-headline font-black uppercase text-center text-sm tracking-widest text-[#635BFF]">Secure Payment</SheetTitle>
+          </SheetHeader>
+          <div className="flex-1 bg-white p-4">
+            {stripeClientSecret ? (
+              <EmbeddedCheckoutProvider stripe={stripePromise} options={{ clientSecret: stripeClientSecret }}>
+                <EmbeddedCheckout />
+              </EmbeddedCheckoutProvider>
+            ) : (
+              <div className="flex flex-col items-center justify-center h-full gap-4">
+                <Loader2 className="h-10 w-10 animate-spin text-[#635BFF]" />
+                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Preparing Checkout...</p>
+              </div>
+            )}
+          </div>
         </SheetContent>
       </Sheet>
 

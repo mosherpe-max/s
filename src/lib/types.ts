@@ -1,3 +1,4 @@
+
 import { Timestamp } from "firebase/firestore";
 
 export type SellerType = 'Private Golf Course' | 'Semi Private Golf Course' | 'Public Golf Course' | 'Bowling Alley' | 'Brewery' | 'Restaurant';
@@ -75,6 +76,9 @@ export interface Seller {
   categoryModifierEnabled?: Record<string, Category[]>;
   orderThresholds?: Record<string, { warning: number; max: number }>;
   poolMapUrl?: string;
+  // Stripe Connect
+  stripeAccountId?: string;
+  stripeOnboardingComplete?: boolean;
 }
 
 export type Category = 'Beer' | 'Spirits' | 'Soft Drinks' | 'Snacks' | 'Other' | 'Handhelds' | 'Appetizers' | 'Entrees' | 'Pizza' | 'Salad' | 'Dessert' | 'Kids';
@@ -144,13 +148,17 @@ export interface Order {
   tax: number;
   tip: number;
   total: number;
-  status: 'Placed' | 'Preparing' | 'Out for Delivery' | 'Delivered' | 'Cancelled';
+  status: 'Pending Payment' | 'Placed' | 'Preparing' | 'Out for Delivery' | 'Delivered' | 'Cancelled';
   createdAt: Timestamp;
   deliveredAt?: Timestamp;
   lastGpsUpdate?: Timestamp;
   buyerDeviceStatus?: 'ios-browser' | 'standalone' | 'android' | 'standard';
   isGuestOrder?: boolean;
   deviceMetadata?: any;
+  // Stripe
+  stripeSessionId?: string;
+  paymentStatus?: 'pending' | 'paid' | 'failed';
+  paidAt?: Timestamp;
 }
 
 export interface AdminUser {

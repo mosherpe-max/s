@@ -1,109 +1,40 @@
+
 {
   "entities": {
     "BuyerProfile": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "BuyerProfile",
       "type": "object",
       "description": "Represents a patron or customer using the Koop app to place orders.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the BuyerProfile entity."
-        },
-        "name": {
-          "type": "string",
-          "description": "The full name of the buyer."
-        },
-        "email": {
-          "type": "string",
-          "description": "The email address of the buyer.",
-          "format": "email"
-        },
-        "currentLatitude": {
-          "type": "number",
-          "description": "The current latitude of the buyer's device for map display and delivery tracking."
-        },
-        "currentLongitude": {
-          "type": "number",
-          "description": "The current longitude of the buyer's device for map display and delivery tracking."
-        },
-        "subscriberStatus": {
-          "type": "boolean",
-          "description": "Indicates if the buyer has an active subscription or special status, updated upon successful payment."
-        },
-        "createdAt": {
-          "type": "string",
-          "description": "Timestamp when the buyer profile was created.",
-          "format": "date-time"
-        },
-        "updatedAt": {
-          "type": "string",
-          "description": "Timestamp when the buyer profile was last updated.",
-          "format": "date-time"
-        }
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "currentLatitude": { "type": "number" },
+        "currentLongitude": { "type": "number" },
+        "subscriberStatus": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
       },
-      "required": [
-        "id",
-        "name",
-        "email",
-        "subscriberStatus",
-        "createdAt",
-        "updatedAt"
-      ]
+      "required": ["id", "name", "email", "subscriberStatus", "createdAt", "updatedAt"]
     },
     "Seller": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Seller",
       "type": "object",
-      "description": "Represents a beverage cart driver or vendor managing menus and fulfilling orders.",
+      "description": "Represents a venue managing menus and fulfilling orders.",
       "properties": {
         "id": { "type": "string" },
         "courseName": { "type": "string" },
         "type": { "type": "string" },
-        "contactName": { "type": "string" },
         "contactEmail": { "type": "string", "format": "email" },
-        "contactPhone": { "type": "string" },
-        "streetAddress": { "type": "string" },
-        "city": { "type": "string" },
-        "state": { "type": "string" },
-        "zip": { "type": "string" },
-        "latitude": { "type": "number" },
-        "longitude": { "type": "number" },
-        "serviceFee": { "type": "number" },
-        "taxRate": { "type": "number" },
         "status": { "type": "string", "enum": ["Active", "Inactive"] },
-        "menuTypes": { "type": "array", "items": { "type": "string" } },
-        "qrCodeUrl": { "type": "string", "format": "uri" },
-        "bevcartActive": { "type": "boolean" },
-        "clubhouseActive": { "type": "boolean" },
-        "lastActive": { "type": "string", "format": "date-time" },
-        "orderThresholds": { "type": "object" },
+        "stripeAccountId": { "type": "string", "description": "Linked Stripe Connect account ID" },
+        "stripeOnboardingComplete": { "type": "boolean" },
         "createdAt": { "type": "string", "format": "date-time" },
         "updatedAt": { "type": "string", "format": "date-time" }
       },
-      "required": [
-        "id",
-        "courseName",
-        "contactEmail",
-        "status"
-      ]
-    },
-    "StaffMember": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "StaffMember",
-      "type": "object",
-      "description": "A venue-level employee (driver or server) with PIN access to dashboards.",
-      "properties": {
-        "id": { "type": "string" },
-        "name": { "type": "string" },
-        "role": { "type": "string", "enum": ["Driver", "Server", "Manager"] },
-        "pin": { "type": "string", "description": "4-digit numeric access code" },
-        "isActive": { "type": "boolean" },
-        "createdAt": { "type": "string", "format": "date-time" }
-      }
+      "required": ["id", "courseName", "contactEmail", "status"]
     },
     "Order": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Order",
       "type": "object",
       "description": "Represents a customer's placed order.",
@@ -111,77 +42,23 @@
         "id": { "type": "string" },
         "buyerProfileId": { "type": "string" },
         "sellerId": { "type": "string" },
-        "customerName": { "type": "string" },
-        "status": { "type": "string" },
+        "status": { "type": "string", "enum": ["Pending Payment", "Placed", "Preparing", "Out for Delivery", "Delivered", "Cancelled"] },
+        "stripeSessionId": { "type": "string" },
+        "paymentStatus": { "type": "string", "enum": ["pending", "paid", "failed"] },
         "total": { "type": "number" },
-        "menuType": { "type": "string" },
-        "createdAt": { "type": "string", "format": "date-time" }
-      }
-    },
-    "PaymentTransaction": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "PaymentTransaction",
-      "type": "object",
-      "description": "Record of a payment transaction.",
-      "properties": {
-        "orderId": { "type": "string" },
-        "buyerProfileId": { "type": "string" },
-        "sellerId": { "type": "string" },
-        "amount": { "type": "number" },
-        "status": { "type": "string" },
-        "paymentGatewayTransactionId": { "type": "string" },
         "createdAt": { "type": "string", "format": "date-time" }
       }
     }
   },
   "auth": {
-    "providers": [
-      "password",
-      "anonymous"
-    ]
+    "providers": ["password", "anonymous"]
   },
   "firestore": {
     "structure": [
-      {
-        "path": "/users/{userId}/buyerProfile",
-        "definition": {
-          "entityName": "BuyerProfile",
-          "schema": { "$ref": "#/backend/entities/BuyerProfile" },
-          "description": "Private buyer data."
-        }
-      },
-      {
-        "path": "/sellers/{sellerId}",
-        "definition": {
-          "entityName": "Seller",
-          "schema": { "$ref": "#/backend/entities/Seller" },
-          "description": "Core seller profiles."
-        }
-      },
-      {
-        "path": "/sellers/{sellerId}/staff/{staffId}",
-        "definition": {
-          "entityName": "StaffMember",
-          "schema": { "$ref": "#/backend/entities/StaffMember" },
-          "description": "Local staff roster."
-        }
-      },
-      {
-        "path": "/orders/{orderId}",
-        "definition": {
-          "entityName": "Order",
-          "schema": { "$ref": "#/backend/entities/Order" },
-          "description": "Global order collection."
-        }
-      },
-      {
-        "path": "/paymentTransactions/{transactionId}",
-        "definition": {
-          "entityName": "PaymentTransaction",
-          "schema": { "$ref": "#/backend/entities/PaymentTransaction" },
-          "description": "Historical transaction logs."
-        }
-      }
+      { "path": "/users/{userId}/buyerProfile", "definition": { "entityName": "BuyerProfile" } },
+      { "path": "/sellers/{sellerId}", "definition": { "entityName": "Seller" } },
+      { "path": "/sellers/{sellerId}/staff/{staffId}", "definition": { "entityName": "StaffMember" } },
+      { "path": "/orders/{orderId}", "definition": { "entityName": "Order" } }
     ]
   }
 }
