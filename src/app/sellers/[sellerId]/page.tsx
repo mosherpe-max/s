@@ -3,8 +3,8 @@
 
 import React, { useState, useMemo, useEffect, use, useRef } from 'react';
 import { collection, doc, setDoc, deleteDoc, writeBatch, query, where, updateDoc, serverTimestamp } from 'firebase/firestore';
-import { useFirestore, useDoc, useCollection, useMemoFirebase, useUser, useAuth, useFirebaseApp } from '@/firebase';
 import { signOut } from 'firebase/auth';
+import { useFirestore, useDoc, useCollection, useMemoFirebase, useUser, useAuth, useFirebaseApp } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { 
@@ -79,7 +79,7 @@ import { APIProvider } from '@vis.gl/react-google-maps';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Separator } from '@/components/ui/separator';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { DateRange } from "react-day-picker";
@@ -400,6 +400,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   const firebaseApp = useFirebaseApp();
   const { user, isUserLoading } = useUser();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { toast } = useToast();
 
   const [isMounted, setIsMounted] = useState(false);
@@ -462,11 +463,24 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     const handleScroll = () => setShowTopButton(window.scrollY > 400);
     window.addEventListener('scroll', handleScroll);
     const interval = setInterval(() => setNow(Date.now()), 10000);
+
+    // Detect return from Stripe Onboarding
+    const stripeStatus = searchParams.get('stripe');
+    if (stripeStatus === 'success') {
+      toast({ 
+        title: "Connection Successful", 
+        description: "Your Stripe account is now linked. Digital payments are active.",
+        className: "bg-green-600 text-white" 
+      });
+      // Clear URL params
+      router.replace(`/sellers/${sellerId}`);
+    }
+
     return () => {
       window.removeEventListener('scroll', handleScroll);
       clearInterval(interval);
     };
-  }, []);
+  }, [searchParams, router, sellerId, toast]);
 
   useEffect(() => {
     if (!isUserLoading && !user) {
@@ -1316,7 +1330,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                   <div className="flex gap-3 items-center">
                     {item.imageUrl && (
                       <div className="relative h-12 w-12 rounded-lg overflow-hidden border bg-muted shrink-0">
-                        <Image src={item.imageUrl} alt={item.name} fill className="object-cover" />
+                        <Image src={item.imageUrl} alt={item.name} width={48} height={48} className="object-cover" />
                       </div>
                     )}
                     <div>
@@ -1413,7 +1427,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                     </div>
                     <div className="grid grid-cols-1 gap-3">
                       <Button className="h-14 font-black uppercase tracking-widest shadow-lg rounded-xl gap-3" disabled={!seller?.qrCodeUrl} asChild>
-                        <a href={seller?.qrCodeUrl} download={`${seller?.courseName}_QR.png`} target="_blank"><Download className="h-5 w-5" /> Download High-Res</a>
+                        <a href={seller?.qrCodeUrl || '#'} download={`${seller?.courseName}_QR.png`} target="_blank"><Download className="h-5 w-5" /> Download High-Res</a>
                       </Button>
                       <Button variant="outline" className="h-14 font-black uppercase tracking-widest border-2 rounded-xl gap-3" disabled={!seller?.qrCodeUrl} onClick={() => window.print()}>
                         <Printer className="h-5 w-5" /> Print Table Tent
