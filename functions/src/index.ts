@@ -62,6 +62,22 @@ export const getStripeOnboardingLink = onCall(async (request) => {
 });
 
 /**
+ * Generates a login link for a Stripe Express Dashboard.
+ */
+export const getStripeDashboardLink = onCall(async (request) => {
+  const { accountId } = request.data;
+  if (!accountId) throw new HttpsError('invalid-argument', 'Missing accountId.');
+
+  try {
+    const loginLink = await stripe.accounts.createLoginLink(accountId);
+    return { url: loginLink.url };
+  } catch (err: any) {
+    console.error('Stripe Dashboard Link Failed:', err);
+    throw new HttpsError('internal', err.message);
+  }
+});
+
+/**
  * Creates a Checkout Session for a patron.
  * Implements Koop Revenue Sharing logic.
  */
@@ -102,7 +118,6 @@ export const createStripeCheckoutSession = onCall(async (request) => {
         },
         quantity: item.quantity,
       })),
-      // Add platform fees and taxes as separate line items
       payment_intent_data: {
         application_fee_amount: applicationFeeAmount,
         transfer_data: { destination: stripeAccountId },

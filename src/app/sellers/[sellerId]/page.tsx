@@ -585,9 +585,15 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
         accountId = (accResult.data as any).accountId;
       }
 
-      const getLink = httpsCallable(functions, 'getStripeOnboardingLink');
-      const linkResult = await getLink({ accountId, sellerId });
-      window.location.href = (linkResult.data as any).url;
+      if (seller.stripeOnboardingComplete) {
+        const getDashboard = httpsCallable(functions, 'getStripeDashboardLink');
+        const dashboardResult = await getDashboard({ accountId });
+        window.location.href = (dashboardResult.data as any).url;
+      } else {
+        const getLink = httpsCallable(functions, 'getStripeOnboardingLink');
+        const linkResult = await getLink({ accountId, sellerId });
+        window.location.href = (linkResult.data as any).url;
+      }
     } catch (err: any) {
       toast({ variant: 'destructive', title: 'Onboarding Failed', description: err.message });
     } finally {
@@ -1045,10 +1051,10 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                       className="bg-[#635BFF] hover:bg-[#4b45e0] text-white h-12 px-8 font-black uppercase tracking-widest rounded-xl shadow-lg gap-3"
                     >
                       {isOnboardingStripe ? <Loader2 className="h-5 w-5 animate-spin" /> : <Zap className="h-5 w-5" />}
-                      {seller?.stripeAccountId ? 'Enter Stripe Dashboard' : 'Connect with Stripe'}
+                      {seller?.stripeOnboardingComplete ? 'Enter Stripe Dashboard' : (seller?.stripeAccountId ? 'Complete Onboarding' : 'Connect with Stripe')}
                     </Button>
                     
-                    {seller?.stripeAccountId && (
+                    {seller?.stripeOnboardingComplete && (
                       <div className="flex items-center gap-2 px-4 py-2 bg-green-50 border-2 border-green-100 rounded-xl">
                         <CheckCircle2 className="h-5 w-5 text-green-600" />
                         <span className="text-[10px] font-black uppercase text-green-700 tracking-widest">Active Integration</span>
