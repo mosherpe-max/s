@@ -36,7 +36,12 @@ import {
   Target,
   Banknote,
   CreditCard,
-  Percent
+  Percent,
+  Settings,
+  Eye,
+  EyeOff,
+  Save,
+  Globe
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { 
@@ -65,7 +70,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import type { Seller, Order, Prospect, AdminUser } from '@/lib/types';
+import type { Seller, Order, Prospect, AdminUser, PlatformConfig } from '@/lib/types';
 import { sellerTypes, categories } from '@/lib/types';
 import { publicGolfItems, privateGolfItems, bowlingAlleyItems } from '@/lib/data';
 import { useToast } from '@/hooks/use-toast';
@@ -95,20 +100,13 @@ const sellerSchema = z.object({
 
 type SellerFormData = z.infer<typeof sellerSchema>;
 
-const staffSchema = z.object({
-  email: z.string().email('Valid email required').toLowerCase().trim(),
-  password: z.string().min(6, 'Password must be at least 6 characters'),
-  sellerId: z.string().optional(),
-  role: z.enum(['Seller Admin', 'Sales Rep']),
-}).refine((data) => {
-  if (data.role === 'Seller Admin' && !data.sellerId) return false;
-  return true;
-}, {
-  message: "Venue selection required for Seller Admins",
-  path: ["sellerId"]
+const systemSchema = z.object({
+  stripePublishableKey: z.string().min(1, 'Required'),
+  stripeSecretKey: z.string().min(1, 'Required'),
+  stripeWebhookSecret: z.string().min(1, 'Required'),
 });
 
-type StaffFormData = z.infer<typeof staffSchema>;
+type SystemFormData = z.infer<typeof systemSchema>;
 
 function MetricCard({ title, value, icon: Icon, description, trend }: { title: string, value: string | number, icon: any, description?: string, trend?: string }) {
   return (
@@ -143,22 +141,13 @@ export default function KOOPAdminPage() {
   const { toast } = useToast();
   
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [isStaffFormOpen, setIsStaffFormOpen] = useState(false);
-  const [isProvisionResultOpen, setIsProvisionResultOpen] = useState(false);
-  const [provisionResult, setProvisionResult] = useState<{ email: string, key: string, status: 'created' | 'existing' } | null>(null);
-  
   const [editingSeller, setEditingSeller] = useState<Seller | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isBootstrapping, setIsBootstrapping] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [showSecret, setShowSecret] = useState(false);
 
-  // Deletion States
-  const [adminToDelete, setAdminToDelete] = useState<AdminUser | null>(null);
-  const [isStaffDeleteDialogOpen, setIsStaffDeleteDialogOpen] = useState(false);
-  const [venueToDelete, setVenueToDelete] = useState<Seller | null>(null);
-  const [isVenueDeleteDialogOpen, setIsVenueDeleteDialogOpen] = useState(false);
-
-  // Authorization Check (UID or specific email for god-mode initialization)
+  // Authorization Check
   const isHardcodedSuperAdmin = user?.uid === SUPER_ADMIN_ID || user?.email === 'mosherpe@gmail.com';
   
   const platformRoleRef = useMemoFirebase(() => {
@@ -170,6 +159,13 @@ export default function KOOPAdminPage() {
 
   const isVerifying = isUserLoading || (isRoleCheckLoading && !isHardcodedSuperAdmin);
   const isAuthorized = isHardcodedSuperAdmin || !!platformRoleMarker;
+
+  // Platform Config
+  const configRef = useMemoFirebase(() => {
+    if (!firestore || !isAuthorized) return null;
+    return doc(firestore, 'config', 'platform');
+  }, [firestore, isAuthorized]);
+  const { data: config, isLoading: isConfigLoading } = useDoc<PlatformConfig>(configRef);
 
   useEffect(() => {
     if (!isUserLoading && !user) {
@@ -224,26 +220,6 @@ export default function KOOPAdminPage() {
     );
   }, [sellers, searchTerm]);
 
-  const activeOrders = useMemo(() => {
-    return orders?.filter(o => ['Placed', 'Preparing', 'Out for Delivery'].includes(o.status)) || [];
-  }, [orders]);
-
-  const globalPipelineStats = useMemo(() => {
-    if (!prospects) return null;
-    const byStage = prospects.reduce((acc, p) => {
-      acc[p.stage] = (acc[p.stage] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
-    const byRep = prospects.reduce((acc, p) => {
-      const rep = p.assignedRepName || 'Unassigned';
-      if (!acc[rep]) acc[rep] = { count: 0, value: 0 };
-      acc[rep].count += 1;
-      acc[rep].value += (p.launchFeeQuoted || 0);
-      return acc;
-    }, {} as Record<string, { count: number, value: number }>);
-    return { byStage, byRep };
-  }, [prospects]);
-
   const form = useForm<SellerFormData>({
     resolver: zodResolver(sellerSchema),
     defaultValues: {
@@ -267,38 +243,39 @@ export default function KOOPAdminPage() {
     },
   });
 
-  const staffForm = useForm<StaffFormData>({
-    resolver: zodResolver(staffSchema),
+  const systemForm = useForm<SystemFormData>({
+    resolver: zodResolver(systemSchema),
     defaultValues: {
-      email: '',
-      password: '',
-      sellerId: '',
-      role: 'Seller Admin',
+      stripePublishableKey: '',
+      stripeSecretKey: '',
+      stripeWebhookSecret: '',
     },
   });
 
-  const handleEditSeller = (seller: Seller) => {
-    setEditingSeller(seller);
-    form.reset({
-      courseName: seller.courseName,
-      type: seller.type,
-      contactName: seller.contactName || '',
-      contactEmail: seller.contactEmail,
-      contactPhone: seller.contactPhone || '',
-      streetAddress: seller.streetAddress || '',
-      city: seller.city || '',
-      state: seller.state || '',
-      zip: seller.zip || '',
-      serviceFee: seller.serviceFee,
-      taxRate: seller.taxRate || 6.0,
-      koopFeeOffsetCents: seller.koopFeeOffsetCents || 0,
-      launchFee: seller.launchFee || 0,
-      monthlyPlatformFee: seller.monthlyPlatformFee || 0,
-      status: seller.status,
-      laneCount: seller.laneCount || 0,
-      menuTypes: seller.menuTypes || [],
-    });
-    setIsFormOpen(true);
+  useEffect(() => {
+    if (config) {
+      systemForm.reset({
+        stripePublishableKey: config.stripePublishableKey || '',
+        stripeSecretKey: config.stripeSecretKey || '',
+        stripeWebhookSecret: config.stripeWebhookSecret || '',
+      });
+    }
+  }, [config, systemForm]);
+
+  const onSaveSystem = async (data: SystemFormData) => {
+    if (!firestore || !isAuthorized) return;
+    setIsSaving(true);
+    try {
+      await setDoc(doc(firestore, 'config', 'platform'), {
+        ...data,
+        updatedAt: serverTimestamp(),
+      }, { merge: true });
+      toast({ title: "System Config Updated", description: "Stripe API keys are now active platform-wide." });
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Update Failed", description: e.message });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleAddNewSeller = () => {
@@ -347,156 +324,6 @@ export default function KOOPAdminPage() {
     }).finally(() => setIsSaving(false));
   };
 
-  const onProvisionStaff = async (data: StaffFormData) => {
-    if (!firestore || !isAuthorized) return;
-    setIsSaving(true);
-    try {
-      const signupResp = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${firebaseConfig.apiKey}`, {
-        method: 'POST',
-        body: JSON.stringify({ email: data.email, password: data.password, returnSecureToken: true }),
-        headers: { 'Content-Type': 'application/json' }
-      });
-      const authResult = await signupResp.json();
-      if (!signupResp.ok && authResult.error?.message !== 'EMAIL_EXISTS') {
-        throw new Error(authResult.error?.message || "Failed to contact Identity Provider");
-      }
-      let accountStatus: 'created' | 'existing' = signupResp.ok ? 'created' : 'existing';
-      const uid = authResult.localId || 'existing-user-lookup-required';
-      const selectedSeller = sellers?.find(s => s.id === data.sellerId);
-      await setDoc(doc(firestore, 'adminUsers', data.email), {
-        id: uid,
-        email: data.email,
-        role: data.role,
-        sellerId: data.role === 'Seller Admin' ? data.sellerId : null,
-        courseName: data.role === 'Seller Admin' ? (selectedSeller?.courseName || 'Unassigned Venue') : 'Platform Global',
-        createdAt: serverTimestamp()
-      }, { merge: true });
-      const roleCollection = data.role === 'Seller Admin' ? 'roles_seller_admin' : 'roles_sales_rep';
-      await setDoc(doc(firestore, roleCollection, data.email), { grantedAt: serverTimestamp(), sellerId: data.role === 'Seller Admin' ? data.sellerId : null }, { merge: true });
-      setProvisionResult({ email: data.email, key: data.password, status: accountStatus });
-      setIsStaffFormOpen(false);
-      setIsProvisionResultOpen(true);
-      staffForm.reset();
-      toast({ title: "Account Provisioned" });
-    } catch (e: any) {
-      toast({ variant: "destructive", title: "Provisioning Failed", description: e.message });
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleBootstrapNetwork = async () => {
-    if (!firestore || !isAuthorized) return;
-    setIsBootstrapping(true);
-    try {
-      const demoSellers = [
-        {
-          id: 'demo-course',
-          courseName: 'Public Golf Club',
-          type: 'Public Golf Course',
-          contactName: 'Public Manager',
-          contactEmail: 'public@koop.com',
-          contactPhone: '555-0101',
-          streetAddress: '123 Fairway Drive',
-          city: 'Golf City',
-          state: 'MI',
-          zip: '48326',
-          serviceFee: 2.50,
-          taxRate: 6.0,
-          koopFeeOffsetCents: 50,
-          status: 'Active',
-          menuTypes: ['Beverage Cart', 'Clubhouse', 'Take Out'],
-          categoryVisibility: { 'Beverage Cart': [...categories], 'Clubhouse': [...categories], 'Take Out': [...categories] },
-          qrCodeUrl: 'https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=https://koop.app/sellers/demo-course/order'
-        },
-        {
-          id: 'demo-private-course',
-          courseName: 'The Private Reserve',
-          type: 'Private Golf Course',
-          contactName: 'Club Manager',
-          contactEmail: 'private@koop.com',
-          contactPhone: '555-0202',
-          streetAddress: '456 Reserve Lane',
-          city: 'Highlands',
-          state: 'MI',
-          zip: '48327',
-          serviceFee: 3.50,
-          taxRate: 6.0,
-          koopFeeOffsetCents: 75,
-          status: 'Active',
-          menuTypes: ['Clubhouse', 'Pool', 'Take Out'],
-          categoryVisibility: { 'Clubhouse': [...categories], 'Pool': [...categories], 'Take Out': [...categories] },
-          qrCodeUrl: 'https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=https://koop.app/sellers/demo-private-course/order'
-        },
-        {
-          id: 'demo-bowling-alley',
-          courseName: 'Strike City Lanes',
-          type: 'Bowling Alley',
-          contactName: 'Alley Manager',
-          contactEmail: 'bowling@koop.com',
-          contactPhone: '555-0303',
-          streetAddress: '789 Pin Street',
-          city: 'Bowling Green',
-          state: 'MI',
-          zip: '48328',
-          serviceFee: 2.00,
-          taxRate: 6.0,
-          koopFeeOffsetCents: 40,
-          laneCount: 24,
-          status: 'Active',
-          menuTypes: ['Lane Delivery', 'Take Out'],
-          categoryVisibility: { 'Lane Delivery': [...categories], 'Take Out': [...categories] },
-          qrCodeUrl: 'https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=https://koop.app/sellers/demo-bowling-alley/order'
-        }
-      ];
-
-      for (const s of demoSellers) {
-        await setDoc(doc(firestore, 'sellers', s.id), { ...s, createdAt: new Date().toISOString() }, { merge: true });
-        
-        let itemsToSeed = publicGolfItems;
-        if (s.id === 'demo-private-course') itemsToSeed = privateGolfItems;
-        if (s.id === 'demo-bowling-alley') itemsToSeed = bowlingAlleyItems;
-
-        const batch = writeBatch(firestore);
-        itemsToSeed.forEach((item, idx) => {
-          const itemId = `${s.id}-item-${idx}`;
-          const itemRef = doc(firestore, 'sellers', s.id, 'menuItems', itemId);
-          batch.set(itemRef, { ...item, id: itemId, rank: idx });
-        });
-        await batch.commit();
-      }
-      
-      toast({ title: "Demo Network Bootstrapped" });
-    } catch (e) {
-      toast({ variant: "destructive", title: "Bootstrap Failed" });
-    } finally {
-      setIsBootstrapping(false);
-    }
-  };
-
-  const handleRemoveVenue = async () => {
-    if (!firestore || !isAuthorized || !venueToDelete) return;
-    try {
-      await deleteDoc(doc(firestore, 'sellers', venueToDelete.id));
-      toast({ title: "Venue Decommissioned" });
-    } catch (e) {
-      toast({ variant: "destructive", title: "Deletion Failed" });
-    } finally {
-      setIsVenueDeleteDialogOpen(false);
-      setVenueToDelete(null);
-    }
-  };
-
-  const handleSendResetLink = async (email: string) => {
-    if (!auth) return;
-    try {
-      await sendPasswordResetEmail(auth, email);
-      toast({ title: "Reset Link Dispatched", description: `Sent to ${email}` });
-    } catch (e: any) {
-      toast({ variant: "destructive", title: "Dispatch Failed", description: e.message });
-    }
-  };
-
   if (isVerifying) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen">
@@ -529,11 +356,10 @@ export default function KOOPAdminPage() {
             <h1 className="font-headline text-3xl font-bold text-[#213147] uppercase tracking-tight">KOOP ADMIN</h1>
             <Badge className="bg-primary/10 text-primary border-primary/20 uppercase text-[10px] font-black">Authorized Portal</Badge>
           </div>
-          <p className="text-muted-foreground text-sm">Platform oversight and venue network management.</p>
+          <p className="text-muted-foreground text-sm">Platform oversight and system configuration.</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <Button variant="ghost" onClick={handleLogout} className="text-[10px] font-black uppercase h-10 px-4 tracking-widest text-muted-foreground hover:text-destructive"><LogOut className="mr-2 h-3.5 w-3.5" /> Sign Out</Button>
-          <Button variant="outline" onClick={handleBootstrapNetwork} disabled={isBootstrapping} className="text-[10px] font-black uppercase h-10 px-4 tracking-widest border-indigo-200 text-indigo-600 hover:bg-indigo-50"><Zap className={cn("mr-2 h-3.5 w-3.5", isBootstrapping && "animate-spin")} /> Bootstrap Network</Button>
           <Button onClick={handleAddNewSeller} className="h-10 px-6 font-black uppercase text-[10px] tracking-widest"><PlusCircle className="mr-2 h-4 w-4" /> Register Venue</Button>
         </div>
       </header>
@@ -542,13 +368,13 @@ export default function KOOPAdminPage() {
         <TabsList className="bg-muted/50 p-1 h-12">
           <TabsTrigger value="operations" className="text-[10px] font-black uppercase px-8 h-10"><Activity className="mr-2 h-3.5 w-3.5" /> Operations</TabsTrigger>
           <TabsTrigger value="staff" className="text-[10px] font-black uppercase px-8 h-10"><Users className="mr-2 h-3.5 w-3.5" /> User Registry</TabsTrigger>
-          <TabsTrigger value="growth" className="text-[10px] font-black uppercase px-8 h-10"><Target className="mr-2 h-3.5 w-3.5" /> Growth</TabsTrigger>
+          <TabsTrigger value="system" className="text-[10px] font-black uppercase px-8 h-10"><Settings className="mr-2 h-3.5 w-3.5" /> System</TabsTrigger>
         </TabsList>
 
         <TabsContent value="operations" className="space-y-8">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <MetricCard title="Active Venues" value={sellers?.length || 0} icon={Building} />
-            <MetricCard title="Active Volume" value={activeOrders.length} icon={ShoppingBag} />
+            <MetricCard title="Total Orders" value={orders?.length || 0} icon={ShoppingBag} />
             <MetricCard title="Platform Gross" value={`$${(orders?.reduce((acc, o) => acc + (o.total || 0), 0) || 0).toLocaleString()}`} icon={DollarSign} />
             <MetricCard title="Pipeline Value" value={`$${(prospects?.reduce((acc, p) => acc + (p.launchFeeQuoted || 0), 0) || 0).toLocaleString()}`} icon={Briefcase} />
           </div>
@@ -588,8 +414,7 @@ export default function KOOPAdminPage() {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
-                          <Button variant="ghost" size="icon" onClick={() => handleEditSeller(seller)} className="h-8 w-8"><Edit className="h-4 w-4" /></Button>
-                          <Button variant="ghost" size="icon" onClick={() => { setVenueToDelete(seller); setIsVenueDeleteDialogOpen(true); }} className="h-8 w-8 text-destructive"><Trash2 className="h-4 w-4" /></Button>
+                          <Button variant="ghost" size="icon" onClick={() => { setEditingSeller(seller); setIsFormOpen(true); }} className="h-8 w-8"><Edit className="h-4 w-4" /></Button>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild><Button variant="ghost" size="sm" className="h-8 text-[10px] font-black uppercase gap-1.5 px-3 bg-muted/20">Impersonate <ChevronDown className="h-3 w-3" /></Button></DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="w-56 shadow-xl border-2">
@@ -597,7 +422,6 @@ export default function KOOPAdminPage() {
                               <DropdownMenuSeparator />
                               <DropdownMenuItem asChild><Link href={`/sellers/${seller.id}/bevcart`} className="flex items-center gap-3 cursor-pointer"><Truck className="h-4 w-4 text-indigo-600" /><span className="text-xs font-bold uppercase">BevCart Driver</span></Link></DropdownMenuItem>
                               <DropdownMenuItem asChild><Link href={`/sellers/${seller.id}/clubhouse`} className="flex items-center gap-3 cursor-pointer"><LayoutDashboard className="h-4 w-4 text-indigo-600" /><span className="text-xs font-bold uppercase">Clubhouse Staff</span></Link></DropdownMenuItem>
-                              <DropdownMenuItem asChild><Link href={`/sellers/${seller.id}/laneside`} className="flex items-center gap-3 cursor-pointer"><Users className="h-4 w-4 text-indigo-600" /><span className="text-xs font-bold uppercase">Laneside Server</span></Link></DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </div>
@@ -611,30 +435,22 @@ export default function KOOPAdminPage() {
         </TabsContent>
 
         <TabsContent value="staff" className="space-y-6">
-          <div className="flex justify-between items-center">
-            <div><h2 className="font-headline text-xl font-black uppercase text-[#213147]">User Registry</h2><p className="text-xs text-muted-foreground">Manage permissions and venue access.</p></div>
-            <Button onClick={() => setIsStaffFormOpen(true)} className="gap-2 font-black uppercase text-[10px] tracking-widest h-10 px-6"><UserPlus className="h-4 w-4" /> Add Platform User</Button>
-          </div>
           <Card className="shadow-md border-2 overflow-hidden">
             <Table>
               <TableHeader className="bg-muted/30">
                 <TableRow>
                   <TableHead className="text-[10px] font-black uppercase">User Profile</TableHead>
                   <TableHead className="text-[10px] font-black uppercase">Platform Role</TableHead>
-                  <TableHead className="text-[10px] font-black uppercase">Assignment Context</TableHead>
                   <TableHead className="text-[10px] font-black uppercase text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {isAdminsLoading ? [...Array(3)].map((_, i) => <TableRow key={i}><TableCell colSpan={4}><Skeleton className="h-12 w-full" /></TableCell></TableRow>) : admins?.map((admin) => (
+                {isAdminsLoading ? [...Array(3)].map((_, i) => <TableRow key={i}><TableCell colSpan={3}><Skeleton className="h-12 w-full" /></TableCell></TableRow>) : admins?.map((admin) => (
                   <TableRow key={admin.email} className="hover:bg-muted/5">
-                    <TableCell><div className="flex items-center gap-3"><div className={cn("h-8 w-8 rounded-lg flex items-center justify-center", admin.role === 'Sales Rep' ? 'bg-indigo-50 text-indigo-600' : 'bg-green-50 text-green-600')}>{(admin.role as any) === 'Sales Rep' ? <Activity className="h-4 w-4" /> : <ShieldCheck className="h-4 w-4" />}</div><div className="flex flex-col"><span className="font-bold text-sm">{admin.email}</span><span className="text-[9px] text-muted-foreground font-mono">{admin.id}</span></div></div></TableCell>
-                    <TableCell><Badge variant={admin.role.includes('Platform') ? 'default' : 'secondary'} className="text-[8px] font-black uppercase">{admin.role}</Badge></TableCell>
-                    <TableCell><div className="flex flex-col"><span className="text-xs font-bold">{admin.courseName || 'Global Access'}</span><span className="text-[9px] text-muted-foreground font-mono">{admin.sellerId || 'N/A'}</span></div></TableCell>
+                    <TableCell><div className="flex items-center gap-3"><div className="h-8 w-8 rounded-lg bg-green-50 text-green-600 flex items-center justify-center"><ShieldCheck className="h-4 w-4" /></div><div className="flex flex-col"><span className="font-bold text-sm">{admin.email}</span><span className="text-[9px] text-muted-foreground font-mono">{admin.id}</span></div></div></TableCell>
+                    <TableCell><Badge variant="default" className="text-[8px] font-black uppercase">{admin.role}</Badge></TableCell>
                     <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button variant="outline" size="sm" onClick={() => handleSendResetLink(admin.email)} className="h-8 text-[9px] font-black uppercase border-indigo-200 text-indigo-600 hover:bg-indigo-50"><KeyRound className="mr-1.5 h-3 w-3" /> Reset Link</Button>
-                      </div>
+                      <Button variant="outline" size="sm" onClick={() => handleSendResetLink(admin.email)} className="h-8 text-[9px] font-black uppercase border-indigo-200 text-indigo-600 hover:bg-indigo-50"><KeyRound className="mr-1.5 h-3 w-3" /> Reset Link</Button>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -643,27 +459,72 @@ export default function KOOPAdminPage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="growth" className="space-y-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <Card className="shadow-md border-2 overflow-hidden">
-              <CardHeader className="bg-indigo-50 border-b"><CardTitle className="text-sm font-black uppercase flex items-center gap-2 text-indigo-700"><PieChart className="h-4 w-4" /> Pipeline Health</CardTitle></CardHeader>
-              <CardContent className="pt-6">
-                <div className="space-y-4">
-                  {globalPipelineStats ? Object.entries(globalPipelineStats.byStage).map(([stage, count]) => (
-                    <div key={stage} className="space-y-1.5"><div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest"><span>{stage}</span><span className="text-indigo-600">{count} Deals</span></div><div className="h-2 w-full bg-muted rounded-full overflow-hidden"><div className="h-full bg-indigo-500 rounded-full" style={{ width: `${(count / (prospects?.length || 1)) * 100}%` }} /></div></div>
-                  )) : <p className="text-xs text-muted-foreground italic">No pipeline data available.</p>}
+        <TabsContent value="system" className="space-y-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <Card className="shadow-lg border-2 border-[#635BFF]/20">
+              <CardHeader className="bg-[#635BFF]/5 border-b">
+                <div className="flex items-center gap-3">
+                  <div className="bg-[#635BFF] p-2 rounded-lg"><Zap className="h-5 w-5 text-white" /></div>
+                  <div>
+                    <CardTitle className="text-lg font-black uppercase tracking-tight">Stripe Platform Credentials</CardTitle>
+                    <CardDescription className="text-xs uppercase font-bold text-slate-500">Configure global API keys for payment routing.</CardDescription>
+                  </div>
                 </div>
+              </CardHeader>
+              <CardContent className="pt-6">
+                <Form {...systemForm}>
+                  <form onSubmit={systemForm.handleSubmit(onSaveSystem)} className="space-y-6">
+                    <FormField control={systemForm.control} name="stripePublishableKey" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-[10px] font-black uppercase">Publishable Key</FormLabel>
+                        <FormControl><Input {...field} placeholder="pk_live_..." className="font-mono text-xs border-2" /></FormControl>
+                        <FormDescription className="text-[8px] uppercase">Public identifier for the Koop platform.</FormDescription>
+                      </FormItem>
+                    )} />
+                    
+                    <FormField control={systemForm.control} name="stripeSecretKey" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-[10px] font-black uppercase">Secret Key</FormLabel>
+                        <div className="relative">
+                          <FormControl><Input {...field} type={showSecret ? "text" : "password"} placeholder="sk_live_..." className="font-mono text-xs border-2 pr-10" /></FormControl>
+                          <Button 
+                            type="button" 
+                            variant="ghost" 
+                            size="icon" 
+                            className="absolute right-0 top-0 h-full text-muted-foreground"
+                            onClick={() => setShowSecret(!showSecret)}
+                          >
+                            {showSecret ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          </Button>
+                        </div>
+                        <FormDescription className="text-[8px] uppercase font-bold text-red-600">Restricted: Critical platform secret.</FormDescription>
+                      </FormItem>
+                    )} />
+
+                    <FormField control={systemForm.control} name="stripeWebhookSecret" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-[10px] font-black uppercase">Webhook Signing Secret</FormLabel>
+                        <FormControl><Input {...field} type="password" placeholder="whsec_..." className="font-mono text-xs border-2" /></FormControl>
+                        <FormDescription className="text-[8px] uppercase">Used to verify payment success notifications.</FormDescription>
+                      </FormItem>
+                    )} />
+
+                    <Button type="submit" disabled={isSaving} className="w-full h-12 bg-[#635BFF] hover:bg-[#4b45e0] font-black uppercase tracking-widest gap-2">
+                      {isSaving ? <Loader2 className="h-5 w-5 animate-spin" /> : <Save className="h-5 w-5" />}
+                      Update API Config
+                    </Button>
+                  </form>
+                </Form>
               </CardContent>
             </Card>
-            <Card className="shadow-md border-2 overflow-hidden">
-              <CardHeader className="bg-green-50 border-b"><CardTitle className="text-sm font-black uppercase flex items-center gap-2 text-green-700"><Trophy className="h-4 w-4" /> Rep Performance</CardTitle></CardHeader>
-              <CardContent className="p-0">
-                <Table><TableHeader><TableRow className="bg-muted/10"><TableHead className="text-[9px] uppercase font-black">Sales Professional</TableHead><TableHead className="text-[9px] uppercase font-black text-center">Deals</TableHead><TableHead className="text-[9px] uppercase font-black text-right">Est. Value</TableHead></TableRow></TableHeader>
-                  <TableBody>{globalPipelineStats && Object.entries(globalPipelineStats.byRep).map(([repName, stats]) => (
-                    <TableRow key={repName} className="hover:bg-muted/5"><TableCell className="text-xs font-bold">{repName}</TableCell><TableCell className="text-center"><Badge variant="outline" className="text-[10px] font-black">{stats.count}</Badge></TableCell><TableCell className="text-right font-mono font-bold text-xs text-green-600">${stats.value.toLocaleString()}</TableCell></TableRow>
-                  ))}</TableBody>
-                </Table>
-              </CardContent>
+
+            <Card className="shadow-lg border-2 border-dashed flex flex-col justify-center items-center p-12 text-center bg-slate-50">
+               <div className="bg-white p-6 rounded-full shadow-md mb-6"><Globe className="h-12 w-12 text-slate-400" /></div>
+               <h3 className="font-headline text-xl font-black uppercase text-slate-700">Platform Infrastructure</h3>
+               <p className="text-xs text-slate-500 max-w-sm mt-2 leading-relaxed">
+                 Manage system-wide DNS, SSL, and third-party integrations. Additional platform modules will appear here as the Koop ecosystem expands.
+               </p>
+               <Button variant="outline" className="mt-8 uppercase text-[10px] font-black tracking-widest border-2">View Server Logs</Button>
             </Card>
           </div>
         </TabsContent>
@@ -713,16 +574,6 @@ export default function KOOPAdminPage() {
                         </FormItem>
                       )} />
                     </div>
-                    <div className="p-4 bg-muted/20 border-2 border-dashed rounded-xl flex items-start gap-3">
-                      <Percent className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
-                      <div className="space-y-1">
-                        <p className="text-[10px] font-black uppercase">Platform Revenue Share</p>
-                        <p className="text-[9px] text-muted-foreground leading-relaxed">
-                          Stripe Application Fee will be calculated as: <strong>(Patron Fee - Koop Offset)</strong>. 
-                          The venue is responsible for the remainder of the credit card processing fee.
-                        </p>
-                      </div>
-                    </div>
                   </div>
                 </form>
               </Form>
@@ -731,10 +582,6 @@ export default function KOOPAdminPage() {
           <DialogFooter className="p-6 border-t bg-muted/10 shrink-0"><Button type="submit" form="venue-form" disabled={isSaving} className="w-full h-14 bg-[#213147] hover:bg-[#213147]/90 text-white font-headline font-black uppercase tracking-widest shadow-xl">{isSaving ? <Loader2 className="animate-spin" /> : (editingSeller ? "SAVE VENUE" : "PROVISION VENUE")}</Button></DialogFooter>
         </DialogContent>
       </Dialog>
-
-      <AlertDialog open={isVenueDeleteDialogOpen} onOpenChange={setIsVenueDeleteDialogOpen}>
-        <AlertDialogContent><AlertDialogHeader><AlertDialogTitle className="uppercase font-headline text-destructive">Decommission Venue?</AlertDialogTitle><AlertDialogDescription>Confirm removal of <strong>{venueToDelete?.courseName}</strong>.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={handleRemoveVenue} className="bg-destructive hover:bg-destructive/90">Confirm Deletion</AlertDialogAction></AlertDialogFooter></AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }

@@ -76,6 +76,13 @@ service cloud.firestore {
     }
 
     /**
+     * @description Global system configuration. Only accessible by Super Admin.
+     */
+    match /config/platform {
+      allow read, write: if isSuperAdmin();
+    }
+
+    /**
      * @description Vault for sensitive credentials. Controlled by Admin only.
      */
     match /sellers_private/{sellerId} {

@@ -36,6 +36,17 @@
       },
       "required": ["id", "courseName", "contactEmail", "status"]
     },
+    "PlatformConfig": {
+      "title": "PlatformConfig",
+      "type": "object",
+      "description": "Global platform settings and sensitive credentials.",
+      "properties": {
+        "stripePublishableKey": { "type": "string" },
+        "stripeSecretKey": { "type": "string" },
+        "stripeWebhookSecret": { "type": "string" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      }
+    },
     "Order": {
       "title": "Order",
       "type": "object",
@@ -61,7 +72,8 @@
       { "path": "/users/{userId}/buyerProfile", "definition": { "entityName": "BuyerProfile" } },
       { "path": "/sellers/{sellerId}", "definition": { "entityName": "Seller" } },
       { "path": "/sellers/{sellerId}/staff/{staffId}", "definition": { "entityName": "StaffMember" } },
-      { "path": "/orders/{orderId}", "definition": { "entityName": "Order" } }
+      { "path": "/orders/{orderId}", "definition": { "entityName": "Order" } },
+      { "path": "/config/platform", "definition": { "entityName": "PlatformConfig" } }
     ]
   }
 }

@@ -5,7 +5,7 @@ import { useState, use, useEffect, useMemo } from 'react';
 import { collection, doc, addDoc, serverTimestamp } from 'firebase/firestore';
 import { signInAnonymously } from 'firebase/auth';
 import { useFirestore, useCollection, useMemoFirebase, useDoc, useAuth, useUser, useFirebaseApp } from '@/firebase';
-import type { Seller, MenuItem, Category, Order, ModifierGroup, ModifierOption, OrderItem, PaymentMethod } from '@/lib/types';
+import type { Seller, MenuItem, Category, Order, ModifierGroup, ModifierOption, OrderItem, PaymentMethod, PlatformConfig } from '@/lib/types';
 import { categories } from '@/lib/types';
 import { BuyerMenu } from '@/components/buyer-menu';
 import { OrderSummary } from '@/components/order-summary';
@@ -39,12 +39,9 @@ import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { mockBuyerLocation } from '@/lib/data';
 import { Badge } from '@/components/ui/badge';
-import { loadStripe } from '@stripe/stripe-js';
+import { loadStripe, Stripe as StripeInstance } from '@stripe/stripe-js';
 import { EmbeddedCheckoutProvider, EmbeddedCheckout } from '@stripe/react-stripe-js';
 import { httpsCallable, getFunctions } from 'firebase/functions';
-
-// Initialize Stripe (use your publishable key)
-const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || 'pk_test_placeholder');
 
 const serviceTypeIcons: Record<string, any> = {
   'Beverage Cart': Truck,
@@ -186,9 +183,20 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
 
   const [stripeClientSecret, setStripeClientSecret] = useState<string | null>(null);
   const [isStripeDrawerOpen, setIsStripeDrawerOpen] = useState(false);
+  const [stripePromise, setStripePromise] = useState<Promise<StripeInstance | null> | null>(null);
 
   const sellerRef = useMemoFirebase(() => (firestore ? doc(firestore, 'sellers', sellerId) : null), [firestore, sellerId]);
   const { data: seller, isLoading: isSellerLoading } = useDoc<Seller>(sellerRef);
+
+  const configRef = useMemoFirebase(() => (firestore ? doc(firestore, 'config', 'platform') : null), [firestore]);
+  const { data: config } = useDoc<PlatformConfig>(configRef);
+
+  useEffect(() => {
+    const pk = config?.stripePublishableKey || process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
+    if (pk) {
+      setStripePromise(loadStripe(pk));
+    }
+  }, [config]);
 
   const menuItemsQuery = useMemoFirebase(() => {
     if (!firestore || !sellerId) return null;
@@ -581,7 +589,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
             <SheetTitle className="font-headline font-black uppercase text-center text-sm tracking-widest text-[#635BFF]">Secure Payment</SheetTitle>
           </SheetHeader>
           <div className="flex-1 bg-white p-4">
-            {stripeClientSecret ? (
+            {stripeClientSecret && stripePromise ? (
               <EmbeddedCheckoutProvider stripe={stripePromise} options={{ clientSecret: stripeClientSecret }}>
                 <EmbeddedCheckout />
               </EmbeddedCheckoutProvider>

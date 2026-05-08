@@ -6,9 +6,20 @@ import Stripe from 'stripe';
 
 admin.initializeApp();
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_placeholder', {
-  apiVersion: '2025-01-27.acacia',
-});
+/**
+ * Dynamically fetches the Stripe Secret Key from Firestore config.
+ * Falls back to environment variables for backward compatibility.
+ */
+async function getStripeClient() {
+  const configDoc = await admin.firestore().doc('config/platform').get();
+  const config = configDoc.data();
+  
+  const secretKey = config?.stripeSecretKey || process.env.STRIPE_SECRET_KEY || 'sk_test_placeholder';
+  
+  return new Stripe(secretKey, {
+    apiVersion: '2025-01-27.acacia',
+  });
+}
 
 /**
  * Creates a Stripe Connect account for a seller.
@@ -18,6 +29,7 @@ export const createStripeConnectAccount = onCall(async (request) => {
   if (!sellerId) throw new HttpsError('invalid-argument', 'Missing sellerId.');
 
   try {
+    const stripe = await getStripeClient();
     const account = await stripe.accounts.create({
       type: 'express',
       email: email,
@@ -47,6 +59,7 @@ export const getStripeOnboardingLink = onCall(async (request) => {
   if (!accountId || !sellerId) throw new HttpsError('invalid-argument', 'Missing parameters.');
 
   try {
+    const stripe = await getStripeClient();
     const accountLink = await stripe.accountLinks.create({
       account: accountId,
       refresh_url: `${request.rawRequest.headers.origin}/sellers/${sellerId}?stripe=refresh`,
@@ -69,6 +82,7 @@ export const getStripeDashboardLink = onCall(async (request) => {
   if (!accountId) throw new HttpsError('invalid-argument', 'Missing accountId.');
 
   try {
+    const stripe = await getStripeClient();
     const loginLink = await stripe.accounts.createLoginLink(accountId);
     return { url: loginLink.url };
   } catch (err: any) {
@@ -87,6 +101,7 @@ export const createStripeCheckoutSession = onCall(async (request) => {
 
   try {
     const db = admin.firestore();
+    const stripe = await getStripeClient();
     
     // 1. Fetch Order and Seller data to determine shared fees
     const [orderDoc, sellerDoc] = await Promise.all([
@@ -110,14 +125,20 @@ export const createStripeCheckoutSession = onCall(async (request) => {
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
       ui_mode: 'embedded',
-      line_items: orderData.items.map((item: any) => ({
-        price_data: {
-          currency: 'usd',
-          product_data: { name: item.name },
-          unit_amount: Math.round((item.price + (item.modifiersPrice || 0)) * 100),
-        },
-        quantity: item.quantity,
-      })),
+      line_items: orderData.items.map((item: any) => {
+        const modifiersPrice = item.selectedModifiers 
+          ? Object.values(item.selectedModifiers).flat().reduce((sum: number, mod: any) => sum + mod.price, 0)
+          : 0;
+        
+        return {
+          price_data: {
+            currency: 'usd',
+            product_data: { name: item.name },
+            unit_amount: Math.round((item.price + modifiersPrice) * 100),
+          },
+          quantity: item.quantity,
+        };
+      }),
       payment_intent_data: {
         application_fee_amount: applicationFeeAmount,
         transfer_data: { destination: stripeAccountId },
@@ -145,8 +166,13 @@ export const stripeWebhook = onRequest(async (req, res) => {
   let event;
 
   try {
-    event = stripe.webhooks.constructEvent(req.rawBody, sig, process.env.STRIPE_WEBHOOK_SECRET || '');
+    const stripe = await getStripeClient();
+    const configDoc = await admin.firestore().doc('config/platform').get();
+    const webhookSecret = configDoc.data()?.stripeWebhookSecret || process.env.STRIPE_WEBHOOK_SECRET || '';
+    
+    event = stripe.webhooks.constructEvent(req.rawBody, sig, webhookSecret);
   } catch (err: any) {
+    console.error('Webhook Verification Failed:', err.message);
     res.status(400).send(`Webhook Error: ${err.message}`);
     return;
   }

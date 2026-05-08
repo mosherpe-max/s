@@ -12,6 +12,13 @@ export const sellerTypes: readonly SellerType[] = [
   'Restaurant'
 ];
 
+export interface PlatformConfig {
+  stripePublishableKey: string;
+  stripeSecretKey: string;
+  stripeWebhookSecret: string;
+  updatedAt: Timestamp;
+}
+
 export interface ModifierOption {
   id: string;
   name: string;
