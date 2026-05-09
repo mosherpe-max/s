@@ -4,7 +4,9 @@ import { onDocumentCreated } from 'firebase-functions/v2/firestore';
 import * as admin from 'firebase-admin';
 import Stripe from 'stripe';
 
-admin.initializeApp();
+if (!admin.apps.length) {
+  admin.initializeApp();
+}
 
 /**
  * Dynamically fetches the Stripe Secret Key from Firestore config.
@@ -15,7 +17,7 @@ async function getStripeClient() {
   
   const secretKey = config?.stripeSecretKey || process.env.STRIPE_SECRET_KEY;
   
-  if (!secretKey || secretKey === 'sk_test_placeholder') {
+  if (!secretKey || secretKey === 'sk_test_placeholder' || secretKey === '') {
     throw new HttpsError(
       'failed-precondition', 
       'Stripe is not configured. Please add your Secret Key in the KOOP Admin > System panel.'
@@ -58,7 +60,7 @@ export const createStripeConnectAccount = onCall(async (request) => {
     return { accountId: account.id };
   } catch (err: any) {
     console.error('Stripe Account Creation Failed:', err);
-    throw new HttpsError(err.code || 'internal', err.message);
+    throw new HttpsError(err.code === 'failed-precondition' ? 'failed-precondition' : 'internal', err.message);
   }
 });
 
@@ -69,7 +71,7 @@ export const getStripeOnboardingLink = onCall(async (request) => {
   const { accountId, sellerId, origin } = request.data;
   if (!accountId || !sellerId) throw new HttpsError('invalid-argument', 'Missing parameters.');
 
-  // Use provided origin or fall back to request header
+  // Use provided origin or fall back to request header or default
   const baseUrl = origin || request.rawRequest.headers.origin || 'https://kooporders.com';
 
   try {
@@ -84,7 +86,7 @@ export const getStripeOnboardingLink = onCall(async (request) => {
     return { url: accountLink.url };
   } catch (err: any) {
     console.error('Stripe Link Creation Failed:', err);
-    throw new HttpsError(err.code || 'internal', err.message);
+    throw new HttpsError(err.code === 'failed-precondition' ? 'failed-precondition' : 'internal', err.message);
   }
 });
 
@@ -101,7 +103,7 @@ export const getStripeDashboardLink = onCall(async (request) => {
     return { url: loginLink.url };
   } catch (err: any) {
     console.error('Stripe Dashboard Link Failed:', err);
-    throw new HttpsError(err.code || 'internal', err.message);
+    throw new HttpsError(err.code === 'failed-precondition' ? 'failed-precondition' : 'internal', err.message);
   }
 });
 
@@ -163,7 +165,7 @@ export const createStripeCheckoutSession = onCall(async (request) => {
     return { clientSecret: session.client_secret };
   } catch (err: any) {
     console.error('Stripe Session Creation Failed:', err);
-    throw new HttpsError(err.code || 'internal', err.message);
+    throw new HttpsError(err.code === 'failed-precondition' ? 'failed-precondition' : 'internal', err.message);
   }
 });
 
@@ -188,7 +190,7 @@ export const stripeWebhook = onRequest(async (req, res) => {
 
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object as Stripe.Checkout.Session;
-    const orderId = session.payment_intent_data?.metadata?.orderId as string;
+    const orderId = (session as any).metadata?.orderId;
 
     if (orderId) {
       await admin.firestore().doc(`orders/${orderId}`).update({
@@ -200,21 +202,4 @@ export const stripeWebhook = onRequest(async (req, res) => {
   }
 
   res.json({ received: true });
-});
-
-export const onPaymentSuccess = onDocumentCreated('paymentTransactions/{transactionId}', async (event) => {
-  const snapshot = event.data;
-  if (!snapshot) return;
-  const data = snapshot.data();
-  if (data.status === 'Success' && data.buyerProfileId) {
-    const buyerProfileRef = admin.firestore().doc(`users/${data.buyerProfileId}/buyerProfile`);
-    try {
-      await buyerProfileRef.update({
-        subscriberStatus: true,
-        updatedAt: admin.firestore.FieldValue.serverTimestamp()
-      });
-    } catch (err) {
-      console.error("Promotion failed:", err);
-    }
-  }
 });
