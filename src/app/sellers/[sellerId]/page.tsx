@@ -1456,7 +1456,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                   <FormItem><FormLabel className="text-[10px] font-black uppercase">Staff Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={staffForm.control} name="role" render={({ field }) => (
-                  <FormItem><FormLabel className="text-[10px] font-black uppercase">Primary Role</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="Driver">Driver</SelectItem><SelectItem value="Server">Server</SelectItem><SelectItem value="Manager">Venue Manager</SelectItem></SelectContent></Select></FormItem>
+                  <FormItem><FormLabel className="text-[10px] font-black uppercase">Primary Role</TableLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="Driver">Driver</SelectItem><SelectItem value="Server">Server</SelectItem><SelectItem value="Manager">Venue Manager</SelectItem></SelectContent></Select></FormItem>
                 )} />
                 <FormField control={staffForm.control} name="pin" render={({ field }) => (
                   <FormItem>

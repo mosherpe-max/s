@@ -1,6 +1,5 @@
 
 import { onCall, HttpsError, onRequest } from 'firebase-functions/v2/https';
-import { onDocumentCreated } from 'firebase-functions/v2/firestore';
 import * as admin from 'firebase-admin';
 import Stripe from 'stripe';
 
@@ -12,21 +11,32 @@ if (!admin.apps.length) {
  * Dynamically fetches the Stripe Secret Key from Firestore config.
  */
 async function getStripeClient() {
-  const configDoc = await admin.firestore().doc('config/platform').get();
-  const config = configDoc.data();
-  
-  const secretKey = config?.stripeSecretKey || process.env.STRIPE_SECRET_KEY;
-  
-  if (!secretKey || secretKey === 'sk_test_placeholder' || secretKey === '') {
-    throw new HttpsError(
-      'failed-precondition', 
-      'Stripe is not configured. Please add your Secret Key in the KOOP Admin > System panel.'
-    );
+  try {
+    const configDoc = await admin.firestore().doc('config/platform').get();
+    if (!configDoc.exists) {
+      throw new HttpsError(
+        'failed-precondition', 
+        'System configuration missing. Please set up Stripe in KOOP Admin > System.'
+      );
+    }
+    
+    const config = configDoc.data();
+    const secretKey = config?.stripeSecretKey || process.env.STRIPE_SECRET_KEY;
+    
+    if (!secretKey || secretKey === 'sk_test_placeholder' || secretKey === '') {
+      throw new HttpsError(
+        'failed-precondition', 
+        'Stripe API keys are not configured. Please add them in the KOOP Admin > System panel.'
+      );
+    }
+    
+    return new Stripe(secretKey, {
+      apiVersion: '2025-01-27.acacia',
+    });
+  } catch (err: any) {
+    if (err instanceof HttpsError) throw err;
+    throw new HttpsError('internal', 'Failed to initialize Stripe client: ' + err.message);
   }
-  
-  return new Stripe(secretKey, {
-    apiVersion: '2025-01-27.acacia',
-  });
 }
 
 /**
@@ -71,8 +81,8 @@ export const getStripeOnboardingLink = onCall(async (request) => {
   const { accountId, sellerId, origin } = request.data;
   if (!accountId || !sellerId) throw new HttpsError('invalid-argument', 'Missing parameters.');
 
-  // Use provided origin or fall back to request header or default
-  const baseUrl = origin || request.rawRequest.headers.origin || 'https://kooporders.com';
+  // Ensure origin is reliable for redirects
+  const baseUrl = origin || 'https://kooporders.com';
 
   try {
     const stripe = await getStripeClient();
@@ -155,7 +165,7 @@ export const createStripeCheckoutSession = onCall(async (request) => {
         transfer_data: { destination: stripeAccountId },
         metadata: { orderId, sellerId },
       },
-      return_url: `${request.rawRequest.headers.origin}/order/track?id=${orderId}&session_id={CHECKOUT_SESSION_ID}`,
+      return_url: `${baseUrl}/order/track?id=${orderId}&session_id={CHECKOUT_SESSION_ID}`,
     });
 
     await db.doc(`orders/${orderId}`).update({
