@@ -896,7 +896,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
           <Button variant="ghost" size="sm" onClick={() => scrollToSection('service-management')} className="h-8 text-[10px] font-bold uppercase tracking-widest px-3 rounded-full hover:bg-primary/10">
             <ListChecks className="mr-1.5 h-3.5 w-3.5" /> Service Menus
           </Button>
-          <Button variant="ghost" size="sm" onClick={() => scrollToSection('menu-library')} className="h-8 text-[10px] font-bold uppercase tracking-widest px-3 rounded-full hover:bg-primary/10">
+          <Button variant="ghost" size="sm" onClick={() => scrollToSection('menu-library')} className="h-8 text-[10px) font-bold uppercase tracking-widest px-3 rounded-full hover:bg-primary/10">
             <Database className="mr-1.5 h-3.5 w-3.5" /> Menu Library
           </Button>
         </nav>
@@ -1059,7 +1059,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                       </div>
                     )}
                   </div>
-                  {isTestMode && <p className="text-[9px] font-bold text-amber-600 uppercase tracking-widest">Note: Platform is currently using Stripe Sandbox credentials.</p>}
                 </div>
               </div>
             </CardContent>

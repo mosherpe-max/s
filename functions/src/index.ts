@@ -125,7 +125,7 @@ export const getStripeDashboardLink = onCall(async (request) => {
  * Creates a Checkout Session for a patron.
  */
 export const createStripeCheckoutSession = onCall(async (request) => {
-  const { orderId, sellerId, stripeAccountId } = request.data;
+  const { orderId, sellerId, stripeAccountId, origin } = request.data;
   if (!orderId || !sellerId || !stripeAccountId) throw new HttpsError('invalid-argument', 'Missing parameters.');
 
   try {
@@ -142,6 +142,7 @@ export const createStripeCheckoutSession = onCall(async (request) => {
 
     const orderData = orderDoc.data()!;
     const sellerData = sellerDoc.data()!;
+    const baseUrl = origin || 'https://kooporders.com';
 
     const convenienceFeeCents = Math.round(orderData.serviceFee * 100);
     const koopOffsetCents = sellerData.koopFeeOffsetCents || 0;
@@ -169,7 +170,6 @@ export const createStripeCheckoutSession = onCall(async (request) => {
         transfer_data: { destination: stripeAccountId },
         metadata: { orderId, sellerId },
       },
-      // Using metadata to reconstruct return URL in webhook or dynamic context if needed
       return_url: `${baseUrl}/order/track?id=${orderId}&session_id={CHECKOUT_SESSION_ID}`,
     });
 
