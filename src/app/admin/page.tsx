@@ -5,7 +5,6 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { collection, doc, setDoc, writeBatch, serverTimestamp, deleteDoc } from 'firebase/firestore';
 import { signOut, sendPasswordResetEmail } from 'firebase/auth';
 import { useFirestore, useCollection, useMemoFirebase, useUser, useAuth, useDoc } from '@/firebase';
-import { firebaseConfig } from '@/firebase/config';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { 
@@ -31,12 +30,7 @@ import {
   LogOut,
   ChevronDown,
   Truck,
-  PieChart,
-  Trophy,
-  Target,
   Banknote,
-  CreditCard,
-  Percent,
   Settings,
   Eye,
   EyeOff,
@@ -45,16 +39,6 @@ import {
   FlaskConical
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { 
-  AlertDialog, 
-  AlertDialogAction, 
-  AlertDialogCancel, 
-  AlertDialogContent, 
-  AlertDialogDescription, 
-  AlertDialogFooter, 
-  AlertDialogHeader, 
-  AlertDialogTitle 
-} from '@/components/ui/alert-dialog';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -72,8 +56,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { Seller, Order, Prospect, AdminUser, PlatformConfig } from '@/lib/types';
-import { sellerTypes, categories } from '@/lib/types';
-import { publicGolfItems, privateGolfItems, bowlingAlleyItems } from '@/lib/data';
+import { sellerTypes } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { cn, SUPER_ADMIN_ID } from '@/lib/utils';
 import Link from 'next/link';
@@ -160,12 +143,19 @@ export default function KOOPAdminPage() {
   const isVerifying = isUserLoading || (isRoleCheckLoading && !isHardcodedSuperAdmin);
   const isAuthorized = isHardcodedSuperAdmin || !!platformRoleMarker;
 
-  // Platform Config
+  // Platform Config (Split into Public and Private)
   const configRef = useMemoFirebase(() => {
     if (!firestore || !isAuthorized) return null;
     return doc(firestore, 'config', 'platform');
   }, [firestore, isAuthorized]);
-  const { data: config, isLoading: isConfigLoading } = useDoc<PlatformConfig>(configRef);
+  const { data: config } = useDoc<any>(configRef);
+
+  const privateConfigRef = useMemoFirebase(() => {
+    // ONLY Super Admin can read the secrets doc
+    if (!firestore || !isHardcodedSuperAdmin) return null;
+    return doc(firestore, 'config', 'platform_private');
+  }, [firestore, isHardcodedSuperAdmin]);
+  const { data: privateConfig } = useDoc<any>(privateConfigRef);
 
   useEffect(() => {
     if (!isUserLoading && !user) {
@@ -255,24 +245,38 @@ export default function KOOPAdminPage() {
   });
 
   useEffect(() => {
-    if (config) {
+    if (config || privateConfig) {
       systemForm.reset({
-        stripePublishableKey: config.stripePublishableKey || '',
-        stripeSecretKey: config.stripeSecretKey || '',
-        stripeWebhookSecret: config.stripeWebhookSecret || '',
+        stripePublishableKey: config?.stripePublishableKey || '',
+        stripeSecretKey: privateConfig?.stripeSecretKey || '',
+        stripeWebhookSecret: privateConfig?.stripeWebhookSecret || '',
       });
     }
-  }, [config, systemForm]);
+  }, [config, privateConfig, systemForm]);
 
   const onSaveSystem = async (data: SystemFormData) => {
     if (!firestore || !isAuthorized) return;
     setIsSaving(true);
     try {
-      await setDoc(doc(firestore, 'config', 'platform'), {
-        ...data,
+      const batch = writeBatch(firestore);
+      
+      // 1. Save Public Key (Accessible by all signed-in users)
+      batch.set(doc(firestore, 'config', 'platform'), {
+        stripePublishableKey: data.stripePublishableKey,
         updatedAt: serverTimestamp(),
       }, { merge: true });
-      toast({ title: "System Config Updated", description: "Stripe API keys are now active platform-wide." });
+
+      // 2. Save Secrets (Accessible ONLY by Super Admin)
+      if (isHardcodedSuperAdmin) {
+        batch.set(doc(firestore, 'config', 'platform_private'), {
+          stripeSecretKey: data.stripeSecretKey,
+          stripeWebhookSecret: data.stripeWebhookSecret,
+          updatedAt: serverTimestamp(),
+        }, { merge: true });
+      }
+
+      await batch.commit();
+      toast({ title: "System Config Updated", description: "API keys have been securely distributed." });
     } catch (e: any) {
       toast({ variant: "destructive", title: "Update Failed", description: e.message });
     } finally {
@@ -306,7 +310,6 @@ export default function KOOPAdminPage() {
 
   const handleEditSeller = (seller: Seller) => {
     setEditingSeller(seller);
-    // Populate form with existing venue data
     form.reset({
       courseName: seller.courseName || '',
       type: seller.type || 'Public Golf Course',
@@ -332,11 +335,9 @@ export default function KOOPAdminPage() {
   const onSave = async (data: SellerFormData) => {
     if (!firestore || !isAuthorized) return;
     setIsSaving(true);
-    // Preserving existing ID if editing, otherwise generating one
     const sellerId = editingSeller ? editingSeller.id : data.courseName.toLowerCase().replace(/\s+/g, '-');
-    const batch = writeBatch(firestore);
     
-    batch.set(doc(firestore, 'sellers', sellerId), { 
+    await setDoc(doc(firestore, 'sellers', sellerId), { 
       ...data, 
       id: sellerId,
       createdAt: editingSeller?.createdAt || new Date().toISOString(),
@@ -344,12 +345,11 @@ export default function KOOPAdminPage() {
       qrCodeUrl: editingSeller?.qrCodeUrl || `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${window.location.origin}/sellers/${sellerId}/order`
     }, { merge: true });
     
-    batch.commit().then(() => {
-      toast({ title: editingSeller ? 'Venue Updated' : 'Venue Registered' });
-      setIsFormOpen(false);
-      setEditingSeller(null);
-      form.reset();
-    }).finally(() => setIsSaving(false));
+    toast({ title: editingSeller ? 'Venue Updated' : 'Venue Registered' });
+    setIsFormOpen(false);
+    setEditingSeller(null);
+    form.reset();
+    setIsSaving(false);
   };
 
   const handleSendResetLink = async (email: string) => {
@@ -480,7 +480,7 @@ export default function KOOPAdminPage() {
                 <TableRow>
                   <TableHead className="text-[10px] font-black uppercase">User Profile</TableHead>
                   <TableHead className="text-[10px] font-black uppercase">Platform Role</TableHead>
-                  <TableHead className="text-[10px] font-black uppercase text-right">Actions</TableHead>
+                  <TableHead className="text-[10px) font-black uppercase text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -528,30 +528,50 @@ export default function KOOPAdminPage() {
                       <FormItem>
                         <FormLabel className="text-[10px] font-black uppercase">Secret Key</FormLabel>
                         <div className="relative">
-                          <FormControl><Input {...field} type={showSecret ? "text" : "password"} placeholder="sk_live_..." className="font-mono text-xs border-2 pr-10" /></FormControl>
-                          <Button 
-                            type="button" 
-                            variant="ghost" 
-                            size="icon" 
-                            className="absolute right-0 top-0 h-full text-muted-foreground"
-                            onClick={() => setShowSecret(!showSecret)}
-                          >
-                            {showSecret ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                          </Button>
+                          <FormControl>
+                            <Input 
+                              {...field} 
+                              type={showSecret ? "text" : "password"} 
+                              placeholder={isHardcodedSuperAdmin ? "sk_live_..." : "••••••••••••••••"} 
+                              className="font-mono text-xs border-2 pr-10" 
+                              disabled={!isHardcodedSuperAdmin}
+                            />
+                          </FormControl>
+                          {isHardcodedSuperAdmin && (
+                            <Button 
+                              type="button" 
+                              variant="ghost" 
+                              size="icon" 
+                              className="absolute right-0 top-0 h-full text-muted-foreground"
+                              onClick={() => setShowSecret(!showSecret)}
+                            >
+                              {showSecret ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                            </Button>
+                          )}
                         </div>
-                        <FormDescription className="text-[8px] uppercase font-bold text-red-600">Restricted: Critical platform secret.</FormDescription>
+                        <FormDescription className="text-[8px] uppercase font-bold text-red-600">
+                          {isHardcodedSuperAdmin ? 'Restricted: Critical platform secret.' : 'Only Super Admins can manage secret keys.'}
+                        </FormDescription>
                       </FormItem>
                     )} />
 
                     <FormField control={systemForm.control} name="stripeWebhookSecret" render={({ field }) => (
                       <FormItem>
                         <FormLabel className="text-[10px] font-black uppercase">Webhook Signing Secret</FormLabel>
-                        <FormControl><Input {...field} type="password" placeholder="whsec_..." className="font-mono text-xs border-2" /></FormControl>
+                        <FormControl>
+                          <Input 
+                            {...field} 
+                            type="password" 
+                            placeholder={isHardcodedSuperAdmin ? "whsec_..." : "••••••••••••••••"} 
+                            className="font-mono text-xs border-2" 
+                            disabled={!isHardcodedSuperAdmin}
+                          />
+                        </FormControl>
                         <FormDescription className="text-[8px] uppercase">Used to verify payment success notifications.</FormDescription>
                       </FormItem>
                     )} />
 
-                    <Button type="submit" disabled={isSaving} className="w-full h-12 bg-[#635BFF] hover:bg-[#4b45e0] font-black uppercase tracking-widest gap-2">
+                    <Button type="submit" disabled={isSaving || !isHardcodedSuperAdmin} className="w-full h-12 bg-[#635BFF] hover:bg-[#4b45e0] font-black uppercase tracking-widest gap-2">
                       {isSaving ? <Loader2 className="h-5 w-5 animate-spin" /> : <Save className="h-5 w-5" />}
                       Update API Config
                     </Button>
@@ -587,7 +607,6 @@ export default function KOOPAdminPage() {
                       <FormField control={form.control} name="status" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase">Status</FormLabel><FormControl><select {...field} className="w-full h-11 border-2 rounded-md px-3 text-sm font-bold bg-background"><option value="Active">Active</option><option value="Inactive">Inactive</option></select></FormControl></FormItem>)} />
                     </div>
 
-                    {/* Dynamic lane input for Bowling Alleys */}
                     {form.watch('type') === 'Bowling Alley' && (
                       <FormField
                         control={form.control}

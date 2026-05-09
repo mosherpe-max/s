@@ -76,9 +76,19 @@ service cloud.firestore {
     }
 
     /**
-     * @description Global system configuration. Only accessible by Super Admin.
+     * @description Global system configuration. 
+     * Read: Any signed in user (required for Stripe Publishable Key).
+     * Write: Super Admin only.
      */
     match /config/platform {
+      allow read: if isSignedIn();
+      allow write: if isSuperAdmin();
+    }
+
+    /**
+     * @description Sensitive platform secrets. Only accessible by Super Admin and Server.
+     */
+    match /config/platform_private {
       allow read, write: if isSuperAdmin();
     }
 

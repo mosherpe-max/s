@@ -9,19 +9,23 @@ if (!admin.apps.length) {
 
 /**
  * Dynamically fetches the Stripe Secret Key from Firestore config.
+ * Checks platform_private first, falls back to platform for legacy or env vars.
  */
 async function getStripeClient() {
   try {
-    const configDoc = await admin.firestore().doc('config/platform').get();
-    if (!configDoc.exists) {
-      throw new HttpsError(
-        'failed-precondition', 
-        'System configuration missing. Please set up Stripe in KOOP Admin > System.'
-      );
-    }
+    const db = admin.firestore();
+    const [privateDoc, publicDoc] = await Promise.all([
+      db.doc('config/platform_private').get(),
+      db.doc('config/platform').get()
+    ]);
+
+    const privateData = privateDoc.data();
+    const publicData = publicDoc.data();
     
-    const config = configDoc.data();
-    const secretKey = config?.stripeSecretKey || process.env.STRIPE_SECRET_KEY;
+    // Check private config first (the new secure location)
+    // Then check public config (for legacy support during migration)
+    // Finally fallback to environment variables
+    const secretKey = privateData?.stripeSecretKey || publicData?.stripeSecretKey || process.env.STRIPE_SECRET_KEY;
     
     if (!secretKey || secretKey === 'sk_test_placeholder' || secretKey === '') {
       throw new HttpsError(
@@ -165,6 +169,7 @@ export const createStripeCheckoutSession = onCall(async (request) => {
         transfer_data: { destination: stripeAccountId },
         metadata: { orderId, sellerId },
       },
+      // Using metadata to reconstruct return URL in webhook or dynamic context if needed
       return_url: `${baseUrl}/order/track?id=${orderId}&session_id={CHECKOUT_SESSION_ID}`,
     });
 
@@ -188,7 +193,7 @@ export const stripeWebhook = onRequest(async (req, res) => {
 
   try {
     const stripe = await getStripeClient();
-    const configDoc = await admin.firestore().doc('config/platform').get();
+    const configDoc = await admin.firestore().doc('config/platform_private').get();
     const webhookSecret = configDoc.data()?.stripeWebhookSecret || process.env.STRIPE_WEBHOOK_SECRET || '';
     
     event = stripe.webhooks.constructEvent(req.rawBody, sig, webhookSecret);
