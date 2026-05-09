@@ -77,11 +77,11 @@ service cloud.firestore {
 
     /**
      * @description Global system configuration. 
-     * Read: Any signed in user (required for Stripe Publishable Key).
+     * Read: Public (Required for Stripe Publishable Key to initialize checkout).
      * Write: Super Admin only.
      */
     match /config/platform {
-      allow read: if isSignedIn();
+      allow read: if true;
       allow write: if isSuperAdmin();
     }
 

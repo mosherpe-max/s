@@ -145,9 +145,9 @@ export default function KOOPAdminPage() {
 
   // Platform Config (Split into Public and Private)
   const configRef = useMemoFirebase(() => {
-    if (!firestore || !isAuthorized) return null;
+    if (!firestore) return null;
     return doc(firestore, 'config', 'platform');
-  }, [firestore, isAuthorized]);
+  }, [firestore]);
   const { data: config } = useDoc<any>(configRef);
 
   const privateConfigRef = useMemoFirebase(() => {
@@ -260,7 +260,7 @@ export default function KOOPAdminPage() {
     try {
       const batch = writeBatch(firestore);
       
-      // 1. Save Public Key (Accessible by all signed-in users)
+      // 1. Save Public Key (Accessible by all users including unauthenticated patrons)
       batch.set(doc(firestore, 'config', 'platform'), {
         stripePublishableKey: data.stripePublishableKey,
         updatedAt: serverTimestamp(),
@@ -520,7 +520,7 @@ export default function KOOPAdminPage() {
                       <FormItem>
                         <FormLabel className="text-[10px] font-black uppercase">Publishable Key</FormLabel>
                         <FormControl><Input {...field} placeholder="pk_live_..." className="font-mono text-xs border-2" /></FormControl>
-                        <FormDescription className="text-[8px] uppercase">Public identifier for the Koop platform.</FormDescription>
+                        <FormDescription className="text-[8px] uppercase">Public identifier for the Koop platform. Safe for public read access.</FormDescription>
                       </FormItem>
                     )} />
                     
@@ -550,7 +550,7 @@ export default function KOOPAdminPage() {
                           )}
                         </div>
                         <FormDescription className="text-[8px] uppercase font-bold text-red-600">
-                          {isHardcodedSuperAdmin ? 'Restricted: Critical platform secret.' : 'Only Super Admins can manage secret keys.'}
+                          {isHardcodedSuperAdmin ? 'Restricted: Critical platform secret. Stored in platform_private.' : 'Only Super Admins can manage secret keys.'}
                         </FormDescription>
                       </FormItem>
                     )} />

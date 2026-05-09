@@ -1524,7 +1524,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                     <button key={item.id} className={cn("flex items-center justify-between p-4 rounded-2xl border-2 transition-all group", isSelected ? "border-primary bg-primary/5 shadow-sm" : "border-muted hover:border-primary/30")} onClick={() => handleToggleMenuItemAvailability(item, pickingMenuType)}>
                       <div className="flex items-center gap-4">
                         <div className={cn("w-6 h-6 rounded-full border-2 flex items-center justify-center", isSelected ? "bg-primary border-primary" : "bg-background border-muted-foreground/20")}>
-                          {isSelected && <Check className="h-3.5 w-3.5 text-white" />}
+                          {isSelected && <Check className="h-3.5 w-3 text-white" />}
                         </div>
                         <div className="text-left">
                           <p className="font-bold text-sm leading-tight">{item.name}</p>
