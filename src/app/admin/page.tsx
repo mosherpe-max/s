@@ -70,7 +70,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDes
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/tabs";
 import type { Seller, Order, Prospect, AdminUser, PlatformConfig } from '@/lib/types';
 import { sellerTypes, categories } from '@/lib/types';
 import { publicGolfItems, privateGolfItems, bowlingAlleyItems } from '@/lib/data';
@@ -304,9 +304,35 @@ export default function KOOPAdminPage() {
     setIsFormOpen(true);
   };
 
+  const handleEditSeller = (seller: Seller) => {
+    setEditingSeller(seller);
+    // Populate form with existing venue data
+    form.reset({
+      courseName: seller.courseName || '',
+      type: seller.type || 'Public Golf Course',
+      contactName: seller.contactName || '',
+      contactEmail: seller.contactEmail || '',
+      contactPhone: seller.contactPhone || '',
+      streetAddress: seller.streetAddress || '',
+      city: seller.city || '',
+      state: seller.state || '',
+      zip: seller.zip || '',
+      serviceFee: seller.serviceFee || 0,
+      taxRate: seller.taxRate || 0,
+      koopFeeOffsetCents: seller.koopFeeOffsetCents || 0,
+      launchFee: seller.launchFee || 0,
+      monthlyPlatformFee: seller.monthlyPlatformFee || 0,
+      status: seller.status || 'Active',
+      laneCount: seller.laneCount || 0,
+      menuTypes: seller.menuTypes || [],
+    });
+    setIsFormOpen(true);
+  };
+
   const onSave = async (data: SellerFormData) => {
     if (!firestore || !isAuthorized) return;
     setIsSaving(true);
+    // Preserving existing ID if editing, otherwise generating one
     const sellerId = editingSeller ? editingSeller.id : data.courseName.toLowerCase().replace(/\s+/g, '-');
     const batch = writeBatch(firestore);
     
@@ -319,7 +345,7 @@ export default function KOOPAdminPage() {
     }, { merge: true });
     
     batch.commit().then(() => {
-      toast({ title: sellerId ? 'Venue Updated' : 'Venue Registered' });
+      toast({ title: editingSeller ? 'Venue Updated' : 'Venue Registered' });
       setIsFormOpen(false);
       setEditingSeller(null);
       form.reset();
@@ -427,7 +453,7 @@ export default function KOOPAdminPage() {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
-                          <Button variant="ghost" size="icon" onClick={() => { setEditingSeller(seller); setIsFormOpen(true); }} className="h-8 w-8"><Edit className="h-4 w-4" /></Button>
+                          <Button variant="ghost" size="icon" onClick={() => handleEditSeller(seller)} className="h-8 w-8"><Edit className="h-4 w-4" /></Button>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild><Button variant="ghost" size="sm" className="h-8 text-[10px] font-black uppercase gap-1.5 px-3 bg-muted/20">Impersonate <ChevronDown className="h-3 w-3" /></Button></DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="w-56 shadow-xl border-2">
@@ -560,6 +586,23 @@ export default function KOOPAdminPage() {
                       <FormField control={form.control} name="type" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase">Category</FormLabel><FormControl><select {...field} className="w-full h-11 border-2 rounded-md px-3 text-sm font-bold bg-background">{sellerTypes.map(t => <option key={t} value={t}>{t}</option>)}</select></FormControl></FormItem>)} />
                       <FormField control={form.control} name="status" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase">Status</FormLabel><FormControl><select {...field} className="w-full h-11 border-2 rounded-md px-3 text-sm font-bold bg-background"><option value="Active">Active</option><option value="Inactive">Inactive</option></select></FormControl></FormItem>)} />
                     </div>
+
+                    {/* Dynamic lane input for Bowling Alleys */}
+                    {form.watch('type') === 'Bowling Alley' && (
+                      <FormField
+                        control={form.control}
+                        name="laneCount"
+                        render={({ field }) => (
+                          <FormItem className="animate-in slide-in-from-top-2 duration-300">
+                            <FormLabel className="text-[10px] font-black uppercase">Number of Lanes</FormLabel>
+                            <FormControl>
+                              <Input type="number" {...field} className="h-11 border-2 font-bold" />
+                            </FormControl>
+                            <FormDescription className="text-[8px] uppercase">Required to enable per-lane ordering at checkout.</FormDescription>
+                          </FormItem>
+                        )}
+                      />
+                    )}
                   </div>
 
                   <div className="space-y-4">
