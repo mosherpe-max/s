@@ -22,9 +22,6 @@ async function getStripeClient() {
     const privateData = privateDoc.data();
     const publicData = publicDoc.data();
     
-    // Check private config first (the new secure location)
-    // Then check public config (for legacy support during migration)
-    // Finally fallback to environment variables
     const secretKey = privateData?.stripeSecretKey || publicData?.stripeSecretKey || process.env.STRIPE_SECRET_KEY;
     
     if (!secretKey) {

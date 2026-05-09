@@ -582,29 +582,32 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     const origin = window.location.origin;
     
     try {
+      // 1. Check for existing ID
       let accountId = seller.stripeAccountId;
       
       if (!accountId) {
+        // Create only if missing
         const createAcc = httpsCallable(functions, 'createStripeConnectAccount');
         const accResult = await createAcc({ sellerId, email: seller.contactEmail });
         accountId = (accResult.data as any).accountId;
       }
 
-      if (seller.stripeOnboardingComplete) {
+      // 2. Route based on state
+      if (seller.stripeOnboardingComplete && accountId) {
         const getDashboard = httpsCallable(functions, 'getStripeDashboardLink');
         const dashboardResult = await getDashboard({ accountId });
         window.location.href = (dashboardResult.data as any).url;
-      } else {
+      } else if (accountId) {
         const getLink = httpsCallable(functions, 'getStripeOnboardingLink');
         const linkResult = await getLink({ accountId, sellerId, origin });
         window.location.href = (linkResult.data as any).url;
       }
     } catch (err: any) {
-      console.error('Stripe Onboarding Details:', err);
+      console.error('Stripe Connection Details:', err);
       toast({ 
         variant: 'destructive', 
-        title: 'Onboarding Failed', 
-        description: err.message || 'Check project logs for details.' 
+        title: 'Connection Failed', 
+        description: err.message || 'Verification of platform credentials failed.' 
       });
     } finally {
       setIsOnboardingStripe(false);
@@ -971,7 +974,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                   <AlertTriangle className="h-4 w-4" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-[10px) font-black uppercase tracking-widest text-muted-foreground truncate">Alerts</p>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground truncate">Alerts</p>
                   <p className="text-sm font-black font-headline text-destructive">{opsMetrics?.selected?.exceededCount || 0}</p>
                 </div>
               </div>
@@ -1090,7 +1093,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                   <TableHead className="text-[10px] font-black uppercase">Staff Member</TableHead>
                   <TableHead className="text-[10px] font-black uppercase">Primary Role</TableHead>
                   <TableHead className="text-[10px] font-black uppercase text-center">4-Digit PIN</TableHead>
-                  <TableHead className="text-[10px] font-black uppercase text-right">Actions</TableHead>
+                  <TableHead className="text-[10px) font-black uppercase text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
