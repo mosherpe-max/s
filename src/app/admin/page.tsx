@@ -67,6 +67,7 @@ const sellerSchema = z.object({
   type: z.enum(['Private Golf Course', 'Semi Private Golf Course', 'Public Golf Course', 'Bowling Alley', 'Brewery', 'Restaurant']),
   contactName: z.string().min(2, 'Contact name required'),
   contactEmail: z.string().email('Invalid email'),
+  contactName: z.string().min(2, 'Contact name required'),
   contactPhone: z.string().min(10, 'Valid phone required'),
   streetAddress: z.string().min(5, 'Address required'),
   city: z.string().min(2, 'City required'),
@@ -625,7 +626,7 @@ export default function KOOPAdminPage() {
                   </div>
 
                   <div className="space-y-4">
-                    <div className="flex items-center gap-2 mb-2 border-b pb-2"><MapPin className="h-4 w-4 text-primary" /><h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Location</h3></div>
+                    <div className="flex items-center gap-2 mb-2 border-b pb-2"><MapPin className="h-4 w-4 text-primary" /><h3 className="text-[10px) font-black uppercase tracking-[0.2em] text-muted-foreground">Location</h3></div>
                     <FormField control={form.control} name="streetAddress" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase">Street</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>)} />
                     <div className="grid grid-cols-3 gap-4">
                       <FormField control={form.control} name="city" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase">City</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>)} />

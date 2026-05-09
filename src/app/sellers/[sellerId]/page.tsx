@@ -600,7 +600,12 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
         window.location.href = (linkResult.data as any).url;
       }
     } catch (err: any) {
-      toast({ variant: 'destructive', title: 'Onboarding Failed', description: err.message });
+      console.error('Stripe Onboarding Details:', err);
+      toast({ 
+        variant: 'destructive', 
+        title: 'Onboarding Failed', 
+        description: err.message || 'Check project logs for details.' 
+      });
     } finally {
       setIsOnboardingStripe(false);
     }
@@ -896,7 +901,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
           <Button variant="ghost" size="sm" onClick={() => scrollToSection('service-management')} className="h-8 text-[10px] font-bold uppercase tracking-widest px-3 rounded-full hover:bg-primary/10">
             <ListChecks className="mr-1.5 h-3.5 w-3.5" /> Service Menus
           </Button>
-          <Button variant="ghost" size="sm" onClick={() => scrollToSection('menu-library')} className="h-8 text-[10px) font-bold uppercase tracking-widest px-3 rounded-full hover:bg-primary/10">
+          <Button variant="ghost" size="sm" onClick={() => scrollToSection('menu-library')} className="h-8 text-[10px] font-bold uppercase tracking-widest px-3 rounded-full hover:bg-primary/10">
             <Database className="mr-1.5 h-3.5 w-3.5" /> Menu Library
           </Button>
         </nav>
