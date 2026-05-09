@@ -41,7 +41,8 @@ import {
   Eye,
   EyeOff,
   Save,
-  Globe
+  Globe,
+  FlaskConical
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { 
@@ -143,7 +144,6 @@ export default function KOOPAdminPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingSeller, setEditingSeller] = useState<Seller | null>(null);
   const [isSaving, setIsSaving] = useState(false);
-  const [isBootstrapping, setIsBootstrapping] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [showSecret, setShowSecret] = useState(false);
 
@@ -219,6 +219,8 @@ export default function KOOPAdminPage() {
       s.id.toLowerCase().includes(term)
     );
   }, [sellers, searchTerm]);
+
+  const isTestMode = config?.stripePublishableKey?.startsWith('pk_test_');
 
   const form = useForm<SellerFormData>({
     resolver: zodResolver(sellerSchema),
@@ -324,6 +326,16 @@ export default function KOOPAdminPage() {
     }).finally(() => setIsSaving(false));
   };
 
+  const handleSendResetLink = async (email: string) => {
+    if (!auth) return;
+    try {
+      await sendPasswordResetEmail(auth, email);
+      toast({ title: "Reset Link Sent", description: `Authorization email sent to ${email}` });
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Request Failed", description: err.message });
+    }
+  };
+
   if (isVerifying) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen">
@@ -355,6 +367,7 @@ export default function KOOPAdminPage() {
           <div className="flex items-center gap-3">
             <h1 className="font-headline text-3xl font-bold text-[#213147] uppercase tracking-tight">KOOP ADMIN</h1>
             <Badge className="bg-primary/10 text-primary border-primary/20 uppercase text-[10px] font-black">Authorized Portal</Badge>
+            {isTestMode && <Badge variant="outline" className="bg-amber-50 text-amber-600 border-amber-200 uppercase text-[10px] font-black gap-1.5"><FlaskConical className="h-3 w-3" /> Test Mode Active</Badge>}
           </div>
           <p className="text-muted-foreground text-sm">Platform oversight and system configuration.</p>
         </div>
@@ -465,8 +478,11 @@ export default function KOOPAdminPage() {
               <CardHeader className="bg-[#635BFF]/5 border-b">
                 <div className="flex items-center gap-3">
                   <div className="bg-[#635BFF] p-2 rounded-lg"><Zap className="h-5 w-5 text-white" /></div>
-                  <div>
-                    <CardTitle className="text-lg font-black uppercase tracking-tight">Stripe Platform Credentials</CardTitle>
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-lg font-black uppercase tracking-tight">Stripe Platform Credentials</CardTitle>
+                      {isTestMode && <Badge className="bg-amber-500 text-white uppercase text-[8px] font-black">Test Mode</Badge>}
+                    </div>
                     <CardDescription className="text-xs uppercase font-bold text-slate-500">Configure global API keys for payment routing.</CardDescription>
                   </div>
                 </div>

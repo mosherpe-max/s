@@ -50,7 +50,8 @@ import {
   Pencil,
   CreditCard,
   Zap,
-  CheckCircle2
+  CheckCircle2,
+  FlaskConical
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -103,7 +104,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
-import type { MenuItem, Seller, Category, Order, ModifierGroup, ModifierOption, StaffMember } from '@/lib/types';
+import type { MenuItem, Seller, Category, Order, ModifierGroup, ModifierOption, StaffMember, PlatformConfig } from '@/lib/types';
 import { categories } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { errorEmitter } from '@/firebase/error-emitter';
@@ -456,6 +457,11 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   const isPlatformAdmin = isHardcodedSuperAdmin || !!platformRole;
   const isVenueAdmin = sellerRole?.sellerId === sellerId;
   const hasAccess = isPlatformAdmin || isVenueAdmin;
+
+  const configRef = useMemoFirebase(() => (firestore ? doc(firestore, 'config', 'platform') : null), [firestore]);
+  const { data: platformConfig } = useDoc<PlatformConfig>(configRef);
+
+  const isTestMode = platformConfig?.stripePublishableKey?.startsWith('pk_test_');
 
   useEffect(() => {
     setIsMounted(true);
@@ -860,7 +866,10 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
         <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 text-center md:text-left">
           <div className="flex-1">
             <h1 className="font-headline text-3xl font-bold text-foreground uppercase tracking-tight">ESTABLISHMENT ADMIN</h1>
-            <p className="text-muted-foreground">{isSellerLoading ? 'Loading...' : seller?.courseName}</p>
+            <div className="flex items-center justify-center md:justify-start gap-2">
+              <p className="text-muted-foreground">{isSellerLoading ? 'Loading...' : seller?.courseName}</p>
+              {isTestMode && <Badge variant="outline" className="bg-amber-50 text-amber-600 border-amber-200 text-[9px] font-black uppercase h-5"><FlaskConical className="h-2.5 w-2.5 mr-1" /> Test mode active</Badge>}
+            </div>
           </div>
           <div className="flex items-center gap-3 self-center md:self-auto">
              <Button variant="ghost" onClick={handleLogout} className="h-9 text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-destructive hover:bg-destructive/5 mr-2">
@@ -1021,10 +1030,13 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                 </div>
                 <div className="flex-1 space-y-4 text-center md:text-left">
                   <div>
-                    <h3 className="font-headline text-2xl font-black uppercase text-[#213147] tracking-tight">
-                      {seller?.stripeAccountId ? 'Stripe Account Connected' : 'Activate Digital Payments'}
-                    </h3>
-                    <p className="text-sm text-slate-600 max-w-lg leading-relaxed">
+                    <div className="flex items-center justify-center md:justify-start gap-3">
+                      <h3 className="font-headline text-2xl font-black uppercase text-[#213147] tracking-tight">
+                        {seller?.stripeAccountId ? 'Stripe Account Connected' : 'Activate Digital Payments'}
+                      </h3>
+                      {isTestMode && <Badge className="bg-amber-100 text-amber-700 border-amber-200 uppercase text-[9px] font-black">Test Mode</Badge>}
+                    </div>
+                    <p className="text-sm text-slate-600 max-w-lg leading-relaxed mt-2">
                       Connect your venue to Stripe to enable real-time mobile ordering and secure digital payments. Funds are transferred directly to your bank account.
                     </p>
                   </div>
@@ -1046,6 +1058,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                       </div>
                     )}
                   </div>
+                  {isTestMode && <p className="text-[9px] font-bold text-amber-600 uppercase tracking-widest">Note: Platform is currently using Stripe Sandbox credentials.</p>}
                 </div>
               </div>
             </CardContent>

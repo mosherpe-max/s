@@ -30,7 +30,8 @@ import {
   Minus,
   Check,
   Pencil,
-  CreditCard
+  CreditCard,
+  FlaskConical
 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useCart } from '@/lib/cart-context';
@@ -189,14 +190,16 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
   const { data: seller, isLoading: isSellerLoading } = useDoc<Seller>(sellerRef);
 
   const configRef = useMemoFirebase(() => (firestore ? doc(firestore, 'config', 'platform') : null), [firestore]);
-  const { data: config } = useDoc<PlatformConfig>(configRef);
+  const { data: platformConfig } = useDoc<PlatformConfig>(configRef);
+
+  const isTestMode = platformConfig?.stripePublishableKey?.startsWith('pk_test_');
 
   useEffect(() => {
-    const pk = config?.stripePublishableKey || process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
+    const pk = platformConfig?.stripePublishableKey;
     if (pk) {
       setStripePromise(loadStripe(pk));
     }
-  }, [config]);
+  }, [platformConfig]);
 
   const menuItemsQuery = useMemoFirebase(() => {
     if (!firestore || !sellerId) return null;
@@ -586,7 +589,10 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
       <Sheet open={isStripeDrawerOpen} onOpenChange={setIsStripeDrawerOpen}>
         <SheetContent side="bottom" className="rounded-t-[2.5rem] h-[90vh] flex flex-col p-0 overflow-hidden shadow-2xl">
           <SheetHeader className="px-6 py-5 border-b bg-white shrink-0">
-            <SheetTitle className="font-headline font-black uppercase text-center text-sm tracking-widest text-[#635BFF]">Secure Payment</SheetTitle>
+            <div className="flex items-center justify-between">
+              <SheetTitle className="font-headline font-black uppercase text-sm tracking-widest text-[#635BFF]">Secure Payment</SheetTitle>
+              {isTestMode && <Badge variant="outline" className="bg-amber-50 text-amber-600 border-amber-200 uppercase text-[9px] font-black h-5"><FlaskConical className="h-2.5 w-2.5 mr-1" /> Test mode</Badge>}
+            </div>
           </SheetHeader>
           <div className="flex-1 bg-white p-4">
             {stripeClientSecret && stripePromise ? (
