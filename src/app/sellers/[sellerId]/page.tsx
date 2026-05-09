@@ -104,7 +104,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
-import type { MenuItem, Seller, Category, Order, ModifierGroup, ModifierOption, StaffMember, PlatformConfig } from '@/lib/types';
+import type { MenuItem, Seller, Category, Order, ModifierGroup, ModifierOption, StaffMember } from '@/lib/types';
 import { categories } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { errorEmitter } from '@/firebase/error-emitter';
@@ -971,7 +971,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                   <AlertTriangle className="h-4 w-4" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground truncate">Alerts</p>
+                  <p className="text-[10px) font-black uppercase tracking-widest text-muted-foreground truncate">Alerts</p>
                   <p className="text-sm font-black font-headline text-destructive">{opsMetrics?.selected?.exceededCount || 0}</p>
                 </div>
               </div>

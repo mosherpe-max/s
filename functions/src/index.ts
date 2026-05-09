@@ -27,10 +27,17 @@ async function getStripeClient() {
     // Finally fallback to environment variables
     const secretKey = privateData?.stripeSecretKey || publicData?.stripeSecretKey || process.env.STRIPE_SECRET_KEY;
     
-    if (!secretKey || secretKey === 'sk_test_placeholder' || secretKey === '') {
+    if (!secretKey) {
       throw new HttpsError(
         'failed-precondition', 
-        'Stripe API keys are not configured. Please add them in the KOOP Admin > System panel.'
+        'Stripe Secret Key is missing from Firestore (config/platform_private). Please add it in KOOP Admin > System.'
+      );
+    }
+
+    if (secretKey.startsWith('pk_')) {
+      throw new HttpsError(
+        'invalid-argument',
+        'CRITICAL ERROR: A Publishable Key (pk_...) was found in the Secret Key field. Please update your Stripe Secret Key in the Admin dashboard.'
       );
     }
     
@@ -38,6 +45,7 @@ async function getStripeClient() {
       apiVersion: '2025-01-27.acacia',
     });
   } catch (err: any) {
+    console.error('Stripe Client Init Error:', err);
     if (err instanceof HttpsError) throw err;
     throw new HttpsError('internal', 'Failed to initialize Stripe client: ' + err.message);
   }
@@ -52,6 +60,8 @@ export const createStripeConnectAccount = onCall(async (request) => {
 
   try {
     const stripe = await getStripeClient();
+    
+    // Create the express account
     const account = await stripe.accounts.create({
       type: 'express',
       email: email,
@@ -59,18 +69,13 @@ export const createStripeConnectAccount = onCall(async (request) => {
         card_payments: { requested: true },
         transfers: { requested: true },
       },
-      settings: {
-        payouts: {
-          schedule: { interval: 'manual' }
-        }
-      }
     });
 
     const sellerRef = admin.firestore().doc(`sellers/${sellerId}`);
     const sellerDoc = await sellerRef.get();
     
     if (!sellerDoc.exists) {
-      throw new HttpsError('not-found', `Venue document ${sellerId} does not exist.`);
+      throw new HttpsError('not-found', `Venue document ${sellerId} does not exist in Firestore.`);
     }
 
     await sellerRef.update({
@@ -82,7 +87,6 @@ export const createStripeConnectAccount = onCall(async (request) => {
   } catch (err: any) {
     console.error('Stripe Account Creation Failed:', err);
     if (err instanceof HttpsError) throw err;
-    // Surface actual Stripe error message if available
     const message = err.raw?.message || err.message || 'Unknown Stripe error';
     throw new HttpsError('internal', message);
   }
@@ -95,7 +99,6 @@ export const getStripeOnboardingLink = onCall(async (request) => {
   const { accountId, sellerId, origin } = request.data;
   if (!accountId || !sellerId) throw new HttpsError('invalid-argument', 'Missing parameters.');
 
-  // Ensure origin is reliable for redirects
   const baseUrl = origin || 'https://kooporders.com';
 
   try {

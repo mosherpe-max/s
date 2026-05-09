@@ -55,7 +55,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import type { Seller, Order, Prospect, AdminUser, PlatformConfig } from '@/lib/types';
+import type { Seller, Order, Prospect, AdminUser } from '@/lib/types';
 import { sellerTypes } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { cn, SUPER_ADMIN_ID } from '@/lib/utils';
@@ -260,7 +260,7 @@ export default function KOOPAdminPage() {
     try {
       const batch = writeBatch(firestore);
       
-      // 1. Save Public Key (Accessible by all users including unauthenticated patrons)
+      // 1. Save Public Key
       batch.set(doc(firestore, 'config', 'platform'), {
         stripePublishableKey: data.stripePublishableKey,
         updatedAt: serverTimestamp(),
@@ -407,7 +407,7 @@ export default function KOOPAdminPage() {
         <TabsList className="bg-muted/50 p-1 h-12">
           <TabsTrigger value="operations" className="text-[10px] font-black uppercase px-8 h-10"><Activity className="mr-2 h-3.5 w-3.5" /> Operations</TabsTrigger>
           <TabsTrigger value="staff" className="text-[10px] font-black uppercase px-8 h-10"><Users className="mr-2 h-3.5 w-3.5" /> User Registry</TabsTrigger>
-          <TabsTrigger value="system" className="text-[10px) font-black uppercase px-8 h-10"><Settings className="mr-2 h-3.5 w-3.5" /> System</TabsTrigger>
+          <TabsTrigger value="system" className="text-[10px] font-black uppercase px-8 h-10"><Settings className="mr-2 h-3.5 w-3.5" /> System</TabsTrigger>
         </TabsList>
 
         <TabsContent value="operations" className="space-y-8">
