@@ -460,9 +460,9 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   const hasAccess = isPlatformAdmin || isVenueAdmin;
 
   const configRef = useMemoFirebase(() => (firestore ? doc(firestore, 'config', 'platform') : null), [firestore]);
-  const { data: platformConfig } = useDoc<PlatformConfig>(configRef);
+  const { data: config } = useDoc<any>(configRef);
 
-  const isTestMode = platformConfig?.stripePublishableKey?.startsWith('pk_test_');
+  const isTestMode = config?.stripePublishableKey?.startsWith('pk_test_');
 
   useEffect(() => {
     setIsMounted(true);

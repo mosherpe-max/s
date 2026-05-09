@@ -66,7 +66,14 @@ export const createStripeConnectAccount = onCall(async (request) => {
       }
     });
 
-    await admin.firestore().doc(`sellers/${sellerId}`).update({
+    const sellerRef = admin.firestore().doc(`sellers/${sellerId}`);
+    const sellerDoc = await sellerRef.get();
+    
+    if (!sellerDoc.exists) {
+      throw new HttpsError('not-found', `Venue document ${sellerId} does not exist.`);
+    }
+
+    await sellerRef.update({
       stripeAccountId: account.id,
       stripeOnboardingComplete: false,
     });
@@ -74,7 +81,10 @@ export const createStripeConnectAccount = onCall(async (request) => {
     return { accountId: account.id };
   } catch (err: any) {
     console.error('Stripe Account Creation Failed:', err);
-    throw new HttpsError(err.code === 'failed-precondition' ? 'failed-precondition' : 'internal', err.message);
+    if (err instanceof HttpsError) throw err;
+    // Surface actual Stripe error message if available
+    const message = err.raw?.message || err.message || 'Unknown Stripe error';
+    throw new HttpsError('internal', message);
   }
 });
 
@@ -100,7 +110,9 @@ export const getStripeOnboardingLink = onCall(async (request) => {
     return { url: accountLink.url };
   } catch (err: any) {
     console.error('Stripe Link Creation Failed:', err);
-    throw new HttpsError(err.code === 'failed-precondition' ? 'failed-precondition' : 'internal', err.message);
+    if (err instanceof HttpsError) throw err;
+    const message = err.raw?.message || err.message || 'Unknown Stripe error';
+    throw new HttpsError('internal', message);
   }
 });
 
@@ -117,7 +129,9 @@ export const getStripeDashboardLink = onCall(async (request) => {
     return { url: loginLink.url };
   } catch (err: any) {
     console.error('Stripe Dashboard Link Failed:', err);
-    throw new HttpsError(err.code === 'failed-precondition' ? 'failed-precondition' : 'internal', err.message);
+    if (err instanceof HttpsError) throw err;
+    const message = err.raw?.message || err.message || 'Unknown Stripe error';
+    throw new HttpsError('internal', message);
   }
 });
 
@@ -180,7 +194,9 @@ export const createStripeCheckoutSession = onCall(async (request) => {
     return { clientSecret: session.client_secret };
   } catch (err: any) {
     console.error('Stripe Session Creation Failed:', err);
-    throw new HttpsError(err.code === 'failed-precondition' ? 'failed-precondition' : 'internal', err.message);
+    if (err instanceof HttpsError) throw err;
+    const message = err.raw?.message || err.message || 'Unknown Stripe error';
+    throw new HttpsError('internal', message);
   }
 });
 
