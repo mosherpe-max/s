@@ -8,13 +8,19 @@ admin.initializeApp();
 
 /**
  * Dynamically fetches the Stripe Secret Key from Firestore config.
- * Falls back to environment variables for backward compatibility.
  */
 async function getStripeClient() {
   const configDoc = await admin.firestore().doc('config/platform').get();
   const config = configDoc.data();
   
-  const secretKey = config?.stripeSecretKey || process.env.STRIPE_SECRET_KEY || 'sk_test_placeholder';
+  const secretKey = config?.stripeSecretKey || process.env.STRIPE_SECRET_KEY;
+  
+  if (!secretKey || secretKey === 'sk_test_placeholder') {
+    throw new HttpsError(
+      'failed-precondition', 
+      'Stripe is not configured. Please add your Secret Key in the KOOP Admin > System panel.'
+    );
+  }
   
   return new Stripe(secretKey, {
     apiVersion: '2025-01-27.acacia',
@@ -37,6 +43,11 @@ export const createStripeConnectAccount = onCall(async (request) => {
         card_payments: { requested: true },
         transfers: { requested: true },
       },
+      settings: {
+        payouts: {
+          schedule: { interval: 'manual' }
+        }
+      }
     });
 
     await admin.firestore().doc(`sellers/${sellerId}`).update({
@@ -47,7 +58,7 @@ export const createStripeConnectAccount = onCall(async (request) => {
     return { accountId: account.id };
   } catch (err: any) {
     console.error('Stripe Account Creation Failed:', err);
-    throw new HttpsError('internal', err.message);
+    throw new HttpsError(err.code || 'internal', err.message);
   }
 });
 
@@ -55,22 +66,25 @@ export const createStripeConnectAccount = onCall(async (request) => {
  * Generates an onboarding link for a Stripe Connect account.
  */
 export const getStripeOnboardingLink = onCall(async (request) => {
-  const { accountId, sellerId } = request.data;
+  const { accountId, sellerId, origin } = request.data;
   if (!accountId || !sellerId) throw new HttpsError('invalid-argument', 'Missing parameters.');
+
+  // Use provided origin or fall back to request header
+  const baseUrl = origin || request.rawRequest.headers.origin || 'https://kooporders.com';
 
   try {
     const stripe = await getStripeClient();
     const accountLink = await stripe.accountLinks.create({
       account: accountId,
-      refresh_url: `${request.rawRequest.headers.origin}/sellers/${sellerId}?stripe=refresh`,
-      return_url: `${request.rawRequest.headers.origin}/sellers/${sellerId}?stripe=success`,
+      refresh_url: `${baseUrl}/sellers/${sellerId}?stripe=refresh`,
+      return_url: `${baseUrl}/sellers/${sellerId}?stripe=success`,
       type: 'account_onboarding',
     });
 
     return { url: accountLink.url };
   } catch (err: any) {
     console.error('Stripe Link Creation Failed:', err);
-    throw new HttpsError('internal', err.message);
+    throw new HttpsError(err.code || 'internal', err.message);
   }
 });
 
@@ -87,13 +101,12 @@ export const getStripeDashboardLink = onCall(async (request) => {
     return { url: loginLink.url };
   } catch (err: any) {
     console.error('Stripe Dashboard Link Failed:', err);
-    throw new HttpsError('internal', err.message);
+    throw new HttpsError(err.code || 'internal', err.message);
   }
 });
 
 /**
  * Creates a Checkout Session for a patron.
- * Implements Koop Revenue Sharing logic.
  */
 export const createStripeCheckoutSession = onCall(async (request) => {
   const { orderId, sellerId, stripeAccountId } = request.data;
@@ -103,7 +116,6 @@ export const createStripeCheckoutSession = onCall(async (request) => {
     const db = admin.firestore();
     const stripe = await getStripeClient();
     
-    // 1. Fetch Order and Seller data to determine shared fees
     const [orderDoc, sellerDoc] = await Promise.all([
       db.doc(`orders/${orderId}`).get(),
       db.doc(`sellers/${sellerId}`).get()
@@ -115,13 +127,10 @@ export const createStripeCheckoutSession = onCall(async (request) => {
     const orderData = orderDoc.data()!;
     const sellerData = sellerDoc.data()!;
 
-    // 2. Calculate Application Fee (Revenue Share)
-    // Koop takes (Convenience Fee - Koop Contribution)
     const convenienceFeeCents = Math.round(orderData.serviceFee * 100);
     const koopOffsetCents = sellerData.koopFeeOffsetCents || 0;
     const applicationFeeAmount = Math.max(0, convenienceFeeCents - koopOffsetCents);
 
-    // 3. Create Checkout Session
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
       ui_mode: 'embedded',
@@ -154,7 +163,7 @@ export const createStripeCheckoutSession = onCall(async (request) => {
     return { clientSecret: session.client_secret };
   } catch (err: any) {
     console.error('Stripe Session Creation Failed:', err);
-    throw new HttpsError('internal', err.message);
+    throw new HttpsError(err.code || 'internal', err.message);
   }
 });
 
@@ -193,19 +202,12 @@ export const stripeWebhook = onRequest(async (req, res) => {
   res.json({ received: true });
 });
 
-/**
- * Trigger: Automatically promotes a user to 'Subscriber' status upon successful payment record.
- */
 export const onPaymentSuccess = onDocumentCreated('paymentTransactions/{transactionId}', async (event) => {
   const snapshot = event.data;
   if (!snapshot) return;
-  
   const data = snapshot.data();
-  
   if (data.status === 'Success' && data.buyerProfileId) {
     const buyerProfileRef = admin.firestore().doc(`users/${data.buyerProfileId}/buyerProfile`);
-    
-    console.log(`Promoting user ${data.buyerProfileId} to Subscriber.`);
     try {
       await buyerProfileRef.update({
         subscriberStatus: true,

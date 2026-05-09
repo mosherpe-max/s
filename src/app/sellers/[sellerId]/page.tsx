@@ -112,7 +112,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 
 const staffSchema = z.object({
   name: z.string().min(2, 'Name required'),
-  role: z.enum(['Driver', 'Server', 'Manager']).describe('Primary role for records'),
+  role: z.enum(['Driver', 'Server', 'Manager']),
   pin: z.string().length(4, 'PIN must be 4 digits').regex(/^\d+$/, 'Numbers only'),
   isActive: z.boolean().default(true),
 });
@@ -439,7 +439,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     })
   );
 
-  // Authorization Checks
   const isHardcodedSuperAdmin = user?.uid === SUPER_ADMIN_ID || user?.email === 'mosherpe@gmail.com';
 
   const roleRef = useMemoFirebase(() => {
@@ -464,7 +463,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     window.addEventListener('scroll', handleScroll);
     const interval = setInterval(() => setNow(Date.now()), 10000);
 
-    // Detect return from Stripe Onboarding
     const stripeStatus = searchParams.get('stripe');
     if (stripeStatus === 'success') {
       toast({ 
@@ -472,7 +470,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
         description: "Your Stripe account is now linked. Digital payments are active.",
         className: "bg-green-600 text-white" 
       });
-      // Clear URL params
       router.replace(`/sellers/${sellerId}`);
     }
 
@@ -575,6 +572,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     if (!seller || !hasAccess) return;
     setIsOnboardingStripe(true);
     const functions = getFunctions(firebaseApp);
+    const origin = window.location.origin;
     
     try {
       let accountId = seller.stripeAccountId;
@@ -591,7 +589,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
         window.location.href = (dashboardResult.data as any).url;
       } else {
         const getLink = httpsCallable(functions, 'getStripeOnboardingLink');
-        const linkResult = await getLink({ accountId, sellerId });
+        const linkResult = await getLink({ accountId, sellerId, origin });
         window.location.href = (linkResult.data as any).url;
       }
     } catch (err: any) {
@@ -947,20 +945,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
           </div>
 
           <div className="mb-6 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
-            <div className="col-span-1 md:col-span-2 xl:col-span-1 bg-primary/5 rounded-xl border-2 border-primary/10 p-4 flex flex-col justify-center gap-1 shadow-sm">
-              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-primary/60 leading-none mb-1">Establishment Totals</p>
-              <div className="flex justify-between items-center px-1">
-                <div className="flex flex-col">
-                  <span className="text-[9px] font-black uppercase tracking-tight text-muted-foreground">Today's Revenue</span>
-                  <span className="text-base font-headline font-black text-primary">${(opsMetrics?.total?.revenue || 0).toFixed(2)}</span>
-                </div>
-                <div className="h-8 w-[1px] bg-primary/10" />
-                <div className="flex flex-col text-right">
-                  <span className="text-[9px] font-black uppercase tracking-tight text-muted-foreground">Alerts</span>
-                  <span className="text-base font-headline font-black text-destructive">{opsMetrics?.total?.exceededCount || 0}</span>
-                </div>
-              </div>
-            </div>
+            <OpsMetricCard label={`Today's Revenue`} value={`$${(opsMetrics?.total?.revenue || 0).toFixed(2)}`} icon={DollarSign} colorClass="text-primary bg-primary/10" />
             <OpsMetricCard label={`${selectedOpsMenu} Revenue`} value={`$${(opsMetrics?.selected?.revenue || 0).toFixed(2)}`} icon={DollarSign} colorClass="text-green-600 bg-green-500/10" />
             <OpsMetricCard label={`${selectedOpsMenu} Volume`} value={opsMetrics?.selected?.count || 0} icon={ListOrdered} colorClass="text-indigo-600 bg-indigo-500/10" />
             <OpsMetricCard label={`${selectedOpsMenu} Avg Time`} value={`${opsMetrics?.selected?.avgTime.toFixed(1) || '0'}m`} icon={Timer} colorClass="text-blue-600 bg-blue-500/10" />
