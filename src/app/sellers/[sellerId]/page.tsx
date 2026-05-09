@@ -110,6 +110,7 @@ import { useToast } from '@/hooks/use-toast';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 const staffSchema = z.object({
   name: z.string().min(2, 'Name required'),
@@ -287,7 +288,7 @@ function MasterItemForm({
               <FormItem><FormLabel>Item Name</FormLabel><FormControl><Input {...field} placeholder="e.g., Craft IPA" /></FormControl><FormMessage /></FormItem>
             )} />
             <FormField control={form.control} name="description" render={({ field }) => (
-              <FormItem><FormLabel>Description</FormLabel><FormControl><Textarea {...field} placeholder="A short description." /></FormControl><FormMessage /></FormItem>
+              <FormItem><FormLabel>Description</FormLabel><FormControl><Textarea {...field} placeholder="A short description." /></FormControl><FormMessage /></FormMessage>
             )} />
             <div className="grid grid-cols-2 gap-4">
               <FormField control={form.control} name="price" render={({ field }) => (
@@ -327,7 +328,7 @@ function MasterItemForm({
                 {fields.map((field, index) => (
                   <div key={field.id} className="relative">
                     <ModifierGroupManager control={form.control} groupIndex={index} />
-                    <Button variant="ghost" size="icon" className="absolute top-2 right-2 h-6 w-6 text-destructive" onClick={() => remove(index)}><Trash2 className="h-3 w-3" /></Button>
+                    <Button variant="ghost" size="icon" className="absolute top-2 right-2 h-6 w-6 text-destructive" onClick={() => remove(index)}><Trash2 className="h-3.5 w-3.5" /></Button>
                   </div>
                 ))}
               </div>

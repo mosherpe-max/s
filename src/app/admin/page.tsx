@@ -70,7 +70,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDes
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { Seller, Order, Prospect, AdminUser, PlatformConfig } from '@/lib/types';
 import { sellerTypes, categories } from '@/lib/types';
 import { publicGolfItems, privateGolfItems, bowlingAlleyItems } from '@/lib/data';
