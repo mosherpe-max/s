@@ -3,16 +3,6 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    /**
-     * --- SECURITY PHILOSOPHY ---
-     * 1. Super Admin (God Mode): Hardcoded UID or specific email bypass for global access.
-     * 2. Platform Admins: Managed via roles_admin registry (UID based).
-     * 3. Seller Admins: Restricted to their specific venue data (Email based).
-     * 4. Sales Reps: Access to CRM and demo venues only (Email based).
-     */
-
-    // --- HELPER FUNCTIONS ---
-
     function isSignedIn() {
       return request.auth != null;
     }
@@ -44,39 +34,14 @@ service cloud.firestore {
       );
     }
 
-    function isSalesRep() {
-      return isAdmin() || (
-        isSignedIn() && 
-        getEmail() != "" &&
-        exists(/databases/$(database)/documents/roles_sales_rep/$(getEmail()))
-      );
-    }
-
-    function isDemoVenue(sellerId) {
-      return sellerId.startsWith('demo-');
-    }
-
-    function canImpersonate(sellerId) {
-      return isAdmin() || isSellerAdmin(sellerId) || (isSalesRep() && isDemoVenue(sellerId));
-    }
-
-    function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
-    }
-
-    function isOrderParticipant(data) {
-      return isSignedIn() && (data.buyerProfileId == request.auth.uid || data.sellerId == request.auth.uid);
-    }
-
     // --- RULES ---
 
-    // GOD MODE: Super Admin bypasses all checks across the entire database
     match /{document=**} {
       allow read, write: if isSuperAdmin();
     }
 
     /**
-     * @description Global system configuration. 
+     * @description Public platform config (Publishable Keys).
      */
     match /config/platform {
       allow read: if true;
@@ -84,91 +49,37 @@ service cloud.firestore {
     }
 
     /**
-     * @description Stores private profile data for each buyer.
+     * @description Private platform config (Secret Keys).
      */
-    match /users/{userId}/buyerProfile {
-      allow get, list: if isOwner(userId) || isAdmin();
-      allow create: if isOwner(userId) && request.resource.data.id == userId;
-      allow update: if (isOwner(userId) && request.resource.data.id == resource.data.id) || isAdmin();
-      allow delete: if isAdmin();
+    match /config/platform_private {
+      allow read, write: if isSuperAdmin();
     }
 
-    /**
-     * @description Core seller profiles, including location for tracking.
-     */
+    match /users/{userId}/buyerProfile {
+      allow get, list: if request.auth.uid == userId || isAdmin();
+      allow create: if request.auth.uid == userId;
+      allow update: if request.auth.uid == userId || isAdmin();
+    }
+
     match /sellers/{sellerId} {
-      allow get, list: if true; 
-      allow create: if isAdmin();
+      allow get, list: if true;
       allow update: if isAdmin() || isSellerAdmin(sellerId);
-      allow delete: if isAdmin();
 
       match /staff/{staffId} {
-        allow get: if true; // Needed for PIN lookup query
-        allow list: if canImpersonate(sellerId);
-        allow create, update, delete: if isAdmin() || isSellerAdmin(sellerId);
+        allow get: if true;
+        allow list, write: if isAdmin() || isSellerAdmin(sellerId);
       }
 
       match /menuItems/{itemId} {
         allow get, list: if true;
-        allow create, update, delete: if isAdmin() || isSellerAdmin(sellerId);
-      }
-
-      match /menus/{menuId} {
-        allow get, list: if (resource.data.get('isActive', false) == true || canImpersonate(sellerId));
-        allow create, update, delete: if isAdmin() || isSellerAdmin(sellerId);
-
-        match /items/{itemId} {
-          allow get, list: if (resource.data.get('isAvailable', false) == true || canImpersonate(sellerId));
-          allow create, update, delete: if isAdmin() || isSellerAdmin(sellerId);
-        }
+        allow write: if isAdmin() || isSellerAdmin(sellerId);
       }
     }
 
-    /**
-     * @description Master list of all products in the system.
-     */
-    match /products/{productId} {
-      allow get, list: if true; 
-      allow create, update, delete: if isAdmin();
-    }
-
-    /**
-     * @description Centralized collection for all customer orders.
-     */
     match /orders/{orderId} {
-      allow get: if isOrderParticipant(resource.data) || canImpersonate(resource.data.sellerId);
-      allow list: if isSignedIn(); 
-      allow create: if isSignedIn() && (request.resource.data.buyerProfileId == request.auth.uid || isAdmin());
-      allow update: if (resource != null && (isOrderParticipant(resource.data) || canImpersonate(resource.data.sellerId))) || isAdmin();
-      allow delete: if isAdmin();
-
-      match /items/{orderItemId} {
-        allow get: if isOrderParticipant(resource.data) || canImpersonate(resource.data.sellerId);
-        allow list: if isSignedIn();
-        allow create: if isSignedIn();
-        allow update, delete: if isAdmin();
-      }
-    }
-
-    // Role Assignments & Profiles
-    match /adminUsers/{email} {
-      allow get: if isSignedIn() && (getEmail() == email.lower() || isAdmin());
-      allow list, create, update, delete: if isAdmin();
-    }
-
-    match /roles_seller_admin/{email} {
-      allow get: if isSignedIn() && (getEmail() == email.lower() || isAdmin());
-      allow list, create, update, delete: if isAdmin();
-    }
-
-    match /roles_sales_rep/{email} {
-      allow get: if isSignedIn() && (getEmail() == email.lower() || isAdmin());
-      allow list, create, update, delete: if isAdmin();
-    }
-
-    match /roles_admin/{adminUid} {
-      allow get: if isSignedIn() && (request.auth.uid == adminUid || isAdmin());
-      allow list, create, update, delete: if isAdmin();
+      allow get, list: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() || isAdmin();
     }
   }
 }
