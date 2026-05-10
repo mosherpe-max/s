@@ -5,7 +5,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { collection, doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
 import { httpsCallable, getFunctions } from 'firebase/functions';
-import { useFirestore, useCollection, useMemoFirebase, useUser, useAuth, useDoc } from '@/firebase';
+import { useFirestore, useCollection, useMemoFirebase, useUser, useAuth, useDoc, useFirebaseApp } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { 
@@ -60,6 +60,7 @@ const sellerSchema = z.object({
 type SellerFormData = z.infer<typeof sellerSchema>;
 
 export default function KOOPAdminPage() {
+  const firebaseApp = useFirebaseApp();
   const firestore = useFirestore();
   const auth = useAuth();
   const { user, isUserLoading } = useUser();
@@ -117,19 +118,28 @@ export default function KOOPAdminPage() {
   };
 
   const runConnectionTest = async () => {
-    if (!testAccountId) return;
+    if (!testAccountId || !firebaseApp) return;
     setIsTesting(true);
     setTestResult(null);
     try {
-      const functions = getFunctions();
+      const functions = getFunctions(firebaseApp);
       const testFn = httpsCallable(functions, 'testStripeConnection');
       const result = await testFn({ connectedAccountId: testAccountId.trim() });
-      setTestResult(result.data);
-      toast({ title: "Diagnostics Complete" });
+      
+      // The function is now hardened to return its own success flag to avoid "internal" crashes
+      const data = result.data as any;
+      if (data.success === false) {
+        setTestResult({ error: data.error });
+        toast({ variant: "destructive", title: "Test Failed", description: "Verification failed. See diagnostics panel." });
+      } else {
+        setTestResult(data);
+        toast({ title: "Diagnostics Complete" });
+      }
     } catch (e: any) {
       console.error('Diagnostic Test Failed:', e);
-      setTestResult({ error: e.message || 'An unexpected error occurred during the test.' });
-      toast({ variant: "destructive", title: "Test Failed", description: "See diagnostics panel for details." });
+      // This block now only handles real network/timeout issues
+      setTestResult({ error: e.message || 'A network error occurred while reaching the Cloud Function.' });
+      toast({ variant: "destructive", title: "Test Error", description: "Could not reach the server." });
     } finally {
       setIsTesting(false);
     }
