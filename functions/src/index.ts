@@ -9,7 +9,6 @@ if (!admin.apps.length) {
 
 /**
  * Dynamically fetches the Stripe Secret Key from Firestore config.
- * Checks platform_private first, falls back to platform for legacy or env vars.
  */
 async function getStripeClient() {
   try {
@@ -27,14 +26,14 @@ async function getStripeClient() {
     if (!secretKey) {
       throw new HttpsError(
         'failed-precondition', 
-        'Stripe Secret Key is missing from Firestore (config/platform_private). Please add it in KOOP Admin > System.'
+        'Stripe Secret Key is missing. Please configure it in the KOOP Admin portal.'
       );
     }
 
     if (secretKey.startsWith('pk_')) {
       throw new HttpsError(
         'invalid-argument',
-        'CRITICAL ERROR: A Publishable Key (pk_...) was found in the Secret Key field. Please update your Stripe Secret Key in the Admin dashboard.'
+        'Stripe Configuration Error: A Publishable Key was found in the Secret Key field.'
       );
     }
     
@@ -42,7 +41,6 @@ async function getStripeClient() {
       apiVersion: '2025-01-27.acacia',
     });
   } catch (err: any) {
-    console.error('Stripe Client Init Error:', err);
     if (err instanceof HttpsError) throw err;
     throw new HttpsError('internal', 'Failed to initialize Stripe client: ' + err.message);
   }
@@ -53,7 +51,7 @@ async function getStripeClient() {
  */
 export const createStripeCheckoutSession = onCall(async (request) => {
   const { orderId, sellerId, origin } = request.data;
-  if (!orderId || !sellerId) throw new HttpsError('invalid-argument', 'Missing parameters.');
+  if (!orderId || !sellerId) throw new HttpsError('invalid-argument', 'Missing order or seller parameters.');
 
   try {
     const db = admin.firestore();
@@ -64,7 +62,7 @@ export const createStripeCheckoutSession = onCall(async (request) => {
     const stripeAccountId = privateSellerDoc.data()?.stripeAccountId;
 
     if (!stripeAccountId) {
-      throw new HttpsError('failed-precondition', 'Venue has not provided a Stripe Account ID. Please contact the establishment.');
+      throw new HttpsError('failed-precondition', 'This venue has not completed Stripe setup. Please notify the establishment.');
     }
     
     const [orderDoc, sellerDoc] = await Promise.all([
@@ -72,21 +70,21 @@ export const createStripeCheckoutSession = onCall(async (request) => {
       db.doc(`sellers/${sellerId}`).get()
     ]);
 
-    if (!orderDoc.exists) throw new HttpsError('not-found', 'Order not found in database.');
+    if (!orderDoc.exists) throw new HttpsError('not-found', 'Order not found.');
     if (!sellerDoc.exists) throw new HttpsError('not-found', 'Seller configuration not found.');
 
     const orderData = orderDoc.data()!;
     const sellerData = sellerDoc.data()!;
     
-    // Ensure origin is reliable for redirects
     const baseUrl = origin || 'https://kooporders.com';
 
+    // Financial Calculation Integrity
     const convenienceFeeCents = Math.round((Number(orderData.serviceFee) || 0) * 100);
     const koopOffsetCents = Number(sellerData.koopFeeOffsetCents) || 0;
     const applicationFeeAmount = Math.max(0, convenienceFeeCents - koopOffsetCents);
 
     if (!orderData.items || !Array.isArray(orderData.items) || orderData.items.length === 0) {
-      throw new HttpsError('invalid-argument', 'Order contains no items.');
+      throw new HttpsError('invalid-argument', 'Order must contain at least one item.');
     }
 
     const session = await stripe.checkout.sessions.create({
@@ -98,16 +96,21 @@ export const createStripeCheckoutSession = onCall(async (request) => {
           ? Object.values(item.selectedModifiers).flat().reduce((sum: number, mod: any) => sum + (Number(mod.price) || 0), 0)
           : 0;
         
-        const quantity = Number(item.quantity) || 1;
+        const quantity = Math.max(1, Math.round(Number(item.quantity) || 1));
+        const unitAmount = Math.round((basePrice + modifiersPrice) * 100);
         
+        if (unitAmount <= 0) {
+          throw new HttpsError('invalid-argument', `Invalid price for item: ${item.name}`);
+        }
+
         return {
           price_data: {
             currency: 'usd',
             product_data: { 
-              name: item.name,
-              description: item.description || undefined
+              name: item.name.substring(0, 250), // Stripe limit
+              description: item.description ? item.description.substring(0, 500) : undefined
             },
-            unit_amount: Math.round((basePrice + modifiersPrice) * 100),
+            unit_amount: unitAmount,
           },
           quantity: quantity,
         };
@@ -128,7 +131,7 @@ export const createStripeCheckoutSession = onCall(async (request) => {
   } catch (err: any) {
     console.error('Stripe Session Creation Failed:', err);
     if (err instanceof HttpsError) throw err;
-    const message = err.raw?.message || err.message || 'Unknown Stripe error';
+    const message = err.raw?.message || err.message || 'Unknown Stripe error during session creation.';
     throw new HttpsError('internal', message);
   }
 });

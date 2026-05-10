@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, use, useEffect, useMemo } from 'react';
+import { useState, use, useEffect, useMemo, useRef } from 'react';
 import { collection, doc, addDoc, serverTimestamp } from 'firebase/firestore';
 import { signInAnonymously } from 'firebase/auth';
 import { useFirestore, useCollection, useMemoFirebase, useDoc, useAuth, useUser, useFirebaseApp } from '@/firebase';
@@ -31,7 +31,8 @@ import {
   Check,
   Pencil,
   CreditCard,
-  FlaskConical
+  FlaskConical,
+  Satellite
 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useCart } from '@/lib/cart-context';
@@ -176,6 +177,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
   const [locationValue, setLocationValue] = useState<string>('');
   const [specialInstructions, setSpecialInstructions] = useState<string>('');
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
+  const [capturedLocation, setCapturedLocation] = useState<{ latitude: number, longitude: number } | null>(null);
   
   const [modifierTarget, setModifierTarget] = useState<MenuItem | null>(null);
 
@@ -200,6 +202,19 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
       setStripePromise(loadStripe(pk));
     }
   }, [platformConfig]);
+
+  // Background GPS acquisition when cart is reviewed
+  useEffect(() => {
+    if (isCartOpen && (selectedMenuType === 'Beverage Cart' || selectedMenuType === 'Clubhouse') && !capturedLocation) {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (p) => setCapturedLocation({ latitude: p.coords.latitude, longitude: p.coords.longitude }),
+          () => console.warn('Location fallback active'),
+          { enableHighAccuracy: true, timeout: 5000 }
+        );
+      }
+    }
+  }, [isCartOpen, selectedMenuType, capturedLocation]);
 
   const menuItemsQuery = useMemoFirebase(() => {
     if (!firestore || !sellerId) return null;
@@ -283,69 +298,56 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
         isGuestCheckout = true;
       }
 
-      if (!currentUser) throw new Error("Security identity required.");
+      if (!currentUser) throw new Error("Identity verification failed.");
 
-      const submitToFirestore = async (latitude: number, longitude: number) => {
-        try {
-          const isStripe = selectedPaymentMethod === 'Credit Card';
-          const orderData: any = {
-            sellerId,
-            buyerProfileId: currentUser!.uid,
-            customerName: currentUser!.email || 'Guest User',
-            deliveryLocation: { latitude, longitude },
-            items: activeOrderItems,
-            subtotal,
-            serviceFee: platformFee,
-            tax,
-            tip: tipAmount,
-            total: finalTotal,
-            status: isStripe ? 'Pending Payment' : 'Placed',
-            paymentMethod: selectedPaymentMethod,
-            menuType: selectedMenuType,
-            menuTypeLocation: locationValue || null,
-            specialInstructions: specialInstructions || null,
-            isGuestOrder: isGuestCheckout,
-            deviceMetadata: { userAgent: window.navigator.userAgent, timestamp: new Date().toISOString() },
-            createdAt: serverTimestamp(),
-            modifiedAt: serverTimestamp(),
-          };
+      const isStripe = selectedPaymentMethod === 'Credit Card';
+      const loc = capturedLocation || mockBuyerLocation;
 
-          const orderRef = await addDoc(collection(firestore, 'orders'), orderData);
-          
-          if (isStripe) {
-            const functions = getFunctions(firebaseApp);
-            const createSession = httpsCallable(functions, 'createStripeCheckoutSession');
-            const result = await createSession({
-              orderId: orderRef.id,
-              sellerId,
-              origin: window.location.origin
-            });
-            
-            setStripeClientSecret((result.data as any).clientSecret);
-            setIsStripeDrawerOpen(true);
-            setIsCartOpen(false);
-          } else {
-            router.push(`/order/track?id=${orderRef.id}&sellerId=${sellerId}`);
-            clearCart();
-          }
-        } catch (err: any) {
-          toast({ variant: 'destructive', title: 'Order Submission Error', description: err.message });
-        } finally {
-          setIsPlacingOrder(false);
-        }
+      const orderData: any = {
+        sellerId,
+        buyerProfileId: currentUser.uid,
+        customerName: currentUser.email || 'Guest Patron',
+        deliveryLocation: { latitude: loc.latitude, longitude: loc.longitude },
+        items: activeOrderItems,
+        subtotal,
+        serviceFee: platformFee,
+        tax,
+        tip: tipAmount,
+        total: finalTotal,
+        status: isStripe ? 'Pending Payment' : 'Placed',
+        paymentMethod: selectedPaymentMethod,
+        menuType: selectedMenuType,
+        menuTypeLocation: locationValue || null,
+        specialInstructions: specialInstructions || null,
+        isGuestOrder: isGuestCheckout,
+        deviceMetadata: { userAgent: window.navigator.userAgent, timestamp: new Date().toISOString() },
+        createdAt: serverTimestamp(),
+        modifiedAt: serverTimestamp(),
       };
 
-      if (navigator.geolocation && (selectedMenuType === 'Beverage Cart' || selectedMenuType === 'Clubhouse')) {
-        navigator.geolocation.getCurrentPosition(
-          (p) => submitToFirestore(p.coords.latitude, p.coords.longitude),
-          () => submitToFirestore(mockBuyerLocation.latitude, mockBuyerLocation.longitude)
-        );
+      const orderRef = await addDoc(collection(firestore, 'orders'), orderData);
+      
+      if (isStripe) {
+        const functions = getFunctions(firebaseApp);
+        const createSession = httpsCallable(functions, 'createStripeCheckoutSession');
+        const result = await createSession({
+          orderId: orderRef.id,
+          sellerId,
+          origin: window.location.origin
+        });
+        
+        setStripeClientSecret((result.data as any).clientSecret);
+        setIsStripeDrawerOpen(true);
+        setIsCartOpen(false);
       } else {
-        submitToFirestore(mockBuyerLocation.latitude, mockBuyerLocation.longitude);
+        router.push(`/order/track?id=${orderRef.id}&sellerId=${sellerId}`);
+        clearCart();
       }
     } catch (error: any) {
       setIsPlacingOrder(false);
-      toast({ variant: 'destructive', title: 'Internal System Error', description: error.message });
+      toast({ variant: 'destructive', title: 'System Alert', description: error.message });
+    } finally {
+      setIsPlacingOrder(false);
     }
   };
 
@@ -409,6 +411,23 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
           <ScrollArea className="flex-1 w-full">
             <div className="px-6 py-6 space-y-8 pb-32">
               <OrderSummary items={activeOrderItems} onUpdateItem={updateItem} onRemoveItem={removeItem} />
+
+              {(selectedMenuType === 'Beverage Cart' || selectedMenuType === 'Clubhouse') && (
+                <div className="bg-white rounded-2xl border p-4 flex items-center justify-between shadow-sm animate-in fade-in slide-in-from-bottom-2">
+                  <div className="flex items-center gap-3">
+                    <div className={cn("p-2 rounded-xl", capturedLocation ? "bg-green-50 text-green-600" : "bg-primary/10 text-primary")}>
+                      <Satellite className={cn("h-5 w-5", !capturedLocation && "animate-pulse")} />
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-[#213147]">Delivery Location</p>
+                      <p className="text-[9px] font-bold text-muted-foreground uppercase">
+                        {capturedLocation ? 'Live GPS Pin Established' : 'Acquiring GPS Signal...'}
+                      </p>
+                    </div>
+                  </div>
+                  {capturedLocation && <Check className="h-4 w-4 text-green-600" />}
+                </div>
+              )}
 
               {selectedMenuType === 'Lane Delivery' && seller?.laneCount && seller.laneCount > 0 && (
                 <div className="space-y-3">
