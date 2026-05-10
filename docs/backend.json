@@ -29,8 +29,6 @@
         "status": { "type": "string", "enum": ["Active", "Inactive"] },
         "serviceFee": { "type": "number", "description": "The convenience fee charged to the patron" },
         "koopFeeOffsetCents": { "type": "number", "description": "Amount in cents Koop contributes to the processing fee" },
-        "stripeAccountId": { "type": "string", "description": "Linked Stripe Connect account ID" },
-        "stripeOnboardingComplete": { "type": "boolean" },
         "createdAt": { "type": "string", "format": "date-time" },
         "updatedAt": { "type": "string", "format": "date-time" }
       },
@@ -39,11 +37,8 @@
     "PlatformConfig": {
       "title": "PlatformConfig",
       "type": "object",
-      "description": "Global platform settings and sensitive credentials.",
+      "description": "Global platform settings.",
       "properties": {
-        "stripePublishableKey": { "type": "string" },
-        "stripeSecretKey": { "type": "string" },
-        "stripeWebhookSecret": { "type": "string" },
         "updatedAt": { "type": "string", "format": "date-time" }
       }
     },
@@ -55,9 +50,7 @@
         "id": { "type": "string" },
         "buyerProfileId": { "type": "string" },
         "sellerId": { "type": "string" },
-        "status": { "type": "string", "enum": ["Pending Payment", "Placed", "Preparing", "Out for Delivery", "Delivered", "Cancelled"] },
-        "stripeSessionId": { "type": "string" },
-        "paymentStatus": { "type": "string", "enum": ["pending", "paid", "failed"] },
+        "status": { "type": "string", "enum": ["Placed", "Preparing", "Out for Delivery", "Delivered", "Cancelled"] },
         "serviceFee": { "type": "number", "description": "The convenience fee recorded at time of order" },
         "total": { "type": "number" },
         "createdAt": { "type": "string", "format": "date-time" }

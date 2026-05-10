@@ -2,7 +2,7 @@
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { collection, doc, setDoc, writeBatch, serverTimestamp, deleteDoc } from 'firebase/firestore';
+import { collection, doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { signOut, sendPasswordResetEmail } from 'firebase/auth';
 import { useFirestore, useCollection, useMemoFirebase, useUser, useAuth, useDoc } from '@/firebase';
 import { Button } from '@/components/ui/button';
@@ -19,24 +19,17 @@ import {
   Briefcase,
   Edit,
   MapPin,
-  Zap,
   LayoutDashboard,
   ShieldCheck,
   Lock,
-  UserPlus,
   KeyRound,
-  Trash2,
   Users,
   LogOut,
   ChevronDown,
   Truck,
   Banknote,
   Settings,
-  Eye,
-  EyeOff,
-  Save,
-  Globe,
-  FlaskConical
+  Save
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import {
@@ -84,14 +77,6 @@ const sellerSchema = z.object({
 
 type SellerFormData = z.infer<typeof sellerSchema>;
 
-const systemSchema = z.object({
-  stripePublishableKey: z.string().min(1, 'Required'),
-  stripeSecretKey: z.string().min(1, 'Required'),
-  stripeWebhookSecret: z.string().min(1, 'Required'),
-});
-
-type SystemFormData = z.infer<typeof systemSchema>;
-
 function MetricCard({ title, value, icon: Icon, description, trend }: { title: string, value: string | number, icon: any, description?: string, trend?: string }) {
   return (
     <Card className="shadow-sm border-2">
@@ -128,7 +113,6 @@ export default function KOOPAdminPage() {
   const [editingSeller, setEditingSeller] = useState<Seller | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [showSecret, setShowSecret] = useState(false);
 
   // Authorization Check
   const isHardcodedSuperAdmin = user?.uid === SUPER_ADMIN_ID || user?.email === 'mosherpe@gmail.com';
@@ -140,22 +124,7 @@ export default function KOOPAdminPage() {
   
   const { data: platformRoleMarker, isLoading: isRoleCheckLoading } = useDoc(platformRoleRef);
 
-  const isVerifying = isUserLoading || (isRoleCheckLoading && !isHardcodedSuperAdmin);
   const isAuthorized = isHardcodedSuperAdmin || !!platformRoleMarker;
-
-  // Platform Config (Split into Public and Private)
-  const configRef = useMemoFirebase(() => {
-    if (!firestore) return null;
-    return doc(firestore, 'config', 'platform');
-  }, [firestore]);
-  const { data: config } = useDoc<any>(configRef);
-
-  const privateConfigRef = useMemoFirebase(() => {
-    // ONLY Super Admin can read the secrets doc
-    if (!firestore || !isHardcodedSuperAdmin) return null;
-    return doc(firestore, 'config', 'platform_private');
-  }, [firestore, isHardcodedSuperAdmin]);
-  const { data: privateConfig } = useDoc<any>(privateConfigRef);
 
   useEffect(() => {
     if (!isUserLoading && !user) {
@@ -184,11 +153,6 @@ export default function KOOPAdminPage() {
     return collection(firestore, 'orders');
   }, [firestore, isAuthorized]);
 
-  const prospectsQuery = useMemoFirebase(() => {
-    if (!firestore || !isAuthorized) return null;
-    return collection(firestore, 'prospects');
-  }, [firestore, isAuthorized]);
-
   const adminsQuery = useMemoFirebase(() => {
     if (!firestore || !isAuthorized) return null;
     return collection(firestore, 'adminUsers');
@@ -196,7 +160,6 @@ export default function KOOPAdminPage() {
 
   const { data: sellers, isLoading: isSellersLoading } = useCollection<Seller>(sellersQuery);
   const { data: orders } = useCollection<Order>(ordersQuery);
-  const { data: prospects } = useCollection<Prospect>(prospectsQuery);
   const { data: admins, isLoading: isAdminsLoading } = useCollection<AdminUser>(adminsQuery);
 
   const filteredSellers = useMemo(() => {
@@ -209,8 +172,6 @@ export default function KOOPAdminPage() {
       s.id.toLowerCase().includes(term)
     );
   }, [sellers, searchTerm]);
-
-  const isTestMode = config?.stripePublishableKey?.startsWith('pk_test_');
 
   const form = useForm<SellerFormData>({
     resolver: zodResolver(sellerSchema),
@@ -234,55 +195,6 @@ export default function KOOPAdminPage() {
       menuTypes: [],
     },
   });
-
-  const systemForm = useForm<SystemFormData>({
-    resolver: zodResolver(systemSchema),
-    defaultValues: {
-      stripePublishableKey: '',
-      stripeSecretKey: '',
-      stripeWebhookSecret: '',
-    },
-  });
-
-  useEffect(() => {
-    if (config || privateConfig) {
-      systemForm.reset({
-        stripePublishableKey: config?.stripePublishableKey || '',
-        stripeSecretKey: privateConfig?.stripeSecretKey || '',
-        stripeWebhookSecret: privateConfig?.stripeWebhookSecret || '',
-      });
-    }
-  }, [config, privateConfig, systemForm]);
-
-  const onSaveSystem = async (data: SystemFormData) => {
-    if (!firestore || !isAuthorized) return;
-    setIsSaving(true);
-    try {
-      const batch = writeBatch(firestore);
-      
-      // 1. Save Public Key
-      batch.set(doc(firestore, 'config', 'platform'), {
-        stripePublishableKey: data.stripePublishableKey,
-        updatedAt: serverTimestamp(),
-      }, { merge: true });
-
-      // 2. Save Secrets (Accessible ONLY by Super Admin)
-      if (isHardcodedSuperAdmin) {
-        batch.set(doc(firestore, 'config', 'platform_private'), {
-          stripeSecretKey: data.stripeSecretKey,
-          stripeWebhookSecret: data.stripeWebhookSecret,
-          updatedAt: serverTimestamp(),
-        }, { merge: true });
-      }
-
-      await batch.commit();
-      toast({ title: "System Config Updated", description: "API keys have been securely distributed." });
-    } catch (e: any) {
-      toast({ variant: "destructive", title: "Update Failed", description: e.message });
-    } finally {
-      setIsSaving(false);
-    }
-  };
 
   const handleAddNewSeller = () => {
     setEditingSeller(null);
@@ -352,17 +264,7 @@ export default function KOOPAdminPage() {
     setIsSaving(false);
   };
 
-  const handleSendResetLink = async (email: string) => {
-    if (!auth) return;
-    try {
-      await sendPasswordResetEmail(auth, email);
-      toast({ title: "Reset Link Sent", description: `Authorization email sent to ${email}` });
-    } catch (err: any) {
-      toast({ variant: "destructive", title: "Request Failed", description: err.message });
-    }
-  };
-
-  if (isVerifying) {
+  if (isUserLoading || isRoleCheckLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen">
         <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
@@ -393,7 +295,6 @@ export default function KOOPAdminPage() {
           <div className="flex items-center gap-3">
             <h1 className="font-headline text-3xl font-bold text-[#213147] uppercase tracking-tight">KOOP ADMIN</h1>
             <Badge className="bg-primary/10 text-primary border-primary/20 uppercase text-[10px] font-black">Authorized Portal</Badge>
-            {isTestMode && <Badge variant="outline" className="bg-amber-50 text-amber-600 border-amber-200 uppercase text-[10px] font-black gap-1.5"><FlaskConical className="h-3 w-3" /> Test Mode Active</Badge>}
           </div>
           <p className="text-muted-foreground text-sm">Platform oversight and system configuration.</p>
         </div>
@@ -411,11 +312,10 @@ export default function KOOPAdminPage() {
         </TabsList>
 
         <TabsContent value="operations" className="space-y-8">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <MetricCard title="Active Venues" value={sellers?.length || 0} icon={Building} />
             <MetricCard title="Total Orders" value={orders?.length || 0} icon={ShoppingBag} />
             <MetricCard title="Platform Gross" value={`$${(orders?.reduce((acc, o) => acc + (o.total || 0), 0) || 0).toLocaleString()}`} icon={DollarSign} />
-            <MetricCard title="Pipeline Value" value={`$${(prospects?.reduce((acc, p) => acc + (p.launchFeeQuoted || 0), 0) || 0).toLocaleString()}`} icon={Briefcase} />
           </div>
 
           <Card className="shadow-md overflow-hidden">
@@ -489,7 +389,7 @@ export default function KOOPAdminPage() {
                     <TableCell><div className="flex items-center gap-3"><div className="h-8 w-8 rounded-lg bg-green-50 text-green-600 flex items-center justify-center"><ShieldCheck className="h-4 w-4" /></div><div className="flex flex-col"><span className="font-bold text-sm">{admin.email}</span><span className="text-[9px] text-muted-foreground font-mono">{admin.id}</span></div></div></TableCell>
                     <TableCell><Badge variant="default" className="text-[8px] font-black uppercase">{admin.role}</Badge></TableCell>
                     <TableCell className="text-right">
-                      <Button variant="outline" size="sm" onClick={() => handleSendResetLink(admin.email)} className="h-8 text-[9px] font-black uppercase border-indigo-200 text-indigo-600 hover:bg-indigo-50"><KeyRound className="mr-1.5 h-3 w-3" /> Reset Link</Button>
+                      <Button variant="outline" size="sm" onClick={() => sendPasswordResetEmail(auth!, admin.email)} className="h-8 text-[9px] font-black uppercase border-indigo-200 text-indigo-600 hover:bg-indigo-50"><KeyRound className="mr-1.5 h-3 w-3" /> Reset Link</Button>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -499,96 +399,13 @@ export default function KOOPAdminPage() {
         </TabsContent>
 
         <TabsContent value="system" className="space-y-8">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <Card className="shadow-lg border-2 border-[#635BFF]/20">
-              <CardHeader className="bg-[#635BFF]/5 border-b">
-                <div className="flex items-center gap-3">
-                  <div className="bg-[#635BFF] p-2 rounded-lg"><Zap className="h-5 w-5 text-white" /></div>
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-lg font-black uppercase tracking-tight">Stripe Platform Credentials</CardTitle>
-                      {isTestMode && <Badge className="bg-amber-500 text-white uppercase text-[8px] font-black">Test Mode</Badge>}
-                    </div>
-                    <CardDescription className="text-xs uppercase font-bold text-slate-500">Configure global API keys for payment routing.</CardDescription>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="pt-6">
-                <Form {...systemForm}>
-                  <form onSubmit={systemForm.handleSubmit(onSaveSystem)} className="space-y-6">
-                    <FormField control={systemForm.control} name="stripePublishableKey" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-[10px] font-black uppercase">Publishable Key</FormLabel>
-                        <FormControl><Input {...field} placeholder="pk_live_..." className="font-mono text-xs border-2" /></FormControl>
-                        <FormDescription className="text-[8px] uppercase">Public identifier for the Koop platform. Safe for public read access.</FormDescription>
-                      </FormItem>
-                    )} />
-                    
-                    <FormField control={systemForm.control} name="stripeSecretKey" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-[10px] font-black uppercase">Secret Key</FormLabel>
-                        <div className="relative">
-                          <FormControl>
-                            <Input 
-                              {...field} 
-                              type={showSecret ? "text" : "password"} 
-                              placeholder={isHardcodedSuperAdmin ? "sk_live_..." : "••••••••••••••••"} 
-                              className="font-mono text-xs border-2 pr-10" 
-                              disabled={!isHardcodedSuperAdmin}
-                            />
-                          </FormControl>
-                          {isHardcodedSuperAdmin && (
-                            <Button 
-                              type="button" 
-                              variant="ghost" 
-                              size="icon" 
-                              className="absolute right-0 top-0 h-full text-muted-foreground"
-                              onClick={() => setShowSecret(!showSecret)}
-                            >
-                              {showSecret ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                            </Button>
-                          )}
-                        </div>
-                        <FormDescription className="text-[8px] uppercase font-bold text-red-600">
-                          {isHardcodedSuperAdmin ? 'Restricted: Critical platform secret. Stored in platform_private.' : 'Only Super Admins can manage secret keys.'}
-                        </FormDescription>
-                      </FormItem>
-                    )} />
-
-                    <FormField control={systemForm.control} name="stripeWebhookSecret" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-[10px] font-black uppercase">Webhook Signing Secret</FormLabel>
-                        <FormControl>
-                          <Input 
-                            {...field} 
-                            type="password" 
-                            placeholder={isHardcodedSuperAdmin ? "whsec_..." : "••••••••••••••••"} 
-                            className="font-mono text-xs border-2" 
-                            disabled={!isHardcodedSuperAdmin}
-                          />
-                        </FormControl>
-                        <FormDescription className="text-[8px] uppercase">Used to verify payment success notifications.</FormDescription>
-                      </FormItem>
-                    )} />
-
-                    <Button type="submit" disabled={isSaving || !isHardcodedSuperAdmin} className="w-full h-12 bg-[#635BFF] hover:bg-[#4b45e0] font-black uppercase tracking-widest gap-2">
-                      {isSaving ? <Loader2 className="h-5 w-5 animate-spin" /> : <Save className="h-5 w-5" />}
-                      Update API Config
-                    </Button>
-                  </form>
-                </Form>
-              </CardContent>
-            </Card>
-
-            <Card className="shadow-lg border-2 border-dashed flex flex-col justify-center items-center p-12 text-center bg-slate-50">
-               <div className="bg-white p-6 rounded-full shadow-md mb-6"><Globe className="h-12 w-12 text-slate-400" /></div>
-               <h3 className="font-headline text-xl font-black uppercase text-slate-700">Platform Infrastructure</h3>
+           <Card className="shadow-lg border-2 border-dashed flex flex-col justify-center items-center p-12 text-center bg-slate-50">
+               <div className="bg-white p-6 rounded-full shadow-md mb-6"><Settings className="h-12 w-12 text-slate-400" /></div>
+               <h3 className="font-headline text-xl font-black uppercase text-slate-700">Platform Settings</h3>
                <p className="text-xs text-slate-500 max-w-sm mt-2 leading-relaxed">
-                 Manage system-wide DNS, SSL, and third-party integrations. Additional platform modules will appear here as the Koop ecosystem expands.
+                 Configure global platform defaults and integrations.
                </p>
-               <Button variant="outline" className="mt-8 uppercase text-[10px] font-black tracking-widest border-2">View Server Logs</Button>
             </Card>
-          </div>
         </TabsContent>
       </Tabs>
 
@@ -612,12 +429,11 @@ export default function KOOPAdminPage() {
                         control={form.control}
                         name="laneCount"
                         render={({ field }) => (
-                          <FormItem className="animate-in slide-in-from-top-2 duration-300">
+                          <FormItem>
                             <FormLabel className="text-[10px] font-black uppercase">Number of Lanes</FormLabel>
                             <FormControl>
                               <Input type="number" {...field} className="h-11 border-2 font-bold" />
                             </FormControl>
-                            <FormDescription className="text-[8px] uppercase">Required to enable per-lane ordering at checkout.</FormDescription>
                           </FormItem>
                         )}
                       />
@@ -641,14 +457,12 @@ export default function KOOPAdminPage() {
                         <FormItem>
                           <FormLabel className="text-[10px] font-black uppercase">Patron Convenience Fee ($)</FormLabel>
                           <FormControl><Input type="number" step="0.01" {...field} className="h-11 border-2 font-bold" /></FormControl>
-                          <FormDescription className="text-[8px] uppercase font-bold">Total convenience fee paid by the customer.</FormDescription>
                         </FormItem>
                       )} />
                       <FormField control={form.control} name="koopFeeOffsetCents" render={({ field }) => (
                         <FormItem>
                           <FormLabel className="text-[10px] font-black uppercase">Koop Fee Offset (Cents)</FormLabel>
                           <FormControl><Input type="number" {...field} className="h-11 border-2 font-bold" /></FormControl>
-                          <FormDescription className="text-[8px] uppercase font-bold text-indigo-600">The portion Koop contributes to processing costs.</FormDescription>
                         </FormItem>
                       )} />
                     </div>

@@ -77,26 +77,10 @@ service cloud.firestore {
 
     /**
      * @description Global system configuration. 
-     * Read: Public (Required for Stripe Publishable Key to initialize checkout).
-     * Write: Super Admin only.
      */
     match /config/platform {
       allow read: if true;
       allow write: if isSuperAdmin();
-    }
-
-    /**
-     * @description Sensitive platform secrets. Only accessible by Super Admin and Server.
-     */
-    match /config/platform_private {
-      allow read, write: if isSuperAdmin();
-    }
-
-    /**
-     * @description Vault for sensitive credentials. Controlled by Admin or Venue Admin.
-     */
-    match /sellers_private/{sellerId} {
-      allow read, write: if isAdmin() || isSellerAdmin(sellerId);
     }
 
     /**
@@ -164,24 +148,6 @@ service cloud.firestore {
         allow create: if isSignedIn();
         allow update, delete: if isAdmin();
       }
-    }
-
-    /**
-     * @description Records of payment transactions.
-     */
-    match /paymentTransactions/{transactionId} {
-      allow get: if isSignedIn() && (resource.data.buyerProfileId == request.auth.uid || isAdmin());
-      allow list: if isSignedIn(); 
-      allow create, update, delete: if isAdmin();
-    }
-
-    // CRM & Growth Data
-    match /prospects/{prospectId} {
-      allow read, write: if isAdmin() || isSalesRep();
-    }
-
-    match /activities/{activityId} {
-      allow read, write: if isAdmin() || isSalesRep();
     }
 
     // Role Assignments & Profiles

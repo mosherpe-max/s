@@ -13,9 +13,6 @@ export const sellerTypes: readonly SellerType[] = [
 ];
 
 export interface PlatformConfig {
-  stripePublishableKey: string;
-  stripeSecretKey: string;
-  stripeWebhookSecret: string;
   updatedAt: Timestamp;
 }
 
@@ -84,9 +81,6 @@ export interface Seller {
   categoryModifierEnabled?: Record<string, Category[]>;
   orderThresholds?: Record<string, { warning: number; max: number }>;
   poolMapUrl?: string;
-  // Stripe Connect
-  stripeAccountId?: string;
-  stripeOnboardingComplete?: boolean;
 }
 
 export type Category = 'Beer' | 'Spirits' | 'Soft Drinks' | 'Snacks' | 'Other' | 'Handhelds' | 'Appetizers' | 'Entrees' | 'Pizza' | 'Salad' | 'Dessert' | 'Kids';
@@ -132,7 +126,7 @@ export interface OrderItem extends MenuItem {
   selectedModifiers?: Record<string, ModifierOption[]>;
 }
 
-export type PaymentMethod = 'Credit Card' | 'Member Account' | 'Pay at Delivery' | 'Pay with Cash or Credit Card to Beverage Cart Operator';
+export type PaymentMethod = 'Pay at Delivery';
 
 export interface Order {
   id: string;
@@ -156,17 +150,13 @@ export interface Order {
   tax: number;
   tip: number;
   total: number;
-  status: 'Pending Payment' | 'Placed' | 'Preparing' | 'Out for Delivery' | 'Delivered' | 'Cancelled';
+  status: 'Placed' | 'Preparing' | 'Out for Delivery' | 'Delivered' | 'Cancelled';
   createdAt: Timestamp;
   deliveredAt?: Timestamp;
   lastGpsUpdate?: Timestamp;
   buyerDeviceStatus?: 'ios-browser' | 'standalone' | 'android' | 'standard';
   isGuestOrder?: boolean;
   deviceMetadata?: any;
-  // Stripe
-  stripeSessionId?: string;
-  paymentStatus?: 'pending' | 'paid' | 'failed';
-  paidAt?: Timestamp;
 }
 
 export interface AdminUser {
