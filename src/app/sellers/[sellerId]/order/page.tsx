@@ -312,14 +312,13 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
 
           const orderRef = await addDoc(collection(firestore, 'orders'), orderData);
           
-          if (isStripe && seller.stripeAccountId) {
+          if (isStripe) {
             const functions = getFunctions(firebaseApp);
             const createSession = httpsCallable(functions, 'createStripeCheckoutSession');
             const result = await createSession({
               orderId: orderRef.id,
               sellerId,
               amount: finalTotal,
-              stripeAccountId: seller.stripeAccountId,
               items: activeOrderItems.map(i => ({
                 name: i.name,
                 price: i.price,
@@ -546,7 +545,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
                     </div>
                   </Button>
                   
-                  {seller?.stripeAccountId && (
+                  {seller?.stripeOnboardingComplete && (
                     <Button 
                       variant="outline"
                       onClick={() => setSelectedPaymentMethod('Credit Card')}
@@ -616,7 +615,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
               item={modifierTarget} 
               onClose={() => setModifierTarget(null)} 
               onAdd={(selections) => {
-                const cartId = `${modifierTarget.id}-${Object.values(selections).flat().map(o => o.id).sort().join('-')}`;
+                const cartId = `${modifierTarget.id}-${Object.values(selections).flat().map(o => i.id).sort().join('-')}`;
                 updateItem({
                   ...modifierTarget,
                   cartId,

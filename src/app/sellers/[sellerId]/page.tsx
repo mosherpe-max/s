@@ -51,7 +51,8 @@ import {
   CreditCard,
   Zap,
   CheckCircle2,
-  FlaskConical
+  FlaskConical,
+  Save
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -84,7 +85,6 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { DateRange } from "react-day-picker";
-import { httpsCallable, getFunctions } from 'firebase/functions';
 
 import {
   DndContext,
@@ -432,7 +432,8 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   const [isStaffFormOpen, setIsStaffFormOpen] = useState(false);
   const [editingStaff, setEditingStaff] = useState<StaffMember | null>(null);
 
-  const [isOnboardingStripe, setIsOnboardingStripe] = useState(false);
+  const [manualStripeId, setManualStripeId] = useState('');
+  const [isSavingStripeId, setIsSavingStripeId] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -464,27 +465,28 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
 
   const isTestMode = config?.stripePublishableKey?.startsWith('pk_test_');
 
+  const privateSellerRef = useMemoFirebase(() => {
+    if (!firestore || !sellerId || !hasAccess) return null;
+    return doc(firestore, 'sellers_private', sellerId);
+  }, [firestore, sellerId, hasAccess]);
+  const { data: privateSellerData } = useDoc<any>(privateSellerRef);
+
+  useEffect(() => {
+    if (privateSellerData?.stripeAccountId) {
+      setManualStripeId(privateSellerData.stripeAccountId);
+    }
+  }, [privateSellerData]);
+
   useEffect(() => {
     setIsMounted(true);
     const handleScroll = () => setShowTopButton(window.scrollY > 400);
     window.addEventListener('scroll', handleScroll);
     const interval = setInterval(() => setNow(Date.now()), 10000);
-
-    const stripeStatus = searchParams.get('stripe');
-    if (stripeStatus === 'success') {
-      toast({ 
-        title: "Connection Successful", 
-        description: "Your Stripe account is now linked. Digital payments are active.",
-        className: "bg-green-600 text-white" 
-      });
-      router.replace(`/sellers/${sellerId}`);
-    }
-
     return () => {
       window.removeEventListener('scroll', handleScroll);
       clearInterval(interval);
     };
-  }, [searchParams, router, sellerId, toast]);
+  }, []);
 
   useEffect(() => {
     if (!isUserLoading && !user) {
@@ -575,42 +577,29 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     }
   };
 
-  const handleStripeOnboarding = async () => {
-    if (!seller || !hasAccess) return;
-    setIsOnboardingStripe(true);
-    const functions = getFunctions(firebaseApp);
-    const origin = window.location.origin;
-    
+  const handleSaveStripeId = async () => {
+    if (!firestore || !sellerId || !hasAccess) return;
+    setIsSavingStripeId(true);
     try {
-      // 1. Check for existing ID
-      let accountId = seller.stripeAccountId;
+      const batch = writeBatch(firestore);
       
-      if (!accountId) {
-        // Create only if missing
-        const createAcc = httpsCallable(functions, 'createStripeConnectAccount');
-        const accResult = await createAcc({ sellerId, email: seller.contactEmail });
-        accountId = (accResult.data as any).accountId;
-      }
+      // 1. Save to private doc
+      batch.set(doc(firestore, 'sellers_private', sellerId), {
+        stripeAccountId: manualStripeId,
+        updatedAt: serverTimestamp()
+      }, { merge: true });
 
-      // 2. Route based on state
-      if (seller.stripeOnboardingComplete && accountId) {
-        const getDashboard = httpsCallable(functions, 'getStripeDashboardLink');
-        const dashboardResult = await getDashboard({ accountId });
-        window.location.href = (dashboardResult.data as any).url;
-      } else if (accountId) {
-        const getLink = httpsCallable(functions, 'getStripeOnboardingLink');
-        const linkResult = await getLink({ accountId, sellerId, origin });
-        window.location.href = (linkResult.data as any).url;
-      }
-    } catch (err: any) {
-      console.error('Stripe Connection Details:', err);
-      toast({ 
-        variant: 'destructive', 
-        title: 'Connection Failed', 
-        description: err.message || 'Verification of platform credentials failed.' 
+      // 2. Mark onboarding as complete in public doc if ID exists
+      batch.update(doc(firestore, 'sellers', sellerId), {
+        stripeOnboardingComplete: manualStripeId.startsWith('acct_')
       });
+
+      await batch.commit();
+      toast({ title: "Stripe ID Saved", description: "The manual account ID has been securely vaulted." });
+    } catch (err: any) {
+      toast({ variant: 'destructive', title: 'Save Failed', description: err.message });
     } finally {
-      setIsOnboardingStripe(false);
+      setIsSavingStripeId(false);
     }
   };
 
@@ -1028,45 +1017,56 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
         <section id="stripe-onboarding" className="mb-12 scroll-mt-32">
           <div className="flex flex-col gap-1 mb-6">
             <h2 className="font-headline text-xl font-bold flex items-center gap-2 text-[#635BFF] uppercase tracking-wider"><CreditCard className="h-6 w-6" /> Stripe Connect</h2>
-            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Manage your digital payment integration.</p>
+            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Secure your payment destination.</p>
           </div>
           
           <Card className="shadow-lg border-2 border-[#635BFF]/20 bg-[#635BFF]/5">
             <CardContent className="p-8">
               <div className="flex flex-col md:flex-row items-center gap-8">
                 <div className="bg-white p-6 rounded-[2.5rem] shadow-xl border-2 border-[#635BFF]/10 shrink-0">
-                  <Zap className="h-12 w-12 text-[#635BFF] fill-[#635BFF]" />
+                  <Lock className="h-12 w-12 text-[#635BFF] fill-[#635BFF]" />
                 </div>
-                <div className="flex-1 space-y-4 text-center md:text-left">
+                <div className="flex-1 space-y-4 text-center md:text-left w-full">
                   <div>
                     <div className="flex items-center justify-center md:justify-start gap-3">
                       <h3 className="font-headline text-2xl font-black uppercase text-[#213147] tracking-tight">
-                        {seller?.stripeAccountId ? 'Stripe Account Connected' : 'Activate Digital Payments'}
+                        Manual Stripe Configuration
                       </h3>
                       {isTestMode && <Badge className="bg-amber-100 text-amber-700 border-amber-200 uppercase text-[9px] font-black">Test Mode</Badge>}
                     </div>
                     <p className="text-sm text-slate-600 max-w-lg leading-relaxed mt-2">
-                      Connect your venue to Stripe to enable real-time mobile ordering and secure digital payments. Funds are transferred directly to your bank account.
+                      Enter your Stripe Account ID (e.g., acct_...) to enable real-time digital payments. This value is stored securely in your private vault.
                     </p>
                   </div>
                   
-                  <div className="flex flex-wrap justify-center md:justify-start gap-4 pt-2">
+                  <div className="flex flex-col sm:flex-row items-center gap-3 pt-2">
+                    <div className="relative w-full max-w-sm">
+                      <CreditCard className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                      <Input 
+                        placeholder="acct_..." 
+                        value={manualStripeId}
+                        onChange={(e) => setManualStripeId(e.target.value)}
+                        className="pl-10 h-11 border-2 font-mono font-bold"
+                      />
+                    </div>
                     <Button 
-                      onClick={handleStripeOnboarding} 
-                      disabled={isOnboardingStripe}
-                      className="bg-[#635BFF] hover:bg-[#4b45e0] text-white h-12 px-8 font-black uppercase tracking-widest rounded-xl shadow-lg gap-3"
+                      onClick={handleSaveStripeId} 
+                      disabled={isSavingStripeId}
+                      className="bg-[#635BFF] hover:bg-[#4b45e0] text-white h-11 px-8 font-black uppercase tracking-widest rounded-xl shadow-lg gap-2 shrink-0"
                     >
-                      {isOnboardingStripe ? <Loader2 className="h-5 w-5 animate-spin" /> : <Zap className="h-5 w-5" />}
-                      {seller?.stripeOnboardingComplete ? 'Enter Stripe Dashboard' : (seller?.stripeAccountId ? 'Complete Onboarding' : 'Connect with Stripe')}
+                      {isSavingStripeId ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                      Save Securely
                     </Button>
-                    
-                    {seller?.stripeOnboardingComplete && (
+                  </div>
+                  
+                  {seller?.stripeOnboardingComplete && (
+                    <div className="flex items-center justify-center md:justify-start gap-2 pt-2">
                       <div className="flex items-center gap-2 px-4 py-2 bg-green-50 border-2 border-green-100 rounded-xl">
                         <CheckCircle2 className="h-5 w-5 text-green-600" />
                         <span className="text-[10px] font-black uppercase text-green-700 tracking-widest">Active Integration</span>
                       </div>
-                    )}
-                  </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </CardContent>
@@ -1093,7 +1093,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                   <TableHead className="text-[10px] font-black uppercase">Staff Member</TableHead>
                   <TableHead className="text-[10px] font-black uppercase">Primary Role</TableHead>
                   <TableHead className="text-[10px] font-black uppercase text-center">4-Digit PIN</TableHead>
-                  <TableHead className="text-[10px) font-black uppercase text-right">Actions</TableHead>
+                  <TableHead className="text-[10px] font-black uppercase text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>

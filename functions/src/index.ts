@@ -49,102 +49,23 @@ async function getStripeClient() {
 }
 
 /**
- * Creates a Stripe Connect account for a seller.
- */
-export const createStripeConnectAccount = onCall(async (request) => {
-  const { sellerId, email } = request.data;
-  if (!sellerId) throw new HttpsError('invalid-argument', 'Missing sellerId.');
-
-  try {
-    const stripe = await getStripeClient();
-    
-    // Create the express account
-    const account = await stripe.accounts.create({
-      type: 'express',
-      email: email,
-      capabilities: {
-        card_payments: { requested: true },
-        transfers: { requested: true },
-      },
-    });
-
-    const sellerRef = admin.firestore().doc(`sellers/${sellerId}`);
-    const sellerDoc = await sellerRef.get();
-    
-    if (!sellerDoc.exists) {
-      throw new HttpsError('not-found', `Venue document ${sellerId} does not exist in Firestore.`);
-    }
-
-    await sellerRef.update({
-      stripeAccountId: account.id,
-      stripeOnboardingComplete: false,
-    });
-
-    return { accountId: account.id };
-  } catch (err: any) {
-    console.error('Stripe Account Creation Failed:', err);
-    if (err instanceof HttpsError) throw err;
-    const message = err.raw?.message || err.message || 'Unknown Stripe error';
-    throw new HttpsError('internal', message);
-  }
-});
-
-/**
- * Generates an onboarding link for a Stripe Connect account.
- */
-export const getStripeOnboardingLink = onCall(async (request) => {
-  const { accountId, sellerId, origin } = request.data;
-  if (!accountId || !sellerId) throw new HttpsError('invalid-argument', 'Missing parameters.');
-
-  const baseUrl = origin || 'https://kooporders.com';
-
-  try {
-    const stripe = await getStripeClient();
-    const accountLink = await stripe.accountLinks.create({
-      account: accountId,
-      refresh_url: `${baseUrl}/sellers/${sellerId}?stripe=refresh`,
-      return_url: `${baseUrl}/sellers/${sellerId}?stripe=success`,
-      type: 'account_onboarding',
-    });
-
-    return { url: accountLink.url };
-  } catch (err: any) {
-    console.error('Stripe Link Creation Failed:', err);
-    if (err instanceof HttpsError) throw err;
-    const message = err.raw?.message || err.message || 'Unknown Stripe error';
-    throw new HttpsError('internal', message);
-  }
-});
-
-/**
- * Generates a login link for a Stripe Express Dashboard.
- */
-export const getStripeDashboardLink = onCall(async (request) => {
-  const { accountId } = request.data;
-  if (!accountId) throw new HttpsError('invalid-argument', 'Missing accountId.');
-
-  try {
-    const stripe = await getStripeClient();
-    const loginLink = await stripe.accounts.createLoginLink(accountId);
-    return { url: loginLink.url };
-  } catch (err: any) {
-    console.error('Stripe Dashboard Link Failed:', err);
-    if (err instanceof HttpsError) throw err;
-    const message = err.raw?.message || err.message || 'Unknown Stripe error';
-    throw new HttpsError('internal', message);
-  }
-});
-
-/**
  * Creates a Checkout Session for a patron.
  */
 export const createStripeCheckoutSession = onCall(async (request) => {
-  const { orderId, sellerId, stripeAccountId, origin } = request.data;
-  if (!orderId || !sellerId || !stripeAccountId) throw new HttpsError('invalid-argument', 'Missing parameters.');
+  const { orderId, sellerId, origin } = request.data;
+  if (!orderId || !sellerId) throw new HttpsError('invalid-argument', 'Missing parameters.');
 
   try {
     const db = admin.firestore();
     const stripe = await getStripeClient();
+    
+    // Fetch Account ID from Private Vault
+    const privateSellerDoc = await db.doc(`sellers_private/${sellerId}`).get();
+    const stripeAccountId = privateSellerDoc.data()?.stripeAccountId;
+
+    if (!stripeAccountId) {
+      throw new HttpsError('failed-precondition', 'Venue has not provided a Stripe Account ID. Please contact the establishment.');
+    }
     
     const [orderDoc, sellerDoc] = await Promise.all([
       db.doc(`orders/${orderId}`).get(),

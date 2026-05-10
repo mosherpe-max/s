@@ -93,10 +93,10 @@ service cloud.firestore {
     }
 
     /**
-     * @description Vault for sensitive credentials. Controlled by Admin only.
+     * @description Vault for sensitive credentials. Controlled by Admin or Venue Admin.
      */
     match /sellers_private/{sellerId} {
-      allow read, write: if isAdmin();
+      allow read, write: if isAdmin() || isSellerAdmin(sellerId);
     }
 
     /**
