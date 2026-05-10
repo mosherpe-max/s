@@ -72,36 +72,48 @@ export const createStripeCheckoutSession = onCall(async (request) => {
       db.doc(`sellers/${sellerId}`).get()
     ]);
 
-    if (!orderDoc.exists) throw new HttpsError('not-found', 'Order not found.');
-    if (!sellerDoc.exists) throw new HttpsError('not-found', 'Seller not found.');
+    if (!orderDoc.exists) throw new HttpsError('not-found', 'Order not found in database.');
+    if (!sellerDoc.exists) throw new HttpsError('not-found', 'Seller configuration not found.');
 
     const orderData = orderDoc.data()!;
     const sellerData = sellerDoc.data()!;
+    
+    // Ensure origin is reliable for redirects
     const baseUrl = origin || 'https://kooporders.com';
 
-    const convenienceFeeCents = Math.round(orderData.serviceFee * 100);
-    const koopOffsetCents = sellerData.koopFeeOffsetCents || 0;
+    const convenienceFeeCents = Math.round((Number(orderData.serviceFee) || 0) * 100);
+    const koopOffsetCents = Number(sellerData.koopFeeOffsetCents) || 0;
     const applicationFeeAmount = Math.max(0, convenienceFeeCents - koopOffsetCents);
+
+    if (!orderData.items || !Array.isArray(orderData.items) || orderData.items.length === 0) {
+      throw new HttpsError('invalid-argument', 'Order contains no items.');
+    }
 
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
       ui_mode: 'embedded',
       line_items: orderData.items.map((item: any) => {
+        const basePrice = Number(item.price) || 0;
         const modifiersPrice = item.selectedModifiers 
-          ? Object.values(item.selectedModifiers).flat().reduce((sum: number, mod: any) => sum + mod.price, 0)
+          ? Object.values(item.selectedModifiers).flat().reduce((sum: number, mod: any) => sum + (Number(mod.price) || 0), 0)
           : 0;
+        
+        const quantity = Number(item.quantity) || 1;
         
         return {
           price_data: {
             currency: 'usd',
-            product_data: { name: item.name },
-            unit_amount: Math.round((item.price + modifiersPrice) * 100),
+            product_data: { 
+              name: item.name,
+              description: item.description || undefined
+            },
+            unit_amount: Math.round((basePrice + modifiersPrice) * 100),
           },
-          quantity: item.quantity,
+          quantity: quantity,
         };
       }),
       payment_intent_data: {
-        application_fee_amount: applicationFeeAmount,
+        application_fee_amount: applicationFeeAmount > 0 ? applicationFeeAmount : undefined,
         transfer_data: { destination: stripeAccountId },
         metadata: { orderId, sellerId },
       },

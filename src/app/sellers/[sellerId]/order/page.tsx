@@ -318,13 +318,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
             const result = await createSession({
               orderId: orderRef.id,
               sellerId,
-              amount: finalTotal,
-              items: activeOrderItems.map(i => ({
-                name: i.name,
-                price: i.price,
-                quantity: i.quantity,
-                modifiersPrice: i.selectedModifiers ? Object.values(i.selectedModifiers).flat().reduce((s, m) => s + m.price, 0) : 0
-              }))
+              origin: window.location.origin
             });
             
             setStripeClientSecret((result.data as any).clientSecret);
@@ -615,7 +609,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
               item={modifierTarget} 
               onClose={() => setModifierTarget(null)} 
               onAdd={(selections) => {
-                const cartId = `${modifierTarget.id}-${Object.values(selections).flat().map(o => i.id).sort().join('-')}`;
+                const cartId = `${modifierTarget.id}-${Object.values(selections).flat().map(o => o.id).sort().join('-')}`;
                 updateItem({
                   ...modifierTarget,
                   cartId,
