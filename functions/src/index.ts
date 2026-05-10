@@ -9,9 +9,9 @@ if (!admin.apps.length) {
 
 /**
  * Validates a Stripe Connected Account ID by retrieving its status.
- * This proves the Platform's Secret Key is valid and authorized to act on behalf of the venue.
+ * Explicitly uses CORS and a standardized region for reliable reachability.
  */
-export const testStripeConnection = onCall(async (request) => {
+export const testStripeConnection = onCall({ cors: true, region: 'us-central1' }, async (request) => {
   // 1. Authorization check (Platform Admins only)
   if (!request.auth) {
     throw new HttpsError('unauthenticated', 'Admin authentication required.');
@@ -55,7 +55,7 @@ export const testStripeConnection = onCall(async (request) => {
       console.error('[ST-DIAG] Invalid Secret Key format.');
       return { 
         success: false, 
-        error: `The stored Secret Key starts with "${secretKey.substring(0, 3)}...", which is not a valid Stripe Secret Key format (should start with sk_). Check if you accidentally pasted a Publishable Key.` 
+        error: `The stored Secret Key starts with "${secretKey.substring(0, 3)}...", which is not a valid Stripe Secret Key format (should start with sk_).` 
       };
     }
 
@@ -66,11 +66,8 @@ export const testStripeConnection = onCall(async (request) => {
     });
 
     // 5. Attempt to retrieve the connected account
-    console.log('[ST-DIAG] Calling Stripe API...');
     try {
       const account = await stripe.accounts.retrieve(connectedAccountId);
-      console.log('[ST-DIAG] Stripe API call successful.');
-
       return {
         success: true,
         account: {
@@ -91,7 +88,6 @@ export const testStripeConnection = onCall(async (request) => {
     }
   } catch (globalErr: any) {
     console.error('[ST-DIAG] Global Function Error:', globalErr);
-    // Wrap generic crashes so the client doesn't just see "internal"
     return { 
       success: false, 
       error: `System Error: ${globalErr.message || 'An unexpected error occurred in the Cloud Function environment.'}` 

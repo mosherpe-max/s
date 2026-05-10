@@ -122,11 +122,12 @@ export default function KOOPAdminPage() {
     setIsTesting(true);
     setTestResult(null);
     try {
-      const functions = getFunctions(firebaseApp);
+      // Explicitly targeting the default region to avoid reachability issues
+      const functions = getFunctions(firebaseApp, 'us-central1');
       const testFn = httpsCallable(functions, 'testStripeConnection');
+      
       const result = await testFn({ connectedAccountId: testAccountId.trim() });
       
-      // The function is now hardened to return its own success flag to avoid "internal" crashes
       const data = result.data as any;
       if (data.success === false) {
         setTestResult({ error: data.error });
@@ -137,9 +138,16 @@ export default function KOOPAdminPage() {
       }
     } catch (e: any) {
       console.error('Diagnostic Test Failed:', e);
-      // This block now only handles real network/timeout issues
-      setTestResult({ error: e.message || 'A network error occurred while reaching the Cloud Function.' });
-      toast({ variant: "destructive", title: "Test Error", description: "Could not reach the server." });
+      // Surfacing the technical error (e.g. code/details) to the UI for better debugging
+      const techDetail = e.code ? `[${e.code}] ${e.message}` : e.message;
+      setTestResult({ 
+        error: `Reachability Error: ${techDetail}. Ensure you have saved your Secret Key and the function is deployed.` 
+      });
+      toast({ 
+        variant: "destructive", 
+        title: "Connection Error", 
+        description: "Could not reach the server endpoint." 
+      });
     } finally {
       setIsTesting(false);
     }
