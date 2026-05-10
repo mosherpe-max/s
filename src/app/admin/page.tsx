@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -27,7 +26,8 @@ import {
   Globe,
   KeyRound,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  Save
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import {
@@ -47,7 +47,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import type { Seller, Order, AdminUser } from '@/lib/types';
+import type { Seller, Order } from '@/lib/types';
 import { sellerTypes } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { cn, SUPER_ADMIN_ID } from '@/lib/utils';
