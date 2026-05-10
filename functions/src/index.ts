@@ -22,13 +22,30 @@ export const testStripeConnection = onCall(async (request) => {
     throw new HttpsError('invalid-argument', 'Missing Connected Account ID.');
   }
 
+  console.log(`Starting Stripe connection test for account: ${connectedAccountId}`);
+
   try {
     // 2. Fetch platform secret key from private vault
     const configSnap = await admin.firestore().doc('config/platform_private').get();
-    const secretKey = configSnap.data()?.stripeSecretKey;
+    
+    if (!configSnap.exists) {
+      console.error('Configuration document "config/platform_private" not found.');
+      throw new HttpsError('failed-precondition', 'Platform secrets vault (config/platform_private) does not exist. Please save keys in the Admin UI first.');
+    }
 
-    if (!secretKey) {
-      throw new HttpsError('failed-precondition', 'Stripe Secret Key not found in platform_private.');
+    const data = configSnap.data();
+    const rawSecretKey = data?.stripeSecretKey;
+
+    if (!rawSecretKey) {
+      console.error('Stripe Secret Key missing in platform_private document.');
+      throw new HttpsError('failed-precondition', 'Stripe Secret Key not found in platform_private vault.');
+    }
+
+    const secretKey = rawSecretKey.trim();
+
+    if (!secretKey.startsWith('sk_')) {
+      console.error('Invalid Secret Key format detected.');
+      throw new HttpsError('invalid-argument', 'The stored Secret Key does not appear to be a valid Stripe Secret Key (should start with sk_).');
     }
 
     // 3. Initialize Stripe
@@ -37,7 +54,9 @@ export const testStripeConnection = onCall(async (request) => {
     });
 
     // 4. Attempt to retrieve the connected account
+    console.log('Calling Stripe API...');
     const account = await stripe.accounts.retrieve(connectedAccountId);
+    console.log('Stripe API call successful.');
 
     return {
       success: true,
@@ -51,6 +70,14 @@ export const testStripeConnection = onCall(async (request) => {
     };
   } catch (error: any) {
     console.error('Stripe Connection Test Failed:', error);
-    throw new HttpsError('internal', error.message || 'Internal Stripe error.');
+    
+    // If it's already an HttpsError we threw, just pass it through
+    if (error instanceof HttpsError) {
+      throw error;
+    }
+
+    // Otherwise, wrap the Stripe-specific error
+    const message = error.message || 'Unknown Stripe error';
+    throw new HttpsError('internal', `Stripe API Error: ${message}`);
   }
 });

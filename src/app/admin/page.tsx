@@ -1,9 +1,10 @@
+
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { collection, doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
-import { httpsCallable } from 'firebase/functions';
+import { httpsCallable, getFunctions } from 'firebase/functions';
 import { useFirestore, useCollection, useMemoFirebase, useUser, useAuth, useDoc } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -30,13 +31,6 @@ import {
   Save
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useForm } from 'react-hook-form';
@@ -53,7 +47,6 @@ import { useToast } from '@/hooks/use-toast';
 import { cn, SUPER_ADMIN_ID } from '@/lib/utils';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { getFunctions } from 'firebase/functions';
 
 const sellerSchema = z.object({
   courseName: z.string().min(2, 'Seller name required'),
@@ -105,9 +98,17 @@ export default function KOOPAdminPage() {
     if (!firestore || !isAuthorized) return;
     setIsUpdatingCreds(true);
     try {
-      await setDoc(doc(firestore, 'config', 'platform'), { stripePublishableKey: publishableKey, updatedAt: serverTimestamp() }, { merge: true });
-      await setDoc(doc(firestore, 'config', 'platform_private'), { stripeSecretKey: secretKey, updatedAt: serverTimestamp() }, { merge: true });
-      toast({ title: "Credentials Updated" });
+      await setDoc(doc(firestore, 'config', 'platform'), { 
+        stripePublishableKey: publishableKey.trim(), 
+        updatedAt: serverTimestamp() 
+      }, { merge: true });
+      
+      await setDoc(doc(firestore, 'config', 'platform_private'), { 
+        stripeSecretKey: secretKey.trim(), 
+        updatedAt: serverTimestamp() 
+      }, { merge: true });
+      
+      toast({ title: "Credentials Updated in Vault" });
     } catch (e: any) {
       toast({ variant: "destructive", title: "Update Failed", description: e.message });
     } finally {
@@ -122,12 +123,13 @@ export default function KOOPAdminPage() {
     try {
       const functions = getFunctions();
       const testFn = httpsCallable(functions, 'testStripeConnection');
-      const result = await testFn({ connectedAccountId: testAccountId });
+      const result = await testFn({ connectedAccountId: testAccountId.trim() });
       setTestResult(result.data);
-      toast({ title: "Test Complete" });
+      toast({ title: "Diagnostics Complete" });
     } catch (e: any) {
-      toast({ variant: "destructive", title: "Test Failed", description: e.message });
-      setTestResult({ error: e.message });
+      console.error('Diagnostic Test Failed:', e);
+      setTestResult({ error: e.message || 'An unexpected error occurred during the test.' });
+      toast({ variant: "destructive", title: "Test Failed", description: "See diagnostics panel for details." });
     } finally {
       setIsTesting(false);
     }
@@ -159,7 +161,7 @@ export default function KOOPAdminPage() {
     setIsFormOpen(false); setEditingSeller(null); form.reset(); setIsSaving(false);
   };
 
-  if (isUserLoading) return <div className="flex items-center justify-center min-h-screen"><Loader2 className="animate-spin" /></div>;
+  if (isUserLoading) return <div className="flex items-center justify-center min-h-screen"><Loader2 className="animate-spin h-12 w-12 text-primary" /></div>;
 
   if (!isAuthorized) {
     return (
@@ -276,15 +278,20 @@ export default function KOOPAdminPage() {
                   <div className={cn("p-4 rounded-xl border-2 space-y-3 animate-in fade-in zoom-in-95", testResult.error ? "bg-red-50 border-red-100" : "bg-green-50 border-green-100")}>
                     <div className="flex items-center gap-2">
                       {testResult.error ? <AlertCircle className="h-4 w-4 text-red-600" /> : <CheckCircle2 className="h-4 w-4 text-green-600" />}
-                      <span className="text-[10px] font-black uppercase tracking-widest">{testResult.error ? "Connection Failed" : "Connection Verified"}</span>
+                      <span className="text-[10px] font-black uppercase tracking-widest">{testResult.error ? "Diagnostic Failed" : "Connection Verified"}</span>
                     </div>
                     {testResult.account && (
                       <div className="grid grid-cols-2 gap-4">
                         <div><p className="text-[8px] font-black uppercase text-muted-foreground">Charges Enabled</p><p className="text-xs font-bold">{testResult.account.charges_enabled ? 'YES' : 'NO'}</p></div>
                         <div><p className="text-[8px] font-black uppercase text-muted-foreground">Payouts Enabled</p><p className="text-xs font-bold">{testResult.account.payouts_enabled ? 'YES' : 'NO'}</p></div>
+                        <div className="col-span-2"><p className="text-[8px] font-black uppercase text-muted-foreground">Stripe ID</p><p className="text-[10px] font-mono font-bold truncate">{testResult.account.id}</p></div>
                       </div>
                     )}
-                    {testResult.error && <p className="text-[10px] text-red-600 font-mono break-all">{testResult.error}</p>}
+                    {testResult.error && (
+                      <div className="bg-white/50 p-2 rounded border border-red-200">
+                        <p className="text-[10px] text-red-700 font-mono font-bold break-words leading-relaxed">{testResult.error}</p>
+                      </div>
+                    )}
                   </div>
                 )}
               </CardContent>
