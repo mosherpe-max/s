@@ -2,7 +2,7 @@
 'use client';
 
 import React, { useState, useMemo, useEffect, use, useRef } from 'react';
-import { collection, doc, setDoc, deleteDoc, writeBatch, query, where, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, doc, setDoc, deleteDoc, writeBatch, query, where, updateDoc, serverTimestamp, getDocs } from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
 import { useFirestore, useDoc, useCollection, useMemoFirebase, useUser, useAuth, useFirebaseApp } from '@/firebase';
 import { Button } from '@/components/ui/button';
@@ -111,6 +111,7 @@ import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { publicGolfItems, privateGolfItems, bowlingAlleyItems } from '@/lib/data';
 
 const staffSchema = z.object({
   name: z.string().min(2, 'Name required'),
@@ -431,6 +432,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   const [isSavingThresholds, setIsSavingThresholds] = useState(false);
   const [isStaffFormOpen, setIsStaffFormOpen] = useState(false);
   const [editingStaff, setEditingStaff] = useState<StaffMember | null>(null);
+  const [isResettingDemo, setIsResettingDemo] = useState(false);
 
   const [manualStripeId, setManualStripeId] = useState('');
   const [isSavingStripeId, setIsSavingStripeId] = useState(false);
@@ -582,14 +584,11 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     setIsSavingStripeId(true);
     try {
       const batch = writeBatch(firestore);
-      
-      // 1. Save to private doc
       batch.set(doc(firestore, 'sellers_private', sellerId), {
         stripeAccountId: manualStripeId,
         updatedAt: serverTimestamp()
       }, { merge: true });
 
-      // 2. Mark onboarding as complete in public doc if ID exists
       batch.update(doc(firestore, 'sellers', sellerId), {
         stripeOnboardingComplete: manualStripeId.startsWith('acct_')
       });
@@ -600,6 +599,41 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
       toast({ variant: 'destructive', title: 'Save Failed', description: err.message });
     } finally {
       setIsSavingStripeId(false);
+    }
+  };
+
+  const handleResetDemo = async () => {
+    if (!firestore || !sellerId || !hasAccess) return;
+    setIsResettingDemo(true);
+    try {
+      const batch = writeBatch(firestore);
+      
+      // 1. Determine items based on seller type or ID
+      let seedItems = publicGolfItems;
+      if (sellerId.includes('private')) seedItems = privateGolfItems;
+      if (sellerId.includes('bowling')) seedItems = bowlingAlleyItems;
+
+      // 2. Clear existing items (client side snapshot to list IDs)
+      const snapshot = await getDocs(collection(firestore, 'sellers', sellerId, 'menuItems'));
+      snapshot.docs.forEach(d => batch.delete(d.ref));
+
+      // 3. Seed new items
+      seedItems.forEach((item, idx) => {
+        const itemRef = doc(collection(firestore, 'sellers', sellerId, 'menuItems'));
+        batch.set(itemRef, {
+          ...item,
+          id: itemRef.id,
+          rank: idx,
+          createdAt: serverTimestamp()
+        });
+      });
+
+      await batch.commit();
+      toast({ title: "Demo Data Reset", description: "Menu library re-seeded with fresh, valid data." });
+    } catch (err: any) {
+      toast({ variant: 'destructive', title: 'Reset Failed', description: err.message });
+    } finally {
+      setIsResettingDemo(false);
     }
   };
 
@@ -873,7 +907,16 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
              <Button variant="ghost" onClick={handleLogout} className="h-9 text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-destructive hover:bg-destructive/5 mr-2">
                 <LogOut className="mr-2 h-4 w-4" /> Sign Out
              </Button>
-             <Button variant="outline" size="sm" className="bg-background"><Sparkles className="mr-2 h-4 w-4" /> Reset Demo</Button>
+             <Button 
+                variant="outline" 
+                size="sm" 
+                className="bg-background" 
+                onClick={handleResetDemo}
+                disabled={isResettingDemo}
+             >
+                {isResettingDemo ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+                Reset Demo Data
+             </Button>
           </div>
         </header>
 

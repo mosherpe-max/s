@@ -13,15 +13,10 @@ if (!admin.apps.length) {
 async function getStripeClient() {
   try {
     const db = admin.firestore();
-    const [privateDoc, publicDoc] = await Promise.all([
-      db.doc('config/platform_private').get(),
-      db.doc('config/platform').get()
-    ]);
-
-    const privateData = privateDoc.data();
-    const publicData = publicDoc.data();
+    const privateDoc = await db.doc('config/platform_private').get();
     
-    const secretKey = privateData?.stripeSecretKey || publicData?.stripeSecretKey || process.env.STRIPE_SECRET_KEY;
+    // Fallback order: Private Firestore -> Environment
+    const secretKey = privateDoc.data()?.stripeSecretKey || process.env.STRIPE_SECRET_KEY;
     
     if (!secretKey) {
       throw new HttpsError(
@@ -62,7 +57,7 @@ export const createStripeCheckoutSession = onCall(async (request) => {
     const stripeAccountId = privateSellerDoc.data()?.stripeAccountId;
 
     if (!stripeAccountId) {
-      throw new HttpsError('failed-precondition', 'This venue has not completed Stripe setup. Please notify the establishment.');
+      throw new HttpsError('failed-precondition', 'This venue has not completed Stripe setup. Please enter a valid Account ID in the Venue Admin portal.');
     }
     
     const [orderDoc, sellerDoc] = await Promise.all([
@@ -91,23 +86,31 @@ export const createStripeCheckoutSession = onCall(async (request) => {
       mode: 'payment',
       ui_mode: 'embedded',
       line_items: orderData.items.map((item: any) => {
-        const basePrice = Number(item.price) || 0;
+        // Ensure price is treated as a number
+        const basePrice = Number(item.price);
+        if (isNaN(basePrice)) {
+          throw new HttpsError('invalid-argument', `Item "${item.name}" is missing a valid base price.`);
+        }
+
         const modifiersPrice = item.selectedModifiers 
-          ? Object.values(item.selectedModifiers).flat().reduce((sum: number, mod: any) => sum + (Number(mod.price) || 0), 0)
+          ? Object.values(item.selectedModifiers).flat().reduce((sum: number, mod: any) => {
+              const modPrice = Number(mod.price) || 0;
+              return sum + modPrice;
+            }, 0)
           : 0;
         
         const quantity = Math.max(1, Math.round(Number(item.quantity) || 1));
         const unitAmount = Math.round((basePrice + modifiersPrice) * 100);
         
         if (unitAmount <= 0) {
-          throw new HttpsError('invalid-argument', `Invalid price for item: ${item.name}`);
+          throw new HttpsError('invalid-argument', `Item "${item.name}" resulted in a zero or negative price.`);
         }
 
         return {
           price_data: {
             currency: 'usd',
             product_data: { 
-              name: item.name.substring(0, 250), // Stripe limit
+              name: item.name.substring(0, 250),
               description: item.description ? item.description.substring(0, 500) : undefined
             },
             unit_amount: unitAmount,
@@ -131,7 +134,7 @@ export const createStripeCheckoutSession = onCall(async (request) => {
   } catch (err: any) {
     console.error('Stripe Session Creation Failed:', err);
     if (err instanceof HttpsError) throw err;
-    const message = err.raw?.message || err.message || 'Unknown Stripe error during session creation.';
+    const message = err.raw?.message || err.message || 'Unknown Stripe error.';
     throw new HttpsError('internal', message);
   }
 });
@@ -146,7 +149,7 @@ export const stripeWebhook = onRequest(async (req, res) => {
   try {
     const stripe = await getStripeClient();
     const configDoc = await admin.firestore().doc('config/platform_private').get();
-    const webhookSecret = configDoc.data()?.stripeWebhookSecret || process.env.STRIPE_WEBHOOK_SECRET || '';
+    const webhookSecret = configDoc.data()?.stripeWebhookSecret || '';
     
     event = stripe.webhooks.constructEvent(req.rawBody, sig, webhookSecret);
   } catch (err: any) {
