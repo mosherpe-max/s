@@ -9,31 +9,31 @@ if (!admin.apps.length) {
 
 /**
  * Validates a Stripe Connected Account ID by retrieving its status.
- * Explicitly uses CORS and a standardized region for reliable reachability.
+ * This is the critical "Handshake" test for the multi-venue architecture.
  */
 export const testStripeConnection = onCall({ cors: true, region: 'us-central1' }, async (request) => {
   try {
     // 1. Authorization check (Platform Admins only)
     if (!request.auth) {
-      throw new HttpsError('unauthenticated', 'Admin authentication required.');
+      throw new HttpsError('unauthenticated', 'Security Check Failed: You must be a Platform Admin to run diagnostics.');
     }
 
     const { connectedAccountId } = request.data || {};
     if (!connectedAccountId) {
-      throw new HttpsError('invalid-argument', 'Missing Connected Account ID.');
+      throw new HttpsError('invalid-argument', 'Input Missing: Please provide a Connected Account ID (acct_...).');
     }
 
-    console.log(`[ST-DIAG] Starting test for account: ${connectedAccountId} (Admin: ${request.auth.uid})`);
+    console.log(`[ST-DIAG] Step 1: Initiating test for account: ${connectedAccountId}`);
 
     // 2. Fetch platform secret key from private vault
     const db = admin.firestore();
     const configSnap = await db.doc('config/platform_private').get();
     
     if (!configSnap.exists) {
-      console.error('[ST-DIAG] Document "config/platform_private" not found.');
+      console.error('[ST-DIAG] Error: Document "config/platform_private" not found.');
       return { 
         success: false, 
-        error: 'Platform secrets vault (config/platform_private) does not exist. Please save your Stripe Secret Key in the Admin UI and click "Update Vault" first.' 
+        error: 'Vault Empty: The platform secrets document does not exist. Please save your keys in the System tab first.' 
       };
     }
 
@@ -41,24 +41,26 @@ export const testStripeConnection = onCall({ cors: true, region: 'us-central1' }
     const rawSecretKey = data?.stripeSecretKey;
 
     if (!rawSecretKey) {
-      console.error('[ST-DIAG] Stripe Secret Key missing in document.');
+      console.error('[ST-DIAG] Error: Stripe Secret Key missing in vault.');
       return { 
         success: false, 
-        error: 'Stripe Secret Key not found in platform_private vault. Please save it in the System tab.' 
+        error: 'Secret Missing: No Stripe Secret Key was found in the vault.' 
       };
     }
 
     const secretKey = rawSecretKey.trim();
     const isTestMode = secretKey.startsWith('sk_test_');
 
-    // 3. Simple Format Validation
+    // 3. Key Format Validation
     if (!secretKey.startsWith('sk_')) {
-      console.error('[ST-DIAG] Invalid Secret Key format.');
+      console.error('[ST-DIAG] Error: Invalid Secret Key format.');
       return { 
         success: false, 
-        error: `The stored Secret Key starts with "${secretKey.substring(0, 3)}...", which is not a valid Stripe Secret Key format (should start with sk_).` 
+        error: `Credential Error: The stored Secret Key starts with "${secretKey.substring(0, 3)}...", but it must start with "sk_". You might have used a Publishable Key by mistake.` 
       };
     }
+
+    console.log('[ST-DIAG] Step 2: Secret Key validated. Initializing Stripe SDK...');
 
     // 4. Initialize Stripe
     const stripe = new Stripe(secretKey, {
@@ -68,7 +70,10 @@ export const testStripeConnection = onCall({ cors: true, region: 'us-central1' }
 
     // 5. Attempt to retrieve the connected account
     try {
+      console.log('[ST-DIAG] Step 3: Requesting account data from Stripe API...');
       const account = await stripe.accounts.retrieve(connectedAccountId);
+      
+      console.log('[ST-DIAG] Success: Account data retrieved.');
       return {
         success: true,
         isTestMode,
@@ -86,18 +91,16 @@ export const testStripeConnection = onCall({ cors: true, region: 'us-central1' }
       return { 
         success: false, 
         isTestMode,
-        error: stripeErr.message || 'Stripe rejected the request. Verify the Account ID exists and your API Key has the correct permissions.' 
+        error: `Stripe Rejection: ${stripeErr.message || 'The Stripe API rejected this request. Verify the Account ID exists and belongs to this platform.'}` 
       };
     }
   } catch (globalErr: any) {
-    console.error('[ST-DIAG] Global Function Error:', globalErr);
+    console.error('[ST-DIAG] Global Function Crash:', globalErr);
     
-    // If it's already an HttpsError, rethrow it so the client gets the right code
     if (globalErr instanceof HttpsError) {
       throw globalErr;
     }
     
-    // Otherwise wrap it in a clean HttpsError
-    throw new HttpsError('internal', `System Error: ${globalErr.message || 'An unexpected error occurred in the Cloud Function environment.'}`);
+    throw new HttpsError('internal', `System Error: ${globalErr.message || 'The server crashed unexpectedly during the diagnostic run.'}`);
   }
 });
