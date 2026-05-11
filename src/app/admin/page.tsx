@@ -130,6 +130,7 @@ export default function KOOPAdminPage() {
     setIsTesting(true);
     setTestResult(null);
     try {
+      // Explicitly target the us-central1 region
       const functions = getFunctions(firebaseApp, 'us-central1');
       const testFn = httpsCallable(functions, 'testStripeConnection');
       
@@ -150,10 +151,13 @@ export default function KOOPAdminPage() {
       console.error('Diagnostic Test Failed:', e);
       let errorMessage = e.message || 'Network Timeout';
       
+      // Check for specific Firebase SDK error codes
       if (e.code === 'not-found') {
         errorMessage = 'Function Not Found: Ensure the "testStripeConnection" function is deployed in us-central1.';
       } else if (e.code === 'internal') {
-        errorMessage = 'Server Crash: The platform logic crashed. This usually means the Stripe Secret Key in the vault is invalid.';
+        errorMessage = 'Server Crash: The backend module crashed. This usually indicates an invalid API key in the vault or a missing dependency.';
+      } else if (e.code === 'unauthenticated') {
+        errorMessage = 'Session Expired: Please log out and log back in to refresh your admin session.';
       }
 
       setTestResult({ error: errorMessage });
@@ -351,9 +355,9 @@ export default function KOOPAdminPage() {
                         <div className="pt-2 border-t border-red-100">
                            <p className="text-[8px] font-black uppercase text-red-600">Possible Resolution:</p>
                            <ul className="text-[8px] text-red-800 list-disc pl-3 space-y-0.5 mt-1 font-bold">
-                             <li>Ensure the function is deployed in Firebase Console</li>
-                             <li>Verify the Secret Key starts with 'sk_test_'</li>
-                             <li>Confirm the Connected Account ID exists in your Stripe dashboard</li>
+                             <li>Verify deployment status in your Firebase Console</li>
+                             <li>Ensure the Secret Key starts with 'sk_test_' in Sandbox mode</li>
+                             <li>Confirm the Connected Account ID exists and belongs to this platform</li>
                            </ul>
                         </div>
                       </div>
