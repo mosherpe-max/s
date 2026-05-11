@@ -8,99 +8,107 @@ if (!admin.apps.length) {
 }
 
 /**
- * Validates a Stripe Connected Account ID by retrieving its status.
- * This is the critical "Handshake" test for the multi-venue architecture.
+ * Validates a Stripe Connected Account and optionally performs a $1.00 test intent.
+ * This is the Step 1 validation for the multi-venue architecture.
  */
 export const testStripeConnection = onCall({ cors: true, region: 'us-central1' }, async (request) => {
   try {
-    // 1. Authorization check (Platform Admins only)
+    // 1. Authorization check
     if (!request.auth) {
-      throw new HttpsError('unauthenticated', 'Security Check Failed: You must be a Platform Admin to run diagnostics.');
+      throw new HttpsError('unauthenticated', 'You must be logged in as an admin.');
     }
 
-    const { connectedAccountId } = request.data || {};
+    const { connectedAccountId, attemptTestCharge } = request.data || {};
+    
     if (!connectedAccountId) {
-      throw new HttpsError('invalid-argument', 'Input Missing: Please provide a Connected Account ID (acct_...).');
+      throw new HttpsError('invalid-argument', 'Connected Account ID is required.');
     }
 
-    console.log(`[ST-DIAG] Step 1: Initiating test for account: ${connectedAccountId}`);
-
-    // 2. Fetch platform secret key from private vault
+    // 2. Fetch platform secret key
     const db = admin.firestore();
     const configSnap = await db.doc('config/platform_private').get();
     
     if (!configSnap.exists) {
-      console.error('[ST-DIAG] Error: Document "config/platform_private" not found.');
       return { 
         success: false, 
-        error: 'Vault Empty: The platform secrets document does not exist. Please save your keys in the System tab first.' 
+        error: 'Platform configuration document (config/platform_private) is missing in Firestore.' 
       };
     }
 
-    const data = configSnap.data();
-    const rawSecretKey = data?.stripeSecretKey;
+    const secretKey = configSnap.data()?.stripeSecretKey?.trim();
 
-    if (!rawSecretKey) {
-      console.error('[ST-DIAG] Error: Stripe Secret Key missing in vault.');
+    if (!secretKey) {
       return { 
         success: false, 
-        error: 'Secret Missing: No Stripe Secret Key was found in the vault.' 
+        error: 'Stripe Secret Key is missing in the platform vault.' 
       };
     }
 
-    const secretKey = rawSecretKey.trim();
-    const isTestMode = secretKey.startsWith('sk_test_');
-
-    // 3. Key Format Validation
-    if (!secretKey.startsWith('sk_')) {
-      console.error('[ST-DIAG] Error: Invalid Secret Key format.');
-      return { 
-        success: false, 
-        error: `Credential Error: The stored Secret Key starts with "${secretKey.substring(0, 3)}...", but it must start with "sk_". You might have used a Publishable Key by mistake.` 
-      };
-    }
-
-    console.log('[ST-DIAG] Step 2: Secret Key validated. Initializing Stripe SDK...');
-
-    // 4. Initialize Stripe
+    // 3. Initialize Stripe
     const stripe = new Stripe(secretKey, {
       apiVersion: '2023-10-16' as any,
       typescript: true,
     });
 
-    // 5. Attempt to retrieve the connected account
-    try {
-      console.log('[ST-DIAG] Step 3: Requesting account data from Stripe API...');
-      const account = await stripe.accounts.retrieve(connectedAccountId);
-      
-      console.log('[ST-DIAG] Success: Account data retrieved.');
-      return {
-        success: true,
-        isTestMode,
-        account: {
-          id: account.id,
-          charges_enabled: account.charges_enabled,
-          payouts_enabled: account.payouts_enabled,
-          details_submitted: account.details_submitted,
-          business_type: account.type,
-          email: account.email || 'N/A'
-        }
-      };
-    } catch (stripeErr: any) {
-      console.error('[ST-DIAG] Stripe API Error:', stripeErr);
-      return { 
-        success: false, 
-        isTestMode,
-        error: `Stripe Rejection: ${stripeErr.message || 'The Stripe API rejected this request. Verify the Account ID exists and belongs to this platform.'}` 
-      };
-    }
-  } catch (globalErr: any) {
-    console.error('[ST-DIAG] Global Function Crash:', globalErr);
+    const isTestMode = secretKey.startsWith('sk_test_');
+
+    // 4. Retrieve Account Status
+    console.log(`[ST-DIAG] retrieving account: ${connectedAccountId}`);
+    const account = await stripe.accounts.retrieve(connectedAccountId);
     
-    if (globalErr instanceof HttpsError) {
-      throw globalErr;
+    let chargeResult = null;
+
+    // 5. Optional: Attempt a $1.00 Test Payment Intent (Direct Charge)
+    if (attemptTestCharge) {
+      try {
+        console.log(`[ST-DIAG] Attempting $1.00 test intent for: ${connectedAccountId}`);
+        const intent = await stripe.paymentIntents.create({
+          amount: 100, // $1.00
+          currency: 'usd',
+          description: 'KOOP connectivity test intent',
+          payment_method_types: ['card'],
+          capture_method: 'manual', // Don't actually capture funds
+        }, {
+          stripeAccount: connectedAccountId
+        });
+
+        chargeResult = {
+          id: intent.id,
+          status: intent.status,
+          message: 'Intent created successfully'
+        };
+      } catch (chargeErr: any) {
+        console.error('[ST-DIAG] Test intent failed:', chargeErr);
+        chargeResult = {
+          success: false,
+          error: chargeErr.message || 'Payment Intent creation failed'
+        };
+      }
+    }
+
+    return {
+      success: true,
+      isTestMode,
+      account: {
+        id: account.id,
+        charges_enabled: account.charges_enabled,
+        payouts_enabled: account.payouts_enabled,
+        details_submitted: account.details_submitted,
+        business_type: account.type,
+      },
+      charge: chargeResult
+    };
+
+  } catch (err: any) {
+    console.error('[ST-DIAG] Fatal Error:', err);
+    
+    if (err instanceof HttpsError) {
+      throw err;
     }
     
-    throw new HttpsError('internal', `System Error: ${globalErr.message || 'The server crashed unexpectedly during the diagnostic run.'}`);
+    return { 
+      success: false, 
+      error: err.message || 'An unexpected server error occurred.' 
+    };
   }
 });
