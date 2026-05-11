@@ -49,6 +49,7 @@ export const testStripeConnection = onCall({ cors: true, region: 'us-central1' }
     }
 
     const secretKey = rawSecretKey.trim();
+    const isTestMode = secretKey.startsWith('sk_test_');
 
     // 3. Simple Format Validation
     if (!secretKey.startsWith('sk_')) {
@@ -70,6 +71,7 @@ export const testStripeConnection = onCall({ cors: true, region: 'us-central1' }
       const account = await stripe.accounts.retrieve(connectedAccountId);
       return {
         success: true,
+        isTestMode,
         account: {
           id: account.id,
           charges_enabled: account.charges_enabled,
@@ -83,6 +85,7 @@ export const testStripeConnection = onCall({ cors: true, region: 'us-central1' }
       console.error('[ST-DIAG] Stripe API Error:', stripeErr);
       return { 
         success: false, 
+        isTestMode,
         error: stripeErr.message || 'Stripe rejected the request. Verify the Account ID exists and your API Key has the correct permissions.' 
       };
     }

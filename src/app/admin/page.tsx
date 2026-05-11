@@ -28,7 +28,9 @@ import {
   KeyRound,
   CheckCircle2,
   AlertCircle,
-  Save
+  Save,
+  FlaskConical,
+  ShieldAlert
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -130,7 +132,7 @@ export default function KOOPAdminPage() {
       
       const data = result.data as any;
       if (data.success === false) {
-        setTestResult({ error: data.error });
+        setTestResult({ error: data.error, isTestMode: data.isTestMode });
         toast({ variant: "destructive", title: "Test Failed", description: "Verification failed. See diagnostics panel." });
       } else {
         setTestResult(data);
@@ -138,7 +140,6 @@ export default function KOOPAdminPage() {
       }
     } catch (e: any) {
       console.error('Diagnostic Test Failed:', e);
-      // Surfacing the technical error (e.g. code/details) to the UI for better debugging
       const techDetail = e.code ? `[${e.code}] ${e.message}` : e.message;
       setTestResult({ 
         error: `Reachability Error: ${techDetail}. Ensure you have saved your Secret Key and the function is deployed.` 
@@ -156,7 +157,6 @@ export default function KOOPAdminPage() {
   const sellersQuery = useMemoFirebase(() => (firestore && isAuthorized ? collection(firestore, 'sellers') : null), [firestore, isAuthorized]);
   const ordersQuery = useMemoFirebase(() => (firestore && isAuthorized ? collection(firestore, 'orders') : null), [firestore, isAuthorized]);
   const { data: sellers, isLoading: isSellersLoading } = useCollection<Seller>(sellersQuery);
-  const { data: orders } = useCollection<Order>(ordersQuery);
 
   const filteredSellers = useMemo(() => {
     if (!sellers) return [];
@@ -294,10 +294,23 @@ export default function KOOPAdminPage() {
 
                 {testResult && (
                   <div className={cn("p-4 rounded-xl border-2 space-y-3 animate-in fade-in zoom-in-95", testResult.error ? "bg-red-50 border-red-100" : "bg-green-50 border-green-100")}>
-                    <div className="flex items-center gap-2">
-                      {testResult.error ? <AlertCircle className="h-4 w-4 text-red-600" /> : <CheckCircle2 className="h-4 w-4 text-green-600" />}
-                      <span className="text-[10px] font-black uppercase tracking-widest">{testResult.error ? "Diagnostic Failed" : "Connection Verified"}</span>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        {testResult.error ? <AlertCircle className="h-4 w-4 text-red-600" /> : <CheckCircle2 className="h-4 w-4 text-green-600" />}
+                        <span className="text-[10px] font-black uppercase tracking-widest">{testResult.error ? "Diagnostic Failed" : "Connection Verified"}</span>
+                      </div>
+                      <Badge variant={testResult.isTestMode ? "secondary" : "destructive"} className="text-[8px] uppercase flex items-center gap-1">
+                        {testResult.isTestMode ? <FlaskConical className="h-2 w-2" /> : <ShieldAlert className="h-2 w-2" />}
+                        {testResult.isTestMode ? "Sandbox (Test)" : "LIVE MODE"}
+                      </Badge>
                     </div>
+
+                    {!testResult.isTestMode && !testResult.error && (
+                      <div className="bg-red-500/10 p-2 rounded border border-red-200 text-center">
+                        <p className="text-[9px] text-red-600 font-bold uppercase tracking-tight">Warning: Running against LIVE Stripe keys.</p>
+                      </div>
+                    )}
+
                     {testResult.account && (
                       <div className="grid grid-cols-2 gap-4">
                         <div><p className="text-[8px] font-black uppercase text-muted-foreground">Charges Enabled</p><p className="text-xs font-bold">{testResult.account.charges_enabled ? 'YES' : 'NO'}</p></div>
