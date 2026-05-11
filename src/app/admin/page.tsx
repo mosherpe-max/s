@@ -140,14 +140,26 @@ export default function KOOPAdminPage() {
       }
     } catch (e: any) {
       console.error('Diagnostic Test Failed:', e);
-      const techDetail = e.code ? `[${e.code}] ${e.message}` : e.message;
+      
+      let errorMessage = e.message || 'Could not reach the server endpoint.';
+      
+      // Handle specific Firebase error codes
+      if (e.code === 'internal') {
+        errorMessage = 'Server Runtime Error: The Cloud Function crashed. This often means the Stripe Secret Key is invalid or the project environment is not fully initialized.';
+      } else if (e.code === 'unauthenticated') {
+        errorMessage = 'Authorization Error: Your admin session has expired. Please log in again.';
+      } else if (e.code === 'not-found') {
+        errorMessage = 'Deployment Error: The test function could not be found. Ensure you have deployed your Cloud Functions.';
+      }
+
       setTestResult({ 
-        error: `Reachability Error: ${techDetail}. Ensure you have saved your Secret Key and the function is deployed.` 
+        error: errorMessage 
       });
+      
       toast({ 
         variant: "destructive", 
         title: "Connection Error", 
-        description: "Could not reach the server endpoint." 
+        description: e.code ? `[${e.code}] Error` : "Network Error" 
       });
     } finally {
       setIsTesting(false);
@@ -299,10 +311,12 @@ export default function KOOPAdminPage() {
                         {testResult.error ? <AlertCircle className="h-4 w-4 text-red-600" /> : <CheckCircle2 className="h-4 w-4 text-green-600" />}
                         <span className="text-[10px] font-black uppercase tracking-widest">{testResult.error ? "Diagnostic Failed" : "Connection Verified"}</span>
                       </div>
-                      <Badge variant={testResult.isTestMode ? "secondary" : "destructive"} className="text-[8px] uppercase flex items-center gap-1">
-                        {testResult.isTestMode ? <FlaskConical className="h-2 w-2" /> : <ShieldAlert className="h-2 w-2" />}
-                        {testResult.isTestMode ? "Sandbox (Test)" : "LIVE MODE"}
-                      </Badge>
+                      {testResult.isTestMode !== undefined && (
+                        <Badge variant={testResult.isTestMode ? "secondary" : "destructive"} className="text-[8px] uppercase flex items-center gap-1">
+                          {testResult.isTestMode ? <FlaskConical className="h-2 w-2" /> : <ShieldAlert className="h-2 w-2" />}
+                          {testResult.isTestMode ? "Sandbox (Test)" : "LIVE MODE"}
+                        </Badge>
+                      )}
                     </div>
 
                     {!testResult.isTestMode && !testResult.error && (

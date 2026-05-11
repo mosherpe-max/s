@@ -12,19 +12,19 @@ if (!admin.apps.length) {
  * Explicitly uses CORS and a standardized region for reliable reachability.
  */
 export const testStripeConnection = onCall({ cors: true, region: 'us-central1' }, async (request) => {
-  // 1. Authorization check (Platform Admins only)
-  if (!request.auth) {
-    throw new HttpsError('unauthenticated', 'Admin authentication required.');
-  }
-
-  const { connectedAccountId } = request.data;
-  if (!connectedAccountId) {
-    throw new HttpsError('invalid-argument', 'Missing Connected Account ID.');
-  }
-
-  console.log(`[ST-DIAG] Starting test for account: ${connectedAccountId} (Admin: ${request.auth.uid})`);
-
   try {
+    // 1. Authorization check (Platform Admins only)
+    if (!request.auth) {
+      throw new HttpsError('unauthenticated', 'Admin authentication required.');
+    }
+
+    const { connectedAccountId } = request.data || {};
+    if (!connectedAccountId) {
+      throw new HttpsError('invalid-argument', 'Missing Connected Account ID.');
+    }
+
+    console.log(`[ST-DIAG] Starting test for account: ${connectedAccountId} (Admin: ${request.auth.uid})`);
+
     // 2. Fetch platform secret key from private vault
     const db = admin.firestore();
     const configSnap = await db.doc('config/platform_private').get();
@@ -91,9 +91,13 @@ export const testStripeConnection = onCall({ cors: true, region: 'us-central1' }
     }
   } catch (globalErr: any) {
     console.error('[ST-DIAG] Global Function Error:', globalErr);
-    return { 
-      success: false, 
-      error: `System Error: ${globalErr.message || 'An unexpected error occurred in the Cloud Function environment.'}` 
-    };
+    
+    // If it's already an HttpsError, rethrow it so the client gets the right code
+    if (globalErr instanceof HttpsError) {
+      throw globalErr;
+    }
+    
+    // Otherwise wrap it in a clean HttpsError
+    throw new HttpsError('internal', `System Error: ${globalErr.message || 'An unexpected error occurred in the Cloud Function environment.'}`);
   }
 });
