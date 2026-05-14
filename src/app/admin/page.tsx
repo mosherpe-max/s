@@ -3,7 +3,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { collection, doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
-import { useFirestore, useCollection, useMemoFirebase, useUser, useAuth, useDoc } from '@/firebase';
+import { useFirestore, useCollection, useMemoFirebase, useUser, useAuth, useDoc, useFirebaseApp } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { 
@@ -18,7 +18,10 @@ import {
   ShieldCheck,
   KeyRound,
   Save,
-  Globe
+  Globe,
+  Zap,
+  CheckCircle2,
+  AlertCircle
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -37,6 +40,7 @@ import { useToast } from '@/hooks/use-toast';
 import { SUPER_ADMIN_ID } from '@/lib/utils';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 
 const sellerSchema = z.object({
   courseName: z.string().min(2, 'Seller name required'),
@@ -52,6 +56,7 @@ type SellerFormData = z.infer<typeof sellerSchema>;
 export default function KOOPAdminPage() {
   const firestore = useFirestore();
   const auth = useAuth();
+  const firebaseApp = useFirebaseApp();
   const { user, isUserLoading } = useUser();
   const router = useRouter();
   const { toast } = useToast();
@@ -65,6 +70,10 @@ export default function KOOPAdminPage() {
   const [isUpdatingCreds, setIsUpdatingCreds] = useState(false);
   const [stripeSecret, setStripeSecret] = useState('');
   const [stripeClientId, setStripeClientId] = useState('');
+
+  // Diagnostic State
+  const [isPinging, setIsPinging] = useState(false);
+  const [pingResult, setPingResult] = useState<{ success: boolean; message: string } | null>(null);
 
   const isAuthorized = user?.uid === SUPER_ADMIN_ID || user?.email === 'mosherpe@gmail.com';
 
@@ -116,6 +125,29 @@ export default function KOOPAdminPage() {
       toast({ variant: "destructive", title: "Update Failed", description: e.message });
     } finally {
       setIsUpdatingCreds(false);
+    }
+  };
+
+  const runDiagnostics = async () => {
+    setIsPinging(true);
+    setPingResult(null);
+    try {
+      const functions = getFunctions(firebaseApp, 'us-central1');
+      const ping = httpsCallable(functions, 'pingPlatform');
+      const result = await ping();
+      const data = result.data as any;
+      
+      setPingResult({ 
+        success: true, 
+        message: `Backend Reachable (Region: ${data.region || 'unknown'})` 
+      });
+    } catch (e: any) {
+      setPingResult({ 
+        success: false, 
+        message: e.message || 'Could not reach the server. Ensure Cloud Functions are deployed.' 
+      });
+    } finally {
+      setIsPinging(false);
     }
   };
 
@@ -232,20 +264,53 @@ export default function KOOPAdminPage() {
               </CardContent>
             </Card>
 
-            <Card className="shadow-lg border-2 border-dashed">
-              <CardHeader>
-                <CardTitle className="text-sm font-black uppercase">Configuration Guide</CardTitle>
-              </CardHeader>
-              <CardContent className="text-xs space-y-4 text-muted-foreground leading-relaxed">
-                <p>To enable multi-venue onboarding, you must configure your Stripe dashboard:</p>
-                <ol className="list-decimal pl-4 space-y-2">
-                  <li>Navigate to <strong>Connect &gt; Settings</strong> in Stripe.</li>
-                  <li>Copy your <strong>Live/Test Client ID</strong> and paste it here.</li>
-                  <li>Add <code>https://your-domain.com/onboarding-success</code> to your <strong>Redirect URIs</strong>.</li>
-                  <li>Obtain your Secret Key from <strong>Developers &gt; API Keys</strong>.</li>
-                </ol>
-              </CardContent>
-            </Card>
+            <div className="space-y-8">
+              <Card className="shadow-lg border-2 border-dashed">
+                <CardHeader>
+                  <CardTitle className="text-sm font-black uppercase">Configuration Guide</CardTitle>
+                </CardHeader>
+                <CardContent className="text-xs space-y-4 text-muted-foreground leading-relaxed">
+                  <p>To enable multi-venue onboarding, you must configure your Stripe dashboard:</p>
+                  <ol className="list-decimal pl-4 space-y-2">
+                    <li>Navigate to <strong>Connect &gt; Settings</strong> in Stripe.</li>
+                    <li>Copy your <strong>Live/Test Client ID</strong> and paste it here.</li>
+                    <li>Add <code>https://your-domain.com/onboarding-success</code> to your <strong>Redirect URIs</strong>.</li>
+                    <li>Obtain your Secret Key from <strong>Developers &gt; API Keys</strong>.</li>
+                  </ol>
+                </CardContent>
+              </Card>
+
+              <Card className="shadow-lg border-2 bg-amber-50/30 border-amber-100">
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-sm font-black uppercase text-amber-900">System Diagnostics</CardTitle>
+                    <Zap className="h-4 w-4 text-amber-600" />
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <p className="text-[10px] font-bold text-amber-800 uppercase leading-relaxed">
+                    Verify if the backend processing layer is online and correctly configured.
+                  </p>
+                  {pingResult && (
+                    <div className={cn(
+                      "p-3 rounded-lg border-2 flex items-center gap-3 animate-in fade-in slide-in-from-top-1",
+                      pingResult.success ? "bg-green-50 border-green-100 text-green-800" : "bg-red-50 border-red-100 text-red-800"
+                    )}>
+                      {pingResult.success ? <CheckCircle2 className="h-4 w-4 shrink-0" /> : <AlertCircle className="h-4 w-4 shrink-0" />}
+                      <span className="text-[10px] font-black uppercase tracking-tight leading-tight">{pingResult.message}</span>
+                    </div>
+                  )}
+                  <Button 
+                    variant="outline" 
+                    onClick={runDiagnostics} 
+                    disabled={isPinging}
+                    className="w-full border-amber-200 text-amber-900 hover:bg-amber-100 font-black uppercase text-[10px] tracking-widest"
+                  >
+                    {isPinging ? <Loader2 className="animate-spin h-3.5 w-3.5 mr-2" /> : "Verify Backend Layer"}
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
           </div>
         </TabsContent>
       </Tabs>
