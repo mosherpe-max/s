@@ -41,6 +41,26 @@ service cloud.firestore {
     }
 
     /**
+     * Role checking rules to allow users to verify their own identities during login/redirection
+     */
+    match /roles_admin/{userId} {
+      allow get: if isSignedIn() && request.auth.uid == userId;
+    }
+
+    match /roles_seller_admin/{email} {
+      allow get: if isSignedIn() && getEmail() == email.lower();
+    }
+
+    match /roles_sales_rep/{email} {
+      allow get: if isSignedIn() && getEmail() == email.lower();
+    }
+
+    match /adminUsers/{email} {
+      allow get: if isSignedIn() && getEmail() == email.lower();
+      allow write: if isSuperAdmin();
+    }
+
+    /**
      * @description Public platform config (Publishable Keys).
      */
     match /config/platform {
