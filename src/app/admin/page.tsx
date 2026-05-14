@@ -22,7 +22,8 @@ import {
   CheckCircle2,
   AlertCircle,
   Terminal,
-  Heart
+  Heart,
+  Database
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
