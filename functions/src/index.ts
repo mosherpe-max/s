@@ -1,5 +1,6 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as admin from 'firebase-admin';
+import { logger } from 'firebase-functions';
 import Stripe from 'stripe';
 
 // Initialize Firebase Admin once at the top level
@@ -14,6 +15,7 @@ const db = admin.firestore();
  * This function does NOT access Firestore or external APIs.
  */
 export const systemHeartbeat = onCall({ cors: true, region: 'us-central1' }, async (request) => {
+  logger.info('[ST-LOG] systemHeartbeat called');
   return { 
     status: 'Ready',
     timestamp: Date.now(),
@@ -25,7 +27,7 @@ export const systemHeartbeat = onCall({ cors: true, region: 'us-central1' }, asy
  * Generates a Stripe Connect OAuth URL for a specific venue.
  */
 export const generateStripeOnboardingUrl = onCall({ cors: true, region: 'us-central1' }, async (request) => {
-  console.log('[ST-INFO] Onboarding request received:', request.data);
+  logger.info('[ST-LOG] generateStripeOnboardingUrl called', request.data);
 
   if (!request.data) {
     throw new HttpsError('invalid-argument', 'Request data is missing.');
@@ -41,6 +43,7 @@ export const generateStripeOnboardingUrl = onCall({ cors: true, region: 'us-cent
     const configDoc = await db.doc('config/platform_private').get();
     
     if (!configDoc.exists) {
+      logger.error('[ST-ERROR] Platform config document missing at config/platform_private');
       throw new HttpsError('failed-precondition', 'Platform Stripe credentials are not configured in Firestore.');
     }
 
@@ -49,6 +52,7 @@ export const generateStripeOnboardingUrl = onCall({ cors: true, region: 'us-cent
     const clientId = config?.stripeClientId?.trim();
 
     if (!secretKey || !clientId) {
+      logger.error('[ST-ERROR] Stripe keys are missing in Firestore');
       throw new HttpsError('failed-precondition', 'Stripe configuration is incomplete in the Credential Vault.');
     }
 
@@ -69,7 +73,7 @@ export const generateStripeOnboardingUrl = onCall({ cors: true, region: 'us-cent
     return { url: onboardingUrl };
 
   } catch (error: any) {
-    console.error('[ST-OAUTH-CRASH]', error);
+    logger.error('[ST-CRASH]', error);
     
     if (error instanceof HttpsError) {
       throw error;
@@ -83,6 +87,7 @@ export const generateStripeOnboardingUrl = onCall({ cors: true, region: 'us-cent
  * Diagnostic function to verify Firestore connectivity.
  */
 export const pingPlatform = onCall({ cors: true, region: 'us-central1' }, async (request) => {
+  logger.info('[ST-LOG] pingPlatform called');
   try {
     // Attempt a lightweight read to verify Firestore connection
     await db.collection('config').limit(1).get();
@@ -93,7 +98,7 @@ export const pingPlatform = onCall({ cors: true, region: 'us-central1' }, async 
       timestamp: Date.now()
     };
   } catch (e: any) {
-    console.error('[ST-DIAG-FAIL]', e);
+    logger.error('[ST-DIAG-FAIL]', e);
     throw new HttpsError('internal', `Firestore Unreachable: ${e.message}`);
   }
 });
