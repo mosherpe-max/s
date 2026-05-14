@@ -30,7 +30,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { Seller } from '@/lib/types';
 import { sellerTypes } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
@@ -239,10 +239,10 @@ export default function KOOPAdminPage() {
               <CardContent className="text-xs space-y-4 text-muted-foreground leading-relaxed">
                 <p>To enable multi-venue onboarding, you must configure your Stripe dashboard:</p>
                 <ol className="list-decimal pl-4 space-y-2">
-                  <li>Navigate to <strong>Connect > Settings</strong> in Stripe.</li>
+                  <li>Navigate to <strong>Connect &gt; Settings</strong> in Stripe.</li>
                   <li>Copy your <strong>Live/Test Client ID</strong> and paste it here.</li>
                   <li>Add <code>https://your-domain.com/onboarding-success</code> to your <strong>Redirect URIs</strong>.</li>
-                  <li>Obtain your Secret Key from <strong>Developers > API Keys</strong>.</li>
+                  <li>Obtain your Secret Key from <strong>Developers &gt; API Keys</strong>.</li>
                 </ol>
               </CardContent>
             </Card>
