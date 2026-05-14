@@ -14,10 +14,15 @@ import {
   Lock,
   LogOut,
   Activity,
-  Settings
+  Settings,
+  ShieldCheck,
+  KeyRound,
+  Save,
+  Globe
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from "zod";
@@ -25,7 +30,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/tabs";
 import type { Seller } from '@/lib/types';
 import { sellerTypes } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
@@ -55,11 +60,26 @@ export default function KOOPAdminPage() {
   const [editingSeller, setEditingSeller] = useState<Seller | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  
+  // Credentials State
+  const [isUpdatingCreds, setIsUpdatingCreds] = useState(false);
+  const [stripeSecret, setStripeSecret] = useState('');
+  const [stripeClientId, setStripeClientId] = useState('');
 
   const isAuthorized = user?.uid === SUPER_ADMIN_ID || user?.email === 'mosherpe@gmail.com';
 
   const sellersQuery = useMemoFirebase(() => (firestore && isAuthorized ? collection(firestore, 'sellers') : null), [firestore, isAuthorized]);
   const { data: sellers, isLoading: isSellersLoading } = useCollection<Seller>(sellersQuery);
+
+  const credsRef = useMemoFirebase(() => (firestore && isAuthorized ? doc(firestore, 'config', 'platform_private') : null), [firestore, isAuthorized]);
+  const { data: existingCreds } = useDoc(credsRef);
+
+  useEffect(() => {
+    if (existingCreds) {
+      setStripeSecret(existingCreds.stripeSecretKey || '');
+      setStripeClientId(existingCreds.stripeClientId || '');
+    }
+  }, [existingCreds]);
 
   const filteredSellers = useMemo(() => {
     if (!sellers) return [];
@@ -80,6 +100,23 @@ export default function KOOPAdminPage() {
     await setDoc(doc(firestore, 'sellers', sellerId), { ...data, id: sellerId, updatedAt: serverTimestamp() }, { merge: true });
     toast({ title: editingSeller ? 'Venue Updated' : 'Venue Registered' });
     setIsFormOpen(false); setEditingSeller(null); form.reset(); setIsSaving(false);
+  };
+
+  const handleUpdateCredentials = async () => {
+    if (!firestore || !isAuthorized) return;
+    setIsUpdatingCreds(true);
+    try {
+      await setDoc(doc(firestore, 'config', 'platform_private'), {
+        stripeSecretKey: stripeSecret,
+        stripeClientId: stripeClientId,
+        updatedAt: serverTimestamp()
+      }, { merge: true });
+      toast({ title: "Vault Updated", description: "Stripe Connect credentials have been secured." });
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Update Failed", description: e.message });
+    } finally {
+      setIsUpdatingCreds(false);
+    }
   };
 
   if (isUserLoading) return <div className="flex items-center justify-center min-h-screen"><Loader2 className="animate-spin h-12 w-12 text-primary" /></div>;
@@ -112,7 +149,7 @@ export default function KOOPAdminPage() {
       <Tabs defaultValue="operations" className="space-y-8">
         <TabsList className="bg-muted/50 p-1 h-12">
           <TabsTrigger value="operations" className="text-[10px] font-black uppercase px-8 h-10"><Activity className="mr-2 h-3.5 w-3.5" /> Operations</TabsTrigger>
-          <TabsTrigger value="settings" className="text-[10px] font-black uppercase px-8 h-10"><Settings className="mr-2 h-3.5 w-3.5" /> Platform Settings</TabsTrigger>
+          <TabsTrigger value="stripe" className="text-[10px] font-black uppercase px-8 h-10"><Globe className="mr-2 h-3.5 w-3.5" /> System & Stripe</TabsTrigger>
         </TabsList>
 
         <TabsContent value="operations" className="space-y-8">
@@ -151,17 +188,65 @@ export default function KOOPAdminPage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="settings" className="space-y-8">
-          <Card className="shadow-lg border-2">
-            <CardHeader className="bg-muted/30 border-b">
-              <CardTitle className="text-sm font-black uppercase">Platform Configuration</CardTitle>
-              <CardDescription className="text-[9px] font-bold uppercase">General System Parameters</CardDescription>
-            </CardHeader>
-            <CardContent className="pt-6 text-center py-20">
-              <Settings className="h-12 w-12 mx-auto text-muted-foreground/20 mb-4" />
-              <p className="text-xs text-muted-foreground font-medium uppercase tracking-widest">Platform settings are currently locked for maintenance.</p>
-            </CardContent>
-          </Card>
+        <TabsContent value="stripe" className="space-y-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <Card className="shadow-lg border-2">
+              <CardHeader className="bg-indigo-50 border-b border-indigo-100">
+                <div className="flex items-center gap-3">
+                  <div className="bg-indigo-600 p-2 rounded-lg text-white"><ShieldCheck className="h-5 w-5" /></div>
+                  <div>
+                    <CardTitle className="text-sm font-black uppercase text-indigo-900">Credential Vault</CardTitle>
+                    <CardDescription className="text-[9px] font-bold uppercase text-indigo-700/60">Encrypted Platform Secrets</CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="pt-6 space-y-6">
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
+                      <KeyRound className="h-3 w-3" /> Stripe Secret Key (sk_test_...)
+                    </Label>
+                    <Input 
+                      type="password" 
+                      placeholder="sk_test_••••••••••••••••••••••••" 
+                      className="font-mono text-xs border-2"
+                      value={stripeSecret}
+                      onChange={(e) => setStripeSecret(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
+                      <Globe className="h-3 w-3" /> Stripe Client ID (ca_...)
+                    </Label>
+                    <Input 
+                      placeholder="ca_••••••••••••••••••••••••" 
+                      className="font-mono text-xs border-2"
+                      value={stripeClientId}
+                      onChange={(e) => setStripeClientId(e.target.value)}
+                    />
+                  </div>
+                </div>
+                <Button onClick={handleUpdateCredentials} disabled={isUpdatingCreds} className="w-full bg-[#213147] hover:bg-black font-black uppercase tracking-widest">
+                  {isUpdatingCreds ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : <Save className="h-4 w-4 mr-2" />} Update Vault
+                </Button>
+              </CardContent>
+            </Card>
+
+            <Card className="shadow-lg border-2 border-dashed">
+              <CardHeader>
+                <CardTitle className="text-sm font-black uppercase">Configuration Guide</CardTitle>
+              </CardHeader>
+              <CardContent className="text-xs space-y-4 text-muted-foreground leading-relaxed">
+                <p>To enable multi-venue onboarding, you must configure your Stripe dashboard:</p>
+                <ol className="list-decimal pl-4 space-y-2">
+                  <li>Navigate to <strong>Connect > Settings</strong> in Stripe.</li>
+                  <li>Copy your <strong>Live/Test Client ID</strong> and paste it here.</li>
+                  <li>Add <code>https://your-domain.com/onboarding-success</code> to your <strong>Redirect URIs</strong>.</li>
+                  <li>Obtain your Secret Key from <strong>Developers > API Keys</strong>.</li>
+                </ol>
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
       </Tabs>
 

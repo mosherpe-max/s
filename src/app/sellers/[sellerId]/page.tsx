@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useMemo, useEffect, use } from 'react';
@@ -47,7 +46,8 @@ import {
   UserPlus,
   Pencil,
   CheckCircle2,
-  Save
+  Save,
+  Globe
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -80,6 +80,8 @@ import { useRouter } from 'next/navigation';
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { DateRange } from "react-day-picker";
+import { getFunctions, httpsCallable } from 'firebase/functions';
+import { useFirebaseApp } from '@/firebase';
 
 import {
   DndContext,
@@ -103,7 +105,7 @@ import type { MenuItem, Seller, Category, Order, ModifierGroup, ModifierOption, 
 import { categories } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/tabs";
 import { publicGolfItems, privateGolfItems, bowlingAlleyItems } from '@/lib/data';
 
 const staffSchema = z.object({
@@ -283,6 +285,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   const { user, isUserLoading } = useUser();
   const router = useRouter();
   const { toast } = useToast();
+  const firebaseApp = useFirebaseApp();
 
   const [isMounted, setIsMounted] = useState(false);
   const [isMasterFormOpen, setIsMasterFormOpen] = useState(false);
@@ -301,6 +304,9 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   const [isStaffFormOpen, setIsStaffFormOpen] = useState(false);
   const [editingStaff, setEditingStaff] = useState<StaffMember | null>(null);
   const [isResettingDemo, setIsResettingDemo] = useState(false);
+  
+  // Stripe Onboarding
+  const [isGeneratingOnboarding, setIsGeneratingOnboarding] = useState(false);
 
   const sensors = useSensors(useSensor(PointerSensor), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
   const isHardcodedSuperAdmin = user?.uid === SUPER_ADMIN_ID || user?.email === 'mosherpe@gmail.com';
@@ -343,6 +349,21 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     const staffId = editingStaff ? editingStaff.id : Math.random().toString(36).substr(2, 9);
     await setDoc(doc(firestore, 'sellers', sellerId, 'staff', staffId), { ...data, id: staffId, createdAt: editingStaff?.createdAt || serverTimestamp() }, { merge: true });
     setIsStaffFormOpen(false); setEditingStaff(null); staffForm.reset();
+  };
+
+  const handleStartStripeOnboarding = async () => {
+    setIsGeneratingOnboarding(true);
+    try {
+      const functions = getFunctions(firebaseApp, 'us-central1');
+      const generateOnboarding = httpsCallable(functions, 'generateStripeOnboardingUrl');
+      const result = await generateOnboarding({ sellerId });
+      const { url } = result.data as { url: string };
+      window.location.href = url;
+    } catch (e: any) {
+      toast({ variant: 'destructive', title: 'Onboarding Error', description: e.message });
+    } finally {
+      setIsGeneratingOnboarding(false);
+    }
   };
 
   const dashboardStats = useMemo(() => {
@@ -417,6 +438,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
         <Button variant="ghost" size="sm" onClick={() => scrollToSection('staff-management')} className="text-[10px] font-bold uppercase"><Users className="mr-1 h-3.5 w-3.5" /> Staff</Button>
         <Button variant="ghost" size="sm" onClick={() => scrollToSection('sales-stats')} className="text-[10px] font-bold uppercase"><BarChart3 className="mr-1 h-3.5 w-3.5" /> Sales</Button>
         <Button variant="ghost" size="sm" onClick={() => scrollToSection('service-management')} className="text-[10px] font-bold uppercase"><ListChecks className="mr-1 h-3.5 w-3.5" /> Menus</Button>
+        <Button variant="ghost" size="sm" onClick={() => scrollToSection('stripe-connect')} className="text-[10px] font-bold uppercase text-indigo-600"><Globe className="mr-1 h-3.5 w-3.5" /> Payments</Button>
       </nav>
 
       <section id="ops-monitor" className="mb-12">
@@ -426,6 +448,82 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
           <OpsMetricCard label="Overdue" value={dashboardStats?.monthly.longWait || 0} icon={AlertTriangle} />
           <Button asChild className="h-full bg-indigo-600"><Link href={`/sellers/${sellerId}/bevcart`}>Launch BevCart</Link></Button>
         </div>
+      </section>
+
+      <section id="stripe-connect" className="mb-12">
+        <Card className="border-2 border-indigo-100 shadow-lg overflow-hidden">
+          <CardHeader className="bg-indigo-50 border-b border-indigo-100 flex flex-row items-center justify-between py-6">
+            <div className="flex items-center gap-4">
+              <div className="bg-indigo-600 p-3 rounded-2xl text-white shadow-lg shadow-indigo-200">
+                <Globe className="h-6 w-6" />
+              </div>
+              <div>
+                <CardTitle className="text-lg font-black uppercase text-indigo-900 tracking-tight leading-none mb-1">Stripe Connect</CardTitle>
+                <CardDescription className="text-[10px] font-bold uppercase tracking-widest text-indigo-700/60">Payout Management & Onboarding</CardDescription>
+              </div>
+            </div>
+            {seller?.stripeAccountId && (
+              <Badge className="bg-green-600 text-white border-0 font-black uppercase text-[10px] px-3 py-1">Connected</Badge>
+            )}
+          </CardHeader>
+          <CardContent className="pt-8 pb-10 px-8">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
+              <div className="space-y-4">
+                <h3 className="font-headline font-black text-2xl text-[#213147] uppercase leading-tight">
+                  {seller?.stripeAccountId ? 'Your payouts are active' : 'Start accepting digital payments'}
+                </h3>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  KOOP uses Stripe Connect Standard to route payments directly to your merchant account. 
+                  Get paid instantly, track sales in real-time, and manage your payouts directly from the Stripe Dashboard.
+                </p>
+                <ul className="space-y-2">
+                  {['Route revenue directly to your bank', 'Secure PCI-compliant transactions', 'Automatic tax and tip handling'].map(item => (
+                    <li key={item} className="flex items-center gap-2 text-xs font-bold uppercase tracking-tight text-[#213147]/70">
+                      <CheckCircle2 className="h-4 w-4 text-green-600 shrink-0" /> {item}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              <div className="bg-muted/30 p-8 rounded-[2rem] border-2 border-dashed flex flex-col items-center text-center gap-6">
+                {!seller?.stripeAccountId ? (
+                  <>
+                    <div className="bg-white p-6 rounded-[2.5rem] shadow-xl border-2">
+                      <Lock className="h-10 w-10 text-indigo-600" />
+                    </div>
+                    <div className="space-y-2">
+                      <p className="font-headline font-black text-lg uppercase">Account Required</p>
+                      <p className="text-xs text-muted-foreground px-4">Link your existing Stripe account or create a new one to go live.</p>
+                    </div>
+                    <Button 
+                      onClick={handleStartStripeOnboarding} 
+                      disabled={isGeneratingOnboarding}
+                      className="h-14 px-8 bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-widest shadow-xl shadow-indigo-100"
+                    >
+                      {isGeneratingOnboarding ? <Loader2 className="animate-spin mr-2" /> : <ExternalLink className="mr-2 h-4 w-4" />}
+                      Onboard with Stripe
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <div className="bg-green-50 p-6 rounded-[2.5rem] shadow-xl border-2 border-green-100">
+                      <Globe className="h-10 w-10 text-green-600" />
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Linked Account ID</p>
+                      <code className="text-sm font-mono font-bold text-green-700">{seller.stripeAccountId}</code>
+                    </div>
+                    <Button variant="outline" asChild className="h-12 border-2 font-black uppercase tracking-widest">
+                      <a href="https://dashboard.stripe.com" target="_blank" rel="noopener noreferrer">
+                        Open Stripe Dashboard <ExternalLink className="ml-2 h-4 w-4" />
+                      </a>
+                    </Button>
+                  </>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </section>
 
       <section id="staff-management" className="mb-12">
