@@ -3,7 +3,7 @@
 import React, { useState, useMemo, useEffect, use } from 'react';
 import { collection, doc, setDoc, deleteDoc, writeBatch, query, where, updateDoc, serverTimestamp, getDocs } from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
-import { useFirestore, useDoc, useCollection, useMemoFirebase, useUser, useAuth } from '@/firebase';
+import { useFirestore, useDoc, useCollection, useMemoFirebase, useUser, useAuth, useFirebaseApp } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { 
@@ -73,7 +73,7 @@ import * as XLSX from 'xlsx';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { MapView } from '@/components/map-view';
 import { APIProvider } from '@vis.gl/react-google-maps';
-import Image from 'next/image';
+import Image from 'image';
 import Link from 'next/link';
 import { Separator } from '@/components/ui/separator';
 import { useRouter } from 'next/navigation';
@@ -81,7 +81,6 @@ import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { DateRange } from "react-day-picker";
 import { getFunctions, httpsCallable } from 'firebase/functions';
-import { useFirebaseApp } from '@/firebase';
 
 import {
   DndContext,
@@ -105,7 +104,7 @@ import type { MenuItem, Seller, Category, Order, ModifierGroup, ModifierOption, 
 import { categories } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/tabs";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { publicGolfItems, privateGolfItems, bowlingAlleyItems } from '@/lib/data';
 
 const staffSchema = z.object({
@@ -356,11 +355,22 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     try {
       const functions = getFunctions(firebaseApp, 'us-central1');
       const generateOnboarding = httpsCallable(functions, 'generateStripeOnboardingUrl');
-      const result = await generateOnboarding({ sellerId });
+      
+      // Pass both sellerId AND origin to ensure correct redirect back
+      const result = await generateOnboarding({ 
+        sellerId, 
+        origin: window.location.origin 
+      });
+      
       const { url } = result.data as { url: string };
       window.location.href = url;
     } catch (e: any) {
-      toast({ variant: 'destructive', title: 'Onboarding Error', description: e.message });
+      console.error('[ONBOARDING-FAIL]', e);
+      toast({ 
+        variant: 'destructive', 
+        title: 'Onboarding Error', 
+        description: e.message || 'Failed to generate secure onboarding URL.' 
+      });
     } finally {
       setIsGeneratingOnboarding(false);
     }
@@ -587,3 +597,4 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     </div>
   );
 }
+
