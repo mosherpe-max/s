@@ -44,19 +44,19 @@ service cloud.firestore {
      * Role checking rules to allow users to verify their own identities during login/redirection
      */
     match /roles_admin/{userId} {
-      allow get: if isSignedIn() && request.auth.uid == userId;
+      allow read: if isSignedIn() && request.auth.uid == userId;
     }
 
     match /roles_seller_admin/{email} {
-      allow get: if isSignedIn() && getEmail() == email.lower();
+      allow read: if isSignedIn() && getEmail() == email.lower();
     }
 
     match /roles_sales_rep/{email} {
-      allow get: if isSignedIn() && getEmail() == email.lower();
+      allow read: if isSignedIn() && getEmail() == email.lower();
     }
 
     match /adminUsers/{email} {
-      allow get: if isSignedIn() && getEmail() == email.lower();
+      allow read: if isSignedIn() && getEmail() == email.lower();
       allow write: if isSuperAdmin();
     }
 
@@ -76,13 +76,13 @@ service cloud.firestore {
     }
 
     match /users/{userId}/buyerProfile {
-      allow get, list: if request.auth.uid == userId || isAdmin();
+      allow read: if request.auth.uid == userId || isAdmin();
       allow create: if request.auth.uid == userId;
       allow update: if request.auth.uid == userId || isAdmin();
     }
 
     match /sellers/{sellerId} {
-      allow get, list: if true;
+      allow read, list: if true;
       allow update: if isAdmin() || isSellerAdmin(sellerId);
 
       match /staff/{staffId} {
@@ -91,15 +91,23 @@ service cloud.firestore {
       }
 
       match /menuItems/{itemId} {
-        allow get, list: if true;
+        allow read, list: if true;
         allow write: if isAdmin() || isSellerAdmin(sellerId);
       }
     }
 
     match /orders/{orderId} {
-      allow get, list: if isSignedIn();
+      allow read, list: if isSignedIn();
       allow create: if isSignedIn();
       allow update: if isSignedIn() || isAdmin();
+    }
+
+    match /prospects/{prospectId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /activities/{activityId} {
+      allow read, write: if isAdmin();
     }
   }
 }

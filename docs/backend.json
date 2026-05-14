@@ -66,7 +66,11 @@
       { "path": "/sellers/{sellerId}", "definition": { "entityName": "Seller" } },
       { "path": "/sellers/{sellerId}/staff/{staffId}", "definition": { "entityName": "StaffMember" } },
       { "path": "/orders/{orderId}", "definition": { "entityName": "Order" } },
-      { "path": "/config/platform", "definition": { "entityName": "PlatformConfig" } }
+      { "path": "/config/platform", "definition": { "entityName": "PlatformConfig" } },
+      { "path": "/roles_admin/{userId}", "description": "Platform admin role assignments." },
+      { "path": "/roles_seller_admin/{email}", "description": "Venue admin role assignments." },
+      { "path": "/roles_sales_rep/{email}", "description": "Sales representative role assignments." },
+      { "path": "/adminUsers/{email}", "description": "Detailed admin user profiles." }
     ]
   }
 }
