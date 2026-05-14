@@ -21,7 +21,8 @@ import {
   Globe,
   Zap,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  Terminal
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -33,7 +34,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/tabs";
 import type { Seller } from '@/lib/types';
 import { sellerTypes } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
@@ -73,7 +74,7 @@ export default function KOOPAdminPage() {
 
   // Diagnostic State
   const [isPinging, setIsPinging] = useState(false);
-  const [pingResult, setPingResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [pingResult, setPingResult] = useState<{ success: boolean; message: string; code?: string } | null>(null);
 
   const isAuthorized = user?.uid === SUPER_ADMIN_ID || user?.email === 'mosherpe@gmail.com';
 
@@ -105,10 +106,16 @@ export default function KOOPAdminPage() {
   const onSave = async (data: SellerFormData) => {
     if (!firestore || !isAuthorized) return;
     setIsSaving(true);
-    const sellerId = editingSeller ? editingSeller.id : data.courseName.toLowerCase().replace(/\s+/g, '-');
-    await setDoc(doc(firestore, 'sellers', sellerId), { ...data, id: sellerId, updatedAt: serverTimestamp() }, { merge: true });
-    toast({ title: editingSeller ? 'Venue Updated' : 'Venue Registered' });
-    setIsFormOpen(false); setEditingSeller(null); form.reset(); setIsSaving(false);
+    try {
+      const sellerId = editingSeller ? editingSeller.id : data.courseName.toLowerCase().replace(/\s+/g, '-');
+      await setDoc(doc(firestore, 'sellers', sellerId), { ...data, id: sellerId, updatedAt: serverTimestamp() }, { merge: true });
+      toast({ title: editingSeller ? 'Venue Updated' : 'Venue Registered' });
+      setIsFormOpen(false); setEditingSeller(null); form.reset();
+    } catch (e: any) {
+      toast({ variant: 'destructive', title: 'Save Failed', description: e.message });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleUpdateCredentials = async () => {
@@ -139,11 +146,13 @@ export default function KOOPAdminPage() {
       
       setPingResult({ 
         success: true, 
-        message: `Backend Reachable (Region: ${data.region || 'unknown'})` 
+        message: `Backend Layer Online (Region: ${data.region || 'us-central1'})` 
       });
     } catch (e: any) {
+      console.error('[DIAG-ERROR]', e);
       setPingResult({ 
         success: false, 
+        code: e.code,
         message: e.message || 'Could not reach the server. Ensure Cloud Functions are deployed.' 
       });
     } finally {
@@ -293,11 +302,19 @@ export default function KOOPAdminPage() {
                   </p>
                   {pingResult && (
                     <div className={cn(
-                      "p-3 rounded-lg border-2 flex items-center gap-3 animate-in fade-in slide-in-from-top-1",
+                      "p-3 rounded-lg border-2 flex flex-col gap-2 animate-in fade-in slide-in-from-top-1",
                       pingResult.success ? "bg-green-50 border-green-100 text-green-800" : "bg-red-50 border-red-100 text-red-800"
                     )}>
-                      {pingResult.success ? <CheckCircle2 className="h-4 w-4 shrink-0" /> : <AlertCircle className="h-4 w-4 shrink-0" />}
-                      <span className="text-[10px] font-black uppercase tracking-tight leading-tight">{pingResult.message}</span>
+                      <div className="flex items-center gap-3">
+                        {pingResult.success ? <CheckCircle2 className="h-4 w-4 shrink-0" /> : <AlertCircle className="h-4 w-4 shrink-0" />}
+                        <span className="text-[10px] font-black uppercase tracking-tight leading-tight">{pingResult.message}</span>
+                      </div>
+                      {pingResult.code && (
+                        <div className="bg-black/5 p-2 rounded font-mono text-[9px] flex items-center gap-2">
+                          <Terminal className="h-3 w-3" /> 
+                          <span className="font-bold uppercase">Code: {pingResult.code}</span>
+                        </div>
+                      )}
                     </div>
                   )}
                   <Button 

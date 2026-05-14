@@ -2,7 +2,7 @@ import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as admin from 'firebase-admin';
 import Stripe from 'stripe';
 
-// Standard initialization for Firebase Admin
+// Initialize Firebase Admin once at the top level
 if (!admin.apps.length) {
   admin.initializeApp();
 }
@@ -14,7 +14,9 @@ const db = admin.firestore();
  * Expects { sellerId: string, origin: string } in request data.
  */
 export const generateStripeOnboardingUrl = onCall({ cors: true, region: 'us-central1' }, async (request) => {
-  // Defensive check for request data
+  console.log('[ST-INFO] Onboarding request received:', request.data);
+
+  // 1. Validate Input
   if (!request.data) {
     throw new HttpsError('invalid-argument', 'Request data is missing.');
   }
@@ -22,69 +24,82 @@ export const generateStripeOnboardingUrl = onCall({ cors: true, region: 'us-cent
   const { sellerId, origin } = request.data;
 
   if (!sellerId) {
-    throw new HttpsError('invalid-argument', 'The function must be called with a valid sellerId.');
+    throw new HttpsError('invalid-argument', 'Venue ID (sellerId) is required.');
   }
 
   if (!origin) {
-    throw new HttpsError('invalid-argument', 'The origin is required to construct the redirect URI.');
+    throw new HttpsError('invalid-argument', 'The origin URL is required for the redirect handshake.');
   }
 
   try {
-    // 1. Fetch Platform Secrets from Firestore
+    // 2. Fetch Platform Secrets from Firestore
     const configDoc = await db.doc('config/platform_private').get();
     
     if (!configDoc.exists) {
       console.error('[ST-ERR] config/platform_private document does not exist');
-      throw new HttpsError('failed-precondition', 'Platform credentials have not been configured in the Admin Vault.');
+      throw new HttpsError('failed-precondition', 'Platform credentials (Stripe Secret Key/Client ID) have not been configured in the Admin Vault.');
     }
 
     const config = configDoc.data();
+    const secretKey = config?.stripeSecretKey?.trim();
+    const clientId = config?.stripeClientId?.trim();
 
-    if (!config?.stripeSecretKey || !config?.stripeClientId) {
-      console.error('[ST-ERR] Missing required fields in config/platform_private');
-      throw new HttpsError('failed-precondition', 'Stripe Secret Key or Client ID is missing from the configuration.');
+    if (!secretKey || !clientId) {
+      console.error('[ST-ERR] Missing required keys in vault');
+      throw new HttpsError('failed-precondition', 'Stripe configuration is incomplete. Please check the Credential Vault.');
     }
 
-    // 2. Initialize Stripe
-    const stripe = new Stripe(config.stripeSecretKey.trim(), {
+    // 3. Initialize Stripe
+    const stripe = new Stripe(secretKey, {
       apiVersion: '2023-10-16' as any,
     });
 
-    // 3. Generate the OAuth URL
-    // The redirect_uri MUST be registered in the Stripe Dashboard > Connect > Settings
+    // 4. Generate the OAuth URL
     const redirect_uri = `${origin}/onboarding-success`;
 
     const onboardingUrl = stripe.oauth.authorizeUrl({
-      client_id: config.stripeClientId.trim(),
+      client_id: clientId,
       response_type: 'code',
       scope: 'read_write',
       state: sellerId,
       redirect_uri: redirect_uri,
     });
 
-    console.log(`[ST-INFO] Successfully generated onboarding URL for seller: ${sellerId}`);
+    console.log(`[ST-SUCCESS] Generated onboarding URL for seller: ${sellerId}`);
     return { url: onboardingUrl };
 
   } catch (error: any) {
-    console.error('[ST-OAUTH-ERR]', error);
+    console.error('[ST-OAUTH-CRASH]', error);
     
     // Pass through HttpsErrors we explicitly threw
     if (error instanceof HttpsError) {
       throw error;
     }
     
-    // For Stripe API errors or other unexpected failures, wrap in HttpsError
-    throw new HttpsError('internal', error.message || 'An unexpected error occurred while generating the onboarding link.');
+    // Wrap unexpected errors
+    throw new HttpsError('internal', error.message || 'The server encountered an error while communicating with Stripe.');
   }
 });
 
 /**
- * Lightweight diagnostic function to verify backend availability.
+ * Diagnostic function to verify backend availability and environment health.
  */
-export const pingPlatform = onCall({ cors: true, region: 'us-central1' }, async () => {
-  return { 
-    success: true, 
-    timestamp: Date.now(),
-    region: 'us-central1'
-  };
+export const pingPlatform = onCall({ cors: true, region: 'us-central1' }, async (request) => {
+  console.log('[ST-DIAG] Ping received from:', request.auth?.uid || 'anonymous');
+  
+  try {
+    // Test Firestore connectivity
+    await db.collection('config').limit(1).get();
+    
+    return { 
+      success: true, 
+      status: 'Online',
+      region: 'us-central1',
+      timestamp: Date.now(),
+      authenticated: !!request.auth
+    };
+  } catch (e: any) {
+    console.error('[ST-DIAG-FAIL]', e);
+    throw new HttpsError('internal', 'Backend is online but cannot reach Firestore: ' + e.message);
+  }
 });
