@@ -14,7 +14,6 @@ import {
   Lock,
   LogOut,
   Activity,
-  Settings,
   ShieldCheck,
   KeyRound,
   Save,
@@ -22,7 +21,8 @@ import {
   Zap,
   CheckCircle2,
   AlertCircle,
-  Terminal
+  Terminal,
+  Heart
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -74,7 +74,7 @@ export default function KOOPAdminPage() {
 
   // Diagnostic State
   const [isPinging, setIsPinging] = useState(false);
-  const [pingResult, setPingResult] = useState<{ success: boolean; message: string; code?: string } | null>(null);
+  const [pingResult, setPingResult] = useState<{ success: boolean; message: string; code?: string; type: 'heartbeat' | 'firestore' } | null>(null);
 
   const isAuthorized = user?.uid === SUPER_ADMIN_ID || user?.email === 'mosherpe@gmail.com';
 
@@ -135,25 +135,51 @@ export default function KOOPAdminPage() {
     }
   };
 
-  const runDiagnostics = async () => {
+  const runHeartbeat = async () => {
+    setIsPinging(true);
+    setPingResult(null);
+    try {
+      const functions = getFunctions(firebaseApp, 'us-central1');
+      const heartbeat = httpsCallable(functions, 'systemHeartbeat');
+      const result = await heartbeat();
+      const data = result.data as any;
+      
+      setPingResult({ 
+        success: true, 
+        type: 'heartbeat',
+        message: `Runtime Operational: ${data.message}` 
+      });
+    } catch (e: any) {
+      setPingResult({ 
+        success: false, 
+        type: 'heartbeat',
+        code: e.code,
+        message: e.message || 'The Cloud Function runtime could not be reached.' 
+      });
+    } finally {
+      setIsPinging(false);
+    }
+  };
+
+  const runFirestorePing = async () => {
     setIsPinging(true);
     setPingResult(null);
     try {
       const functions = getFunctions(firebaseApp, 'us-central1');
       const ping = httpsCallable(functions, 'pingPlatform');
       const result = await ping();
-      const data = result.data as any;
       
       setPingResult({ 
         success: true, 
-        message: `Backend Layer Online (Region: ${data.region || 'us-central1'})` 
+        type: 'firestore',
+        message: 'Backend is online and successfully reached Firestore.' 
       });
     } catch (e: any) {
-      console.error('[DIAG-ERROR]', e);
       setPingResult({ 
         success: false, 
+        type: 'firestore',
         code: e.code,
-        message: e.message || 'Could not reach the server. Ensure Cloud Functions are deployed.' 
+        message: e.message || 'Firestore diagnostic failed.' 
       });
     } finally {
       setIsPinging(false);
@@ -274,21 +300,6 @@ export default function KOOPAdminPage() {
             </Card>
 
             <div className="space-y-8">
-              <Card className="shadow-lg border-2 border-dashed">
-                <CardHeader>
-                  <CardTitle className="text-sm font-black uppercase">Configuration Guide</CardTitle>
-                </CardHeader>
-                <CardContent className="text-xs space-y-4 text-muted-foreground leading-relaxed">
-                  <p>To enable multi-venue onboarding, you must configure your Stripe dashboard:</p>
-                  <ol className="list-decimal pl-4 space-y-2">
-                    <li>Navigate to <strong>Connect &gt; Settings</strong> in Stripe.</li>
-                    <li>Copy your <strong>Live/Test Client ID</strong> and paste it here.</li>
-                    <li>Add <code>https://your-domain.com/onboarding-success</code> to your <strong>Redirect URIs</strong>.</li>
-                    <li>Obtain your Secret Key from <strong>Developers &gt; API Keys</strong>.</li>
-                  </ol>
-                </CardContent>
-              </Card>
-
               <Card className="shadow-lg border-2 bg-amber-50/30 border-amber-100">
                 <CardHeader>
                   <div className="flex items-center justify-between">
@@ -296,10 +307,11 @@ export default function KOOPAdminPage() {
                     <Zap className="h-4 w-4 text-amber-600" />
                   </div>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="space-y-6">
                   <p className="text-[10px] font-bold text-amber-800 uppercase leading-relaxed">
-                    Verify if the backend processing layer is online and correctly configured.
+                    If you encounter an "Internal Error", use these tools to isolate if the issue is in the function runtime or the database connection.
                   </p>
+                  
                   {pingResult && (
                     <div className={cn(
                       "p-3 rounded-lg border-2 flex flex-col gap-2 animate-in fade-in slide-in-from-top-1",
@@ -307,7 +319,12 @@ export default function KOOPAdminPage() {
                     )}>
                       <div className="flex items-center gap-3">
                         {pingResult.success ? <CheckCircle2 className="h-4 w-4 shrink-0" /> : <AlertCircle className="h-4 w-4 shrink-0" />}
-                        <span className="text-[10px] font-black uppercase tracking-tight leading-tight">{pingResult.message}</span>
+                        <div className="flex flex-col">
+                          <span className="text-[10px] font-black uppercase tracking-tight leading-tight">
+                            {pingResult.type === 'heartbeat' ? 'Runtime Status' : 'Database Status'}
+                          </span>
+                          <span className="text-[9px] font-bold opacity-80">{pingResult.message}</span>
+                        </div>
                       </div>
                       {pingResult.code && (
                         <div className="bg-black/5 p-2 rounded font-mono text-[9px] flex items-center gap-2">
@@ -317,14 +334,39 @@ export default function KOOPAdminPage() {
                       )}
                     </div>
                   )}
-                  <Button 
-                    variant="outline" 
-                    onClick={runDiagnostics} 
-                    disabled={isPinging}
-                    className="w-full border-amber-200 text-amber-900 hover:bg-amber-100 font-black uppercase text-[10px] tracking-widest"
-                  >
-                    {isPinging ? <Loader2 className="animate-spin h-3.5 w-3.5 mr-2" /> : "Verify Backend Layer"}
-                  </Button>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <Button 
+                      variant="outline" 
+                      onClick={runHeartbeat} 
+                      disabled={isPinging}
+                      className="border-amber-200 text-amber-900 hover:bg-amber-100 font-black uppercase text-[9px] tracking-widest h-10"
+                    >
+                      <Heart className="h-3 w-3 mr-1.5" /> {isPinging ? "Testing..." : "Test Runtime"}
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      onClick={runFirestorePing} 
+                      disabled={isPinging}
+                      className="border-amber-200 text-amber-900 hover:bg-amber-100 font-black uppercase text-[9px] tracking-widest h-10"
+                    >
+                      <Database className="h-3 w-3 mr-1.5" /> {isPinging ? "Testing..." : "Test Firestore"}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="shadow-lg border-2 border-dashed">
+                <CardHeader>
+                  <CardTitle className="text-sm font-black uppercase">Onboarding Config</CardTitle>
+                </CardHeader>
+                <CardContent className="text-xs space-y-4 text-muted-foreground leading-relaxed">
+                  <p>Requirements for Stripe Connect Standard:</p>
+                  <ol className="list-decimal pl-4 space-y-2">
+                    <li>Add <code>https://your-domain.com/onboarding-success</code> to <strong>Redirect URIs</strong> in Stripe.</li>
+                    <li>Ensure you have configured a <strong>Branding Logo</strong> in your Stripe Settings.</li>
+                    <li>Select <strong>Standard</strong> integration type in your platform settings.</li>
+                  </ol>
                 </CardContent>
               </Card>
             </div>
