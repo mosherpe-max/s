@@ -3,34 +3,61 @@ import * as admin from 'firebase-admin';
 import { logger } from 'firebase-functions';
 import Stripe from 'stripe';
 
-// Initialize Firebase Admin once at the top level
-if (!admin.apps.length) {
+/**
+ * Initialize Firebase Admin once.
+ * Using a global check to prevent multiple initialization errors.
+ */
+if (admin.apps.length === 0) {
   admin.initializeApp();
 }
 
 const db = admin.firestore();
 
 /**
- * Lightweight heartbeat to verify Cloud Function runtime availability.
- * This function does NOT access Firestore or external APIs.
+ * systemHeartbeat
+ * Minimal function to verify that the Cloud Function runtime is online.
+ * Does not access any external services.
  */
 export const systemHeartbeat = onCall({ cors: true, region: 'us-central1' }, async (request) => {
-  logger.info('[ST-LOG] systemHeartbeat called');
+  logger.info('[ST-LOG] systemHeartbeat invoked');
   return { 
     status: 'Ready',
     timestamp: Date.now(),
-    message: 'Cloud Function runtime is operational.'
+    message: 'Runtime Operational'
   };
 });
 
 /**
- * Generates a Stripe Connect OAuth URL for a specific venue.
+ * pingPlatform
+ * Diagnostic function to verify that the backend can reach Firestore.
+ */
+export const pingPlatform = onCall({ cors: true, region: 'us-central1' }, async (request) => {
+  logger.info('[ST-LOG] pingPlatform invoked');
+  try {
+    // Attempt a lightweight read from the public config
+    const configSnap = await db.doc('config/platform').get();
+    
+    return { 
+      success: true, 
+      status: 'Connected',
+      databasePath: 'config/platform',
+      exists: configSnap.exists
+    };
+  } catch (e: any) {
+    logger.error('[ST-ERROR] Firestore unreachable', e);
+    throw new HttpsError('internal', `Database Connectivity Failure: ${e.message}`);
+  }
+});
+
+/**
+ * generateStripeOnboardingUrl
+ * Retrieves platform secrets from Firestore and generates a Stripe OAuth URL.
  */
 export const generateStripeOnboardingUrl = onCall({ cors: true, region: 'us-central1' }, async (request) => {
-  logger.info('[ST-LOG] generateStripeOnboardingUrl called', request.data);
+  logger.info('[ST-LOG] generateStripeOnboardingUrl invoked');
 
-  if (!request.data) {
-    throw new HttpsError('invalid-argument', 'Request data is missing.');
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'You must be signed in to initialize onboarding.');
   }
 
   const { sellerId, origin } = request.data;
@@ -40,33 +67,37 @@ export const generateStripeOnboardingUrl = onCall({ cors: true, region: 'us-cent
   }
 
   try {
-    const configDoc = await db.doc('config/platform_private').get();
+    // Fetch Platform Secrets from the Vault
+    // Note: The frontend saves to 'config/platform_private'
+    const vaultDoc = await db.doc('config/platform_private').get();
     
-    if (!configDoc.exists) {
-      logger.error('[ST-ERROR] Platform config document missing at config/platform_private');
-      throw new HttpsError('failed-precondition', 'Platform Stripe credentials are not configured in Firestore.');
+    if (!vaultDoc.exists) {
+      logger.error('[ST-ERROR] Platform secrets missing in Vault');
+      throw new HttpsError('failed-precondition', 'Platform Stripe credentials (SK/Client ID) are not configured in the Admin Vault.');
     }
 
-    const config = configDoc.data();
-    const secretKey = config?.stripeSecretKey?.trim();
-    const clientId = config?.stripeClientId?.trim();
+    const secrets = vaultDoc.data();
+    const secretKey = secrets?.stripeSecretKey?.trim();
+    const clientId = secrets?.stripeClientId?.trim();
 
     if (!secretKey || !clientId) {
-      logger.error('[ST-ERROR] Stripe keys are missing in Firestore');
-      throw new HttpsError('failed-precondition', 'Stripe configuration is incomplete in the Credential Vault.');
+      logger.error('[ST-ERROR] Malformed secrets in Vault');
+      throw new HttpsError('failed-precondition', 'Stripe configuration is incomplete. Please check your Secret Key and Client ID.');
     }
 
     const stripe = new Stripe(secretKey, {
       apiVersion: '2023-10-16' as any,
     });
 
+    // The URL Stripe will send the user back to after onboarding
     const redirect_uri = `${origin}/onboarding-success`;
 
+    // Generate the standard OAuth URL
     const onboardingUrl = stripe.oauth.authorizeUrl({
       client_id: clientId,
       response_type: 'code',
       scope: 'read_write',
-      state: sellerId,
+      state: sellerId, // Pass sellerId through to the success page
       redirect_uri: redirect_uri,
     });
 
@@ -79,26 +110,6 @@ export const generateStripeOnboardingUrl = onCall({ cors: true, region: 'us-cent
       throw error;
     }
     
-    throw new HttpsError('internal', `Backend Error: ${error.message || 'Unknown error'}`);
-  }
-});
-
-/**
- * Diagnostic function to verify Firestore connectivity.
- */
-export const pingPlatform = onCall({ cors: true, region: 'us-central1' }, async (request) => {
-  logger.info('[ST-LOG] pingPlatform called');
-  try {
-    // Attempt a lightweight read to verify Firestore connection
-    await db.collection('config').limit(1).get();
-    
-    return { 
-      success: true, 
-      status: 'Online',
-      timestamp: Date.now()
-    };
-  } catch (e: any) {
-    logger.error('[ST-DIAG-FAIL]', e);
-    throw new HttpsError('internal', `Firestore Unreachable: ${e.message}`);
+    throw new HttpsError('internal', `Onboarding Engine Error: ${error.message || 'Unknown failure'}`);
   }
 });
