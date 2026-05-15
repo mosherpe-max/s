@@ -1,5 +1,5 @@
 
-import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import { onCall, HttpsError, onRequest } from 'firebase-functions/v2/https';
 import * as admin from 'firebase-admin';
 import { logger } from 'firebase-functions';
 import Stripe from 'stripe';
@@ -12,6 +12,31 @@ if (admin.apps.length === 0) {
 }
 
 const db = admin.firestore();
+
+/**
+ * testGetStripeUrl
+ * A bare-bones, hardcoded redirect to Stripe OAuth.
+ * Usage: Hit this URL directly in a browser to test basic OAuth configuration.
+ */
+export const testGetStripeUrl = onRequest({ cors: true, region: 'us-central1' }, (req, res) => {
+  logger.info('[KOOP-TEST] testGetStripeUrl invoked');
+
+  // 1. Hardcoded Stripe Client ID
+  // REPLACE 'ca_...' with your actual Stripe Client ID if needed
+  const clientId = 'ca_YOUR_TEST_CLIENT_ID_HERE'; 
+
+  // 2. Hardcoded Redirect URI
+  // This should match a "Redirect URI" added in your Stripe Dashboard Settings
+  const redirectUri = 'https://studio-8903828989-977c5.web.app/onboarding-success';
+
+  // 3. Manually construct the URL string
+  const stripeUrl = `https://connect.stripe.com/oauth/authorize?response_type=code&client_id=${clientId}&scope=read_write&redirect_uri=${encodeURIComponent(redirectUri)}`;
+
+  logger.info(`[KOOP-TEST] Redirecting to: ${stripeUrl}`);
+
+  // 4. Send the user straight to Stripe
+  res.redirect(stripeUrl);
+});
 
 /**
  * systemHeartbeat
@@ -40,7 +65,7 @@ export const pingPlatform = onCall({ cors: true, region: 'us-central1' }, async 
       success: true, 
       status: 'Connected',
       vaultConfigured: vaultSnap.exists,
-      firestoreReachable: configSnap.exists || true
+      firestoreReachable: true
     };
   } catch (e: any) {
     logger.error('[KOOP-ERROR] Firestore unreachable', e);
