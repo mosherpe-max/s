@@ -17,7 +17,8 @@ service cloud.firestore {
       return isSignedIn() && (
         request.auth.uid == 'o9vAQy0aFRPSNPoG0ETvjiGt9If1' || 
         getEmail() == 'mosherpe@gmail.com' ||
-        getEmail() == 'thirstygolfer.pmosher@gmail.com'
+        getEmail() == 'thirstygolfer.pmosher@gmail.com' ||
+        getEmail() == 'thirstygolfer.pmoaher@gmail.com'
       );
     }
 
