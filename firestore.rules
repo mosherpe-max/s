@@ -68,13 +68,6 @@ service cloud.firestore {
       allow write: if isSuperAdmin();
     }
 
-    /**
-     * @description Private platform config (Secret Keys).
-     */
-    match /config/platform_private {
-      allow read, write: if isSuperAdmin();
-    }
-
     match /users/{userId}/buyerProfile {
       allow read: if request.auth.uid == userId || isAdmin();
       allow create: if request.auth.uid == userId;
