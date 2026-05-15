@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -29,11 +30,9 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [isAdminSettingUp, setIsAdminSettingUp] = useState(false);
 
-  // Hardcoded Super Admin Check (UID or specific emails for initialization)
+  // Hardcoded Super Admin Check (Only mosherpe@gmail.com and the specific UID)
   const isSuperAdmin = user?.uid === SUPER_ADMIN_ID || 
-                      user?.email === 'mosherpe@gmail.com' || 
-                      user?.email === 'thirstygolfer.pmosher@gmail.com' ||
-                      user?.email === 'thirstygolfer.pmoaher@gmail.com';
+                      user?.email === 'mosherpe@gmail.com';
 
   // 1. Check Global Admin Role (UID Based)
   const globalRoleRef = useMemoFirebase(() => {
@@ -66,7 +65,7 @@ export default function LoginPage() {
   useEffect(() => {
     if (!user || isUserLoading || isVerifyingRoles) return;
 
-    // Prioritize specific Venue Roles over Global Roles so Managers land in their shop
+    // Prioritize specific Venue Roles over Global Roles
     if (isVenueAdmin && sellerRole?.sellerId) {
       router.push(`/sellers/${sellerRole.sellerId}`);
     } else if (isPlatformAdmin) {
@@ -128,7 +127,6 @@ export default function LoginPage() {
         description: "Your account now has global privileges." 
       });
       
-      // Forces the effect to re-run and redirect
       router.push('/admin');
     } catch (error: any) {
       toast({ variant: "destructive", title: "Setup Failed", description: "Authorization required to initialize registry. Please contact Super Admin." });

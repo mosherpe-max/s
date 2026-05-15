@@ -16,9 +16,7 @@ service cloud.firestore {
     function isSuperAdmin() {
       return isSignedIn() && (
         request.auth.uid == 'o9vAQy0aFRPSNPoG0ETvjiGt9If1' || 
-        getEmail() == 'mosherpe@gmail.com' ||
-        getEmail() == 'thirstygolfer.pmosher@gmail.com' ||
-        getEmail() == 'thirstygolfer.pmoaher@gmail.com'
+        getEmail() == 'mosherpe@gmail.com'
       );
     }
 

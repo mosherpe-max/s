@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -78,10 +79,9 @@ export default function KOOPAdminPage() {
   const [isPinging, setIsPinging] = useState(false);
   const [pingResult, setPingResult] = useState<{ success: boolean; message: string; code?: string; type: 'heartbeat' | 'firestore' } | null>(null);
 
+  // Exclusive Super Admin Authorization
   const isAuthorized = user?.uid === SUPER_ADMIN_ID || 
-                     user?.email === 'mosherpe@gmail.com' || 
-                     user?.email === 'thirstygolfer.pmosher@gmail.com' ||
-                     user?.email === 'thirstygolfer.pmoaher@gmail.com';
+                     user?.email === 'mosherpe@gmail.com';
 
   const sellersQuery = useMemoFirebase(() => (firestore && isAuthorized ? collection(firestore, 'sellers') : null), [firestore, isAuthorized]);
   const { data: sellers, isLoading: isSellersLoading } = useCollection<Seller>(sellersQuery);
@@ -221,7 +221,7 @@ export default function KOOPAdminPage() {
       <Tabs defaultValue="operations" className="space-y-8">
         <TabsList className="bg-muted/50 p-1 h-12">
           <TabsTrigger value="operations" className="text-[10px] font-black uppercase px-8 h-10"><Activity className="mr-2 h-3.5 w-3.5" /> Operations</TabsTrigger>
-          <TabsTrigger value="stripe" className="text-[10px] font-black uppercase px-8 h-10"><Globe className="mr-2 h-3.5 w-3.5" /> System & Stripe</TabsTrigger>
+          <TabsTrigger value="stripe" className="text-[10px) font-black uppercase px-8 h-10"><Globe className="mr-2 h-3.5 w-3.5" /> System & Stripe</TabsTrigger>
         </TabsList>
 
         <TabsContent value="operations" className="space-y-8">
