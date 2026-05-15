@@ -4,9 +4,9 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { collection, doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
-import { useFirestore, useCollection, useMemoFirebase, useUser, useAuth, useDoc, useFirebaseApp } from '@/firebase';
+import { useFirestore, useCollection, useMemoFirebase, useUser, useAuth, useFirebaseApp } from '@/firebase';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { 
   PlusCircle, 
   Loader2, 
@@ -15,18 +15,12 @@ import {
   Lock,
   LogOut,
   Activity,
-  ShieldCheck,
-  KeyRound,
-  Save,
-  Globe,
-  Zap,
   CheckCircle2,
   AlertCircle,
   Terminal,
   Heart,
   Database,
-  ExternalLink,
-  ShieldAlert
+  ExternalLink
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -71,11 +65,6 @@ export default function KOOPAdminPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   
-  // Credentials State
-  const [isUpdatingCreds, setIsUpdatingCreds] = useState(false);
-  const [stripeSecret, setStripeSecret] = useState('');
-  const [stripeClientId, setStripeClientId] = useState('');
-
   // Diagnostic State
   const [isPinging, setIsPinging] = useState(false);
   const [pingResult, setPingResult] = useState<{ success: boolean; message: string; code?: string; type: 'heartbeat' | 'firestore' } | null>(null);
@@ -86,23 +75,6 @@ export default function KOOPAdminPage() {
 
   const sellersQuery = useMemoFirebase(() => (firestore && isAuthorized ? collection(firestore, 'sellers') : null), [firestore, isAuthorized]);
   const { data: sellers, isLoading: isSellersLoading } = useCollection<Seller>(sellersQuery);
-
-  const credsRef = useMemoFirebase(() => (firestore && isAuthorized ? doc(firestore, 'config', 'platform_private') : null), [firestore, isAuthorized]);
-  const { data: existingCreds, isLoading: isCredsLoading } = useDoc(credsRef);
-
-  useEffect(() => {
-    if (existingCreds) {
-      setStripeSecret(existingCreds.stripeSecretKey || '');
-      setStripeClientId(existingCreds.stripeClientId || '');
-    }
-  }, [existingCreds]);
-
-  const vaultStatus = useMemo(() => {
-    if (isCredsLoading) return 'Checking...';
-    if (!existingCreds) return 'Empty';
-    if (existingCreds.stripeSecretKey && existingCreds.stripeClientId) return 'Secured';
-    return 'Incomplete';
-  }, [existingCreds, isCredsLoading]);
 
   const filteredSellers = useMemo(() => {
     if (!sellers) return [];
@@ -128,23 +100,6 @@ export default function KOOPAdminPage() {
       toast({ variant: 'destructive', title: 'Save Failed', description: e.message });
     } finally {
       setIsSaving(false);
-    }
-  };
-
-  const handleUpdateCredentials = async () => {
-    if (!firestore || !isAuthorized) return;
-    setIsUpdatingCreds(true);
-    try {
-      await setDoc(doc(firestore, 'config', 'platform_private'), {
-        stripeSecretKey: stripeSecret.trim(),
-        stripeClientId: stripeClientId.trim(),
-        updatedAt: serverTimestamp()
-      }, { merge: true });
-      toast({ title: "Vault Updated", description: "Stripe Connect credentials have been secured." });
-    } catch (e: any) {
-      toast({ variant: "destructive", title: "Update Failed", description: e.message });
-    } finally {
-      setIsUpdatingCreds(false);
     }
   };
 
@@ -229,7 +184,7 @@ export default function KOOPAdminPage() {
       <Tabs defaultValue="operations" className="space-y-8">
         <TabsList className="bg-muted/50 p-1 h-12">
           <TabsTrigger value="operations" className="text-[10px] font-black uppercase px-8 h-10"><Activity className="mr-2 h-3.5 w-3.5" /> Operations</TabsTrigger>
-          <TabsTrigger value="stripe" className="text-[10px] font-black uppercase px-8 h-10"><Globe className="mr-2 h-3.5 w-3.5" /> System & Stripe</TabsTrigger>
+          <TabsTrigger value="system" className="text-[10px] font-black uppercase px-8 h-10"><Terminal className="mr-2 h-3.5 w-3.5" /> System Status</TabsTrigger>
         </TabsList>
 
         <TabsContent value="operations" className="space-y-8">
@@ -277,159 +232,63 @@ export default function KOOPAdminPage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="stripe" className="space-y-8">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <div className="space-y-8">
-              <Card className="shadow-lg border-2">
-                <CardHeader className="bg-indigo-50 border-b border-indigo-100 flex flex-row items-center justify-between py-4">
-                  <div className="flex items-center gap-3">
-                    <div className="bg-indigo-600 p-2 rounded-lg text-white"><ShieldCheck className="h-5 w-5" /></div>
-                    <div>
-                      <CardTitle className="text-sm font-black uppercase text-indigo-900">Credential Vault</CardTitle>
-                      <CardDescription className="text-[9px] font-bold uppercase text-indigo-700/60">Encrypted Platform Secrets</CardDescription>
-                    </div>
-                  </div>
-                  <Badge className={cn(
-                    "text-[8px] font-black uppercase px-2",
-                    vaultStatus === 'Secured' ? "bg-green-600" : "bg-amber-600"
+        <TabsContent value="system" className="space-y-8">
+          <div className="max-w-2xl">
+            <Card className="shadow-lg border-2 bg-amber-50/30 border-amber-100">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-sm font-black uppercase text-amber-900">Backend Diagnostics</CardTitle>
+                  <Activity className="h-4 w-4 text-amber-600" />
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <p className="text-[10px] font-bold text-amber-800 uppercase leading-relaxed">
+                  Use these tools to verify the health of the Cloud Function runtime and its connection to the database.
+                </p>
+                
+                {pingResult && (
+                  <div className={cn(
+                    "p-3 rounded-lg border-2 flex flex-col gap-2 animate-in fade-in slide-in-from-top-1",
+                    pingResult.success ? "bg-green-50 border-green-100 text-green-800" : "bg-red-50 border-red-100 text-red-800"
                   )}>
-                    {vaultStatus}
-                  </Badge>
-                </CardHeader>
-                <CardContent className="pt-6 space-y-6">
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <Label className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
-                        <KeyRound className="h-3 w-3" /> Stripe Secret Key (sk_test_...)
-                      </Label>
-                      <Input 
-                        type="password" 
-                        placeholder="sk_test_••••••••••••••••••••••••" 
-                        className="font-mono text-xs border-2"
-                        value={stripeSecret}
-                        onChange={(e) => setStripeSecret(e.target.value)}
-                      />
+                    <div className="flex items-center gap-3">
+                      {pingResult.success ? <CheckCircle2 className="h-4 w-4 shrink-0" /> : <AlertCircle className="h-4 w-4 shrink-0" />}
+                      <div className="flex flex-col">
+                        <span className="text-[10px] font-black uppercase tracking-tight leading-tight">
+                          {pingResult.type === 'heartbeat' ? 'Runtime Status' : 'Database Status'}
+                        </span>
+                        <span className="text-[9px] font-bold opacity-80">{pingResult.message}</span>
+                      </div>
                     </div>
-                    <div className="space-y-2">
-                      <Label className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
-                        <Globe className="h-3 w-3" /> Stripe Client ID (ca_...)
-                      </Label>
-                      <Input 
-                        placeholder="ca_••••••••••••••••••••••••" 
-                        className="font-mono text-xs border-2"
-                        value={stripeClientId}
-                        onChange={(e) => setStripeClientId(e.target.value)}
-                      />
-                    </div>
+                    {pingResult.code && (
+                      <div className="bg-black/5 p-2 rounded font-mono text-[9px] flex items-center gap-2">
+                        <Terminal className="h-3 w-3" /> 
+                        <span className="font-bold uppercase">Code: {pingResult.code}</span>
+                      </div>
+                    )}
                   </div>
-                  <Button onClick={handleUpdateCredentials} disabled={isUpdatingCreds} className="w-full bg-[#213147] hover:bg-black font-black uppercase tracking-widest">
-                    {isUpdatingCreds ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : <Save className="h-4 w-4 mr-2" />} Update Vault
+                )}
+
+                <div className="grid grid-cols-2 gap-3">
+                  <Button 
+                    variant="outline" 
+                    onClick={runHeartbeat} 
+                    disabled={isPinging}
+                    className="border-amber-200 text-amber-900 hover:bg-amber-100 font-black uppercase text-[9px] tracking-widest h-10"
+                  >
+                    <Heart className="h-3 w-3 mr-1.5" /> {isPinging ? "Testing..." : "Test Runtime"}
                   </Button>
-                </CardContent>
-              </Card>
-
-              <Card className="shadow-lg border-2 bg-indigo-50/20">
-                <CardHeader className="py-4">
-                  <div className="flex items-center gap-3">
-                    <ShieldAlert className="h-5 w-5 text-indigo-600" />
-                    <CardTitle className="text-sm font-black uppercase">Vault Verification</CardTitle>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <p className="text-[10px] text-muted-foreground font-bold uppercase leading-relaxed">
-                    Firebase Cloud Functions require these keys to be present in Firestore at <code>config/platform_private</code>.
-                  </p>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="p-3 rounded-lg bg-white border flex flex-col gap-1">
-                      <span className="text-[8px] font-black text-muted-foreground uppercase">Secret Key</span>
-                      <div className="flex items-center gap-2">
-                        {existingCreds?.stripeSecretKey ? <CheckCircle2 className="h-3 w-3 text-green-600" /> : <AlertCircle className="h-3 w-3 text-amber-600" />}
-                        <span className="text-[10px] font-bold">{existingCreds?.stripeSecretKey ? "Secured" : "Missing"}</span>
-                      </div>
-                    </div>
-                    <div className="p-3 rounded-lg bg-white border flex flex-col gap-1">
-                      <span className="text-[8px] font-black text-muted-foreground uppercase">Client ID</span>
-                      <div className="flex items-center gap-2">
-                        {existingCreds?.stripeClientId ? <CheckCircle2 className="h-3 w-3 text-green-600" /> : <AlertCircle className="h-3 w-3 text-amber-600" />}
-                        <span className="text-[10px] font-bold">{existingCreds?.stripeClientId ? "Secured" : "Missing"}</span>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            <div className="space-y-8">
-              <Card className="shadow-lg border-2 bg-amber-50/30 border-amber-100">
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-sm font-black uppercase text-amber-900">System Diagnostics</CardTitle>
-                    <Zap className="h-4 w-4 text-amber-600" />
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <p className="text-[10px] font-bold text-amber-800 uppercase leading-relaxed">
-                    If you encounter an "Internal Error", use these tools to isolate if the issue is in the function runtime or the database connection.
-                  </p>
-                  
-                  {pingResult && (
-                    <div className={cn(
-                      "p-3 rounded-lg border-2 flex flex-col gap-2 animate-in fade-in slide-in-from-top-1",
-                      pingResult.success ? "bg-green-50 border-green-100 text-green-800" : "bg-red-50 border-red-100 text-red-800"
-                    )}>
-                      <div className="flex items-center gap-3">
-                        {pingResult.success ? <CheckCircle2 className="h-4 w-4 shrink-0" /> : <AlertCircle className="h-4 w-4 shrink-0" />}
-                        <div className="flex flex-col">
-                          <span className="text-[10px] font-black uppercase tracking-tight leading-tight">
-                            {pingResult.type === 'heartbeat' ? 'Runtime Status' : 'Database Status'}
-                          </span>
-                          <span className="text-[9px] font-bold opacity-80">{pingResult.message}</span>
-                        </div>
-                      </div>
-                      {pingResult.code && (
-                        <div className="bg-black/5 p-2 rounded font-mono text-[9px] flex items-center gap-2">
-                          <Terminal className="h-3 w-3" /> 
-                          <span className="font-bold uppercase">Code: {pingResult.code}</span>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <Button 
-                      variant="outline" 
-                      onClick={runHeartbeat} 
-                      disabled={isPinging}
-                      className="border-amber-200 text-amber-900 hover:bg-amber-100 font-black uppercase text-[9px] tracking-widest h-10"
-                    >
-                      <Heart className="h-3 w-3 mr-1.5" /> {isPinging ? "Testing..." : "Test Runtime"}
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      onClick={runFirestorePing} 
-                      disabled={isPinging}
-                      className="border-amber-200 text-amber-900 hover:bg-amber-100 font-black uppercase text-[9px] tracking-widest h-10"
-                    >
-                      <Database className="h-3 w-3 mr-1.5" /> {isPinging ? "Testing..." : "Test Firestore"}
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="shadow-lg border-2 border-dashed">
-                <CardHeader>
-                  <CardTitle className="text-sm font-black uppercase">Onboarding Config</CardTitle>
-                </CardHeader>
-                <CardContent className="text-xs space-y-4 text-muted-foreground leading-relaxed">
-                  <p>Requirements for Stripe Connect Standard:</p>
-                  <ol className="list-decimal pl-4 space-y-2">
-                    <li>Add <code>https://your-domain.com/onboarding-success</code> to <strong>Redirect URIs</strong> in Stripe.</li>
-                    <li>Ensure you have configured a <strong>Branding Logo</strong> in your Stripe Settings.</li>
-                    <li>Select <strong>Standard</strong> integration type in your platform settings.</li>
-                  </ol>
-                </CardContent>
-              </Card>
-            </div>
+                  <Button 
+                    variant="outline" 
+                    onClick={runFirestorePing} 
+                    disabled={isPinging}
+                    className="border-amber-200 text-amber-900 hover:bg-amber-100 font-black uppercase text-[9px] tracking-widest h-10"
+                  >
+                    <Database className="h-3 w-3 mr-1.5" /> {isPinging ? "Testing..." : "Test Firestore"}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
           </div>
         </TabsContent>
       </Tabs>
