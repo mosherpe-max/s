@@ -1,32 +1,48 @@
+
 'use client';
 
 import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, CheckCircle2, ArrowRight, ShieldCheck, Globe, Store } from 'lucide-react';
+import { Loader2, CheckCircle2, ArrowRight, ShieldCheck, Globe, AlertCircle } from 'lucide-react';
 import { StylizedKoopLogo } from '@/components/header';
+import { useFirebaseApp } from '@/firebase';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 import Link from 'next/link';
 
 function OnboardingContent() {
   const searchParams = useSearchParams();
-  const router = useRouter();
+  const firebaseApp = useFirebaseApp();
   const code = searchParams.get('code');
-  const sellerId = searchParams.get('state'); // We encoded sellerId in 'state'
+  const sellerId = searchParams.get('state'); // sellerId was passed as 'state'
   
-  const [isProcessing, setIsProcessing] = useState(!!code);
+  const [status, setStatus] = useState<'processing' | 'success' | 'error'>('processing');
+  const [errorMessage, setErrorMessage] = useState('');
 
   useEffect(() => {
-    if (code && sellerId) {
-      // Future Step: Call a Cloud Function here to exchange this 'code' for a real Account ID
-      // and update the seller document in Firestore.
-      console.log('Capture Code:', code, 'for Venue:', sellerId);
-      
-      // For now, we simulate processing
-      const timer = setTimeout(() => setIsProcessing(false), 2000);
-      return () => clearTimeout(timer);
+    async function exchangeToken() {
+      if (!code || !sellerId) {
+        setStatus('error');
+        setErrorMessage('Missing authorization credentials from Stripe.');
+        return;
+      }
+
+      try {
+        const functions = getFunctions(firebaseApp, 'us-central1');
+        const finalize = httpsCallable(functions, 'finalizeStripeOnboarding');
+        
+        await finalize({ code, sellerId });
+        setStatus('success');
+      } catch (e: any) {
+        console.error('[TOKEN-EXCHANGE-FAIL]', e);
+        setStatus('error');
+        setErrorMessage(e.message || 'The secure handshake with Stripe failed.');
+      }
     }
-  }, [code, sellerId]);
+
+    exchangeToken();
+  }, [code, sellerId, firebaseApp]);
 
   return (
     <div className="min-h-screen bg-muted/30 flex items-center justify-center p-4">
@@ -36,15 +52,15 @@ function OnboardingContent() {
             <StylizedKoopLogo size="lg" />
           </div>
           <CardTitle className="font-headline text-2xl font-black uppercase tracking-widest">
-            Onboarding Verified
+            {status === 'error' ? 'Connection Failed' : 'Stripe Verified'}
           </CardTitle>
           <CardDescription className="text-white/60 font-bold uppercase text-[10px] tracking-[0.3em]">
-            Integration Handshake Complete
+            {status === 'processing' ? 'Finalizing Handshake...' : 'Integration Complete'}
           </CardDescription>
         </CardHeader>
 
         <CardContent className="pt-12 pb-10 px-10 text-center">
-          {isProcessing ? (
+          {status === 'processing' ? (
             <div className="space-y-6 py-10">
               <div className="flex justify-center">
                 <Loader2 className="h-16 w-16 animate-spin text-indigo-600" />
@@ -54,10 +70,25 @@ function OnboardingContent() {
                 <p className="text-xs text-muted-foreground uppercase font-bold tracking-widest">Exchanging secure authorization token with Stripe</p>
               </div>
             </div>
+          ) : status === 'error' ? (
+            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4">
+              <div className="flex justify-center">
+                <div className="bg-red-500/10 p-6 rounded-full border-2 border-red-500/20 shadow-xl">
+                  <AlertCircle className="h-12 w-12 text-red-600" />
+                </div>
+              </div>
+              <div className="space-y-3">
+                <h3 className="font-headline font-black text-2xl text-[#213147] uppercase">Handshake Error</h3>
+                <p className="text-sm text-muted-foreground leading-relaxed">{errorMessage}</p>
+              </div>
+              <Button asChild variant="outline" className="w-full h-14 border-2 font-black uppercase tracking-widest rounded-2xl">
+                <Link href={`/sellers/${sellerId}`}>Try Again</Link>
+              </Button>
+            </div>
           ) : (
             <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
               <div className="flex justify-center">
-                <div className="bg-green-500/10 p-6 rounded-full inline-block border-2 border-green-500/20 shadow-xl shadow-green-500/5">
+                <div className="bg-green-500/10 p-6 rounded-full border-2 border-green-500/20 shadow-xl shadow-green-500/5">
                   <CheckCircle2 className="h-12 w-12 text-green-600" />
                 </div>
               </div>
@@ -74,7 +105,7 @@ function OnboardingContent() {
               <div className="grid grid-cols-2 gap-3 bg-muted/50 p-4 rounded-2xl border">
                 <div className="flex flex-col items-center gap-1 border-r pr-4">
                   <span className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">Venue Identity</span>
-                  <span className="text-xs font-bold uppercase truncate w-full">{sellerId || 'Verified'}</span>
+                  <span className="text-xs font-bold uppercase truncate w-full">{sellerId}</span>
                 </div>
                 <div className="flex flex-col items-center gap-1">
                   <span className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">Provider Status</span>
