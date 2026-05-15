@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -77,7 +78,9 @@ export default function KOOPAdminPage() {
   const [isPinging, setIsPinging] = useState(false);
   const [pingResult, setPingResult] = useState<{ success: boolean; message: string; code?: string; type: 'heartbeat' | 'firestore' } | null>(null);
 
-  const isAuthorized = user?.uid === SUPER_ADMIN_ID || user?.email === 'mosherpe@gmail.com';
+  const isAuthorized = user?.uid === SUPER_ADMIN_ID || 
+                     user?.email === 'mosherpe@gmail.com' || 
+                     user?.email === 'thirstygolfer.pmosher@gmail.com';
 
   const sellersQuery = useMemoFirebase(() => (firestore && isAuthorized ? collection(firestore, 'sellers') : null), [firestore, isAuthorized]);
   const { data: sellers, isLoading: isSellersLoading } = useCollection<Seller>(sellersQuery);

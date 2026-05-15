@@ -30,8 +30,10 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [isAdminSettingUp, setIsAdminSettingUp] = useState(false);
 
-  // Hardcoded Super Admin Check (UID or specific email for initialization)
-  const isSuperAdmin = user?.uid === SUPER_ADMIN_ID || user?.email === 'mosherpe@gmail.com';
+  // Hardcoded Super Admin Check (UID or specific emails for initialization)
+  const isSuperAdmin = user?.uid === SUPER_ADMIN_ID || 
+                      user?.email === 'mosherpe@gmail.com' || 
+                      user?.email === 'thirstygolfer.pmosher@gmail.com';
 
   // 1. Check Global Admin Role (UID Based)
   const globalRoleRef = useMemoFirebase(() => {

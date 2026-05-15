@@ -16,7 +16,8 @@ service cloud.firestore {
     function isSuperAdmin() {
       return isSignedIn() && (
         request.auth.uid == 'o9vAQy0aFRPSNPoG0ETvjiGt9If1' || 
-        getEmail() == 'mosherpe@gmail.com'
+        getEmail() == 'mosherpe@gmail.com' ||
+        getEmail() == 'thirstygolfer.pmosher@gmail.com'
       );
     }
 
@@ -44,19 +45,19 @@ service cloud.firestore {
      * Role checking rules to allow users to verify their own identities during login/redirection
      */
     match /roles_admin/{userId} {
-      allow read: if isSignedIn() && request.auth.uid == userId;
+      allow read: if isSignedIn() && (request.auth.uid == userId || isSuperAdmin());
     }
 
     match /roles_seller_admin/{email} {
-      allow read: if isSignedIn() && getEmail() == email.lower();
+      allow read: if isSignedIn() && (getEmail() == email.lower() || isSuperAdmin());
     }
 
     match /roles_sales_rep/{email} {
-      allow read: if isSignedIn() && getEmail() == email.lower();
+      allow read: if isSignedIn() && (getEmail() == email.lower() || isSuperAdmin());
     }
 
     match /adminUsers/{email} {
-      allow read: if isSignedIn() && getEmail() == email.lower();
+      allow read: if isSignedIn() && (getEmail() == email.lower() || isSuperAdmin());
       allow write: if isSuperAdmin();
     }
 
