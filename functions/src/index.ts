@@ -34,10 +34,13 @@ export const pingPlatform = onCall({ cors: true, region: 'us-central1' }, async 
   logger.info('[KOOP-LOG] pingPlatform invoked');
   try {
     const configSnap = await db.doc('config/platform').get();
+    const vaultSnap = await db.doc('config/platform_private').get();
+    
     return { 
       success: true, 
       status: 'Connected',
-      exists: configSnap.exists
+      vaultConfigured: vaultSnap.exists,
+      firestoreReachable: configSnap.exists || true
     };
   } catch (e: any) {
     logger.error('[KOOP-ERROR] Firestore unreachable', e);
