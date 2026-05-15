@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -24,7 +23,8 @@ import {
   AlertCircle,
   Terminal,
   Heart,
-  Database
+  Database,
+  ExternalLink
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -80,7 +80,8 @@ export default function KOOPAdminPage() {
 
   const isAuthorized = user?.uid === SUPER_ADMIN_ID || 
                      user?.email === 'mosherpe@gmail.com' || 
-                     user?.email === 'thirstygolfer.pmosher@gmail.com';
+                     user?.email === 'thirstygolfer.pmosher@gmail.com' ||
+                     user?.email === 'thirstygolfer.pmoaher@gmail.com';
 
   const sellersQuery = useMemoFirebase(() => (firestore && isAuthorized ? collection(firestore, 'sellers') : null), [firestore, isAuthorized]);
   const { data: sellers, isLoading: isSellersLoading } = useCollection<Seller>(sellersQuery);
@@ -250,7 +251,16 @@ export default function KOOPAdminPage() {
                     <TableCell><span className="text-xs">{seller.type}</span></TableCell>
                     <TableCell className="text-center"><Badge className="text-[8px] uppercase">{seller.status}</Badge></TableCell>
                     <TableCell className="text-right">
-                      <Button variant="ghost" size="icon" onClick={() => { setEditingSeller(seller); form.reset(seller); setIsFormOpen(true); }}><Edit className="h-4 w-4" /></Button>
+                      <div className="flex justify-end gap-1">
+                        <Button variant="ghost" size="icon" asChild title="View Venue Dashboard">
+                          <Link href={`/sellers/${seller.id}`}>
+                            <ExternalLink className="h-4 w-4" />
+                          </Link>
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => { setEditingSeller(seller); form.reset(seller); setIsFormOpen(true); }} title="Edit Record">
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -385,8 +395,27 @@ export default function KOOPAdminPage() {
             <form onSubmit={form.handleSubmit(onSave)} className="space-y-4">
               <FormField control={form.control} name="courseName" render={({ field }) => (<FormItem><FormLabel>Venue Name</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
               <div className="grid grid-cols-2 gap-4">
-                <FormField control={form.control} name="type" render={({ field }) => (<FormItem><FormLabel>Category</FormLabel><select {...field} className="w-full h-10 border rounded-md px-3 text-sm">{sellerTypes.map(t => <option key={t} value={t}>{t}</option>)}</select></FormItem>)} />
-                <FormField control={form.control} name="status" render={({ field }) => (<FormItem><FormLabel>Status</FormLabel><select {...field} className="w-full h-10 border rounded-md px-3 text-sm"><option value="Active">Active</option><option value="Inactive">Inactive</option></select></FormItem>)} />
+                <FormField control={form.control} name="type" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Category</FormLabel>
+                    <FormControl>
+                      <select {...field} className="w-full h-10 border rounded-md px-3 text-sm bg-background">
+                        {sellerTypes.map(t => <option key={t} value={t}>{t}</option>)}
+                      </select>
+                    </FormControl>
+                  </FormItem>
+                )} />
+                <FormField control={form.control} name="status" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Status</FormLabel>
+                    <FormControl>
+                      <select {...field} className="w-full h-10 border rounded-md px-3 text-sm bg-background">
+                        <option value="Active">Active</option>
+                        <option value="Inactive">Inactive</option>
+                      </select>
+                    </FormControl>
+                  </FormItem>
+                )} />
               </div>
               <DialogFooter><Button type="submit" disabled={isSaving}>{isSaving ? <Loader2 className="animate-spin" /> : "Save Venue"}</Button></DialogFooter>
             </form>

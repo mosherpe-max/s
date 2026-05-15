@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -33,7 +32,8 @@ export default function LoginPage() {
   // Hardcoded Super Admin Check (UID or specific emails for initialization)
   const isSuperAdmin = user?.uid === SUPER_ADMIN_ID || 
                       user?.email === 'mosherpe@gmail.com' || 
-                      user?.email === 'thirstygolfer.pmosher@gmail.com';
+                      user?.email === 'thirstygolfer.pmosher@gmail.com' ||
+                      user?.email === 'thirstygolfer.pmoaher@gmail.com';
 
   // 1. Check Global Admin Role (UID Based)
   const globalRoleRef = useMemoFirebase(() => {
@@ -66,12 +66,13 @@ export default function LoginPage() {
   useEffect(() => {
     if (!user || isUserLoading || isVerifyingRoles) return;
 
-    if (isPlatformAdmin) {
+    // Prioritize specific Venue Roles over Global Roles so Managers land in their shop
+    if (isVenueAdmin && sellerRole?.sellerId) {
+      router.push(`/sellers/${sellerRole.sellerId}`);
+    } else if (isPlatformAdmin) {
       router.push('/admin');
     } else if (isSalesRep) {
       router.push('/sales/dashboard');
-    } else if (isVenueAdmin && sellerRole?.sellerId) {
-      router.push(`/sellers/${sellerRole.sellerId}`);
     }
   }, [user, isUserLoading, isPlatformAdmin, isVenueAdmin, isSalesRep, sellerRole, router, isVerifyingRoles]);
 
@@ -196,7 +197,7 @@ export default function LoginPage() {
                     </p>
                   </div>
                   <Button asChild className="w-full h-14 bg-[#213147] hover:bg-[#213147]/90 text-white font-headline font-black uppercase tracking-widest shadow-xl">
-                    <a href={isPlatformAdmin ? '/admin' : isSalesRep ? '/sales/dashboard' : `/sellers/${sellerRole?.sellerId}`}>
+                    <a href={isVenueAdmin && sellerRole?.sellerId ? `/sellers/${sellerRole.sellerId}` : (isPlatformAdmin ? '/admin' : '/sales/dashboard')}>
                       ENTER DASHBOARD
                       <ArrowRight className="ml-2 h-5 w-5" />
                     </a>
