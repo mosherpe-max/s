@@ -25,7 +25,8 @@ import {
   Terminal,
   Heart,
   Database,
-  ExternalLink
+  ExternalLink,
+  ShieldAlert
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -87,7 +88,7 @@ export default function KOOPAdminPage() {
   const { data: sellers, isLoading: isSellersLoading } = useCollection<Seller>(sellersQuery);
 
   const credsRef = useMemoFirebase(() => (firestore && isAuthorized ? doc(firestore, 'config', 'platform_private') : null), [firestore, isAuthorized]);
-  const { data: existingCreds } = useDoc(credsRef);
+  const { data: existingCreds, isLoading: isCredsLoading } = useDoc(credsRef);
 
   useEffect(() => {
     if (existingCreds) {
@@ -95,6 +96,13 @@ export default function KOOPAdminPage() {
       setStripeClientId(existingCreds.stripeClientId || '');
     }
   }, [existingCreds]);
+
+  const vaultStatus = useMemo(() => {
+    if (isCredsLoading) return 'Checking...';
+    if (!existingCreds) return 'Empty';
+    if (existingCreds.stripeSecretKey && existingCreds.stripeClientId) return 'Secured';
+    return 'Incomplete';
+  }, [existingCreds, isCredsLoading]);
 
   const filteredSellers = useMemo(() => {
     if (!sellers) return [];
@@ -128,8 +136,8 @@ export default function KOOPAdminPage() {
     setIsUpdatingCreds(true);
     try {
       await setDoc(doc(firestore, 'config', 'platform_private'), {
-        stripeSecretKey: stripeSecret,
-        stripeClientId: stripeClientId,
+        stripeSecretKey: stripeSecret.trim(),
+        stripeClientId: stripeClientId.trim(),
         updatedAt: serverTimestamp()
       }, { merge: true });
       toast({ title: "Vault Updated", description: "Stripe Connect credentials have been secured." });
@@ -221,7 +229,7 @@ export default function KOOPAdminPage() {
       <Tabs defaultValue="operations" className="space-y-8">
         <TabsList className="bg-muted/50 p-1 h-12">
           <TabsTrigger value="operations" className="text-[10px] font-black uppercase px-8 h-10"><Activity className="mr-2 h-3.5 w-3.5" /> Operations</TabsTrigger>
-          <TabsTrigger value="stripe" className="text-[10px) font-black uppercase px-8 h-10"><Globe className="mr-2 h-3.5 w-3.5" /> System & Stripe</TabsTrigger>
+          <TabsTrigger value="stripe" className="text-[10px] font-black uppercase px-8 h-10"><Globe className="mr-2 h-3.5 w-3.5" /> System & Stripe</TabsTrigger>
         </TabsList>
 
         <TabsContent value="operations" className="space-y-8">
@@ -271,47 +279,85 @@ export default function KOOPAdminPage() {
 
         <TabsContent value="stripe" className="space-y-8">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <Card className="shadow-lg border-2">
-              <CardHeader className="bg-indigo-50 border-b border-indigo-100">
-                <div className="flex items-center gap-3">
-                  <div className="bg-indigo-600 p-2 rounded-lg text-white"><ShieldCheck className="h-5 w-5" /></div>
-                  <div>
-                    <CardTitle className="text-sm font-black uppercase text-indigo-900">Credential Vault</CardTitle>
-                    <CardDescription className="text-[9px] font-bold uppercase text-indigo-700/60">Encrypted Platform Secrets</CardDescription>
+            <div className="space-y-8">
+              <Card className="shadow-lg border-2">
+                <CardHeader className="bg-indigo-50 border-b border-indigo-100 flex flex-row items-center justify-between py-4">
+                  <div className="flex items-center gap-3">
+                    <div className="bg-indigo-600 p-2 rounded-lg text-white"><ShieldCheck className="h-5 w-5" /></div>
+                    <div>
+                      <CardTitle className="text-sm font-black uppercase text-indigo-900">Credential Vault</CardTitle>
+                      <CardDescription className="text-[9px] font-bold uppercase text-indigo-700/60">Encrypted Platform Secrets</CardDescription>
+                    </div>
                   </div>
-                </div>
-              </CardHeader>
-              <CardContent className="pt-6 space-y-6">
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
-                      <KeyRound className="h-3 w-3" /> Stripe Secret Key (sk_test_...)
-                    </Label>
-                    <Input 
-                      type="password" 
-                      placeholder="sk_test_••••••••••••••••••••••••" 
-                      className="font-mono text-xs border-2"
-                      value={stripeSecret}
-                      onChange={(e) => setStripeSecret(e.target.value)}
-                    />
+                  <Badge className={cn(
+                    "text-[8px] font-black uppercase px-2",
+                    vaultStatus === 'Secured' ? "bg-green-600" : "bg-amber-600"
+                  )}>
+                    {vaultStatus}
+                  </Badge>
+                </CardHeader>
+                <CardContent className="pt-6 space-y-6">
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
+                        <KeyRound className="h-3 w-3" /> Stripe Secret Key (sk_test_...)
+                      </Label>
+                      <Input 
+                        type="password" 
+                        placeholder="sk_test_••••••••••••••••••••••••" 
+                        className="font-mono text-xs border-2"
+                        value={stripeSecret}
+                        onChange={(e) => setStripeSecret(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
+                        <Globe className="h-3 w-3" /> Stripe Client ID (ca_...)
+                      </Label>
+                      <Input 
+                        placeholder="ca_••••••••••••••••••••••••" 
+                        className="font-mono text-xs border-2"
+                        value={stripeClientId}
+                        onChange={(e) => setStripeClientId(e.target.value)}
+                      />
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    <Label className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
-                      <Globe className="h-3 w-3" /> Stripe Client ID (ca_...)
-                    </Label>
-                    <Input 
-                      placeholder="ca_••••••••••••••••••••••••" 
-                      className="font-mono text-xs border-2"
-                      value={stripeClientId}
-                      onChange={(e) => setStripeClientId(e.target.value)}
-                    />
+                  <Button onClick={handleUpdateCredentials} disabled={isUpdatingCreds} className="w-full bg-[#213147] hover:bg-black font-black uppercase tracking-widest">
+                    {isUpdatingCreds ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : <Save className="h-4 w-4 mr-2" />} Update Vault
+                  </Button>
+                </CardContent>
+              </Card>
+
+              <Card className="shadow-lg border-2 bg-indigo-50/20">
+                <CardHeader className="py-4">
+                  <div className="flex items-center gap-3">
+                    <ShieldAlert className="h-5 w-5 text-indigo-600" />
+                    <CardTitle className="text-sm font-black uppercase">Vault Verification</CardTitle>
                   </div>
-                </div>
-                <Button onClick={handleUpdateCredentials} disabled={isUpdatingCreds} className="w-full bg-[#213147] hover:bg-black font-black uppercase tracking-widest">
-                  {isUpdatingCreds ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : <Save className="h-4 w-4 mr-2" />} Update Vault
-                </Button>
-              </CardContent>
-            </Card>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <p className="text-[10px] text-muted-foreground font-bold uppercase leading-relaxed">
+                    Firebase Cloud Functions require these keys to be present in Firestore at <code>config/platform_private</code>.
+                  </p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="p-3 rounded-lg bg-white border flex flex-col gap-1">
+                      <span className="text-[8px] font-black text-muted-foreground uppercase">Secret Key</span>
+                      <div className="flex items-center gap-2">
+                        {existingCreds?.stripeSecretKey ? <CheckCircle2 className="h-3 w-3 text-green-600" /> : <AlertCircle className="h-3 w-3 text-amber-600" />}
+                        <span className="text-[10px] font-bold">{existingCreds?.stripeSecretKey ? "Secured" : "Missing"}</span>
+                      </div>
+                    </div>
+                    <div className="p-3 rounded-lg bg-white border flex flex-col gap-1">
+                      <span className="text-[8px] font-black text-muted-foreground uppercase">Client ID</span>
+                      <div className="flex items-center gap-2">
+                        {existingCreds?.stripeClientId ? <CheckCircle2 className="h-3 w-3 text-green-600" /> : <AlertCircle className="h-3 w-3 text-amber-600" />}
+                        <span className="text-[10px] font-bold">{existingCreds?.stripeClientId ? "Secured" : "Missing"}</span>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
 
             <div className="space-y-8">
               <Card className="shadow-lg border-2 bg-amber-50/30 border-amber-100">
