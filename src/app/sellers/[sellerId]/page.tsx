@@ -26,7 +26,9 @@ import {
   ExternalLink,
   Layers,
   LogOut,
-  Terminal
+  Terminal,
+  CreditCard,
+  CheckCircle2
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -51,6 +53,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import Link from 'next/link';
 import { Separator } from '@/components/ui/separator';
 import { useRouter } from 'next/navigation';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 
 import {
   DndContext,
@@ -134,44 +137,6 @@ function SortableMenuItem({ item, onRemove }: { item: MenuItem; onRemove: (item:
   );
 }
 
-function ModifierGroupManager({ control, groupIndex }: { control: any, groupIndex: number }) {
-  const { fields, append, remove } = useFieldArray({ control, name: `modifierGroups.${groupIndex}.options` });
-
-  return (
-    <div className="p-4 bg-background border rounded-lg space-y-4">
-      <div className="grid grid-cols-2 gap-4">
-        <FormField control={control} name={`modifierGroups.${groupIndex}.name`} render={({ field }) => (
-          <FormItem><FormLabel className="text-[10px] font-black uppercase">Group Name</FormLabel><FormControl><Input {...field} placeholder="e.g. Add-ons" /></FormControl></FormItem>
-        )} />
-        <div className="flex gap-2">
-          <FormField control={control} name={`modifierGroups.${groupIndex}.minSelection`} render={({ field }) => (
-            <FormItem><FormLabel className="text-[10px] font-black uppercase">Min</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem>
-          )} />
-          <FormField control={control} name={`modifierGroups.${groupIndex}.maxSelection`} render={({ field }) => (
-            <FormItem><FormLabel className="text-[10px] font-black uppercase">Max</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem>
-          )} />
-        </div>
-      </div>
-
-      <div className="space-y-2">
-        <p className="text-[10px] font-black uppercase text-muted-foreground">Options</p>
-        {fields.map((field, optionIndex) => (
-          <div key={field.id} className="flex gap-2 items-end">
-            <FormField control={control} name={`modifierGroups.${groupIndex}.options.${optionIndex}.name`} render={({ field }) => (
-              <FormItem className="flex-1"><FormControl><Input {...field} placeholder="Option Name" /></FormControl></FormItem>
-            )} />
-            <FormField control={control} name={`modifierGroups.${groupIndex}.options.${optionIndex}.price`} render={({ field }) => (
-              <FormItem className="w-24"><FormControl><Input type="number" step="0.01" {...field} /></FormControl></FormItem>
-            )} />
-            <Button variant="ghost" size="icon" onClick={() => remove(optionIndex)} className="text-destructive"><Trash2 className="h-4 w-4" /></Button>
-          </div>
-        ))}
-        <Button variant="outline" size="sm" onClick={() => append({ id: Math.random().toString(), name: '', price: 0 })} className="w-full text-[10px] uppercase font-bold"><PlusCircle className="h-3 w-3 mr-1" /> Add Option</Button>
-      </div>
-    </div>
-  );
-}
-
 function StatTile({ title, revenue, orders, longWait }: { title: string, revenue: number, orders: number, longWait: number }) {
   return (
     <Card className="flex-1 min-w-[300px] shadow-sm">
@@ -198,6 +163,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   const { sellerId } = use(params);
   const firestore = useFirestore();
   const auth = useAuth();
+  const firebaseApp = useFirebaseApp();
   const { user, isUserLoading } = useUser();
   const router = useRouter();
   const { toast } = useToast();
@@ -207,6 +173,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   const [isStaffFormOpen, setIsStaffFormOpen] = useState(false);
   const [editingStaff, setEditingStaff] = useState<StaffMember | null>(null);
   const [isResettingDemo, setIsResettingDemo] = useState(false);
+  const [isConnectingStripe, setIsConnectingStripe] = useState(false);
   
   const sensors = useSensors(useSensor(PointerSensor), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
   const isHardcodedSuperAdmin = user?.uid === SUPER_ADMIN_ID || user?.email === 'mosherpe@gmail.com';
@@ -249,6 +216,24 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     const staffId = editingStaff ? editingStaff.id : Math.random().toString(36).substr(2, 9);
     await setDoc(doc(firestore, 'sellers', sellerId, 'staff', staffId), { ...data, id: staffId, createdAt: editingStaff?.createdAt || serverTimestamp() }, { merge: true });
     setIsStaffFormOpen(false); setEditingStaff(null); staffForm.reset();
+  };
+
+  const handleConnectStripe = async () => {
+    if (!firebaseApp || !sellerId) return;
+    setIsConnectingStripe(true);
+    try {
+      const functions = getFunctions(firebaseApp, 'us-central1');
+      const createLink = httpsCallable(functions, 'createStripeAccountLink');
+      const result = await createLink({ 
+        sellerId, 
+        returnBaseUrl: window.location.origin 
+      });
+      const { url } = result.data as { url: string };
+      window.location.href = url;
+    } catch (e: any) {
+      toast({ variant: 'destructive', title: 'Stripe Connection Failed', description: e.message });
+      setIsConnectingStripe(false);
+    }
   };
 
   const dashboardStats = useMemo(() => {
@@ -320,6 +305,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
 
       <nav className="sticky top-16 z-30 bg-background border-y mb-8 py-3 flex gap-2 overflow-x-auto">
         <Button variant="ghost" size="sm" onClick={() => scrollToSection('ops-monitor')} className="text-[10px] font-bold uppercase"><Activity className="mr-1 h-3.5 w-3.5" /> Queue</Button>
+        <Button variant="ghost" size="sm" onClick={() => scrollToSection('stripe-onboarding')} className="text-[10px] font-bold uppercase"><CreditCard className="mr-1 h-3.5 w-3.5" /> Payments</Button>
         <Button variant="ghost" size="sm" onClick={() => scrollToSection('staff-management')} className="text-[10px] font-bold uppercase"><Users className="mr-1 h-3.5 w-3.5" /> Staff</Button>
         <Button variant="ghost" size="sm" onClick={() => scrollToSection('sales-stats')} className="text-[10px] font-bold uppercase"><BarChart3 className="mr-1 h-3.5 w-3.5" /> Sales</Button>
         <Button variant="ghost" size="sm" onClick={() => scrollToSection('service-management')} className="text-[10px] font-bold uppercase"><ListChecks className="mr-1 h-3.5 w-3.5" /> Menus</Button>
@@ -332,6 +318,46 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
           <OpsMetricCard label="Overdue" value={dashboardStats?.monthly.longWait || 0} icon={AlertTriangle} />
           <Button asChild className="h-full bg-indigo-600"><Link href={`/sellers/${sellerId}/bevcart`}>Launch BevCart</Link></Button>
         </div>
+      </section>
+
+      <section id="stripe-onboarding" className="mb-12">
+        <Card className="border-2 border-indigo-100 bg-indigo-50/30">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <CardTitle className="text-lg font-headline flex items-center gap-2">
+                  Stripe Payment Setup
+                  {seller?.stripeAccountId && <Badge className="bg-green-600"><CheckCircle2 className="h-3 w-3 mr-1" /> Linked</Badge>}
+                </CardTitle>
+                <CardDescription>Configure your Standard Stripe Connect account to receive direct payouts.</CardDescription>
+              </div>
+              <CreditCard className="h-8 w-8 text-indigo-600 opacity-20" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col md:flex-row items-center gap-6">
+              <div className="flex-1 space-y-2">
+                <p className="text-sm font-medium">Why use Stripe Connect?</p>
+                <ul className="text-xs text-muted-foreground space-y-1">
+                  <li className="flex items-center gap-2"><CheckCircle2 className="h-3 w-3 text-green-600" /> Funds deposited directly to your bank account</li>
+                  <li className="flex items-center gap-2"><CheckCircle2 className="h-3 w-3 text-green-600" /> Professional-grade security and fraud protection</li>
+                  <li className="flex items-center gap-2"><CheckCircle2 className="h-3 w-3 text-green-600" /> No setup fees or long-term contracts</li>
+                </ul>
+              </div>
+              <Button 
+                onClick={handleConnectStripe} 
+                disabled={isConnectingStripe}
+                className={cn(
+                  "h-12 px-8 font-headline font-black uppercase tracking-widest",
+                  seller?.stripeAccountId ? "bg-slate-700" : "bg-indigo-600 hover:bg-indigo-700"
+                )}
+              >
+                {isConnectingStripe ? <Loader2 className="animate-spin mr-2" /> : <CreditCard className="mr-2 h-5 w-5" />}
+                {seller?.stripeAccountId ? 'Update Stripe Account' : 'Connect with Stripe'}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       </section>
 
       <section id="staff-management" className="mb-12">

@@ -81,6 +81,7 @@ export interface Seller {
   categoryModifierEnabled?: Record<string, Category[]>;
   orderThresholds?: Record<string, { warning: number; max: number }>;
   poolMapUrl?: string;
+  stripeAccountId?: string;
 }
 
 export type Category = 'Beer' | 'Spirits' | 'Soft Drinks' | 'Snacks' | 'Other' | 'Handhelds' | 'Appetizers' | 'Entrees' | 'Pizza' | 'Salad' | 'Dessert' | 'Kids';
