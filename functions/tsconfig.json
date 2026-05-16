@@ -1,16 +1,18 @@
 {
   "compilerOptions": {
-    "module": "commonjs",
+    "module": "ESNext",
+    "moduleResolution": "Node",
     "noImplicitAny": true,
     "removeComments": true,
     "preserveConstEnums": true,
     "sourceMap": true,
-    "target": "es2020",
+    "target": "ESNext",
     "outDir": "lib",
-    "lib": ["esnext"],
+    "lib": ["ESNext"],
     "skipLibCheck": true,
     "esModuleInterop": true,
-    "resolveJsonModule": true
+    "resolveJsonModule": true,
+    "allowSyntheticDefaultImports": true
   },
   "compileOnSave": true,
   "include": [
