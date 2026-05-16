@@ -41,6 +41,13 @@ service cloud.firestore {
     }
 
     /**
+     * @description Exclusive vault for platform secrets.
+     */
+    match /config/platform_private {
+      allow read, write: if isSuperAdmin();
+    }
+
+    /**
      * Role checking rules to allow users to verify their own identities during login/redirection
      */
     match /roles_admin/{userId} {
@@ -60,9 +67,6 @@ service cloud.firestore {
       allow write: if isSuperAdmin();
     }
 
-    /**
-     * @description Public platform config (Publishable Keys).
-     */
     match /config/platform {
       allow read: if true;
       allow write: if isSuperAdmin();

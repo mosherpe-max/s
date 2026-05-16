@@ -1,6 +1,5 @@
 
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
-import { defineSecret } from 'firebase-functions/params';
 import * as admin from 'firebase-admin';
 import { logger } from 'firebase-functions';
 import Stripe from 'stripe';
@@ -10,14 +9,13 @@ if (admin.apps.length === 0) {
 }
 
 const db = admin.firestore();
-const stripeSecret = defineSecret('STRIPE_SECRET_KEY');
 
 /**
  * createStripeAccountLink
- * Creates a Stripe Standard account for a venue and returns an onboarding link.
+ * Securely creates a Stripe Standard account for a venue and returns an onboarding URL.
+ * Reads credentials from Firestore config/platform_private for easier management.
  */
 export const createStripeAccountLink = onCall({ 
-  secrets: [stripeSecret],
   cors: true,
   region: 'us-central1' 
 }, async (request) => {
@@ -32,12 +30,20 @@ export const createStripeAccountLink = onCall({
     throw new HttpsError('invalid-argument', 'sellerId is required.');
   }
 
-  const stripe = new Stripe(stripeSecret.value(), {
-    apiVersion: '2023-10-16' as any,
-  });
-
   try {
-    // 1. Verify user has permission for this seller
+    // 1. Fetch platform credentials from the secure vault
+    const configSnap = await db.doc('config/platform_private').get();
+    const config = configSnap.data();
+
+    if (!config?.stripeSecretKey) {
+      throw new HttpsError('failed-precondition', 'Platform Stripe keys are not configured in Admin.');
+    }
+
+    const stripe = new Stripe(config.stripeSecretKey, {
+      apiVersion: '2023-10-16' as any,
+    });
+
+    // 2. Verify seller existence
     const sellerRef = db.doc(`sellers/${sellerId}`);
     const sellerSnap = await sellerRef.get();
 
@@ -47,7 +53,7 @@ export const createStripeAccountLink = onCall({
 
     const sellerData = sellerSnap.data();
     
-    // 2. Check if account already exists or create new one
+    // 3. Create or reuse Stripe account
     let stripeAccountId = sellerData?.stripeAccountId;
 
     if (!stripeAccountId) {
@@ -62,12 +68,12 @@ export const createStripeAccountLink = onCall({
       });
       stripeAccountId = account.id;
       
-      // Save the ID immediately
+      // Save immediately to prevent duplicates
       await sellerRef.update({ stripeAccountId });
     }
 
-    // 3. Create the onboarding link
-    logger.info(`Generating account link for ${stripeAccountId}`);
+    // 4. Generate onboarding link
+    logger.info(`Generating link for ${stripeAccountId}`);
     const accountLink = await stripe.accountLinks.create({
       account: stripeAccountId,
       refresh_url: `${returnBaseUrl}/onboarding-refresh?sellerId=${sellerId}`,
@@ -78,18 +84,36 @@ export const createStripeAccountLink = onCall({
     return { url: accountLink.url };
   } catch (error: any) {
     logger.error('[STRIPE-ERROR]', error);
-    throw new HttpsError('internal', error.message || 'Failed to create Stripe link');
+    if (error instanceof HttpsError) throw error;
+    throw new HttpsError('internal', error.message || 'Failed to initialize Stripe flow.');
   }
 });
 
 /**
  * systemHeartbeat
- * Minimal function to verify that the Cloud Function runtime is online.
+ * Minimal diagnostic function.
  */
-export const systemHeartbeat = onCall({ cors: true, region: 'us-central1' }, async (request) => {
+export const systemHeartbeat = onCall({ cors: true, region: 'us-central1' }, async () => {
   return { 
     status: 'Ready',
     timestamp: Date.now(),
     message: 'Runtime Operational'
   };
+});
+
+/**
+ * pingPlatform
+ * Diagnostic function to verify database connectivity.
+ */
+export const pingPlatform = onCall({ cors: true, region: 'us-central1' }, async () => {
+  try {
+    const snap = await db.collection('sellers').limit(1).get();
+    return { 
+      success: true, 
+      count: snap.size,
+      vaultConfigured: (await db.doc('config/platform_private').get()).exists
+    };
+  } catch (e: any) {
+    throw new HttpsError('internal', e.message);
+  }
 });

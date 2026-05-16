@@ -4,9 +4,9 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { collection, doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
-import { useFirestore, useCollection, useMemoFirebase, useUser, useAuth, useFirebaseApp } from '@/firebase';
+import { useFirestore, useCollection, useMemoFirebase, useUser, useAuth, useFirebaseApp, useDoc } from '@/firebase';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { 
   PlusCircle, 
   Loader2, 
@@ -20,7 +20,11 @@ import {
   Terminal,
   Heart,
   Database,
-  ExternalLink
+  ExternalLink,
+  ShieldAlert,
+  KeyRound,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -52,6 +56,13 @@ const sellerSchema = z.object({
 
 type SellerFormData = z.infer<typeof sellerSchema>;
 
+const vaultSchema = z.object({
+  stripeSecretKey: z.string().min(5, 'Secret Key required'),
+  stripeClientId: z.string().min(5, 'Client ID required'),
+});
+
+type VaultFormData = z.infer<typeof vaultSchema>;
+
 export default function KOOPAdminPage() {
   const firestore = useFirestore();
   const auth = useAuth();
@@ -64,6 +75,7 @@ export default function KOOPAdminPage() {
   const [editingSeller, setEditingSeller] = useState<Seller | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [showSecrets, setShowSecrets] = useState(false);
   
   // Diagnostic State
   const [isPinging, setIsPinging] = useState(false);
@@ -75,6 +87,9 @@ export default function KOOPAdminPage() {
 
   const sellersQuery = useMemoFirebase(() => (firestore && isAuthorized ? collection(firestore, 'sellers') : null), [firestore, isAuthorized]);
   const { data: sellers, isLoading: isSellersLoading } = useCollection<Seller>(sellersQuery);
+
+  const vaultRef = useMemoFirebase(() => (firestore && isAuthorized ? doc(firestore, 'config', 'platform_private') : null), [firestore, isAuthorized]);
+  const { data: vaultData } = useDoc(vaultRef);
 
   const filteredSellers = useMemo(() => {
     if (!sellers) return [];
@@ -88,6 +103,20 @@ export default function KOOPAdminPage() {
     defaultValues: { courseName: '', type: 'Public Golf Course', contactEmail: '', status: 'Active', serviceFee: 2.50, laneCount: 0 },
   });
 
+  const vaultForm = useForm<VaultFormData>({
+    resolver: zodResolver(vaultSchema),
+    defaultValues: { stripeSecretKey: '', stripeClientId: '' },
+  });
+
+  useEffect(() => {
+    if (vaultData) {
+      vaultForm.reset({
+        stripeSecretKey: vaultData.stripeSecretKey || '',
+        stripeClientId: vaultData.stripeClientId || '',
+      });
+    }
+  }, [vaultData, vaultForm]);
+
   const onSave = async (data: SellerFormData) => {
     if (!firestore || !isAuthorized) return;
     setIsSaving(true);
@@ -98,6 +127,23 @@ export default function KOOPAdminPage() {
       setIsFormOpen(false); setEditingSeller(null); form.reset();
     } catch (e: any) {
       toast({ variant: 'destructive', title: 'Save Failed', description: e.message });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const onSaveVault = async (data: VaultFormData) => {
+    if (!firestore || !isAuthorized) return;
+    setIsSaving(true);
+    try {
+      await setDoc(doc(firestore, 'config', 'platform_private'), { 
+        ...data, 
+        updatedAt: serverTimestamp(),
+        updatedBy: user?.email 
+      }, { merge: true });
+      toast({ title: 'Platform Vault Updated', description: 'Stripe credentials secured.' });
+    } catch (e: any) {
+      toast({ variant: 'destructive', title: 'Vault Save Failed', description: e.message });
     } finally {
       setIsSaving(false);
     }
@@ -136,11 +182,12 @@ export default function KOOPAdminPage() {
       const functions = getFunctions(firebaseApp, 'us-central1');
       const ping = httpsCallable(functions, 'pingPlatform');
       const result = await ping();
+      const data = result.data as any;
       
       setPingResult({ 
         success: true, 
         type: 'firestore',
-        message: 'Backend is online and successfully reached Firestore.' 
+        message: `Backend Online. Vault Configured: ${data.vaultConfigured ? 'YES' : 'NO'}` 
       });
     } catch (e: any) {
       setPingResult({ 
@@ -184,7 +231,7 @@ export default function KOOPAdminPage() {
       <Tabs defaultValue="operations" className="space-y-8">
         <TabsList className="bg-muted/50 p-1 h-12">
           <TabsTrigger value="operations" className="text-[10px] font-black uppercase px-8 h-10"><Activity className="mr-2 h-3.5 w-3.5" /> Operations</TabsTrigger>
-          <TabsTrigger value="system" className="text-[10px] font-black uppercase px-8 h-10"><Terminal className="mr-2 h-3.5 w-3.5" /> System Status</TabsTrigger>
+          <TabsTrigger value="system" className="text-[10px] font-black uppercase px-8 h-10"><Terminal className="mr-2 h-3.5 w-3.5" /> System & Stripe</TabsTrigger>
         </TabsList>
 
         <TabsContent value="operations" className="space-y-8">
@@ -233,62 +280,124 @@ export default function KOOPAdminPage() {
         </TabsContent>
 
         <TabsContent value="system" className="space-y-8">
-          <div className="max-w-2xl">
-            <Card className="shadow-lg border-2 bg-amber-50/30 border-amber-100">
-              <CardHeader>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* PLATFORM VAULT */}
+            <Card className="shadow-lg border-2 border-[#213147]/10">
+              <CardHeader className="bg-[#213147]/5 border-b">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-sm font-black uppercase text-amber-900">Backend Diagnostics</CardTitle>
-                  <Activity className="h-4 w-4 text-amber-600" />
+                  <div className="space-y-1">
+                    <CardTitle className="text-sm font-black uppercase flex items-center gap-2">
+                      <KeyRound className="h-4 w-4 text-primary" /> Platform Secret Vault
+                    </CardTitle>
+                    <CardDescription className="text-[10px] font-bold uppercase tracking-tight">Standard Stripe Connect Credentials</CardDescription>
+                  </div>
+                  <Badge variant="outline" className="bg-primary/10 border-primary/20 text-primary uppercase text-[8px] font-black">Secure</Badge>
                 </div>
               </CardHeader>
-              <CardContent className="space-y-6">
-                <p className="text-[10px] font-bold text-amber-800 uppercase leading-relaxed">
-                  Use these tools to verify the health of the Cloud Function runtime and its connection to the database.
-                </p>
-                
-                {pingResult && (
-                  <div className={cn(
-                    "p-3 rounded-lg border-2 flex flex-col gap-2 animate-in fade-in slide-in-from-top-1",
-                    pingResult.success ? "bg-green-50 border-green-100 text-green-800" : "bg-red-50 border-red-100 text-red-800"
-                  )}>
-                    <div className="flex items-center gap-3">
-                      {pingResult.success ? <CheckCircle2 className="h-4 w-4 shrink-0" /> : <AlertCircle className="h-4 w-4 shrink-0" />}
-                      <div className="flex flex-col">
-                        <span className="text-[10px] font-black uppercase tracking-tight leading-tight">
-                          {pingResult.type === 'heartbeat' ? 'Runtime Status' : 'Database Status'}
-                        </span>
-                        <span className="text-[9px] font-bold opacity-80">{pingResult.message}</span>
-                      </div>
+              <CardContent className="pt-6">
+                <Form {...vaultForm}>
+                  <form onSubmit={vaultForm.handleSubmit(onSaveVault)} className="space-y-6">
+                    <div className="bg-amber-50 border border-amber-200 p-4 rounded-xl flex gap-3 items-start">
+                      <ShieldAlert className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+                      <p className="text-[10px] text-amber-800 font-bold uppercase leading-relaxed tracking-tight">
+                        These keys authorize KOOP to manage multi-tenant payouts. Never share your Secret Key.
+                      </p>
                     </div>
-                    {pingResult.code && (
-                      <div className="bg-black/5 p-2 rounded font-mono text-[9px] flex items-center gap-2">
-                        <Terminal className="h-3 w-3" /> 
-                        <span className="font-bold uppercase">Code: {pingResult.code}</span>
-                      </div>
-                    )}
-                  </div>
-                )}
 
-                <div className="grid grid-cols-2 gap-3">
-                  <Button 
-                    variant="outline" 
-                    onClick={runHeartbeat} 
-                    disabled={isPinging}
-                    className="border-amber-200 text-amber-900 hover:bg-amber-100 font-black uppercase text-[9px] tracking-widest h-10"
-                  >
-                    <Heart className="h-3 w-3 mr-1.5" /> {isPinging ? "Testing..." : "Test Runtime"}
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    onClick={runFirestorePing} 
-                    disabled={isPinging}
-                    className="border-amber-200 text-amber-900 hover:bg-amber-100 font-black uppercase text-[9px] tracking-widest h-10"
-                  >
-                    <Database className="h-3 w-3 mr-1.5" /> {isPinging ? "Testing..." : "Test Firestore"}
-                  </Button>
-                </div>
+                    <div className="space-y-4">
+                      <FormField control={vaultForm.control} name="stripeSecretKey" render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-[10px] font-black uppercase tracking-widest">Stripe Secret Key (sk_test_...)</FormLabel>
+                          <div className="relative">
+                            <FormControl>
+                              <Input {...field} type={showSecrets ? "text" : "password"} className="font-mono text-xs h-11 border-2" placeholder="sk_test_••••••••••••••••••••" />
+                            </FormControl>
+                            <Button type="button" variant="ghost" size="icon" className="absolute right-2 top-1.5 h-7 w-7" onClick={() => setShowSecrets(!showSecrets)}>
+                              {showSecrets ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                            </Button>
+                          </div>
+                          <FormMessage />
+                        </FormItem>
+                      )} />
+
+                      <FormField control={vaultForm.control} name="stripeClientId" render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-[10px] font-black uppercase tracking-widest">Stripe Client ID (ca_...)</FormLabel>
+                          <FormControl>
+                            <Input {...field} className="font-mono text-xs h-11 border-2" placeholder="ca_••••••••••••••••••••" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )} />
+                    </div>
+
+                    <Button type="submit" className="w-full h-12 bg-[#213147] hover:bg-black font-headline font-black uppercase tracking-widest shadow-xl" disabled={isSaving}>
+                      {isSaving ? <Loader2 className="animate-spin mr-2" /> : <Lock className="mr-2 h-4 w-4" />}
+                      Update Platform Vault
+                    </Button>
+                  </form>
+                </Form>
               </CardContent>
             </Card>
+
+            {/* DIAGNOSTICS */}
+            <div className="space-y-6">
+              <Card className="shadow-lg border-2 bg-amber-50/30 border-amber-100 h-full">
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-sm font-black uppercase text-amber-900">Backend Diagnostics</CardTitle>
+                    <Activity className="h-4 w-4 text-amber-600" />
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <p className="text-[10px] font-bold text-amber-800 uppercase leading-relaxed">
+                    Verify the health of the Cloud Function runtime and its ability to access platform secrets.
+                  </p>
+                  
+                  {pingResult && (
+                    <div className={cn(
+                      "p-3 rounded-lg border-2 flex flex-col gap-2 animate-in fade-in slide-in-from-top-1",
+                      pingResult.success ? "bg-green-50 border-green-100 text-green-800" : "bg-red-50 border-red-100 text-red-800"
+                    )}>
+                      <div className="flex items-center gap-3">
+                        {pingResult.success ? <CheckCircle2 className="h-4 w-4 shrink-0" /> : <AlertCircle className="h-4 w-4 shrink-0" />}
+                        <div className="flex flex-col">
+                          <span className="text-[10px] font-black uppercase tracking-tight leading-tight">
+                            {pingResult.type === 'heartbeat' ? 'Runtime Status' : 'Database Status'}
+                          </span>
+                          <span className="text-[9px] font-bold opacity-80">{pingResult.message}</span>
+                        </div>
+                      </div>
+                      {pingResult.code && (
+                        <div className="bg-black/5 p-2 rounded font-mono text-[9px] flex items-center gap-2">
+                          <Terminal className="h-3 w-3" /> 
+                          <span className="font-bold uppercase">Code: {pingResult.code}</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <Button 
+                      variant="outline" 
+                      onClick={runHeartbeat} 
+                      disabled={isPinging}
+                      className="border-amber-200 text-amber-900 hover:bg-amber-100 font-black uppercase text-[9px] tracking-widest h-10"
+                    >
+                      <Heart className="h-3 w-3 mr-1.5" /> {isPinging ? "Testing..." : "Test Runtime"}
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      onClick={runFirestorePing} 
+                      disabled={isPinging}
+                      className="border-amber-200 text-amber-900 hover:bg-amber-100 font-black uppercase text-[9px] tracking-widest h-10"
+                    >
+                      <Database className="h-3 w-3 mr-1.5" /> {isPinging ? "Testing..." : "Test Firestore"}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           </div>
         </TabsContent>
       </Tabs>
