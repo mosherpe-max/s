@@ -9,17 +9,37 @@ if (admin.apps.length === 0) {
 }
 
 /**
+ * getStripeSecret
+ * Resolves the Stripe Secret Key from Environment Secrets or Firestore Vault.
+ */
+async function getStripeSecret(): Promise<string> {
+  // 1. Try Environment Secret (Recommended for Production)
+  if (process.env.STRIPE_SECRET_KEY) {
+    return process.env.STRIPE_SECRET_KEY;
+  }
+
+  // 2. Fallback to Firestore Vault (Convenient for Prototype Setup)
+  const db = admin.firestore();
+  const configSnap = await db.doc('config/platform_private').get();
+  const config = configSnap.data();
+  
+  if (!config?.stripeSecretKey) {
+    throw new HttpsError('failed-precondition', 'Stripe Secret Key is not configured. Please set it in the KOOP Admin Vault.');
+  }
+
+  return config.stripeSecretKey;
+}
+
+/**
  * createStripeAccountLink
- * Securely creates a Stripe Standard account for a venue and returns an onboarding URL.
+ * Creates a Stripe Standard account for a venue and returns an onboarding URL.
  */
 export const createStripeAccountLink = onCall({ 
   cors: true,
-  region: 'us-central1' 
+  region: 'us-central1'
 }, async (request) => {
   const { sellerId, returnBaseUrl } = request.data;
   const uid = request.auth?.uid;
-
-  logger.info(`[STRIPE-INIT] Starting onboarding for seller: ${sellerId} by user: ${uid}`);
 
   if (!uid) {
     throw new HttpsError('unauthenticated', 'User must be logged in.');
@@ -32,41 +52,26 @@ export const createStripeAccountLink = onCall({
   const db = admin.firestore();
 
   try {
-    // 1. Fetch platform credentials
-    logger.info('[STRIPE-CONFIG] Fetching platform secrets from config/platform_private');
-    const configSnap = await db.doc('config/platform_private').get();
-    
-    if (!configSnap.exists) {
-      logger.error('[STRIPE-CONFIG-ERROR] Document config/platform_private NOT FOUND');
-      throw new HttpsError('failed-precondition', 'Platform Stripe keys are missing in Firestore.');
-    }
-
-    const config = configSnap.data();
-    if (!config?.stripeSecretKey) {
-      logger.error('[STRIPE-CONFIG-ERROR] stripeSecretKey field is missing or empty');
-      throw new HttpsError('failed-precondition', 'Stripe Secret Key is not configured in Admin.');
-    }
-
-    const stripe = new Stripe(config.stripeSecretKey, {
+    // 1. Initialize Stripe with the resolved secret
+    const secret = await getStripeSecret();
+    const stripe = new Stripe(secret, {
       apiVersion: '2023-10-16' as any,
     });
 
-    // 2. Verify seller existence
+    // 2. Fetch Seller details
     const sellerRef = db.doc(`sellers/${sellerId}`);
     const sellerSnap = await sellerRef.get();
 
     if (!sellerSnap.exists) {
-      logger.error(`[STRIPE-SELLER-ERROR] Venue ${sellerId} not found in database`);
       throw new HttpsError('not-found', 'Venue not found.');
     }
 
     const sellerData = sellerSnap.data();
-    
-    // 3. Create or reuse Stripe account
     let stripeAccountId = sellerData?.stripeAccountId;
 
+    // 3. Create Stripe Connect Account if one doesn't exist
     if (!stripeAccountId) {
-      logger.info(`[STRIPE-ACCOUNT] Creating new Stripe Standard account for email: ${sellerData?.contactEmail}`);
+      logger.info(`[STRIPE] Creating Standard account for ${sellerData?.courseName}`);
       const account = await stripe.accounts.create({
         type: 'standard',
         email: sellerData?.contactEmail,
@@ -74,17 +79,16 @@ export const createStripeAccountLink = onCall({
           card_payments: { requested: true },
           transfers: { requested: true },
         },
+        metadata: { sellerId }
       });
       stripeAccountId = account.id;
       
-      logger.info(`[STRIPE-ACCOUNT-CREATED] New ID: ${stripeAccountId}. Updating Firestore.`);
+      // Save ID to Firestore immediately (Requirement #4)
       await sellerRef.update({ stripeAccountId });
-    } else {
-      logger.info(`[STRIPE-ACCOUNT-REUSE] Found existing Stripe ID: ${stripeAccountId}`);
     }
 
-    // 4. Generate onboarding link
-    logger.info(`[STRIPE-LINK] Generating link for ${stripeAccountId}`);
+    // 4. Create Account Link for hosted onboarding
+    logger.info(`[STRIPE] Generating onboarding link for ${stripeAccountId}`);
     const accountLink = await stripe.accountLinks.create({
       account: stripeAccountId,
       refresh_url: `${returnBaseUrl}/onboarding-refresh?sellerId=${sellerId}`,
@@ -92,52 +96,29 @@ export const createStripeAccountLink = onCall({
       type: 'account_onboarding',
     });
 
-    logger.info('[STRIPE-SUCCESS] Link generated successfully');
     return { url: accountLink.url };
   } catch (error: any) {
-    logger.error('[STRIPE-CRITICAL-ERROR]', {
-      message: error.message,
-      stack: error.stack,
-      code: error.code
-    });
-    
+    logger.error('[STRIPE-ERROR]', error);
     if (error instanceof HttpsError) throw error;
-    throw new HttpsError('internal', `Stripe initialization failed: ${error.message}`);
+    throw new HttpsError('internal', `Failed to initialize Stripe: ${error.message}`);
   }
 });
 
 /**
- * systemHeartbeat
- * Minimal diagnostic function to check runtime health.
+ * Diagnostic Heartbeat
  */
 export const systemHeartbeat = onCall({ cors: true, region: 'us-central1' }, async () => {
-  logger.info('[DIAGNOSTIC] Heartbeat requested');
-  return { 
-    status: 'Ready',
-    timestamp: Date.now(),
-    message: 'Cloud Function Runtime Operational'
-  };
+  return { status: 'Ready', timestamp: Date.now() };
 });
 
 /**
- * pingPlatform
- * Diagnostic function to verify database connectivity and vault status.
+ * Diagnostic Ping
  */
 export const pingPlatform = onCall({ cors: true, region: 'us-central1' }, async () => {
-  logger.info('[DIAGNOSTIC] Firestore ping requested');
   const db = admin.firestore();
-  try {
-    const vaultSnap = await db.doc('config/platform_private').get();
-    const sellerSnap = await db.collection('sellers').limit(1).get();
-    
-    return { 
-      success: true, 
-      count: sellerSnap.size,
-      vaultExists: vaultSnap.exists,
-      vaultConfigured: !!vaultSnap.data()?.stripeSecretKey
-    };
-  } catch (e: any) {
-    logger.error('[DIAGNOSTIC-ERROR] Firestore ping failed', e);
-    throw new HttpsError('internal', e.message);
-  }
+  const vaultSnap = await db.doc('config/platform_private').get();
+  return { 
+    success: true, 
+    vaultConfigured: !!vaultSnap.data()?.stripeSecretKey 
+  };
 });

@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useMemo, useEffect, use } from 'react';
@@ -116,21 +115,13 @@ type MenuItemFormData = z.infer<typeof menuItemSchema>;
 
 function SortableMenuItem({ item, onRemove }: { item: MenuItem; onRemove: (item: MenuItem) => void }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    zIndex: isDragging ? 50 : undefined,
-  };
+  const style = { transform: CSS.Transform.toString(transform), transition, zIndex: isDragging ? 50 : undefined };
 
   return (
     <div ref={setNodeRef} style={style} className={cn("flex items-center justify-between p-3 rounded-lg border bg-card transition-shadow", isDragging ? "shadow-xl border-primary ring-2 ring-primary/20 opacity-90" : "shadow-sm")}>
       <div className="flex items-center gap-3">
         <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing p-1 hover:bg-muted rounded text-muted-foreground"><GripVertical className="h-4 w-4" /></div>
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-medium">{item.name}</span>
-          {item.modifierGroups?.length ? <Layers className="h-3 w-3 text-primary" /> : null}
-        </div>
+        <div className="flex items-center gap-2"><span className="text-xs font-medium">{item.name}</span>{item.modifierGroups?.length ? <Layers className="h-3 w-3 text-primary" /> : null}</div>
       </div>
       <Button variant="ghost" size="icon" className="text-destructive h-7 w-7" onClick={() => onRemove(item)}><Trash2 className="h-3.5 w-3.5" /></Button>
     </div>
@@ -224,10 +215,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     try {
       const functions = getFunctions(firebaseApp, 'us-central1');
       const createLink = httpsCallable(functions, 'createStripeAccountLink');
-      const result = await createLink({ 
-        sellerId, 
-        returnBaseUrl: window.location.origin 
-      });
+      const result = await createLink({ sellerId, returnBaseUrl: window.location.origin });
       const { url } = result.data as { url: string };
       window.location.href = url;
     } catch (e: any) {
@@ -325,10 +313,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
           <CardHeader>
             <div className="flex items-center justify-between">
               <div className="space-y-1">
-                <CardTitle className="text-lg font-headline flex items-center gap-2">
-                  Stripe Payment Setup
-                  {seller?.stripeAccountId && <Badge className="bg-green-600"><CheckCircle2 className="h-3 w-3 mr-1" /> Linked</Badge>}
-                </CardTitle>
+                <CardTitle className="text-lg font-headline flex items-center gap-2">Stripe Payment Setup {seller?.stripeAccountId && <Badge className="bg-green-600"><CheckCircle2 className="h-3 w-3 mr-1" /> Linked</Badge>}</CardTitle>
                 <CardDescription>Configure your Standard Stripe Connect account to receive direct payouts.</CardDescription>
               </div>
               <CreditCard className="h-8 w-8 text-indigo-600 opacity-20" />
@@ -341,17 +326,9 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                 <ul className="text-xs text-muted-foreground space-y-1">
                   <li className="flex items-center gap-2"><CheckCircle2 className="h-3 w-3 text-green-600" /> Funds deposited directly to your bank account</li>
                   <li className="flex items-center gap-2"><CheckCircle2 className="h-3 w-3 text-green-600" /> Professional-grade security and fraud protection</li>
-                  <li className="flex items-center gap-2"><CheckCircle2 className="h-3 w-3 text-green-600" /> No setup fees or long-term contracts</li>
                 </ul>
               </div>
-              <Button 
-                onClick={handleConnectStripe} 
-                disabled={isConnectingStripe}
-                className={cn(
-                  "h-12 px-8 font-headline font-black uppercase tracking-widest",
-                  seller?.stripeAccountId ? "bg-slate-700" : "bg-indigo-600 hover:bg-indigo-700"
-                )}
-              >
+              <Button onClick={handleConnectStripe} disabled={isConnectingStripe} className={cn("h-12 px-8 font-headline font-black uppercase tracking-widest", seller?.stripeAccountId ? "bg-slate-700" : "bg-indigo-600 hover:bg-indigo-700")}>
                 {isConnectingStripe ? <Loader2 className="animate-spin mr-2" /> : <CreditCard className="mr-2 h-5 w-5" />}
                 {seller?.stripeAccountId ? 'Update Stripe Account' : 'Connect with Stripe'}
               </Button>
@@ -361,30 +338,11 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
       </section>
 
       <section id="staff-management" className="mb-12">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>Staff Registry</CardTitle>
-            <Button onClick={() => { setEditingStaff(null); staffForm.reset(); setIsStaffFormOpen(true); }}>Add Staff</Button>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Role</TableHead><TableHead>PIN</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
-              <TableBody>
-                {staff?.map(s => (
-                  <TableRow key={s.id}><TableCell>{s.name}</TableCell><TableCell>{s.role}</TableCell><TableCell><code>{s.pin}</code></TableCell>
-                    <TableCell className="text-right"><Button variant="ghost" size="icon" onClick={() => { setEditingStaff(s); staffForm.reset(s); setIsStaffFormOpen(true); }}><Edit className="h-4 w-4" /></Button></TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+        <Card><CardHeader className="flex flex-row items-center justify-between"><CardTitle>Staff Registry</CardTitle><Button onClick={() => { setEditingStaff(null); staffForm.reset(); setIsStaffFormOpen(true); }}>Add Staff</Button></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Role</TableHead><TableHead>PIN</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader><TableBody>{staff?.map(s => (<TableRow key={s.id}><TableCell>{s.name}</TableCell><TableCell>{s.role}</TableCell><TableCell><code>{s.pin}</code></TableCell><TableCell className="text-right"><Button variant="ghost" size="icon" onClick={() => { setEditingStaff(s); staffForm.reset(s); setIsStaffFormOpen(true); }}><Edit className="h-4 w-4" /></Button></TableCell></TableRow>))}</TableBody></Table></CardContent></Card>
       </section>
 
       <section id="sales-stats" className="mb-12">
-        <div className="flex gap-4 mb-4">
-          {dashboardStats && <><StatTile title="Monthly" revenue={dashboardStats.monthly.revenue} orders={dashboardStats.monthly.orders} longWait={dashboardStats.monthly.longWait} /><StatTile title="Yearly" revenue={dashboardStats.yearly.revenue} orders={dashboardStats.yearly.orders} longWait={dashboardStats.yearly.longWait} /></>}
-        </div>
+        <div className="flex gap-4 mb-4">{dashboardStats && <><StatTile title="Monthly" revenue={dashboardStats.monthly.revenue} orders={dashboardStats.monthly.orders} longWait={dashboardStats.monthly.longWait} /><StatTile title="Yearly" revenue={dashboardStats.yearly.revenue} orders={dashboardStats.yearly.orders} longWait={dashboardStats.yearly.longWait} /></>}</div>
         <Button onClick={handleExportToExcel}><Download className="mr-2 h-4 w-4" /> Export Report</Button>
       </section>
 
@@ -396,9 +354,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
               <CardHeader><CardTitle>{type} Menu</CardTitle></CardHeader>
               <CardContent>
                 <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(e) => handleDragEnd(e, type, items)}>
-                  <SortableContext items={items.map(i => i.id)} strategy={verticalListSortingStrategy}>
-                    <div className="space-y-2">{items.map(i => <SortableMenuItem key={i.id} item={i} onRemove={(it) => updateDoc(doc(firestore!, 'sellers', sellerId, 'menuItems', it.id), { availableOn: it.availableOn?.filter(t => t !== type) })} />)}</div>
-                  </SortableContext>
+                  <SortableContext items={items.map(i => i.id)} strategy={verticalListSortingStrategy}><div className="space-y-2">{items.map(i => <SortableMenuItem key={i.id} item={i} onRemove={(it) => updateDoc(doc(firestore!, 'sellers', sellerId, 'menuItems', it.id), { availableOn: it.availableOn?.filter(t => t !== type) })} />)}</div></SortableContext>
                 </DndContext>
                 <Button variant="outline" className="mt-4" onClick={() => { toast({ title: "Menu Picker Disabled", description: "Functionality currently restricted." }) }}>Manage Items</Button>
               </CardContent>

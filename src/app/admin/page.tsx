@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -77,13 +76,10 @@ export default function KOOPAdminPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [showSecrets, setShowSecrets] = useState(false);
   
-  // Diagnostic State
   const [isPinging, setIsPinging] = useState(false);
   const [pingResult, setPingResult] = useState<{ success: boolean; message: string; code?: string; type: 'heartbeat' | 'firestore' } | null>(null);
 
-  // Exclusive Super Admin Authorization
-  const isAuthorized = user?.uid === SUPER_ADMIN_ID || 
-                     user?.email === 'mosherpe@gmail.com';
+  const isAuthorized = user?.uid === SUPER_ADMIN_ID || user?.email === 'mosherpe@gmail.com';
 
   const sellersQuery = useMemoFirebase(() => (firestore && isAuthorized ? collection(firestore, 'sellers') : null), [firestore, isAuthorized]);
   const { data: sellers, isLoading: isSellersLoading } = useCollection<Seller>(sellersQuery);
@@ -157,19 +153,9 @@ export default function KOOPAdminPage() {
       const heartbeat = httpsCallable(functions, 'systemHeartbeat');
       const result = await heartbeat();
       const data = result.data as any;
-      
-      setPingResult({ 
-        success: true, 
-        type: 'heartbeat',
-        message: `Runtime Operational: ${data.message}` 
-      });
+      setPingResult({ success: true, type: 'heartbeat', message: `Runtime Operational: ${data.status}` });
     } catch (e: any) {
-      setPingResult({ 
-        success: false, 
-        type: 'heartbeat',
-        code: e.code,
-        message: e.message || 'The Cloud Function runtime could not be reached.' 
-      });
+      setPingResult({ success: false, type: 'heartbeat', code: e.code, message: e.message });
     } finally {
       setIsPinging(false);
     }
@@ -183,19 +169,9 @@ export default function KOOPAdminPage() {
       const ping = httpsCallable(functions, 'pingPlatform');
       const result = await ping();
       const data = result.data as any;
-      
-      setPingResult({ 
-        success: true, 
-        type: 'firestore',
-        message: `Backend Online. Vault Configured: ${data.vaultConfigured ? 'YES' : 'NO'}` 
-      });
+      setPingResult({ success: true, type: 'firestore', message: `Backend Online. Vault Configured: ${data.vaultConfigured ? 'YES' : 'NO'}` });
     } catch (e: any) {
-      setPingResult({ 
-        success: false, 
-        type: 'firestore',
-        code: e.code,
-        message: e.message || 'Firestore diagnostic failed.' 
-      });
+      setPingResult({ success: false, type: 'firestore', code: e.code, message: e.message });
     } finally {
       setIsPinging(false);
     }
@@ -281,14 +257,11 @@ export default function KOOPAdminPage() {
 
         <TabsContent value="system" className="space-y-8">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* PLATFORM VAULT */}
             <Card className="shadow-lg border-2 border-[#213147]/10">
               <CardHeader className="bg-[#213147]/5 border-b">
                 <div className="flex items-center justify-between">
                   <div className="space-y-1">
-                    <CardTitle className="text-sm font-black uppercase flex items-center gap-2">
-                      <KeyRound className="h-4 w-4 text-primary" /> Platform Secret Vault
-                    </CardTitle>
+                    <CardTitle className="text-sm font-black uppercase flex items-center gap-2"><KeyRound className="h-4 w-4 text-primary" /> Platform Secret Vault</CardTitle>
                     <CardDescription className="text-[10px] font-bold uppercase tracking-tight">Standard Stripe Connect Credentials</CardDescription>
                   </div>
                   <Badge variant="outline" className="bg-primary/10 border-primary/20 text-primary uppercase text-[8px] font-black">Secure</Badge>
@@ -299,101 +272,46 @@ export default function KOOPAdminPage() {
                   <form onSubmit={vaultForm.handleSubmit(onSaveVault)} className="space-y-6">
                     <div className="bg-amber-50 border border-amber-200 p-4 rounded-xl flex gap-3 items-start">
                       <ShieldAlert className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
-                      <p className="text-[10px] text-amber-800 font-bold uppercase leading-relaxed tracking-tight">
-                        These keys authorize KOOP to manage multi-tenant payouts. Never share your Secret Key.
-                      </p>
+                      <p className="text-[10px] text-amber-800 font-bold uppercase leading-relaxed tracking-tight">These keys authorize KOOP to manage multi-tenant payouts.</p>
                     </div>
-
                     <div className="space-y-4">
                       <FormField control={vaultForm.control} name="stripeSecretKey" render={({ field }) => (
                         <FormItem>
                           <FormLabel className="text-[10px] font-black uppercase tracking-widest">Stripe Secret Key (sk_test_...)</FormLabel>
                           <div className="relative">
-                            <FormControl>
-                              <Input {...field} type={showSecrets ? "text" : "password"} className="font-mono text-xs h-11 border-2" placeholder="sk_test_••••••••••••••••••••" />
-                            </FormControl>
-                            <Button type="button" variant="ghost" size="icon" className="absolute right-2 top-1.5 h-7 w-7" onClick={() => setShowSecrets(!showSecrets)}>
-                              {showSecrets ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-                            </Button>
+                            <FormControl><Input {...field} type={showSecrets ? "text" : "password"} className="font-mono text-xs h-11 border-2" /></FormControl>
+                            <Button type="button" variant="ghost" size="icon" className="absolute right-2 top-1.5 h-7 w-7" onClick={() => setShowSecrets(!showSecrets)}>{showSecrets ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}</Button>
                           </div>
                           <FormMessage />
                         </FormItem>
                       )} />
-
                       <FormField control={vaultForm.control} name="stripeClientId" render={({ field }) => (
                         <FormItem>
                           <FormLabel className="text-[10px] font-black uppercase tracking-widest">Stripe Client ID (ca_...)</FormLabel>
-                          <FormControl>
-                            <Input {...field} className="font-mono text-xs h-11 border-2" placeholder="ca_••••••••••••••••••••" />
-                          </FormControl>
+                          <FormControl><Input {...field} className="font-mono text-xs h-11 border-2" /></FormControl>
                           <FormMessage />
                         </FormItem>
                       )} />
                     </div>
-
-                    <Button type="submit" className="w-full h-12 bg-[#213147] hover:bg-black font-headline font-black uppercase tracking-widest shadow-xl" disabled={isSaving}>
-                      {isSaving ? <Loader2 className="animate-spin mr-2" /> : <Lock className="mr-2 h-4 w-4" />}
-                      Update Platform Vault
-                    </Button>
+                    <Button type="submit" className="w-full h-12 bg-[#213147] hover:bg-black font-headline font-black uppercase tracking-widest shadow-xl" disabled={isSaving}>{isSaving ? <Loader2 className="animate-spin mr-2" /> : <Lock className="mr-2 h-4 w-4" />} Update Platform Vault</Button>
                   </form>
                 </Form>
               </CardContent>
             </Card>
 
-            {/* DIAGNOSTICS */}
             <div className="space-y-6">
               <Card className="shadow-lg border-2 bg-amber-50/30 border-amber-100 h-full">
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-sm font-black uppercase text-amber-900">Backend Diagnostics</CardTitle>
-                    <Activity className="h-4 w-4 text-amber-600" />
-                  </div>
-                </CardHeader>
+                <CardHeader><div className="flex items-center justify-between"><CardTitle className="text-sm font-black uppercase text-amber-900">Backend Diagnostics</CardTitle><Activity className="h-4 w-4 text-amber-600" /></div></CardHeader>
                 <CardContent className="space-y-6">
-                  <p className="text-[10px] font-bold text-amber-800 uppercase leading-relaxed">
-                    Verify the health of the Cloud Function runtime and its ability to access platform secrets.
-                  </p>
-                  
+                  <p className="text-[10px] font-bold text-amber-800 uppercase leading-relaxed">Verify the health of the Cloud Function runtime.</p>
                   {pingResult && (
-                    <div className={cn(
-                      "p-3 rounded-lg border-2 flex flex-col gap-2 animate-in fade-in slide-in-from-top-1",
-                      pingResult.success ? "bg-green-50 border-green-100 text-green-800" : "bg-red-50 border-red-100 text-red-800"
-                    )}>
-                      <div className="flex items-center gap-3">
-                        {pingResult.success ? <CheckCircle2 className="h-4 w-4 shrink-0" /> : <AlertCircle className="h-4 w-4 shrink-0" />}
-                        <div className="flex flex-col">
-                          <span className="text-[10px] font-black uppercase tracking-tight leading-tight">
-                            {pingResult.type === 'heartbeat' ? 'Runtime Status' : 'Database Status'}
-                          </span>
-                          <span className="text-[9px] font-bold opacity-80">{pingResult.message}</span>
-                        </div>
-                      </div>
-                      {pingResult.code && (
-                        <div className="bg-black/5 p-2 rounded font-mono text-[9px] flex items-center gap-2">
-                          <Terminal className="h-3 w-3" /> 
-                          <span className="font-bold uppercase">Code: {pingResult.code}</span>
-                        </div>
-                      )}
+                    <div className={cn("p-3 rounded-lg border-2 flex flex-col gap-2", pingResult.success ? "bg-green-50 border-green-100 text-green-800" : "bg-red-50 border-red-100 text-red-800")}>
+                      <div className="flex items-center gap-3">{pingResult.success ? <CheckCircle2 className="h-4 w-4 shrink-0" /> : <AlertCircle className="h-4 w-4 shrink-0" />}<span className="text-[9px] font-bold">{pingResult.message}</span></div>
                     </div>
                   )}
-
                   <div className="grid grid-cols-2 gap-3">
-                    <Button 
-                      variant="outline" 
-                      onClick={runHeartbeat} 
-                      disabled={isPinging}
-                      className="border-amber-200 text-amber-900 hover:bg-amber-100 font-black uppercase text-[9px] tracking-widest h-10"
-                    >
-                      <Heart className="h-3 w-3 mr-1.5" /> {isPinging ? "Testing..." : "Test Runtime"}
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      onClick={runFirestorePing} 
-                      disabled={isPinging}
-                      className="border-amber-200 text-amber-900 hover:bg-amber-100 font-black uppercase text-[9px] tracking-widest h-10"
-                    >
-                      <Database className="h-3 w-3 mr-1.5" /> {isPinging ? "Testing..." : "Test Firestore"}
-                    </Button>
+                    <Button variant="outline" onClick={runHeartbeat} disabled={isPinging} className="border-amber-200 text-amber-900 font-black uppercase text-[9px] tracking-widest h-10"><Heart className="h-3 w-3 mr-1.5" /> Test Runtime</Button>
+                    <Button variant="outline" onClick={runFirestorePing} disabled={isPinging} className="border-amber-200 text-amber-900 font-black uppercase text-[9px] tracking-widest h-10"><Database className="h-3 w-3 mr-1.5" /> Test Firestore</Button>
                   </div>
                 </CardContent>
               </Card>
@@ -409,27 +327,8 @@ export default function KOOPAdminPage() {
             <form onSubmit={form.handleSubmit(onSave)} className="space-y-4">
               <FormField control={form.control} name="courseName" render={({ field }) => (<FormItem><FormLabel>Venue Name</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
               <div className="grid grid-cols-2 gap-4">
-                <FormField control={form.control} name="type" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Category</FormLabel>
-                    <FormControl>
-                      <select {...field} className="w-full h-10 border rounded-md px-3 text-sm bg-background">
-                        {sellerTypes.map(t => <option key={t} value={t}>{t}</option>)}
-                      </select>
-                    </FormControl>
-                  </FormItem>
-                )} />
-                <FormField control={form.control} name="status" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Status</FormLabel>
-                    <FormControl>
-                      <select {...field} className="w-full h-10 border rounded-md px-3 text-sm bg-background">
-                        <option value="Active">Active</option>
-                        <option value="Inactive">Inactive</option>
-                      </select>
-                    </FormControl>
-                  </FormItem>
-                )} />
+                <FormField control={form.control} name="type" render={({ field }) => (<FormItem><FormLabel>Category</FormLabel><FormControl><select {...field} className="w-full h-10 border rounded-md px-3 text-sm bg-background">{sellerTypes.map(t => <option key={t} value={t}>{t}</option>)}</select></FormControl></FormItem>)} />
+                <FormField control={form.control} name="status" render={({ field }) => (<FormItem><FormLabel>Status</FormLabel><FormControl><select {...field} className="w-full h-10 border rounded-md px-3 text-sm bg-background"><option value="Active">Active</option><option value="Inactive">Inactive</option></select></FormControl></FormItem>)} />
               </div>
               <DialogFooter><Button type="submit" disabled={isSaving}>{isSaving ? <Loader2 className="animate-spin" /> : "Save Venue"}</Button></DialogFooter>
             </form>
