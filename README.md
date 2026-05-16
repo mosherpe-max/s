@@ -1,3 +1,4 @@
+
 # KOOP - On-Course Refreshment Delivery Platform
 
 KOOP is a high-fidelity digital ordering platform designed for golf courses, bowling alleys, and other entertainment venues. It connects patrons directly with service staff (Beverage Carts, Clubhouse Servers, Laneside Staff) for a seamless refreshment experience.
