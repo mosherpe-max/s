@@ -1,5 +1,13 @@
 import { onCall } from "firebase-functions/v2/https";
 import { logger } from "firebase-functions";
+import { initializeApp } from "firebase-admin/app";
+
+/**
+ * Initialize the Firebase Admin SDK.
+ * This is required for the environment to correctly handle Firebase-specific 
+ * request contexts and logging.
+ */
+initializeApp();
 
 /**
  * testFunction
