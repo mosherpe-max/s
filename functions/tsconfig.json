@@ -1,11 +1,7 @@
 {
   "compilerOptions": {
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext",
-    "noImplicitAny": true,
-    "removeComments": true,
-    "preserveConstEnums": true,
-    "sourceMap": true,
+    "module": "ESNext",
+    "moduleResolution": "Node",
     "target": "ES2022",
     "outDir": "lib",
     "lib": ["ESNext"],
