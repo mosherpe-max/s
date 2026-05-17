@@ -1,9 +1,10 @@
+
 'use client';
 
 import React, { useState, useMemo, useEffect, use } from 'react';
-import { collection, doc, setDoc, deleteDoc, writeBatch, query, where, updateDoc, serverTimestamp, getDocs } from 'firebase/firestore';
+import { collection, doc, setDoc, writeBatch, query, where, updateDoc, serverTimestamp, getDocs } from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
-import { useFirestore, useDoc, useCollection, useMemoFirebase, useUser, useAuth, useFirebaseApp } from '@/firebase';
+import { useFirestore, useDoc, useCollection, useMemoFirebase, useUser, useAuth } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { 
@@ -22,18 +23,12 @@ import {
   Activity,
   AlertTriangle,
   Download,
-  ExternalLink,
-  Layers,
   LogOut,
-  Terminal,
-  CreditCard,
-  CheckCircle2
+  Layers
 } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { useForm, useFieldArray } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel } from '@/components/ui/form';
@@ -44,15 +39,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
 import { cn, SUPER_ADMIN_ID } from '@/lib/utils';
-import { isThisMonth, isThisYear, startOfMonth } from 'date-fns';
+import { isThisMonth, isThisYear } from 'date-fns';
 import * as XLSX from 'xlsx';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import Link from 'next/link';
-import { Separator } from '@/components/ui/separator';
 import { useRouter } from 'next/navigation';
-import { getFunctions, httpsCallable } from 'firebase/functions';
 
 import {
   DndContext,
@@ -72,7 +63,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
-import type { MenuItem, Seller, Category, Order, StaffMember } from '@/lib/types';
+import type { MenuItem, Seller, Order, StaffMember } from '@/lib/types';
 import { categories } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -86,32 +77,6 @@ const staffSchema = z.object({
 });
 
 type StaffFormData = z.infer<typeof staffSchema>;
-
-const modifierOptionSchema = z.object({
-  id: z.string(),
-  name: z.string().min(1, 'Option name required'),
-  price: z.coerce.number().min(0)
-});
-
-const modifierGroupSchema = z.object({
-  id: z.string(),
-  name: z.string().min(1, 'Group name required'),
-  minSelection: z.coerce.number().min(0),
-  maxSelection: z.coerce.number().min(1),
-  options: z.array(modifierOptionSchema).min(1, 'At least one option required')
-});
-
-const menuItemSchema = z.object({
-  name: z.string().min(1, 'Item name is required'),
-  description: z.string().optional(),
-  price: z.coerce.number().min(0, 'Price must be a positive number'),
-  category: z.enum(categories),
-  imageUrl: z.string().url('Please enter a valid image URL').or(z.literal('')).optional(),
-  availableOn: z.array(z.string()).optional(),
-  modifierGroups: z.array(modifierGroupSchema).optional()
-});
-
-type MenuItemFormData = z.infer<typeof menuItemSchema>;
 
 function SortableMenuItem({ item, onRemove }: { item: MenuItem; onRemove: (item: MenuItem) => void }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id });
@@ -154,7 +119,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   const { sellerId } = use(params);
   const firestore = useFirestore();
   const auth = useAuth();
-  const firebaseApp = useFirebaseApp();
   const { user, isUserLoading } = useUser();
   const router = useRouter();
   const { toast } = useToast();
@@ -164,7 +128,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   const [isStaffFormOpen, setIsStaffFormOpen] = useState(false);
   const [editingStaff, setEditingStaff] = useState<StaffMember | null>(null);
   const [isResettingDemo, setIsResettingDemo] = useState(false);
-  const [isConnectingStripe, setIsConnectingStripe] = useState(false);
   
   const sensors = useSensors(useSensor(PointerSensor), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
   const isHardcodedSuperAdmin = user?.uid === SUPER_ADMIN_ID || user?.email === 'mosherpe@gmail.com';
@@ -207,21 +170,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     const staffId = editingStaff ? editingStaff.id : Math.random().toString(36).substr(2, 9);
     await setDoc(doc(firestore, 'sellers', sellerId, 'staff', staffId), { ...data, id: staffId, createdAt: editingStaff?.createdAt || serverTimestamp() }, { merge: true });
     setIsStaffFormOpen(false); setEditingStaff(null); staffForm.reset();
-  };
-
-  const handleConnectStripe = async () => {
-    if (!firebaseApp || !sellerId) return;
-    setIsConnectingStripe(true);
-    try {
-      const functions = getFunctions(firebaseApp, 'us-central1');
-      const createLink = httpsCallable(functions, 'createStripeAccountLink');
-      const result = await createLink({ sellerId, returnBaseUrl: window.location.origin });
-      const { url } = result.data as { url: string };
-      window.location.href = url;
-    } catch (e: any) {
-      toast({ variant: 'destructive', title: 'Stripe Connection Failed', description: e.message });
-      setIsConnectingStripe(false);
-    }
   };
 
   const dashboardStats = useMemo(() => {
@@ -293,7 +241,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
 
       <nav className="sticky top-16 z-30 bg-background border-y mb-8 py-3 flex gap-2 overflow-x-auto">
         <Button variant="ghost" size="sm" onClick={() => scrollToSection('ops-monitor')} className="text-[10px] font-bold uppercase"><Activity className="mr-1 h-3.5 w-3.5" /> Queue</Button>
-        <Button variant="ghost" size="sm" onClick={() => scrollToSection('stripe-onboarding')} className="text-[10px] font-bold uppercase"><CreditCard className="mr-1 h-3.5 w-3.5" /> Payments</Button>
         <Button variant="ghost" size="sm" onClick={() => scrollToSection('staff-management')} className="text-[10px] font-bold uppercase"><Users className="mr-1 h-3.5 w-3.5" /> Staff</Button>
         <Button variant="ghost" size="sm" onClick={() => scrollToSection('sales-stats')} className="text-[10px] font-bold uppercase"><BarChart3 className="mr-1 h-3.5 w-3.5" /> Sales</Button>
         <Button variant="ghost" size="sm" onClick={() => scrollToSection('service-management')} className="text-[10px] font-bold uppercase"><ListChecks className="mr-1 h-3.5 w-3.5" /> Menus</Button>
@@ -306,35 +253,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
           <OpsMetricCard label="Overdue" value={dashboardStats?.monthly.longWait || 0} icon={AlertTriangle} />
           <Button asChild className="h-full bg-indigo-600"><Link href={`/sellers/${sellerId}/bevcart`}>Launch BevCart</Link></Button>
         </div>
-      </section>
-
-      <section id="stripe-onboarding" className="mb-12">
-        <Card className="border-2 border-indigo-100 bg-indigo-50/30">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div className="space-y-1">
-                <CardTitle className="text-lg font-headline flex items-center gap-2">Stripe Payment Setup {seller?.stripeAccountId && <Badge className="bg-green-600"><CheckCircle2 className="h-3 w-3 mr-1" /> Linked</Badge>}</CardTitle>
-                <CardDescription>Configure your Standard Stripe Connect account to receive direct payouts.</CardDescription>
-              </div>
-              <CreditCard className="h-8 w-8 text-indigo-600 opacity-20" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-col md:flex-row items-center gap-6">
-              <div className="flex-1 space-y-2">
-                <p className="text-sm font-medium">Why use Stripe Connect?</p>
-                <ul className="text-xs text-muted-foreground space-y-1">
-                  <li className="flex items-center gap-2"><CheckCircle2 className="h-3 w-3 text-green-600" /> Funds deposited directly to your bank account</li>
-                  <li className="flex items-center gap-2"><CheckCircle2 className="h-3 w-3 text-green-600" /> Professional-grade security and fraud protection</li>
-                </ul>
-              </div>
-              <Button onClick={handleConnectStripe} disabled={isConnectingStripe} className={cn("h-12 px-8 font-headline font-black uppercase tracking-widest", seller?.stripeAccountId ? "bg-slate-700" : "bg-indigo-600 hover:bg-indigo-700")}>
-                {isConnectingStripe ? <Loader2 className="animate-spin mr-2" /> : <CreditCard className="mr-2 h-5 w-5" />}
-                {seller?.stripeAccountId ? 'Update Stripe Account' : 'Connect with Stripe'}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
       </section>
 
       <section id="staff-management" className="mb-12">

@@ -1,53 +1,19 @@
 
 'use client';
 
-import { Suspense, useEffect } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { CheckCircle2, ArrowRight, Store } from 'lucide-react';
-import { StylizedKoopLogo } from '@/components/header';
-
-function OnboardingSuccessContent() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const sellerId = searchParams.get('sellerId');
-
-  return (
-    <div className="min-h-screen bg-muted/30 flex items-center justify-center p-4">
-      <Card className="w-full max-w-md shadow-2xl border-2 rounded-[2.5rem] overflow-hidden">
-        <CardHeader className="text-center pb-8 bg-[#213147] text-white pt-10">
-          <div className="flex flex-col items-center gap-4">
-            <StylizedKoopLogo size="lg" />
-            <CardTitle className="font-headline text-xl font-black uppercase tracking-widest">Setup Complete</CardTitle>
-          </div>
-        </CardHeader>
-        <CardContent className="pt-10 pb-12 px-8 flex flex-col items-center text-center space-y-6">
-          <div className="bg-green-100 p-4 rounded-full">
-            <CheckCircle2 className="h-12 w-12 text-green-600" />
-          </div>
-          <div className="space-y-2">
-            <h3 className="font-bold text-lg">Stripe Account Connected</h3>
-            <p className="text-sm text-muted-foreground">
-              Your establishment is now authorized to receive payments. You can manage your menu and start taking orders immediately.
-            </p>
-          </div>
-          <Button 
-            className="w-full h-14 bg-indigo-600 hover:bg-indigo-700 font-headline font-black uppercase tracking-widest"
-            onClick={() => router.push(`/sellers/${sellerId}`)}
-          >
-            Return to Dashboard <ArrowRight className="ml-2 h-5 w-5" />
-          </Button>
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 
 export default function OnboardingSuccessPage() {
+  const router = useRouter();
+
+  useEffect(() => {
+    router.replace('/');
+  }, [router]);
+
   return (
-    <Suspense fallback={<div>Loading...</div>}>
-      <OnboardingSuccessContent />
-    </Suspense>
+    <div className="min-h-screen flex items-center justify-center">
+      <p className="text-muted-foreground animate-pulse">Redirecting...</p>
+    </div>
   );
 }
