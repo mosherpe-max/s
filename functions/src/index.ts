@@ -1,12 +1,15 @@
 import { onCall } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
-import { initializeApp } from "firebase-admin/app";
+import { initializeApp, getApps } from "firebase-admin/app";
 
 /**
  * Initialize the Firebase Admin SDK.
- * ESM requires initializeApp to be called at the entry point for v2 callables.
+ * Checking getApps() ensures we don't attempt to re-initialize during instance reuse,
+ * which can sometimes trigger internal state errors in ESM environments.
  */
-initializeApp();
+if (getApps().length === 0) {
+  initializeApp();
+}
 
 /**
  * testFunction
@@ -15,14 +18,15 @@ initializeApp();
  */
 export const testFunction = onCall({ 
   cors: true,
-  region: 'us-central1'
+  region: 'us-central1',
+  maxInstances: 10
 }, (request) => {
-  logger.info("testFunction called");
+  logger.info("testFunction execution started", { data: request.data });
   
   return { 
     success: true, 
     message: "Functions working",
     timestamp: new Date().toISOString(),
-    env: "esm-v2"
+    env: "esm-node20-verified"
   };
 });
