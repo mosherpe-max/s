@@ -17,7 +17,7 @@ export const testFunction = onCall({
   cors: true,
   region: 'us-central1'
 }, (request) => {
-  logger.info("testFunction called", { uid: request.auth?.uid });
+  logger.info("testFunction called");
   
   return { 
     success: true, 
