@@ -1,10 +1,10 @@
-
 'use client';
 
 import { useState, use, useEffect, useMemo } from 'react';
 import { collection, doc, addDoc, serverTimestamp } from 'firebase/firestore';
 import { signInAnonymously } from 'firebase/auth';
-import { useFirestore, useCollection, useMemoFirebase, useDoc, useAuth, useUser } from '@/firebase';
+import { getFunctions, httpsCallable } from 'firebase/functions';
+import { useFirestore, useCollection, useMemoFirebase, useDoc, useAuth, useUser, useFirebaseApp } from '@/firebase';
 import type { Seller, MenuItem, Category, OrderItem, Order } from '@/lib/types';
 import { categories } from '@/lib/types';
 import { BuyerMenu } from '@/components/buyer-menu';
@@ -27,7 +27,8 @@ import {
   ShoppingBasket,
   Satellite,
   Check,
-  Pencil
+  Pencil,
+  CreditCard
 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useCart } from '@/lib/cart-context';
@@ -36,6 +37,14 @@ import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { mockBuyerLocation } from '@/lib/data';
 import { Badge } from '@/components/ui/badge';
+
+// Stripe Implementation Phase 1
+import { loadStripe } from '@stripe/stripe-js';
+import { Elements } from '@stripe/react-stripe-js';
+import { StripePaymentDialog } from '@/components/stripe-payment-dialog';
+
+// Replace with your actual publishable key from Stripe Dashboard
+const stripePromise = loadStripe('pk_test_TYooMQauvdEDq54NiTphI7jx');
 
 const serviceTypeIcons: Record<string, any> = {
   'Beverage Cart': Truck,
@@ -49,6 +58,7 @@ const serviceTypeIcons: Record<string, any> = {
 
 export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId: string }> }) {
   const { sellerId } = use(params);
+  const firebaseApp = useFirebaseApp();
   const firestore = useFirestore();
   const auth = useAuth();
   const { user } = useUser();
@@ -64,6 +74,10 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
   const [capturedLocation, setCapturedLocation] = useState<{ latitude: number, longitude: number } | null>(null);
   const [modifierTarget, setModifierTarget] = useState<MenuItem | null>(null);
+
+  // Stripe Phase 1 States
+  const [stripeClientSecret, setStripeClientSecret] = useState<string | null>(null);
+  const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
 
   const sellerRef = useMemoFirebase(() => (firestore ? doc(firestore, 'sellers', sellerId) : null), [firestore, sellerId]);
   const { data: seller, isLoading: isSellerLoading } = useDoc<Seller>(sellerRef);
@@ -95,8 +109,9 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
   const taxRate = seller?.taxRate ?? 6.0;
   const tax = subtotal * (taxRate / 100);
   const platformFee = seller?.serviceFee || 0;
-  const tip = subtotal * 0.15; // Auto-tip 15% for simplicity in this fresh start
+  const tip = subtotal * 0.15;
   const finalTotal = subtotal + platformFee + tax + tip;
+  const totalCents = Math.round(finalTotal * 100);
 
   const filteredMenuItems = useMemo(() => {
     if (!menuItems || !selectedMenuType) return [];
@@ -109,9 +124,40 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
     return categories.filter(c => available.has(c));
   }, [seller, filteredMenuItems]);
 
-  const handlePlaceOrder = async () => {
-    if (!firestore || !seller || activeOrderItems.length === 0) return;
+  /**
+   * handleInitiatePayment
+   * Calls the backend to create a PaymentIntent and opens the Stripe dialog.
+   */
+  const handleInitiatePayment = async () => {
+    if (!firebaseApp || activeOrderItems.length === 0) return;
     setIsPlacingOrder(true);
+    
+    try {
+      const functions = getFunctions(firebaseApp, 'us-central1');
+      const createPI = httpsCallable(functions, 'createPaymentIntent');
+      
+      const result: any = await createPI({ amount: totalCents });
+      setStripeClientSecret(result.data.clientSecret);
+      setIsPaymentDialogOpen(true);
+    } catch (e: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Payment Error',
+        description: e.message || 'Could not initiate payment session.',
+      });
+    } finally {
+      setIsPlacingOrder(false);
+    }
+  };
+
+  /**
+   * handleFinalizeOrder
+   * Triggered after Stripe confirms the card payment successfully.
+   */
+  const handleFinalizeOrder = async (paymentIntentId: string) => {
+    setIsPaymentDialogOpen(false);
+    setIsPlacingOrder(true);
+    
     try {
       let currentUser = user;
       if (!currentUser && auth) {
@@ -133,7 +179,8 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
         tip,
         total: finalTotal,
         status: 'Placed',
-        paymentMethod: 'Pay at Delivery',
+        paymentMethod: 'Credit Card',
+        paymentIntentId: paymentIntentId, // Phase 1 Reference
         menuType: selectedMenuType,
         menuTypeLocation: locationValue || null,
         specialInstructions: specialInstructions || null,
@@ -144,7 +191,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
       router.push(`/order/track?id=${orderRef.id}&sellerId=${sellerId}`);
       clearCart();
     } catch (e: any) {
-      toast({ variant: 'destructive', title: 'Error', description: e.message });
+      toast({ variant: 'destructive', title: 'Order Save Error', description: e.message });
     } finally {
       setIsPlacingOrder(false);
     }
@@ -212,12 +259,36 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
             </div>
           </ScrollArea>
           <SheetFooter className="p-6 bg-white border-t">
-            <Button size="lg" className="w-full h-14 font-black uppercase tracking-widest" onClick={handlePlaceOrder} disabled={isPlacingOrder}>
-              {isPlacingOrder ? <Loader2 className="animate-spin mr-2" /> : null} PLACE ORDER
+            <Button 
+              size="lg" 
+              className="w-full h-14 font-black uppercase tracking-widest gap-2" 
+              onClick={handleInitiatePayment} 
+              disabled={isPlacingOrder}
+            >
+              {isPlacingOrder ? <Loader2 className="animate-spin" /> : <CreditCard className="h-5 w-5" />} 
+              SECURE CHECKOUT
             </Button>
           </SheetFooter>
         </SheetContent>
       </Sheet>
+
+      {/* Stripe Elements Provider Wrapper for the Payment Dialog */}
+      {stripeClientSecret && (
+        <Elements 
+          stripe={stripePromise} 
+          options={{ 
+            clientSecret: stripeClientSecret,
+            appearance: { theme: 'stripe' }
+          }}
+        >
+          <StripePaymentDialog 
+            open={isPaymentDialogOpen} 
+            onOpenChange={setIsPaymentDialogOpen}
+            onSuccess={handleFinalizeOrder}
+            amount={totalCents}
+          />
+        </Elements>
+      )}
     </div>
   );
 }
