@@ -43,8 +43,8 @@ import { loadStripe } from '@stripe/stripe-js';
 import { Elements } from '@stripe/react-stripe-js';
 import { StripePaymentDialog } from '@/components/stripe-payment-dialog';
 
-// Replace with your actual publishable key from Stripe Dashboard
-const stripePromise = loadStripe('pk_test_TYooMQauvdEDq54NiTphI7jx');
+// Initialize Stripe with the environment variable
+const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || '');
 
 const serviceTypeIcons: Record<string, any> = {
   'Beverage Cart': Truck,
@@ -130,6 +130,17 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
    */
   const handleInitiatePayment = async () => {
     if (!firebaseApp || activeOrderItems.length === 0) return;
+    
+    // Safety check for publishable key
+    if (!process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY) {
+      toast({
+        variant: 'destructive',
+        title: 'Configuration Missing',
+        description: 'Stripe Publishable Key is not set in environment variables.',
+      });
+      return;
+    }
+
     setIsPlacingOrder(true);
     
     try {
