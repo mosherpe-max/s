@@ -17,6 +17,7 @@ export const testFunction = onCall({
 }, (request) => {
     logger.info("Health check execution started");
     // Verify Stripe SDK availability
+    // In ESM, we check if the constructor is available
     const stripeAvailable = typeof Stripe !== 'undefined';
     return {
         success: true,
