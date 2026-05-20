@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useMemo, useEffect, use } from 'react';
@@ -28,7 +29,9 @@ import {
   ShieldCheck,
   ExternalLink,
   ChevronRight,
-  CheckCircle2
+  CheckCircle2,
+  AlertCircle,
+  Database
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -136,6 +139,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   const [editingStaff, setEditingStaff] = useState<StaffMember | null>(null);
   const [isResettingDemo, setIsResettingDemo] = useState(false);
   const [isStripeLoading, setIsStripeLoading] = useState(false);
+  const [isProvisioningRegistry, setIsProvisioningRegistry] = useState(false);
   
   const sensors = useSensors(useSensor(PointerSensor), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
   const isHardcodedSuperAdmin = user?.uid === SUPER_ADMIN_ID || user?.email === 'mosherpe@gmail.com';
@@ -183,16 +187,12 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     setIsStaffFormOpen(false); setEditingStaff(null); staffForm.reset();
   };
 
-  /**
-   * triggerStripeSetupFlow
-   * Handles the initialization and redirection to Stripe onboarding.
-   */
   const triggerStripeSetupFlow = async (venueId: string) => {
     if (!firebaseApp) return;
     setIsStripeLoading(true);
     try {
       const { getFunctions } = await import('firebase/functions');
-      const functions = getFunctions(firebaseApp);
+      const functions = getFunctions(firebaseApp, 'us-central1');
       const onboardingFn = httpsCallable(functions, 'initializeVenueStripeOnboarding');
       
       const result = await onboardingFn({ venueId });
@@ -209,6 +209,27 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
       });
     } finally {
       setIsStripeLoading(false);
+    }
+  };
+
+  const provisionPaymentRegistry = async () => {
+    if (!firestore || !user || !seller) return;
+    setIsProvisioningRegistry(true);
+    try {
+      await setDoc(doc(firestore, 'venues', sellerId), {
+        venueId: sellerId,
+        name: seller.courseName,
+        stripeAccountId: null,
+        stripeConnectVerified: false,
+        ownerUid: user.uid,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
+      toast({ title: "Payment Registry Provisioned", description: "You are now linked as the owner of this venue's payment system." });
+    } catch (error: any) {
+      toast({ variant: "destructive", title: "Provisioning Error", description: error.message });
+    } finally {
+      setIsProvisioningRegistry(false);
     }
   };
 
@@ -307,13 +328,37 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                 </Badge>
               ) : (
                 <Badge variant="outline" className="text-white border-white/20 uppercase tracking-widest text-[9px]">
-                  Pending Setup
+                  {venue ? 'Pending Setup' : 'Registry Missing'}
                 </Badge>
               )}
             </div>
           </CardHeader>
           <CardContent className="pt-6">
-            {!venue?.stripeConnectVerified ? (
+            {!venue ? (
+              <div className="p-8 border-2 border-dashed rounded-3xl flex flex-col items-center text-center space-y-4">
+                <div className="bg-amber-50 p-4 rounded-2xl">
+                  <AlertCircle className="h-8 w-8 text-amber-600" />
+                </div>
+                <div className="max-w-md">
+                  <h3 className="font-bold text-lg uppercase tracking-tight">Payment Registry Required</h3>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    This venue is not yet registered in our central payment system. 
+                    Administrators must provision the registry document to enable Stripe onboarding.
+                  </p>
+                </div>
+                {isHardcodedSuperAdmin && (
+                  <Button 
+                    variant="outline" 
+                    onClick={provisionPaymentRegistry}
+                    disabled={isProvisioningRegistry}
+                    className="border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 font-black uppercase text-[10px] tracking-widest gap-2"
+                  >
+                    {isProvisioningRegistry ? <Loader2 className="h-4 w-4 animate-spin" /> : <Database className="h-4 w-4" />}
+                    Provision Registry (Admin Testing Only)
+                  </Button>
+                )}
+              </div>
+            ) : !venue.stripeConnectVerified ? (
               <div className="flex flex-col md:flex-row items-center gap-8">
                 <div className="flex-1 space-y-4">
                   <h3 className="font-bold text-lg">Connect with Stripe Express</h3>
