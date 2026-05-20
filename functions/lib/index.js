@@ -32,7 +32,7 @@ export const initializeVenueStripeOnboarding = onCall({
         throw new HttpsError("failed-precondition", "System configuration error: Missing Stripe key.");
     }
     const stripe = new Stripe(secretKey, {
-        apiVersion: '2024-12-18.acacia',
+        apiVersion: '2025-02-24.acacia',
     });
     try {
         // 2. Ownership Verification
@@ -102,7 +102,7 @@ export const handleStripeWebhookEvents = onRequest({
         return;
     }
     const stripe = new Stripe(secretKey, {
-        apiVersion: '2024-12-18.acacia',
+        apiVersion: '2025-02-24.acacia',
     });
     const sig = req.headers['stripe-signature'];
     let event;
