@@ -1,4 +1,3 @@
-// This component has been deprecated as Stripe was removed from the application.
-export function StripePaymentDialog() {
-  return null;
-}
+// This file is intentionally left empty. 
+// Stripe integration has been completely removed from the application.
+export {};

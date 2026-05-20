@@ -1,9 +1,12 @@
-
 'use client';
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
+/**
+ * Deprecated route formerly used for payment onboarding.
+ * Now redirects to the platform home page.
+ */
 export default function OnboardingSuccessPage() {
   const router = useRouter();
 
@@ -13,7 +16,9 @@ export default function OnboardingSuccessPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center">
-      <p className="text-muted-foreground animate-pulse">Redirecting...</p>
+      <p className="text-muted-foreground animate-pulse text-[10px] font-black uppercase tracking-widest">
+        Redirecting to Platform...
+      </p>
     </div>
   );
 }
