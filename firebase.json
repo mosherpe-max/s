@@ -1,3 +1,4 @@
+
 {
   "functions": [
     {
@@ -30,11 +31,11 @@
     "ui": {
       "enabled": true,
       "host": "0.0.0.0",
-      "port": 4000
+      "port": 4010
     },
     "hub": {
       "host": "0.0.0.0",
-      "port": 4400
+      "port": 4410
     },
     "auth": {
       "host": "0.0.0.0",

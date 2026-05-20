@@ -1,3 +1,4 @@
+
 /**
  * @fileOverview Automated test pipeline for Stripe Onboarding Logic.
  * Seeds emulator data, invokes the callable function, and verifies Firestore state.
