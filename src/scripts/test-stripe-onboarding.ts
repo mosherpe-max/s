@@ -6,7 +6,7 @@
 import { initializeFirebase } from '../firebase';
 import { doc, getDoc, setDoc, deleteDoc, connectFirestoreEmulator } from 'firebase/firestore';
 import { httpsCallable, getFunctions, connectFunctionsEmulator } from 'firebase/functions';
-import { signInAnonymously } from 'firebase/auth';
+import { signInAnonymously, connectAuthEmulator } from 'firebase/auth';
 
 async function runStripePipelineTest() {
   console.log('🚀 INITIALIZING STRIPE PIPELINE TEST...');
@@ -15,18 +15,18 @@ async function runStripePipelineTest() {
   const { firebaseApp, firestore, auth } = initializeFirebase();
   const functions = getFunctions(firebaseApp, 'us-central1');
 
-  // 2. Connect to Emulators (Critical for local testing)
-  // This ensures we are hitting the local environment, not production.
+  // 2. Connect to Emulators (Updated ports matching firebase.json)
   console.log('📡 Connecting to local emulators...');
-  connectFirestoreEmulator(firestore, 'localhost', 8080);
-  connectFunctionsEmulator(functions, 'localhost', 5001);
+  // Using 127.0.0.1 explicitly to avoid IPv6 resolution issues on some systems
+  connectFirestoreEmulator(firestore, '127.0.0.1', 8088);
+  connectFunctionsEmulator(functions, '127.0.0.1', 5001);
+  connectAuthEmulator(auth, 'http://127.0.0.1:9099');
 
   const MOCK_VENUE_ID = 'test_golf_course_1';
   
   try {
     // 3. Sign In to provide auth context
-    // This allows the Cloud Function to see request.auth.uid
-    console.log('🔑 STEP 1: Signing in anonymously...');
+    console.log('🔑 STEP 1: Signing in anonymously to Auth Emulator...');
     const userCredential = await signInAnonymously(auth);
     const mockUid = userCredential.user.uid;
     console.log(`✅ Signed in as: ${mockUid}`);
@@ -67,7 +67,6 @@ async function runStripePipelineTest() {
     }
 
     // 7. Verify Firestore State Change
-    // We check if the 'stripeAccountId' field was automatically populated by the function.
     const updatedDoc = await getDoc(venueRef);
     const stripeId = updatedDoc.data()?.stripeAccountId;
 
