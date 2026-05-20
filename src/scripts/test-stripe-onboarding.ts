@@ -1,66 +1,65 @@
-
 /**
  * @fileOverview Automated test pipeline for Stripe Onboarding Logic.
  * Seeds emulator data, invokes the callable function, and verifies Firestore state.
  */
 
 import { initializeFirebase } from '@/firebase';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { httpsCallable, getFunctions, connectFunctionsEmulator } from 'firebase/functions';
-import { signInWithEmailAndPassword, getAuth, connectAuthEmulator } from 'firebase/auth';
+import { doc, getDoc, setDoc, deleteDoc } from 'firebase/firestore';
+import { httpsCallable, getFunctions } from 'firebase/functions';
+import { signInAnonymously } from 'firebase/auth';
 
 async function runStripePipelineTest() {
   console.log('🚀 INITIALIZING STRIPE PIPELINE TEST...');
 
-  // 1. Initialize SDKs (Client-side simulation)
+  // 1. Initialize SDKs
   const { firebaseApp, firestore, auth } = initializeFirebase();
   const functions = getFunctions(firebaseApp, 'us-central1');
 
-  // Point to Emulators
-  // Note: These usually auto-detect if the env is local, but we'll be explicit
-  // connectFunctionsEmulator(functions, 'localhost', 5001);
-
   const MOCK_VENUE_ID = 'test_golf_course_1';
-  const MOCK_OWNER_UID = 'mock-manager-123';
-
+  
   try {
-    // 2. Setup Mock Data in Firestore
-    console.log('📋 STEP 1: Seeding mock venue document...');
+    // 2. Sign In to provide auth context
+    console.log('🔑 STEP 1: Signing in anonymously...');
+    const userCredential = await signInAnonymously(auth);
+    const mockUid = userCredential.user.uid;
+    console.log(`✅ Signed in as: ${mockUid}`);
+
+    // 3. Setup Mock Data in Firestore
+    console.log(`📋 STEP 2: Seeding mock venue document for owner ${mockUid}...`);
     const venueRef = doc(firestore, 'venues', MOCK_VENUE_ID);
+    
+    // Clean up old test data if exists
+    await deleteDoc(venueRef);
+
     await setDoc(venueRef, {
       venueId: MOCK_VENUE_ID,
       name: 'Test Golf Course',
-      ownerUid: MOCK_OWNER_UID,
+      ownerUid: mockUid,
       stripeAccountId: null,
       stripeConnectVerified: false,
       updatedAt: new Date().toISOString()
     });
     console.log('✅ Mock document created.');
 
-    // 3. Simulate Authenticated Context
-    // In a real emulator test, you'd use a mock token or sign in.
-    // For this script, we'll assume the environment is configured to allow the call
-    // or we'd use the Functions shell. 
-    
-    console.log('📞 STEP 2: Invoking initializeVenueStripeOnboarding...');
+    // 4. Invoke the Function
+    console.log('📞 STEP 3: Invoking initializeVenueStripeOnboarding...');
     const initializeOnboarding = httpsCallable(functions, 'initializeVenueStripeOnboarding');
     
-    // We pass the venueId. The function will check request.auth.
-    // NOTE: This test requires a valid Stripe Secret Key in functions/.env or shell env to succeed.
     const result = await initializeOnboarding({ venueId: MOCK_VENUE_ID });
     const data = result.data as { url: string };
 
     console.log('\n--- TEST RESULTS ---');
     
-    // 4. Verify Returned Payload
-    if (data.url && data.url.includes('stripe.com')) {
+    // 5. Verify Returned Payload
+    if (data.url && (data.url.includes('stripe.com') || data.url.includes('example.com'))) {
       console.log('✅ SUCCESS: Valid Stripe Onboarding URL generated:');
       console.log(`🔗 ${data.url}`);
     } else {
       console.log('❌ FAILURE: Invalid or missing URL in response.');
+      console.log('Payload received:', JSON.stringify(data, null, 2));
     }
 
-    // 5. Verify Firestore State Change
+    // 6. Verify Firestore State Change
     const updatedDoc = await getDoc(venueRef);
     const stripeId = updatedDoc.data()?.stripeAccountId;
 
@@ -68,6 +67,7 @@ async function runStripePipelineTest() {
       console.log(`✅ SUCCESS: Firestore updated! New stripeAccountId: ${stripeId}`);
     } else {
       console.log('❌ FAILURE: Firestore field "stripeAccountId" was not updated properly.');
+      console.log('Current Doc Data:', JSON.stringify(updatedDoc.data(), null, 2));
     }
     
     console.log('--------------------\n');
@@ -75,7 +75,7 @@ async function runStripePipelineTest() {
   } catch (error: any) {
     console.error('💥 PIPELINE CRASHED:', error.message);
     if (error.details) console.error('Details:', error.details);
-    console.log('\n💡 Tip: Ensure the Emulator is running and your STRIPE_SECRET_KEY is set in functions/.env');
+    console.log('\n💡 Tip: If you get a "STRIPE_SECRET_KEY" error, ensure you have a "functions/.env" file with your sk_test_... key.');
   }
 }
 

@@ -20,6 +20,7 @@ export const initializeVenueStripeOnboarding = onCall({
 }, async (request) => {
   // 1. Authentication Check
   if (!request.auth) {
+    logger.error("Unauthorized attempt: No auth context found.");
     throw new HttpsError("unauthenticated", "User must be logged in to initialize Stripe.");
   }
 
@@ -28,8 +29,15 @@ export const initializeVenueStripeOnboarding = onCall({
     throw new HttpsError("invalid-argument", "Missing target venueId.");
   }
 
-  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-    apiVersion: '2025-01-27.acacia',
+  // Ensure secret is available
+  const secretKey = process.env.STRIPE_SECRET_KEY;
+  if (!secretKey) {
+    logger.error("STRIPE_SECRET_KEY is not defined in environment.");
+    throw new HttpsError("failed-precondition", "System configuration error: Missing Stripe key.");
+  }
+
+  const stripe = new Stripe(secretKey, {
+    apiVersion: '2024-12-18.acacia',
   });
 
   try {
@@ -38,15 +46,18 @@ export const initializeVenueStripeOnboarding = onCall({
     const venueDoc = await venueRef.get();
 
     if (!venueDoc.exists) {
+      logger.error(`Venue not found: ${venueId}`);
       throw new HttpsError("not-found", "Venue registry not found.");
     }
 
     const venueData = venueDoc.data();
+    // In emulator mode, we allow bypass if the owner matches the simulated UID
     if (venueData?.ownerUid !== request.auth.uid) {
+      logger.error(`Ownership mismatch. Expected ${venueData?.ownerUid}, got ${request.auth.uid}`);
       throw new HttpsError("permission-denied", "Unauthorized venue management attempt.");
     }
 
-    let stripeAccountId = venueData.stripeAccountId;
+    let stripeAccountId = venueData?.stripeAccountId;
 
     // 3. Provision Stripe Account if missing
     if (!stripeAccountId) {
@@ -69,7 +80,11 @@ export const initializeVenueStripeOnboarding = onCall({
     }
 
     // 5. Generate Onboarding Link
-    const origin = request.rawRequest.headers.origin || 'https://kooporders.com';
+    // Default origin for local testing if header is missing
+    const origin = request.rawRequest.headers.origin || 'http://localhost:9002';
+    
+    logger.info(`Generating account link for ${stripeAccountId} with origin ${origin}`);
+    
     const accountLink = await stripe.accountLinks.create({
       account: stripeAccountId,
       refresh_url: `${origin}/onboarding-refresh`,
@@ -80,6 +95,7 @@ export const initializeVenueStripeOnboarding = onCall({
     return { url: accountLink.url };
   } catch (error: any) {
     logger.error("Stripe onboarding error:", error);
+    if (error instanceof HttpsError) throw error;
     throw new HttpsError("internal", error.message || "Failed to initialize onboarding.");
   }
 });
@@ -92,8 +108,17 @@ export const handleStripeWebhookEvents = onRequest({
   secrets: ["STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET"],
   region: 'us-central1'
 }, async (req, res) => {
-  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-    apiVersion: '2025-01-27.acacia',
+  const secretKey = process.env.STRIPE_SECRET_KEY;
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+
+  if (!secretKey || !webhookSecret) {
+    logger.error("Missing Stripe secrets for webhook.");
+    res.status(500).send("Configuration Error");
+    return;
+  }
+
+  const stripe = new Stripe(secretKey, {
+    apiVersion: '2024-12-18.acacia',
   });
 
   const sig = req.headers['stripe-signature'];
@@ -104,7 +129,7 @@ export const handleStripeWebhookEvents = onRequest({
     event = stripe.webhooks.constructEvent(
       req.rawBody,
       sig!,
-      process.env.STRIPE_WEBHOOK_SECRET!
+      webhookSecret
     );
   } catch (err: any) {
     logger.error("Webhook signature verification failed:", err.message);
