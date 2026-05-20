@@ -19,9 +19,9 @@ async function runStripePipelineTest() {
   // 2. Connect to Emulators (Updated ports matching firebase.json)
   console.log('📡 Connecting to local emulators...');
   // Using 127.0.0.1 explicitly to avoid IPv6 resolution issues on some systems
-  connectFirestoreEmulator(firestore, '127.0.0.1', 8088);
-  connectFunctionsEmulator(functions, '127.0.0.1', 5001);
-  connectAuthEmulator(auth, 'http://127.0.0.1:9099');
+  connectFirestoreEmulator(firestore, '127.0.0.1', 8090);
+  connectFunctionsEmulator(functions, '127.0.0.1', 5010);
+  connectAuthEmulator(auth, 'http://127.0.0.1:9110');
 
   const MOCK_VENUE_ID = 'test_golf_course_1';
   
