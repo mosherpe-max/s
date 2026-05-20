@@ -1,4 +1,3 @@
-
 {
   "functions": [
     {
@@ -21,25 +20,25 @@
   },
   "emulators": {
     "functions": {
-      "host": "0.0.0.0",
-      "port": 5010
+      "host": "127.0.0.1",
+      "port": 5015
     },
     "firestore": {
-      "host": "0.0.0.0",
-      "port": 8090
+      "host": "127.0.0.1",
+      "port": 8095
     },
     "ui": {
       "enabled": true,
-      "host": "0.0.0.0",
-      "port": 4020
+      "host": "127.0.0.1",
+      "port": 4025
     },
     "hub": {
-      "host": "0.0.0.0",
-      "port": 4420
+      "host": "127.0.0.1",
+      "port": 4425
     },
     "auth": {
-      "host": "0.0.0.0",
-      "port": 9110
+      "host": "127.0.0.1",
+      "port": 9115
     }
   }
 }

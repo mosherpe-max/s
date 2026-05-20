@@ -1,4 +1,3 @@
-
 /**
  * @fileOverview Automated test pipeline for Stripe Onboarding Logic.
  * Seeds emulator data, invokes the callable function, and verifies Firestore state.
@@ -16,12 +15,11 @@ async function runStripePipelineTest() {
   const { firebaseApp, firestore, auth } = initializeFirebase();
   const functions = getFunctions(firebaseApp, 'us-central1');
 
-  // 2. Connect to Emulators (Updated ports matching firebase.json)
-  console.log('📡 Connecting to local emulators...');
-  // Using 127.0.0.1 explicitly to avoid IPv6 resolution issues on some systems
-  connectFirestoreEmulator(firestore, '127.0.0.1', 8090);
-  connectFunctionsEmulator(functions, '127.0.0.1', 5010);
-  connectAuthEmulator(auth, 'http://127.0.0.1:9110');
+  // 2. Connect to Emulators (Updated to matched firebase.json ports)
+  console.log('📡 Connecting to local emulators at 127.0.0.1...');
+  connectFirestoreEmulator(firestore, '127.0.0.1', 8095);
+  connectFunctionsEmulator(functions, '127.0.0.1', 5015);
+  connectAuthEmulator(auth, 'http://127.0.0.1:9115');
 
   const MOCK_VENUE_ID = 'test_golf_course_1';
   
@@ -83,7 +81,7 @@ async function runStripePipelineTest() {
   } catch (error: any) {
     console.error('💥 PIPELINE CRASHED:', error.message);
     if (error.details) console.error('Details:', error.details);
-    console.log('\n💡 Tip: Ensure your Emulator Suite is running (firebase emulators:start)');
+    console.log('\n💡 Tip: Ensure your Emulator Suite is running (firebase emulators:start --project demo-koop)');
   }
 }
 
