@@ -29,11 +29,12 @@ export const initializeVenueStripeOnboarding = onCall({
     throw new HttpsError("invalid-argument", "Missing target venueId.");
   }
 
-  // Ensure secret is available (Secrets manager in cloud, process.env in emulator)
+  // 2. Ensure secret is available
+  // In the cloud, this is populated from Secrets Manager. In emulator, from .env.
   const secretKey = process.env.STRIPE_SECRET_KEY;
   if (!secretKey) {
     logger.error("STRIPE_SECRET_KEY is not defined in environment.");
-    throw new HttpsError("failed-precondition", "System configuration error: Missing Stripe key.");
+    throw new HttpsError("failed-precondition", "System configuration error: Stripe Secret Key is missing in Cloud Secrets.");
   }
 
   const stripe = new Stripe(secretKey, {
@@ -41,63 +42,78 @@ export const initializeVenueStripeOnboarding = onCall({
   });
 
   try {
-    // 2. Ownership Verification
+    // 3. Ownership Verification
     const venueRef = db.collection('venues').doc(venueId);
     const venueDoc = await venueRef.get();
 
     if (!venueDoc.exists) {
-      logger.error(`Venue not found in registry: ${venueId}`);
-      throw new HttpsError("not-found", "Venue registry not found.");
+      logger.error(`Venue document missing for ID: ${venueId}`);
+      throw new HttpsError("not-found", "Venue registry not found. Please register the venue first.");
     }
 
     const venueData = venueDoc.data();
     
-    // In emulator/test mode, we verify the owner matches the simulated UID
+    // Strict ownership validation
     if (venueData?.ownerUid !== request.auth.uid) {
-      logger.error(`Ownership mismatch. Expected ${venueData?.ownerUid}, got ${request.auth.uid}`);
-      throw new HttpsError("permission-denied", "Unauthorized venue management attempt.");
+      logger.error(`Ownership mismatch. Registry owner: ${venueData?.ownerUid}, Requester: ${request.auth.uid}`);
+      throw new HttpsError("permission-denied", "You are not authorized to manage the payment settings for this venue.");
     }
 
     let stripeAccountId = venueData?.stripeAccountId;
 
-    // 3. Provision Stripe Account if missing
+    // 4. Provision Stripe Account if missing
     if (!stripeAccountId) {
       logger.info(`Creating new Stripe Express account for venue: ${venueId}`);
-      const account = await stripe.accounts.create({
-        type: 'express',
-        capabilities: {
-          card_payments: { requested: true },
-          transfers: { requested: true },
-        },
-        metadata: { venueId }
-      });
-      stripeAccountId = account.id;
+      try {
+        const account = await stripe.accounts.create({
+          type: 'express',
+          capabilities: {
+            card_payments: { requested: true },
+            transfers: { requested: true },
+          },
+          metadata: { venueId }
+        });
+        stripeAccountId = account.id;
 
-      // 4. Atomic Firestore Update
-      await venueRef.update({ 
-        stripeAccountId,
-        updatedAt: new Date().toISOString()
-      });
+        // Atomic Firestore Update
+        await venueRef.update({ 
+          stripeAccountId,
+          updatedAt: new Date().toISOString()
+        });
+      } catch (stripeErr: any) {
+        logger.error("Stripe Account Creation Failed:", stripeErr);
+        throw new HttpsError("internal", `Stripe Error: ${stripeErr.message}`);
+      }
     }
 
     // 5. Generate Onboarding Link
-    // Default origin for local testing if header is missing
-    const origin = request.rawRequest.headers.origin || 'http://localhost:9002';
+    // Safely extract origin for redirects
+    let origin = 'https://kooporders.com'; // Default production fallback
+    if (request.rawRequest && request.rawRequest.headers && request.rawRequest.headers.origin) {
+      origin = request.rawRequest.headers.origin as string;
+    } else if (process.env.FUNCTIONS_EMULATOR) {
+      origin = 'http://localhost:9002';
+    }
     
     logger.info(`Generating account link for ${stripeAccountId} with origin ${origin}`);
     
-    const accountLink = await stripe.accountLinks.create({
-      account: stripeAccountId,
-      refresh_url: `${origin}/onboarding-refresh`,
-      return_url: `${origin}/onboarding-success`,
-      type: 'account_onboarding',
-    });
+    try {
+      const accountLink = await stripe.accountLinks.create({
+        account: stripeAccountId,
+        refresh_url: `${origin}/onboarding-refresh`,
+        return_url: `${origin}/onboarding-success`,
+        type: 'account_onboarding',
+      });
 
-    return { url: accountLink.url };
+      return { url: accountLink.url };
+    } catch (linkErr: any) {
+      logger.error("Stripe Account Link Generation Failed:", linkErr);
+      throw new HttpsError("internal", `Link Error: ${linkErr.message}`);
+    }
   } catch (error: any) {
-    logger.error("Stripe onboarding internal error:", error);
+    logger.error("Stripe onboarding process crashed:", error);
     if (error instanceof HttpsError) throw error;
-    throw new HttpsError("internal", error.message || "Failed to initialize onboarding.");
+    throw new HttpsError("internal", error.message || "Failed to initialize onboarding flow.");
   }
 });
 
@@ -126,7 +142,6 @@ export const handleStripeWebhookEvents = onRequest({
   let event: Stripe.Event;
 
   try {
-    // 1. Signature Verification
     event = stripe.webhooks.constructEvent(
       req.rawBody,
       sig!,
@@ -138,11 +153,11 @@ export const handleStripeWebhookEvents = onRequest({
     return;
   }
 
-  // 2. Handle specific event type
+  // Handle specific event type
   if (event.type === 'account.updated') {
     const account = event.data.object as Stripe.Account;
     
-    // 3. Check for submission completion
+    // Check for submission completion
     if (account.details_submitted) {
       const stripeAccountId = account.id;
       logger.info(`Stripe account verified: ${stripeAccountId}`);
