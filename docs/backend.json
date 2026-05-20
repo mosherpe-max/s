@@ -1,6 +1,20 @@
-
 {
   "entities": {
+    "Venue": {
+      "title": "Venue",
+      "type": "object",
+      "description": "Represents a recreation venue onboarded to the Koop platform.",
+      "properties": {
+        "venueId": { "type": "string" },
+        "name": { "type": "string" },
+        "stripeAccountId": { "type": "string", "description": "The connected Stripe Express account ID." },
+        "stripeConnectVerified": { "type": "boolean", "description": "Whether the venue has completed Stripe onboarding." },
+        "ownerUid": { "type": "string", "description": "The Firebase Auth UID of the venue manager." },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["venueId", "name", "stripeConnectVerified", "ownerUid"]
+    },
     "BuyerProfile": {
       "title": "BuyerProfile",
       "type": "object",
@@ -62,6 +76,7 @@
   },
   "firestore": {
     "structure": [
+      { "path": "/venues/{venueId}", "definition": { "entityName": "Venue" } },
       { "path": "/users/{userId}/buyerProfile", "definition": { "entityName": "BuyerProfile" } },
       { "path": "/sellers/{sellerId}", "definition": { "entityName": "Seller" } },
       { "path": "/sellers/{sellerId}/staff/{staffId}", "definition": { "entityName": "StaffMember" } },

@@ -1,4 +1,3 @@
-
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -41,15 +40,21 @@ service cloud.firestore {
     }
 
     /**
+     * Venues Collection - Stripe Connect Multi-tenancy
+     */
+    match /venues/{venueId} {
+      allow read: if true;
+      allow create: if isSignedIn();
+      allow update, delete: if isSuperAdmin() || (isSignedIn() && resource.data.ownerUid == request.auth.uid);
+    }
+
+    /**
      * @description Exclusive vault for platform secrets.
      */
     match /config/platform_private {
       allow read, write: if isSuperAdmin();
     }
 
-    /**
-     * Role checking rules to allow users to verify their own identities during login/redirection
-     */
     match /roles_admin/{userId} {
       allow read: if isSignedIn() && (request.auth.uid == userId || isSuperAdmin());
     }
