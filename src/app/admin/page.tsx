@@ -20,7 +20,9 @@ import {
   Mail,
   Smartphone,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  Stethoscope,
+  Zap
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -50,8 +52,9 @@ import {
 } from '@/components/ui/sheet';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import Link from 'next/link';
-import { useFirestore, useCollection, useMemoFirebase, useUser } from '@/firebase';
+import { useFirestore, useCollection, useMemoFirebase, useFirebase } from '@/firebase';
 import { collection, query, limit, doc, setDoc, serverTimestamp, writeBatch, getDocs, deleteDoc } from 'firebase/firestore';
+import { httpsCallable } from 'firebase/functions';
 import type { Seller, SellerType, MenuItem } from '@/lib/types';
 import { sellerTypes } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -64,6 +67,7 @@ import { cn } from '@/lib/utils';
  * The central command for Koop administrators to provision and maintain venues.
  */
 export default function PlatformAdminPage() {
+  const { firebaseApp } = useFirebase();
   const firestore = useFirestore();
   const { toast } = useToast();
   const [isMounted, setIsMounted] = useState(false);
@@ -73,6 +77,8 @@ export default function PlatformAdminPage() {
   const [isSetupItemsOpen, setIsSetupItemsOpen] = useState(false);
   const [selectedVenue, setSelectedVenue] = useState<Seller | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isHealthChecking, setIsHealthChecking] = useState(false);
+  const [healthStatus, setHealthStatus] = useState<any>(null);
 
   // Form State
   const [newVenue, setNewVenue] = useState<Partial<Seller>>({
@@ -96,6 +102,23 @@ export default function PlatformAdminPage() {
 
   const { data: sellers, isLoading: isSellersLoading } = useCollection<Seller>(sellersQuery);
 
+  const handleRunHealthCheck = async () => {
+    if (!firebaseApp) return;
+    setIsHealthChecking(true);
+    try {
+      const { getFunctions } = await import('firebase/functions');
+      const functions = getFunctions(firebaseApp);
+      const checkFn = httpsCallable(functions, 'testFunction');
+      const result = await checkFn();
+      setHealthStatus(result.data);
+      toast({ title: "Infrastructure Verified", description: "Backend systems are responding." });
+    } catch (error: any) {
+      toast({ variant: "destructive", title: "Health Check Failed", description: error.message });
+    } finally {
+      setIsHealthChecking(false);
+    }
+  };
+
   const handleProvisionVenue = async () => {
     if (!firestore || !newVenue.courseName || !newVenue.contactEmail) return;
     setIsProcessing(true);
@@ -109,7 +132,7 @@ export default function PlatformAdminPage() {
         id: venueId,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
-        latitude: 42.7748, // Default to prototype center
+        latitude: 42.7748,
         longitude: -83.2139,
         streetAddress: '123 Venue Way',
         city: 'Metropolis',
@@ -149,17 +172,13 @@ export default function PlatformAdminPage() {
     
     try {
       const batch = writeBatch(firestore);
-      
-      // Determine seed data
       let seedData: any[] = publicGolfItems;
       if (venue.type.includes('Private')) seedData = privateGolfItems;
       if (venue.type.includes('Bowling')) seedData = bowlingAlleyItems;
 
-      // Clear existing items first (Sanitization)
       const existingItems = await getDocs(collection(firestore, 'sellers', venue.id, 'menuItems'));
       existingItems.docs.forEach(d => batch.delete(d.ref));
 
-      // Add seed items
       seedData.forEach((item, idx) => {
         const itemRef = doc(collection(firestore, 'sellers', venue.id, 'menuItems'));
         batch.set(itemRef, {
@@ -205,17 +224,28 @@ export default function PlatformAdminPage() {
           </div>
           <p className="text-muted-foreground text-sm">Provision venues and maintain global catalog items.</p>
         </div>
-        <Button 
-          onClick={() => setIsProvisionOpen(true)}
-          className="h-11 px-6 font-black uppercase tracking-widest text-xs gap-2 bg-[#213147] hover:bg-black shadow-lg"
-        >
-          <Plus className="h-4 w-4" />
-          Provision New Venue
-        </Button>
+        <div className="flex items-center gap-3">
+          <Button 
+            variant="outline"
+            onClick={handleRunHealthCheck}
+            disabled={isHealthChecking}
+            className="h-11 px-4 font-black uppercase tracking-widest text-[10px] gap-2 border-2"
+          >
+            {isHealthChecking ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Stethoscope className="h-3.5 w-3.5" />}
+            Run Health Check
+          </Button>
+          <Button 
+            onClick={() => setIsProvisionOpen(true)}
+            className="h-11 px-6 font-black uppercase tracking-widest text-xs gap-2 bg-[#213147] hover:bg-black shadow-lg"
+          >
+            <Plus className="h-4 w-4" />
+            Provision New Venue
+          </Button>
+        </div>
       </header>
 
       {/* KPI GRID */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12">
         <Card className="shadow-sm border-2">
           <CardHeader className="pb-2">
             <CardTitle className="text-[10px] font-black uppercase text-muted-foreground tracking-widest flex items-center gap-2">
@@ -252,6 +282,24 @@ export default function PlatformAdminPage() {
               <p className="text-lg font-black font-headline uppercase text-[#213147]">Connected</p>
             </div>
             <p className="text-[10px] text-muted-foreground font-bold uppercase mt-1 tracking-tighter">Real-time listeners active</p>
+          </CardContent>
+        </Card>
+
+        <Card className={cn("shadow-sm border-2 transition-all", healthStatus ? "bg-indigo-50 border-indigo-200" : "bg-muted/10")}>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-[10px] font-black uppercase text-muted-foreground tracking-widest flex items-center gap-2">
+              <Zap className="h-3.5 w-3.5 text-amber-500" /> Backend Status
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {healthStatus ? (
+              <div className="space-y-1">
+                <p className="text-lg font-black font-headline uppercase text-indigo-700">{healthStatus.stripeStatus}</p>
+                <p className="text-[9px] font-black text-indigo-500 uppercase tracking-widest">Verified {new Date(healthStatus.timestamp).toLocaleTimeString()}</p>
+              </div>
+            ) : (
+              <p className="text-lg font-black font-headline uppercase text-muted-foreground/40 italic">Not Checked</p>
+            )}
           </CardContent>
         </Card>
       </div>
