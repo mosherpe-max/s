@@ -3,9 +3,8 @@
 import { useState, use, useEffect, useMemo } from 'react';
 import { collection, doc, addDoc, serverTimestamp } from 'firebase/firestore';
 import { signInAnonymously } from 'firebase/auth';
-import { getFunctions, httpsCallable } from 'firebase/functions';
-import { useFirestore, useCollection, useMemoFirebase, useDoc, useAuth, useUser, useFirebaseApp } from '@/firebase';
-import type { Seller, MenuItem, Category, OrderItem, Order } from '@/lib/types';
+import { useFirestore, useCollection, useMemoFirebase, useDoc, useAuth, useUser } from '@/firebase';
+import type { Seller, MenuItem, OrderItem } from '@/lib/types';
 import { categories } from '@/lib/types';
 import { BuyerMenu } from '@/components/buyer-menu';
 import { OrderSummary } from '@/components/order-summary';
@@ -25,26 +24,12 @@ import {
   Utensils,
   MapPin,
   ShoppingBasket,
-  Satellite,
-  Check,
-  Pencil,
-  CreditCard
+  ShoppingBag
 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useCart } from '@/lib/cart-context';
 import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
-import { cn } from '@/lib/utils';
 import { mockBuyerLocation } from '@/lib/data';
-import { Badge } from '@/components/ui/badge';
-
-// Stripe Implementation Phase 1
-import { loadStripe } from '@stripe/stripe-js';
-import { Elements } from '@stripe/react-stripe-js';
-import { StripePaymentDialog } from '@/components/stripe-payment-dialog';
-
-// Initialize Stripe with the environment variable
-const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || '');
 
 const serviceTypeIcons: Record<string, any> = {
   'Beverage Cart': Truck,
@@ -58,26 +43,20 @@ const serviceTypeIcons: Record<string, any> = {
 
 export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId: string }> }) {
   const { sellerId } = use(params);
-  const firebaseApp = useFirebaseApp();
   const firestore = useFirestore();
   const auth = useAuth();
   const { user } = useUser();
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
-  const { orderItems, updateItem, removeItem, isCartOpen, setIsCartOpen, totalItems, clearCart } = useCart();
+  const { orderItems, updateItem, removeItem, isCartOpen, setIsCartOpen, clearCart } = useCart();
 
   const menuTypeFromUrl = searchParams.get('menuType');
   const [selectedMenuType, setSelectedMenuType] = useState<string>(menuTypeFromUrl || '');
   const [locationValue, setLocationValue] = useState<string>('');
-  const [specialInstructions, setSpecialInstructions] = useState<string>('');
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
   const [capturedLocation, setCapturedLocation] = useState<{ latitude: number, longitude: number } | null>(null);
   const [modifierTarget, setModifierTarget] = useState<MenuItem | null>(null);
-
-  // Stripe Phase 1 States
-  const [stripeClientSecret, setStripeClientSecret] = useState<string | null>(null);
-  const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
 
   const sellerRef = useMemoFirebase(() => (firestore ? doc(firestore, 'sellers', sellerId) : null), [firestore, sellerId]);
   const { data: seller, isLoading: isSellerLoading } = useDoc<Seller>(sellerRef);
@@ -111,7 +90,6 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
   const platformFee = seller?.serviceFee || 0;
   const tip = subtotal * 0.15;
   const finalTotal = subtotal + platformFee + tax + tip;
-  const totalCents = Math.round(finalTotal * 100);
 
   const filteredMenuItems = useMemo(() => {
     if (!menuItems || !selectedMenuType) return [];
@@ -124,49 +102,8 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
     return categories.filter(c => available.has(c));
   }, [seller, filteredMenuItems]);
 
-  /**
-   * handleInitiatePayment
-   * Calls the backend to create a PaymentIntent and opens the Stripe dialog.
-   */
-  const handleInitiatePayment = async () => {
-    if (!firebaseApp || activeOrderItems.length === 0) return;
-    
-    // Safety check for publishable key
-    if (!process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY) {
-      toast({
-        variant: 'destructive',
-        title: 'Configuration Missing',
-        description: 'Stripe Publishable Key is not set in environment variables.',
-      });
-      return;
-    }
-
-    setIsPlacingOrder(true);
-    
-    try {
-      const functions = getFunctions(firebaseApp, 'us-central1');
-      const createPI = httpsCallable(functions, 'createPaymentIntent');
-      
-      const result: any = await createPI({ amount: totalCents });
-      setStripeClientSecret(result.data.clientSecret);
-      setIsPaymentDialogOpen(true);
-    } catch (e: any) {
-      toast({
-        variant: 'destructive',
-        title: 'Payment Error',
-        description: e.message || 'Could not initiate payment session.',
-      });
-    } finally {
-      setIsPlacingOrder(false);
-    }
-  };
-
-  /**
-   * handleFinalizeOrder
-   * Triggered after Stripe confirms the card payment successfully.
-   */
-  const handleFinalizeOrder = async (paymentIntentId: string) => {
-    setIsPaymentDialogOpen(false);
+  const handlePlaceOrder = async () => {
+    if (!firestore || activeOrderItems.length === 0) return;
     setIsPlacingOrder(true);
     
     try {
@@ -175,7 +112,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
         const result = await signInAnonymously(auth);
         currentUser = result.user;
       }
-      if (!currentUser) throw new Error("Auth failed");
+      if (!currentUser) throw new Error("Authentication failed");
 
       const loc = capturedLocation || mockBuyerLocation;
       const orderData: any = {
@@ -190,11 +127,9 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
         tip,
         total: finalTotal,
         status: 'Placed',
-        paymentMethod: 'Credit Card',
-        paymentIntentId: paymentIntentId, // Phase 1 Reference
+        paymentMethod: 'Pay at Delivery',
         menuType: selectedMenuType,
         menuTypeLocation: locationValue || null,
-        specialInstructions: specialInstructions || null,
         createdAt: serverTimestamp(),
       };
 
@@ -202,7 +137,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
       router.push(`/order/track?id=${orderRef.id}&sellerId=${sellerId}`);
       clearCart();
     } catch (e: any) {
-      toast({ variant: 'destructive', title: 'Order Save Error', description: e.message });
+      toast({ variant: 'destructive', title: 'Order Failed', description: e.message });
     } finally {
       setIsPlacingOrder(false);
     }
@@ -273,33 +208,15 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
             <Button 
               size="lg" 
               className="w-full h-14 font-black uppercase tracking-widest gap-2" 
-              onClick={handleInitiatePayment} 
+              onClick={handlePlaceOrder} 
               disabled={isPlacingOrder}
             >
-              {isPlacingOrder ? <Loader2 className="animate-spin" /> : <CreditCard className="h-5 w-5" />} 
-              SECURE CHECKOUT
+              {isPlacingOrder ? <Loader2 className="animate-spin" /> : <ShoppingBag className="h-5 w-5" />} 
+              PLACE ORDER
             </Button>
           </SheetFooter>
         </SheetContent>
       </Sheet>
-
-      {/* Stripe Elements Provider Wrapper for the Payment Dialog */}
-      {stripeClientSecret && (
-        <Elements 
-          stripe={stripePromise} 
-          options={{ 
-            clientSecret: stripeClientSecret,
-            appearance: { theme: 'stripe' }
-          }}
-        >
-          <StripePaymentDialog 
-            open={isPaymentDialogOpen} 
-            onOpenChange={setIsPaymentDialogOpen}
-            onSuccess={handleFinalizeOrder}
-            amount={totalCents}
-          />
-        </Elements>
-      )}
     </div>
   );
 }
