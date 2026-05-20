@@ -62,7 +62,7 @@ import {
   useSensors,
   useSensor,
   DragEndEvent,
-} from '@radix-ui/react-dnd';
+} from '@dnd-kit/core';
 import {
   arrayMove,
   SortableContext,
