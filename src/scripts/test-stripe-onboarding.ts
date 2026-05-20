@@ -16,6 +16,7 @@ async function runStripePipelineTest() {
   const functions = getFunctions(firebaseApp, 'us-central1');
 
   // 2. Connect to Emulators (Critical for local testing)
+  // This ensures we are hitting the local environment, not production.
   console.log('📡 Connecting to local emulators...');
   connectFirestoreEmulator(firestore, 'localhost', 8080);
   connectFunctionsEmulator(functions, 'localhost', 5001);
@@ -24,6 +25,7 @@ async function runStripePipelineTest() {
   
   try {
     // 3. Sign In to provide auth context
+    // This allows the Cloud Function to see request.auth.uid
     console.log('🔑 STEP 1: Signing in anonymously...');
     const userCredential = await signInAnonymously(auth);
     const mockUid = userCredential.user.uid;
@@ -65,6 +67,7 @@ async function runStripePipelineTest() {
     }
 
     // 7. Verify Firestore State Change
+    // We check if the 'stripeAccountId' field was automatically populated by the function.
     const updatedDoc = await getDoc(venueRef);
     const stripeId = updatedDoc.data()?.stripeAccountId;
 

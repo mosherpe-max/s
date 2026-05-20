@@ -29,7 +29,7 @@ export const initializeVenueStripeOnboarding = onCall({
     throw new HttpsError("invalid-argument", "Missing target venueId.");
   }
 
-  // Ensure secret is available
+  // Ensure secret is available (Secrets manager in cloud, process.env in emulator)
   const secretKey = process.env.STRIPE_SECRET_KEY;
   if (!secretKey) {
     logger.error("STRIPE_SECRET_KEY is not defined in environment.");
@@ -46,12 +46,13 @@ export const initializeVenueStripeOnboarding = onCall({
     const venueDoc = await venueRef.get();
 
     if (!venueDoc.exists) {
-      logger.error(`Venue not found: ${venueId}`);
+      logger.error(`Venue not found in registry: ${venueId}`);
       throw new HttpsError("not-found", "Venue registry not found.");
     }
 
     const venueData = venueDoc.data();
-    // In emulator mode, we allow bypass if the owner matches the simulated UID
+    
+    // In emulator/test mode, we verify the owner matches the simulated UID
     if (venueData?.ownerUid !== request.auth.uid) {
       logger.error(`Ownership mismatch. Expected ${venueData?.ownerUid}, got ${request.auth.uid}`);
       throw new HttpsError("permission-denied", "Unauthorized venue management attempt.");
@@ -94,7 +95,7 @@ export const initializeVenueStripeOnboarding = onCall({
 
     return { url: accountLink.url };
   } catch (error: any) {
-    logger.error("Stripe onboarding error:", error);
+    logger.error("Stripe onboarding internal error:", error);
     if (error instanceof HttpsError) throw error;
     throw new HttpsError("internal", error.message || "Failed to initialize onboarding.");
   }
