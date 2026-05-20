@@ -37,7 +37,7 @@ export const initializeVenueStripeOnboarding = onCall({
   }
 
   const stripe = new Stripe(secretKey, {
-    apiVersion: '2024-12-18.acacia',
+    apiVersion: '2025-02-24.acacia',
   });
 
   try {
@@ -118,7 +118,7 @@ export const handleStripeWebhookEvents = onRequest({
   }
 
   const stripe = new Stripe(secretKey, {
-    apiVersion: '2024-12-18.acacia',
+    apiVersion: '2025-02-24.acacia',
   });
 
   const sig = req.headers['stripe-signature'];
