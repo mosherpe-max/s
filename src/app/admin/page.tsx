@@ -22,7 +22,8 @@ import {
   CheckCircle2,
   AlertCircle,
   Stethoscope,
-  Zap
+  Zap,
+  LogOut
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -52,7 +53,9 @@ import {
 } from '@/components/ui/sheet';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import Link from 'next/link';
-import { useFirestore, useCollection, useMemoFirebase, useFirebase } from '@/firebase';
+import { useRouter } from 'next/navigation';
+import { useFirestore, useCollection, useMemoFirebase, useFirebase, useAuth } from '@/firebase';
+import { signOut } from 'firebase/auth';
 import { collection, query, limit, doc, setDoc, serverTimestamp, writeBatch, getDocs, deleteDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import type { Seller, SellerType, MenuItem } from '@/lib/types';
@@ -69,6 +72,8 @@ import { cn } from '@/lib/utils';
 export default function PlatformAdminPage() {
   const { firebaseApp } = useFirebase();
   const firestore = useFirestore();
+  const auth = useAuth();
+  const router = useRouter();
   const { toast } = useToast();
   const [isMounted, setIsMounted] = useState(false);
   
@@ -101,6 +106,21 @@ export default function PlatformAdminPage() {
   }, [firestore]);
 
   const { data: sellers, isLoading: isSellersLoading } = useCollection<Seller>(sellersQuery);
+
+  const handleLogout = async () => {
+    if (!auth) return;
+    try {
+      await signOut(auth);
+      toast({ title: "Authorized Session Terminated" });
+      router.push('/login');
+    } catch (error: any) {
+      toast({ 
+        variant: "destructive", 
+        title: "Logout Failed", 
+        description: error.message 
+      });
+    }
+  };
 
   const handleRunHealthCheck = async () => {
     if (!firebaseApp) return;
@@ -224,7 +244,7 @@ export default function PlatformAdminPage() {
           </div>
           <p className="text-muted-foreground text-sm">Provision venues and maintain global catalog items.</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <Button 
             variant="outline"
             onClick={handleRunHealthCheck}
@@ -240,6 +260,14 @@ export default function PlatformAdminPage() {
           >
             <Plus className="h-4 w-4" />
             Provision New Venue
+          </Button>
+          <Button 
+            variant="ghost"
+            onClick={handleLogout}
+            className="h-11 px-4 font-black uppercase tracking-widest text-[10px] gap-2 text-destructive hover:text-destructive hover:bg-destructive/5"
+          >
+            <LogOut className="h-3.5 w-3.5" />
+            Sign Out
           </Button>
         </div>
       </header>
