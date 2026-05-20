@@ -59,10 +59,10 @@ import {
   closestCenter,
   KeyboardSensor,
   PointerSensor,
-  useSensor,
   useSensors,
+  useSensor,
   DragEndEvent,
-} from '@dnd-kit/core';
+} from '@radix-ui/react-dnd';
 import {
   arrayMove,
   SortableContext,
@@ -188,7 +188,10 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   };
 
   const triggerStripeSetupFlow = async (venueId: string) => {
-    if (!firebaseApp) return;
+    if (!firebaseApp) {
+      toast({ variant: "destructive", title: "Error", description: "Firebase SDK not ready." });
+      return;
+    }
     setIsStripeLoading(true);
     try {
       const { getFunctions } = await import('firebase/functions');
@@ -200,12 +203,15 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
       
       if (url) {
         window.location.assign(url);
+      } else {
+        throw new Error("No onboarding URL returned from backend.");
       }
     } catch (error: any) {
+      console.error("Stripe Onboarding Error:", error);
       toast({ 
         variant: "destructive", 
         title: "Setup Error", 
-        description: error.message || "Failed to start Stripe onboarding." 
+        description: error.message || "An unexpected error occurred during onboarding." 
       });
     } finally {
       setIsStripeLoading(false);
@@ -435,7 +441,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
             <Card key={type} className="mb-8">
               <CardHeader><CardTitle>{type} Menu</CardTitle></CardHeader>
               <CardContent>
-                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(e) => handleDragEnd(e, type, items)}>
+                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(e) => handleDragEnd(e as any, type, items)}>
                   <SortableContext items={items.map(i => i.id)} strategy={verticalListSortingStrategy}><div className="space-y-2">{items.map(i => <SortableMenuItem key={i.id} item={i} onRemove={(it) => updateDoc(doc(firestore!, 'sellers', sellerId, 'menuItems', it.id), { availableOn: it.availableOn?.filter(t => t !== type) })} />)}</div></SortableContext>
                 </DndContext>
                 <Button variant="outline" className="mt-4" onClick={() => { toast({ title: "Menu Picker Disabled", description: "Functionality currently restricted." }) }}>Manage Items</Button>

@@ -18,30 +18,29 @@ export const initializeVenueStripeOnboarding = onCall({
   secrets: ["STRIPE_SECRET_KEY"],
   region: 'us-central1'
 }, async (request) => {
-  // 1. Authentication Check
-  if (!request.auth) {
-    logger.error("Unauthorized attempt: No auth context found.");
-    throw new HttpsError("unauthenticated", "User must be logged in to initialize Stripe.");
-  }
-
-  const { venueId } = request.data as { venueId: string };
-  if (!venueId) {
-    throw new HttpsError("invalid-argument", "Missing target venueId.");
-  }
-
-  // 2. Ensure secret is available
-  // In the cloud, this is populated from Secrets Manager. In emulator, from .env.
-  const secretKey = process.env.STRIPE_SECRET_KEY;
-  if (!secretKey) {
-    logger.error("STRIPE_SECRET_KEY is not defined in environment.");
-    throw new HttpsError("failed-precondition", "System configuration error: Stripe Secret Key is missing in Cloud Secrets.");
-  }
-
-  const stripe = new Stripe(secretKey, {
-    apiVersion: '2025-02-24.acacia',
-  });
-
   try {
+    // 1. Authentication Check
+    if (!request.auth) {
+      logger.error("Unauthorized attempt: No auth context found.");
+      throw new HttpsError("unauthenticated", "User must be logged in to initialize Stripe.");
+    }
+
+    const { venueId } = request.data as { venueId: string };
+    if (!venueId) {
+      throw new HttpsError("invalid-argument", "Missing target venueId.");
+    }
+
+    // 2. Ensure secret is available
+    const secretKey = process.env.STRIPE_SECRET_KEY;
+    if (!secretKey) {
+      logger.error("STRIPE_SECRET_KEY is not defined in environment.");
+      throw new HttpsError("failed-precondition", "System configuration error: Stripe Secret Key is missing.");
+    }
+
+    const stripe = new Stripe(secretKey, {
+      apiVersion: '2025-02-24.acacia',
+    });
+
     // 3. Ownership Verification
     const venueRef = db.collection('venues').doc(venueId);
     const venueDoc = await venueRef.get();
@@ -87,10 +86,12 @@ export const initializeVenueStripeOnboarding = onCall({
     }
 
     // 5. Generate Onboarding Link
-    // Safely extract origin for redirects
-    let origin = 'https://kooporders.com'; // Default production fallback
-    if (request.rawRequest && request.rawRequest.headers && request.rawRequest.headers.origin) {
-      origin = request.rawRequest.headers.origin as string;
+    // Determine the base origin for redirects safely
+    let origin = 'https://kooporders.com';
+    const rawReq = request.rawRequest;
+    
+    if (rawReq && rawReq.headers && rawReq.headers.origin) {
+      origin = rawReq.headers.origin as string;
     } else if (process.env.FUNCTIONS_EMULATOR) {
       origin = 'http://localhost:9002';
     }
