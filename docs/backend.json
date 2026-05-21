@@ -7,29 +7,11 @@
       "properties": {
         "venueId": { "type": "string" },
         "name": { "type": "string" },
-        "stripeAccountId": { "type": "string", "description": "The connected Stripe Express account ID." },
-        "stripeConnectVerified": { "type": "boolean", "description": "Whether the venue has completed Stripe onboarding." },
         "ownerUid": { "type": "string", "description": "The Firebase Auth UID of the venue manager." },
         "createdAt": { "type": "string", "format": "date-time" },
         "updatedAt": { "type": "string", "format": "date-time" }
       },
-      "required": ["venueId", "name", "stripeConnectVerified", "ownerUid"]
-    },
-    "BuyerProfile": {
-      "title": "BuyerProfile",
-      "type": "object",
-      "description": "Represents a patron or customer using the Koop app to place orders.",
-      "properties": {
-        "id": { "type": "string" },
-        "name": { "type": "string" },
-        "email": { "type": "string", "format": "email" },
-        "currentLatitude": { "type": "number" },
-        "currentLongitude": { "type": "number" },
-        "subscriberStatus": { "type": "boolean" },
-        "createdAt": { "type": "string", "format": "date-time" },
-        "updatedAt": { "type": "string", "format": "date-time" }
-      },
-      "required": ["id", "name", "email", "subscriberStatus", "createdAt", "updatedAt"]
+      "required": ["venueId", "name", "ownerUid"]
     },
     "Seller": {
       "title": "Seller",
@@ -41,20 +23,11 @@
         "type": { "type": "string" },
         "contactEmail": { "type": "string", "format": "email" },
         "status": { "type": "string", "enum": ["Active", "Inactive"] },
-        "serviceFee": { "type": "number", "description": "The convenience fee charged to the patron" },
-        "koopFeeOffsetCents": { "type": "number", "description": "Amount in cents Koop contributes to the processing fee" },
+        "serviceFee": { "type": "number" },
         "createdAt": { "type": "string", "format": "date-time" },
         "updatedAt": { "type": "string", "format": "date-time" }
       },
       "required": ["id", "courseName", "contactEmail", "status"]
-    },
-    "PlatformConfig": {
-      "title": "PlatformConfig",
-      "type": "object",
-      "description": "Global platform settings.",
-      "properties": {
-        "updatedAt": { "type": "string", "format": "date-time" }
-      }
     },
     "Order": {
       "title": "Order",
@@ -65,7 +38,6 @@
         "buyerProfileId": { "type": "string" },
         "sellerId": { "type": "string" },
         "status": { "type": "string", "enum": ["Placed", "Preparing", "Out for Delivery", "Delivered", "Cancelled"] },
-        "serviceFee": { "type": "number", "description": "The convenience fee recorded at time of order" },
         "total": { "type": "number" },
         "createdAt": { "type": "string", "format": "date-time" }
       }
@@ -77,15 +49,8 @@
   "firestore": {
     "structure": [
       { "path": "/venues/{venueId}", "definition": { "entityName": "Venue" } },
-      { "path": "/users/{userId}/buyerProfile", "definition": { "entityName": "BuyerProfile" } },
       { "path": "/sellers/{sellerId}", "definition": { "entityName": "Seller" } },
-      { "path": "/sellers/{sellerId}/staff/{staffId}", "definition": { "entityName": "StaffMember" } },
-      { "path": "/orders/{orderId}", "definition": { "entityName": "Order" } },
-      { "path": "/config/platform", "definition": { "entityName": "PlatformConfig" } },
-      { "path": "/roles_admin/{userId}", "description": "Platform admin role assignments." },
-      { "path": "/roles_seller_admin/{email}", "description": "Venue admin role assignments." },
-      { "path": "/roles_sales_rep/{email}", "description": "Sales representative role assignments." },
-      { "path": "/adminUsers/{email}", "description": "Detailed admin user profiles." }
+      { "path": "/orders/{orderId}", "definition": { "entityName": "Order" } }
     ]
   }
 }

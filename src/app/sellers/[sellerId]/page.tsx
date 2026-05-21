@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useMemo, useEffect, use } from 'react';
@@ -24,14 +23,7 @@ import {
   AlertTriangle,
   Download,
   LogOut,
-  Layers,
-  CreditCard,
-  ShieldCheck,
-  ExternalLink,
-  ChevronRight,
-  CheckCircle2,
-  AlertCircle,
-  Database
+  Layers
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -51,7 +43,6 @@ import { isThisMonth, isThisYear } from 'date-fns';
 import * as XLSX from 'xlsx';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { httpsCallable } from 'firebase/functions';
 import { Badge } from '@/components/ui/badge';
 
 import {
@@ -72,8 +63,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
-import type { MenuItem, Seller, Order, StaffMember, Venue } from '@/lib/types';
-import { categories } from '@/lib/types';
+import type { MenuItem, Seller, Order, StaffMember } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { publicGolfItems, privateGolfItems, bowlingAlleyItems } from '@/lib/data';
@@ -126,7 +116,6 @@ function OpsMetricCard({ label, value, icon: Icon, colorClass }: { label: string
 
 export default function SellerAdminPage({ params }: { params: Promise<{ sellerId: string }> }) {
   const { sellerId } = use(params);
-  const { firebaseApp } = useFirebase();
   const firestore = useFirestore();
   const auth = useAuth();
   const { user, isUserLoading } = useUser();
@@ -138,8 +127,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   const [isStaffFormOpen, setIsStaffFormOpen] = useState(false);
   const [editingStaff, setEditingStaff] = useState<StaffMember | null>(null);
   const [isResettingDemo, setIsResettingDemo] = useState(false);
-  const [isStripeLoading, setIsStripeLoading] = useState(false);
-  const [isProvisioningRegistry, setIsProvisioningRegistry] = useState(false);
   
   const sensors = useSensors(useSensor(PointerSensor), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
   const isHardcodedSuperAdmin = user?.uid === SUPER_ADMIN_ID || user?.email === 'mosherpe@gmail.com';
@@ -166,9 +153,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   const sellerRef = useMemoFirebase(() => (firestore ? doc(firestore, 'sellers', sellerId) : null), [firestore, sellerId]);
   const { data: seller } = useDoc<Seller>(sellerRef);
 
-  const venueRef = useMemoFirebase(() => (firestore ? doc(firestore, 'venues', sellerId) : null), [firestore, sellerId]);
-  const { data: venue } = useDoc<Venue>(venueRef);
-
   useEffect(() => { if (seller?.menuTypes?.length && !selectedOpsMenu) setSelectedOpsMenu(seller.menuTypes[0]); }, [seller, selectedOpsMenu]);
 
   const menuItemsQuery = useMemoFirebase(() => (firestore && hasAccess ? collection(firestore, 'sellers', sellerId, 'menuItems') : null), [firestore, sellerId, hasAccess]);
@@ -185,58 +169,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     const staffId = editingStaff ? editingStaff.id : Math.random().toString(36).substr(2, 9);
     await setDoc(doc(firestore, 'sellers', sellerId, 'staff', staffId), { ...data, id: staffId, createdAt: editingStaff?.createdAt || serverTimestamp() }, { merge: true });
     setIsStaffFormOpen(false); setEditingStaff(null); staffForm.reset();
-  };
-
-  const triggerStripeSetupFlow = async (venueId: string) => {
-    if (!firebaseApp) {
-      toast({ variant: "destructive", title: "Error", description: "Firebase SDK not ready." });
-      return;
-    }
-    setIsStripeLoading(true);
-    try {
-      const { getFunctions } = await import('firebase/functions');
-      const functions = getFunctions(firebaseApp, 'us-central1');
-      const onboardingFn = httpsCallable(functions, 'initializeVenueStripeOnboarding');
-      
-      const result = await onboardingFn({ venueId });
-      const { url } = result.data as { url: string };
-      
-      if (url) {
-        window.location.assign(url);
-      } else {
-        throw new Error("No onboarding URL returned from backend.");
-      }
-    } catch (error: any) {
-      console.error("Stripe Onboarding Error:", error);
-      toast({ 
-        variant: "destructive", 
-        title: "Setup Error", 
-        description: error.message || "An unexpected error occurred during onboarding." 
-      });
-    } finally {
-      setIsStripeLoading(false);
-    }
-  };
-
-  const provisionPaymentRegistry = async () => {
-    if (!firestore || !user || !seller) return;
-    setIsProvisioningRegistry(true);
-    try {
-      await setDoc(doc(firestore, 'venues', sellerId), {
-        venueId: sellerId,
-        name: seller.courseName,
-        stripeAccountId: null,
-        stripeConnectVerified: false,
-        ownerUid: user.uid,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
-      });
-      toast({ title: "Payment Registry Provisioned", description: "You are now linked as the owner of this venue's payment system." });
-    } catch (error: any) {
-      toast({ variant: "destructive", title: "Provisioning Error", description: error.message });
-    } finally {
-      setIsProvisioningRegistry(false);
-    }
   };
 
   const dashboardStats = useMemo(() => {
@@ -307,114 +239,11 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
       </header>
 
       <nav className="sticky top-16 z-30 bg-background border-y mb-8 py-3 flex gap-2 overflow-x-auto">
-        <Button variant="ghost" size="sm" onClick={() => scrollToSection('payment-setup')} className="text-[10px] font-bold uppercase"><CreditCard className="mr-1 h-3.5 w-3.5" /> Payments</Button>
         <Button variant="ghost" size="sm" onClick={() => scrollToSection('ops-monitor')} className="text-[10px] font-bold uppercase"><Activity className="mr-1 h-3.5 w-3.5" /> Queue</Button>
         <Button variant="ghost" size="sm" onClick={() => scrollToSection('staff-management')} className="text-[10px] font-bold uppercase"><Users className="mr-1 h-3.5 w-3.5" /> Staff</Button>
         <Button variant="ghost" size="sm" onClick={() => scrollToSection('sales-stats')} className="text-[10px] font-bold uppercase"><BarChart3 className="mr-1 h-3.5 w-3.5" /> Sales</Button>
         <Button variant="ghost" size="sm" onClick={() => scrollToSection('service-management')} className="text-[10px] font-bold uppercase"><ListChecks className="mr-1 h-3.5 w-3.5" /> Menus</Button>
       </nav>
-
-      {/* STRIPE ONBOARDING SECTION */}
-      <section id="payment-setup" className="mb-12">
-        <Card className="border-2 shadow-md overflow-hidden">
-          <CardHeader className="bg-[#213147] text-white">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="bg-white/10 p-2 rounded-xl">
-                  <CreditCard className="h-6 w-6 text-primary" />
-                </div>
-                <div>
-                  <CardTitle className="font-headline uppercase tracking-tight">Payment Integration</CardTitle>
-                  <CardDescription className="text-white/60">Manage your Stripe Connect merchant account.</CardDescription>
-                </div>
-              </div>
-              {venue?.stripeConnectVerified ? (
-                <Badge className="bg-green-500 hover:bg-green-600 gap-1.5 py-1 px-3">
-                  <CheckCircle2 className="h-3.5 w-3.5" /> VERIFIED
-                </Badge>
-              ) : (
-                <Badge variant="outline" className="text-white border-white/20 uppercase tracking-widest text-[9px]">
-                  {venue ? 'Pending Setup' : 'Registry Missing'}
-                </Badge>
-              )}
-            </div>
-          </CardHeader>
-          <CardContent className="pt-6">
-            {!venue ? (
-              <div className="p-8 border-2 border-dashed rounded-3xl flex flex-col items-center text-center space-y-4">
-                <div className="bg-amber-50 p-4 rounded-2xl">
-                  <AlertCircle className="h-8 w-8 text-amber-600" />
-                </div>
-                <div className="max-w-md">
-                  <h3 className="font-bold text-lg uppercase tracking-tight">Payment Registry Required</h3>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    This venue is not yet registered in our central payment system. 
-                    Administrators must provision the registry document to enable Stripe onboarding.
-                  </p>
-                </div>
-                {isHardcodedSuperAdmin && (
-                  <Button 
-                    variant="outline" 
-                    onClick={provisionPaymentRegistry}
-                    disabled={isProvisioningRegistry}
-                    className="border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 font-black uppercase text-[10px] tracking-widest gap-2"
-                  >
-                    {isProvisioningRegistry ? <Loader2 className="h-4 w-4 animate-spin" /> : <Database className="h-4 w-4" />}
-                    Provision Registry (Admin Testing Only)
-                  </Button>
-                )}
-              </div>
-            ) : !venue.stripeConnectVerified ? (
-              <div className="flex flex-col md:flex-row items-center gap-8">
-                <div className="flex-1 space-y-4">
-                  <h3 className="font-bold text-lg">Connect with Stripe Express</h3>
-                  <p className="text-sm text-muted-foreground leading-relaxed">
-                    To receive direct payouts from orders, you must onboard with Stripe. 
-                    This handles your tax reporting, secure bank transfers, and fraud prevention automatically.
-                  </p>
-                  <ul className="space-y-2">
-                    {[
-                      'Direct-to-bank daily payouts',
-                      'Integrated 1099-K reporting',
-                      'Secure manager dashboard'
-                    ].map(feat => (
-                      <li key={feat} className="flex items-center gap-2 text-xs font-medium">
-                        <ShieldCheck className="h-4 w-4 text-green-600" /> {feat}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-                <div className="shrink-0 w-full md:w-auto">
-                  <Button 
-                    className="w-full h-14 bg-[#213147] hover:bg-black font-black uppercase tracking-widest shadow-xl gap-3 px-8"
-                    onClick={() => triggerStripeSetupFlow(sellerId)}
-                    disabled={isStripeLoading}
-                  >
-                    {isStripeLoading ? <Loader2 className="animate-spin h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
-                    Begin Onboarding
-                  </Button>
-                  <p className="text-[9px] text-center mt-3 text-muted-foreground uppercase font-bold">Secure Redirect to Stripe</p>
-                </div>
-              </div>
-            ) : (
-              <div className="flex items-center justify-between p-4 bg-green-50 border-2 border-green-100 rounded-2xl">
-                <div className="flex items-center gap-4">
-                  <div className="bg-green-500 p-2.5 rounded-full">
-                    <CheckCircle2 className="h-6 w-6 text-white" />
-                  </div>
-                  <div>
-                    <p className="font-black text-sm uppercase tracking-tight text-green-800">Account Activated</p>
-                    <p className="text-xs text-green-600 font-medium">Your venue is authorized to receive digital payments.</p>
-                  </div>
-                </div>
-                <Button variant="outline" className="border-green-200 text-green-700 hover:bg-green-100 font-bold uppercase text-[10px] tracking-widest gap-2">
-                  View Stripe Portal <ExternalLink className="h-3.5 w-3.5" />
-                </Button>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </section>
 
       <section id="ops-monitor" className="mb-12">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

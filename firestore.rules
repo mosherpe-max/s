@@ -6,110 +6,38 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function getEmail() {
-      return isSignedIn() && "email" in request.auth.token 
-        ? request.auth.token.email.lower() 
-        : "";
-    }
-
     function isSuperAdmin() {
       return isSignedIn() && (
         request.auth.uid == 'o9vAQy0aFRPSNPoG0ETvjiGt9If1' || 
-        getEmail() == 'mosherpe@gmail.com'
+        request.auth.token.email.lower() == 'mosherpe@gmail.com'
       );
     }
-
-    function isAdmin() {
-      return isSuperAdmin() || 
-             (isSignedIn() && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid)));
-    }
-
-    function isSellerAdmin(sellerId) {
-      return isAdmin() || (
-        isSignedIn() && 
-        getEmail() != "" &&
-        exists(/databases/$(database)/documents/roles_seller_admin/$(getEmail())) &&
-        get(/databases/$(database)/documents/roles_seller_admin/$(getEmail())).data.get('sellerId', '') == sellerId
-      );
-    }
-
-    // --- RULES ---
 
     match /{document=**} {
       allow read, write: if isSuperAdmin();
     }
 
-    /**
-     * Venues Collection - Stripe Connect Multi-tenancy
-     */
     match /venues/{venueId} {
-      allow read: if true;
-      allow create: if isSignedIn();
-      allow update, delete: if isSuperAdmin() || (isSignedIn() && resource.data.ownerUid == request.auth.uid);
-    }
-
-    /**
-     * @description Exclusive vault for platform secrets.
-     */
-    match /config/platform_private {
-      allow read, write: if isSuperAdmin();
-    }
-
-    match /roles_admin/{userId} {
-      allow read: if isSignedIn() && (request.auth.uid == userId || isSuperAdmin());
-    }
-
-    match /roles_seller_admin/{email} {
-      allow read: if isSignedIn() && (getEmail() == email.lower() || isSuperAdmin());
-    }
-
-    match /roles_sales_rep/{email} {
-      allow read: if isSignedIn() && (getEmail() == email.lower() || isSuperAdmin());
-    }
-
-    match /adminUsers/{email} {
-      allow read: if isSignedIn() && (getEmail() == email.lower() || isSuperAdmin());
+      allow read: if isSignedIn();
       allow write: if isSuperAdmin();
-    }
-
-    match /config/platform {
-      allow read: if true;
-      allow write: if isSuperAdmin();
-    }
-
-    match /users/{userId}/buyerProfile {
-      allow read: if request.auth.uid == userId || isAdmin();
-      allow create: if request.auth.uid == userId;
-      allow update: if request.auth.uid == userId || isAdmin();
     }
 
     match /sellers/{sellerId} {
-      allow read, list: if true;
-      allow update: if isAdmin() || isSellerAdmin(sellerId);
+      allow read: if true;
+      allow write: if isSuperAdmin();
 
       match /staff/{staffId} {
-        allow get: if true;
-        allow list, write: if isAdmin() || isSellerAdmin(sellerId);
+        allow read, write: if true;
       }
 
       match /menuItems/{itemId} {
-        allow read, list: if true;
-        allow write: if isAdmin() || isSellerAdmin(sellerId);
+        allow read: if true;
+        allow write: if isSuperAdmin();
       }
     }
 
     match /orders/{orderId} {
-      allow read, list: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update: if isSignedIn() || isAdmin();
-    }
-
-    match /prospects/{prospectId} {
-      allow read, write: if isAdmin();
-    }
-
-    match /activities/{activityId} {
-      allow read, write: if isAdmin();
+      allow read, write: if isSignedIn();
     }
   }
 }

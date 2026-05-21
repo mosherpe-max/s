@@ -18,8 +18,6 @@ export interface PlatformConfig {
 export interface Venue {
   venueId: string;
   name: string;
-  stripeAccountId: string | null;
-  stripeConnectVerified: boolean;
   ownerUid: string;
   createdAt: Timestamp;
   updatedAt: Timestamp;
@@ -69,27 +67,13 @@ export interface Seller {
   contactPhone: string;
   serviceFee: number;
   taxRate: number;
-  koopFeeOffsetCents?: number;
-  menuServiceFees?: Record<string, number>;
-  monthlyPlatformFee?: number;
-  launchFee?: number;
   status: 'Active' | 'Inactive';
   bevcartActive?: boolean;
   clubhouseActive?: boolean;
   lanedeliveryActive?: boolean;
   takeoutActive?: boolean;
-  brandColor?: string;
-  headerColor?: string;
-  bottomBarColor?: string;
-  bodyBackgroundColor?: string;
-  logoUrl?: string;
-  qrCodeUrl?: string;
   lastActive?: Timestamp;
-  categoryVisibility?: Record<string, Category[]>;
-  categoryImageVisibility?: Record<string, Category[]>;
-  categoryModifierEnabled?: Record<string, Category[]>;
   orderThresholds?: Record<string, { warning: number; max: number }>;
-  poolMapUrl?: string;
 }
 
 export type Category = 'Beer' | 'Spirits' | 'Soft Drinks' | 'Snacks' | 'Other' | 'Handhelds' | 'Appetizers' | 'Entrees' | 'Pizza' | 'Salad' | 'Dessert' | 'Kids';
@@ -122,13 +106,6 @@ export interface MenuItem {
     modifierGroups?: ModifierGroup[];
 }
 
-export interface Member {
-  id: string;
-  name: string;
-  memberNumber: string;
-  status: 'Active' | 'Inactive';
-}
-
 export interface OrderItem extends MenuItem {
   quantity: number;
   cartId: string;
@@ -145,10 +122,6 @@ export interface Order {
   menuType: string;
   menuTypeLocation?: string;
   paymentMethod?: PaymentMethod;
-  memberId?: string;
-  memberLastName?: string;
-  assignedDriverId?: string;
-  specialInstructions?: string;
   deliveryLocation: {
     latitude: number;
     longitude: number;
@@ -162,49 +135,4 @@ export interface Order {
   status: 'Placed' | 'Preparing' | 'Out for Delivery' | 'Delivered' | 'Cancelled';
   createdAt: Timestamp;
   deliveredAt?: Timestamp;
-  lastGpsUpdate?: Timestamp;
-  buyerDeviceStatus?: 'ios-browser' | 'standalone' | 'android' | 'standard';
-  isGuestOrder?: boolean;
-  deviceMetadata?: any;
-}
-
-export interface AdminUser {
-  id: string;
-  email: string;
-  role: 'KOOP Platform Admin' | 'Seller Admin' | 'Sales Rep';
-  sellerId?: string;
-  courseName?: string;
-  createdAt: Timestamp;
-}
-
-export type ProspectStage = 'Contacted' | 'Demo Scheduled' | 'Proposal Sent' | 'Closed' | 'Lost';
-export type CRMVenueType = 'Golf Course' | 'Bowling Alley' | 'Brewery/Restaurant';
-
-export interface Prospect {
-  id: string;
-  venueName: string;
-  venueType: CRMVenueType;
-  stage: ProspectStage;
-  contactName: string;
-  contactEmail: string;
-  contactPhone: string;
-  notes: string;
-  launchFeeQuoted: number;
-  monthlyFee: number;
-  estVolume: number;
-  assignedRepId: string;
-  assignedRepName: string;
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
-}
-
-export interface SalesActivity {
-  id: string;
-  prospectId: string;
-  venueName: string;
-  type: 'Call' | 'Email' | 'Visit' | 'Meeting';
-  notes: string;
-  date: Timestamp;
-  repId: string;
-  repName: string;
 }
