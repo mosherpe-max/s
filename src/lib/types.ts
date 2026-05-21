@@ -1,4 +1,3 @@
-
 import { Timestamp } from "firebase/firestore";
 
 export type SellerType = 'Private Golf Course' | 'Semi Private Golf Course' | 'Public Golf Course' | 'Bowling Alley' | 'Brewery' | 'Restaurant';
@@ -141,3 +140,34 @@ export interface Order {
   createdAt: Timestamp;
   deliveredAt?: Timestamp;
 }
+
+export interface Prospect {
+  id: string;
+  venueName: string;
+  venueType: string;
+  stage: 'Contacted' | 'Demo Scheduled' | 'Proposal Sent' | 'Closed' | 'Lost';
+  contactName: string;
+  contactEmail: string;
+  contactPhone?: string;
+  notes?: string;
+  assignedRepId: string;
+  assignedRepName: string;
+  launchFeeQuoted: number;
+  monthlyFee: number;
+  estVolume: number;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
+export interface SalesActivity {
+  id: string;
+  prospectId: string;
+  venueName: string;
+  type: 'Call' | 'Email' | 'Visit' | 'Meeting';
+  notes: string;
+  date: Timestamp;
+  repId: string;
+  repName: string;
+}
+
+export type ProspectStage = Prospect['stage'];

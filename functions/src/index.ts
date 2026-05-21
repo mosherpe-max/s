@@ -16,6 +16,7 @@ const db = getFirestore();
  */
 export const createStripeConnectAccount = onCall({
   // This tells Firebase to pull the secret key from the secure "Secrets Manager"
+  // Even if you use .env, specifying this here is best practice for production.
   secrets: ["STRIPE_SECRET_KEY"],
   region: 'us-central1'
 }, async (request) => {
@@ -47,7 +48,7 @@ export const createStripeConnectAccount = onCall({
     const venueDoc = await venueRef.get();
 
     if (!venueDoc.exists) {
-      throw new HttpsError("not-found", "Venue not found.");
+      throw new HttpsError("not-found", "Venue registry not found.");
     }
 
     const venueData = venueDoc.data();
@@ -79,7 +80,7 @@ export const createStripeConnectAccount = onCall({
     }
 
     // 5. Generate Onboarding Link
-    // NOTE: Change http://localhost:9002 to your production domain (e.g. https://koop.web.app) later.
+    // NOTE: For local testing we use http://localhost:9002 (your app's dev port)
     const origin = 'http://localhost:9002';
     
     logger.info(`Generating account link for ${stripeAccountId}`);
