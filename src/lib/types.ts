@@ -1,3 +1,4 @@
+
 import { Timestamp } from "firebase/firestore";
 
 export type SellerType = 'Private Golf Course' | 'Semi Private Golf Course' | 'Public Golf Course' | 'Bowling Alley' | 'Brewery' | 'Restaurant';
@@ -19,6 +20,8 @@ export interface Venue {
   venueId: string;
   name: string;
   ownerUid: string;
+  stripeAccountId?: string;
+  stripeOnboardingComplete?: boolean;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
@@ -74,6 +77,8 @@ export interface Seller {
   takeoutActive?: boolean;
   lastActive?: Timestamp;
   orderThresholds?: Record<string, { warning: number; max: number }>;
+  stripeAccountId?: string;
+  stripeOnboardingComplete?: boolean;
 }
 
 export type Category = 'Beer' | 'Spirits' | 'Soft Drinks' | 'Snacks' | 'Other' | 'Handhelds' | 'Appetizers' | 'Entrees' | 'Pizza' | 'Salad' | 'Dessert' | 'Kids';

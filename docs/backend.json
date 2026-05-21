@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "Venue": {
@@ -8,6 +9,8 @@
         "venueId": { "type": "string" },
         "name": { "type": "string" },
         "ownerUid": { "type": "string", "description": "The Firebase Auth UID of the venue manager." },
+        "stripeAccountId": { "type": "string", "description": "The unique ID from Stripe Connect." },
+        "stripeOnboardingComplete": { "type": "boolean", "description": "Whether the user has completed the Stripe onboarding flow." },
         "createdAt": { "type": "string", "format": "date-time" },
         "updatedAt": { "type": "string", "format": "date-time" }
       },
@@ -24,6 +27,8 @@
         "contactEmail": { "type": "string", "format": "email" },
         "status": { "type": "string", "enum": ["Active", "Inactive"] },
         "serviceFee": { "type": "number" },
+        "stripeAccountId": { "type": "string" },
+        "stripeOnboardingComplete": { "type": "boolean" },
         "createdAt": { "type": "string", "format": "date-time" },
         "updatedAt": { "type": "string", "format": "date-time" }
       },
