@@ -1,3 +1,4 @@
+
 import { Timestamp } from "firebase/firestore";
 
 export type SellerType = 'Private Golf Course' | 'Semi Private Golf Course' | 'Public Golf Course' | 'Bowling Alley' | 'Brewery' | 'Restaurant';
@@ -23,20 +24,6 @@ export interface Venue {
   stripeOnboardingComplete?: boolean;
   createdAt: Timestamp;
   updatedAt: Timestamp;
-}
-
-export interface ModifierOption {
-  id: string;
-  name: string;
-  price: number;
-}
-
-export interface ModifierGroup {
-  id: string;
-  name: string;
-  minSelection: number;
-  maxSelection: number;
-  options: ModifierOption[];
 }
 
 export interface StaffMember {
@@ -107,16 +94,12 @@ export interface MenuItem {
     imageUrl?: string;
     availableOn?: string[];
     menuRanks?: Record<string, number>;
-    modifierGroups?: ModifierGroup[];
 }
 
 export interface OrderItem extends MenuItem {
   quantity: number;
   cartId: string;
-  selectedModifiers?: Record<string, ModifierOption[]>;
 }
-
-export type PaymentMethod = 'Pay at Delivery';
 
 export interface Order {
   id: string;
@@ -125,7 +108,6 @@ export interface Order {
   customerName: string;
   menuType: string;
   menuTypeLocation?: string;
-  paymentMethod?: PaymentMethod;
   deliveryLocation: {
     latitude: number;
     longitude: number;

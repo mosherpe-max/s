@@ -33,19 +33,6 @@
         "updatedAt": { "type": "string", "format": "date-time" }
       },
       "required": ["id", "courseName", "contactEmail", "status"]
-    },
-    "Order": {
-      "title": "Order",
-      "type": "object",
-      "description": "Represents a customer's placed order.",
-      "properties": {
-        "id": { "type": "string" },
-        "buyerProfileId": { "type": "string" },
-        "sellerId": { "type": "string" },
-        "status": { "type": "string", "enum": ["Placed", "Preparing", "Out for Delivery", "Delivered", "Cancelled"] },
-        "total": { "type": "number" },
-        "createdAt": { "type": "string", "format": "date-time" }
-      }
     }
   },
   "auth": {
@@ -54,8 +41,7 @@
   "firestore": {
     "structure": [
       { "path": "/venues/{venueId}", "definition": { "entityName": "Venue" } },
-      { "path": "/sellers/{sellerId}", "definition": { "entityName": "Seller" } },
-      { "path": "/orders/{orderId}", "definition": { "entityName": "Order" } }
+      { "path": "/sellers/{sellerId}", "definition": { "entityName": "Seller" } }
     ]
   }
 }

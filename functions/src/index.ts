@@ -1,3 +1,4 @@
+
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import { initializeApp } from "firebase-admin/app";
@@ -39,7 +40,7 @@ export const createStripeConnectAccount = onCall({
   }
 
   const stripe = new Stripe(secretKey, {
-    apiVersion: '2025-01-27.acacia', // Uses a stable Stripe API version
+    apiVersion: '2025-01-27.acacia',
   });
 
   try {
@@ -80,7 +81,7 @@ export const createStripeConnectAccount = onCall({
     }
 
     // 5. Generate Onboarding Link
-    // NOTE: For local testing we use http://localhost:9002 (your app's dev port)
+    // For local testing we use the port configured in package.json (9002)
     const origin = 'http://localhost:9002';
     
     logger.info(`Generating account link for ${stripeAccountId}`);
