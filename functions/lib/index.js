@@ -1,4 +1,4 @@
-import { onCall, onRequest, HttpsError } from "firebase-functions/v2/https";
+import { onCall, HttpsError } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import { initializeApp } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
@@ -9,14 +9,16 @@ import Stripe from 'stripe';
 initializeApp();
 const db = getFirestore();
 /**
- * initializeVenueStripeOnboarding
+ * createStripeConnectAccount
  * Securely provisions a Stripe Connect Express account and returns an onboarding link.
  */
-export const initializeVenueStripeOnboarding = onCall({
+export const createStripeConnectAccount = onCall({
+    // This tells Firebase to pull the secret key from the secure "Secrets Manager"
+    // Even if you use .env, specifying this here is best practice for production.
     secrets: ["STRIPE_SECRET_KEY"],
     region: 'us-central1'
 }, async (request) => {
-    // 1. Authentication Check
+    // 1. Authentication Check: Ensure the person calling this is logged in
     if (!request.auth) {
         logger.error("Unauthorized attempt: No auth context found.");
         throw new HttpsError("unauthenticated", "User must be logged in to initialize Stripe.");
@@ -25,31 +27,28 @@ export const initializeVenueStripeOnboarding = onCall({
     if (!venueId) {
         throw new HttpsError("invalid-argument", "Missing target venueId.");
     }
-    // Ensure secret is available
+    // 2. Secret Key Check
     const secretKey = process.env.STRIPE_SECRET_KEY;
     if (!secretKey) {
         logger.error("STRIPE_SECRET_KEY is not defined in environment.");
         throw new HttpsError("failed-precondition", "System configuration error: Missing Stripe key.");
     }
     const stripe = new Stripe(secretKey, {
-        apiVersion: '2025-02-24.acacia',
+        apiVersion: '2025-01-27.acacia',
     });
     try {
-        // 2. Ownership Verification
+        // 3. Ownership Verification: Check if this user actually owns the venue
         const venueRef = db.collection('venues').doc(venueId);
         const venueDoc = await venueRef.get();
         if (!venueDoc.exists) {
-            logger.error(`Venue not found: ${venueId}`);
             throw new HttpsError("not-found", "Venue registry not found.");
         }
         const venueData = venueDoc.data();
-        // In emulator mode, we allow bypass if the owner matches the simulated UID
         if (venueData?.ownerUid !== request.auth.uid) {
-            logger.error(`Ownership mismatch. Expected ${venueData?.ownerUid}, got ${request.auth.uid}`);
-            throw new HttpsError("permission-denied", "Unauthorized venue management attempt.");
+            throw new HttpsError("permission-denied", "You do not have permission to manage this venue.");
         }
         let stripeAccountId = venueData?.stripeAccountId;
-        // 3. Provision Stripe Account if missing
+        // 4. Provision Stripe Account if missing
         if (!stripeAccountId) {
             logger.info(`Creating new Stripe Express account for venue: ${venueId}`);
             const account = await stripe.accounts.create({
@@ -61,20 +60,21 @@ export const initializeVenueStripeOnboarding = onCall({
                 metadata: { venueId }
             });
             stripeAccountId = account.id;
-            // 4. Atomic Firestore Update
+            // Save the ID immediately to Firestore
             await venueRef.update({
                 stripeAccountId,
+                stripeOnboardingComplete: false,
                 updatedAt: new Date().toISOString()
             });
         }
         // 5. Generate Onboarding Link
-        // Default origin for local testing if header is missing
-        const origin = request.rawRequest.headers.origin || 'http://localhost:9002';
-        logger.info(`Generating account link for ${stripeAccountId} with origin ${origin}`);
+        // For local testing we use the port configured in package.json (9002)
+        const origin = 'http://localhost:9002';
+        logger.info(`Generating account link for ${stripeAccountId}`);
         const accountLink = await stripe.accountLinks.create({
             account: stripeAccountId,
-            refresh_url: `${origin}/onboarding-refresh`,
-            return_url: `${origin}/onboarding-success`,
+            refresh_url: `${origin}/onboarding-refresh?venueId=${venueId}`,
+            return_url: `${origin}/onboarding-success?venueId=${venueId}`,
             type: 'account_onboarding',
         });
         return { url: accountLink.url };
@@ -87,76 +87,16 @@ export const initializeVenueStripeOnboarding = onCall({
     }
 });
 /**
- * handleStripeWebhookEvents
- * Unauthenticated HTTP endpoint to listen for account status updates from Stripe.
- */
-export const handleStripeWebhookEvents = onRequest({
-    secrets: ["STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET"],
-    region: 'us-central1'
-}, async (req, res) => {
-    const secretKey = process.env.STRIPE_SECRET_KEY;
-    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
-    if (!secretKey || !webhookSecret) {
-        logger.error("Missing Stripe secrets for webhook.");
-        res.status(500).send("Configuration Error");
-        return;
-    }
-    const stripe = new Stripe(secretKey, {
-        apiVersion: '2025-02-24.acacia',
-    });
-    const sig = req.headers['stripe-signature'];
-    let event;
-    try {
-        // 1. Signature Verification
-        event = stripe.webhooks.constructEvent(req.rawBody, sig, webhookSecret);
-    }
-    catch (err) {
-        logger.error("Webhook signature verification failed:", err.message);
-        res.status(400).send(`Webhook Error: ${err.message}`);
-        return;
-    }
-    // 2. Handle specific event type
-    if (event.type === 'account.updated') {
-        const account = event.data.object;
-        // 3. Check for submission completion
-        if (account.details_submitted) {
-            const stripeAccountId = account.id;
-            logger.info(`Stripe account verified: ${stripeAccountId}`);
-            try {
-                const venuesQuery = await db.collection('venues')
-                    .where('stripeAccountId', '==', stripeAccountId)
-                    .limit(1)
-                    .get();
-                if (!venuesQuery.empty) {
-                    const venueDoc = venuesQuery.docs[0];
-                    await venueDoc.ref.update({
-                        stripeConnectVerified: true,
-                        updatedAt: new Date().toISOString()
-                    });
-                    logger.info(`Venue ${venueDoc.id} activated in registry.`);
-                }
-            }
-            catch (dbErr) {
-                logger.error("Database update failed during webhook:", dbErr);
-            }
-        }
-    }
-    res.json({ received: true });
-});
-/**
  * testFunction
- * Strictly minimal v2 callable to isolate environment health.
+ * Minimal health check for deployment verification.
  */
 export const testFunction = onCall({
     region: 'us-central1',
     cors: true
 }, (request) => {
-    logger.info("Health check execution started");
-    const stripeAvailable = typeof Stripe !== 'undefined';
     return {
         success: true,
         message: "Cloud environment is stable",
-        stripeStatus: stripeAvailable ? "SDK Detected" : "SDK Missing",
         timestamp: new Date().toISOString()
     };
 });

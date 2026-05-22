@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useMemo, useEffect, use } from 'react';
@@ -23,7 +24,11 @@ import {
   AlertTriangle,
   Download,
   LogOut,
-  Layers
+  Layers,
+  CreditCard,
+  ShieldCheck,
+  ExternalLink,
+  ChevronRight
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -44,6 +49,8 @@ import * as XLSX from 'xlsx';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
+import { useToast } from '@/hooks/use-toast';
+import { httpsCallable, getFunctions } from 'firebase/functions';
 
 import {
   DndContext,
@@ -63,8 +70,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
-import type { MenuItem, Seller, Order, StaffMember } from '@/lib/types';
-import { useToast } from '@/hooks/use-toast';
+import type { MenuItem, Seller, Order, StaffMember, Venue } from '@/lib/types';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { publicGolfItems, privateGolfItems, bowlingAlleyItems } from '@/lib/data';
 
@@ -116,6 +122,7 @@ function OpsMetricCard({ label, value, icon: Icon, colorClass }: { label: string
 
 export default function SellerAdminPage({ params }: { params: Promise<{ sellerId: string }> }) {
   const { sellerId } = use(params);
+  const { firebaseApp } = useFirebase();
   const firestore = useFirestore();
   const auth = useAuth();
   const { user, isUserLoading } = useUser();
@@ -127,6 +134,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   const [isStaffFormOpen, setIsStaffFormOpen] = useState(false);
   const [editingStaff, setEditingStaff] = useState<StaffMember | null>(null);
   const [isResettingDemo, setIsResettingDemo] = useState(false);
+  const [isStripeLoading, setIsStripeLoading] = useState(false);
   
   const sensors = useSensors(useSensor(PointerSensor), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
   const isHardcodedSuperAdmin = user?.uid === SUPER_ADMIN_ID || user?.email === 'mosherpe@gmail.com';
@@ -135,6 +143,9 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   const { data: sellerRole } = useDoc(roleRef);
   const platformRoleRef = useMemoFirebase(() => (!firestore || !user ? null : doc(firestore, 'roles_admin', user.uid)), [firestore, user]);
   const { data: platformRole } = useDoc(platformRoleRef);
+
+  const venueRef = useMemoFirebase(() => (!firestore || !sellerId ? null : doc(firestore, 'venues', sellerId)), [firestore, sellerId]);
+  const { data: venueData } = useDoc<Venue>(venueRef);
 
   const hasAccess = isHardcodedSuperAdmin || !!platformRole || (sellerRole?.sellerId === sellerId);
 
@@ -169,6 +180,31 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     const staffId = editingStaff ? editingStaff.id : Math.random().toString(36).substr(2, 9);
     await setDoc(doc(firestore, 'sellers', sellerId, 'staff', staffId), { ...data, id: staffId, createdAt: editingStaff?.createdAt || serverTimestamp() }, { merge: true });
     setIsStaffFormOpen(false); setEditingStaff(null); staffForm.reset();
+  };
+
+  const handleStartStripeOnboarding = async () => {
+    if (!firebaseApp) return;
+    setIsStripeLoading(true);
+    try {
+      const functions = getFunctions(firebaseApp, 'us-central1');
+      const createStripeAccount = httpsCallable(functions, 'createStripeConnectAccount');
+      const result = await createStripeAccount({ venueId: sellerId });
+      const { url } = result.data as { url: string };
+      
+      if (url) {
+        window.location.href = url;
+      } else {
+        throw new Error("No redirection URL returned from Stripe.");
+      }
+    } catch (error: any) {
+      toast({ 
+        variant: "destructive", 
+        title: "Payment Setup Failed", 
+        description: error.message || "Please ensure the venue registry is provisioned in the Platform Admin." 
+      });
+    } finally {
+      setIsStripeLoading(false);
+    }
   };
 
   const dashboardStats = useMemo(() => {
@@ -240,6 +276,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
 
       <nav className="sticky top-16 z-30 bg-background border-y mb-8 py-3 flex gap-2 overflow-x-auto">
         <Button variant="ghost" size="sm" onClick={() => scrollToSection('ops-monitor')} className="text-[10px] font-bold uppercase"><Activity className="mr-1 h-3.5 w-3.5" /> Queue</Button>
+        <Button variant="ghost" size="sm" onClick={() => scrollToSection('payments')} className="text-[10px] font-bold uppercase"><CreditCard className="mr-1 h-3.5 w-3.5" /> Payments</Button>
         <Button variant="ghost" size="sm" onClick={() => scrollToSection('staff-management')} className="text-[10px] font-bold uppercase"><Users className="mr-1 h-3.5 w-3.5" /> Staff</Button>
         <Button variant="ghost" size="sm" onClick={() => scrollToSection('sales-stats')} className="text-[10px] font-bold uppercase"><BarChart3 className="mr-1 h-3.5 w-3.5" /> Sales</Button>
         <Button variant="ghost" size="sm" onClick={() => scrollToSection('service-management')} className="text-[10px] font-bold uppercase"><ListChecks className="mr-1 h-3.5 w-3.5" /> Menus</Button>
@@ -252,6 +289,78 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
           <OpsMetricCard label="Overdue" value={dashboardStats?.monthly.longWait || 0} icon={AlertTriangle} />
           <Button asChild className="h-full bg-indigo-600"><Link href={`/sellers/${sellerId}/bevcart`}>Launch BevCart</Link></Button>
         </div>
+      </section>
+
+      {/* STRIPE INTEGRATION SECTION */}
+      <section id="payments" className="mb-12">
+        <div className="flex items-center gap-2 mb-4">
+          <CreditCard className="h-5 w-5 text-indigo-600" />
+          <h2 className="font-headline text-xl font-black uppercase">Payment Integration</h2>
+        </div>
+        
+        <Card className="border-2 shadow-sm overflow-hidden">
+          <div className="grid grid-cols-1 md:grid-cols-3">
+            <div className="md:col-span-2 p-8 space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="bg-indigo-50 p-2.5 rounded-xl">
+                  <CreditCard className="h-6 w-6 text-indigo-600" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-lg">Stripe Connect Express</h3>
+                  <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Automated Daily Payouts</p>
+                </div>
+              </div>
+              
+              <p className="text-sm text-slate-600 leading-relaxed max-w-xl">
+                Koop uses Stripe to securely handle all payments. By connecting your account, revenue is deposited directly into your merchant bank account every 24 hours.
+              </p>
+
+              <div className="flex flex-wrap gap-6 pt-2">
+                <div className="flex items-center gap-2">
+                  <div className="h-2 w-2 rounded-full bg-green-500" />
+                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Zero Transaction Fees for Venue</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="h-2 w-2 rounded-full bg-green-500" />
+                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">PCI-DSS Level 1 Secure</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-slate-50 border-l p-8 flex flex-col items-center justify-center text-center gap-4">
+              {venueData?.stripeOnboardingComplete ? (
+                <>
+                  <div className="bg-green-100 p-4 rounded-full text-green-600 mb-2">
+                    <ShieldCheck className="h-10 w-10" />
+                  </div>
+                  <Badge className="bg-green-600 uppercase font-black tracking-widest">Account Verified</Badge>
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase px-4">Your venue is actively processing digital payments.</p>
+                  <Button variant="outline" className="w-full text-[10px] font-black uppercase tracking-widest rounded-xl" asChild>
+                    <a href="https://dashboard.stripe.com" target="_blank" rel="noopener noreferrer">
+                      Stripe Dashboard <ExternalLink className="ml-2 h-3 w-3" />
+                    </a>
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <div className="bg-indigo-100 p-4 rounded-full text-indigo-600 mb-2">
+                    <CreditCard className="h-10 w-10" />
+                  </div>
+                  <h4 className="font-headline font-black text-sm uppercase">Finish Payment Setup</h4>
+                  <p className="text-[10px] font-medium text-slate-500 uppercase leading-relaxed px-4">Complete your business profile on Stripe to begin accepting orders.</p>
+                  <Button 
+                    onClick={handleStartStripeOnboarding}
+                    disabled={isStripeLoading}
+                    className="w-full h-12 bg-indigo-600 hover:bg-indigo-700 shadow-lg font-black uppercase tracking-widest text-[11px] gap-2 rounded-xl"
+                  >
+                    {isStripeLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ChevronRight className="h-4 w-4" />}
+                    {venueData?.stripeAccountId ? 'Resume Onboarding' : 'Begin Onboarding'}
+                  </Button>
+                </>
+              )}
+            </div>
+          </div>
+        </Card>
       </section>
 
       <section id="staff-management" className="mb-12">

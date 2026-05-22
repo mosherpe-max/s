@@ -16,12 +16,11 @@ const db = getFirestore();
  * Securely provisions a Stripe Connect Express account and returns an onboarding link.
  */
 export const createStripeConnectAccount = onCall({
-  // This tells Firebase to pull the secret key from the secure "Secrets Manager"
-  // Even if you use .env, specifying this here is best practice for production.
+  // Ensure the secret is set via: firebase functions:secrets:set STRIPE_SECRET_KEY
   secrets: ["STRIPE_SECRET_KEY"],
   region: 'us-central1'
 }, async (request) => {
-  // 1. Authentication Check: Ensure the person calling this is logged in
+  // 1. Authentication Check
   if (!request.auth) {
     logger.error("Unauthorized attempt: No auth context found.");
     throw new HttpsError("unauthenticated", "User must be logged in to initialize Stripe.");
@@ -39,12 +38,10 @@ export const createStripeConnectAccount = onCall({
     throw new HttpsError("failed-precondition", "System configuration error: Missing Stripe key.");
   }
 
-  const stripe = new Stripe(secretKey, {
-    apiVersion: '2025-01-27.acacia',
-  });
+  const stripe = new Stripe(secretKey);
 
   try {
-    // 3. Ownership Verification: Check if this user actually owns the venue
+    // 3. Ownership Verification
     const venueRef = db.collection('venues').doc(venueId);
     const venueDoc = await venueRef.get();
 
@@ -81,10 +78,11 @@ export const createStripeConnectAccount = onCall({
     }
 
     // 5. Generate Onboarding Link
-    // For local testing we use the port configured in package.json (9002)
-    const origin = 'http://localhost:9002';
+    // In production, Firebase Functions can't reliably detect the origin of a callable,
+    // so we use a fallback to localhost for your testing, but this should be your real domain in prod.
+    const origin = request.rawRequest.headers.origin || 'http://localhost:9002';
     
-    logger.info(`Generating account link for ${stripeAccountId}`);
+    logger.info(`Generating account link for ${stripeAccountId} with origin ${origin}`);
     const accountLink = await stripe.accountLinks.create({
       account: stripeAccountId,
       refresh_url: `${origin}/onboarding-refresh?venueId=${venueId}`,
