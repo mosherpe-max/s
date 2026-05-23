@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useMemo, useEffect, use } from 'react';
@@ -199,18 +198,18 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
       const { url } = result.data as { url: string };
       
       if (url) {
-        // Redirection point: Send the user from Koop to Stripe's registration page
+        // Redirection trigger: physically move the user from Koop to Stripe
         window.location.href = url;
       } else {
-        throw new Error("Failed to generate onboarding URL.");
+        throw new Error("The system failed to generate a secure onboarding link.");
       }
     } catch (error: any) {
-      console.error("Stripe setup error:", error);
-      // Error Handling: Use toast alert to tell the user exactly why the button failed to communicate
+      // Error Handling: Tell the user exactly why the connection failed
+      console.error("Stripe Connection Error:", error);
       toast({ 
         variant: "destructive", 
-        title: "Setup Failed", 
-        description: error.message || "Ensure your backend is deployed and you have proper permissions." 
+        title: "Connection Failed", 
+        description: error.message || "Please ensure your internet is stable or contact support." 
       });
     } finally {
       setIsStripeLoading(false);
