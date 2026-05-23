@@ -41,7 +41,6 @@ export const createStripeConnectAccount = onCall({
 
   try {
     // 3. Ownership Verification
-    // We check the 'venues' collection as defined in your blueprint
     const venueRef = db.collection('venues').doc(venueId);
     const venueDoc = await venueRef.get();
 
@@ -78,8 +77,14 @@ export const createStripeConnectAccount = onCall({
     }
 
     // 5. Generate Onboarding Link
-    // Default to the provided port for local testing, fallback to generic production domain
-    const origin = request.rawRequest?.headers?.origin || 'http://localhost:9002';
+    // Determine the return origin safely. Default to localhost for studio/dev, or use a known production domain.
+    let origin = 'http://localhost:9002';
+    try {
+      const headerOrigin = request.rawRequest?.headers?.origin;
+      if (headerOrigin) origin = headerOrigin;
+    } catch (e) {
+      logger.warn("Could not determine origin from request headers, using default.");
+    }
     
     logger.info(`Generating setup link for ${stripeAccountId} with origin ${origin}`);
     

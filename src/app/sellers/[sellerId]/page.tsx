@@ -28,7 +28,8 @@ import {
   CreditCard,
   ShieldCheck,
   ExternalLink,
-  ChevronRight
+  ChevronRight,
+  Database
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -135,6 +136,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   const [editingStaff, setEditingStaff] = useState<StaffMember | null>(null);
   const [isResettingDemo, setIsResettingDemo] = useState(false);
   const [isStripeLoading, setIsStripeLoading] = useState(false);
+  const [isProvisioningRegistry, setIsProvisioningRegistry] = useState(false);
   
   const sensors = useSensors(useSensor(PointerSensor), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
   const isHardcodedSuperAdmin = user?.uid === SUPER_ADMIN_ID || user?.email === 'mosherpe@gmail.com';
@@ -183,10 +185,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     setIsStaffFormOpen(false); setEditingStaff(null); staffForm.reset();
   };
 
-  /**
-   * handleStartStripeOnboarding
-   * Calls the Cloud Function to generate a secure Stripe onboarding URL.
-   */
   const handleStartStripeOnboarding = async () => {
     if (!firebaseApp || !user) return;
     setIsStripeLoading(true);
@@ -200,17 +198,37 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
       if (url) {
         window.location.href = url;
       } else {
-        throw new Error("The system failed to generate a secure redirection URL.");
+        throw new Error("Failed to generate onboarding URL.");
       }
     } catch (error: any) {
       console.error("Stripe setup error:", error);
       toast({ 
         variant: "destructive", 
-        title: "Configuration Error", 
-        description: error.message || "Failed to initialize setup. Ensure your venue registry is correctly provisioned." 
+        title: "Setup Failed", 
+        description: error.message || "Ensure your backend is deployed and you have proper permissions." 
       });
     } finally {
       setIsStripeLoading(false);
+    }
+  };
+
+  const handleProvisionRegistry = async () => {
+    if (!firestore || !user || !seller) return;
+    setIsProvisioningRegistry(true);
+    try {
+      await setDoc(doc(firestore, 'venues', sellerId), {
+        venueId: sellerId,
+        name: seller.courseName,
+        ownerUid: user.uid,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        stripeOnboardingComplete: false
+      });
+      toast({ title: "Payment Registry Provisioned" });
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Provisioning Failed", description: e.message });
+    } finally {
+      setIsProvisioningRegistry(false);
     }
   };
 
@@ -340,8 +358,20 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                   <AlertTriangle className="h-8 w-8 text-amber-500 mx-auto" />
                   <h4 className="text-xs font-black uppercase tracking-widest text-slate-700">Registry Missing</h4>
                   <p className="text-[9px] text-muted-foreground leading-relaxed">
-                    This seller does not have a provisioned venue registry. Please contact Platform Administration to enable payments.
+                    This seller does not have a provisioned venue registry.
                   </p>
+                  {isHardcodedSuperAdmin && (
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="w-full text-[9px] h-8 font-black uppercase tracking-widest"
+                      onClick={handleProvisionRegistry}
+                      disabled={isProvisioningRegistry}
+                    >
+                      {isProvisioningRegistry ? <Loader2 className="animate-spin" /> : <Database className="mr-1 h-3 w-3" />} 
+                      Provision Registry
+                    </Button>
+                  )}
                 </div>
               ) : venueData.stripeOnboardingComplete ? (
                 <>
