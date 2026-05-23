@@ -16,7 +16,6 @@ const db = getFirestore();
  * Securely provisions a Stripe Connect Express account and returns an onboarding link.
  */
 export const createStripeConnectAccount = onCall({
-  // Ensure the secret is set via: firebase functions:secrets:set STRIPE_SECRET_KEY
   secrets: ["STRIPE_SECRET_KEY"],
   region: 'us-central1'
 }, async (request) => {
@@ -28,25 +27,26 @@ export const createStripeConnectAccount = onCall({
 
   const { venueId } = request.data;
   if (!venueId) {
-    throw new HttpsError("invalid-argument", "Missing target venueId.");
+    throw new HttpsError("invalid-argument", "Missing required field: venueId.");
   }
 
-  // 2. Secret Key Check
+  // 2. Secret Key Retrieval
   const secretKey = process.env.STRIPE_SECRET_KEY;
   if (!secretKey) {
-    logger.error("STRIPE_SECRET_KEY is not defined in environment.");
-    throw new HttpsError("failed-precondition", "System configuration error: Missing Stripe key.");
+    logger.error("STRIPE_SECRET_KEY is missing from environment. Run: firebase functions:secrets:set STRIPE_SECRET_KEY");
+    throw new HttpsError("failed-precondition", "System configuration error: Missing Stripe API Key.");
   }
 
   const stripe = new Stripe(secretKey);
 
   try {
     // 3. Ownership Verification
+    // We check the 'venues' collection as defined in your blueprint
     const venueRef = db.collection('venues').doc(venueId);
     const venueDoc = await venueRef.get();
 
     if (!venueDoc.exists) {
-      throw new HttpsError("not-found", "Venue registry not found.");
+      throw new HttpsError("not-found", `Venue record [${venueId}] not found in registry.`);
     }
 
     const venueData = venueDoc.data();
@@ -65,11 +65,11 @@ export const createStripeConnectAccount = onCall({
           card_payments: { requested: true },
           transfers: { requested: true },
         },
-        metadata: { venueId }
+        metadata: { venueId, ownerUid: request.auth.uid }
       });
       stripeAccountId = account.id;
 
-      // Save the ID immediately to Firestore
+      // Update registry
       await venueRef.update({
         stripeAccountId,
         stripeOnboardingComplete: false,
@@ -78,10 +78,11 @@ export const createStripeConnectAccount = onCall({
     }
 
     // 5. Generate Onboarding Link
-    // Note: origin header is retrieved safely to determine the return URL
+    // Default to the provided port for local testing, fallback to generic production domain
     const origin = request.rawRequest?.headers?.origin || 'http://localhost:9002';
     
-    logger.info(`Generating account link for ${stripeAccountId} with origin ${origin}`);
+    logger.info(`Generating setup link for ${stripeAccountId} with origin ${origin}`);
+    
     const accountLink = await stripe.accountLinks.create({
       account: stripeAccountId,
       refresh_url: `${origin}/onboarding-refresh?venueId=${venueId}`,
@@ -92,23 +93,25 @@ export const createStripeConnectAccount = onCall({
     return { url: accountLink.url };
 
   } catch (error: any) {
-    logger.error("Stripe onboarding error:", error);
+    logger.error("Stripe Onboarding Logic Error:", {
+      message: error.message,
+      stack: error.stack
+    });
     if (error instanceof HttpsError) throw error;
-    throw new HttpsError("internal", error.message || "Failed to initialize onboarding.");
+    throw new HttpsError("internal", error.message || "Failed to initialize the onboarding session.");
   }
 });
 
 /**
  * testFunction
- * Minimal health check for deployment verification.
+ * Minimal health check to verify deployment connectivity.
  */
 export const testFunction = onCall({ 
-  region: 'us-central1',
-  cors: true
+  region: 'us-central1'
 }, (request) => {
   return { 
-    success: true, 
-    message: "Cloud environment is stable",
-    timestamp: new Date().toISOString()
+    status: "healthy", 
+    timestamp: new Date().toISOString(),
+    project: process.env.GCLOUD_PROJECT || "unknown"
   };
 });

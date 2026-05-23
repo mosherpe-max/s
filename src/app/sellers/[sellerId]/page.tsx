@@ -144,6 +144,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   const platformRoleRef = useMemoFirebase(() => (!firestore || !user ? null : doc(firestore, 'roles_admin', user.uid)), [firestore, user]);
   const { data: platformRole } = useDoc(platformRoleRef);
 
+  // Reference to the secure 'venues' registry used for payments
   const venueRef = useMemoFirebase(() => (!firestore || !sellerId ? null : doc(firestore, 'venues', sellerId)), [firestore, sellerId]);
   const { data: venueData } = useDoc<Venue>(venueRef);
 
@@ -182,25 +183,31 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     setIsStaffFormOpen(false); setEditingStaff(null); staffForm.reset();
   };
 
+  /**
+   * handleStartStripeOnboarding
+   * Calls the Cloud Function to generate a secure Stripe onboarding URL.
+   */
   const handleStartStripeOnboarding = async () => {
-    if (!firebaseApp) return;
+    if (!firebaseApp || !user) return;
     setIsStripeLoading(true);
     try {
       const functions = getFunctions(firebaseApp, 'us-central1');
       const createStripeAccount = httpsCallable(functions, 'createStripeConnectAccount');
+      
       const result = await createStripeAccount({ venueId: sellerId });
       const { url } = result.data as { url: string };
       
       if (url) {
         window.location.href = url;
       } else {
-        throw new Error("No redirection URL returned from Stripe.");
+        throw new Error("The system failed to generate a secure redirection URL.");
       }
     } catch (error: any) {
+      console.error("Stripe setup error:", error);
       toast({ 
         variant: "destructive", 
-        title: "Payment Setup Failed", 
-        description: error.message || "Please ensure the venue registry is provisioned in the Platform Admin." 
+        title: "Configuration Error", 
+        description: error.message || "Failed to initialize setup. Ensure your venue registry is correctly provisioned." 
       });
     } finally {
       setIsStripeLoading(false);
@@ -295,7 +302,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
       <section id="payments" className="mb-12">
         <div className="flex items-center gap-2 mb-4">
           <CreditCard className="h-5 w-5 text-indigo-600" />
-          <h2 className="font-headline text-xl font-black uppercase">Payment Integration</h2>
+          <h2 className="font-headline text-xl font-black uppercase tracking-tight">Payment Integration</h2>
         </div>
         
         <Card className="border-2 shadow-sm overflow-hidden">
@@ -307,7 +314,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                 </div>
                 <div>
                   <h3 className="font-bold text-lg">Stripe Connect Express</h3>
-                  <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Automated Daily Payouts</p>
+                  <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Automated Revenue Management</p>
                 </div>
               </div>
               
@@ -328,7 +335,15 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
             </div>
 
             <div className="bg-slate-50 border-l p-8 flex flex-col items-center justify-center text-center gap-4">
-              {venueData?.stripeOnboardingComplete ? (
+              {!venueData ? (
+                <div className="p-4 border-2 border-dashed rounded-2xl bg-white space-y-3">
+                  <AlertTriangle className="h-8 w-8 text-amber-500 mx-auto" />
+                  <h4 className="text-xs font-black uppercase tracking-widest text-slate-700">Registry Missing</h4>
+                  <p className="text-[9px] text-muted-foreground leading-relaxed">
+                    This seller does not have a provisioned venue registry. Please contact Platform Administration to enable payments.
+                  </p>
+                </div>
+              ) : venueData.stripeOnboardingComplete ? (
                 <>
                   <div className="bg-green-100 p-4 rounded-full text-green-600 mb-2">
                     <ShieldCheck className="h-10 w-10" />
@@ -346,15 +361,17 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                   <div className="bg-indigo-100 p-4 rounded-full text-indigo-600 mb-2">
                     <CreditCard className="h-10 w-10" />
                   </div>
-                  <h4 className="font-headline font-black text-sm uppercase">Finish Payment Setup</h4>
-                  <p className="text-[10px] font-medium text-slate-500 uppercase leading-relaxed px-4">Complete your business profile on Stripe to begin accepting orders.</p>
+                  <h4 className="font-headline font-black text-sm uppercase">Setup Payments</h4>
+                  <p className="text-[10px] font-medium text-slate-500 uppercase leading-relaxed px-4">
+                    Complete your business profile on Stripe to begin accepting orders and receiving payouts.
+                  </p>
                   <Button 
                     onClick={handleStartStripeOnboarding}
                     disabled={isStripeLoading}
                     className="w-full h-12 bg-indigo-600 hover:bg-indigo-700 shadow-lg font-black uppercase tracking-widest text-[11px] gap-2 rounded-xl"
                   >
                     {isStripeLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ChevronRight className="h-4 w-4" />}
-                    {venueData?.stripeAccountId ? 'Resume Onboarding' : 'Begin Onboarding'}
+                    {venueData.stripeAccountId ? 'Resume Setup' : 'Connect Account'}
                   </Button>
                 </>
               )}
