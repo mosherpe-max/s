@@ -78,9 +78,8 @@ export const createStripeConnectAccount = onCall({
     }
 
     // 5. Generate Onboarding Link
-    // In production, Firebase Functions can't reliably detect the origin of a callable,
-    // so we use a fallback to localhost for your testing, but this should be your real domain in prod.
-    const origin = request.rawRequest.headers.origin || 'http://localhost:9002';
+    // Note: origin header is retrieved safely to determine the return URL
+    const origin = request.rawRequest?.headers?.origin || 'http://localhost:9002';
     
     logger.info(`Generating account link for ${stripeAccountId} with origin ${origin}`);
     const accountLink = await stripe.accountLinks.create({
