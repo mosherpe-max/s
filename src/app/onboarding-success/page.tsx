@@ -13,7 +13,7 @@ function SuccessContent() {
   const venueId = searchParams.get('venueId');
 
   useEffect(() => {
-    // Automatically redirect after a few seconds
+    // Automatically redirect back to the establishment admin after a few seconds
     const timer = setTimeout(() => {
       if (venueId) {
         router.push(`/sellers/${venueId}`);
@@ -37,7 +37,7 @@ function SuccessContent() {
         </CardHeader>
         <CardContent className="pt-10 pb-12 px-8 text-center space-y-6">
           <p className="text-muted-foreground font-medium">
-            Your business details have been securely submitted to Stripe. You are now authorized to accept payments.
+            Your business details have been securely submitted to Stripe. You are now authorized to accept payments and receive payouts.
           </p>
           
           <div className="flex flex-col items-center gap-4">

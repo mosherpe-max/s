@@ -199,13 +199,14 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
       const { url } = result.data as { url: string };
       
       if (url) {
-        // Redirection point: Send the user to Stripe Express
+        // Redirection point: Send the user from Koop to Stripe's registration page
         window.location.href = url;
       } else {
         throw new Error("Failed to generate onboarding URL.");
       }
     } catch (error: any) {
       console.error("Stripe setup error:", error);
+      // Error Handling: Use toast alert to tell the user exactly why the button failed to communicate
       toast({ 
         variant: "destructive", 
         title: "Setup Failed", 
