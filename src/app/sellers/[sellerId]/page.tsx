@@ -146,7 +146,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   const platformRoleRef = useMemoFirebase(() => (!firestore || !user ? null : doc(firestore, 'roles_admin', user.uid)), [firestore, user]);
   const { data: platformRole } = useDoc(platformRoleRef);
 
-  // Reference to the secure 'venues' registry used for payments
   const venueRef = useMemoFirebase(() => (!firestore || !sellerId ? null : doc(firestore, 'venues', sellerId)), [firestore, sellerId]);
   const { data: venueData } = useDoc<Venue>(venueRef);
 
@@ -185,6 +184,10 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     setIsStaffFormOpen(false); setEditingStaff(null); staffForm.reset();
   };
 
+  /**
+   * handleStartStripeOnboarding
+   * Securely triggers the backend Cloud Function and redirects the user to Stripe.
+   */
   const handleStartStripeOnboarding = async () => {
     if (!firebaseApp || !user) return;
     setIsStripeLoading(true);
@@ -196,6 +199,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
       const { url } = result.data as { url: string };
       
       if (url) {
+        // Redirection point: Send the user to Stripe Express
         window.location.href = url;
       } else {
         throw new Error("Failed to generate onboarding URL.");
@@ -316,7 +320,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
         </div>
       </section>
 
-      {/* STRIPE INTEGRATION SECTION */}
       <section id="payments" className="mb-12">
         <div className="flex items-center gap-2 mb-4">
           <CreditCard className="h-5 w-5 text-indigo-600" />
@@ -400,8 +403,8 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                     disabled={isStripeLoading}
                     className="w-full h-12 bg-indigo-600 hover:bg-indigo-700 shadow-lg font-black uppercase tracking-widest text-[11px] gap-2 rounded-xl"
                   >
-                    {isStripeLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ChevronRight className="h-4 w-4" />}
-                    {venueData.stripeAccountId ? 'Resume Setup' : 'Connect Account'}
+                    {isStripeLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
+                    {venueData.stripeAccountId ? 'Resume Setup' : 'Set up Payouts'}
                   </Button>
                 </>
               )}
