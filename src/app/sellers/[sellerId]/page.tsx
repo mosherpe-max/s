@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useMemo, useEffect, use } from 'react';
@@ -212,6 +213,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     console.log("Initiating Stripe Onboarding for venue:", sellerId);
     
     try {
+      // Use the region configured in your function deployment
       const functions = getFunctions(firebaseApp, 'us-central1');
       const createStripeAccount = httpsCallable(functions, 'createStripeConnectAccount');
       
@@ -219,28 +221,18 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
       const data = result.data as { url: string };
       
       if (data?.url) {
-        toast({ title: "Connecting to Stripe...", description: "Redirecting to secure registration." });
+        toast({ title: "Redirecting to Stripe...", description: "Connecting to secure registration portal." });
         window.location.href = data.url;
       } else {
         throw new Error("No URL returned from backend.");
       }
     } catch (error: any) {
-      console.error("Full Stripe Onboarding Error Details:", {
-        code: error.code,
-        message: error.message,
-        details: error.details,
-        stack: error.stack
-      });
+      console.error("Stripe Onboarding Error:", error);
       
-      let errorMessage = error.message || "Connection failed. Please try again.";
+      let errorMessage = error.message || "Connection failed. Please check backend logs.";
       
-      // Check for specific error signatures
-      if (error.message?.includes('unauthenticated')) {
-        errorMessage = "Session expired. Please log out and log back in.";
-      } else if (error.message?.includes('not found')) {
-        errorMessage = "Venue record not found in payment registry.";
-      } else if (error.code === 'permission-denied' || error.message?.includes('403')) {
-        errorMessage = "Security Policy Error: The function needs to allow public invocations. Please check admin instructions.";
+      if (error.code === 'permission-denied' || error.message?.includes('403')) {
+        errorMessage = "Security Block: Ensure the Cloud Function allows public invocations (invoker: 'public') and CORS is enabled.";
       }
       
       toast({ 

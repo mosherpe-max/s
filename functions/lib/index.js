@@ -11,10 +11,15 @@ const db = getFirestore();
 /**
  * createStripeConnectAccount
  * Securely provisions a Stripe Connect Express account and returns an onboarding link.
+ *
+ * Note: 'invoker: "public"' ensures that CORS preflight requests (OPTIONS) are not blocked.
  */
 export const createStripeConnectAccount = onCall({
     secrets: ["STRIPE_SECRET_KEY"],
-    region: 'us-central1'
+    region: 'us-central1',
+    cors: true,
+    invoker: 'public',
+    maxInstances: 10,
 }, async (request) => {
     // 1. Authentication Check
     if (!request.auth) {
@@ -23,12 +28,13 @@ export const createStripeConnectAccount = onCall({
     }
     const { venueId } = request.data;
     if (!venueId) {
+        logger.error("Missing venueId in request data");
         throw new HttpsError("invalid-argument", "Missing required field: venueId.");
     }
     // 2. Secret Key Retrieval
     const secretKey = process.env.STRIPE_SECRET_KEY;
     if (!secretKey) {
-        logger.error("STRIPE_SECRET_KEY is missing from environment. Run: firebase functions:secrets:set STRIPE_SECRET_KEY");
+        logger.error("STRIPE_SECRET_KEY is missing from environment. Ensure it is set via: firebase functions:secrets:set STRIPE_SECRET_KEY");
         throw new HttpsError("failed-precondition", "System configuration error: Missing Stripe API Key.");
     }
     const stripe = new Stripe(secretKey);
@@ -37,10 +43,12 @@ export const createStripeConnectAccount = onCall({
         const venueRef = db.collection('venues').doc(venueId);
         const venueDoc = await venueRef.get();
         if (!venueDoc.exists) {
+            logger.error(`Venue [${venueId}] not found in registry.`);
             throw new HttpsError("not-found", `Venue record [${venueId}] not found in registry.`);
         }
         const venueData = venueDoc.data();
         if (venueData?.ownerUid !== request.auth.uid) {
+            logger.error(`Permission denied for user ${request.auth.uid} on venue ${venueId}`);
             throw new HttpsError("permission-denied", "You do not have permission to manage this venue.");
         }
         let stripeAccountId = venueData?.stripeAccountId;
@@ -64,16 +72,11 @@ export const createStripeConnectAccount = onCall({
             });
         }
         // 5. Generate Onboarding Link
-        // Determine the return origin safely. 
-        // CHANGE THIS TO YOUR PRODUCTION DOMAIN FOR LIVE DEPLOYMENT (e.g. https://kooporders.com)
+        // Determine the origin from the request or fallback to local
         let origin = 'http://localhost:9002';
-        try {
-            const headerOrigin = request.rawRequest?.headers?.origin;
-            if (headerOrigin)
-                origin = headerOrigin;
-        }
-        catch (e) {
-            logger.warn("Could not determine origin from request headers, using default.");
+        const headerOrigin = request.rawRequest?.headers?.origin;
+        if (headerOrigin) {
+            origin = typeof headerOrigin === 'string' ? headerOrigin : headerOrigin[0];
         }
         logger.info(`Generating setup link for ${stripeAccountId} with origin ${origin}`);
         const accountLink = await stripe.accountLinks.create({
@@ -87,6 +90,7 @@ export const createStripeConnectAccount = onCall({
     catch (error) {
         logger.error("Stripe Onboarding Logic Error:", {
             message: error.message,
+            code: error.code,
             stack: error.stack
         });
         if (error instanceof HttpsError)
@@ -99,7 +103,9 @@ export const createStripeConnectAccount = onCall({
  * Minimal health check to verify deployment connectivity.
  */
 export const testFunction = onCall({
-    region: 'us-central1'
+    region: 'us-central1',
+    cors: true,
+    invoker: 'public'
 }, (request) => {
     return {
         status: "healthy",

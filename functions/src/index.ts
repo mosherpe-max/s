@@ -14,12 +14,13 @@ const db = getFirestore();
  * createStripeConnectAccount
  * Securely provisions a Stripe Connect Express account and returns an onboarding link.
  * 
- * Note: 'invoker: "public"' ensures that CORS preflight requests (OPTIONS) are not blocked.
+ * invoker: "public" - Instructs Google Cloud to allow the unauthenticated preflight 
+ * (OPTIONS) requests required for CORS to work in the browser.
  */
 export const createStripeConnectAccount = onCall({
   secrets: ["STRIPE_SECRET_KEY"],
   region: 'us-central1',
-  cors: true,
+  cors: true, // Automatically handles standard CORS headers
   invoker: 'public',
   maxInstances: 10,
 }, async (request) => {
@@ -38,7 +39,7 @@ export const createStripeConnectAccount = onCall({
   // 2. Secret Key Retrieval
   const secretKey = process.env.STRIPE_SECRET_KEY;
   if (!secretKey) {
-    logger.error("STRIPE_SECRET_KEY is missing from environment. Ensure it is set via: firebase functions:secrets:set STRIPE_SECRET_KEY");
+    logger.error("STRIPE_SECRET_KEY is missing from environment.");
     throw new HttpsError("failed-precondition", "System configuration error: Missing Stripe API Key.");
   }
 
@@ -105,8 +106,7 @@ export const createStripeConnectAccount = onCall({
   } catch (error: any) {
     logger.error("Stripe Onboarding Logic Error:", {
       message: error.message,
-      code: error.code,
-      stack: error.stack
+      code: error.code
     });
     
     if (error instanceof HttpsError) throw error;
