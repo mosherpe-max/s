@@ -13,11 +13,14 @@ const db = getFirestore();
 /**
  * createStripeConnectAccount
  * Securely provisions a Stripe Connect Express account and returns an onboarding link.
+ * 
+ * Note: 'invoker: "public"' ensures that CORS preflight requests (OPTIONS) are not blocked.
  */
 export const createStripeConnectAccount = onCall({
   secrets: ["STRIPE_SECRET_KEY"],
   region: 'us-central1',
-  cors: true, // This allows standard CORS handling for callable functions
+  cors: true,
+  invoker: 'public',
   maxInstances: 10,
 }, async (request) => {
   // 1. Authentication Check
@@ -118,7 +121,8 @@ export const createStripeConnectAccount = onCall({
  */
 export const testFunction = onCall({ 
   region: 'us-central1',
-  cors: true 
+  cors: true,
+  invoker: 'public'
 }, (request) => {
   return { 
     status: "healthy", 

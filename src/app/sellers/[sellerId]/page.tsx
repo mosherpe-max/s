@@ -203,7 +203,11 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   };
 
   const handleStartStripeOnboarding = async () => {
-    if (!firebaseApp || !user) return;
+    if (!firebaseApp || !user) {
+      toast({ variant: "destructive", title: "Authentication Error", description: "You must be logged in to setup payouts." });
+      return;
+    }
+    
     setIsStripeLoading(true);
     console.log("Initiating Stripe Onboarding for venue:", sellerId);
     
@@ -215,19 +219,28 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
       const data = result.data as { url: string };
       
       if (data?.url) {
+        toast({ title: "Connecting to Stripe...", description: "Redirecting to secure registration." });
         window.location.href = data.url;
       } else {
-        throw new Error("The system failed to generate a secure onboarding link.");
+        throw new Error("No URL returned from backend.");
       }
     } catch (error: any) {
-      console.error("Stripe Onboarding Error:", error);
+      console.error("Full Stripe Onboarding Error Details:", {
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        stack: error.stack
+      });
       
-      let errorMessage = error.message || "Connection failed. Please ensure your internet is stable.";
+      let errorMessage = error.message || "Connection failed. Please try again.";
       
-      if (error.code === 'permission-denied' || error.code === 'unauthenticated') {
-        errorMessage = "You are not authorized or your session has expired. Please log in again.";
-      } else if (error.message?.includes('not authenticated')) {
-        errorMessage = "Security Policy Error: The backend function needs 'allUsers' invoker permissions. Please see Admin instructions.";
+      // Check for specific error signatures
+      if (error.message?.includes('unauthenticated')) {
+        errorMessage = "Session expired. Please log out and log back in.";
+      } else if (error.message?.includes('not found')) {
+        errorMessage = "Venue record not found in payment registry.";
+      } else if (error.code === 'permission-denied' || error.message?.includes('403')) {
+        errorMessage = "Security Policy Error: The function needs to allow public invocations. Please check admin instructions.";
       }
       
       toast({ 
