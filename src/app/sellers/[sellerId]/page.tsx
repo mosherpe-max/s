@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useMemo, useEffect, use } from 'react';
@@ -205,15 +204,14 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
 
   const handleStartStripeOnboarding = async () => {
     if (!firebaseApp || !user) {
-      toast({ variant: "destructive", title: "Authentication Error", description: "You must be logged in to setup payouts." });
+      toast({ variant: "destructive", title: "Authentication Required", description: "Please sign in to configure payments." });
       return;
     }
     
     setIsStripeLoading(true);
-    console.log("Initiating Stripe Onboarding for venue:", sellerId);
     
     try {
-      // Use the region configured in your function deployment
+      // Connect to the deployed function in us-central1
       const functions = getFunctions(firebaseApp, 'us-central1');
       const createStripeAccount = httpsCallable(functions, 'createStripeConnectAccount');
       
@@ -221,24 +219,23 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
       const data = result.data as { url: string };
       
       if (data?.url) {
-        toast({ title: "Redirecting to Stripe...", description: "Connecting to secure registration portal." });
+        toast({ title: "Redirecting...", description: "Connecting to secure Stripe portal." });
         window.location.href = data.url;
       } else {
-        throw new Error("No URL returned from backend.");
+        throw new Error("Handshake failed: No URL returned from portal.");
       }
     } catch (error: any) {
-      console.error("Stripe Onboarding Error:", error);
+      console.error("Stripe Redirect Error:", error);
       
-      let errorMessage = error.message || "Connection failed. Please check backend logs.";
-      
-      if (error.code === 'permission-denied' || error.message?.includes('403')) {
-        errorMessage = "Security Block: Ensure the Cloud Function allows public invocations (invoker: 'public') and CORS is enabled.";
+      let message = error.message || "Connection timed out.";
+      if (error.code === 'permission-denied' || message.includes('403')) {
+        message = "Security Policy Blocked: Ensure function allows public preflight (invoker: 'public').";
       }
-      
+
       toast({ 
         variant: "destructive", 
-        title: "Integration Error", 
-        description: errorMessage
+        title: "Handshake Failed", 
+        description: message
       });
     } finally {
       setIsStripeLoading(false);

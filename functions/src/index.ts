@@ -14,13 +14,13 @@ const db = getFirestore();
  * createStripeConnectAccount
  * Securely provisions a Stripe Connect Express account and returns an onboarding link.
  * 
- * invoker: "public" - Instructs Google Cloud to allow the unauthenticated preflight 
- * (OPTIONS) requests required for CORS to work in the browser.
+ * invoker: "public" - This is critical. It allows the browser's unauthenticated 
+ * preflight (OPTIONS) handshake to reach the function.
  */
 export const createStripeConnectAccount = onCall({
   secrets: ["STRIPE_SECRET_KEY"],
   region: 'us-central1',
-  cors: true, // Automatically handles standard CORS headers
+  cors: true,
   invoker: 'public',
   maxInstances: 10,
 }, async (request) => {
@@ -85,7 +85,7 @@ export const createStripeConnectAccount = onCall({
     }
 
     // 5. Generate Onboarding Link
-    // Determine the origin from the request or fallback to local
+    // Default origin for local dev, will be overridden by header if present
     let origin = 'http://localhost:9002';
     const headerOrigin = request.rawRequest?.headers?.origin;
     if (headerOrigin) {
