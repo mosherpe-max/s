@@ -1,4 +1,3 @@
-
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import { initializeApp } from "firebase-admin/app";
@@ -33,7 +32,7 @@ export const createStripeConnectAccount = onCall({
   // 2. Secret Key Retrieval
   const secretKey = process.env.STRIPE_SECRET_KEY;
   if (!secretKey) {
-    logger.error("STRIPE_SECRET_KEY is missing from environment. Run: firebase functions:secrets:set STRIPE_SECRET_KEY");
+    logger.error("STRIPE_SECRET_KEY is missing from environment.");
     throw new HttpsError("failed-precondition", "System configuration error: Missing Stripe API Key.");
   }
 
@@ -77,9 +76,7 @@ export const createStripeConnectAccount = onCall({
     }
 
     // 5. Generate Onboarding Link
-    // Determine the return origin safely. 
-    // CHANGE THIS TO YOUR PRODUCTION DOMAIN FOR LIVE DEPLOYMENT (e.g. https://kooporders.com)
-    let origin = 'http://localhost:9002';
+    let origin = 'http://localhost:9002'; // Default for local dev
     try {
       const headerOrigin = request.rawRequest?.headers?.origin;
       if (headerOrigin) origin = headerOrigin;

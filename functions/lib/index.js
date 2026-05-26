@@ -64,7 +64,8 @@ export const createStripeConnectAccount = onCall({
             });
         }
         // 5. Generate Onboarding Link
-        // Determine the return origin safely. Default to localhost for studio/dev, or use a known production domain.
+        // Determine the return origin safely. 
+        // CHANGE THIS TO YOUR PRODUCTION DOMAIN FOR LIVE DEPLOYMENT (e.g. https://kooporders.com)
         let origin = 'http://localhost:9002';
         try {
             const headerOrigin = request.rawRequest?.headers?.origin;
