@@ -4,7 +4,7 @@
     "Venue": {
       "title": "Venue",
       "type": "object",
-      "description": "Represents a recreation venue onboarded to the Koop platform.",
+      "description": "Represents the legal/business registry entry for a venue, containing payment and ownership data.",
       "properties": {
         "venueId": { "type": "string" },
         "name": { "type": "string" },
@@ -19,7 +19,7 @@
     "Seller": {
       "title": "Seller",
       "type": "object",
-      "description": "Represents a venue managing menus and fulfilling orders.",
+      "description": "The operational profile of a venue managing menus and real-time ordering.",
       "properties": {
         "id": { "type": "string" },
         "courseName": { "type": "string" },
@@ -27,8 +27,7 @@
         "contactEmail": { "type": "string", "format": "email" },
         "status": { "type": "string", "enum": ["Active", "Inactive"] },
         "serviceFee": { "type": "number" },
-        "stripeAccountId": { "type": "string" },
-        "stripeOnboardingComplete": { "type": "boolean" },
+        "taxRate": { "type": "number" },
         "createdAt": { "type": "string", "format": "date-time" },
         "updatedAt": { "type": "string", "format": "date-time" }
       },
@@ -46,7 +45,7 @@
     "SellerAdminRole": {
       "title": "Seller Admin Role",
       "type": "object",
-      "description": "Maps a user email to a specific venue for restricted access.",
+      "description": "The specific users table mapping authorized emails to establishment IDs.",
       "properties": {
         "sellerId": { "type": "string" },
         "courseName": { "type": "string" },

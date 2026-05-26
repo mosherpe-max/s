@@ -2,7 +2,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { 
   Store, 
   Globe, 
@@ -21,7 +21,9 @@ import {
   LogOut,
   UserPlus,
   ShieldCheck,
-  Search
+  Search,
+  ExternalLink,
+  Users
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -42,13 +44,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { 
-  Sheet, 
-  SheetContent, 
-  SheetHeader, 
-  SheetTitle, 
-  SheetDescription 
-} from '@/components/ui/sheet';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -57,7 +52,6 @@ import { signOut } from 'firebase/auth';
 import { collection, query, limit, doc, setDoc, serverTimestamp, writeBatch, getDocs, deleteDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import type { Seller, SellerType } from '@/lib/types';
-import { sellerTypes } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { publicGolfItems, privateGolfItems, bowlingAlleyItems } from '@/lib/data';
@@ -160,17 +154,8 @@ export default function PlatformAdminPage() {
       };
 
       await setDoc(venueRef, payload);
-      toast({ title: "Venue Provisioned" });
+      toast({ title: "Establishment Profile Provisioned" });
       setIsProvisionOpen(false);
-      setNewVenue({
-        courseName: '',
-        type: 'Public Golf Course',
-        contactEmail: '',
-        serviceFee: 1.50,
-        taxRate: 6.0,
-        status: 'Active',
-        menuTypes: ['Beverage Cart', 'Clubhouse', 'Take Out']
-      });
     } catch (error: any) {
       toast({ variant: "destructive", title: "Provisioning Failed", description: error.message });
     } finally {
@@ -183,6 +168,7 @@ export default function PlatformAdminPage() {
     setIsProcessing(true);
     try {
       const cleanEmail = managerEmail.toLowerCase().trim();
+      // This is the "Users Table" for role mapping
       await setDoc(doc(firestore, 'roles_seller_admin', cleanEmail), {
         sellerId: selectedVenue.id,
         courseName: selectedVenue.courseName,
@@ -190,7 +176,7 @@ export default function PlatformAdminPage() {
       }, { merge: true });
 
       toast({ 
-        title: "Access Granted", 
+        title: "Authorized Manager Assigned", 
         description: `${cleanEmail} can now manage ${selectedVenue.courseName}.` 
       });
       setIsAccessManagerOpen(false);
@@ -202,49 +188,6 @@ export default function PlatformAdminPage() {
     }
   };
 
-  const handleInitializeMenu = async (venue: Seller) => {
-    if (!firestore) return;
-    setIsProcessing(true);
-    
-    try {
-      const batch = writeBatch(firestore);
-      let seedData: any[] = publicGolfItems;
-      if (venue.type.includes('Private')) seedData = privateGolfItems;
-      if (venue.type.includes('Bowling')) seedData = bowlingAlleyItems;
-
-      const existingItems = await getDocs(collection(firestore, 'sellers', venue.id, 'menuItems'));
-      existingItems.docs.forEach(d => batch.delete(d.ref));
-
-      seedData.forEach((item, idx) => {
-        const itemRef = doc(collection(firestore, 'sellers', venue.id, 'menuItems'));
-        batch.set(itemRef, {
-          ...item,
-          id: itemRef.id,
-          rank: idx,
-          createdAt: serverTimestamp()
-        });
-      });
-
-      await batch.commit();
-      toast({ title: "Menu Initialized" });
-      setIsSetupItemsOpen(false);
-    } catch (error: any) {
-      toast({ variant: "destructive", title: "Setup Failed", description: error.message });
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  const handleDeleteVenue = async (id: string) => {
-    if (!firestore || !window.confirm("Permanent registry removal?")) return;
-    try {
-      await deleteDoc(doc(firestore, 'sellers', id));
-      toast({ title: "Venue Removed" });
-    } catch (error: any) {
-      toast({ variant: "destructive", title: "Error", description: error.message });
-    }
-  };
-
   if (!isMounted) return null;
 
   return (
@@ -252,12 +195,12 @@ export default function PlatformAdminPage() {
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-10">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <h1 className="font-headline text-3xl font-bold uppercase tracking-tight text-[#213147]">PLATFORM ADMIN</h1>
+            <h1 className="font-headline text-3xl font-bold uppercase tracking-tight text-[#213147]">PLATFORM CONTROL</h1>
             <Badge variant="outline" className="text-[10px] font-black uppercase tracking-widest bg-primary/5 border-primary/20 text-primary">
-              Control Panel
+              Global Admin
             </Badge>
           </div>
-          <p className="text-muted-foreground text-sm">Provision venues, manage managers, and maintain global catalogs.</p>
+          <p className="text-muted-foreground text-sm">Provision establishments and manageauthorized venue managers.</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <Button 
@@ -267,31 +210,31 @@ export default function PlatformAdminPage() {
             className="h-11 px-4 font-black uppercase tracking-widest text-[10px] gap-2 border-2"
           >
             {isHealthChecking ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Stethoscope className="h-3.5 w-3.5" />}
-            Run Health Check
+            Infrastructure Check
           </Button>
           <Button 
             onClick={() => setIsProvisionOpen(true)}
             className="h-11 px-6 font-black uppercase tracking-widest text-xs gap-2 bg-[#213147] hover:bg-black shadow-lg"
           >
             <Plus className="h-4 w-4" />
-            Provision New Venue
+            Provision Venue
           </Button>
           <Button 
             variant="ghost"
             onClick={handleLogout}
-            className="h-11 px-4 font-black uppercase tracking-widest text-[10px] gap-2 text-destructive hover:text-destructive hover:bg-destructive/5"
+            className="h-11 px-4 font-black uppercase tracking-widest text-[10px] gap-2 text-destructive hover:text-destructive"
           >
             <LogOut className="h-3.5 w-3.5" />
-            Sign Out
+            Exit Portal
           </Button>
         </div>
       </header>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
         <Card className="shadow-sm border-2">
           <CardHeader className="pb-2">
             <CardTitle className="text-[10px] font-black uppercase text-muted-foreground tracking-widest flex items-center gap-2">
-              <Globe className="h-3.5 w-3.5" /> Registry Total
+              <Store className="h-3.5 w-3.5" /> Active Establishments
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -302,39 +245,25 @@ export default function PlatformAdminPage() {
         <Card className="shadow-sm border-2">
           <CardHeader className="pb-2">
             <CardTitle className="text-[10px] font-black uppercase text-muted-foreground tracking-widest flex items-center gap-2">
-              <Database className="h-3.5 w-3.5 text-indigo-600" /> Catalog Health
+              <Users className="h-3.5 w-3.5 text-indigo-600" /> Authorized Users
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-4xl font-black font-headline text-[#213147]">Optimal</p>
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-sm border-2">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-[10px] font-black uppercase text-muted-foreground tracking-widest flex items-center gap-2">
-              <Activity className="h-3.5 w-3.5 text-blue-600" /> Platform Sync
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-green-500 animate-pulse" />
-              <p className="text-lg font-black font-headline uppercase text-[#213147]">Connected</p>
-            </div>
+            <p className="text-4xl font-black font-headline text-[#213147]">Managed</p>
           </CardContent>
         </Card>
 
         <Card className={cn("shadow-sm border-2 transition-all", healthStatus ? "bg-indigo-50 border-indigo-200" : "bg-muted/10")}>
           <CardHeader className="pb-2">
             <CardTitle className="text-[10px] font-black uppercase text-muted-foreground tracking-widest flex items-center gap-2">
-              <Zap className="h-3.5 w-3.5 text-amber-500" /> Backend Status
+              <Zap className="h-3.5 w-3.5 text-amber-500" /> System Link
             </CardTitle>
           </CardHeader>
           <CardContent>
             {healthStatus ? (
-              <p className="text-lg font-black font-headline uppercase text-indigo-700">Online</p>
+              <p className="text-lg font-black font-headline uppercase text-indigo-700">Operational</p>
             ) : (
-              <p className="text-lg font-black font-headline uppercase text-muted-foreground/40 italic">Not Checked</p>
+              <p className="text-lg font-black font-headline uppercase text-muted-foreground/40 italic">Offline</p>
             )}
           </CardContent>
         </Card>
@@ -353,7 +282,7 @@ export default function PlatformAdminPage() {
             [...Array(3)].map((_, i) => <Skeleton key={i} className="h-28 w-full rounded-2xl" />)
           ) : (
             sellers?.map((venue) => (
-              <Card key={venue.id} className="shadow-sm hover:border-[#213147]/30 transition-all border-2 rounded-2xl overflow-hidden group">
+              <Card key={venue.id} className="shadow-sm hover:border-[#213147]/30 transition-all border-2 rounded-2xl overflow-hidden group bg-white">
                 <CardContent className="p-0">
                   <div className="flex flex-col md:flex-row md:items-center justify-between p-6 gap-6">
                     <div className="flex items-center gap-5">
@@ -367,27 +296,19 @@ export default function PlatformAdminPage() {
                             <MapPin className="h-3 w-3" /> {venue.city}, {venue.state}
                           </p>
                           <span className="text-muted-foreground/30">•</span>
-                          <p className="text-[10px] text-muted-foreground font-black uppercase tracking-widest flex items-center gap-1">
-                            <Mail className="h-3 w-3" /> {venue.contactEmail}
-                          </p>
+                          <Badge variant="secondary" className="text-[8px] font-black uppercase">{venue.type}</Badge>
                         </div>
                       </div>
                     </div>
 
                     <div className="flex items-center gap-3">
                       <Button variant="outline" size="sm" onClick={() => { setSelectedVenue(venue); setIsAccessManagerOpen(true); }} className="h-10 px-4 font-black text-[10px] uppercase tracking-widest rounded-xl border-2">
-                        <UserPlus className="h-3.5 w-3.5 mr-2" /> Manage Access
-                      </Button>
-                      <Button variant="outline" size="sm" onClick={() => { setSelectedVenue(venue); setIsSetupItemsOpen(true); }} className="h-10 px-4 font-black text-[10px] uppercase tracking-widest rounded-xl border-2">
-                        <Sparkles className="h-3.5 w-3.5 mr-2" /> Setup Items
+                        <UserPlus className="h-3.5 w-3.5 mr-2 text-indigo-600" /> Authorize Manager
                       </Button>
                       <Button variant="outline" size="sm" asChild className="h-10 px-4 font-black text-[10px] uppercase tracking-widest rounded-xl border-2">
                         <Link href={`/sellers/${venue.id}`}>
                           <Settings2 className="h-3.5 w-3.5 mr-2" /> Impersonate
                         </Link>
-                      </Button>
-                      <Button variant="ghost" size="icon" onClick={() => handleDeleteVenue(venue.id)} className="h-10 w-10 text-muted-foreground hover:text-destructive rounded-xl">
-                        <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
                   </div>
@@ -398,37 +319,15 @@ export default function PlatformAdminPage() {
         </div>
       </div>
 
-      <Dialog open={isProvisionOpen} onOpenChange={setIsProvisionOpen}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle className="font-headline font-black uppercase tracking-tight text-[#213147]">Provision Venue</DialogTitle>
-          </DialogHeader>
-          <div className="grid gap-6 py-4">
-            <div className="grid gap-2">
-              <Label className="text-[10px] font-black uppercase tracking-widest">Venue Name</Label>
-              <Input placeholder="Augusta National" value={newVenue.courseName} onChange={(e) => setNewVenue(prev => ({ ...prev, courseName: e.target.value }))} className="font-bold border-2" />
-            </div>
-            <div className="grid gap-2">
-              <Label className="text-[10px] font-black uppercase tracking-widest">Primary Contact Email</Label>
-              <Input type="email" placeholder="manager@venue.com" value={newVenue.contactEmail} onChange={(e) => setNewVenue(prev => ({ ...prev, contactEmail: e.target.value }))} className="font-bold border-2" />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button onClick={handleProvisionVenue} disabled={isProcessing || !newVenue.courseName || !newVenue.contactEmail} className="w-full h-12 bg-[#213147] font-black uppercase tracking-widest">
-              {isProcessing ? <Loader2 className="animate-spin h-5 w-5 mr-2" /> : <CheckCircle2 className="h-5 w-5 mr-2" />} Finalize Provisioning
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
+      {/* ACCESS MANAGER DIALOG */}
       <Dialog open={isAccessManagerOpen} onOpenChange={setIsAccessManagerOpen}>
         <DialogContent className="sm:max-w-[450px]">
           <DialogHeader>
             <div className="p-3 bg-indigo-50 rounded-2xl w-fit mb-4">
               <ShieldCheck className="h-8 w-8 text-indigo-600" />
             </div>
-            <DialogTitle className="font-headline font-black uppercase tracking-tight text-[#213147]">Authorize Manager</DialogTitle>
-            <DialogDescription className="text-xs font-medium">Assign a Venue Admin to {selectedVenue?.courseName}. This user will only see this establishment's dashboard.</DialogDescription>
+            <DialogTitle className="font-headline font-black uppercase tracking-tight text-[#213147]">Authorize Venue Manager</DialogTitle>
+            <DialogDescription className="text-xs font-medium">Assign a manager identity to {selectedVenue?.courseName}. This user will have exclusive access to this establishment's dashboard.</DialogDescription>
           </DialogHeader>
           <div className="grid gap-6 py-6">
             <div className="grid gap-2">
@@ -443,9 +342,9 @@ export default function PlatformAdminPage() {
                 />
               </div>
             </div>
-            <div className="p-4 bg-muted/30 rounded-xl border-2 border-dashed">
-              <p className="text-[9px] text-muted-foreground uppercase font-black tracking-widest leading-relaxed">
-                Note: The user must log in with this exact email to gain management access to {selectedVenue?.courseName}.
+            <div className="p-4 bg-indigo-50/50 rounded-xl border-2 border-dashed border-indigo-200">
+              <p className="text-[9px] text-indigo-700 uppercase font-black tracking-widest leading-relaxed">
+                Security Note: The manager must create an account with this exact email to activate their permissions.
               </p>
             </div>
           </div>
@@ -455,27 +354,36 @@ export default function PlatformAdminPage() {
               disabled={isProcessing || !managerEmail} 
               className="w-full h-12 bg-indigo-600 hover:bg-indigo-700 font-black uppercase tracking-widest"
             >
-              {isProcessing ? <Loader2 className="animate-spin h-5 w-5 mr-2" /> : <CheckCircle2 className="h-5 w-5 mr-2" />} Assign Access Role
+              {isProcessing ? <Loader2 className="animate-spin h-5 w-5 mr-2" /> : <CheckCircle2 className="h-5 w-5 mr-2" />} Link Authorized Identity
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      <Sheet open={isSetupItemsOpen} onOpenChange={setIsSetupItemsOpen}>
-        <SheetContent side="right" className="w-full sm:max-w-md p-0 flex flex-col">
-          <SheetHeader className="p-8 bg-[#213147] text-white border-b-2 border-primary">
-            <SheetTitle className="text-2xl font-black uppercase tracking-tight text-white">Initialize Catalog</SheetTitle>
-          </SheetHeader>
-          <ScrollArea className="flex-1 p-8">
-            <p className="text-sm font-medium mb-4">Seeding standardized catalog for {selectedVenue?.courseName}.</p>
-          </ScrollArea>
-          <div className="p-8 border-t bg-muted/10">
-            <Button className="w-full h-14 bg-[#213147] font-black uppercase tracking-widest shadow-xl" disabled={isProcessing || !selectedVenue} onClick={() => selectedVenue && handleInitializeMenu(selectedVenue)}>
-              {isProcessing ? <Loader2 className="animate-spin h-5 w-5" /> : <Database className="h-5 w-5 mr-2" />} Sync Catalog
-            </Button>
+      {/* PROVISIONING DIALOG */}
+      <Dialog open={isProvisionOpen} onOpenChange={setIsProvisionOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle className="font-headline font-black uppercase tracking-tight text-[#213147]">Provision Establishment</DialogTitle>
+            <DialogDescription>Initialize a new operational profile in the registry.</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-6 py-4">
+            <div className="grid gap-2">
+              <Label className="text-[10px] font-black uppercase tracking-widest">Venue Name</Label>
+              <Input placeholder="Oak Ridge Country Club" value={newVenue.courseName} onChange={(e) => setNewVenue(prev => ({ ...prev, courseName: e.target.value }))} className="font-bold border-2" />
+            </div>
+            <div className="grid gap-2">
+              <Label className="text-[10px] font-black uppercase tracking-widest">Contact Email</Label>
+              <Input type="email" placeholder="contact@oakridge.com" value={newVenue.contactEmail} onChange={(e) => setNewVenue(prev => ({ ...prev, contactEmail: e.target.value }))} className="font-bold border-2" />
+            </div>
           </div>
-        </SheetContent>
-      </Sheet>
+          <DialogFooter>
+            <Button onClick={handleProvisionVenue} disabled={isProcessing || !newVenue.courseName || !newVenue.contactEmail} className="w-full h-12 bg-[#213147] font-black uppercase tracking-widest">
+              {isProcessing ? <Loader2 className="animate-spin h-5 w-5 mr-2" /> : <Store className="h-5 w-5 mr-2" />} Finalize Establishment
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
