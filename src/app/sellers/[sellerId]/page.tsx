@@ -205,6 +205,8 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   const handleStartStripeOnboarding = async () => {
     if (!firebaseApp || !user) return;
     setIsStripeLoading(true);
+    console.log("Initiating Stripe Onboarding for venue:", sellerId);
+    
     try {
       const functions = getFunctions(firebaseApp, 'us-central1');
       const createStripeAccount = httpsCallable(functions, 'createStripeConnectAccount');
@@ -218,10 +220,19 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
         throw new Error("The system failed to generate a secure onboarding link.");
       }
     } catch (error: any) {
+      console.error("Detailed Stripe Integration Error:", error);
+      
+      let errorMessage = "Connection failed. Please ensure your internet is stable.";
+      if (error.code === 'permission-denied' || error.code === 'unauthenticated') {
+        errorMessage = "You are not authorized or your session has expired. Please log in again.";
+      } else if (error.message?.includes('not authenticated')) {
+        errorMessage = "Internal security policy mismatch. Please contact support to authorize function access.";
+      }
+      
       toast({ 
         variant: "destructive", 
-        title: "Connection Failed", 
-        description: error.message || "Please ensure your internet is stable or contact support." 
+        title: "Integration Error", 
+        description: errorMessage
       });
     } finally {
       setIsStripeLoading(false);

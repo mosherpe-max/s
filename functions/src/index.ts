@@ -16,7 +16,8 @@ const db = getFirestore();
  */
 export const createStripeConnectAccount = onCall({
   secrets: ["STRIPE_SECRET_KEY"],
-  region: 'us-central1'
+  region: 'us-central1',
+  cors: true, // Explicitly enable CORS to handle preflight requests
 }, async (request) => {
   // 1. Authentication Check
   if (!request.auth) {
@@ -76,10 +77,14 @@ export const createStripeConnectAccount = onCall({
     }
 
     // 5. Generate Onboarding Link
-    let origin = 'http://localhost:9002'; // Default for local dev
+    // Default to the origin of the request, or a fallback for local dev
+    let origin = 'http://localhost:9002';
     try {
+      // Use the raw request origin if available
       const headerOrigin = request.rawRequest?.headers?.origin;
-      if (headerOrigin) origin = headerOrigin;
+      if (headerOrigin) {
+        origin = headerOrigin;
+      }
     } catch (e) {
       logger.warn("Could not determine origin from request headers, using default.");
     }
@@ -110,7 +115,8 @@ export const createStripeConnectAccount = onCall({
  * Minimal health check to verify deployment connectivity.
  */
 export const testFunction = onCall({ 
-  region: 'us-central1'
+  region: 'us-central1',
+  cors: true 
 }, (request) => {
   return { 
     status: "healthy", 

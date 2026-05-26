@@ -1,7 +1,7 @@
 {
   "name": "functions",
   "type": "module",
-  "main": "lib/index.ts",
+  "main": "lib/index.js",
   "scripts": {
     "build": "tsc",
     "serve": "npm run build && firebase emulators:start --only functions",
