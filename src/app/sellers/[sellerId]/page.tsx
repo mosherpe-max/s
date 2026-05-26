@@ -212,21 +212,22 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
       const createStripeAccount = httpsCallable(functions, 'createStripeConnectAccount');
       
       const result = await createStripeAccount({ venueId: sellerId });
-      const { url } = result.data as { url: string };
+      const data = result.data as { url: string };
       
-      if (url) {
-        window.location.href = url;
+      if (data?.url) {
+        window.location.href = data.url;
       } else {
         throw new Error("The system failed to generate a secure onboarding link.");
       }
     } catch (error: any) {
-      console.error("Detailed Stripe Integration Error:", error);
+      console.error("Stripe Onboarding Error:", error);
       
-      let errorMessage = "Connection failed. Please ensure your internet is stable.";
+      let errorMessage = error.message || "Connection failed. Please ensure your internet is stable.";
+      
       if (error.code === 'permission-denied' || error.code === 'unauthenticated') {
         errorMessage = "You are not authorized or your session has expired. Please log in again.";
       } else if (error.message?.includes('not authenticated')) {
-        errorMessage = "Internal security policy mismatch. Please contact support to authorize function access.";
+        errorMessage = "Security Policy Error: The backend function needs 'allUsers' invoker permissions. Please see Admin instructions.";
       }
       
       toast({ 

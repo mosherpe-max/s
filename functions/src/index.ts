@@ -17,7 +17,8 @@ const db = getFirestore();
 export const createStripeConnectAccount = onCall({
   secrets: ["STRIPE_SECRET_KEY"],
   region: 'us-central1',
-  cors: true, // Explicitly enable CORS to handle preflight requests
+  cors: true, // This allows standard CORS handling for callable functions
+  maxInstances: 10,
 }, async (request) => {
   // 1. Authentication Check
   if (!request.auth) {
@@ -27,13 +28,14 @@ export const createStripeConnectAccount = onCall({
 
   const { venueId } = request.data;
   if (!venueId) {
+    logger.error("Missing venueId in request data");
     throw new HttpsError("invalid-argument", "Missing required field: venueId.");
   }
 
   // 2. Secret Key Retrieval
   const secretKey = process.env.STRIPE_SECRET_KEY;
   if (!secretKey) {
-    logger.error("STRIPE_SECRET_KEY is missing from environment.");
+    logger.error("STRIPE_SECRET_KEY is missing from environment. Ensure it is set via: firebase functions:secrets:set STRIPE_SECRET_KEY");
     throw new HttpsError("failed-precondition", "System configuration error: Missing Stripe API Key.");
   }
 
@@ -45,11 +47,13 @@ export const createStripeConnectAccount = onCall({
     const venueDoc = await venueRef.get();
 
     if (!venueDoc.exists) {
+      logger.error(`Venue [${venueId}] not found in registry.`);
       throw new HttpsError("not-found", `Venue record [${venueId}] not found in registry.`);
     }
 
     const venueData = venueDoc.data();
     if (venueData?.ownerUid !== request.auth.uid) {
+      logger.error(`Permission denied for user ${request.auth.uid} on venue ${venueId}`);
       throw new HttpsError("permission-denied", "You do not have permission to manage this venue.");
     }
 
@@ -77,16 +81,11 @@ export const createStripeConnectAccount = onCall({
     }
 
     // 5. Generate Onboarding Link
-    // Default to the origin of the request, or a fallback for local dev
+    // Determine the origin from the request or fallback to local
     let origin = 'http://localhost:9002';
-    try {
-      // Use the raw request origin if available
-      const headerOrigin = request.rawRequest?.headers?.origin;
-      if (headerOrigin) {
-        origin = headerOrigin;
-      }
-    } catch (e) {
-      logger.warn("Could not determine origin from request headers, using default.");
+    const headerOrigin = request.rawRequest?.headers?.origin;
+    if (headerOrigin) {
+      origin = typeof headerOrigin === 'string' ? headerOrigin : headerOrigin[0];
     }
     
     logger.info(`Generating setup link for ${stripeAccountId} with origin ${origin}`);
@@ -103,9 +102,12 @@ export const createStripeConnectAccount = onCall({
   } catch (error: any) {
     logger.error("Stripe Onboarding Logic Error:", {
       message: error.message,
+      code: error.code,
       stack: error.stack
     });
+    
     if (error instanceof HttpsError) throw error;
+    
     throw new HttpsError("internal", error.message || "Failed to initialize the onboarding session.");
   }
 });
