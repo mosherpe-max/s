@@ -6,7 +6,7 @@ import { collection, doc, setDoc, writeBatch, query, where, updateDoc, serverTim
 import { signOut } from 'firebase/auth';
 import { useFirestore, useDoc, useCollection, useMemoFirebase, useUser, useAuth, useFirebase } from '@/firebase';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { 
   PlusCircle, 
   Edit, 

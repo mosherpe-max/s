@@ -5,24 +5,16 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { 
   Store, 
-  Globe, 
-  Activity,
   Plus,
   Loader2,
   Settings2,
-  Trash2,
-  Database,
-  Sparkles,
   MapPin,
-  Mail,
-  CheckCircle2,
   Stethoscope,
   Zap,
   LogOut,
   UserPlus,
   ShieldCheck,
   Search,
-  ExternalLink,
   Users
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -37,24 +29,15 @@ import {
   DialogDescription,
   DialogFooter 
 } from '@/components/ui/dialog';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useFirestore, useCollection, useMemoFirebase, useFirebase, useAuth, useUser } from '@/firebase';
+import { useFirestore, useCollection, useMemoFirebase, useFirebase, useAuth } from '@/firebase';
 import { signOut } from 'firebase/auth';
-import { collection, query, limit, doc, setDoc, serverTimestamp, writeBatch, getDocs, deleteDoc } from 'firebase/firestore';
-import { httpsCallable } from 'firebase/functions';
-import type { Seller, SellerType } from '@/lib/types';
+import { collection, query, limit, doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { httpsCallable, getFunctions } from 'firebase/functions';
+import type { Seller } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
-import { publicGolfItems, privateGolfItems, bowlingAlleyItems } from '@/lib/data';
 import { cn } from '@/lib/utils';
 
 export default function PlatformAdminPage() {
@@ -62,12 +45,10 @@ export default function PlatformAdminPage() {
   const firestore = useFirestore();
   const auth = useAuth();
   const router = useRouter();
-  const { user } = useUser();
   const { toast } = useToast();
   const [isMounted, setIsMounted] = useState(false);
   
   const [isProvisionOpen, setIsProvisionOpen] = useState(false);
-  const [isSetupItemsOpen, setIsSetupItemsOpen] = useState(false);
   const [isAccessManagerOpen, setIsAccessManagerOpen] = useState(false);
   const [selectedVenue, setSelectedVenue] = useState<Seller | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -112,7 +93,6 @@ export default function PlatformAdminPage() {
     if (!firebaseApp) return;
     setIsHealthChecking(true);
     try {
-      const { getFunctions } = await import('firebase/functions');
       const functions = getFunctions(firebaseApp, 'us-central1');
       const checkFn = httpsCallable(functions, 'testFunction');
       const result = await checkFn();
@@ -168,7 +148,6 @@ export default function PlatformAdminPage() {
     setIsProcessing(true);
     try {
       const cleanEmail = managerEmail.toLowerCase().trim();
-      // This is the "Users Table" for role mapping
       await setDoc(doc(firestore, 'roles_seller_admin', cleanEmail), {
         sellerId: selectedVenue.id,
         courseName: selectedVenue.courseName,
@@ -200,7 +179,7 @@ export default function PlatformAdminPage() {
               Global Admin
             </Badge>
           </div>
-          <p className="text-muted-foreground text-sm">Provision establishments and manageauthorized venue managers.</p>
+          <p className="text-muted-foreground text-sm">Provision establishments and manage authorized venue managers.</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <Button 
@@ -307,7 +286,7 @@ export default function PlatformAdminPage() {
                       </Button>
                       <Button variant="outline" size="sm" asChild className="h-10 px-4 font-black text-[10px] uppercase tracking-widest rounded-xl border-2">
                         <Link href={`/sellers/${venue.id}`}>
-                          <Settings2 className="h-3.5 w-3.5 mr-2" /> Impersonate
+                          <Settings2 className="h-3.5 w-3.5 mr-2" /> Manage Venue
                         </Link>
                       </Button>
                     </div>
@@ -354,7 +333,7 @@ export default function PlatformAdminPage() {
               disabled={isProcessing || !managerEmail} 
               className="w-full h-12 bg-indigo-600 hover:bg-indigo-700 font-black uppercase tracking-widest"
             >
-              {isProcessing ? <Loader2 className="animate-spin h-5 w-5 mr-2" /> : <CheckCircle2 className="h-5 w-5 mr-2" />} Link Authorized Identity
+              {isProcessing ? <Loader2 className="animate-spin h-5 w-5 mr-2" /> : <ShieldCheck className="h-5 w-5 mr-2" />} Link Authorized Identity
             </Button>
           </DialogFooter>
         </DialogContent>
