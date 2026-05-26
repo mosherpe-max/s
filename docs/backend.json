@@ -1,4 +1,3 @@
-
 {
   "entities": {
     "Venue": {
@@ -52,6 +51,14 @@
         "assignedAt": { "type": "string", "format": "date-time" }
       },
       "required": ["sellerId"]
+    },
+    "SalesRepRole": {
+      "title": "Sales Rep Role",
+      "type": "object",
+      "description": "Authorized sales professionals with pipeline management access.",
+      "properties": {
+        "assignedAt": { "type": "string", "format": "date-time" }
+      }
     }
   },
   "auth": {
@@ -62,7 +69,8 @@
       { "path": "/venues/{venueId}", "definition": { "entityName": "Venue" } },
       { "path": "/sellers/{sellerId}", "definition": { "entityName": "Seller" } },
       { "path": "/roles_admin/{uid}", "definition": { "entityName": "AdminRole" } },
-      { "path": "/roles_seller_admin/{email}", "definition": { "entityName": "SellerAdminRole" } }
+      { "path": "/roles_seller_admin/{email}", "definition": { "entityName": "SellerAdminRole" } },
+      { "path": "/roles_sales_rep/{email}", "definition": { "entityName": "SalesRepRole" } }
     ]
   }
 }

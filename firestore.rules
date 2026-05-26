@@ -13,8 +13,22 @@ service cloud.firestore {
       );
     }
 
+    // Global catch-all for Super Admins
     match /{document=**} {
       allow read, write: if isSuperAdmin();
+    }
+
+    // Allow users to verify their own administrative roles
+    match /roles_admin/{uid} {
+      allow read: if isSignedIn() && request.auth.uid == uid;
+    }
+
+    match /roles_seller_admin/{email} {
+      allow read: if isSignedIn() && request.auth.token.email.lower() == email.lower();
+    }
+
+    match /roles_sales_rep/{email} {
+      allow read: if isSignedIn() && request.auth.token.email.lower() == email.lower();
     }
 
     match /venues/{venueId} {
@@ -37,6 +51,15 @@ service cloud.firestore {
     }
 
     match /orders/{orderId} {
+      allow read, write: if isSignedIn();
+    }
+
+    // Sales CRM access
+    match /prospects/{prospectId} {
+      allow read, write: if isSignedIn();
+    }
+
+    match /activities/{activityId} {
       allow read, write: if isSignedIn();
     }
   }
