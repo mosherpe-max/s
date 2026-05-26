@@ -33,6 +33,26 @@
         "updatedAt": { "type": "string", "format": "date-time" }
       },
       "required": ["id", "courseName", "contactEmail", "status"]
+    },
+    "AdminRole": {
+      "title": "Admin Role",
+      "type": "object",
+      "description": "Global platform administrator permission marker.",
+      "properties": {
+        "grantedAt": { "type": "string", "format": "date-time" },
+        "grantedBy": { "type": "string" }
+      }
+    },
+    "SellerAdminRole": {
+      "title": "Seller Admin Role",
+      "type": "object",
+      "description": "Maps a user email to a specific venue for restricted access.",
+      "properties": {
+        "sellerId": { "type": "string" },
+        "courseName": { "type": "string" },
+        "assignedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["sellerId"]
     }
   },
   "auth": {
@@ -41,7 +61,9 @@
   "firestore": {
     "structure": [
       { "path": "/venues/{venueId}", "definition": { "entityName": "Venue" } },
-      { "path": "/sellers/{sellerId}", "definition": { "entityName": "Seller" } }
+      { "path": "/sellers/{sellerId}", "definition": { "entityName": "Seller" } },
+      { "path": "/roles_admin/{uid}", "definition": { "entityName": "AdminRole" } },
+      { "path": "/roles_seller_admin/{email}", "definition": { "entityName": "SellerAdminRole" } }
     ]
   }
 }

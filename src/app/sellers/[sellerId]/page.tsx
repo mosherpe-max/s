@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useMemo, useEffect, use } from 'react';
@@ -28,7 +29,8 @@ import {
   ShieldCheck,
   ExternalLink,
   ChevronRight,
-  Database
+  Database,
+  ArrowLeft
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -67,8 +69,8 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
   useSortable,
-} from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
+} from '@adnd-kit/sortable';
+import { CSS } from '@adnd-kit/utilities';
 
 import type { MenuItem, Seller, Order, StaffMember, Venue } from '@/lib/types';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -138,20 +140,38 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   const [isProvisioningRegistry, setIsProvisioningRegistry] = useState(false);
   
   const sensors = useSensors(useSensor(PointerSensor), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
+  
   const isHardcodedSuperAdmin = user?.uid === SUPER_ADMIN_ID || user?.email === 'mosherpe@gmail.com';
 
   const roleRef = useMemoFirebase(() => (!firestore || !user?.email ? null : doc(firestore, 'roles_seller_admin', user.email.toLowerCase())), [firestore, user]);
-  const { data: sellerRole } = useDoc(roleRef);
+  const { data: sellerRole, isLoading: isSellerRoleLoading } = useDoc(roleRef);
+  
   const platformRoleRef = useMemoFirebase(() => (!firestore || !user ? null : doc(firestore, 'roles_admin', user.uid)), [firestore, user]);
-  const { data: platformRole } = useDoc(platformRoleRef);
+  const { data: platformRole, isLoading: isPlatformRoleLoading } = useDoc(platformRoleRef);
 
   const venueRef = useMemoFirebase(() => (!firestore || !sellerId ? null : doc(firestore, 'venues', sellerId)), [firestore, sellerId]);
   const { data: venueData } = useDoc<Venue>(venueRef);
 
-  const hasAccess = isHardcodedSuperAdmin || !!platformRole || (sellerRole?.sellerId === sellerId);
+  const isPlatformAdmin = isHardcodedSuperAdmin || !!platformRole;
+  const isAssignedVenueAdmin = sellerRole?.sellerId === sellerId;
+  const hasAccess = isPlatformAdmin || isAssignedVenueAdmin;
 
   useEffect(() => { setIsMounted(true); }, []);
-  useEffect(() => { if (!isUserLoading && !user) router.push('/login'); }, [user, isUserLoading, router]);
+  
+  // Access Control Redirection
+  useEffect(() => { 
+    if (!isMounted || isUserLoading || isSellerRoleLoading || isPlatformRoleLoading) return;
+    if (!user) {
+      router.push('/login');
+    } else if (!hasAccess) {
+      toast({ 
+        variant: "destructive", 
+        title: "Access Denied", 
+        description: "You do not have permission to view this establishment's dashboard." 
+      });
+      router.push('/login');
+    }
+  }, [user, isUserLoading, router, hasAccess, isMounted, isSellerRoleLoading, isPlatformRoleLoading]);
 
   const scrollToSection = (id: string) => {
     const element = document.getElementById(id);
@@ -183,10 +203,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     setIsStaffFormOpen(false); setEditingStaff(null); staffForm.reset();
   };
 
-  /**
-   * handleStartStripeOnboarding
-   * Securely triggers the backend Cloud Function and redirects the user to Stripe.
-   */
   const handleStartStripeOnboarding = async () => {
     if (!firebaseApp || !user) return;
     setIsStripeLoading(true);
@@ -198,14 +214,11 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
       const { url } = result.data as { url: string };
       
       if (url) {
-        // Redirection trigger: physically move the user from Koop to Stripe
         window.location.href = url;
       } else {
         throw new Error("The system failed to generate a secure onboarding link.");
       }
     } catch (error: any) {
-      // Error Handling: Tell the user exactly why the connection failed
-      console.error("Stripe Connection Error:", error);
       toast({ 
         variant: "destructive", 
         title: "Connection Failed", 
@@ -288,14 +301,26 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     batch.commit();
   };
 
-  if (isUserLoading || !isMounted) return <div className="flex items-center justify-center min-h-screen"><Loader2 className="animate-spin" /></div>;
+  if (isUserLoading || isSellerRoleLoading || isPlatformRoleLoading || !isMounted) {
+    return <div className="flex items-center justify-center min-h-screen"><Loader2 className="animate-spin h-10 w-10 text-primary" /></div>;
+  }
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-7xl pb-24">
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
-        <div>
-          <h1 className="font-headline text-3xl font-bold uppercase">ESTABLISHMENT ADMIN</h1>
-          <p className="text-muted-foreground">{seller?.courseName}</p>
+        <div className="flex items-center gap-4">
+          {isPlatformAdmin && (
+            <Button variant="outline" size="icon" asChild className="rounded-full">
+              <Link href="/admin"><ArrowLeft className="h-4 w-4" /></Link>
+            </Button>
+          )}
+          <div>
+            <h1 className="font-headline text-3xl font-bold uppercase">ESTABLISHMENT ADMIN</h1>
+            <div className="flex items-center gap-2">
+              <p className="text-muted-foreground">{seller?.courseName}</p>
+              {isPlatformAdmin && <Badge variant="secondary" className="text-[8px] font-black uppercase bg-indigo-50 text-indigo-700 border-indigo-200">IMPERSONATING</Badge>}
+            </div>
+          </div>
         </div>
         <div className="flex items-center gap-3">
           <Button variant="outline" onClick={handleResetDemo} disabled={isResettingDemo}>{isResettingDemo ? <Loader2 className="animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />} Reset Demo</Button>
@@ -316,7 +341,9 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
           <OpsMetricCard label="Today's Revenue" value={`$${dashboardStats?.monthly.revenue.toFixed(2) || '0.00'}`} icon={DollarSign} />
           <OpsMetricCard label="Active Orders" value={orders?.filter(o => o.status !== 'Delivered').length || 0} icon={ShoppingBag} />
           <OpsMetricCard label="Overdue" value={dashboardStats?.monthly.longWait || 0} icon={AlertTriangle} />
-          <Button asChild className="h-full bg-indigo-600"><Link href={`/sellers/${sellerId}/bevcart`}>Launch BevCart</Link></Button>
+          <Button asChild className="h-full bg-[#213147] hover:bg-black font-black uppercase tracking-widest text-[10px]">
+            <Link href={`/sellers/${sellerId}/bevcart`}>Launch Dashboard <ExternalLink className="ml-2 h-3.5 w-3.5" /></Link>
+          </Button>
         </div>
       </section>
 

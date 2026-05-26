@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -17,7 +18,10 @@ import {
   CheckCircle2,
   Stethoscope,
   Zap,
-  LogOut
+  LogOut,
+  UserPlus,
+  ShieldCheck,
+  Search
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -48,7 +52,7 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useFirestore, useCollection, useMemoFirebase, useFirebase, useAuth } from '@/firebase';
+import { useFirestore, useCollection, useMemoFirebase, useFirebase, useAuth, useUser } from '@/firebase';
 import { signOut } from 'firebase/auth';
 import { collection, query, limit, doc, setDoc, serverTimestamp, writeBatch, getDocs, deleteDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
@@ -59,24 +63,24 @@ import { useToast } from '@/hooks/use-toast';
 import { publicGolfItems, privateGolfItems, bowlingAlleyItems } from '@/lib/data';
 import { cn } from '@/lib/utils';
 
-/**
- * PlatformAdminPage
- * The central command for Koop administrators to provision and maintain venues.
- */
 export default function PlatformAdminPage() {
   const { firebaseApp } = useFirebase();
   const firestore = useFirestore();
   const auth = useAuth();
   const router = useRouter();
+  const { user } = useUser();
   const { toast } = useToast();
   const [isMounted, setIsMounted] = useState(false);
   
   const [isProvisionOpen, setIsProvisionOpen] = useState(false);
   const [isSetupItemsOpen, setIsSetupItemsOpen] = useState(false);
+  const [isAccessManagerOpen, setIsAccessManagerOpen] = useState(false);
   const [selectedVenue, setSelectedVenue] = useState<Seller | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isHealthChecking, setIsHealthChecking] = useState(false);
   const [healthStatus, setHealthStatus] = useState<any>(null);
+
+  const [managerEmail, setManagerEmail] = useState('');
 
   const [newVenue, setNewVenue] = useState<Partial<Seller>>({
     courseName: '',
@@ -174,6 +178,30 @@ export default function PlatformAdminPage() {
     }
   };
 
+  const handleGrantAccess = async () => {
+    if (!firestore || !selectedVenue || !managerEmail) return;
+    setIsProcessing(true);
+    try {
+      const cleanEmail = managerEmail.toLowerCase().trim();
+      await setDoc(doc(firestore, 'roles_seller_admin', cleanEmail), {
+        sellerId: selectedVenue.id,
+        courseName: selectedVenue.courseName,
+        assignedAt: serverTimestamp()
+      }, { merge: true });
+
+      toast({ 
+        title: "Access Granted", 
+        description: `${cleanEmail} can now manage ${selectedVenue.courseName}.` 
+      });
+      setIsAccessManagerOpen(false);
+      setManagerEmail('');
+    } catch (error: any) {
+      toast({ variant: "destructive", title: "Assignment Failed", description: error.message });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   const handleInitializeMenu = async (venue: Seller) => {
     if (!firestore) return;
     setIsProcessing(true);
@@ -229,7 +257,7 @@ export default function PlatformAdminPage() {
               Control Panel
             </Badge>
           </div>
-          <p className="text-muted-foreground text-sm">Provision venues and maintain global catalog items.</p>
+          <p className="text-muted-foreground text-sm">Provision venues, manage managers, and maintain global catalogs.</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <Button 
@@ -347,12 +375,15 @@ export default function PlatformAdminPage() {
                     </div>
 
                     <div className="flex items-center gap-3">
+                      <Button variant="outline" size="sm" onClick={() => { setSelectedVenue(venue); setIsAccessManagerOpen(true); }} className="h-10 px-4 font-black text-[10px] uppercase tracking-widest rounded-xl border-2">
+                        <UserPlus className="h-3.5 w-3.5 mr-2" /> Manage Access
+                      </Button>
                       <Button variant="outline" size="sm" onClick={() => { setSelectedVenue(venue); setIsSetupItemsOpen(true); }} className="h-10 px-4 font-black text-[10px] uppercase tracking-widest rounded-xl border-2">
                         <Sparkles className="h-3.5 w-3.5 mr-2" /> Setup Items
                       </Button>
                       <Button variant="outline" size="sm" asChild className="h-10 px-4 font-black text-[10px] uppercase tracking-widest rounded-xl border-2">
                         <Link href={`/sellers/${venue.id}`}>
-                          <Settings2 className="h-3.5 w-3.5 mr-2" /> Maintain
+                          <Settings2 className="h-3.5 w-3.5 mr-2" /> Impersonate
                         </Link>
                       </Button>
                       <Button variant="ghost" size="icon" onClick={() => handleDeleteVenue(venue.id)} className="h-10 w-10 text-muted-foreground hover:text-destructive rounded-xl">
@@ -385,6 +416,46 @@ export default function PlatformAdminPage() {
           <DialogFooter>
             <Button onClick={handleProvisionVenue} disabled={isProcessing || !newVenue.courseName || !newVenue.contactEmail} className="w-full h-12 bg-[#213147] font-black uppercase tracking-widest">
               {isProcessing ? <Loader2 className="animate-spin h-5 w-5 mr-2" /> : <CheckCircle2 className="h-5 w-5 mr-2" />} Finalize Provisioning
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isAccessManagerOpen} onOpenChange={setIsAccessManagerOpen}>
+        <DialogContent className="sm:max-w-[450px]">
+          <DialogHeader>
+            <div className="p-3 bg-indigo-50 rounded-2xl w-fit mb-4">
+              <ShieldCheck className="h-8 w-8 text-indigo-600" />
+            </div>
+            <DialogTitle className="font-headline font-black uppercase tracking-tight text-[#213147]">Authorize Manager</DialogTitle>
+            <DialogDescription className="text-xs font-medium">Assign a Venue Admin to {selectedVenue?.courseName}. This user will only see this establishment's dashboard.</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-6 py-6">
+            <div className="grid gap-2">
+              <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Authorized Email Address</Label>
+              <div className="relative">
+                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Input 
+                  placeholder="manager@venue.com" 
+                  className="pl-10 h-11 border-2 font-bold"
+                  value={managerEmail}
+                  onChange={(e) => setManagerEmail(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="p-4 bg-muted/30 rounded-xl border-2 border-dashed">
+              <p className="text-[9px] text-muted-foreground uppercase font-black tracking-widest leading-relaxed">
+                Note: The user must log in with this exact email to gain management access to {selectedVenue?.courseName}.
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button 
+              onClick={handleGrantAccess} 
+              disabled={isProcessing || !managerEmail} 
+              className="w-full h-12 bg-indigo-600 hover:bg-indigo-700 font-black uppercase tracking-widest"
+            >
+              {isProcessing ? <Loader2 className="animate-spin h-5 w-5 mr-2" /> : <CheckCircle2 className="h-5 w-5 mr-2" />} Assign Access Role
             </Button>
           </DialogFooter>
         </DialogContent>
