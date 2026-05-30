@@ -31,14 +31,15 @@ service cloud.firestore {
       allow read: if isSignedIn() && request.auth.token.email.lower() == email.lower();
     }
 
-    // Platform configuration readable by any staff member/admin
+    // Platform configuration readable by everyone (e.g. for support email access)
     match /platform/config {
-      allow read: if isSignedIn();
+      allow read: if true;
       allow write: if isSuperAdmin();
     }
 
+    // Venue registry readable by everyone (contains non-sensitive business names/IDs)
     match /venues/{venueId} {
-      allow read: if isSignedIn();
+      allow read: if true;
       allow write: if isSuperAdmin();
     }
 
@@ -57,7 +58,7 @@ service cloud.firestore {
     }
 
     match /orders/{orderId} {
-      allow read, write: if isSignedIn();
+      allow read, write: if true;
     }
 
     // Sales CRM access
