@@ -1,43 +1,64 @@
+
 'use client';
 
 import React, { useState, useMemo, useEffect, use } from 'react';
-import { collection, doc, setDoc, writeBatch, query, where, updateDoc, serverTimestamp, getDocs } from 'firebase/firestore';
+import { 
+  collection, 
+  doc, 
+  setDoc, 
+  writeBatch, 
+  query, 
+  where, 
+  updateDoc, 
+  serverTimestamp, 
+  getDocs,
+  Timestamp 
+} from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
 import { useFirestore, useDoc, useCollection, useMemoFirebase, useUser, useAuth, useFirebase } from '@/firebase';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { 
-  PlusCircle, 
-  Edit, 
-  Trash2, 
-  Users, 
-  Sparkles, 
-  Loader2, 
-  ListChecks, 
-  BarChart3, 
-  GripVertical,
+  LayoutDashboard,
+  ClipboardList,
+  UtensilsCrossed,
+  Zap,
+  Users,
+  CreditCard,
+  BarChart3,
+  Settings,
+  ChevronRight,
+  ChevronLeft,
+  Store,
+  Plus,
+  Edit,
+  Trash2,
+  Sparkles,
+  Loader2,
+  LogOut,
+  ArrowLeft,
+  Mail,
+  ExternalLink,
+  ShieldCheck,
+  AlertTriangle,
+  Clock,
   DollarSign,
   ShoppingBag,
-  Clock,
-  Activity,
-  AlertTriangle,
-  Download,
-  LogOut,
   Layers,
-  CreditCard,
-  ShieldCheck,
-  ExternalLink,
-  ChevronRight,
-  Database,
-  ArrowLeft,
-  Mail
+  GripVertical,
+  Download,
+  Activity,
+  CheckCircle2,
+  MoreVertical,
+  Search,
+  Filter
 } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Form, FormControl, FormField, FormItem, FormLabel } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import {
   Select,
   SelectContent,
@@ -46,12 +67,14 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { cn, SUPER_ADMIN_ID } from '@/lib/utils';
-import { isThisMonth, isThisYear } from 'date-fns';
+import { isThisMonth, isThisYear, format, isToday } from 'date-fns';
 import * as XLSX from 'xlsx';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
+import { StylizedKoopLogo } from '@/components/header';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 import {
   DndContext,
@@ -75,6 +98,8 @@ import type { MenuItem, Seller, Order, StaffMember, Venue, PlatformConfig } from
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { publicGolfItems, privateGolfItems, bowlingAlleyItems } from '@/lib/data';
 
+// --- SCHEMAS ---
+
 const staffSchema = z.object({
   name: z.string().min(2, 'Name required'),
   role: z.enum(['Driver', 'Server', 'Manager']),
@@ -84,63 +109,103 @@ const staffSchema = z.object({
 
 type StaffFormData = z.infer<typeof staffSchema>;
 
-function SortableMenuItem({ item, onRemove }: { item: MenuItem; onRemove: (item: MenuItem) => void }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id });
-  const style = { transform: CSS.Transform.toString(transform), transition, zIndex: isDragging ? 50 : undefined };
+// --- UI COMPONENTS ---
 
+function NavButton({ id, label, icon: Icon, active, onClick, sidebarOpen }: { 
+  id: string, label: string, icon: any, active: boolean, onClick: (id: string) => void, sidebarOpen: boolean 
+}) {
   return (
-    <div ref={setNodeRef} style={style} className={cn("flex items-center justify-between p-3 rounded-lg border bg-card transition-shadow", isDragging ? "shadow-xl border-primary ring-2 ring-primary/20 opacity-90" : "shadow-sm")}>
-      <div className="flex items-center gap-3">
-        <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing p-1 hover:bg-muted rounded text-muted-foreground"><GripVertical className="h-4 w-4" /></div>
-        <div className="flex items-center gap-2"><span className="text-xs font-medium">{item.name}</span>{item.modifierGroups?.length ? <Layers className="h-3 w-3 text-primary" /> : null}</div>
-      </div>
-      <Button variant="ghost" size="icon" className="text-destructive h-7 w-7" onClick={() => onRemove(item)}><Trash2 className="h-3.5 w-3.5" /></Button>
-    </div>
+    <button
+      onClick={() => onClick(id)}
+      className={cn(
+        "flex items-center gap-3 w-full px-4 py-3 rounded-xl transition-all duration-200 group",
+        active 
+          ? "bg-primary/10 text-white border-l-4 border-primary" 
+          : "text-slate-400 hover:bg-white/5 hover:text-white"
+      )}
+    >
+      <Icon className={cn("h-5 w-5 shrink-0", active ? "text-primary" : "group-hover:text-white")} />
+      {sidebarOpen && (
+        <span className={cn("text-xs font-bold uppercase tracking-widest", active ? "text-white" : "")}>
+          {label}
+        </span>
+      )}
+    </button>
   );
 }
 
-function StatTile({ title, revenue, orders, longWait }: { title: string, revenue: number, orders: number, longWait: number }) {
+function KPICard({ label, value, sub, icon: Icon, colorClass }: { label: string, value: string | number, sub: string, icon: any, colorClass?: string }) {
   return (
-    <Card className="flex-1 min-w-[300px] shadow-sm">
-      <CardHeader className="pb-2"><CardTitle className="text-lg font-headline">{title}</CardTitle><CardDescription>Sales Performance</CardDescription></CardHeader>
-      <CardContent className="space-y-4 pt-4">
-        <div className="flex items-center justify-between"><div className="flex items-center gap-2"><DollarSign className="h-4 w-4 text-primary" /><span className="text-sm font-medium">Revenue</span></div><span className="font-mono font-bold">${revenue.toFixed(2)}</span></div>
-        <div className="flex items-center justify-between"><div className="flex items-center gap-2"><ShoppingBag className="h-4 w-4 text-primary" /><span className="text-sm font-medium">Orders</span></div><span className="font-mono font-bold">{orders}</span></div>
-        <div className="flex items-center justify-between"><div className="flex items-center gap-2"><Clock className="h-4 w-4 text-destructive" /><span className="text-sm font-medium">Overdue</span></div><span className="font-mono font-bold text-destructive">{longWait}</span></div>
+    <Card className="border-2 shadow-sm overflow-hidden relative">
+      <div className={cn("absolute top-0 left-0 bottom-0 w-1.5", colorClass)} />
+      <CardHeader className="pb-2 pt-5">
+        <CardDescription className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+          <Icon className="h-3 w-3" /> {label}
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="pb-5">
+        <div className="text-3xl font-black font-headline tracking-tighter text-[#213147] mb-1">{value}</div>
+        <p className="text-[10px] font-bold text-muted-foreground uppercase">{sub}</p>
       </CardContent>
     </Card>
   );
 }
 
-function OpsMetricCard({ label, value, icon: Icon, colorClass }: { label: string, value: string | number, icon: any, colorClass?: string }) {
+function SortableMenuItem({ item, onRemove }: { item: MenuItem; onRemove: (item: MenuItem) => void }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id });
+  const style = { transform: CSS.Transform.toString(transform), transition, zIndex: isDragging ? 50 : undefined };
+
   return (
-    <div className="bg-background border rounded-xl p-3 shadow-sm flex items-center gap-3">
-      <div className={cn("p-2 rounded-lg bg-primary/10", colorClass)}><Icon className="h-4 w-4" /></div>
-      <div className="min-w-0"><p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground truncate">{label}</p><p className="text-sm font-black font-headline truncate">{value}</p></div>
+    <div ref={setNodeRef} style={style} className={cn("flex items-center justify-between p-4 rounded-xl border-2 bg-white transition-all", isDragging ? "shadow-2xl border-primary ring-4 ring-primary/10 opacity-90 scale-105" : "shadow-sm border-slate-100 hover:border-slate-200")}>
+      <div className="flex items-center gap-4">
+        <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing p-2 hover:bg-slate-50 rounded-lg text-slate-400">
+          <GripVertical className="h-5 w-5" />
+        </div>
+        <div>
+          <p className="font-black text-sm text-[#213147] uppercase tracking-tight">{item.name}</p>
+          <div className="flex items-center gap-2 mt-0.5">
+            <span className="text-[10px] font-bold text-muted-foreground uppercase">{item.category}</span>
+            <span className="text-[10px] font-black text-primary">${item.price.toFixed(2)}</span>
+          </div>
+        </div>
+      </div>
+      <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10 rounded-full h-10 w-10" onClick={() => onRemove(item)}>
+        <Trash2 className="h-4 w-4" />
+      </Button>
     </div>
   );
 }
 
+// --- MAIN PAGE ---
+
 export default function SellerAdminPage({ params }: { params: Promise<{ sellerId: string }> }) {
   const { sellerId } = use(params);
-  const { firebaseApp } = useFirebase();
   const firestore = useFirestore();
   const auth = useAuth();
   const { user, isUserLoading } = useUser();
   const router = useRouter();
   const { toast } = useToast();
 
+  // Navigation State
+  const [activeNav, setActiveNav] = useState('dashboard');
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+
+  // Functional State
   const [isMounted, setIsMounted] = useState(false);
-  const [selectedOpsMenu, setSelectedOpsMenu] = useState<string>('');
   const [isStaffFormOpen, setIsStaffFormOpen] = useState(false);
   const [editingStaff, setEditingStaff] = useState<StaffMember | null>(null);
   const [isResettingDemo, setIsResettingDemo] = useState(false);
   const [isProvisioningRegistry, setIsProvisioningRegistry] = useState(false);
-  
-  const sensors = useSensors(useSensor(PointerSensor), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
+  const [now, setNow] = useState(new Date());
+
+  const sensors = useSensors(
+    useSensor(PointerSensor), 
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
   
   const isHardcodedSuperAdmin = user?.uid === SUPER_ADMIN_ID || user?.email === 'mosherpe@gmail.com';
 
+  // Role Checks
   const roleRef = useMemoFirebase(() => (!firestore || !user?.email ? null : doc(firestore, 'roles_seller_admin', user.email.toLowerCase())), [firestore, user]);
   const { data: sellerRole, isLoading: isSellerRoleLoading } = useDoc(roleRef);
   
@@ -157,9 +222,12 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   const isAssignedVenueAdmin = sellerRole?.sellerId === sellerId;
   const hasAccess = isPlatformAdmin || isAssignedVenueAdmin;
 
-  useEffect(() => { setIsMounted(true); }, []);
+  useEffect(() => { 
+    setIsMounted(true); 
+    const timer = setInterval(() => setNow(new Date()), 60000);
+    return () => clearInterval(timer);
+  }, []);
   
-  // Access Control Redirection
   useEffect(() => { 
     if (!isMounted || isUserLoading || isSellerRoleLoading || isPlatformRoleLoading) return;
     if (!user) {
@@ -174,34 +242,80 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     }
   }, [user, isUserLoading, router, hasAccess, isMounted, isSellerRoleLoading, isPlatformRoleLoading]);
 
-  const scrollToSection = (id: string) => {
-    const element = document.getElementById(id);
-    if (element) {
-      const offset = 80; const elementPosition = element.getBoundingClientRect().top;
-      const offsetPosition = elementPosition + window.pageYOffset - offset;
-      window.scrollTo({ top: offsetPosition, behavior: 'smooth' });
-    }
-  };
-
+  // Data Fetching
   const sellerRef = useMemoFirebase(() => (firestore ? doc(firestore, 'sellers', sellerId) : null), [firestore, sellerId]);
   const { data: seller } = useDoc<Seller>(sellerRef);
 
-  useEffect(() => { if (seller?.menuTypes?.length && !selectedOpsMenu) setSelectedOpsMenu(seller.menuTypes[0]); }, [seller, selectedOpsMenu]);
-
   const menuItemsQuery = useMemoFirebase(() => (firestore && hasAccess ? collection(firestore, 'sellers', sellerId, 'menuItems') : null), [firestore, sellerId, hasAccess]);
   const { data: menuItems } = useCollection<MenuItem>(menuItemsQuery);
+
   const ordersQuery = useMemoFirebase(() => (firestore && hasAccess ? query(collection(firestore, 'orders'), where('sellerId', '==', sellerId)) : null), [firestore, sellerId, hasAccess]);
   const { data: orders } = useCollection<Order>(ordersQuery);
+
   const staffQuery = useMemoFirebase(() => (firestore && hasAccess ? collection(firestore, 'sellers', sellerId, 'staff') : null), [firestore, sellerId, hasAccess]);
   const { data: staff } = useCollection<StaffMember>(staffQuery);
 
-  const staffForm = useForm<StaffFormData>({ resolver: zodResolver(staffSchema), defaultValues: { name: '', role: 'Driver', pin: '', isActive: true } });
+  // Form Logic
+  const staffForm = useForm<StaffFormData>({ 
+    resolver: zodResolver(staffSchema), 
+    defaultValues: { name: '', role: 'Driver', pin: '', isActive: true } 
+  });
 
   const onSaveStaff = async (data: StaffFormData) => {
     if (!firestore || !hasAccess) return;
     const staffId = editingStaff ? editingStaff.id : Math.random().toString(36).substr(2, 9);
-    await setDoc(doc(firestore, 'sellers', sellerId, 'staff', staffId), { ...data, id: staffId, createdAt: editingStaff?.createdAt || serverTimestamp() }, { merge: true });
-    setIsStaffFormOpen(false); setEditingStaff(null); staffForm.reset();
+    await setDoc(doc(firestore, 'sellers', sellerId, 'staff', staffId), { 
+      ...data, 
+      id: staffId, 
+      createdAt: editingStaff?.createdAt || serverTimestamp() 
+    }, { merge: true });
+    setIsStaffFormOpen(false); 
+    setEditingStaff(null); 
+    staffForm.reset();
+    toast({ title: "Staff member saved" });
+  };
+
+  const handleToggleMode = async (mode: string, current: boolean) => {
+    if (!firestore || !sellerId) return;
+    const fieldMap: Record<string, string> = {
+      'Beverage Cart': 'bevcartActive',
+      'Clubhouse': 'clubhouseActive',
+      'Lane Delivery': 'lanedeliveryActive',
+      'Take Out': 'takeoutActive'
+    };
+    const field = fieldMap[mode];
+    if (field) {
+      await updateDoc(doc(firestore, 'sellers', sellerId), { [field]: !current });
+      toast({ title: `${mode} status updated` });
+    }
+  };
+
+  const handleResetDemo = async () => {
+    if (!firestore || !sellerId || !hasAccess) return;
+    setIsResettingDemo(true);
+    try {
+      const batch = writeBatch(firestore);
+      const seedItems = sellerId.includes('bowling') ? bowlingAlleyItems : (sellerId.includes('private') ? privateGolfItems : publicGolfItems);
+      const snapshot = await getDocs(collection(firestore, 'sellers', sellerId, 'menuItems'));
+      snapshot.docs.forEach(d => batch.delete(d.ref));
+      seedItems.forEach((item, idx) => {
+        const itemRef = doc(collection(firestore, 'sellers', sellerId, 'menuItems'));
+        batch.set(itemRef, { ...item, id: itemRef.id, rank: idx, createdAt: serverTimestamp() });
+      });
+      await batch.commit();
+      toast({ title: "Demo Reset Successful" });
+    } finally { setIsResettingDemo(false); }
+  };
+
+  const handleDragEnd = (event: DragEndEvent, menuType: string, items: MenuItem[]) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id || !firestore || !hasAccess) return;
+    const oldIndex = items.findIndex((i) => i.id === active.id);
+    const newIndex = items.findIndex((i) => i.id === over.id);
+    const reordered = arrayMove(items, oldIndex, newIndex);
+    const batch = writeBatch(firestore);
+    reordered.forEach((item, index) => batch.update(doc(firestore, 'sellers', sellerId, 'menuItems', item.id), { [`menuRanks.${menuType}`]: index }));
+    batch.commit();
   };
 
   const supportEmail = platformConfig?.supportEmail || 'mosherpe@gmail.com';
@@ -228,233 +342,604 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     }
   };
 
-  const dashboardStats = useMemo(() => {
-    if (!orders || !seller) return null;
-    const calculate = (filtered: Order[]) => {
-      const revenue = filtered.reduce((acc, o) => acc + o.total, 0);
-      const longWait = filtered.filter(o => {
-        if (!o.deliveredAt || !o.createdAt) return false;
-        const duration = (o.deliveredAt.toDate().getTime() - o.createdAt.toDate().getTime()) / 60000;
-        return duration > (seller.orderThresholds?.[o.menuType]?.max || 10);
-      }).length;
-      return { revenue, orders: filtered.length, longWait };
-    };
+  const stats = useMemo(() => {
+    if (!orders) return null;
+    const todayOrders = orders.filter(o => o.createdAt && isToday(o.createdAt.toDate()));
+    const todayRevenue = todayOrders.reduce((acc, o) => acc + o.total, 0);
+    const activeCount = orders.filter(o => o.status !== 'Delivered').length;
+    const totalOrdersCount = todayOrders.length;
+    const avgOrderValue = totalOrdersCount > 0 ? todayRevenue / totalOrdersCount : 0;
+    
     return {
-      monthly: calculate(orders.filter(o => o.createdAt && isThisMonth(o.createdAt.toDate()))),
-      yearly: calculate(orders.filter(o => o.createdAt && isThisYear(o.createdAt.toDate()))),
+      todayRevenue: todayRevenue.toFixed(2),
+      activeCount,
+      totalOrdersCount,
+      avgOrderValue: avgOrderValue.toFixed(2)
     };
-  }, [orders, seller]);
-
-  const handleExportToExcel = () => {
-    if (!orders || !orders.length) return;
-    const worksheet = XLSX.utils.json_to_sheet(orders.map(o => ({ ID: o.id, Total: o.total, Status: o.status })));
-    const workbook = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(workbook, worksheet, "Report");
-    XLSX.writeFile(workbook, "Report.xlsx");
-  };
-
-  const handleResetDemo = async () => {
-    if (!firestore || !sellerId || !hasAccess) return;
-    setIsResettingDemo(true);
-    try {
-      const batch = writeBatch(firestore);
-      const seedItems = sellerId.includes('bowling') ? bowlingAlleyItems : (sellerId.includes('private') ? privateGolfItems : publicGolfItems);
-      const snapshot = await getDocs(collection(firestore, 'sellers', sellerId, 'menuItems'));
-      snapshot.docs.forEach(d => batch.delete(d.ref));
-      seedItems.forEach((item, idx) => {
-        const itemRef = doc(collection(firestore, 'sellers', sellerId, 'menuItems'));
-        batch.set(itemRef, { ...item, id: itemRef.id, rank: idx, createdAt: serverTimestamp() });
-      });
-      await batch.commit();
-      toast({ title: "Demo Reset" });
-    } finally { setIsResettingDemo(false); }
-  };
-
-  const handleDragEnd = (event: DragEndEvent, menuType: string, items: MenuItem[]) => {
-    const { active, over } = event;
-    if (!over || active.id === over.id || !firestore || !hasAccess) return;
-    const oldIndex = items.findIndex((i) => i.id === active.id);
-    const newIndex = items.findIndex((i) => i.id === over.id);
-    const reordered = arrayMove(items, oldIndex, newIndex);
-    const batch = writeBatch(firestore);
-    reordered.forEach((item, index) => batch.update(doc(firestore, 'sellers', sellerId, 'menuItems', item.id), { [`menuRanks.${menuType}`]: index }));
-    batch.commit();
-  };
+  }, [orders]);
 
   if (isUserLoading || isSellerRoleLoading || isPlatformRoleLoading || !isMounted) {
-    return <div className="flex items-center justify-center min-h-screen"><Loader2 className="animate-spin h-10 w-10 text-primary" /></div>;
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-white">
+        <Loader2 className="animate-spin h-10 w-10 text-primary mb-4" />
+        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Synchronizing Admin Interface...</p>
+      </div>
+    );
   }
 
+  const NAV_ITEMS = [
+    { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
+    { id: "orders", label: "Orders", icon: ClipboardList },
+    { id: "menu", label: "Menu", icon: UtensilsCrossed },
+    { id: "service", label: "Service Modes", icon: Zap },
+    { id: "staff", label: "Staff Registry", icon: Users },
+    { id: "payments", label: "Payments", icon: CreditCard },
+    { id: "analytics", label: "Analytics", icon: BarChart3 },
+    { id: "settings", label: "Settings", icon: Settings },
+  ];
+
   return (
-    <div className="container mx-auto px-4 py-8 max-w-7xl pb-24">
-      <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
-        <div className="flex items-center gap-4">
-          {isPlatformAdmin && (
-            <Button variant="outline" size="icon" asChild className="rounded-full">
-              <Link href="/admin"><ArrowLeft className="h-4 w-4" /></Link>
-            </Button>
+    <div className="flex h-screen bg-[#F8FAFC] overflow-hidden">
+      
+      {/* SIDEBAR NAVIGATION */}
+      <aside className={cn(
+        "bg-[#213147] flex flex-col transition-all duration-300 relative border-r-4 border-primary/20 shrink-0",
+        sidebarOpen ? "w-64" : "w-20"
+      )}>
+        <div className="p-6 border-b border-white/5">
+          <StylizedKoopLogo size={sidebarOpen ? "md" : "sm"} />
+          {sidebarOpen && <p className="text-[9px] font-black text-primary uppercase tracking-[0.2em] mt-1 ml-1">Establishment Admin</p>}
+        </div>
+
+        <nav className="flex-1 p-3 space-y-1">
+          {NAV_ITEMS.map((item) => (
+            <NavButton 
+              key={item.id} 
+              id={item.id} 
+              label={item.label} 
+              icon={item.icon} 
+              active={activeNav === item.id} 
+              onClick={setActiveNav}
+              sidebarOpen={sidebarOpen}
+            />
+          ))}
+        </nav>
+
+        <div className="mt-auto border-t border-white/5 p-4">
+          {sidebarOpen && (
+            <div className="bg-white/5 rounded-xl p-4 mb-4">
+              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Active Venue</p>
+              <p className="text-xs font-black text-white uppercase tracking-tight truncate">{seller?.courseName}</p>
+              <Badge variant="outline" className="mt-2 text-[8px] border-primary/30 text-primary uppercase font-black tracking-widest">
+                {seller?.type}
+              </Badge>
+            </div>
           )}
-          <div>
-            <h1 className="font-headline text-3xl font-bold uppercase">ESTABLISHMENT ADMIN</h1>
-            <div className="flex items-center gap-2">
-              <p className="text-muted-foreground">{seller?.courseName}</p>
-              {isPlatformAdmin && <Badge variant="secondary" className="text-[8px] font-black uppercase bg-indigo-50 text-indigo-700 border-indigo-200">IMPERSONATING</Badge>}
-            </div>
-          </div>
+          <button 
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+            className="w-full flex items-center justify-center p-2 text-slate-400 hover:text-white transition-colors"
+          >
+            {sidebarOpen ? <ChevronLeft /> : <ChevronRight />}
+          </button>
         </div>
-        <div className="flex items-center gap-3">
-          <Button variant="outline" onClick={handleResetDemo} disabled={isResettingDemo}>{isResettingDemo ? <Loader2 className="animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />} Reset Demo</Button>
-          <Button variant="ghost" onClick={() => signOut(auth!)} className="text-destructive"><LogOut className="mr-2 h-4 w-4" /> Sign Out</Button>
-        </div>
-      </header>
+      </aside>
 
-      <nav className="sticky top-16 z-30 bg-background border-y mb-8 py-3 flex gap-2 overflow-x-auto">
-        <Button variant="ghost" size="sm" onClick={() => scrollToSection('ops-monitor')} className="text-[10px] font-bold uppercase"><Activity className="mr-1 h-3.5 w-3.5" /> Queue</Button>
-        <Button variant="ghost" size="sm" onClick={() => scrollToSection('payments')} className="text-[10px] font-bold uppercase"><CreditCard className="mr-1 h-3.5 w-3.5" /> Payments</Button>
-        <Button variant="ghost" size="sm" onClick={() => scrollToSection('staff-management')} className="text-[10px] font-bold uppercase"><Users className="mr-1 h-3.5 w-3.5" /> Staff</Button>
-        <Button variant="ghost" size="sm" onClick={() => scrollToSection('sales-stats')} className="text-[10px] font-bold uppercase"><BarChart3 className="mr-1 h-3.5 w-3.5" /> Sales</Button>
-        <Button variant="ghost" size="sm" onClick={() => scrollToSection('service-management')} className="text-[10px] font-bold uppercase"><ListChecks className="mr-1 h-3.5 w-3.5" /> Menus</Button>
-      </nav>
-
-      <section id="ops-monitor" className="mb-12">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <OpsMetricCard label="Today's Revenue" value={`$${dashboardStats?.monthly.revenue.toFixed(2) || '0.00'}`} icon={DollarSign} />
-          <OpsMetricCard label="Active Orders" value={orders?.filter(o => o.status !== 'Delivered').length || 0} icon={ShoppingBag} />
-          <OpsMetricCard label="Overdue" value={dashboardStats?.monthly.longWait || 0} icon={AlertTriangle} />
-          <Button asChild className="h-full bg-[#213147] hover:bg-black font-black uppercase tracking-widest text-[10px]">
-            <Link href={`/sellers/${sellerId}/bevcart`}>Launch Dashboard <ExternalLink className="ml-2 h-3.5 w-3.5" /></Link>
-          </Button>
-        </div>
-      </section>
-
-      <section id="payments" className="mb-12">
-        <div className="flex items-center gap-2 mb-4">
-          <CreditCard className="h-5 w-5 text-indigo-600" />
-          <h2 className="font-headline text-xl font-black uppercase tracking-tight">Payment Integration</h2>
-        </div>
+      {/* MAIN CONTENT AREA */}
+      <main className="flex-1 flex flex-col overflow-hidden">
         
-        <Card className="border-2 shadow-sm overflow-hidden">
-          <div className="grid grid-cols-1 md:grid-cols-3">
-            <div className="md:col-span-2 p-8 space-y-4">
-              <div className="flex items-center gap-3">
-                <div className="bg-indigo-50 p-2.5 rounded-xl">
-                  <CreditCard className="h-6 w-6 text-indigo-600" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-lg">Payout Management</h3>
-                  <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Secure Revenue Handling</p>
-                </div>
-              </div>
-              
-              <p className="text-sm text-slate-600 leading-relaxed max-w-xl">
-                Koop uses Stripe to securely handle all payments. Once your account is verified, revenue is deposited directly into your merchant bank account.
-              </p>
-
-              <div className="flex flex-wrap gap-6 pt-2">
-                <div className="flex items-center gap-2">
-                  <div className="h-2 w-2 rounded-full bg-green-500" />
-                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Zero Transaction Fees for Venue</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="h-2 w-2 rounded-full bg-green-500" />
-                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">PCI-DSS Level 1 Secure</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-slate-50 border-l p-8 flex flex-col items-center justify-center text-center gap-4">
-              {!venueData ? (
-                <div className="p-4 border-2 border-dashed rounded-2xl bg-white space-y-3">
-                  <AlertTriangle className="h-8 w-8 text-amber-500 mx-auto" />
-                  <h4 className="text-xs font-black uppercase tracking-widest text-slate-700">Registry Missing</h4>
-                  <p className="text-[9px] text-muted-foreground leading-relaxed">
-                    This seller does not have a provisioned venue registry.
-                  </p>
-                  {isHardcodedSuperAdmin && (
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="w-full text-[9px] h-8 font-black uppercase tracking-widest"
-                      onClick={handleProvisionRegistry}
-                      disabled={isProvisioningRegistry}
-                    >
-                      {isProvisioningRegistry ? <Loader2 className="animate-spin" /> : <Database className="mr-1 h-3 w-3" />} 
-                      Provision Registry
-                    </Button>
-                  )}
-                </div>
-              ) : venueData.payoutsEnabled ? (
-                <>
-                  <div className="bg-green-100 p-4 rounded-full text-green-600 mb-2">
-                    <ShieldCheck className="h-10 w-10" />
-                  </div>
-                  <Badge className="bg-green-600 uppercase font-black tracking-widest py-1.5 px-4 h-auto">Payouts Active</Badge>
-                  <p className="text-[10px] font-bold text-muted-foreground uppercase px-4">Your venue is verified and processing digital payments.</p>
-                  <Button variant="outline" className="w-full text-[10px] font-black uppercase tracking-widest rounded-xl" asChild>
-                    <a href="https://dashboard.stripe.com" target="_blank" rel="noopener noreferrer">
-                      Stripe Dashboard <ExternalLink className="ml-2 h-3 w-3" />
-                    </a>
-                  </Button>
-                </>
-              ) : (
-                <>
-                  <div className="bg-indigo-100 p-4 rounded-full text-indigo-600 mb-2">
-                    <CreditCard className="h-10 w-10" />
-                  </div>
-                  <h4 className="font-headline font-black text-sm uppercase">Setup Payouts</h4>
-                  <p className="text-[10px] font-medium text-slate-500 uppercase leading-relaxed px-4">
-                    Contact Koop Support to receive your unique onboarding link and start accepting orders.
-                  </p>
-                  <Button 
-                    asChild
-                    className="w-full h-12 bg-indigo-600 hover:bg-indigo-700 shadow-lg font-black uppercase tracking-widest text-[11px] gap-2 rounded-xl"
-                  >
-                    <a href={mailtoLink}>
-                      <Mail className="h-4 w-4" />
-                      Request Setup Link
-                    </a>
-                  </Button>
-                </>
-              )}
-            </div>
+        {/* TOP HEADER */}
+        <header className="h-16 bg-white border-b-2 flex items-center justify-between px-8 shrink-0 z-20 shadow-sm">
+          <div className="flex items-center gap-4">
+            <h2 className="text-xl font-black font-headline uppercase tracking-tight text-[#213147]">
+              {NAV_ITEMS.find(n => n.id === activeNav)?.label}
+            </h2>
+            <span className="text-xs font-bold text-muted-foreground uppercase border-l-2 pl-4">
+              {format(now, 'EEEE, MMMM d, yyyy')}
+            </span>
           </div>
-        </Card>
-      </section>
 
-      <section id="staff-management" className="mb-12">
-        <Card><CardHeader className="flex flex-row items-center justify-between"><CardTitle>Staff Registry</CardTitle><Button onClick={() => { setEditingStaff(null); staffForm.reset(); setIsStaffFormOpen(true); }}>Add Staff</Button></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Role</TableHead><TableHead>PIN</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader><TableBody>{staff?.map(s => (<TableRow key={s.id}><TableCell>{s.name}</TableCell><TableCell>{s.role}</TableCell><TableCell><code>{s.pin}</code></TableCell><TableCell className="text-right"><Button variant="ghost" size="icon" onClick={() => { setEditingStaff(s); staffForm.reset(s); setIsStaffFormOpen(true); }}><Edit className="h-4 w-4" /></Button></TableCell></TableRow>))}</TableBody></Table></CardContent></Card>
-      </section>
+          <div className="flex items-center gap-4">
+            <div className="hidden sm:flex items-center gap-2 px-4 py-2 bg-slate-50 border rounded-full">
+              <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+              <span className="text-[10px] font-black uppercase tracking-widest text-[#213147]">System Online</span>
+            </div>
 
-      <section id="sales-stats" className="mb-12">
-        <div className="flex gap-4 mb-4">{dashboardStats && <><StatTile title="Monthly" revenue={dashboardStats.monthly.revenue} orders={dashboardStats.monthly.orders} longWait={dashboardStats.monthly.longWait} /><StatTile title="Yearly" revenue={dashboardStats.yearly.revenue} orders={dashboardStats.yearly.orders} longWait={dashboardStats.yearly.longWait} /></>}</div>
-        <Button onClick={handleExportToExcel}><Download className="mr-2 h-4 w-4" /> Export Report</Button>
-      </section>
+            {isPlatformAdmin && (
+              <Badge className="bg-primary/10 text-primary border-primary/20 uppercase font-black text-[9px] h-8 px-3">
+                Impersonation Active
+              </Badge>
+            )}
 
-      <section id="service-management" className="mb-12">
-        {seller?.menuTypes?.map(type => {
-          const items = menuItems?.filter(i => i.availableOn?.includes(type)) || [];
-          return (
-            <Card key={type} className="mb-8">
-              <CardHeader><CardTitle>{type} Menu</CardTitle></CardHeader>
-              <CardContent>
-                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(e) => handleDragEnd(e as any, type, items)}>
-                  <SortableContext items={items.map(i => i.id)} strategy={verticalListSortingStrategy}><div className="space-y-2">{items.map(i => <SortableMenuItem key={i.id} item={i} onRemove={(it) => updateDoc(doc(firestore!, 'sellers', sellerId, 'menuItems', it.id), { availableOn: it.availableOn?.filter(t => t !== type) })} />)}</div></SortableContext>
-                </DndContext>
-                <Button variant="outline" className="mt-4" onClick={() => { toast({ title: "Menu Picker Disabled", description: "Functionality currently restricted." }) }}>Manage Items</Button>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </section>
+            <button 
+              onClick={() => signOut(auth!)}
+              className="p-2 text-muted-foreground hover:text-destructive transition-colors"
+              title="Sign Out"
+            >
+              <LogOut className="h-5 w-5" />
+            </button>
+          </div>
+        </header>
 
+        {/* SECTION CONTENT */}
+        <ScrollArea className="flex-1 p-8">
+          <div className="max-w-6xl mx-auto space-y-10 pb-20">
+            
+            {/* DASHBOARD SECTION */}
+            {activeNav === 'dashboard' && (
+              <div className="space-y-10">
+                {/* Metrics */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                  <KPICard label="Today's Revenue" value={`$${stats?.todayRevenue}`} sub="+14% vs yesterday" icon={DollarSign} colorClass="bg-green-500" />
+                  <KPICard label="Active Orders" value={stats?.activeCount || 0} sub="Currently preparing/delivering" icon={ShoppingBag} colorClass="bg-primary" />
+                  <KPICard label="Volume Today" value={stats?.totalOrdersCount || 0} sub="Confirmed orders since 4 AM" icon={Activity} colorClass="bg-[#213147]" />
+                  <KPICard label="Avg Order Value" value={`$${stats?.avgOrderValue}`} sub="Gross sales per patron" icon={TrendingUp} colorClass="bg-amber-500" />
+                </div>
+
+                {/* Service Modes Quick Access */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <Zap className="h-5 w-5 text-primary" />
+                    <h3 className="font-headline font-black text-lg uppercase tracking-tight text-[#213147]">Service Modules</h3>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    {['Beverage Cart', 'Clubhouse', 'Lane Delivery', 'Take Out'].map((mode) => {
+                      const isActive = (mode === 'Beverage Cart' && seller?.bevcartActive) || 
+                                       (mode === 'Clubhouse' && seller?.clubhouseActive) ||
+                                       (mode === 'Lane Delivery' && seller?.lanedeliveryActive) ||
+                                       (mode === 'Take Out' && seller?.takeoutActive);
+                      return (
+                        <Card 
+                          key={mode} 
+                          className={cn(
+                            "cursor-pointer transition-all duration-300 border-2",
+                            isActive ? "border-primary bg-primary/5 shadow-md" : "border-slate-100 bg-white hover:border-slate-200"
+                          )}
+                          onClick={() => handleToggleMode(mode, !!isActive)}
+                        >
+                          <CardContent className="p-6">
+                            <div className="flex justify-between items-start mb-4">
+                              <div className={cn("p-3 rounded-2xl", isActive ? "bg-primary text-white" : "bg-slate-100 text-slate-400")}>
+                                <Zap className="h-6 w-6" />
+                              </div>
+                              <Badge className={isActive ? "bg-primary text-white" : "bg-slate-200 text-slate-400"}>
+                                {isActive ? 'ACTIVE' : 'OFF'}
+                              </Badge>
+                            </div>
+                            <p className="font-black font-headline text-sm uppercase tracking-tight text-[#213147]">{mode}</p>
+                            <p className="text-[10px] font-bold text-muted-foreground uppercase mt-1">
+                              {isActive ? 'Accepting Live Orders' : 'Tap to initialize'}
+                            </p>
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Live Activity Preview */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <Activity className="h-5 w-5 text-primary" />
+                      <h3 className="font-headline font-black text-lg uppercase tracking-tight text-[#213147]">Live Activity</h3>
+                    </div>
+                    <Button variant="link" className="text-primary font-black uppercase text-[10px] tracking-widest" onClick={() => setActiveNav('orders')}>
+                      Full Log <ChevronRight className="h-3 w-3 ml-1" />
+                    </Button>
+                  </div>
+                  <Card className="border-2 shadow-sm overflow-hidden">
+                    <Table>
+                      <TableHeader className="bg-slate-50 border-b">
+                        <TableRow>
+                          <TableHead className="text-[10px] font-black uppercase">Order ID</TableHead>
+                          <TableHead className="text-[10px] font-black uppercase">Service</TableHead>
+                          <TableHead className="text-[10px] font-black uppercase">Patron</TableHead>
+                          <TableHead className="text-[10px] font-black uppercase text-right">Total</TableHead>
+                          <TableHead className="text-[10px] font-black uppercase text-right">Status</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {orders?.slice(0, 5).map((order) => (
+                          <TableRow key={order.id} className="hover:bg-slate-50/50">
+                            <TableCell className="font-mono text-xs font-bold text-primary">#{order.id.slice(-5).toUpperCase()}</TableCell>
+                            <TableCell className="text-xs font-black uppercase">{order.menuType}</TableCell>
+                            <TableCell className="text-xs font-medium">{order.customerName}</TableCell>
+                            <TableCell className="text-right font-bold text-xs">${order.total.toFixed(2)}</TableCell>
+                            <TableCell className="text-right">
+                              <Badge variant="outline" className="text-[8px] font-black uppercase">{order.status}</Badge>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </Card>
+                </div>
+              </div>
+            )}
+
+            {/* ORDERS SECTION */}
+            {activeNav === 'orders' && (
+              <div className="space-y-6">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div className="flex gap-2">
+                    {['All', 'Placed', 'Preparing', 'Delivered'].map(status => (
+                      <Button key={status} variant="outline" className="h-9 px-4 text-[10px] font-black uppercase tracking-widest rounded-full">
+                        {status}
+                      </Button>
+                    ))}
+                  </div>
+                  <Button onClick={() => {
+                    const worksheet = XLSX.utils.json_to_sheet(orders?.map(o => ({ ID: o.id, Patron: o.customerName, Total: o.total, Status: o.status, Date: o.createdAt?.toDate() })) || []);
+                    const workbook = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(workbook, worksheet, "Orders");
+                    XLSX.writeFile(workbook, `Koop_Export_${sellerId}.xlsx`);
+                  }} className="h-10 bg-[#213147] font-black uppercase text-[10px] tracking-widest gap-2">
+                    <Download className="h-4 w-4" /> Export Ledger
+                  </Button>
+                </div>
+
+                <Card className="border-2 shadow-sm overflow-hidden">
+                  <Table>
+                    <TableHeader className="bg-slate-50 border-b">
+                      <TableRow>
+                        <TableHead className="text-[10px] font-black uppercase">Timestamp</TableHead>
+                        <TableHead className="text-[10px] font-black uppercase">Patron</TableHead>
+                        <TableHead className="text-[10px] font-black uppercase">Items</TableHead>
+                        <TableHead className="text-[10px] font-black uppercase text-right">Revenue</TableHead>
+                        <TableHead className="text-[10px] font-black uppercase text-right">Status</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {orders?.map((order) => (
+                        <TableRow key={order.id}>
+                          <TableCell className="text-[10px] font-mono text-muted-foreground">
+                            {order.createdAt ? format(order.createdAt.toDate(), 'HH:mm:ss') : '--'}
+                          </TableCell>
+                          <TableCell className="font-bold text-xs">{order.customerName}</TableCell>
+                          <TableCell className="text-xs text-muted-foreground truncate max-w-[200px]">
+                            {order.items.map(i => `${i.quantity}x ${i.name}`).join(', ')}
+                          </TableCell>
+                          <TableCell className="text-right font-black text-xs">${order.total.toFixed(2)}</TableCell>
+                          <TableCell className="text-right">
+                            <Badge className="text-[9px] font-black uppercase">{order.status}</Badge>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </Card>
+              </div>
+            )}
+
+            {/* MENU SECTION */}
+            {activeNav === 'menu' && (
+              <div className="space-y-8">
+                {seller?.menuTypes?.map(type => {
+                  const items = menuItems?.filter(i => i.availableOn?.includes(type)) || [];
+                  return (
+                    <div key={type} className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <Layers className="h-5 w-5 text-primary" />
+                          <h4 className="font-headline font-black text-base uppercase tracking-tight text-[#213147]">{type} Lineup</h4>
+                        </div>
+                        <Button variant="outline" size="sm" className="h-8 text-[10px] font-black uppercase tracking-widest rounded-lg">
+                          Modify Menu
+                        </Button>
+                      </div>
+                      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(e) => handleDragEnd(e as any, type, items)}>
+                        <SortableContext items={items.map(i => i.id)} strategy={verticalListSortingStrategy}>
+                          <div className="grid gap-3">
+                            {items.map(i => (
+                              <SortableMenuItem 
+                                key={i.id} 
+                                item={i} 
+                                onRemove={(it) => updateDoc(doc(firestore!, 'sellers', sellerId, 'menuItems', it.id), { 
+                                  availableOn: it.availableOn?.filter(t => t !== type) 
+                                })} 
+                              />
+                            ))}
+                          </div>
+                        </SortableContext>
+                      </DndContext>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* STAFF SECTION */}
+            {activeNav === 'staff' && (
+              <div className="space-y-6">
+                <div className="flex justify-between items-center">
+                   <h3 className="font-headline font-black text-lg uppercase tracking-tight text-[#213147]">Credentialed Staff</h3>
+                   <Button onClick={() => { setEditingStaff(null); staffForm.reset(); setIsStaffFormOpen(true); }} className="bg-primary hover:bg-primary/90 font-black uppercase text-[10px] tracking-widest">
+                     Add New Member
+                   </Button>
+                </div>
+                <Card className="border-2 shadow-sm overflow-hidden">
+                  <Table>
+                    <TableHeader className="bg-slate-50 border-b">
+                      <TableRow>
+                        <TableHead className="text-[10px] font-black uppercase">Identity</TableHead>
+                        <TableHead className="text-[10px] font-black uppercase">Role</TableHead>
+                        <TableHead className="text-[10px] font-black uppercase">Secure PIN</TableHead>
+                        <TableHead className="text-[10px] font-black uppercase text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {staff?.map(s => (
+                        <TableRow key={s.id}>
+                          <TableCell className="font-bold text-xs uppercase">{s.name}</TableCell>
+                          <TableCell>
+                            <Badge variant="secondary" className="text-[9px] font-black uppercase">{s.role}</Badge>
+                          </TableCell>
+                          <TableCell><code className="text-xs font-mono font-black tracking-widest text-primary">{s.pin}</code></TableCell>
+                          <TableCell className="text-right">
+                            <Button variant="ghost" size="icon" onClick={() => { setEditingStaff(s); staffForm.reset(s); setIsStaffFormOpen(true); }}>
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </Card>
+              </div>
+            )}
+
+            {/* PAYMENTS SECTION */}
+            {activeNav === 'payments' && (
+              <div className="space-y-10">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                   <Card className="border-2 border-primary/20 bg-primary/5">
+                     <CardHeader className="pb-2 pt-5">
+                       <CardDescription className="text-[10px] font-black uppercase tracking-widest text-primary">MTD Revenue</CardDescription>
+                     </CardHeader>
+                     <CardContent>
+                       <div className="text-3xl font-black font-headline tracking-tighter text-[#213147]">${stats?.todayRevenue}</div>
+                       <p className="text-[9px] font-bold text-muted-foreground uppercase mt-1 italic">Net payout scheduled for Monday</p>
+                     </CardContent>
+                   </Card>
+                   <Card className="border-2 border-slate-100 bg-white">
+                     <CardHeader className="pb-2 pt-5">
+                       <CardDescription className="text-[10px] font-black uppercase tracking-widest">Platform Fee</CardDescription>
+                     </CardHeader>
+                     <CardContent>
+                       <div className="text-3xl font-black font-headline tracking-tighter text-[#213147]">${seller?.serviceFee?.toFixed(2)}</div>
+                       <p className="text-[9px] font-bold text-muted-foreground uppercase mt-1">Per patron transaction</p>
+                     </CardContent>
+                   </Card>
+                   <Card className="border-2 border-slate-100 bg-white">
+                     <CardHeader className="pb-2 pt-5">
+                       <CardDescription className="text-[10px] font-black uppercase tracking-widest">Commission</CardDescription>
+                     </CardHeader>
+                     <CardContent>
+                       <div className="text-3xl font-black font-headline tracking-tighter text-primary">0%</div>
+                       <p className="text-[9px] font-bold text-muted-foreground uppercase mt-1">Venue keeps 100% of menu price</p>
+                     </CardContent>
+                   </Card>
+                </div>
+
+                <Card className="border-2 shadow-sm overflow-hidden">
+                  <div className="grid grid-cols-1 lg:grid-cols-3">
+                    <div className="lg:col-span-2 p-8 space-y-4 border-r-2 border-slate-100">
+                      <div className="flex items-center gap-4">
+                        <div className="bg-primary/10 p-3 rounded-2xl text-primary">
+                          <CreditCard className="h-8 w-8" />
+                        </div>
+                        <div>
+                          <h3 className="font-headline font-black text-xl uppercase tracking-tight text-[#213147]">Payout Integration</h3>
+                          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Stripe Connect verified</p>
+                        </div>
+                      </div>
+                      <p className="text-sm text-slate-600 leading-relaxed max-w-xl">
+                        Koop uses Stripe to securely handle all payments. Revenue is deposited directly into your merchant bank account within 48 hours of order fulfillment.
+                      </p>
+                      <div className="flex flex-wrap gap-6 pt-4">
+                        <div className="flex items-center gap-2">
+                          <CheckCircle2 className="h-4 w-4 text-green-500" />
+                          <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Zero Venue Fees</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <CheckCircle2 className="h-4 w-4 text-green-500" />
+                          <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">PCI-DSS Compliant</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="bg-slate-50 p-8 flex flex-col items-center justify-center text-center gap-6">
+                      {!venueData ? (
+                        <div className="space-y-4">
+                          <AlertTriangle className="h-12 w-12 text-amber-500 mx-auto" />
+                          <p className="text-xs font-black uppercase tracking-widest text-[#213147]">Registry Required</p>
+                          {isHardcodedSuperAdmin && (
+                            <Button onClick={handleProvisionRegistry} disabled={isProvisioningRegistry} className="w-full bg-[#213147] font-black uppercase text-[10px] tracking-widest">
+                              {isProvisioningRegistry ? <Loader2 className="animate-spin" /> : "Initialize Registry"}
+                            </Button>
+                          )}
+                        </div>
+                      ) : venueData.payoutsEnabled ? (
+                        <>
+                          <div className="bg-green-100 p-5 rounded-full text-green-600 mb-2">
+                            <ShieldCheck className="h-12 w-12" />
+                          </div>
+                          <div className="space-y-2">
+                            <Badge className="bg-green-600 uppercase font-black tracking-[0.2em] px-4 py-1 h-auto">Payouts Active</Badge>
+                            <p className="text-[9px] font-bold text-muted-foreground uppercase max-w-[200px]">Your venue is verified and processing digital payments.</p>
+                          </div>
+                          <Button variant="outline" className="w-full text-[10px] font-black uppercase tracking-widest border-2 border-slate-200" asChild>
+                            <a href="https://dashboard.stripe.com" target="_blank" rel="noopener noreferrer">Stripe Dashboard <ExternalLink className="ml-2 h-3 w-3" /></a>
+                          </Button>
+                        </>
+                      ) : (
+                        <>
+                          <div className="bg-primary/10 p-5 rounded-full text-primary mb-2">
+                            <Mail className="h-12 w-12" />
+                          </div>
+                          <div className="space-y-2">
+                            <h4 className="font-headline font-black text-sm uppercase tracking-tight">Manual Activation</h4>
+                            <p className="text-[10px] font-bold text-muted-foreground uppercase leading-relaxed px-4">
+                              Contact support to receive your unique onboarding link and start accepting orders.
+                            </p>
+                          </div>
+                          <Button asChild className="w-full bg-primary font-black uppercase text-[10px] tracking-widest h-12 shadow-lg rounded-xl">
+                            <a href={mailtoLink}>Request Setup Link</a>
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </Card>
+              </div>
+            )}
+
+            {/* ANALYTICS SECTION */}
+            {activeNav === 'analytics' && (
+              <div className="space-y-8">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <Card className="border-2 shadow-sm">
+                    <CardHeader><CardTitle className="text-sm font-black uppercase tracking-widest">Revenue by Service Mode</CardTitle></CardHeader>
+                    <CardContent className="space-y-6">
+                      {[
+                        { mode: "Bev Cart", pct: 62, value: "$5,215", color: "bg-primary" },
+                        { mode: "Clubhouse", pct: 38, value: "$3,197", color: "bg-[#213147]" },
+                        { mode: "Lane Delivery", pct: 15, value: "$1,120", color: "bg-amber-500" },
+                      ].map(bar => (
+                        <div key={bar.mode} className="space-y-2">
+                          <div className="flex justify-between text-[11px] font-black uppercase tracking-widest">
+                            <span>{bar.mode}</span>
+                            <span className="text-muted-foreground">{bar.value}</span>
+                          </div>
+                          <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden">
+                            <div className={cn("h-full rounded-full transition-all duration-1000", bar.color)} style={{ width: `${bar.pct}%` }} />
+                          </div>
+                        </div>
+                      ))}
+                    </CardContent>
+                  </Card>
+                  <Card className="border-2 shadow-sm">
+                    <CardHeader><CardTitle className="text-sm font-black uppercase tracking-widest">Top Selling Lineup</CardTitle></CardHeader>
+                    <CardContent className="divide-y">
+                      {[
+                        { name: "Draft IPA", qty: 142, revenue: "$852" },
+                        { name: "Classic Burger", qty: 98, revenue: "$588" },
+                        { name: "Hot Dog", qty: 76, revenue: "$380" },
+                        { name: "Light Lager", qty: 54, revenue: "$351" },
+                      ].map((item, i) => (
+                        <div key={i} className="flex items-center gap-4 py-4 first:pt-0 last:pb-0">
+                          <span className="text-xs font-black text-muted-foreground w-6">#{i+1}</span>
+                          <div className="flex-1">
+                            <p className="text-xs font-black uppercase text-[#213147]">{item.name}</p>
+                            <p className="text-[9px] font-bold text-muted-foreground uppercase">{item.qty} units sold</p>
+                          </div>
+                          <span className="text-xs font-black text-primary">{item.revenue}</span>
+                        </div>
+                      ))}
+                    </CardContent>
+                  </Card>
+                </div>
+              </div>
+            )}
+
+            {/* SETTINGS SECTION */}
+            {activeNav === 'settings' && (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <Card className="border-2 shadow-sm">
+                   <CardHeader className="border-b bg-slate-50/50">
+                     <CardTitle className="text-sm font-black uppercase tracking-widest">Venue Profile</CardTitle>
+                   </CardHeader>
+                   <CardContent className="p-6 space-y-6">
+                     <div className="grid gap-2">
+                       <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Public Course Name</Label>
+                       <Input value={seller?.courseName} readOnly className="font-bold border-2 bg-slate-50" />
+                     </div>
+                     <div className="grid gap-2">
+                       <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Establishment Type</Label>
+                       <Input value={seller?.type} readOnly className="font-bold border-2 bg-slate-50" />
+                     </div>
+                     <div className="grid gap-2">
+                       <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Support Contact</Label>
+                       <Input value={seller?.contactEmail} readOnly className="font-bold border-2 bg-slate-50" />
+                     </div>
+                   </CardContent>
+                </Card>
+
+                <Card className="border-2 shadow-sm">
+                   <CardHeader className="border-b bg-slate-50/50">
+                     <CardTitle className="text-sm font-black uppercase tracking-widest">Maintenance & Sync</CardTitle>
+                   </CardHeader>
+                   <CardContent className="p-6 space-y-4">
+                     <p className="text-xs text-muted-foreground leading-relaxed">
+                       Update your menu configuration or reset the demonstration data to its original state.
+                     </p>
+                     <div className="flex flex-col gap-3 pt-4">
+                       <Button variant="outline" className="justify-between h-12 font-black uppercase text-[10px] tracking-widest border-2" onClick={handleResetDemo} disabled={isResettingDemo}>
+                         {isResettingDemo ? <Loader2 className="animate-spin" /> : "Reset Demo Environment"}
+                         <Sparkles className="h-4 w-4 text-primary" />
+                       </Button>
+                       <Button variant="outline" className="justify-between h-12 font-black uppercase text-[10px] tracking-widest border-2" asChild>
+                         <Link href={`/sellers/${sellerId}/bevcart`}>
+                           Enter Driver Interface
+                           <ExternalLink className="h-4 w-4" />
+                         </Link>
+                       </Button>
+                     </div>
+                   </CardContent>
+                </Card>
+              </div>
+            )}
+
+          </div>
+        </ScrollArea>
+      </main>
+
+      {/* STAFF DIALOG */}
       <Dialog open={isStaffFormOpen} onOpenChange={setIsStaffFormOpen}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>{editingStaff ? 'Edit Staff' : 'Add Staff'}</DialogTitle></DialogHeader>
-          <Form {...staffForm}><form onSubmit={staffForm.handleSubmit(onSaveStaff)} className="space-y-4">
-            <FormField control={staffForm.control} name="name" render={({ field }) => (<FormItem><FormLabel>Name</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
-            <FormField control={staffForm.control} name="role" render={({ field }) => (<FormItem><FormLabel>Role</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="Driver">Driver</SelectItem><SelectItem value="Server">Server</SelectItem><SelectItem value="Manager">Manager</SelectItem></SelectContent></Select></FormItem>)} />
-            <FormField control={staffForm.control} name="pin" render={({ field }) => (<FormItem><FormLabel>PIN</FormLabel><FormControl><Input {...field} maxLength={4} /></FormControl></FormItem>)} />
-            <Button type="submit" className="w-full">Save</Button>
-          </form></Form>
+        <DialogContent className="rounded-[2rem] border-2">
+          <DialogHeader>
+            <DialogTitle className="font-headline font-black uppercase text-[#213147] tracking-tight">
+              {editingStaff ? 'Update Member' : 'Credential Staff'}
+            </DialogTitle>
+            <DialogDescription className="text-xs font-medium">Configure secure access for on-site personnel.</DialogDescription>
+          </DialogHeader>
+          <Form {...staffForm}>
+            <form onSubmit={staffForm.handleSubmit(onSaveStaff)} className="space-y-6 pt-4">
+              <FormField control={staffForm.control} name="name" render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-[10px] font-black uppercase tracking-widest">Full Name</FormLabel>
+                  <FormControl><Input {...field} className="h-12 border-2 font-bold" /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <div className="grid grid-cols-2 gap-4">
+                <FormField control={staffForm.control} name="role" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-[10px] font-black uppercase tracking-widest">System Role</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl><SelectTrigger className="h-12 border-2 font-bold"><SelectValue /></SelectTrigger></FormControl>
+                      <SelectContent>
+                        <SelectItem value="Driver">Driver (BevCart)</SelectItem>
+                        <SelectItem value="Server">Server (Clubhouse)</SelectItem>
+                        <SelectItem value="Manager">Venue Manager</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </FormItem>
+                )} />
+                <FormField control={staffForm.control} name="pin" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-[10px] font-black uppercase tracking-widest">Access PIN</FormLabel>
+                    <FormControl><Input {...field} maxLength={4} className="h-12 border-2 font-mono font-black text-lg tracking-[0.5em] text-center text-primary" /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+              </div>
+              <DialogFooter>
+                <Button type="submit" className="w-full h-12 bg-[#213147] font-black uppercase tracking-widest shadow-xl">
+                  Commit To Registry
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
         </DialogContent>
       </Dialog>
     </div>
