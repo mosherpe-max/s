@@ -12,6 +12,7 @@ export const sellerTypes: readonly SellerType[] = [
 ];
 
 export interface PlatformConfig {
+  supportEmail: string;
   updatedAt: Timestamp;
 }
 
@@ -21,6 +22,7 @@ export interface Venue {
   ownerUid: string;
   stripeAccountId?: string;
   stripeOnboardingComplete?: boolean;
+  payoutsEnabled?: boolean;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }

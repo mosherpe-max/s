@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -15,7 +14,9 @@ import {
   UserPlus,
   ShieldCheck,
   Search,
-  Users
+  Users,
+  Mail,
+  Save
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -31,11 +32,11 @@ import {
 } from '@/components/ui/dialog';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useFirestore, useCollection, useMemoFirebase, useFirebase, useAuth } from '@/firebase';
+import { useFirestore, useCollection, useMemoFirebase, useFirebase, useAuth, useDoc } from '@/firebase';
 import { signOut } from 'firebase/auth';
 import { collection, query, limit, doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { httpsCallable, getFunctions } from 'firebase/functions';
-import type { Seller } from '@/lib/types';
+import type { Seller, PlatformConfig } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -56,6 +57,8 @@ export default function PlatformAdminPage() {
   const [healthStatus, setHealthStatus] = useState<any>(null);
 
   const [managerEmail, setManagerEmail] = useState('');
+  const [configEmail, setConfigEmail] = useState('');
+  const [isSavingConfig, setIsSavingConfig] = useState(false);
 
   const [newVenue, setNewVenue] = useState<Partial<Seller>>({
     courseName: '',
@@ -70,6 +73,15 @@ export default function PlatformAdminPage() {
   useEffect(() => {
     setIsMounted(true);
   }, []);
+
+  const configRef = useMemoFirebase(() => (firestore ? doc(firestore, 'platform', 'config') : null), [firestore]);
+  const { data: config } = useDoc<PlatformConfig>(configRef);
+
+  useEffect(() => {
+    if (config?.supportEmail) {
+      setConfigEmail(config.supportEmail);
+    }
+  }, [config]);
 
   const sellersQuery = useMemoFirebase(() => {
     if (!firestore) return null;
@@ -102,6 +114,22 @@ export default function PlatformAdminPage() {
       toast({ variant: "destructive", title: "Health Check Failed", description: error.message });
     } finally {
       setIsHealthChecking(false);
+    }
+  };
+
+  const handleSaveConfig = async () => {
+    if (!firestore || !configEmail) return;
+    setIsSavingConfig(true);
+    try {
+      await setDoc(doc(firestore, 'platform', 'config'), {
+        supportEmail: configEmail,
+        updatedAt: serverTimestamp()
+      }, { merge: true });
+      toast({ title: "Configuration Updated" });
+    } catch (error: any) {
+      toast({ variant: "destructive", title: "Update Failed", description: error.message });
+    } finally {
+      setIsSavingConfig(false);
     }
   };
 
@@ -247,6 +275,42 @@ export default function PlatformAdminPage() {
           </CardContent>
         </Card>
       </div>
+
+      <section className="mb-12">
+        <div className="flex items-center gap-2 mb-4">
+          <Settings2 className="h-5 w-5 text-primary" />
+          <h2 className="font-headline text-xl font-black uppercase tracking-tight text-[#213147]">Platform Configuration</h2>
+        </div>
+        <Card className="border-2 shadow-sm">
+          <CardHeader className="pb-4">
+            <CardDescription className="text-xs">Global settings applied to all support and onboarding workflows.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid gap-2">
+              <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Support & Onboarding Email</Label>
+              <div className="flex gap-3">
+                <div className="relative flex-1">
+                  <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Input 
+                    placeholder="support@kooporders.com" 
+                    className="pl-10 h-11 border-2 font-bold"
+                    value={configEmail}
+                    onChange={(e) => setConfigEmail(e.target.value)}
+                  />
+                </div>
+                <Button 
+                  onClick={handleSaveConfig} 
+                  disabled={isSavingConfig}
+                  className="h-11 px-6 font-black uppercase tracking-widest text-[10px] gap-2"
+                >
+                  {isSavingConfig ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                  Save Config
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </section>
 
       <div className="space-y-6">
         <div className="flex items-center justify-between border-b pb-4">

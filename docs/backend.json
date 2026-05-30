@@ -10,6 +10,7 @@
         "ownerUid": { "type": "string", "description": "The Firebase Auth UID of the venue manager." },
         "stripeAccountId": { "type": "string", "description": "The unique ID from Stripe Connect." },
         "stripeOnboardingComplete": { "type": "boolean", "description": "Whether the user has completed the Stripe onboarding flow." },
+        "payoutsEnabled": { "type": "boolean", "description": "Manual override to enable payouts for a venue." },
         "createdAt": { "type": "string", "format": "date-time" },
         "updatedAt": { "type": "string", "format": "date-time" }
       },
@@ -31,6 +32,15 @@
         "updatedAt": { "type": "string", "format": "date-time" }
       },
       "required": ["id", "courseName", "contactEmail", "status"]
+    },
+    "PlatformConfig": {
+      "title": "Platform Config",
+      "type": "object",
+      "description": "Global configuration settings for the KOOP platform.",
+      "properties": {
+        "supportEmail": { "type": "string", "format": "email" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      }
     },
     "AdminRole": {
       "title": "Admin Role",
@@ -68,6 +78,7 @@
     "structure": [
       { "path": "/venues/{venueId}", "definition": { "entityName": "Venue" } },
       { "path": "/sellers/{sellerId}", "definition": { "entityName": "Seller" } },
+      { "path": "/platform/config", "definition": { "entityName": "PlatformConfig" } },
       { "path": "/roles_admin/{uid}", "definition": { "entityName": "AdminRole" } },
       { "path": "/roles_seller_admin/{email}", "definition": { "entityName": "SellerAdminRole" } },
       { "path": "/roles_sales_rep/{email}", "definition": { "entityName": "SalesRepRole" } }

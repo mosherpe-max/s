@@ -29,7 +29,8 @@ import {
   ExternalLink,
   ChevronRight,
   Database,
-  ArrowLeft
+  ArrowLeft,
+  Mail
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -51,7 +52,6 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { httpsCallable, getFunctions } from 'firebase/functions';
 
 import {
   DndContext,
@@ -71,7 +71,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
-import type { MenuItem, Seller, Order, StaffMember, Venue } from '@/lib/types';
+import type { MenuItem, Seller, Order, StaffMember, Venue, PlatformConfig } from '@/lib/types';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { publicGolfItems, privateGolfItems, bowlingAlleyItems } from '@/lib/data';
 
@@ -135,7 +135,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   const [isStaffFormOpen, setIsStaffFormOpen] = useState(false);
   const [editingStaff, setEditingStaff] = useState<StaffMember | null>(null);
   const [isResettingDemo, setIsResettingDemo] = useState(false);
-  const [isStripeLoading, setIsStripeLoading] = useState(false);
   const [isProvisioningRegistry, setIsProvisioningRegistry] = useState(false);
   
   const sensors = useSensors(useSensor(PointerSensor), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
@@ -150,6 +149,9 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
 
   const venueRef = useMemoFirebase(() => (!firestore || !sellerId ? null : doc(firestore, 'venues', sellerId)), [firestore, sellerId]);
   const { data: venueData } = useDoc<Venue>(venueRef);
+
+  const platformConfigRef = useMemoFirebase(() => (firestore ? doc(firestore, 'platform', 'config') : null), [firestore]);
+  const { data: platformConfig } = useDoc<PlatformConfig>(platformConfigRef);
 
   const isPlatformAdmin = isHardcodedSuperAdmin || !!platformRole;
   const isAssignedVenueAdmin = sellerRole?.sellerId === sellerId;
@@ -202,45 +204,8 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     setIsStaffFormOpen(false); setEditingStaff(null); staffForm.reset();
   };
 
-  const handleStartStripeOnboarding = async () => {
-    if (!firebaseApp || !user) {
-      toast({ variant: "destructive", title: "Authentication Required", description: "Please sign in to configure payments." });
-      return;
-    }
-    
-    setIsStripeLoading(true);
-    
-    try {
-      // Connect to the deployed function in us-central1
-      const functions = getFunctions(firebaseApp, 'us-central1');
-      const createStripeAccount = httpsCallable(functions, 'createStripeConnectAccount');
-      
-      const result = await createStripeAccount({ venueId: sellerId });
-      const data = result.data as { url: string };
-      
-      if (data?.url) {
-        toast({ title: "Redirecting...", description: "Connecting to secure Stripe portal." });
-        window.location.href = data.url;
-      } else {
-        throw new Error("Handshake failed: No URL returned from portal.");
-      }
-    } catch (error: any) {
-      console.error("Stripe Redirect Error:", error);
-      
-      let message = error.message || "Connection timed out.";
-      if (error.code === 'permission-denied' || message.includes('403')) {
-        message = "Security Policy Blocked: Ensure function allows public preflight (invoker: 'public').";
-      }
-
-      toast({ 
-        variant: "destructive", 
-        title: "Handshake Failed", 
-        description: message
-      });
-    } finally {
-      setIsStripeLoading(false);
-    }
-  };
+  const supportEmail = platformConfig?.supportEmail || 'mosherpe@gmail.com';
+  const mailtoLink = `mailto:${supportEmail}?subject=Stripe Onboarding Request - ${seller?.courseName}&body=Hello Koop Support, %0D%0A%0D%0AI would like to request a manual Stripe onboarding link for my venue: ${seller?.courseName}. %0D%0A%0D%0AThank you!`;
 
   const handleProvisionRegistry = async () => {
     if (!firestore || !user || !seller) return;
@@ -252,7 +217,8 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
         ownerUid: user.uid,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
-        stripeOnboardingComplete: false
+        stripeOnboardingComplete: false,
+        payoutsEnabled: false
       });
       toast({ title: "Payment Registry Provisioned" });
     } catch (e: any) {
@@ -374,13 +340,13 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                   <CreditCard className="h-6 w-6 text-indigo-600" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-lg">Stripe Connect Express</h3>
-                  <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Automated Revenue Management</p>
+                  <h3 className="font-bold text-lg">Payout Management</h3>
+                  <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Secure Revenue Handling</p>
                 </div>
               </div>
               
               <p className="text-sm text-slate-600 leading-relaxed max-w-xl">
-                Koop uses Stripe to securely handle all payments. By connecting your account, revenue is deposited directly into your merchant bank account every 24 hours.
+                Koop uses Stripe to securely handle all payments. Once your account is verified, revenue is deposited directly into your merchant bank account.
               </p>
 
               <div className="flex flex-wrap gap-6 pt-2">
@@ -416,13 +382,13 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                     </Button>
                   )}
                 </div>
-              ) : venueData.stripeOnboardingComplete ? (
+              ) : venueData.payoutsEnabled ? (
                 <>
                   <div className="bg-green-100 p-4 rounded-full text-green-600 mb-2">
                     <ShieldCheck className="h-10 w-10" />
                   </div>
-                  <Badge className="bg-green-600 uppercase font-black tracking-widest">Account Verified</Badge>
-                  <p className="text-[10px] font-bold text-muted-foreground uppercase px-4">Your venue is actively processing digital payments.</p>
+                  <Badge className="bg-green-600 uppercase font-black tracking-widest py-1.5 px-4 h-auto">Payouts Active</Badge>
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase px-4">Your venue is verified and processing digital payments.</p>
                   <Button variant="outline" className="w-full text-[10px] font-black uppercase tracking-widest rounded-xl" asChild>
                     <a href="https://dashboard.stripe.com" target="_blank" rel="noopener noreferrer">
                       Stripe Dashboard <ExternalLink className="ml-2 h-3 w-3" />
@@ -434,17 +400,18 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                   <div className="bg-indigo-100 p-4 rounded-full text-indigo-600 mb-2">
                     <CreditCard className="h-10 w-10" />
                   </div>
-                  <h4 className="font-headline font-black text-sm uppercase">Setup Payments</h4>
+                  <h4 className="font-headline font-black text-sm uppercase">Setup Payouts</h4>
                   <p className="text-[10px] font-medium text-slate-500 uppercase leading-relaxed px-4">
-                    Complete your business profile on Stripe to begin accepting orders and receiving payouts.
+                    Contact Koop Support to receive your unique onboarding link and start accepting orders.
                   </p>
                   <Button 
-                    onClick={handleStartStripeOnboarding}
-                    disabled={isStripeLoading}
+                    asChild
                     className="w-full h-12 bg-indigo-600 hover:bg-indigo-700 shadow-lg font-black uppercase tracking-widest text-[11px] gap-2 rounded-xl"
                   >
-                    {isStripeLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
-                    {venueData.stripeAccountId ? 'Resume Setup' : 'Set up Payouts'}
+                    <a href={mailtoLink}>
+                      <Mail className="h-4 w-4" />
+                      Request Setup Link
+                    </a>
                   </Button>
                 </>
               )}
