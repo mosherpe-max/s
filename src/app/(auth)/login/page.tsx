@@ -2,7 +2,8 @@
  * DEPRECATED: This route has been moved to /src/app/login/page.tsx
  * to resolve route group resolution issues and parallel page conflicts.
  * 
- * To resolve the "parallel pages" build error, this file must not 
- * export a default component.
+ * To fix the Next.js build error, this file must NOT contain a default export.
  */
-export {};
+
+// This file is kept intentionally empty of exports to ensure Next.js 
+// identifies the root-level /login page as the only valid route.
