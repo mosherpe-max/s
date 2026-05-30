@@ -51,7 +51,8 @@ import {
   CheckCircle2,
   MoreVertical,
   Search,
-  Filter
+  Filter,
+  TrendingUp
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
