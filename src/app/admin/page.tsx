@@ -201,7 +201,7 @@ export default function PlatformAdminPage() {
         setSelectedVenueRegistry(data);
         setStripeAccountId(data.stripeAccountId || '');
         setPayoutsEnabled(data.payoutsEnabled || false);
-        setManualOnboardingLink(data.stripeOnboardingLink || '');
+        setManualOnboardingLink((data as any).stripeOnboardingLink || '');
       } else {
         setSelectedVenueRegistry(null);
         setStripeAccountId('');
@@ -301,14 +301,31 @@ export default function PlatformAdminPage() {
   };
 
   const handleSendOnboardingLink = () => {
-    if (!manualOnboardingLink) {
-      toast({ variant: "destructive", title: "Missing Link", description: "Please enter a valid URL before sending." });
+    if (!manualOnboardingLink || !selectedVenue?.contactEmail) {
+      toast({ 
+        variant: "destructive", 
+        title: "Missing Information", 
+        description: "Please ensure a valid URL and contact email are present." 
+      });
       return;
     }
-    // Logic for automated sending would go here (e.g. email service)
+    
+    // Construct mailto link to "send" the onboarding link from the admin's machine
+    const subject = encodeURIComponent(`Action Required: Complete your Stripe Setup for ${selectedVenue.courseName}`);
+    const body = encodeURIComponent(
+      `Hello ${selectedVenue.contactName || 'Manager'},\n\n` +
+      `Your venue profile for ${selectedVenue.courseName} is ready for payment setup.\n\n` +
+      `Please click the link below to complete your Stripe Express onboarding and begin receiving payouts:\n\n` +
+      `${manualOnboardingLink}\n\n` +
+      `If you have any questions, please contact Koop Support.\n\n` +
+      `Thank you,\nThe Koop Team`
+    );
+    
+    window.location.href = `mailto:${selectedVenue.contactEmail}?subject=${subject}&body=${body}`;
+
     toast({ 
-      title: "Onboarding Link Dispatched", 
-      description: `Notification with the Stripe Express setup link sent to ${selectedVenue?.contactEmail}.` 
+      title: "Email Client Opened", 
+      description: `Drafting onboarding notification for ${selectedVenue.contactEmail}.` 
     });
   };
 
@@ -855,6 +872,7 @@ export default function PlatformAdminPage() {
       </main>
 
       {/* VENUE PROFILE DIALOG */}
+      <div className={isVenueDetailOpen ? "" : "hidden"}>
       <Dialog open={isVenueDetailOpen} onOpenChange={setIsVenueDetailOpen}>
         <DialogContent className="sm:max-w-[700px] rounded-[2.5rem] p-0 overflow-hidden">
           <ScrollArea className="max-h-[90vh]">
@@ -1024,6 +1042,7 @@ export default function PlatformAdminPage() {
           </ScrollArea>
         </DialogContent>
       </Dialog>
+      </div>
 
     </div>
   );
