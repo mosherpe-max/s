@@ -166,16 +166,16 @@ export function AppHeader() {
 
     return (
       <div className={mobile ? "flex flex-col pb-10" : "flex items-center gap-1"}>
-        {/* PLATFORM ADMIN */}
+        {/* INTERNAL PLATFORM TOOLS */}
         {!mobile ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="sm" className="text-white hover:bg-white/10 text-[10px] font-headline font-black uppercase tracking-wider px-3 h-9">
-                Platform <ChevronDown className="ml-1 h-3 w-3 opacity-50" />
+                Koop Internal <ChevronDown className="ml-1 h-3 w-3 opacity-50" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48 shadow-xl border-2">
-              <DropdownMenuLabel className={labelClass}>Internal Tools</DropdownMenuLabel>
+              <DropdownMenuLabel className={labelClass}>Internal Portal</DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem asChild>
                 <Link href="/sales/dashboard" className={itemClass}>
@@ -186,23 +186,17 @@ export function AppHeader() {
               <DropdownMenuItem asChild>
                 <Link href="/admin" className={itemClass}>
                   <ShieldCheck className="h-4 w-4 text-primary" />
-                  <span className="font-black text-[10px] uppercase tracking-widest">KOOP ADMIN</span>
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link href="/sales" className={itemClass}>
-                  <Target className="h-4 w-4 text-indigo-600" />
-                  <span className="font-black text-[10px] uppercase tracking-widest">SALES CRM</span>
+                  <span className="font-black text-[10px] uppercase tracking-widest">PLATFORM ADMIN</span>
                 </Link>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         ) : (
           <>
-            <p className={labelClass}>Platform</p>
+            <p className={labelClass}>Internal Platform</p>
             <Link href="/login" onClick={() => setIsMobileMenuOpen(false)} className={cn(itemClass, "bg-indigo-50 border-indigo-100 mb-2")}>
               <KeyRound className="h-5 w-5 text-indigo-600" />
-              <span className="font-black text-xs uppercase tracking-widest text-indigo-700">Admin Login</span>
+              <span className="font-black text-xs uppercase tracking-widest text-indigo-700">Internal Login</span>
               <ChevronRight className="ml-auto h-4 w-4 text-indigo-300" />
             </Link>
             <Link href="/sales/dashboard" onClick={() => setIsMobileMenuOpen(false)} className={itemClass}>
@@ -212,23 +206,18 @@ export function AppHeader() {
             </Link>
             <Link href="/admin" onClick={() => setIsMobileMenuOpen(false)} className={itemClass}>
               <ShieldCheck className="h-5 w-5 text-primary" />
-              <span className="font-black text-xs uppercase tracking-widest">KOOP ADMIN</span>
-              <ChevronRight className="ml-auto h-4 w-4 text-muted-foreground/30" />
-            </Link>
-            <Link href="/sales" onClick={() => setIsMobileMenuOpen(false)} className={itemClass}>
-              <Target className="h-5 w-5 text-indigo-600" />
-              <span className="font-black text-xs uppercase tracking-widest">SALES CRM</span>
+              <span className="font-black text-xs uppercase tracking-widest">PLATFORM ADMIN</span>
               <ChevronRight className="ml-auto h-4 w-4 text-muted-foreground/30" />
             </Link>
           </>
         )}
 
-        {/* STAFF VIEWS */}
+        {/* DEMO / STAFF VIEWS */}
         {!mobile ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="sm" className="text-white hover:bg-white/10 text-[10px] font-headline font-black uppercase tracking-wider px-3 h-9">
-                Staff <ChevronDown className="ml-1 h-3 w-3 opacity-50" />
+                Staff Demos <ChevronDown className="ml-1 h-3 w-3 opacity-50" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-64 shadow-xl border-2">
@@ -255,7 +244,7 @@ export function AppHeader() {
           </DropdownMenu>
         ) : (
           <>
-            <p className={labelClass}>Staff Interfaces</p>
+            <p className={labelClass}>Staff Demos</p>
             <Link href="/sellers/demo-course/bevcart" onClick={() => setIsMobileMenuOpen(false)} className={itemClass}>
               <Truck className="h-5 w-5 text-primary" />
               <span className="font-black text-xs uppercase tracking-widest">Public BevCart</span>
@@ -338,7 +327,7 @@ export function AppHeader() {
 
           {isMounted && isHomePage && (
             <Button asChild className="h-9 px-6 font-headline font-black uppercase text-[11px] tracking-widest bg-[#E50000] hover:bg-[#c40000] text-white rounded-full transition-all shadow-lg">
-              <Link href="/login">LOGIN</Link>
+              <Link href="/login">INTERNAL</Link>
             </Button>
           )}
 
@@ -352,12 +341,12 @@ export function AppHeader() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-48 shadow-xl border-2">
-                  <DropdownMenuLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Account</DropdownMenuLabel>
+                  <DropdownMenuLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Internal Account</DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>
                     <Link href="/login" className="flex items-center gap-3 py-2 cursor-pointer font-black text-[10px] uppercase tracking-widest">
                       <UserIcon className="h-4 w-4 text-primary" />
-                      <span>{user ? 'Manage Profile' : 'Login / Register'}</span>
+                      <span>{user ? 'My Profile' : 'Admin Login'}</span>
                     </Link>
                   </DropdownMenuItem>
                   {user && (
@@ -388,7 +377,7 @@ export function AppHeader() {
                       <StylizedKoopLogo size="lg" />
                     </div>
                     <SheetTitle className="text-center text-[10px] uppercase font-black tracking-[0.3em] text-white/40 mt-4">
-                      PLATFORM NAV
+                      KOOP INTERNAL
                     </SheetTitle>
                   </SheetHeader>
                   <ScrollArea className="h-[calc(100vh-160px)]">
@@ -398,8 +387,8 @@ export function AppHeader() {
                         <Link href="/login" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-3 py-3 px-4 bg-muted/50 rounded-xl">
                           <UserIcon className="h-5 w-5 text-primary" />
                           <div className="flex flex-col">
-                            <span className="font-black text-xs uppercase tracking-widest">{user ? 'Account Settings' : 'Authentication'}</span>
-                            <span className="text-[10px] text-muted-foreground truncate max-w-[180px]">{user?.email || 'Guest Session'}</span>
+                            <span className="font-black text-xs uppercase tracking-widest">Admin Identity</span>
+                            <span className="text-[10px] text-muted-foreground truncate max-w-[180px]">{user?.email || 'Unauthorized'}</span>
                           </div>
                         </Link>
                       </div>

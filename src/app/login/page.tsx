@@ -18,9 +18,10 @@ import { StylizedKoopLogo } from '@/components/header';
 import { SUPER_ADMIN_ID } from '@/lib/utils';
 
 /**
- * PRIMARY ACCESS GATEWAY
- * This component handles authentication and role-based redirection 
- * to the appropriate administrative or sales dashboard.
+ * INTERNAL PLATFORM GATEWAY
+ * This component is restricted to Platform Administrators and 
+ * Internal Sales Representatives. Venue Managers and Staff 
+ * access the platform through PIN-based entry or Admin impersonation.
  */
 export default function LoginPage() {
   const auth = useAuth();
@@ -34,7 +35,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [isAdminSettingUp, setIsAdminSettingUp] = useState(false);
 
-  // Hardcoded Super Admin Check
+  // Hardcoded Super Admin Check (Primary Platform Control)
   const isSuperAdmin = user?.uid === SUPER_ADMIN_ID || 
                       user?.email === 'mosherpe@gmail.com';
 
@@ -45,14 +46,7 @@ export default function LoginPage() {
   }, [firestore, user]);
   const { data: globalRole, isLoading: isGlobalRoleLoading } = useDoc(globalRoleRef);
 
-  // 2. Check Seller Admin Role (Email Based)
-  const sellerRoleRef = useMemoFirebase(() => {
-    if (!firestore || !user?.email) return null;
-    return doc(firestore, 'roles_seller_admin', user.email.toLowerCase());
-  }, [firestore, user]);
-  const { data: sellerRole, isLoading: isSellerRoleLoading } = useDoc(sellerRoleRef);
-
-  // 3. Check Sales Rep Role (Email Based)
+  // 2. Check Sales Rep Role (Email Based) - Part of the internal Koop team
   const salesRoleRef = useMemoFirebase(() => {
     if (!firestore || !user?.email) return null;
     return doc(firestore, 'roles_sales_rep', user.email.toLowerCase());
@@ -60,23 +54,20 @@ export default function LoginPage() {
   const { data: salesRole, isLoading: isSalesRoleLoading } = useDoc(salesRoleRef);
 
   const isPlatformAdmin = isSuperAdmin || !!globalRole;
-  const isVenueAdmin = !!sellerRole;
-  const isSalesRep = !!salesRole;
+  const isInternalStaff = !!salesRole;
 
-  const isVerifyingRoles = isGlobalRoleLoading || isSellerRoleLoading || isSalesRoleLoading;
+  const isVerifyingRoles = isGlobalRoleLoading || isSalesRoleLoading;
 
-  // Handle Automatic Redirection for Authenticated Users
+  // Internal Redirection Logic
   useEffect(() => {
     if (!user || isUserLoading || isVerifyingRoles) return;
 
-    if (isVenueAdmin && sellerRole?.sellerId) {
-      router.push(`/sellers/${sellerRole.sellerId}`);
-    } else if (isPlatformAdmin) {
+    if (isPlatformAdmin) {
       router.push('/admin');
-    } else if (isSalesRep) {
+    } else if (isInternalStaff) {
       router.push('/sales/dashboard');
     }
-  }, [user, isUserLoading, isPlatformAdmin, isVenueAdmin, isSalesRep, sellerRole, router, isVerifyingRoles]);
+  }, [user, isUserLoading, isPlatformAdmin, isInternalStaff, router, isVerifyingRoles]);
 
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -84,12 +75,12 @@ export default function LoginPage() {
     setIsLoading(true);
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      toast({ title: "Authorized Session Established" });
+      toast({ title: "Internal Session Established" });
     } catch (error: any) {
       toast({ 
         variant: "destructive", 
-        title: "Authentication Failed", 
-        description: error.message || "Please check your credentials or contact your administrator." 
+        title: "Access Denied", 
+        description: "Credentials not recognized by platform security." 
       });
     } finally {
       setIsLoading(false);
@@ -101,7 +92,7 @@ export default function LoginPage() {
     setIsLoading(true);
     try {
       await signOut(auth);
-      toast({ title: "Signed Out" });
+      toast({ title: "Session Terminated" });
     } finally {
       setIsLoading(false);
     }
@@ -113,19 +104,12 @@ export default function LoginPage() {
     try {
       await setDoc(doc(firestore, 'roles_admin', user.uid), {
         grantedAt: serverTimestamp(),
-        grantedBy: 'Prototype Setup Tool'
+        grantedBy: 'Platform Setup Tool'
       });
 
-      await setDoc(doc(firestore, 'adminUsers', user.email.toLowerCase()), {
-        id: user.uid,
-        email: user.email.toLowerCase(),
-        role: 'KOOP Platform Admin',
-        createdAt: serverTimestamp()
-      }, { merge: true });
-
       toast({ 
-        title: "Admin Access Granted", 
-        description: "Your account now has global privileges." 
+        title: "Internal Admin Activated", 
+        description: "Global platform privileges assigned." 
       });
       
       router.push('/admin');
@@ -139,7 +123,7 @@ export default function LoginPage() {
   const copyUid = () => {
     if (user?.uid) {
       navigator.clipboard.writeText(user.uid);
-      toast({ title: "UID Copied to Clipboard" });
+      toast({ title: "UID Copied" });
     }
   };
 
@@ -147,7 +131,7 @@ export default function LoginPage() {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-4rem)] bg-background">
         <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
-        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Initializing Security Protocol...</p>
+        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Synchronizing Security Protocol...</p>
       </div>
     );
   }
@@ -160,10 +144,10 @@ export default function LoginPage() {
             <StylizedKoopLogo size="lg" colorClass="text-[#213147]" />
           </div>
           <CardTitle className="font-headline text-xl font-black uppercase tracking-[0.2em] text-[#213147]/60">
-            ACCESS GATEWAY
+            INTERNAL GATEWAY
           </CardTitle>
-          <CardDescription className="font-medium">
-            Authorized Platform Portal
+          <CardDescription className="font-medium text-xs">
+            Restricted Platform Access
           </CardDescription>
         </CardHeader>
 
@@ -176,7 +160,7 @@ export default function LoginPage() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-[10px] font-black uppercase text-green-600 tracking-widest leading-none mb-1">Authenticated As</p>
-                  <p className="text-sm font-bold truncate">{user.email || 'Authorized Identity'}</p>
+                  <p className="text-sm font-bold truncate">{user.email}</p>
                 </div>
                 <CheckCircle2 className="h-5 w-5 text-green-500" />
               </div>
@@ -186,18 +170,18 @@ export default function LoginPage() {
                   <Loader2 className="h-8 w-8 animate-spin text-primary" />
                   <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Verifying Authorizations...</p>
                 </div>
-              ) : isPlatformAdmin || isVenueAdmin || isSalesRep ? (
+              ) : isPlatformAdmin || isInternalStaff ? (
                 <div className="space-y-4">
                   <div className="p-5 bg-primary/10 border-2 border-primary/20 rounded-2xl flex flex-col items-center text-center gap-2">
-                    {isSalesRep ? <Target className="h-10 w-10 text-indigo-600" /> : <ShieldCheck className="h-10 w-10 text-primary" />}
-                    <h3 className="font-headline font-bold text-primary uppercase">STATUS VERIFIED</h3>
+                    {isInternalStaff ? <Target className="h-10 w-10 text-indigo-600" /> : <ShieldCheck className="h-10 w-10 text-primary" />}
+                    <h3 className="font-headline font-bold text-primary uppercase">INTERNAL VERIFIED</h3>
                     <p className="text-xs text-muted-foreground">
-                      {isPlatformAdmin ? 'Platform Administrator Access' : isSalesRep ? 'Authorized Sales Professional' : `Authorized Manager: ${sellerRole?.courseName || 'Assigned Venue'}`}
+                      {isPlatformAdmin ? 'Platform Management Console' : 'Sales Professional Workspace'}
                     </p>
                   </div>
                   <Button asChild className="w-full h-14 bg-[#213147] hover:bg-[#213147]/90 text-white font-headline font-black uppercase tracking-widest shadow-xl">
-                    <a href={isVenueAdmin && sellerRole?.sellerId ? `/sellers/${sellerRole.sellerId}` : (isPlatformAdmin ? '/admin' : '/sales/dashboard')}>
-                      ENTER DASHBOARD
+                    <a href={isPlatformAdmin ? '/admin' : '/sales/dashboard'}>
+                      LAUNCH DASHBOARD
                       <ArrowRight className="ml-2 h-5 w-5" />
                     </a>
                   </Button>
@@ -207,14 +191,14 @@ export default function LoginPage() {
                   <div className="p-5 bg-indigo-50 border-2 border-indigo-100 rounded-2xl space-y-3">
                     <div className="flex items-center gap-2 text-indigo-600">
                       <ShieldCheck className="h-4 w-4" />
-                      <p className="text-[10px] font-black uppercase tracking-widest">Role Activation Required</p>
+                      <p className="text-[10px] font-black uppercase tracking-widest">Platform Role Required</p>
                     </div>
                     <p className="text-xs text-indigo-800 font-medium leading-relaxed">
-                      Your identity is recognized, but your account is not authorized for any platform roles.
+                      This portal is reserved for internal KOOP operations. External partners should use the QR/PIN entry systems.
                     </p>
                     <div className="bg-white p-3 rounded-lg border-2 border-indigo-100 space-y-2">
                       <div className="flex items-center justify-between">
-                        <span className="text-[9px] font-black uppercase text-muted-foreground">Your Firebase UID</span>
+                        <span className="text-[9px] font-black uppercase text-muted-foreground">Platform Identity</span>
                         <Button variant="ghost" size="icon" className="h-6 w-6" onClick={copyUid}><Copy className="h-3 w-3" /></Button>
                       </div>
                       <code className="text-[10px] font-mono font-black break-all text-indigo-600">{user.uid}</code>
@@ -226,13 +210,8 @@ export default function LoginPage() {
                         disabled={isAdminSettingUp}
                       >
                         {isAdminSettingUp ? <Loader2 className="h-5 w-5 animate-spin" /> : <Zap className="h-5 w-5" />}
-                        <span className="font-headline font-bold uppercase tracking-wider">Claim Platform Role</span>
+                        <span className="font-headline font-bold uppercase tracking-wider">Initialize Global Admin</span>
                       </Button>
-                    )}
-                    {!isSuperAdmin && (
-                      <p className="text-[8px] text-center text-muted-foreground uppercase font-bold italic">
-                        Note: Super Admin authorization is required to initialize global roles.
-                      </p>
                     )}
                   </div>
                 </div>
@@ -251,13 +230,13 @@ export default function LoginPage() {
             <form onSubmit={handleEmailAuth} className="space-y-6">
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="email" className="text-[10px] font-black uppercase tracking-widest">Authorized Email</Label>
+                  <Label htmlFor="email" className="text-[10px] font-black uppercase tracking-widest">Platform Identity</Label>
                   <div className="relative">
                     <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                     <Input 
                       id="email" 
                       type="email" 
-                      placeholder="admin@kooporders.com" 
+                      placeholder="identity@kooporders.com" 
                       className="pl-10 h-11 border-2 font-bold"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
@@ -284,7 +263,7 @@ export default function LoginPage() {
 
               <div className="bg-amber-50 border border-amber-100 p-3 rounded-xl">
                 <p className="text-[9px] text-amber-800 font-bold uppercase tracking-wide leading-relaxed text-center">
-                  Account registration is restricted to authorized platform members.
+                  This gateway is restricted to authorized platform personnel only.
                 </p>
               </div>
 
@@ -294,14 +273,14 @@ export default function LoginPage() {
                 disabled={isLoading}
               >
                 {isLoading ? <Loader2 className="animate-spin" /> : <LogIn className="h-4 w-4" />}
-                AUTHENTICATE
+                SECURE LOGIN
               </Button>
             </form>
           )}
         </CardContent>
         <CardFooter className="bg-muted/10 border-t py-4 text-center justify-center">
           <p className="text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground">
-            KOOP SECURE ACCESS v3.1
+            INTERNAL ACCESS ONLY • v3.5
           </p>
         </CardFooter>
       </Card>
