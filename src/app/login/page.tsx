@@ -19,7 +19,7 @@ import { SUPER_ADMIN_ID } from '@/lib/utils';
 
 /**
  * INTERNAL PLATFORM GATEWAY
- * This component is restricted to Platform Administrators and 
+ * Restricted exclusively to Platform Administrators and 
  * Internal Sales Representatives. Venue Managers and Staff 
  * access the platform through PIN-based entry or open dashboards.
  */
@@ -170,7 +170,7 @@ export default function LoginPage() {
                   <Loader2 className="h-8 w-8 animate-spin text-primary" />
                   <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Verifying Authorizations...</p>
                 </div>
-              ) : isPlatformAdmin || isInternalStaff ? (
+              ) : (isPlatformAdmin || isInternalStaff) ? (
                 <div className="space-y-4">
                   <div className="p-5 bg-primary/10 border-2 border-primary/20 rounded-2xl flex flex-col items-center text-center gap-2">
                     {isInternalStaff ? <Target className="h-10 w-10 text-indigo-600" /> : <ShieldCheck className="h-10 w-10 text-primary" />}
@@ -194,7 +194,7 @@ export default function LoginPage() {
                       <p className="text-[10px] font-black uppercase tracking-widest">Platform Role Required</p>
                     </div>
                     <p className="text-xs text-indigo-800 font-medium leading-relaxed">
-                      This portal is reserved for internal KOOP operations. External partners should use the QR/PIN entry systems.
+                      This portal is reserved for internal KOOP operations. External partners should use the direct dashboard URLs.
                     </p>
                     <div className="bg-white p-3 rounded-lg border-2 border-indigo-100 space-y-2">
                       <div className="flex items-center justify-between">

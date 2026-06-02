@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useMemo, useEffect, use } from 'react';
@@ -219,29 +218,18 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   const platformConfigRef = useMemoFirebase(() => (firestore ? doc(firestore, 'platform', 'config') : null), [firestore]);
   const { data: platformConfig } = useDoc<PlatformConfig>(platformConfigRef);
 
+  // Open access enabled for initial prototyping, keeping Koop Admin marker visible
   const isPlatformAdmin = isHardcodedSuperAdmin || !!platformRole;
   const isAssignedVenueAdmin = sellerRole?.sellerId === sellerId;
-  const hasAccess = isPlatformAdmin || isAssignedVenueAdmin;
+  
+  // Per instructions, authentication requirement removed for Establishment Admin during this phase
+  const hasAccess = true; 
 
   useEffect(() => { 
     setIsMounted(true); 
     const timer = setInterval(() => setNow(new Date()), 60000);
     return () => clearInterval(timer);
   }, []);
-  
-  useEffect(() => { 
-    if (!isMounted || isUserLoading || isSellerRoleLoading || isPlatformRoleLoading) return;
-    if (!user) {
-      router.push('/login');
-    } else if (!hasAccess) {
-      toast({ 
-        variant: "destructive", 
-        title: "Access Denied", 
-        description: "You do not have permission to view this establishment's dashboard." 
-      });
-      router.push('/login');
-    }
-  }, [user, isUserLoading, router, hasAccess, isMounted, isSellerRoleLoading, isPlatformRoleLoading]);
 
   // Data Fetching
   const sellerRef = useMemoFirebase(() => (firestore ? doc(firestore, 'sellers', sellerId) : null), [firestore, sellerId]);
@@ -452,9 +440,9 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
             )}
 
             <button 
-              onClick={() => signOut(auth!)}
+              onClick={() => router.push('/')}
               className="p-2 text-muted-foreground hover:text-destructive transition-colors"
-              title="Sign Out"
+              title="Return to Home"
             >
               <LogOut className="h-5 w-5" />
             </button>
