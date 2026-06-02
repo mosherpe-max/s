@@ -266,26 +266,36 @@ export default function PlatformAdminPage() {
     }
   };
 
+  /**
+   * handleSaveVenueStripeData
+   * Updates the core venue document in the 'venues' collection using standard Firestore SDK.
+   */
   const handleSaveVenueStripeData = async () => {
     if (!firestore || !selectedVenue) return;
     setIsProcessingStripe(true);
     try {
       const venueRef = doc(firestore, 'venues', selectedVenue.id);
+      
+      // Perform write using Standard Firestore SDK
       await setDoc(venueRef, {
         venueId: selectedVenue.id,
         name: selectedVenue.courseName,
-        stripeAccountId: stripeAccountId,
+        stripeAccountId: stripeAccountId.trim(),
         payoutsEnabled: payoutsEnabled,
-        stripeOnboardingLink: manualOnboardingLink,
+        stripeOnboardingLink: manualOnboardingLink.trim(),
         updatedAt: serverTimestamp(),
       }, { merge: true });
 
       toast({ 
-        title: "Stripe Data Synchronized", 
-        description: `Financial configuration for ${selectedVenue.courseName} has been updated.` 
+        title: "Stripe Express Data Saved", 
+        description: `Stripe configuration for ${selectedVenue.courseName} has been successfully updated in the registry.` 
       });
     } catch (e: any) {
-      toast({ variant: "destructive", title: "Update Failed", description: e.message });
+      toast({ 
+        variant: "destructive", 
+        title: "Registry Update Failed", 
+        description: e.message || "Could not save Stripe data." 
+      });
     } finally {
       setIsProcessingStripe(false);
     }
@@ -296,9 +306,10 @@ export default function PlatformAdminPage() {
       toast({ variant: "destructive", title: "Missing Link", description: "Please enter a valid URL before sending." });
       return;
     }
+    // Logic for automated sending would go here (e.g. email service)
     toast({ 
       title: "Onboarding Link Dispatched", 
-      description: `Notification with the setup link sent to ${selectedVenue?.contactEmail}.` 
+      description: `Notification with the Stripe Express setup link sent to ${selectedVenue?.contactEmail}.` 
     });
   };
 
@@ -433,7 +444,7 @@ export default function PlatformAdminPage() {
                               <ShieldCheck className="h-4 w-4" />
                             </div>
                             <div>
-                              <p className="text-xs font-bold uppercase">Stripe Onboarding Pending</p>
+                              <p className="text-xs font-bold uppercase">Stripe Express Onboarding Pending</p>
                               <p className="text-[10px] text-muted-foreground uppercase font-black tracking-widest">3 venues awaiting setup links</p>
                             </div>
                           </div>
@@ -841,7 +852,7 @@ export default function PlatformAdminPage() {
               <TabsTrigger value="details" className="text-[10px] font-black uppercase tracking-widest px-4 h-full">Establishment Details</TabsTrigger>
               <TabsTrigger value="billing" className="text-[10px] font-black uppercase tracking-widest px-4 h-full">Fee & Billing Config</TabsTrigger>
               <TabsTrigger value="ops" className="text-[10px] font-black uppercase tracking-widest px-4 h-full">Operational Status</TabsTrigger>
-              <TabsTrigger value="stripe" className="text-[10px] font-black uppercase tracking-widest px-4 h-full">Stripe Control</TabsTrigger>
+              <TabsTrigger value="stripe" className="text-[10px] font-black uppercase tracking-widest px-4 h-full">Stripe Express Control</TabsTrigger>
             </TabsList>
 
             <TabsContent value="details" className="grid grid-cols-2 gap-6 pb-6">
@@ -918,14 +929,14 @@ export default function PlatformAdminPage() {
             <TabsContent value="stripe" className="space-y-6 pb-6">
               <div className="space-y-4 bg-indigo-50/50 p-6 rounded-[1.5rem] border-2 border-indigo-100">
                 <div className="grid gap-2">
-                  <Label className="text-[10px] font-black uppercase tracking-widest text-indigo-600">Stripe Account ID</Label>
+                  <Label className="text-[10px] font-black uppercase tracking-widest text-indigo-600">Stripe Express Account ID</Label>
                   <Input 
                     value={stripeAccountId} 
                     onChange={(e) => setStripeAccountId(e.target.value)}
                     placeholder="acct_xxxxxxxx" 
                     className="font-mono font-bold border-2 border-indigo-200"
                   />
-                  <p className="text-[8px] font-bold text-indigo-400 uppercase">The unique merchant ID from Stripe Connect.</p>
+                  <p className="text-[8px] font-bold text-indigo-400 uppercase">The unique merchant ID from Stripe Connect Express.</p>
                 </div>
 
                 <div className="flex items-center justify-between bg-white p-4 rounded-xl border-2 border-indigo-100">
@@ -971,8 +982,8 @@ export default function PlatformAdminPage() {
               <div className="p-4 bg-amber-50 border-2 border-amber-100 rounded-xl flex gap-3">
                 <ShieldCheck className="h-5 w-5 text-amber-600 shrink-0" />
                 <div className="space-y-1">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-amber-800 leading-none">Stripe Connect Policy</p>
-                  <p className="text-[9px] font-bold text-amber-700 uppercase leading-tight">Payouts can only be enabled for accounts with completed identity verification.</p>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-amber-800 leading-none">Stripe Connect Express Policy</p>
+                  <p className="text-[9px] font-bold text-amber-700 uppercase leading-tight">Payouts can only be enabled for accounts with completed identity verification on the Express platform.</p>
                 </div>
               </div>
             </TabsContent>

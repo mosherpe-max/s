@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useEffect } from 'react';
@@ -164,7 +165,7 @@ export default function HomePage() {
             { n: '01', t: 'We Set You Up', d: 'We build your menu, generate your QR codes, and handle staff training. You\'re ready to go in 48 hours.' },
             { n: '02', nClass: 'delay-100', t: 'Patron Scans & Orders', d: 'A QR code at any location — cart, lane, chair — opens your menu in any mobile browser. No app required.' },
             { n: '03', nClass: 'delay-200', t: 'Staff Gets Notified', d: 'Your team sees the order and delivery location on their device. They fulfill it exactly as they do today.' },
-            { n: '04', nClass: 'delay-300', t: 'Revenue Hits Account', d: 'Payments go directly to your merchant account via Authorize.net. Koop never touches your money.' }
+            { n: '04', nClass: 'delay-300', t: 'Revenue Hits Account', d: 'Payments flow directly into your merchant account via Stripe Express. Koop never touches your money.' }
           ].map((step, i) => (
             <div key={step.n} className={cn("reveal opacity-0 translate-y-8 transition-all duration-700 relative z-10", step.nClass)}>
               <div className="w-16 h-16 rounded-full border-2 border-[#E50000] bg-[#16243a] flex items-center justify-center font-headline text-2xl font-black text-[#E50000] mb-6">
@@ -189,7 +190,7 @@ export default function HomePage() {
             { i: '⚡', t: 'Live in 48 Hours', d: 'We handle setup — menus, QR codes, staff walkthrough. Approved and launched in 2 business days.' },
             { i: '📍', t: 'Order From Anywhere', d: 'Every QR code is location-aware. Staff knows exactly where to deliver without explanation.' },
             { i: '📱', t: 'No App to Download', d: 'Patrons scan, order, and pay right in their mobile browser. No friction, higher completion.' },
-            { i: '💰', t: 'Money Goes Direct', d: 'Payments flow directly into your existing merchant account. Koop never holds or routes your funds.' }
+            { i: '💰', t: 'Money Goes Direct', d: 'Payments flow directly into your existing merchant account via Stripe Express. Koop never holds or routes your funds.' }
           ].map(feature => (
             <div key={feature.t} className="reveal opacity-0 translate-y-8 transition-all duration-700 bg-[#16243a] hover:bg-[#1d2f46] p-10 border border-white/5 transition-colors group">
               <span className="text-4xl mb-6 block">{feature.i}</span>
@@ -229,7 +230,7 @@ export default function HomePage() {
             </h3>
             <p className="text-lg text-[#8a9ab0] mb-8 leading-relaxed">Every time a patron orders through Koop, they pay a small convenience fee. You keep 100% of your menu price.</p>
             <ul className="space-y-4">
-              {['No CC processing fees billed to you', 'No percentage of sales taken by Koop', '100% of F&B revenue goes to you', 'Direct deposit via Authorize.net', 'Simple monthly invoicing'].map(item => (
+              {['No CC processing fees billed to you', 'No percentage of sales taken by Koop', '100% of F&B revenue goes to you', 'Direct deposit via Stripe Express', 'Simple monthly invoicing'].map(item => (
                 <li key={item} className="flex items-center gap-3 text-base font-bold text-[#F0F0F0]">
                   <span className="text-[#E50000] font-black text-xl leading-none">✓</span> {item}
                 </li>
