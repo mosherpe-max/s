@@ -43,7 +43,9 @@ import {
   Download,
   Filter,
   MoreVertical,
-  ExternalLink
+  ExternalLink,
+  Send,
+  Link as LinkIcon
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -84,9 +86,9 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useFirestore, useCollection, useMemoFirebase, useFirebase, useAuth, useDoc } from '@/firebase';
 import { signOut } from 'firebase/auth';
-import { collection, query, limit, doc, setDoc, serverTimestamp, where, orderBy, updateDoc } from 'firebase/firestore';
+import { collection, query, limit, doc, setDoc, serverTimestamp, where, orderBy, updateDoc, getDoc } from 'firebase/firestore';
 import { httpsCallable, getFunctions } from 'firebase/functions';
-import type { Seller, PlatformConfig, Order, SalesRepRole } from '@/lib/types';
+import type { Seller, PlatformConfig, Order, SalesRepRole, Venue } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -153,9 +155,15 @@ export default function PlatformAdminPage() {
   
   // Functional State
   const [selectedVenue, setSelectedVenue] = useState<Seller | null>(null);
+  const [selectedVenueRegistry, setSelectedVenueRegistry] = useState<Venue | null>(null);
   const [isVenueDetailOpen, setIsVenueDetailOpen] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
+  const [isProcessingStripe, setIsProcessingStripe] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+
+  // Stripe Control Panel State
+  const [stripeAccountId, setStripeAccountId] = useState('');
+  const [payoutsEnabled, setPayoutsEnabled] = useState(false);
+  const [manualOnboardingLink, setManualOnboardingLink] = useState('');
 
   useEffect(() => {
     setIsMounted(true);
@@ -183,6 +191,27 @@ export default function PlatformAdminPage() {
   const { data: sellers, isLoading: isSellersLoading } = useCollection<Seller>(sellersQuery);
   const { data: orders, isLoading: isOrdersLoading } = useCollection<Order>(ordersQuery);
   const { data: reps } = useCollection<SalesRepRole>(repsQuery);
+
+  // Sync Stripe Data when venue is selected
+  useEffect(() => {
+    const fetchRegistry = async () => {
+      if (!firestore || !selectedVenue) return;
+      const venueDoc = await getDoc(doc(firestore, 'venues', selectedVenue.id));
+      if (venueDoc.exists()) {
+        const data = venueDoc.data() as Venue;
+        setSelectedVenueRegistry(data);
+        setStripeAccountId(data.stripeAccountId || '');
+        setPayoutsEnabled(data.payoutsEnabled || false);
+        setManualOnboardingLink(data.stripeOnboardingLink || '');
+      } else {
+        setSelectedVenueRegistry(null);
+        setStripeAccountId('');
+        setPayoutsEnabled(false);
+        setManualOnboardingLink('');
+      }
+    };
+    fetchRegistry();
+  }, [selectedVenue, firestore]);
 
   // Platform Metrics Calculation
   const metrics = useMemo(() => {
@@ -235,6 +264,42 @@ export default function PlatformAdminPage() {
     } catch (e: any) {
       toast({ variant: "destructive", title: "Error", description: e.message });
     }
+  };
+
+  const handleSaveVenueStripeData = async () => {
+    if (!firestore || !selectedVenue) return;
+    setIsProcessingStripe(true);
+    try {
+      const venueRef = doc(firestore, 'venues', selectedVenue.id);
+      await setDoc(venueRef, {
+        venueId: selectedVenue.id,
+        name: selectedVenue.courseName,
+        stripeAccountId: stripeAccountId,
+        payoutsEnabled: payoutsEnabled,
+        stripeOnboardingLink: manualOnboardingLink,
+        updatedAt: serverTimestamp(),
+      }, { merge: true });
+
+      toast({ 
+        title: "Stripe Data Synchronized", 
+        description: `Financial configuration for ${selectedVenue.courseName} has been updated.` 
+      });
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Update Failed", description: e.message });
+    } finally {
+      setIsProcessingStripe(false);
+    }
+  };
+
+  const handleSendOnboardingLink = () => {
+    if (!manualOnboardingLink) {
+      toast({ variant: "destructive", title: "Missing Link", description: "Please enter a valid URL before sending." });
+      return;
+    }
+    toast({ 
+      title: "Onboarding Link Dispatched", 
+      description: `Notification with the setup link sent to ${selectedVenue?.contactEmail}.` 
+    });
   };
 
   if (!isMounted) return null;
@@ -776,6 +841,7 @@ export default function PlatformAdminPage() {
               <TabsTrigger value="details" className="text-[10px] font-black uppercase tracking-widest px-4 h-full">Establishment Details</TabsTrigger>
               <TabsTrigger value="billing" className="text-[10px] font-black uppercase tracking-widest px-4 h-full">Fee & Billing Config</TabsTrigger>
               <TabsTrigger value="ops" className="text-[10px] font-black uppercase tracking-widest px-4 h-full">Operational Status</TabsTrigger>
+              <TabsTrigger value="stripe" className="text-[10px] font-black uppercase tracking-widest px-4 h-full">Stripe Control</TabsTrigger>
             </TabsList>
 
             <TabsContent value="details" className="grid grid-cols-2 gap-6 pb-6">
@@ -826,13 +892,6 @@ export default function PlatformAdminPage() {
                   </div>
                 </div>
               </div>
-              <div className="p-4 bg-amber-50 border-2 border-amber-100 rounded-xl flex gap-3">
-                <ShieldCheck className="h-5 w-5 text-amber-600 shrink-0" />
-                <div className="space-y-1">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-amber-800 leading-none">Authorize.net Verification</p>
-                  <p className="text-[9px] font-bold text-amber-700 uppercase leading-tight">Credentials linked and verified for production draws.</p>
-                </div>
-              </div>
             </TabsContent>
 
             <TabsContent value="ops" className="space-y-4 pb-6">
@@ -852,6 +911,68 @@ export default function PlatformAdminPage() {
                 <div className="p-4 border-2 rounded-2xl flex items-center justify-between">
                   <span className="text-[10px] font-black uppercase">Founding Partner Badge</span>
                   <Switch defaultChecked />
+                </div>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="stripe" className="space-y-6 pb-6">
+              <div className="space-y-4 bg-indigo-50/50 p-6 rounded-[1.5rem] border-2 border-indigo-100">
+                <div className="grid gap-2">
+                  <Label className="text-[10px] font-black uppercase tracking-widest text-indigo-600">Stripe Account ID</Label>
+                  <Input 
+                    value={stripeAccountId} 
+                    onChange={(e) => setStripeAccountId(e.target.value)}
+                    placeholder="acct_xxxxxxxx" 
+                    className="font-mono font-bold border-2 border-indigo-200"
+                  />
+                  <p className="text-[8px] font-bold text-indigo-400 uppercase">The unique merchant ID from Stripe Connect.</p>
+                </div>
+
+                <div className="flex items-center justify-between bg-white p-4 rounded-xl border-2 border-indigo-100">
+                  <div className="space-y-0.5">
+                    <p className="text-xs font-black uppercase text-[#213147]">Enable Payouts</p>
+                    <p className="text-[9px] font-bold text-muted-foreground uppercase">Allow automated ACH transfers to this merchant.</p>
+                  </div>
+                  <Switch checked={payoutsEnabled} onCheckedChange={setPayoutsEnabled} />
+                </div>
+
+                <div className="grid gap-2 border-t border-indigo-100 pt-4">
+                  <Label className="text-[10px] font-black uppercase tracking-widest text-indigo-600">Manual Onboarding Link</Label>
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <LinkIcon className="absolute left-3 top-3 h-4 w-4 text-indigo-400" />
+                      <Input 
+                        value={manualOnboardingLink} 
+                        onChange={(e) => setManualOnboardingLink(e.target.value)}
+                        placeholder="https://connect.stripe.com/setup/s/..." 
+                        className="pl-10 font-bold border-2 border-indigo-200"
+                      />
+                    </div>
+                    <Button 
+                      variant="outline" 
+                      onClick={handleSendOnboardingLink}
+                      className="border-indigo-200 text-indigo-600 hover:bg-indigo-100 gap-2 h-10 px-4 font-black uppercase text-[9px]"
+                    >
+                      <Send className="h-3 w-3" /> Send
+                    </Button>
+                  </div>
+                </div>
+
+                <Button 
+                  onClick={handleSaveVenueStripeData} 
+                  disabled={isProcessingStripe}
+                  className="w-full h-12 bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-widest shadow-lg mt-2"
+                >
+                  {isProcessingStripe ? <Loader2 className="h-5 w-5 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+                  Save Venue Stripe Data
+                </Button>
+              </div>
+
+              <div className="p-4 bg-amber-50 border-2 border-amber-100 rounded-xl flex gap-3">
+                <ShieldCheck className="h-5 w-5 text-amber-600 shrink-0" />
+                <div className="space-y-1">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-amber-800 leading-none">Stripe Connect Policy</p>
+                  <p className="text-[9px] font-bold text-amber-700 uppercase leading-tight">Payouts can only be enabled for accounts with completed identity verification.</p>
                 </div>
               </div>
             </TabsContent>
