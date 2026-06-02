@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useMemo, useEffect, use } from 'react';
@@ -98,6 +97,12 @@ import { CSS } from '@dnd-kit/utilities';
 import type { MenuItem, Seller, Order, StaffMember, Venue, PlatformConfig } from '@/lib/types';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { publicGolfItems, privateGolfItems, bowlingAlleyItems } from '@/lib/data';
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
 
 // --- SCHEMAS ---
 
@@ -137,7 +142,7 @@ function NavButton({ id, label, icon: Icon, active, onClick, sidebarOpen }: {
 
 function KPICard({ label, value, sub, icon: Icon, colorClass }: { label: string, value: string | number, sub: string, icon: any, colorClass?: string }) {
   return (
-    <Card className="border-2 shadow-sm overflow-hidden relative">
+    <Card className="border-2 shadow-sm overflow-hidden relative h-full">
       <div className={cn("absolute top-0 left-0 bottom-0 w-1.5", colorClass)} />
       <CardHeader className="pb-2 pt-5">
         <CardDescription className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
@@ -423,7 +428,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
             <h2 className="text-xl font-black font-headline uppercase tracking-tight text-[#213147]">
               {NAV_ITEMS.find(n => n.id === activeNav)?.label}
             </h2>
-            <span className="text-xs font-bold text-muted-foreground uppercase border-l-2 pl-4">
+            <span className="text-xs font-bold text-muted-foreground uppercase border-l-2 pl-4 hidden sm:block">
               {format(now, 'EEEE, MMMM d, yyyy')}
             </span>
           </div>
@@ -458,11 +463,19 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
             {activeNav === 'dashboard' && (
               <div className="space-y-10">
                 {/* Metrics */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                  <KPICard label="Today's Revenue" value={`$${stats?.todayRevenue}`} sub="+14% vs yesterday" icon={DollarSign} colorClass="bg-green-500" />
-                  <KPICard label="Active Orders" value={stats?.activeCount || 0} sub="Currently preparing/delivering" icon={ShoppingBag} colorClass="bg-primary" />
-                  <KPICard label="Volume Today" value={stats?.totalOrdersCount || 0} sub="Confirmed orders since 4 AM" icon={Activity} colorClass="bg-[#213147]" />
-                  <KPICard label="Avg Order Value" value={`$${stats?.avgOrderValue}`} sub="Gross sales per patron" icon={TrendingUp} colorClass="bg-amber-500" />
+                <div className="flex overflow-x-auto gap-6 pb-2 no-scrollbar -mx-2 px-2 md:grid md:grid-cols-2 lg:grid-cols-4 md:pb-0 md:mx-0 md:px-0">
+                  <div className="min-w-[240px] flex-1">
+                    <KPICard label="Today's Revenue" value={`$${stats?.todayRevenue}`} sub="+14% vs yesterday" icon={DollarSign} colorClass="bg-green-500" />
+                  </div>
+                  <div className="min-w-[240px] flex-1">
+                    <KPICard label="Active Orders" value={stats?.activeCount || 0} sub="Currently preparing/delivering" icon={ShoppingBag} colorClass="bg-primary" />
+                  </div>
+                  <div className="min-w-[240px] flex-1">
+                    <KPICard label="Volume Today" value={stats?.totalOrdersCount || 0} sub="Confirmed orders since 4 AM" icon={Activity} colorClass="bg-[#213147]" />
+                  </div>
+                  <div className="min-w-[240px] flex-1">
+                    <KPICard label="Avg Order Value" value={`$${stats?.avgOrderValue}`} sub="Gross sales per patron" icon={TrendingUp} colorClass="bg-amber-500" />
+                  </div>
                 </div>
 
                 {/* Service Modes Quick Access */}
@@ -471,7 +484,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                     <Zap className="h-5 w-5 text-primary" />
                     <h3 className="font-headline font-black text-lg uppercase tracking-tight text-[#213147]">Service Modules</h3>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="flex overflow-x-auto gap-4 pb-4 no-scrollbar -mx-2 px-2 md:grid md:grid-cols-2 lg:grid-cols-4 md:pb-0 md:mx-0 md:px-0">
                     {['Beverage Cart', 'Clubhouse', 'Lane Delivery', 'Take Out'].map((mode) => {
                       const isActive = (mode === 'Beverage Cart' && seller?.bevcartActive) || 
                                        (mode === 'Clubhouse' && seller?.clubhouseActive) ||
@@ -481,7 +494,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                         <Card 
                           key={mode} 
                           className={cn(
-                            "cursor-pointer transition-all duration-300 border-2",
+                            "cursor-pointer transition-all duration-300 border-2 min-w-[220px] md:min-w-0",
                             isActive ? "border-primary bg-primary/5 shadow-md" : "border-slate-100 bg-white hover:border-slate-200"
                           )}
                           onClick={() => handleToggleMode(mode, !!isActive)}
@@ -518,30 +531,32 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                     </Button>
                   </div>
                   <Card className="border-2 shadow-sm overflow-hidden">
-                    <Table>
-                      <TableHeader className="bg-slate-50 border-b">
-                        <TableRow>
-                          <TableHead className="text-[10px] font-black uppercase">Order ID</TableHead>
-                          <TableHead className="text-[10px] font-black uppercase">Service</TableHead>
-                          <TableHead className="text-[10px] font-black uppercase">Patron</TableHead>
-                          <TableHead className="text-[10px] font-black uppercase text-right">Total</TableHead>
-                          <TableHead className="text-[10px] font-black uppercase text-right">Status</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {orders?.slice(0, 5).map((order) => (
-                          <TableRow key={order.id} className="hover:bg-slate-50/50">
-                            <TableCell className="font-mono text-xs font-bold text-primary">#{order.id.slice(-5).toUpperCase()}</TableCell>
-                            <TableCell className="text-xs font-black uppercase">{order.menuType}</TableCell>
-                            <TableCell className="text-xs font-medium">{order.customerName}</TableCell>
-                            <TableCell className="text-right font-bold text-xs">${order.total.toFixed(2)}</TableCell>
-                            <TableCell className="text-right">
-                              <Badge variant="outline" className="text-[8px] font-black uppercase">{order.status}</Badge>
-                            </TableCell>
+                    <div className="overflow-x-auto no-scrollbar">
+                      <Table>
+                        <TableHeader className="bg-slate-50 border-b">
+                          <TableRow>
+                            <TableHead className="text-[10px] font-black uppercase">Order ID</TableHead>
+                            <TableHead className="text-[10px] font-black uppercase">Service</TableHead>
+                            <TableHead className="text-[10px] font-black uppercase">Patron</TableHead>
+                            <TableHead className="text-[10px] font-black uppercase text-right">Total</TableHead>
+                            <TableHead className="text-[10px] font-black uppercase text-right">Status</TableHead>
                           </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
+                        </TableHeader>
+                        <TableBody>
+                          {orders?.slice(0, 5).map((order) => (
+                            <TableRow key={order.id} className="hover:bg-slate-50/50">
+                              <TableCell className="font-mono text-xs font-bold text-primary">#{order.id.slice(-5).toUpperCase()}</TableCell>
+                              <TableCell className="text-xs font-black uppercase">{order.menuType}</TableCell>
+                              <TableCell className="text-xs font-medium">{order.customerName}</TableCell>
+                              <TableCell className="text-right font-bold text-xs">${order.total.toFixed(2)}</TableCell>
+                              <TableCell className="text-right">
+                                <Badge variant="outline" className="text-[8px] font-black uppercase">{order.status}</Badge>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
                   </Card>
                 </div>
               </div>
@@ -551,9 +566,9 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
             {activeNav === 'orders' && (
               <div className="space-y-6">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2 md:pb-0">
                     {['All', 'Placed', 'Preparing', 'Delivered'].map(status => (
-                      <Button key={status} variant="outline" className="h-9 px-4 text-[10px] font-black uppercase tracking-widest rounded-full">
+                      <Button key={status} variant="outline" className="h-9 px-4 text-[10px] font-black uppercase tracking-widest rounded-full whitespace-nowrap">
                         {status}
                       </Button>
                     ))}
@@ -568,34 +583,36 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                 </div>
 
                 <Card className="border-2 shadow-sm overflow-hidden">
-                  <Table>
-                    <TableHeader className="bg-slate-50 border-b">
-                      <TableRow>
-                        <TableHead className="text-[10px] font-black uppercase">Timestamp</TableHead>
-                        <TableHead className="text-[10px] font-black uppercase">Patron</TableHead>
-                        <TableHead className="text-[10px] font-black uppercase">Items</TableHead>
-                        <TableHead className="text-[10px] font-black uppercase text-right">Revenue</TableHead>
-                        <TableHead className="text-[10px] font-black uppercase text-right">Status</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {orders?.map((order) => (
-                        <TableRow key={order.id}>
-                          <TableCell className="text-[10px] font-mono text-muted-foreground">
-                            {order.createdAt ? format(order.createdAt.toDate(), 'HH:mm:ss') : '--'}
-                          </TableCell>
-                          <TableCell className="font-bold text-xs">{order.customerName}</TableCell>
-                          <TableCell className="text-xs text-muted-foreground truncate max-w-[200px]">
-                            {order.items.map(i => `${i.quantity}x ${i.name}`).join(', ')}
-                          </TableCell>
-                          <TableCell className="text-right font-black text-xs">${order.total.toFixed(2)}</TableCell>
-                          <TableCell className="text-right">
-                            <Badge className="text-[9px] font-black uppercase">{order.status}</Badge>
-                          </TableCell>
+                  <div className="overflow-x-auto no-scrollbar">
+                    <Table>
+                      <TableHeader className="bg-slate-50 border-b">
+                        <TableRow>
+                          <TableHead className="text-[10px] font-black uppercase">Timestamp</TableHead>
+                          <TableHead className="text-[10px] font-black uppercase">Patron</TableHead>
+                          <TableHead className="text-[10px] font-black uppercase">Items</TableHead>
+                          <TableHead className="text-[10px] font-black uppercase text-right">Revenue</TableHead>
+                          <TableHead className="text-[10px] font-black uppercase text-right">Status</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                      </TableHeader>
+                      <TableBody>
+                        {orders?.map((order) => (
+                          <TableRow key={order.id}>
+                            <TableCell className="text-[10px] font-mono text-muted-foreground">
+                              {order.createdAt ? format(order.createdAt.toDate(), 'HH:mm:ss') : '--'}
+                            </TableCell>
+                            <TableCell className="font-bold text-xs">{order.customerName}</TableCell>
+                            <TableCell className="text-xs text-muted-foreground truncate max-w-[200px]">
+                              {order.items.map(i => `${i.quantity}x ${i.name}`).join(', ')}
+                            </TableCell>
+                            <TableCell className="text-right font-black text-xs">${order.total.toFixed(2)}</TableCell>
+                            <TableCell className="text-right">
+                              <Badge className="text-[9px] font-black uppercase">{order.status}</Badge>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
                 </Card>
               </div>
             )}
@@ -647,32 +664,34 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                    </Button>
                 </div>
                 <Card className="border-2 shadow-sm overflow-hidden">
-                  <Table>
-                    <TableHeader className="bg-slate-50 border-b">
-                      <TableRow>
-                        <TableHead className="text-[10px] font-black uppercase">Identity</TableHead>
-                        <TableHead className="text-[10px] font-black uppercase">Role</TableHead>
-                        <TableHead className="text-[10px] font-black uppercase">Secure PIN</TableHead>
-                        <TableHead className="text-[10px] font-black uppercase text-right">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {staff?.map(s => (
-                        <TableRow key={s.id}>
-                          <TableCell className="font-bold text-xs uppercase">{s.name}</TableCell>
-                          <TableCell>
-                            <Badge variant="secondary" className="text-[9px] font-black uppercase">{s.role}</Badge>
-                          </TableCell>
-                          <TableCell><code className="text-xs font-mono font-black tracking-widest text-primary">{s.pin}</code></TableCell>
-                          <TableCell className="text-right">
-                            <Button variant="ghost" size="icon" onClick={() => { setEditingStaff(s); staffForm.reset(s); setIsStaffFormOpen(true); }}>
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                          </TableCell>
+                  <div className="overflow-x-auto no-scrollbar">
+                    <Table>
+                      <TableHeader className="bg-slate-50 border-b">
+                        <TableRow>
+                          <TableHead className="text-[10px] font-black uppercase">Identity</TableHead>
+                          <TableHead className="text-[10px] font-black uppercase">Role</TableHead>
+                          <TableHead className="text-[10px] font-black uppercase">Secure PIN</TableHead>
+                          <TableHead className="text-[10px] font-black uppercase text-right">Actions</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                      </TableHeader>
+                      <TableBody>
+                        {staff?.map(s => (
+                          <TableRow key={s.id}>
+                            <TableCell className="font-bold text-xs uppercase">{s.name}</TableCell>
+                            <TableCell>
+                              <Badge variant="secondary" className="text-[9px] font-black uppercase">{s.role}</Badge>
+                            </TableCell>
+                            <TableCell><code className="text-xs font-mono font-black tracking-widest text-primary">{s.pin}</code></TableCell>
+                            <TableCell className="text-right">
+                              <Button variant="ghost" size="icon" onClick={() => { setEditingStaff(s); staffForm.reset(s); setIsStaffFormOpen(true); }}>
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
                 </Card>
               </div>
             )}
@@ -680,34 +699,40 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
             {/* PAYMENTS SECTION */}
             {activeNav === 'payments' && (
               <div className="space-y-10">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                   <Card className="border-2 border-primary/20 bg-primary/5">
-                     <CardHeader className="pb-2 pt-5">
-                       <CardDescription className="text-[10px] font-black uppercase tracking-widest text-primary">MTD Revenue</CardDescription>
-                     </CardHeader>
-                     <CardContent>
-                       <div className="text-3xl font-black font-headline tracking-tighter text-[#213147]">${stats?.todayRevenue}</div>
-                       <p className="text-[9px] font-bold text-muted-foreground uppercase mt-1 italic">Net payout scheduled for Monday</p>
-                     </CardContent>
-                   </Card>
-                   <Card className="border-2 border-slate-100 bg-white">
-                     <CardHeader className="pb-2 pt-5">
-                       <CardDescription className="text-[10px] font-black uppercase tracking-widest">Platform Fee</CardDescription>
-                     </CardHeader>
-                     <CardContent>
-                       <div className="text-3xl font-black font-headline tracking-tighter text-[#213147]">${seller?.serviceFee?.toFixed(2)}</div>
-                       <p className="text-[9px] font-bold text-muted-foreground uppercase mt-1">Per patron transaction</p>
-                     </CardContent>
-                   </Card>
-                   <Card className="border-2 border-slate-100 bg-white">
-                     <CardHeader className="pb-2 pt-5">
-                       <CardDescription className="text-[10px] font-black uppercase tracking-widest">Commission</CardDescription>
-                     </CardHeader>
-                     <CardContent>
-                       <div className="text-3xl font-black font-headline tracking-tighter text-primary">0%</div>
-                       <p className="text-[9px] font-bold text-muted-foreground uppercase mt-1">Venue keeps 100% of menu price</p>
-                     </CardContent>
-                   </Card>
+                <div className="flex overflow-x-auto gap-6 pb-2 no-scrollbar -mx-2 px-2 md:grid md:grid-cols-3 md:pb-0 md:mx-0 md:px-0">
+                   <div className="min-w-[240px] flex-1">
+                     <Card className="border-2 border-primary/20 bg-primary/5 h-full">
+                       <CardHeader className="pb-2 pt-5">
+                         <CardDescription className="text-[10px] font-black uppercase tracking-widest text-primary">MTD Revenue</CardDescription>
+                       </CardHeader>
+                       <CardContent>
+                         <div className="text-3xl font-black font-headline tracking-tighter text-[#213147]">${stats?.todayRevenue}</div>
+                         <p className="text-[9px] font-bold text-muted-foreground uppercase mt-1 italic">Net payout scheduled for Monday</p>
+                       </CardContent>
+                     </Card>
+                   </div>
+                   <div className="min-w-[240px] flex-1">
+                     <Card className="border-2 border-slate-100 bg-white h-full">
+                       <CardHeader className="pb-2 pt-5">
+                         <CardDescription className="text-[10px] font-black uppercase tracking-widest">Platform Fee</CardDescription>
+                       </CardHeader>
+                       <CardContent>
+                         <div className="text-3xl font-black font-headline tracking-tighter text-[#213147]">${seller?.serviceFee?.toFixed(2)}</div>
+                         <p className="text-[9px] font-bold text-muted-foreground uppercase mt-1">Per patron transaction</p>
+                       </CardContent>
+                     </Card>
+                   </div>
+                   <div className="min-w-[240px] flex-1">
+                     <Card className="border-2 border-slate-100 bg-white h-full">
+                       <CardHeader className="pb-2 pt-5">
+                         <CardDescription className="text-[10px] font-black uppercase tracking-widest">Commission</CardDescription>
+                       </CardHeader>
+                       <CardContent>
+                         <div className="text-3xl font-black font-headline tracking-tighter text-primary">0%</div>
+                         <p className="text-[9px] font-bold text-muted-foreground uppercase mt-1">Venue keeps 100% of menu price</p>
+                       </CardContent>
+                     </Card>
+                   </div>
                 </div>
 
                 <Card className="border-2 shadow-sm overflow-hidden">
@@ -719,7 +744,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                         </div>
                         <div>
                           <h3 className="font-headline font-black text-xl uppercase tracking-tight text-[#213147]">Payout Integration</h3>
-                          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Stripe Connect verified</p>
+                          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Stripe Express verified</p>
                         </div>
                       </div>
                       <p className="text-sm text-slate-600 leading-relaxed max-w-xl">
@@ -868,8 +893,8 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                          <Sparkles className="h-4 w-4 text-primary" />
                        </Button>
                        <Button variant="outline" className="justify-between h-12 font-black uppercase text-[10px] tracking-widest border-2" asChild>
-                         <Link href={`/sellers/${sellerId}/bevcart`}>
-                           Enter Driver Interface
+                         <Link href={`/sellers/${sellerId}/staff-login`}>
+                           Enter Staff Interface
                            <ExternalLink className="h-4 w-4" />
                          </Link>
                        </Button>

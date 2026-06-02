@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -123,7 +122,7 @@ function NavButton({ id, label, icon: Icon, active, onClick, sidebarOpen }: {
 
 function KPICard({ label, value, sub, icon: Icon, colorClass, trend }: { label: string, value: string | number, sub: string, icon: any, colorClass?: string, trend?: string }) {
   return (
-    <Card className="border-2 shadow-sm overflow-hidden relative">
+    <Card className="border-2 shadow-sm overflow-hidden relative h-full">
       <div className={cn("absolute top-0 left-0 bottom-0 w-1.5", colorClass)} />
       <CardHeader className="pb-2 pt-5">
         <CardDescription className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center justify-between">
@@ -394,38 +393,46 @@ export default function PlatformAdminPage() {
             {/* DASHBOARD SECTION */}
             {activeNav === 'dashboard' && (
               <div className="space-y-10 animate-in fade-in duration-500">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                  <KPICard 
-                    label="Active Partners" 
-                    value={metrics?.venueCounts.total || 0} 
-                    sub={`${metrics?.venueCounts.golf} Golf • ${metrics?.venueCounts.bowling} Bowling`} 
-                    icon={Store} 
-                    colorClass="bg-indigo-600"
-                    trend="+2"
-                  />
-                  <KPICard 
-                    label="Platform GMV" 
-                    value={`$${metrics?.gmv.mtd.toLocaleString(undefined, { minimumFractionDigits: 2 })}`} 
-                    sub={`30D Vol: $${metrics?.gmv.trailing30.toLocaleString()}`} 
-                    icon={DollarSign} 
-                    colorClass="bg-green-600"
-                    trend="+12%"
-                  />
-                  <KPICard 
-                    label="Orders Processed" 
-                    value={metrics?.orders.mtd || 0} 
-                    sub={`${metrics?.orders.today} today • ${metrics?.orders.allTime} total`} 
-                    icon={ShoppingBag} 
-                    colorClass="bg-primary"
-                    trend="+8%"
-                  />
-                  <KPICard 
-                    label="Fee Revenue (MTD)" 
-                    value={`$${metrics?.fees.mtd.toLocaleString(undefined, { minimumFractionDigits: 2 })}`} 
-                    sub={`Projected: $${metrics?.fees.projected.toLocaleString()}`} 
-                    icon={BarChart3} 
-                    colorClass="bg-amber-500"
-                  />
+                <div className="flex overflow-x-auto gap-6 pb-2 no-scrollbar -mx-2 px-2 md:grid md:grid-cols-2 lg:grid-cols-4 md:pb-0 md:mx-0 md:px-0">
+                  <div className="min-w-[240px] flex-1">
+                    <KPICard 
+                      label="Active Partners" 
+                      value={metrics?.venueCounts.total || 0} 
+                      sub={`${metrics?.venueCounts.golf} Golf • ${metrics?.venueCounts.bowling} Bowling`} 
+                      icon={Store} 
+                      colorClass="bg-indigo-600"
+                      trend="+2"
+                    />
+                  </div>
+                  <div className="min-w-[240px] flex-1">
+                    <KPICard 
+                      label="Platform GMV" 
+                      value={`$${metrics?.gmv.mtd.toLocaleString(undefined, { minimumFractionDigits: 2 })}`} 
+                      sub={`30D Vol: $${metrics?.gmv.trailing30.toLocaleString()}`} 
+                      icon={DollarSign} 
+                      colorClass="bg-green-600"
+                      trend="+12%"
+                    />
+                  </div>
+                  <div className="min-w-[240px] flex-1">
+                    <KPICard 
+                      label="Orders Processed" 
+                      value={metrics?.orders.mtd || 0} 
+                      sub={`${metrics?.orders.today} today • ${metrics?.orders.allTime} total`} 
+                      icon={ShoppingBag} 
+                      colorClass="bg-primary"
+                      trend="+8%"
+                    />
+                  </div>
+                  <div className="min-w-[240px] flex-1">
+                    <KPICard 
+                      label="Fee Revenue (MTD)" 
+                      value={`$${metrics?.fees.mtd.toLocaleString(undefined, { minimumFractionDigits: 2 })}`} 
+                      sub={`Projected: $${metrics?.fees.projected.toLocaleString()}`} 
+                      icon={BarChart3} 
+                      colorClass="bg-amber-500"
+                    />
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -489,8 +496,8 @@ export default function PlatformAdminPage() {
             {/* VENUE MANAGEMENT SECTION */}
             {activeNav === 'venues' && (
               <div className="space-y-6 animate-in fade-in duration-500">
-                <div className="flex justify-between items-center bg-white p-4 rounded-2xl border-2 shadow-sm">
-                  <div className="flex-1 max-w-md relative">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-white p-4 rounded-2xl border-2 shadow-sm gap-4">
+                  <div className="flex-1 w-full max-w-md relative">
                     <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                     <Input 
                       placeholder="Search registry by name, rep, or ID..." 
@@ -499,17 +506,17 @@ export default function PlatformAdminPage() {
                       onChange={(e) => setSearchTerm(e.target.value)}
                     />
                   </div>
-                  <div className="flex gap-3">
-                    <Button variant="outline" className="h-10 px-4 font-black uppercase text-[10px] tracking-widest gap-2">
+                  <div className="flex gap-3 w-full md:w-auto">
+                    <Button variant="outline" className="flex-1 md:flex-none h-10 px-4 font-black uppercase text-[10px] tracking-widest gap-2">
                       <Filter className="h-4 w-4" /> Filters
                     </Button>
-                    <Button className="bg-[#213147] hover:bg-black font-black uppercase text-[10px] tracking-widest h-10 px-6 gap-2">
+                    <Button className="flex-1 md:flex-none bg-[#213147] hover:bg-black font-black uppercase text-[10px] tracking-widest h-10 px-6 gap-2">
                       <Plus className="h-4 w-4" /> Provision Venue
                     </Button>
                   </div>
                 </div>
 
-                <div className="border-2 rounded-2xl overflow-hidden bg-white shadow-sm">
+                <div className="border-2 rounded-2xl overflow-hidden bg-white shadow-sm overflow-x-auto no-scrollbar">
                   <Table>
                     <TableHeader className="bg-slate-50 border-b">
                       <TableRow>
@@ -588,48 +595,56 @@ export default function PlatformAdminPage() {
             {/* FINANCIAL SECTION */}
             {activeNav === 'finance' && (
               <div className="space-y-8 animate-in fade-in duration-500">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <KPICard label="MTD Fees Owed" value="$2,450.50" sub="Total drawn: $1,900.00" icon={CreditCard} colorClass="bg-indigo-600" />
-                  <KPICard label="Billing Cycle" value="Cycle-15" sub="Next draw: Feb 15, 2026" icon={Calendar} colorClass="bg-[#213147]" />
-                  <KPICard label="Past Due Venues" value="2" sub="Requires manual follow-up" icon={AlertTriangle} colorClass="bg-red-600" />
+                <div className="flex overflow-x-auto gap-6 pb-2 no-scrollbar -mx-2 px-2 md:grid md:grid-cols-3 md:pb-0 md:mx-0 md:px-0">
+                  <div className="min-w-[240px] flex-1">
+                    <KPICard label="MTD Fees Owed" value="$2,450.50" sub="Total drawn: $1,900.00" icon={CreditCard} colorClass="bg-indigo-600" />
+                  </div>
+                  <div className="min-w-[240px] flex-1">
+                    <KPICard label="Billing Cycle" value="Cycle-15" sub="Next draw: Feb 15, 2026" icon={Calendar} colorClass="bg-[#213147]" />
+                  </div>
+                  <div className="min-w-[240px] flex-1">
+                    <KPICard label="Past Due Venues" value="2" sub="Requires manual follow-up" icon={AlertTriangle} colorClass="bg-red-600" />
+                  </div>
                 </div>
 
                 <Card className="border-2 shadow-sm overflow-hidden">
-                  <CardHeader className="border-b bg-slate-50/50 flex flex-row items-center justify-between">
+                  <CardHeader className="border-b bg-slate-50/50 flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div>
                       <CardTitle className="text-sm font-black uppercase tracking-widest">ACH Draw Schedule</CardTitle>
                       <CardDescription className="text-[10px] font-bold uppercase">Automated billing status per establishment.</CardDescription>
                     </div>
-                    <Button variant="outline" className="h-9 font-black uppercase text-[10px] tracking-widest gap-2 border-2">
+                    <Button variant="outline" className="w-full md:w-auto h-9 font-black uppercase text-[10px] tracking-widest gap-2 border-2">
                       <Download className="h-3.5 w-3.5" /> Export Statements
                     </Button>
                   </CardHeader>
-                  <Table>
-                    <TableHeader className="bg-slate-50">
-                      <TableRow>
-                        <TableHead className="text-[10px] font-black uppercase">Venue</TableHead>
-                        <TableHead className="text-[10px] font-black uppercase">Cycle Date</TableHead>
-                        <TableHead className="text-[10px] font-black uppercase">MTD Fees</TableHead>
-                        <TableHead className="text-[10px] font-black uppercase">Status</TableHead>
-                        <TableHead className="text-[10px] font-black uppercase text-right">Ledger</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {sellers?.map((venue) => (
-                        <TableRow key={venue.id}>
-                          <TableCell className="font-black text-xs uppercase text-[#213147]">{venue.courseName}</TableCell>
-                          <TableCell className="text-xs font-bold uppercase">15th / Monthly</TableCell>
-                          <TableCell className="text-xs font-black text-indigo-600">$142.50</TableCell>
-                          <TableCell>
-                            <Badge className="bg-green-600 text-[8px] font-black uppercase">Invoiced</Badge>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-indigo-600"><FileText className="h-4 w-4" /></Button>
-                          </TableCell>
+                  <div className="overflow-x-auto no-scrollbar">
+                    <Table>
+                      <TableHeader className="bg-slate-50">
+                        <TableRow>
+                          <TableHead className="text-[10px] font-black uppercase">Venue</TableHead>
+                          <TableHead className="text-[10px] font-black uppercase">Cycle Date</TableHead>
+                          <TableHead className="text-[10px] font-black uppercase">MTD Fees</TableHead>
+                          <TableHead className="text-[10px] font-black uppercase">Status</TableHead>
+                          <TableHead className="text-[10px] font-black uppercase text-right">Ledger</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                      </TableHeader>
+                      <TableBody>
+                        {sellers?.map((venue) => (
+                          <TableRow key={venue.id}>
+                            <TableCell className="font-black text-xs uppercase text-[#213147]">{venue.courseName}</TableCell>
+                            <TableCell className="text-xs font-bold uppercase">15th / Monthly</TableCell>
+                            <TableCell className="text-xs font-black text-indigo-600">$142.50</TableCell>
+                            <TableCell>
+                              <Badge className="bg-green-600 text-[8px] font-black uppercase">Invoiced</Badge>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-indigo-600"><FileText className="h-4 w-4" /></Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
                 </Card>
               </div>
             )}
@@ -637,45 +652,47 @@ export default function PlatformAdminPage() {
             {/* ORDERS SECTION */}
             {activeNav === 'orders' && (
               <div className="space-y-6 animate-in fade-in duration-500">
-                <div className="flex justify-between items-center bg-white p-4 rounded-2xl border-2 shadow-sm">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-white p-4 rounded-2xl border-2 shadow-sm gap-4">
                   <div className="flex items-center gap-4">
                     <Badge className="bg-primary text-[10px] font-black uppercase tracking-widest h-8 px-4">Live Order Stream</Badge>
-                    <p className="text-[10px] font-bold text-muted-foreground uppercase">Monitoring transactions across all venues</p>
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase hidden sm:block">Monitoring transactions across all venues</p>
                   </div>
-                  <Button variant="outline" className="h-9 px-4 text-[10px] font-black uppercase tracking-widest border-2">
+                  <Button variant="outline" className="w-full md:w-auto h-9 px-4 text-[10px] font-black uppercase tracking-widest border-2">
                     Troubleshooting Mode
                   </Button>
                 </div>
 
                 <Card className="border-2 shadow-sm overflow-hidden">
-                  <Table>
-                    <TableHeader className="bg-slate-50 border-b">
-                      <TableRow>
-                        <TableHead className="text-[10px] font-black uppercase">Timestamp</TableHead>
-                        <TableHead className="text-[10px] font-black uppercase">Venue</TableHead>
-                        <TableHead className="text-[10px] font-black uppercase">Patron</TableHead>
-                        <TableHead className="text-[10px] font-black uppercase text-right">Total</TableHead>
-                        <TableHead className="text-[10px] font-black uppercase text-right">Status</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {orders?.map((order) => (
-                        <TableRow key={order.id} className="hover:bg-slate-50/50">
-                          <TableCell className="font-mono text-[10px] text-muted-foreground">
-                            {order.createdAt ? format(order.createdAt.toDate(), 'HH:mm:ss') : '--'}
-                          </TableCell>
-                          <TableCell className="font-black text-[10px] uppercase text-indigo-600">
-                            {sellers?.find(s => s.id === order.sellerId)?.courseName || 'Venue'}
-                          </TableCell>
-                          <TableCell className="font-bold text-xs uppercase">{order.customerName}</TableCell>
-                          <TableCell className="text-right font-black text-xs text-[#213147]">${order.total.toFixed(2)}</TableCell>
-                          <TableCell className="text-right">
-                            <Badge variant="outline" className="text-[8px] font-black uppercase">{order.status}</Badge>
-                          </TableCell>
+                  <div className="overflow-x-auto no-scrollbar">
+                    <Table>
+                      <TableHeader className="bg-slate-50 border-b">
+                        <TableRow>
+                          <TableHead className="text-[10px] font-black uppercase">Timestamp</TableHead>
+                          <TableHead className="text-[10px] font-black uppercase">Venue</TableHead>
+                          <TableHead className="text-[10px] font-black uppercase">Patron</TableHead>
+                          <TableHead className="text-[10px] font-black uppercase text-right">Total</TableHead>
+                          <TableHead className="text-[10px] font-black uppercase text-right">Status</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                      </TableHeader>
+                      <TableBody>
+                        {orders?.map((order) => (
+                          <TableRow key={order.id} className="hover:bg-slate-50/50">
+                            <TableCell className="font-mono text-[10px] text-muted-foreground">
+                              {order.createdAt ? format(order.createdAt.toDate(), 'HH:mm:ss') : '--'}
+                            </TableCell>
+                            <TableCell className="font-black text-[10px] uppercase text-indigo-600">
+                              {sellers?.find(s => s.id === order.sellerId)?.courseName || 'Venue'}
+                            </TableCell>
+                            <TableCell className="font-bold text-xs uppercase">{order.customerName}</TableCell>
+                            <TableCell className="text-right font-black text-xs text-[#213147]">${order.total.toFixed(2)}</TableCell>
+                            <TableCell className="text-right">
+                              <Badge variant="outline" className="text-[8px] font-black uppercase">{order.status}</Badge>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
                 </Card>
               </div>
             )}
@@ -683,50 +700,58 @@ export default function PlatformAdminPage() {
             {/* SALES REPS SECTION */}
             {activeNav === 'reps' && (
               <div className="space-y-8 animate-in fade-in duration-500">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <KPICard label="Sales Professionals" value={reps?.length || 0} sub="Authorized reps" icon={Users} colorClass="bg-indigo-600" />
-                  <KPICard label="Pipeline Value" value="$42,000" sub="Estimated launch fees" icon={TrendingUp} colorClass="bg-primary" />
-                  <KPICard label="Signed This Month" value="4" sub="Goal: 6 venues" icon={CheckCircle2} colorClass="bg-green-600" />
+                <div className="flex overflow-x-auto gap-6 pb-2 no-scrollbar -mx-2 px-2 md:grid md:grid-cols-3 md:pb-0 md:mx-0 md:px-0">
+                  <div className="min-w-[240px] flex-1">
+                    <KPICard label="Sales Professionals" value={reps?.length || 0} sub="Authorized reps" icon={Users} colorClass="bg-indigo-600" />
+                  </div>
+                  <div className="min-w-[240px] flex-1">
+                    <KPICard label="Pipeline Value" value="$42,000" sub="Estimated launch fees" icon={TrendingUp} colorClass="bg-primary" />
+                  </div>
+                  <div className="min-w-[240px] flex-1">
+                    <KPICard label="Signed This Month" value="4" sub="Goal: 6 venues" icon={CheckCircle2} colorClass="bg-green-600" />
+                  </div>
                 </div>
 
                 <Card className="border-2 shadow-sm overflow-hidden">
-                  <CardHeader className="border-b bg-slate-50/50 flex flex-row items-center justify-between">
+                  <CardHeader className="border-b bg-slate-50/50 flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <CardTitle className="text-sm font-black uppercase tracking-widest">Rep Roster & Territory</CardTitle>
-                    <Button className="bg-[#213147] h-9 font-black uppercase text-[10px] tracking-widest gap-2">
+                    <Button className="w-full md:w-auto bg-[#213147] h-9 font-black uppercase text-[10px] tracking-widest gap-2">
                       <UserPlus className="h-3.5 w-3.5" /> Authorize Rep
                     </Button>
                   </CardHeader>
-                  <Table>
-                    <TableHeader className="bg-slate-50">
-                      <TableRow>
-                        <TableHead className="text-[10px] font-black uppercase">Professional</TableHead>
-                        <TableHead className="text-[10px] font-black uppercase">Territory</TableHead>
-                        <TableHead className="text-[10px] font-black uppercase">Pipeline</TableHead>
-                        <TableHead className="text-[10px] font-black uppercase">Status</TableHead>
-                        <TableHead className="text-[10px] font-black uppercase text-right">Ledger</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {reps?.map((rep) => (
-                        <TableRow key={rep.email}>
-                          <TableCell>
-                            <div className="flex flex-col">
-                              <span className="font-black text-xs uppercase text-[#213147]">{rep.email.split('@')[0]}</span>
-                              <span className="text-[10px] text-muted-foreground">{rep.email}</span>
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-xs font-bold uppercase">Southwest MI</TableCell>
-                          <TableCell className="text-xs font-black text-primary">3 Signed / 5 Leads</TableCell>
-                          <TableCell>
-                            <Badge className="bg-green-600 text-[8px] font-black uppercase">Active</Badge>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <Button variant="ghost" size="icon" className="h-8 w-8"><MoreVertical className="h-4 w-4" /></Button>
-                          </TableCell>
+                  <div className="overflow-x-auto no-scrollbar">
+                    <Table>
+                      <TableHeader className="bg-slate-50">
+                        <TableRow>
+                          <TableHead className="text-[10px] font-black uppercase">Professional</TableHead>
+                          <TableHead className="text-[10px] font-black uppercase">Territory</TableHead>
+                          <TableHead className="text-[10px] font-black uppercase">Pipeline</TableHead>
+                          <TableHead className="text-[10px] font-black uppercase">Status</TableHead>
+                          <TableHead className="text-[10px] font-black uppercase text-right">Ledger</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                      </TableHeader>
+                      <TableBody>
+                        {reps?.map((rep) => (
+                          <TableRow key={rep.email}>
+                            <TableCell>
+                              <div className="flex flex-col">
+                                <span className="font-black text-xs uppercase text-[#213147]">{rep.email.split('@')[0]}</span>
+                                <span className="text-[10px] text-muted-foreground">{rep.email}</span>
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-xs font-bold uppercase">Southwest MI</TableCell>
+                            <TableCell className="text-xs font-black text-primary">3 Signed / 5 Leads</TableCell>
+                            <TableCell>
+                              <Badge className="bg-green-600 text-[8px] font-black uppercase">Active</Badge>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Button variant="ghost" size="icon" className="h-8 w-8"><MoreVertical className="h-4 w-4" /></Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
                 </Card>
               </div>
             )}
@@ -735,11 +760,11 @@ export default function PlatformAdminPage() {
             {activeNav === 'system' && (
               <div className="space-y-8 animate-in fade-in duration-500">
                 <Tabs defaultValue="flags" className="space-y-6">
-                  <TabsList className="bg-white border-2 p-1 h-12 rounded-xl">
-                    <TabsTrigger value="flags" className="text-[10px] font-black uppercase tracking-widest px-6 h-full data-[state=active]:bg-primary data-[state=active]:text-white rounded-lg">Feature Flags</TabsTrigger>
-                    <TabsTrigger value="templates" className="text-[10px] font-black uppercase tracking-widest px-6 h-full data-[state=active]:bg-primary data-[state=active]:text-white rounded-lg">Menu Templates</TabsTrigger>
-                    <TabsTrigger value="assets" className="text-[10px] font-black uppercase tracking-widest px-6 h-full data-[state=active]:bg-primary data-[state=active]:text-white rounded-lg">QR Generator</TabsTrigger>
-                    <TabsTrigger value="config" className="text-[10px] font-black uppercase tracking-widest px-6 h-full data-[state=active]:bg-primary data-[state=active]:text-white rounded-lg">Platform Config</TabsTrigger>
+                  <TabsList className="bg-white border-2 p-1 h-12 rounded-xl w-full justify-start overflow-x-auto no-scrollbar flex-nowrap">
+                    <TabsTrigger value="flags" className="text-[10px] font-black uppercase tracking-widest px-6 h-full data-[state=active]:bg-primary data-[state=active]:text-white rounded-lg whitespace-nowrap">Feature Flags</TabsTrigger>
+                    <TabsTrigger value="templates" className="text-[10px] font-black uppercase tracking-widest px-6 h-full data-[state=active]:bg-primary data-[state=active]:text-white rounded-lg whitespace-nowrap">Menu Templates</TabsTrigger>
+                    <TabsTrigger value="assets" className="text-[10px] font-black uppercase tracking-widest px-6 h-full data-[state=active]:bg-primary data-[state=active]:text-white rounded-lg whitespace-nowrap">QR Generator</TabsTrigger>
+                    <TabsTrigger value="config" className="text-[10px] font-black uppercase tracking-widest px-6 h-full data-[state=active]:bg-primary data-[state=active]:text-white rounded-lg whitespace-nowrap">Platform Config</TabsTrigger>
                   </TabsList>
 
                   <TabsContent value="flags" className="space-y-6">
@@ -801,7 +826,7 @@ export default function PlatformAdminPage() {
                       <CardContent className="p-8 space-y-6">
                          <div className="grid gap-2">
                            <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Support & Onboarding Email</Label>
-                           <div className="flex gap-3">
+                           <div className="flex flex-col sm:flex-row gap-3">
                              <div className="relative flex-1">
                                <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                                <Input defaultValue="support@kooporders.com" className="pl-10 h-11 border-2 font-bold" />
@@ -831,168 +856,172 @@ export default function PlatformAdminPage() {
 
       {/* VENUE PROFILE DIALOG */}
       <Dialog open={isVenueDetailOpen} onOpenChange={setIsVenueDetailOpen}>
-        <DialogContent className="sm:max-w-[700px] rounded-[2.5rem]">
-          <DialogHeader>
-            <div className="flex items-center gap-4 mb-4">
-              <div className="bg-indigo-50 p-4 rounded-2xl text-indigo-600">
-                <Store className="h-8 w-8" />
-              </div>
-              <div>
-                <DialogTitle className="font-headline font-black uppercase tracking-tight text-[#213147] text-2xl">{selectedVenue?.courseName}</DialogTitle>
-                <div className="flex items-center gap-2">
-                  <Badge variant="outline" className="text-[9px] uppercase font-black tracking-widest">{selectedVenue?.type}</Badge>
-                  <Badge className="bg-green-600 text-[9px] uppercase font-black tracking-widest">Founding Partner</Badge>
-                </div>
-              </div>
-            </div>
-          </DialogHeader>
-
-          <Tabs defaultValue="details" className="mt-4">
-            <TabsList className="bg-slate-50 border p-1 h-10 rounded-xl mb-6">
-              <TabsTrigger value="details" className="text-[10px] font-black uppercase tracking-widest px-4 h-full">Establishment Details</TabsTrigger>
-              <TabsTrigger value="billing" className="text-[10px] font-black uppercase tracking-widest px-4 h-full">Fee & Billing Config</TabsTrigger>
-              <TabsTrigger value="ops" className="text-[10px] font-black uppercase tracking-widest px-4 h-full">Operational Status</TabsTrigger>
-              <TabsTrigger value="stripe" className="text-[10px] font-black uppercase tracking-widest px-4 h-full">Stripe Express Control</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="details" className="grid grid-cols-2 gap-6 pb-6">
-              <div className="space-y-4">
-                <div>
-                  <Label className="text-[9px] font-black uppercase text-muted-foreground">General Manager / Contact</Label>
-                  <p className="text-sm font-bold uppercase">{selectedVenue?.contactName || 'Venue Manager'}</p>
-                </div>
-                <div>
-                  <Label className="text-[9px] font-black uppercase text-muted-foreground">Contact Email</Label>
-                  <p className="text-sm font-bold">{selectedVenue?.contactEmail}</p>
-                </div>
-                <div>
-                  <Label className="text-[9px] font-black uppercase text-muted-foreground">Assigned Sales Rep</Label>
-                  <p className="text-sm font-black text-indigo-600 uppercase">{selectedVenue?.ownerId || 'Unassigned'}</p>
-                </div>
-              </div>
-              <div className="space-y-4">
-                <div>
-                  <Label className="text-[9px] font-black uppercase text-muted-foreground">Contract Signed</Label>
-                  <p className="text-sm font-bold uppercase">Jan 12, 2026</p>
-                </div>
-                <div>
-                  <Label className="text-[9px] font-black uppercase text-muted-foreground">Launch Date</Label>
-                  <p className="text-sm font-bold uppercase text-primary">Feb 01, 2026</p>
-                </div>
-                <div>
-                  <Label className="text-[9px] font-black uppercase text-muted-foreground">Address</Label>
-                  <p className="text-[10px] font-bold uppercase leading-tight">{selectedVenue?.streetAddress}, {selectedVenue?.city}, {selectedVenue?.state}</p>
-                </div>
-              </div>
-            </TabsContent>
-
-            <TabsContent value="billing" className="space-y-6 pb-6">
-              <div className="grid grid-cols-2 gap-6 bg-slate-50 p-6 rounded-2xl border-2">
-                <div className="space-y-2">
-                  <Label className="text-[10px] font-black uppercase tracking-widest">Platform Fee (Monthly)</Label>
-                  <div className="flex items-center gap-2">
-                    <DollarSign className="h-4 w-4 text-muted-foreground" />
-                    <Input defaultValue="0.00" className="h-10 font-black" />
+        <DialogContent className="sm:max-w-[700px] rounded-[2.5rem] p-0 overflow-hidden">
+          <ScrollArea className="max-h-[90vh]">
+            <div className="p-6 sm:p-10 space-y-6">
+              <DialogHeader>
+                <div className="flex items-center gap-4 mb-4">
+                  <div className="bg-indigo-50 p-4 rounded-2xl text-indigo-600">
+                    <Store className="h-8 w-8" />
                   </div>
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-[10px] font-black uppercase tracking-widest">Patron Conv. Fee</Label>
-                  <div className="flex items-center gap-2">
-                    <DollarSign className="h-4 w-4 text-muted-foreground" />
-                    <Input defaultValue={selectedVenue?.serviceFee?.toFixed(2)} className="h-10 font-black" />
-                  </div>
-                </div>
-              </div>
-            </TabsContent>
-
-            <TabsContent value="ops" className="space-y-4 pb-6">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="p-4 border-2 rounded-2xl flex items-center justify-between">
-                  <span className="text-[10px] font-black uppercase">BevCart Module</span>
-                  <Switch defaultChecked={selectedVenue?.bevcartActive} />
-                </div>
-                <div className="p-4 border-2 rounded-2xl flex items-center justify-between">
-                  <span className="text-[10px] font-black uppercase">Clubhouse Module</span>
-                  <Switch defaultChecked={selectedVenue?.clubhouseActive} />
-                </div>
-                <div className="p-4 border-2 rounded-2xl flex items-center justify-between">
-                  <span className="text-[10px] font-black uppercase">Lane Delivery</span>
-                  <Switch defaultChecked={selectedVenue?.lanedeliveryActive} />
-                </div>
-                <div className="p-4 border-2 rounded-2xl flex items-center justify-between">
-                  <span className="text-[10px] font-black uppercase">Founding Partner Badge</span>
-                  <Switch defaultChecked />
-                </div>
-              </div>
-            </TabsContent>
-
-            <TabsContent value="stripe" className="space-y-6 pb-6">
-              <div className="space-y-4 bg-indigo-50/50 p-6 rounded-[1.5rem] border-2 border-indigo-100">
-                <div className="grid gap-2">
-                  <Label className="text-[10px] font-black uppercase tracking-widest text-indigo-600">Stripe Express Account ID</Label>
-                  <Input 
-                    value={stripeAccountId} 
-                    onChange={(e) => setStripeAccountId(e.target.value)}
-                    placeholder="acct_xxxxxxxx" 
-                    className="font-mono font-bold border-2 border-indigo-200"
-                  />
-                  <p className="text-[8px] font-bold text-indigo-400 uppercase">The unique merchant ID from Stripe Connect Express.</p>
-                </div>
-
-                <div className="flex items-center justify-between bg-white p-4 rounded-xl border-2 border-indigo-100">
-                  <div className="space-y-0.5">
-                    <p className="text-xs font-black uppercase text-[#213147]">Enable Payouts</p>
-                    <p className="text-[9px] font-bold text-muted-foreground uppercase">Allow automated ACH transfers to this merchant.</p>
-                  </div>
-                  <Switch checked={payoutsEnabled} onCheckedChange={setPayoutsEnabled} />
-                </div>
-
-                <div className="grid gap-2 border-t border-indigo-100 pt-4">
-                  <Label className="text-[10px] font-black uppercase tracking-widest text-indigo-600">Manual Onboarding Link</Label>
-                  <div className="flex gap-2">
-                    <div className="relative flex-1">
-                      <LinkIcon className="absolute left-3 top-3 h-4 w-4 text-indigo-400" />
-                      <Input 
-                        value={manualOnboardingLink} 
-                        onChange={(e) => setManualOnboardingLink(e.target.value)}
-                        placeholder="https://connect.stripe.com/setup/s/..." 
-                        className="pl-10 font-bold border-2 border-indigo-200"
-                      />
+                  <div>
+                    <DialogTitle className="font-headline font-black uppercase tracking-tight text-[#213147] text-2xl">{selectedVenue?.courseName}</DialogTitle>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="text-[9px] uppercase font-black tracking-widest">{selectedVenue?.type}</Badge>
+                      <Badge className="bg-green-600 text-[9px] uppercase font-black tracking-widest">Founding Partner</Badge>
                     </div>
+                  </div>
+                </div>
+              </DialogHeader>
+
+              <Tabs defaultValue="details" className="mt-4">
+                <TabsList className="bg-slate-50 border p-1 h-10 rounded-xl mb-6 w-full justify-start overflow-x-auto no-scrollbar flex-nowrap">
+                  <TabsTrigger value="details" className="text-[10px] font-black uppercase tracking-widest px-4 h-full whitespace-nowrap">Establishment Details</TabsTrigger>
+                  <TabsTrigger value="billing" className="text-[10px] font-black uppercase tracking-widest px-4 h-full whitespace-nowrap">Fee & Billing Config</TabsTrigger>
+                  <TabsTrigger value="ops" className="text-[10px] font-black uppercase tracking-widest px-4 h-full whitespace-nowrap">Operational Status</TabsTrigger>
+                  <TabsTrigger value="stripe" className="text-[10px] font-black uppercase tracking-widest px-4 h-full whitespace-nowrap">Stripe Express Control</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="details" className="grid grid-cols-1 sm:grid-cols-2 gap-6 pb-6">
+                  <div className="space-y-4">
+                    <div>
+                      <Label className="text-[9px] font-black uppercase text-muted-foreground">General Manager / Contact</Label>
+                      <p className="text-sm font-bold uppercase">{selectedVenue?.contactName || 'Venue Manager'}</p>
+                    </div>
+                    <div>
+                      <Label className="text-[9px] font-black uppercase text-muted-foreground">Contact Email</Label>
+                      <p className="text-sm font-bold">{selectedVenue?.contactEmail}</p>
+                    </div>
+                    <div>
+                      <Label className="text-[9px] font-black uppercase text-muted-foreground">Assigned Sales Rep</Label>
+                      <p className="text-sm font-black text-indigo-600 uppercase">{selectedVenue?.ownerId || 'Unassigned'}</p>
+                    </div>
+                  </div>
+                  <div className="space-y-4">
+                    <div>
+                      <Label className="text-[9px] font-black uppercase text-muted-foreground">Contract Signed</Label>
+                      <p className="text-sm font-bold uppercase">Jan 12, 2026</p>
+                    </div>
+                    <div>
+                      <Label className="text-[9px] font-black uppercase text-muted-foreground">Launch Date</Label>
+                      <p className="text-sm font-bold uppercase text-primary">Feb 01, 2026</p>
+                    </div>
+                    <div>
+                      <Label className="text-[9px] font-black uppercase text-muted-foreground">Address</Label>
+                      <p className="text-[10px] font-bold uppercase leading-tight">{selectedVenue?.streetAddress}, {selectedVenue?.city}, {selectedVenue?.state}</p>
+                    </div>
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="billing" className="space-y-6 pb-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 bg-slate-50 p-6 rounded-2xl border-2">
+                    <div className="space-y-2">
+                      <Label className="text-[10px] font-black uppercase tracking-widest">Platform Fee (Monthly)</Label>
+                      <div className="flex items-center gap-2">
+                        <DollarSign className="h-4 w-4 text-muted-foreground" />
+                        <Input defaultValue="0.00" className="h-10 font-black" />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-[10px] font-black uppercase tracking-widest">Patron Conv. Fee</Label>
+                      <div className="flex items-center gap-2">
+                        <DollarSign className="h-4 w-4 text-muted-foreground" />
+                        <Input defaultValue={selectedVenue?.serviceFee?.toFixed(2)} className="h-10 font-black" />
+                      </div>
+                    </div>
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="ops" className="space-y-4 pb-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="p-4 border-2 rounded-2xl flex items-center justify-between">
+                      <span className="text-[10px] font-black uppercase">BevCart Module</span>
+                      <Switch defaultChecked={selectedVenue?.bevcartActive} />
+                    </div>
+                    <div className="p-4 border-2 rounded-2xl flex items-center justify-between">
+                      <span className="text-[10px] font-black uppercase">Clubhouse Module</span>
+                      <Switch defaultChecked={selectedVenue?.clubhouseActive} />
+                    </div>
+                    <div className="p-4 border-2 rounded-2xl flex items-center justify-between">
+                      <span className="text-[10px] font-black uppercase">Lane Delivery</span>
+                      <Switch defaultChecked={selectedVenue?.lanedeliveryActive} />
+                    </div>
+                    <div className="p-4 border-2 rounded-2xl flex items-center justify-between">
+                      <span className="text-[10px] font-black uppercase">Founding Partner Badge</span>
+                      <Switch defaultChecked />
+                    </div>
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="stripe" className="space-y-6 pb-6">
+                  <div className="space-y-4 bg-indigo-50/50 p-6 rounded-[1.5rem] border-2 border-indigo-100">
+                    <div className="grid gap-2">
+                      <Label className="text-[10px] font-black uppercase tracking-widest text-indigo-600">Stripe Express Account ID</Label>
+                      <Input 
+                        value={stripeAccountId} 
+                        onChange={(e) => setStripeAccountId(e.target.value)}
+                        placeholder="acct_xxxxxxxx" 
+                        className="font-mono font-bold border-2 border-indigo-200"
+                      />
+                      <p className="text-[8px] font-bold text-indigo-400 uppercase">The unique merchant ID from Stripe Connect Express.</p>
+                    </div>
+
+                    <div className="flex items-center justify-between bg-white p-4 rounded-xl border-2 border-indigo-100">
+                      <div className="space-y-0.5">
+                        <p className="text-xs font-black uppercase text-[#213147]">Enable Payouts</p>
+                        <p className="text-[9px] font-bold text-muted-foreground uppercase">Allow automated ACH transfers to this merchant.</p>
+                      </div>
+                      <Switch checked={payoutsEnabled} onCheckedChange={setPayoutsEnabled} />
+                    </div>
+
+                    <div className="grid gap-2 border-t border-indigo-100 pt-4">
+                      <Label className="text-[10px] font-black uppercase tracking-widest text-indigo-600">Manual Onboarding Link</Label>
+                      <div className="flex flex-col sm:flex-row gap-2">
+                        <div className="relative flex-1">
+                          <LinkIcon className="absolute left-3 top-3 h-4 w-4 text-indigo-400" />
+                          <Input 
+                            value={manualOnboardingLink} 
+                            onChange={(e) => setManualOnboardingLink(e.target.value)}
+                            placeholder="https://connect.stripe.com/setup/s/..." 
+                            className="pl-10 font-bold border-2 border-indigo-200"
+                          />
+                        </div>
+                        <Button 
+                          variant="outline" 
+                          onClick={handleSendOnboardingLink}
+                          className="border-indigo-200 text-indigo-600 hover:bg-indigo-100 gap-2 h-10 px-4 font-black uppercase text-[9px]"
+                        >
+                          <Send className="h-3 w-3" /> Send
+                        </Button>
+                      </div>
+                    </div>
+
                     <Button 
-                      variant="outline" 
-                      onClick={handleSendOnboardingLink}
-                      className="border-indigo-200 text-indigo-600 hover:bg-indigo-100 gap-2 h-10 px-4 font-black uppercase text-[9px]"
+                      onClick={handleSaveVenueStripeData} 
+                      disabled={isProcessingStripe}
+                      className="w-full h-12 bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-widest shadow-lg mt-2"
                     >
-                      <Send className="h-3 w-3" /> Send
+                      {isProcessingStripe ? <Loader2 className="h-5 w-5 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+                      Save Venue Stripe Data
                     </Button>
                   </div>
-                </div>
 
-                <Button 
-                  onClick={handleSaveVenueStripeData} 
-                  disabled={isProcessingStripe}
-                  className="w-full h-12 bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-widest shadow-lg mt-2"
-                >
-                  {isProcessingStripe ? <Loader2 className="h-5 w-5 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
-                  Save Venue Stripe Data
-                </Button>
-              </div>
+                  <div className="p-4 bg-amber-50 border-2 border-amber-100 rounded-xl flex gap-3">
+                    <ShieldCheck className="h-5 w-5 text-amber-600 shrink-0" />
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-amber-800 leading-none">Stripe Connect Express Policy</p>
+                      <p className="text-[9px] font-bold text-amber-700 uppercase leading-tight">Payouts can only be enabled for accounts with completed identity verification on the Express platform.</p>
+                    </div>
+                  </div>
+                </TabsContent>
+              </Tabs>
 
-              <div className="p-4 bg-amber-50 border-2 border-amber-100 rounded-xl flex gap-3">
-                <ShieldCheck className="h-5 w-5 text-amber-600 shrink-0" />
-                <div className="space-y-1">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-amber-800 leading-none">Stripe Connect Express Policy</p>
-                  <p className="text-[9px] font-bold text-amber-700 uppercase leading-tight">Payouts can only be enabled for accounts with completed identity verification on the Express platform.</p>
-                </div>
-              </div>
-            </TabsContent>
-          </Tabs>
-
-          <DialogFooter className="bg-slate-50 -mx-6 -mb-6 p-6 rounded-b-[2.5rem] border-t">
-            <Button variant="ghost" onClick={() => setIsVenueDetailOpen(false)} className="text-[10px] font-black uppercase tracking-widest">Close Profile</Button>
-            <Button className="bg-[#213147] font-black uppercase text-[10px] tracking-widest px-8">Save Configuration</Button>
-          </DialogFooter>
+              <DialogFooter className="bg-slate-50 -mx-6 -mb-6 p-6 sm:-mx-10 sm:-mb-10 sm:p-10 rounded-b-[2.5rem] border-t flex flex-col sm:flex-row gap-2">
+                <Button variant="ghost" onClick={() => setIsVenueDetailOpen(false)} className="text-[10px] font-black uppercase tracking-widest flex-1 sm:flex-none">Close Profile</Button>
+                <Button className="bg-[#213147] font-black uppercase text-[10px] tracking-widest px-8 flex-1 sm:flex-none">Save Configuration</Button>
+              </DialogFooter>
+            </div>
+          </ScrollArea>
         </DialogContent>
       </Dialog>
 
