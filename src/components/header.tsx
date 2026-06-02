@@ -19,7 +19,8 @@ import {
   User as UserIcon,
   KeyRound,
   LogOut,
-  Briefcase
+  Briefcase,
+  Settings2
 } from 'lucide-react';
 import { useCart } from '@/lib/cart-context';
 import { useState, useEffect, useMemo } from 'react';
@@ -146,7 +147,7 @@ export function AppHeader() {
       : "flex items-center gap-2 cursor-pointer py-2 w-full text-foreground hover:text-primary transition-colors";
     
     const labelClass = mobile
-      ? "text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground mt-6 mb-2 px-4"
+      ? "text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground mt-6 mb-2 px-4"
       : "text-[10px] font-bold uppercase tracking-widest text-muted-foreground";
 
     const homeLinkClass = mobile
@@ -207,6 +208,57 @@ export function AppHeader() {
             <Link href="/admin" onClick={() => setIsMobileMenuOpen(false)} className={itemClass}>
               <ShieldCheck className="h-5 w-5 text-primary" />
               <span className="font-black text-xs uppercase tracking-widest">PLATFORM ADMIN</span>
+              <ChevronRight className="ml-auto h-4 w-4 text-muted-foreground/30" />
+            </Link>
+          </>
+        )}
+
+        {/* DEMO ESTABLISHMENT ADMINS */}
+        {!mobile ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="sm" className="text-white hover:bg-white/10 text-[10px] font-headline font-black uppercase tracking-wider px-3 h-9">
+                Venue Admins <ChevronDown className="ml-1 h-3 w-3 opacity-50" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-64 shadow-xl border-2">
+              <DropdownMenuLabel className={labelClass}>Establishment Demos</DropdownMenuLabel>
+              <DropdownMenuItem asChild>
+                <Link href="/sellers/demo-course" className={itemClass}>
+                  <Store className="h-4 w-4 text-primary" />
+                  <span className="font-black text-[10px] uppercase tracking-widest">Public Golf Admin</span>
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/sellers/demo-private-course" className={itemClass}>
+                  <Store className="h-4 w-4 text-primary" />
+                  <span className="font-black text-[10px] uppercase tracking-widest">Private Club Admin</span>
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/sellers/demo-bowling-alley" className={itemClass}>
+                  <Store className="h-4 w-4 text-primary" />
+                  <span className="font-black text-[10px] uppercase tracking-widest">Bowling Alley Admin</span>
+                </Link>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : (
+          <>
+            <p className={labelClass}>Establishment Admins</p>
+            <Link href="/sellers/demo-course" onClick={() => setIsMobileMenuOpen(false)} className={itemClass}>
+              <Store className="h-5 w-5 text-primary" />
+              <span className="font-black text-xs uppercase tracking-widest">Public Golf Admin</span>
+              <ChevronRight className="ml-auto h-4 w-4 text-muted-foreground/30" />
+            </Link>
+            <Link href="/sellers/demo-private-course" onClick={() => setIsMobileMenuOpen(false)} className={itemClass}>
+              <Store className="h-5 w-5 text-primary" />
+              <span className="font-black text-xs uppercase tracking-widest">Private Club Admin</span>
+              <ChevronRight className="ml-auto h-4 w-4 text-muted-foreground/30" />
+            </Link>
+            <Link href="/sellers/demo-bowling-alley" onClick={() => setIsMobileMenuOpen(false)} className={itemClass}>
+              <Store className="h-5 w-5 text-primary" />
+              <span className="font-black text-xs uppercase tracking-widest">Bowling Alley Admin</span>
               <ChevronRight className="ml-auto h-4 w-4 text-muted-foreground/30" />
             </Link>
           </>
