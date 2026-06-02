@@ -21,7 +21,7 @@ import { SUPER_ADMIN_ID } from '@/lib/utils';
  * INTERNAL PLATFORM GATEWAY
  * This component is restricted to Platform Administrators and 
  * Internal Sales Representatives. Venue Managers and Staff 
- * access the platform through PIN-based entry or Admin impersonation.
+ * access the platform through PIN-based entry or open dashboards.
  */
 export default function LoginPage() {
   const auth = useAuth();
@@ -39,14 +39,14 @@ export default function LoginPage() {
   const isSuperAdmin = user?.uid === SUPER_ADMIN_ID || 
                       user?.email === 'mosherpe@gmail.com';
 
-  // 1. Check Global Admin Role (UID Based)
+  // Check Global Admin Role
   const globalRoleRef = useMemoFirebase(() => {
     if (!firestore || !user) return null;
     return doc(firestore, 'roles_admin', user.uid);
   }, [firestore, user]);
   const { data: globalRole, isLoading: isGlobalRoleLoading } = useDoc(globalRoleRef);
 
-  // 2. Check Sales Rep Role (Email Based) - Part of the internal Koop team
+  // Check Sales Rep Role
   const salesRoleRef = useMemoFirebase(() => {
     if (!firestore || !user?.email) return null;
     return doc(firestore, 'roles_sales_rep', user.email.toLowerCase());
@@ -58,7 +58,7 @@ export default function LoginPage() {
 
   const isVerifyingRoles = isGlobalRoleLoading || isSalesRoleLoading;
 
-  // Internal Redirection Logic
+  // Redirection Logic
   useEffect(() => {
     if (!user || isUserLoading || isVerifyingRoles) return;
 
