@@ -1,16 +1,12 @@
 /**
  * DEPRECATED ROUTE
  * 
- * This file has been neutralized to prevent a Next.js parallel route conflict.
+ * This file has been completely neutralized to resolve a Next.js parallel route conflict.
  * The primary authentication logic is now located at: src/app/login/page.tsx
  * 
- * In Next.js, files named 'page.tsx' within different directories that resolve 
- * to the same path (like /(auth)/login and /login) cause a build collision.
- * By removing the 'default export', this file is no longer treated as a route segment.
+ * In Next.js, having a 'page.tsx' file within different directories that resolve 
+ * to the same URL path (like /(auth)/login and /login) causes a build collision.
+ * 
+ * This file now contains no exports and no React components, ensuring it is 
+ * ignored by the Next.js router.
  */
-
-/**
- * NEUTRALIZED COMPONENT
- * This is no longer a default export to satisfy the Next.js router requirements.
- */
-export const NeutralizedLoginPage = () => null;
