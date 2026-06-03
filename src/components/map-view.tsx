@@ -1,20 +1,9 @@
 'use client'
 
-import { Truck, User } from 'lucide-react';
+import { Truck, User, AlertCircle } from 'lucide-react';
 import { cn, getDriverColor } from '@/lib/utils';
-import { Map, AdvancedMarker, useMap } from '@vis.gl/react-google-maps';
-import { useEffect } from 'react';
-
-// Static mapping for Tailwind JIT to pick up dynamic classes
-const DRIVER_COLOR_CONFIG: Record<string, { bg: string, border: string, text: string, arrow: string }> = {
-  'indigo-600': { bg: 'bg-indigo-600', border: 'border-indigo-600', text: 'text-indigo-600', arrow: 'border-t-indigo-600' },
-  'blue-600': { bg: 'bg-blue-600', border: 'border-blue-600', text: 'text-blue-600', arrow: 'border-t-blue-600' },
-  'purple-600': { bg: 'bg-purple-600', border: 'border-purple-600', text: 'text-purple-600', arrow: 'border-t-purple-600' },
-  'pink-600': { bg: 'bg-pink-600', border: 'border-pink-600', text: 'text-pink-600', arrow: 'border-t-pink-600' },
-  'cyan-600': { bg: 'bg-cyan-600', border: 'border-cyan-600', text: 'text-cyan-600', arrow: 'border-t-cyan-600' },
-  'fuchsia-600': { bg: 'bg-fuchsia-600', border: 'border-fuchsia-600', text: 'text-fuchsia-600', arrow: 'border-t-fuchsia-600' },
-  'violet-600': { bg: 'bg-violet-600', border: 'border-violet-600', text: 'text-violet-600', arrow: 'border-t-violet-600' },
-};
+import { Map, Marker, useMap } from '@vis.gl/react-google-maps';
+import { useEffect, useState } from 'react';
 
 interface MapViewProps {
   buyerLocation?: { latitude: number; longitude: number };
@@ -96,20 +85,31 @@ function MapElements({ buyerLocation, sellerLocation, sellers, buyers, radius, z
     };
   }, [map, sellerLocation?.latitude, sellerLocation?.longitude, radius]);
 
-
   return null;
 }
 
-
 export function MapView({ buyerLocation, sellerLocation, showPrimaryMarker = true, primaryDriverId = 'demo-course', sellers, buyers, radius, zoomMode, interactive = true, fitTrigger }: MapViewProps) {
   const center = buyerLocation ? { lat: buyerLocation.latitude, lng: buyerLocation.longitude } : (sellerLocation ? { lat: sellerLocation.latitude, lng: sellerLocation.longitude } : { lat: 0, lng: 0 });
+  const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+  const isKeyUnset = !apiKey || apiKey === "REPLACE_WITH_YOUR_KEY_IN_CONSOLE";
+
+  if (isKeyUnset) {
+    return (
+      <div className="w-full h-full flex flex-col items-center justify-center bg-slate-900 text-white p-6 text-center">
+        <AlertCircle className="h-12 w-12 text-red-500 mb-4" />
+        <h3 className="font-headline font-black uppercase text-lg mb-2">Google Maps Key Required</h3>
+        <p className="text-xs text-slate-400 max-w-xs leading-relaxed uppercase font-bold">
+          Please add your Google Maps API Key to the project configuration to enable live tracking and navigation.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="relative w-full h-full">
       <Map
         defaultCenter={center}
         defaultZoom={15}
-        mapId="a32a12d8a2a7a8a"
         mapTypeId="satellite"
         disableDefaultUI={!interactive}
         gestureHandling={interactive ? 'auto' : 'none'}
@@ -128,80 +128,36 @@ export function MapView({ buyerLocation, sellerLocation, showPrimaryMarker = tru
           fitTrigger={fitTrigger}
         />
 
-        {sellers && sellers.map(s => {
-          const driverColor = getDriverColor(s.id);
-          const config = DRIVER_COLOR_CONFIG[driverColor];
-          if (!config) return null;
-
-          return (
-            <AdvancedMarker key={s.id} position={{ lat: s.location.latitude, lng: s.location.longitude }}>
-              <div className="flex flex-col items-center">
-                <div className={cn("p-2 rounded-full shadow-lg border-2 border-white", config.bg)}>
-                  <Truck className="w-6 h-6 text-white" />
-                </div>
-                <div className={cn("w-0 h-0 border-l-8 border-l-transparent border-r-8 border-r-transparent border-t-8", config.arrow)}></div>
-              </div>
-            </AdvancedMarker>
-          );
-        })}
+        {sellers && sellers.map(s => (
+          <Marker 
+            key={s.id} 
+            position={{ lat: s.location.latitude, lng: s.location.longitude }}
+            title={s.name}
+          />
+        ))}
 
         {showPrimaryMarker && sellerLocation && (!sellers || !sellers.some(s => s.location.latitude === sellerLocation.latitude && s.location.longitude === sellerLocation.longitude)) && (
-          <AdvancedMarker position={{ lat: sellerLocation.latitude, lng: sellerLocation.longitude }}>
-            {(() => {
-              const driverColor = getDriverColor(primaryDriverId);
-              const config = DRIVER_COLOR_CONFIG[driverColor];
-              if (!config) return null;
-              return (
-                <div className="flex flex-col items-center">
-                  <div className={cn("p-2 rounded-full shadow-lg border-2 border-white", config.bg)}>
-                    <Truck className="w-6 h-6 text-white" />
-                  </div>
-                  <div className={cn("w-0 h-0 border-l-8 border-l-transparent border-r-8 border-r-transparent border-t-8", config.arrow)}></div>
-                </div>
-              );
-            })()}
-          </AdvancedMarker>
+          <Marker 
+            position={{ lat: sellerLocation.latitude, lng: sellerLocation.longitude }}
+            title="Your Location"
+          />
         )}
 
         {buyerLocation && (
-          <AdvancedMarker position={{ lat: buyerLocation.latitude, lng: buyerLocation.longitude }}>
-            <div className="flex flex-col items-center">
-              <div className="bg-accent p-2 rounded-full shadow-lg">
-                <User className="w-5 h-5 text-accent-foreground" />
-              </div>
-              <div className="w-0 h-0 border-l-8 border-l-transparent border-r-8 border-r-transparent border-t-8 border-t-accent"></div>
-            </div>
-          </AdvancedMarker>
+          <Marker 
+            position={{ lat: buyerLocation.latitude, lng: buyerLocation.longitude }}
+            title="Patron Location"
+          />
         )}
 
-        {buyers && buyers.map((buyer, index) => {
-          const statusColorClass = buyer.colorClass || "bg-accent";
-          const assignedDriverColor = buyer.assignedDriverId ? getDriverColor(buyer.assignedDriverId) : null;
-          const assignedStyles = assignedDriverColor ? DRIVER_COLOR_CONFIG[assignedDriverColor] : null;
-          const bgClass = statusColorClass;
-          const borderClass = assignedStyles ? `border-4 ${assignedStyles.border}` : 'border-4 border-white';
-          const textClass = 'text-white';
-          const arrowClass = assignedStyles ? assignedStyles.arrow : statusColorClass.replace('bg-', 'border-t-');
-
-          return (
-            <AdvancedMarker key={buyer.id} position={{ lat: buyer.location.latitude, lng: buyer.location.longitude }}>
-              <div className="flex flex-col items-center">
-                <div className={cn(
-                  "flex items-center justify-center w-11 h-11 rounded-full shadow-2xl font-black transition-all duration-500",
-                  bgClass,
-                  borderClass,
-                  textClass
-                )}>
-                  {index + 1}
-                </div>
-                <div className={cn(
-                  "w-0 h-0 border-l-[10px] border-l-transparent border-r-[10px] border-r-transparent border-t-[10px] transition-all duration-500 -mt-1",
-                  arrowClass
-                )}></div>
-              </div>
-            </AdvancedMarker>
-          );
-        })}
+        {buyers && buyers.map((buyer, index) => (
+          <Marker 
+            key={buyer.id} 
+            position={{ lat: buyer.location.latitude, lng: buyer.location.longitude }}
+            label={(index + 1).toString()}
+            title={buyer.name}
+          />
+        ))}
       </Map>
     </div>
   );
