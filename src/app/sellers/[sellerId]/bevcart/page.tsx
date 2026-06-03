@@ -13,11 +13,9 @@ import { mockSellerLocation } from '@/lib/data';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
-import { Focus, Bell, Package, Clock, DollarSign, Timer, AlertTriangle, LogOut, User } from 'lucide-react';
+import { Focus, Package, LogOut, Truck } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
-import { errorEmitter } from '@/firebase/error-emitter';
-import { FirestorePermissionError } from '@/firebase/errors';
 import { isToday } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 
@@ -26,28 +24,17 @@ type LatLng = {
   longitude: number;
 };
 
-/**
- * BEVCART DASHBOARD - OPEN ACCESS
- * Authentication requirement removed for initial prototyping.
- */
 export default function BevCartDriverDashboardPage({ params }: { params: Promise<{ sellerId: string }> }) {
   const { sellerId } = use(params);
   const firestore = useFirestore();
   const { toast } = useToast();
   const router = useRouter();
-  const { user } = useUser();
   
-  // Defaulting to "Anonymous Staff" since auth check is removed
-  const staffName = user?.email ? "Koop Admin" : "On-Site Staff";
-
   const [sellerLocation, setSellerLocation] = useState<LatLng | null>(null);
-  const sellerLocRef = useRef<LatLng | null>(null);
-  const [zoomMode, setZoomMode] = useState<'radius' | 'all'>('radius');
   const [fitTrigger, setFitTrigger] = useState<number>(0);
   const [now, setNow] = useState<number>(Date.now());
   
   const lastOrderIdsRef = useRef<Set<string>>(new Set());
-  const notifiedOverdueRef = useRef<Set<string>>(new Set());
   const initialLoadRef = useRef(true);
   const wakeLockRef = useRef<any>(null);
 
@@ -57,44 +44,18 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
   }, [firestore, sellerId]);
   const { data: primarySeller, isLoading: isPrimaryLoading } = useDoc<Seller>(primarySellerRef);
 
+  // Initialize seller location from venue coordinates immediately
+  useEffect(() => {
+    if (primarySeller?.latitude && primarySeller?.longitude && !sellerLocation) {
+      setSellerLocation({ latitude: primarySeller.latitude, longitude: primarySeller.longitude });
+    }
+  }, [primarySeller, sellerLocation]);
+
   const isBevCartActive = primarySeller?.bevcartActive === true;
-  const thresholds = primarySeller?.orderThresholds?.['Beverage Cart'] || { warning: 7, max: 10 };
-
-  useEffect(() => {
-    if ('Notification' in window && Notification.permission === 'default') {
-      Notification.requestPermission();
-    }
-  }, []);
-
-  const sendSystemNotification = (title: string, body: string) => {
-    if ('Notification' in window && Notification.permission === 'granted') {
-      new Notification(title, {
-        body,
-        icon: 'https://picsum.photos/seed/koop-staff/192/192',
-        tag: 'staff-alert',
-        renotify: true,
-      });
-    }
-  };
-
-  useEffect(() => {
-    const requestWakeLock = async () => {
-      if ('wakeLock' in navigator && isBevCartActive && !wakeLockRef.current) {
-        try {
-          wakeLockRef.current = await (navigator as any).wakeLock.request('screen');
-        } catch (err) {
-          console.warn('Wake Lock failed:', err);
-        }
-      }
-    };
-    if (isBevCartActive) requestWakeLock();
-    return () => { if (wakeLockRef.current) wakeLockRef.current.release(); };
-  }, [isBevCartActive]);
 
   const handleToggleActive = (checked: boolean) => {
     if (!firestore || !sellerId) return;
-    const sellerDocRef = doc(firestore, 'sellers', sellerId);
-    updateDoc(sellerDocRef, { bevcartActive: checked }).catch(() => {});
+    updateDoc(doc(firestore, 'sellers', sellerId), { bevcartActive: checked }).catch(() => {});
   };
 
   const activeOrdersQuery = useMemoFirebase(() => {
@@ -135,7 +96,6 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
 
     if (newOrders.length > 0 && !initialLoadRef.current) {
       toast({ title: "NEW ORDER RECEIVED!" });
-      sendSystemNotification('New BevCart Order!', 'You have a new order waiting for confirmation.');
     }
     lastOrderIdsRef.current = currentOrderIds;
     initialLoadRef.current = false;
@@ -148,31 +108,29 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
   }, []);
 
   useEffect(() => {
-    sellerLocRef.current = sellerLocation;
-  }, [sellerLocation]);
-
-  useEffect(() => {
     if (navigator.geolocation) {
       const watchId = navigator.geolocation.watchPosition(
         (p) => setSellerLocation({ latitude: p.coords.latitude, longitude: p.coords.longitude }),
-        () => setSellerLocation(mockSellerLocation),
+        null,
         { enableHighAccuracy: true, timeout: 10000 }
       );
       return () => navigator.geolocation.clearWatch(watchId);
-    } else {
-      setSellerLocation(mockSellerLocation);
     }
   }, []);
 
   const handleUpdateOrderStatus = (orderId: string, status: Order['status']) => {
     if (!firestore) return;
-    const orderRef = doc(firestore, 'orders', orderId);
-    updateDoc(orderRef, { status, deliveredAt: status === 'Delivered' ? serverTimestamp() : null }).catch(() => {});
+    updateDoc(doc(firestore, 'orders', orderId), { status, deliveredAt: status === 'Delivered' ? serverTimestamp() : null }).catch(() => {});
   };
 
   const mappedBuyers = useMemo(() => {
     if (!now || !driverOrders) return [];
-    return driverOrders.map(o => ({ id: o.id, name: o.customerName, location: o.deliveryLocation, colorClass: "bg-green-600" }));
+    return driverOrders.map(o => ({ 
+      id: o.id, 
+      name: o.customerName, 
+      location: o.deliveryLocation, 
+      colorClass: o.status === 'Out for Delivery' ? "bg-blue-600" : "bg-green-600" 
+    }));
   }, [driverOrders, now]);
 
   const isLoading = areActiveOrdersLoading || isPrimaryLoading;
@@ -193,7 +151,6 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
           </div>
         </header>
 
-        {/* Compact Metrics */}
         <div className="flex-shrink-0 px-4 py-2 bg-background border-b flex items-center justify-center gap-6">
           <div className="flex flex-col items-center">
             <span className="text-[8px] font-black uppercase text-muted-foreground">Daily Tips</span>

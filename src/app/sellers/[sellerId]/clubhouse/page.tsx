@@ -4,21 +4,18 @@ import { collection, query, where, doc, updateDoc, serverTimestamp } from 'fireb
 import { useCollection, useFirestore, useMemoFirebase, useDoc } from '@/firebase';
 import { useEffect, useState, useMemo, useRef, use } from 'react';
 import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
 import { OrderCard } from '@/components/order-card';
 import type { Order, Seller } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
-import { Bell, Package, LogOut, Building } from 'lucide-react';
+import { Package, LogOut, Building, Focus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { useRouter } from 'next/navigation';
+import { MapView } from '@/components/map-view';
+import { APIProvider } from '@vis.gl/react-google-maps';
 
-/**
- * CLUBHOUSE DASHBOARD - OPEN ACCESS
- * Authentication requirement removed for initial prototyping.
- */
 export default function ClubhouseDriverDashboardPage({ params }: { params: Promise<{ sellerId: string }> }) {
   const { sellerId } = use(params);
   const firestore = useFirestore();
@@ -26,6 +23,7 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
   const router = useRouter();
   
   const [now, setNow] = useState<number>(Date.now());
+  const [fitTrigger, setFitTrigger] = useState<number>(0);
   const lastOrderIdsRef = useRef<Set<string>>(new Set());
 
   const primarySellerRef = useMemoFirebase(() => {
@@ -54,7 +52,7 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
 
   const clubhouseOrders = useMemo(() => {
     if (!activeOrders) return [];
-    return activeOrders.filter(o => o.menuType !== 'Beverage Cart');
+    return activeOrders.filter(o => o.menuType === 'Clubhouse' || o.menuType === 'Take Out');
   }, [activeOrders]);
 
   useEffect(() => {
@@ -78,45 +76,69 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
     updateDoc(doc(firestore, 'orders', orderId), { status, deliveredAt: status === 'Delivered' ? serverTimestamp() : null }).catch(() => {});
   };
 
+  const mappedBuyers = useMemo(() => {
+    return clubhouseOrders.map(o => ({ 
+      id: o.id, 
+      name: o.customerName, 
+      location: o.deliveryLocation, 
+      colorClass: "bg-indigo-600" 
+    }));
+  }, [clubhouseOrders]);
+
   const isLoading = areActiveOrdersLoading || isPrimaryLoading;
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden bg-muted/20">
-      <header className="flex-shrink-0 px-4 h-16 flex items-center justify-between border-b-2 border-[#E50000] bg-[#213147] z-20 shadow-sm">
-        <div className="flex flex-col min-w-0">
-          <h1 className="font-headline text-sm font-bold text-white uppercase tracking-tight">CLUBHOUSE PORTAL</h1>
-          <Badge variant="outline" className="h-4 px-1.5 text-[8px] bg-white/5 text-white border-white/10 uppercase">
-            {primarySeller?.courseName || 'Loading...'}
-          </Badge>
-        </div>
-        <div className="flex items-center space-x-3">
-          <Switch checked={isClubhouseActive} onCheckedChange={handleToggleActive} className="data-[state=checked]:bg-green-600" />
-          <Button variant="ghost" size="icon" onClick={() => router.push('/')} className="text-white/40 hover:text-white"><LogOut className="h-4 w-4" /></Button>
-        </div>
-      </header>
+    <APIProvider apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!}>
+      <div className="flex flex-col h-screen overflow-hidden bg-muted/20">
+        <header className="flex-shrink-0 px-4 h-16 flex items-center justify-between border-b-2 border-[#E50000] bg-[#213147] z-20 shadow-sm">
+          <div className="flex flex-col min-w-0">
+            <h1 className="font-headline text-sm font-bold text-white uppercase tracking-tight">CLUBHOUSE PORTAL</h1>
+            <Badge variant="outline" className="h-4 px-1.5 text-[8px] bg-white/5 text-white border-white/10 uppercase">
+              {primarySeller?.courseName || 'Loading...'}
+            </Badge>
+          </div>
+          <div className="flex items-center space-x-3">
+            <Switch checked={isClubhouseActive} onCheckedChange={handleToggleActive} className="data-[state=checked]:bg-green-600" />
+            <Button variant="ghost" size="icon" onClick={() => router.push('/')} className="text-white/40 hover:text-white"><LogOut className="h-4 w-4" /></Button>
+          </div>
+        </header>
 
-      <div className="flex-1 flex flex-col p-4 gap-4 overflow-hidden max-w-4xl mx-auto w-full">
-        <div className="flex-1 bg-background border-2 rounded-xl overflow-hidden flex flex-col">
-          <h2 className="font-headline text-xs font-black px-4 py-3 border-b flex items-center justify-between uppercase bg-muted/10">
-            <span>Orders Queue</span>
-            <Badge variant="secondary">{clubhouseOrders.length}</Badge>
-          </h2>
-          <ScrollArea className="flex-1">
-            <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-              {isLoading ? <Skeleton className="h-48 w-full" /> : clubhouseOrders.length === 0 ? (
-                <div className="col-span-full py-32 text-center text-muted-foreground opacity-40">
-                  <Building className="h-12 w-12 mx-auto mb-4" />
-                  <p className="text-[10px] font-black uppercase">No active clubhouse orders</p>
-                </div>
-              ) : (
-                clubhouseOrders.map((order, index) => (
-                  <OrderCard key={order.id} order={order} orderNumber={index + 1} onUpdateStatus={handleUpdateOrderStatus} />
-                ))
-              )}
-            </div>
-          </ScrollArea>
+        <div className="flex-1 flex flex-col md:flex-row overflow-hidden p-4 gap-4">
+          {/* Map View for Clubhouse */}
+          <div className="relative w-full md:w-1/2 h-[35vh] md:h-full bg-muted rounded-xl overflow-hidden border-2 shadow-sm">
+            <Button variant="outline" size="icon" className="absolute top-2 right-2 z-10 bg-background/80 h-8 w-8" onClick={() => setFitTrigger(p => p + 1)}><Focus className="h-4 w-4" /></Button>
+            {primarySeller?.latitude ? (
+              <MapView 
+                sellerLocation={{ latitude: primarySeller.latitude, longitude: primarySeller.longitude }} 
+                buyers={mappedBuyers} 
+                fitTrigger={fitTrigger}
+                showPrimaryMarker={true} 
+              />
+            ) : <Skeleton className="w-full h-full" />}
+          </div>
+
+          <div className="w-full md:w-1/2 flex flex-col bg-background border-2 rounded-xl overflow-hidden min-h-0">
+            <h2 className="font-headline text-xs font-black px-4 py-3 shrink-0 border-b flex items-center justify-between uppercase bg-muted/10">
+              <span>Orders Queue</span>
+              <Badge variant="secondary">{clubhouseOrders.length}</Badge>
+            </h2>
+            <ScrollArea className="flex-1">
+              <div className="p-4 grid grid-cols-1 gap-4">
+                {isLoading ? <Skeleton className="h-48 w-full" /> : clubhouseOrders.length === 0 ? (
+                  <div className="py-32 text-center text-muted-foreground opacity-40">
+                    <Building className="h-12 w-12 mx-auto mb-4" />
+                    <p className="text-[10px] font-black uppercase">No active clubhouse orders</p>
+                  </div>
+                ) : (
+                  clubhouseOrders.map((order, index) => (
+                    <OrderCard key={order.id} order={order} orderNumber={index + 1} onUpdateStatus={handleUpdateOrderStatus} />
+                  ))
+                )}
+              </div>
+            </ScrollArea>
+          </div>
         </div>
       </div>
-    </div>
+    </APIProvider>
   );
 }

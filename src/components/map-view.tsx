@@ -72,11 +72,10 @@ function MapElements({ buyerLocation, sellerLocation, sellers, buyers, radius, z
 
     } else if (sellerLocation) {
       map.setCenter({ lat: sellerLocation.latitude, lng: sellerLocation.longitude });
-      // Zoom 15 is roughly a 1-mile radius view on satellite maps
       map.setZoom(15);
     }
 
-  }, [map, zoomMode, fitTrigger]); // Only re-fit camera when map is ready, mode changes, or explicit trigger
+  }, [map, zoomMode, fitTrigger, buyerLocation?.latitude, buyerLocation?.longitude, sellerLocation?.latitude, sellerLocation?.longitude, buyers?.length]);
 
   useEffect(() => {
     if (!map || !radius || !sellerLocation) return;
@@ -95,7 +94,7 @@ function MapElements({ buyerLocation, sellerLocation, sellers, buyers, radius, z
     return () => {
       circle.setMap(null);
     };
-  }, [map, sellerLocation, radius]); // Circle follows location, but doesn't move camera
+  }, [map, sellerLocation?.latitude, sellerLocation?.longitude, radius]);
 
 
   return null;
@@ -109,7 +108,7 @@ export function MapView({ buyerLocation, sellerLocation, showPrimaryMarker = tru
     <div className="relative w-full h-full">
       <Map
         defaultCenter={center}
-        defaultZoom={12}
+        defaultZoom={15}
         mapId="a32a12d8a2a7a8a"
         mapTypeId="satellite"
         disableDefaultUI={!interactive}
@@ -129,7 +128,6 @@ export function MapView({ buyerLocation, sellerLocation, showPrimaryMarker = tru
           fitTrigger={fitTrigger}
         />
 
-        {/* Render all Sellers (Drivers) */}
         {sellers && sellers.map(s => {
           const driverColor = getDriverColor(s.id);
           const config = DRIVER_COLOR_CONFIG[driverColor];
@@ -147,7 +145,6 @@ export function MapView({ buyerLocation, sellerLocation, showPrimaryMarker = tru
           );
         })}
 
-        {/* Primary Seller Pin */}
         {showPrimaryMarker && sellerLocation && (!sellers || !sellers.some(s => s.location.latitude === sellerLocation.latitude && s.location.longitude === sellerLocation.longitude)) && (
           <AdvancedMarker position={{ lat: sellerLocation.latitude, lng: sellerLocation.longitude }}>
             {(() => {
@@ -166,7 +163,6 @@ export function MapView({ buyerLocation, sellerLocation, showPrimaryMarker = tru
           </AdvancedMarker>
         )}
 
-        {/* Single Buyer Pin (for order tracking view) */}
         {buyerLocation && (
           <AdvancedMarker position={{ lat: buyerLocation.latitude, lng: buyerLocation.longitude }}>
             <div className="flex flex-col items-center">
@@ -178,16 +174,11 @@ export function MapView({ buyerLocation, sellerLocation, showPrimaryMarker = tru
           </AdvancedMarker>
         )}
 
-        {/* Multiple Buyer Pins (for ops view) */}
         {buyers && buyers.map((buyer, index) => {
           const statusColorClass = buyer.colorClass || "bg-accent";
           const assignedDriverColor = buyer.assignedDriverId ? getDriverColor(buyer.assignedDriverId) : null;
           const assignedStyles = assignedDriverColor ? DRIVER_COLOR_CONFIG[assignedDriverColor] : null;
-
-          // The inside (background) uses the time-based color (green/yellow/red)
           const bgClass = statusColorClass;
-          
-          // The outline (border) matches the driver color if assigned, else white/accent
           const borderClass = assignedStyles ? `border-4 ${assignedStyles.border}` : 'border-4 border-white';
           const textClass = 'text-white';
           const arrowClass = assignedStyles ? assignedStyles.arrow : statusColorClass.replace('bg-', 'border-t-');
