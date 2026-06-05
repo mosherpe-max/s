@@ -126,20 +126,26 @@ export const createPaymentIntent = onCall({
   invoker: 'public',
   maxInstances: 10,
 }, async (request) => {
+  // Log request context for debugging
+  logger.info("createPaymentIntent invoked", { 
+    data: request.data, 
+    auth: request.auth?.uid || 'anonymous' 
+  });
+
   // Allow anonymous patrons to pay
   if (!request.auth) {
     throw new HttpsError("unauthenticated", "You must be identified (anonymous is OK) to place an order.");
   }
 
   const { amount, sellerId } = request.data;
-  if (!amount || !sellerId) {
-    throw new HttpsError("invalid-argument", "Transaction failed: Missing amount or venue identifier.");
+  if (!amount || typeof amount !== 'number' || amount <= 0 || !sellerId) {
+    throw new HttpsError("invalid-argument", "Transaction failed: Missing or invalid amount/venue identifier.");
   }
 
   const secretKey = process.env.STRIPE_SECRET_KEY;
-  if (!secretKey) {
-    logger.error("CRITICAL: STRIPE_SECRET_KEY is missing from functions environment.");
-    throw new HttpsError("failed-precondition", "Platform Configuration Error: The system is not configured for payments yet (Missing API Key).");
+  if (!secretKey || secretKey === 'REPLACE_ME') {
+    logger.error("CRITICAL: STRIPE_SECRET_KEY is missing or unconfigured.");
+    throw new HttpsError("failed-precondition", "Platform Configuration Error: The payment gateway is not configured. Please add the STRIPE_SECRET_KEY to your functions environment.");
   }
 
   const stripe = new Stripe(secretKey);
@@ -150,18 +156,21 @@ export const createPaymentIntent = onCall({
     const venueDoc = await venueRef.get();
     
     if (!venueDoc.exists) {
-      throw new HttpsError("not-found", `Venue registry missing: "${sellerId}". Please visit the venue admin panel and click "Initialize Registry" under Payments.`);
+      logger.error(`Venue document missing for sellerId: ${sellerId}`);
+      throw new HttpsError("not-found", `Venue registry missing for "${sellerId}". Please visit the venue admin panel and click "Initialize Registry" under Payments.`);
     }
 
     const venueData = venueDoc.data();
     const stripeAccountId = venueData?.stripeAccountId;
 
     if (!stripeAccountId) {
-      throw new HttpsError("failed-precondition", `Payment blocked: The venue "${venueData?.name || sellerId}" has not completed Stripe Express setup.`);
+      logger.error(`Stripe Account ID missing for venue: ${sellerId}`);
+      throw new HttpsError("failed-precondition", `Payment blocked: The venue "${venueData?.name || sellerId}" has not connected a Stripe Express account.`);
     }
 
     // 2. Create PaymentIntent (Destination Charge)
     // Captures funds and routes them to the venue's connected account
+    logger.info(`Creating PaymentIntent for ${amount} to account ${stripeAccountId}`);
     const paymentIntent = await stripe.paymentIntents.create({
       amount: Math.round(amount * 100), // convert to cents
       currency: 'usd',
@@ -169,19 +178,30 @@ export const createPaymentIntent = onCall({
       transfer_data: {
         destination: stripeAccountId,
       },
+      metadata: {
+        sellerId,
+        buyerUid: request.auth.uid
+      }
     });
 
     return { clientSecret: paymentIntent.client_secret };
 
   } catch (error: any) {
-    logger.error("Stripe Payment Intent Error:", error);
+    logger.error("Stripe Transaction Handshake Error:", {
+      message: error.message,
+      type: error.type,
+      code: error.code
+    });
     
-    // Preserve HttpsErrors already thrown above
+    // Preserve specific HttpsErrors thrown in the logic above
     if (error instanceof HttpsError) throw error;
-    if (error.code && typeof error.code === 'string' && error.code !== 'internal') throw error;
     
-    // Wrap generic Stripe errors in a descriptive HttpsError
-    throw new HttpsError("internal", error.message || "The platform encountered an error during the payment handshake.");
+    // Wrap Stripe-specific errors in a descriptive HttpsError for the frontend
+    const userMessage = error.type === 'StripeInvalidRequestError' 
+      ? `Stripe rejected the request: ${error.message}`
+      : "The payment server encountered an error during processing.";
+
+    throw new HttpsError("aborted", userMessage);
   }
 });
 

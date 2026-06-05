@@ -27,7 +27,8 @@ import {
   ShoppingBag,
   CreditCard,
   Banknote,
-  Check
+  Check,
+  AlertTriangle
 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useCart } from '@/lib/cart-context';
@@ -103,14 +104,14 @@ function CheckoutDrawerContent({
         const result = await signInAnonymously(auth);
         currentUser = result.user;
       }
-      if (!currentUser) throw new Error("Could not verify your identity. Please try again.");
+      if (!currentUser) throw new Error("Could not verify your identity. Please refresh and try again.");
 
       let paymentId = 'manual_at_delivery';
       let pStatus = 'Pending';
 
       // STEP 2 & 3: STRIPE HANDSHAKE
       if (paymentMethod === 'Stripe') {
-        if (!stripe || !elements) throw new Error("Payment system (Stripe) is not initialized.");
+        if (!stripe || !elements) throw new Error("The payment system (Stripe) is still initializing. Please wait a moment.");
 
         console.log('💳 Step 2: Requesting Payment Intent from Cloud Functions...');
         const functions = getFunctions(firebaseApp, 'us-central1');
@@ -141,10 +142,10 @@ function CheckoutDrawerContent({
           paymentId = confirmResult.paymentIntent.id;
           pStatus = 'Succeeded';
         } catch (funcError: any) {
-          console.error('❌ Cloud Function Error:', funcError);
-          // Firebase errors have a .message property which we must surface
-          const displayMsg = funcError.message || "The payment server returned an unknown error.";
-          throw new Error(displayMsg);
+          console.error('❌ Cloud Function Failure:', funcError);
+          // Extract specific message from Firebase error
+          const serverMessage = funcError?.message || funcError?.details?.message || "Internal server error during payment creation.";
+          throw new Error(serverMessage);
         }
       }
 
@@ -172,14 +173,15 @@ function CheckoutDrawerContent({
       };
 
       const orderRef = await addDoc(collection(firestore, 'orders'), orderData);
+      console.log('✅ ORDER COMPLETE:', orderRef.id);
       onOrderComplete(orderRef.id);
       
     } catch (e: any) {
       console.error('💥 CHECKOUT CRASHED:', e);
       toast({ 
         variant: 'destructive', 
-        title: 'Order Interrupted', 
-        description: e.message || "An unexpected error occurred." 
+        title: 'Transaction Interrupted', 
+        description: e.message || "An unexpected error occurred. Please try again." 
       });
     } finally {
       setIsProcessing(false);
