@@ -227,11 +227,8 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   const platformConfigRef = useMemoFirebase(() => (firestore ? doc(firestore, 'platform', 'config') : null), [firestore]);
   const { data: platformConfig } = useDoc<PlatformConfig>(platformConfigRef);
 
-  // Open access enabled for initial prototyping, keeping Koop Admin marker visible
+  // Access enabled for prototyping phase
   const isPlatformAdmin = isHardcodedSuperAdmin || !!platformRole;
-  const isAssignedVenueAdmin = sellerRole?.sellerId === sellerId;
-  
-  // Per instructions, authentication requirement removed for Establishment Admin during this phase
   const hasAccess = true; 
 
   useEffect(() => { 
@@ -320,13 +317,13 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   const mailtoLink = `mailto:${supportEmail}?subject=Stripe Onboarding Request - ${seller?.courseName}&body=Hello Koop Support, %0D%0A%0D%0AI would like to request a manual Stripe onboarding link for my venue: ${seller?.courseName}. %0D%0A%0D%0AThank you!`;
 
   const handleProvisionRegistry = async () => {
-    if (!firestore || !user || !seller) return;
+    if (!firestore || !seller) return;
     setIsProvisioningRegistry(true);
     try {
       await setDoc(doc(firestore, 'venues', sellerId), {
         venueId: sellerId,
         name: seller.courseName,
-        ownerUid: user.uid,
+        ownerUid: user?.uid || 'anonymous_demo_admin',
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
         stripeOnboardingComplete: false,
@@ -771,12 +768,15 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                       {!venueData ? (
                         <div className="space-y-4">
                           <AlertTriangle className="h-12 w-12 text-amber-500 mx-auto" />
-                          <p className="text-xs font-black uppercase tracking-widest text-[#213147]">Registry Required</p>
-                          {isHardcodedSuperAdmin && (
-                            <Button onClick={handleProvisionRegistry} disabled={isProvisioningRegistry} className="w-full bg-[#213147] font-black uppercase text-[10px] tracking-widest">
-                              {isProvisioningRegistry ? <Loader2 className="animate-spin" /> : "Initialize Registry"}
-                            </Button>
-                          )}
+                          <div className="space-y-1">
+                            <p className="text-xs font-black uppercase tracking-widest text-[#213147]">Registry Required</p>
+                            <p className="text-[9px] font-bold text-muted-foreground uppercase leading-relaxed px-4">
+                              This venue is not yet connected to the platform's payment core.
+                            </p>
+                          </div>
+                          <Button onClick={handleProvisionRegistry} disabled={isProvisioningRegistry} className="w-full bg-[#213147] font-black uppercase text-[10px] tracking-widest h-12 shadow-lg">
+                            {isProvisioningRegistry ? <Loader2 className="animate-spin" /> : "Initialize Registry"}
+                          </Button>
                         </div>
                       ) : venueData.payoutsEnabled ? (
                         <>
