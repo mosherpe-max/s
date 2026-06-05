@@ -88,12 +88,6 @@ function CheckoutDrawerContent({
   /**
    * handlePlaceOrder
    * Orchestrates the multi-step Stripe and Firestore process.
-   * 
-   * INTERNAL ORDER OF OPERATIONS:
-   * 1. Identity Check: Ensure patron is authenticated (anonymous sign-in fallback).
-   * 2. Stripe Intent (Backend): Call Cloud Function to get clientSecret (Destination Charge).
-   * 3. Payment Confirmation (Stripe): Browser communicates directly with Stripe via confirmCardPayment.
-   * 4. Firestore Commitment: Record order only AFTER payment is confirmed successful.
    */
   const handlePlaceOrder = async () => {
     if (!firestore || activeOrderItems.length === 0) return;
@@ -109,27 +103,26 @@ function CheckoutDrawerContent({
         const result = await signInAnonymously(auth);
         currentUser = result.user;
       }
-      if (!currentUser) throw new Error("Authentication failed");
+      if (!currentUser) throw new Error("Could not verify your identity. Please try again.");
 
       let paymentId = 'manual_at_delivery';
       let pStatus = 'Pending';
 
       // STEP 2 & 3: STRIPE HANDSHAKE
       if (paymentMethod === 'Stripe') {
-        if (!stripe || !elements) throw new Error("Stripe not initialized");
+        if (!stripe || !elements) throw new Error("Payment system (Stripe) is not initialized.");
 
         console.log('💳 Step 2: Requesting Payment Intent from Cloud Functions...');
-        const functions = getFunctions(firebaseApp);
+        const functions = getFunctions(firebaseApp, 'us-central1');
         const createIntent = httpsCallable(functions, 'createPaymentIntent');
         
-        // 2a. Server-side initialization
         try {
           const result = await createIntent({ amount: finalTotal, sellerId });
           const { clientSecret } = result.data as { clientSecret: string };
-          console.log('✅ Step 2 Complete: Intent established with Stripe Express.');
+          console.log('✅ Step 2 Complete: Intent established.');
 
           // 3. Client-side confirmation
-          console.log('🔒 Step 3: Securely confirming payment with patron card...');
+          console.log('🔒 Step 3: Securely confirming payment...');
           const confirmResult = await stripe.confirmCardPayment(clientSecret, {
             payment_method: {
               card: elements.getElement(CardElement)!,
@@ -144,21 +137,20 @@ function CheckoutDrawerContent({
             throw new Error(confirmResult.error.message);
           }
 
-          console.log('✅ Step 3 Complete: Funds captured and routed to venue.');
+          console.log('✅ Step 3 Complete: Capture successful.');
           paymentId = confirmResult.paymentIntent.id;
           pStatus = 'Succeeded';
         } catch (funcError: any) {
-          console.error('❌ Step 2 Failed (Cloud Function Error):', funcError);
-          // Re-throw with descriptive message if available
-          throw new Error(funcError.message || "Failed to initialize the Stripe payment session.");
+          console.error('❌ Cloud Function Error:', funcError);
+          // Firebase errors have a .message property which we must surface
+          const displayMsg = funcError.message || "The payment server returned an unknown error.";
+          throw new Error(displayMsg);
         }
-      } else {
-        console.log('💵 Skipping digital payment: Patron selected "Pay at Delivery".');
       }
 
       // STEP 4: FIRESTORE RECORDING
-      console.log('📝 Step 4: Finalizing order in Firestore registry...');
-      const loc = mockBuyerLocation; // Fallback for prototype
+      console.log('📝 Step 4: Finalizing order in registry...');
+      const loc = mockBuyerLocation; 
       const orderData: any = {
         sellerId,
         buyerProfileId: currentUser.uid,
@@ -180,16 +172,14 @@ function CheckoutDrawerContent({
       };
 
       const orderRef = await addDoc(collection(firestore, 'orders'), orderData);
-      console.log('🎉 PROCESS COMPLETE: Order recorded as', orderRef.id);
-      
       onOrderComplete(orderRef.id);
       
     } catch (e: any) {
       console.error('💥 CHECKOUT CRASHED:', e);
       toast({ 
         variant: 'destructive', 
-        title: 'Checkout Error', 
-        description: e.message || "An unexpected error occurred during checkout." 
+        title: 'Order Interrupted', 
+        description: e.message || "An unexpected error occurred." 
       });
     } finally {
       setIsProcessing(false);

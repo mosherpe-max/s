@@ -40,7 +40,7 @@ export const createStripeConnectAccount = onCall({
   const secretKey = process.env.STRIPE_SECRET_KEY;
   if (!secretKey) {
     logger.error("STRIPE_SECRET_KEY is missing from environment.");
-    throw new HttpsError("failed-precondition", "System configuration error: Missing Stripe API Key.");
+    throw new HttpsError("failed-precondition", "System configuration error: Missing Stripe API Key in Firebase Console.");
   }
 
   const stripe = new Stripe(secretKey);
@@ -52,7 +52,7 @@ export const createStripeConnectAccount = onCall({
 
     if (!venueDoc.exists) {
       logger.error(`Venue [${venueId}] not found in registry.`);
-      throw new HttpsError("not-found", `Venue record [${venueId}] not found in registry.`);
+      throw new HttpsError("not-found", `Venue record [${venueId}] not found in registry. Please initialize it in the admin panel.`);
     }
 
     const venueData = venueDoc.data();
@@ -128,18 +128,18 @@ export const createPaymentIntent = onCall({
 }, async (request) => {
   // Allow anonymous patrons to pay
   if (!request.auth) {
-    throw new HttpsError("unauthenticated", "User must be logged in to pay.");
+    throw new HttpsError("unauthenticated", "You must be identified (anonymous is OK) to place an order.");
   }
 
   const { amount, sellerId } = request.data;
   if (!amount || !sellerId) {
-    throw new HttpsError("invalid-argument", "Missing required fields: amount, sellerId.");
+    throw new HttpsError("invalid-argument", "Transaction failed: Missing amount or venue identifier.");
   }
 
   const secretKey = process.env.STRIPE_SECRET_KEY;
   if (!secretKey) {
-    logger.error("STRIPE_SECRET_KEY is missing from environment.");
-    throw new HttpsError("failed-precondition", "Platform Configuration Error: Missing Stripe API Key.");
+    logger.error("CRITICAL: STRIPE_SECRET_KEY is missing from functions environment.");
+    throw new HttpsError("failed-precondition", "Platform Configuration Error: The system is not configured for payments yet (Missing API Key).");
   }
 
   const stripe = new Stripe(secretKey);
@@ -150,18 +150,18 @@ export const createPaymentIntent = onCall({
     const venueDoc = await venueRef.get();
     
     if (!venueDoc.exists) {
-      throw new HttpsError("not-found", `Venue registry entry for [${sellerId}] not found. Please initialize the registry in the Platform Admin Panel.`);
+      throw new HttpsError("not-found", `Venue registry missing: "${sellerId}". Please visit the venue admin panel and click "Initialize Registry" under Payments.`);
     }
 
     const venueData = venueDoc.data();
     const stripeAccountId = venueData?.stripeAccountId;
 
     if (!stripeAccountId) {
-      throw new HttpsError("failed-precondition", `The venue "${venueData?.name || sellerId}" is not yet configured for digital payments (Missing Stripe Account ID).`);
+      throw new HttpsError("failed-precondition", `Payment blocked: The venue "${venueData?.name || sellerId}" has not completed Stripe Express setup.`);
     }
 
     // 2. Create PaymentIntent (Destination Charge)
-    // Charge the platform, then transfer to the seller Express account
+    // Captures funds and routes them to the venue's connected account
     const paymentIntent = await stripe.paymentIntents.create({
       amount: Math.round(amount * 100), // convert to cents
       currency: 'usd',
@@ -169,23 +169,19 @@ export const createPaymentIntent = onCall({
       transfer_data: {
         destination: stripeAccountId,
       },
-      // Note: In a production app, you'd calculate the application_fee_amount here
-      // based on your platform's business logic.
     });
 
     return { clientSecret: paymentIntent.client_secret };
 
   } catch (error: any) {
-    // Log the real error to the server logs
     logger.error("Stripe Payment Intent Error:", error);
     
-    // If it's already an HttpsError (like the not-found or failed-precondition above), preserve it
-    if (error.code && typeof error.code === 'string' && error.code !== 'internal') {
-      throw error;
-    }
+    // Preserve HttpsErrors already thrown above
+    if (error instanceof HttpsError) throw error;
+    if (error.code && typeof error.code === 'string' && error.code !== 'internal') throw error;
     
-    // Otherwise, wrap in an HttpsError with a descriptive message
-    throw new HttpsError("internal", error.message || "The server encountered an error while initializing the payment session.");
+    // Wrap generic Stripe errors in a descriptive HttpsError
+    throw new HttpsError("internal", error.message || "The platform encountered an error during the payment handshake.");
   }
 });
 
