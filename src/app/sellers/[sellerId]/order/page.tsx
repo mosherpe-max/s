@@ -214,8 +214,10 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
           <SheetHeader className="px-6 py-4 border-b bg-white"><SheetTitle>Review Order</SheetTitle></SheetHeader>
           <ScrollArea className="flex-1">
             <div className="p-6 space-y-8 pb-10">
+              {/* 1. ORDER SUMMARY */}
               <OrderSummary items={activeOrderItems} onUpdateItem={updateItem} onRemoveItem={removeItem} />
               
+              {/* 2. STATION SELECTION (IF APPLICABLE) */}
               {selectedMenuType === 'Lane Delivery' && seller?.laneCount && (
                 <div className="space-y-3">
                   <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground px-1">STATION</h3>
@@ -235,7 +237,10 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
                 </div>
               )}
 
-              {/* PAYMENT SELECTION */}
+              {/* 3. PRICING BREAKDOWN */}
+              <PricingBreakdown subtotal={subtotal} serviceFee={platformFee} tax={tax} tip={tip} taxRate={taxRate} />
+
+              {/* 4. PAYMENT METHODS */}
               <div className="space-y-4">
                 <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground px-1">PAYMENT METHOD</h3>
                 <RadioGroup value={paymentMethod} onValueChange={(v: any) => setPaymentMethod(v)} className="grid grid-cols-1 gap-3">
@@ -291,8 +296,6 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
                   </div>
                 )}
               </div>
-
-              <PricingBreakdown subtotal={subtotal} serviceFee={platformFee} tax={tax} tip={tip} taxRate={taxRate} />
             </div>
           </ScrollArea>
           <SheetFooter className="p-6 bg-white border-t">
