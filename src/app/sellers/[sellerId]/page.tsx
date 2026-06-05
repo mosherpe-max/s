@@ -51,7 +51,9 @@ import {
   MoreVertical,
   Search,
   Filter,
-  TrendingUp
+  TrendingUp,
+  PanelLeftClose,
+  PanelLeft
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -123,6 +125,7 @@ function NavButton({ id, label, icon: Icon, active, onClick, sidebarOpen }: {
   return (
     <button
       onClick={() => onClick(id)}
+      title={!sidebarOpen ? label : undefined}
       className={cn(
         "flex items-center gap-3 w-full px-4 py-3 rounded-xl transition-all duration-200 group",
         active 
@@ -132,7 +135,7 @@ function NavButton({ id, label, icon: Icon, active, onClick, sidebarOpen }: {
     >
       <Icon className={cn("h-5 w-5 shrink-0", active ? "text-primary" : "group-hover:text-white")} />
       {sidebarOpen && (
-        <span className={cn("text-xs font-bold uppercase tracking-widest", active ? "text-white" : "")}>
+        <span className={cn("text-xs font-bold uppercase tracking-widest whitespace-nowrap overflow-hidden animate-in fade-in slide-in-from-left-2 duration-300", active ? "text-white" : "")}>
           {label}
         </span>
       )}
@@ -381,9 +384,11 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
         "bg-[#213147] flex flex-col transition-all duration-300 relative border-r-4 border-primary/20 shrink-0",
         sidebarOpen ? "w-64" : "w-20"
       )}>
-        <div className="p-6 border-b border-white/5">
+        <div className="p-6 border-b border-white/5 flex items-center justify-between">
           <StylizedKoopLogo size={sidebarOpen ? "md" : "sm"} />
-          {sidebarOpen && <p className="text-[9px] font-black text-primary uppercase tracking-[0.2em] mt-1 ml-1">Establishment Admin</p>}
+          {sidebarOpen && (
+             <p className="text-[9px] font-black text-primary uppercase tracking-[0.2em] mt-1 ml-1 animate-in fade-in duration-500">Establishment Admin</p>
+          )}
         </div>
 
         <nav className="flex-1 p-3 space-y-1">
@@ -402,7 +407,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
 
         <div className="mt-auto border-t border-white/5 p-4">
           {sidebarOpen && (
-            <div className="bg-white/5 rounded-xl p-4 mb-4">
+            <div className="bg-white/5 rounded-xl p-4 mb-4 animate-in fade-in duration-500">
               <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Active Venue</p>
               <p className="text-xs font-black text-white uppercase tracking-tight truncate">{seller?.courseName}</p>
               <Badge variant="outline" className="mt-2 text-[8px] border-primary/30 text-primary uppercase font-black tracking-widest">

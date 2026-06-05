@@ -44,7 +44,9 @@ import {
   MoreVertical,
   ExternalLink,
   Send,
-  Link as LinkIcon
+  Link as LinkIcon,
+  PanelLeftClose,
+  PanelLeft
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -103,6 +105,7 @@ function NavButton({ id, label, icon: Icon, active, onClick, sidebarOpen }: {
   return (
     <button
       onClick={() => onClick(id)}
+      title={!sidebarOpen ? label : undefined}
       className={cn(
         "flex items-center gap-3 w-full px-4 py-3 rounded-xl transition-all duration-200 group",
         active 
@@ -112,7 +115,7 @@ function NavButton({ id, label, icon: Icon, active, onClick, sidebarOpen }: {
     >
       <Icon className={cn("h-5 w-5 shrink-0", active ? "text-primary" : "group-hover:text-white")} />
       {sidebarOpen && (
-        <span className={cn("text-[10px] font-black uppercase tracking-widest", active ? "text-white" : "")}>
+        <span className={cn("text-xs font-bold uppercase tracking-widest whitespace-nowrap overflow-hidden animate-in fade-in slide-in-from-left-2 duration-300", active ? "text-white" : "")}>
           {label}
         </span>
       )}
@@ -349,9 +352,11 @@ export default function PlatformAdminPage() {
         "bg-[#213147] flex flex-col transition-all duration-300 relative border-r-4 border-primary/20 shrink-0",
         sidebarOpen ? "w-64" : "w-20"
       )}>
-        <div className="p-6 border-b border-white/5">
+        <div className="p-6 border-b border-white/5 flex items-center justify-between">
           <StylizedKoopLogo size={sidebarOpen ? "md" : "sm"} />
-          {sidebarOpen && <p className="text-[9px] font-black text-primary uppercase tracking-[0.2em] mt-1 ml-1">Platform Admin</p>}
+          {sidebarOpen && (
+             <p className="text-[9px] font-black text-primary uppercase tracking-[0.2em] mt-1 ml-1 animate-in fade-in duration-500">Platform Admin</p>
+          )}
         </div>
 
         <nav className="flex-1 p-3 space-y-1">
