@@ -3,7 +3,7 @@
 import { useState, use, useEffect, useMemo } from 'react';
 import { collection, doc, addDoc, serverTimestamp } from 'firebase/firestore';
 import { signInAnonymously } from 'firebase/auth';
-import { useFirestore, useCollection, useMemoFirebase, useDoc, useAuth, useUser } from '@/firebase';
+import { useFirestore, useCollection, useMemoFirebase, useDoc, useAuth, useUser, useFirebase } from '@/firebase';
 import type { Seller, MenuItem, OrderItem } from '@/lib/types';
 import { categories } from '@/lib/types';
 import { BuyerMenu } from '@/components/buyer-menu';
@@ -35,9 +35,10 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { mockBuyerLocation } from '@/lib/data';
 import { loadStripe } from '@stripe/stripe-js';
-import { Elements } from '@stripe/react-stripe-js';
+import { Elements, useStripe, useElements, CardElement } from '@stripe/react-stripe-js';
 import { StripeCheckoutForm } from '@/components/stripe-checkout-form';
 import { cn } from '@/lib/utils';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 
 // Public Test Key for Prototype
 const stripePromise = loadStripe('pk_test_51O8R7zIuK7fM8y8m9f6a4zS2T5U8v4w3q1l0k9j8h7g6f5d4s3a2q1w0e9r8t7y6u5i4o3p2l1m0n9b8v7c6x5z');
@@ -52,41 +53,225 @@ const serviceTypeIcons: Record<string, any> = {
   'Lane Delivery': MapPin,
 };
 
-export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId: string }> }) {
-  const { sellerId } = use(params);
+/**
+ * INTERNAL COMPONENT: CheckoutDrawerContent
+ * This component is wrapped in <Elements> to allow usage of useStripe and useElements hooks.
+ */
+function CheckoutDrawerContent({ 
+  seller, 
+  sellerId, 
+  selectedMenuType, 
+  locationValue, 
+  setLocationValue, 
+  activeOrderItems, 
+  subtotal, 
+  platformFee, 
+  tax, 
+  tip, 
+  finalTotal, 
+  taxRate,
+  paymentMethod,
+  setPaymentMethod,
+  isStripeReady,
+  setIsStripeReady,
+  onOrderComplete
+}: any) {
+  const stripe = useStripe();
+  const elements = useElements();
+  const { firebaseApp } = useFirebase();
   const firestore = useFirestore();
   const auth = useAuth();
   const { user } = useUser();
+  const { toast } = useToast();
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  const handlePlaceOrder = async () => {
+    if (!firestore || activeOrderItems.length === 0) return;
+    
+    setIsProcessing(true);
+    
+    try {
+      let currentUser = user;
+      if (!currentUser && auth) {
+        const result = await signInAnonymously(auth);
+        currentUser = result.user;
+      }
+      if (!currentUser) throw new Error("Authentication failed");
+
+      let paymentId = 'manual_at_delivery';
+      let pStatus = 'Pending';
+
+      // --- HANDLE STRIPE PAYMENT ---
+      if (paymentMethod === 'Stripe') {
+        if (!stripe || !elements) throw new Error("Stripe not initialized");
+
+        const functions = getFunctions(firebaseApp);
+        const createIntent = httpsCallable(functions, 'createPaymentIntent');
+        
+        // 1. Initialize Payment Intent on Server
+        const result = await createIntent({ amount: finalTotal, sellerId });
+        const { clientSecret } = result.data as { clientSecret: string };
+
+        // 2. Confirm Payment on Client
+        const confirmResult = await stripe.confirmCardPayment(clientSecret, {
+          payment_method: {
+            card: elements.getElement(CardElement)!,
+            billing_details: {
+              email: currentUser.email || undefined,
+            },
+          },
+        });
+
+        if (confirmResult.error) {
+          throw new Error(confirmResult.error.message);
+        }
+
+        paymentId = confirmResult.paymentIntent.id;
+        pStatus = 'Succeeded';
+      }
+
+      // --- CREATE FIRESTORE ORDER ---
+      const loc = mockBuyerLocation; // Fallback for prototype
+      const orderData: any = {
+        sellerId,
+        buyerProfileId: currentUser.uid,
+        customerName: currentUser.email || 'Guest Patron',
+        deliveryLocation: { latitude: loc.latitude, longitude: loc.longitude },
+        items: activeOrderItems,
+        subtotal,
+        serviceFee: platformFee,
+        tax,
+        tip,
+        total: finalTotal,
+        status: 'Placed',
+        paymentMethod: paymentMethod,
+        paymentStatus: pStatus,
+        stripePaymentIntentId: paymentId,
+        menuType: selectedMenuType,
+        menuTypeLocation: locationValue || null,
+        createdAt: serverTimestamp(),
+      };
+
+      const orderRef = await addDoc(collection(firestore, 'orders'), orderData);
+      onOrderComplete(orderRef.id);
+      
+    } catch (e: any) {
+      toast({ variant: 'destructive', title: 'Checkout Error', description: e.message });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  return (
+    <>
+      <ScrollArea className="flex-1">
+        <div className="p-6 space-y-8 pb-10">
+          <OrderSummary items={activeOrderItems} />
+          
+          {selectedMenuType === 'Lane Delivery' && seller?.laneCount && (
+            <div className="space-y-3">
+              <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground px-1">STATION</h3>
+              <div className="grid grid-cols-6 gap-2">
+                {Array.from({ length: seller.laneCount }, (_, i) => (i + 1).toString()).map(l => (
+                  <Button 
+                    key={l} 
+                    variant={locationValue === `Lane ${l}` ? 'default' : 'outline'} 
+                    size="sm" 
+                    onClick={() => setLocationValue(`Lane ${l}`)}
+                    className="font-bold"
+                  >
+                    {l}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <PricingBreakdown subtotal={subtotal} serviceFee={platformFee} tax={tax} tip={tip} taxRate={taxRate} />
+
+          <div className="space-y-4">
+            <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground px-1">PAYMENT METHOD</h3>
+            <RadioGroup value={paymentMethod} onValueChange={(v: any) => setPaymentMethod(v)} className="grid grid-cols-1 gap-3">
+              <div 
+                className={cn(
+                  "flex items-center justify-between p-4 rounded-2xl border-2 transition-all cursor-pointer",
+                  paymentMethod === 'Pay at Delivery' ? "border-primary bg-primary/5 shadow-md" : "border-slate-100 hover:border-slate-200"
+                )}
+                onClick={() => setPaymentMethod('Pay at Delivery')}
+              >
+                <div className="flex items-center gap-4">
+                  <div className={cn("p-2 rounded-lg", paymentMethod === 'Pay at Delivery' ? "bg-primary text-white" : "bg-slate-100 text-slate-400")}>
+                    <Banknote className="h-5 w-5" />
+                  </div>
+                  <div className="text-left">
+                    <p className="text-xs font-black uppercase tracking-tight text-[#213147]">Pay at Delivery</p>
+                    <p className="text-[9px] font-bold text-muted-foreground uppercase">Cash or Card on-site</p>
+                  </div>
+                </div>
+                {paymentMethod === 'Pay at Delivery' && <Check className="h-4 w-4 text-primary" />}
+              </div>
+
+              <div 
+                className={cn(
+                  "flex items-center justify-between p-4 rounded-2xl border-2 transition-all cursor-pointer",
+                  paymentMethod === 'Stripe' ? "border-primary bg-primary/5 shadow-md" : "border-slate-100 hover:border-slate-200"
+                )}
+                onClick={() => setPaymentMethod('Stripe')}
+              >
+                <div className="flex items-center gap-4">
+                  <div className={cn("p-2 rounded-lg", paymentMethod === 'Stripe' ? "bg-primary text-white" : "bg-slate-100 text-slate-400")}>
+                    <CreditCard className="h-5 w-5" />
+                  </div>
+                  <div className="text-left">
+                    <p className="text-xs font-black uppercase tracking-tight text-[#213147]">Pay with Card</p>
+                    <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
+                      SECURE STRIPE CHECKOUT
+                    </p>
+                  </div>
+                </div>
+                {paymentMethod === 'Stripe' && <Check className="h-4 w-4 text-primary" />}
+              </div>
+            </RadioGroup>
+
+            {paymentMethod === 'Stripe' && (
+              <div className="mt-4 p-4 border-2 border-slate-100 rounded-3xl bg-slate-50/50">
+                <StripeCheckoutForm onReadyStateChange={setIsStripeReady} />
+              </div>
+            )}
+          </div>
+        </div>
+      </ScrollArea>
+      
+      <SheetFooter className="p-6 bg-white border-t">
+        <Button 
+          size="lg" 
+          className="w-full h-14 font-black uppercase tracking-widest gap-2 shadow-xl" 
+          onClick={handlePlaceOrder} 
+          disabled={isProcessing || (paymentMethod === 'Stripe' && !isStripeReady)}
+        >
+          {isProcessing ? <Loader2 className="animate-spin" /> : <ShoppingBag className="h-5 w-5" />} 
+          {paymentMethod === 'Stripe' ? 'PAY & PLACE ORDER' : 'PLACE ORDER'}
+        </Button>
+      </SheetFooter>
+    </>
+  );
+}
+
+export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId: string }> }) {
+  const { sellerId } = use(params);
+  const firestore = useFirestore();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { toast } = useToast();
-  const { orderItems, updateItem, removeItem, isCartOpen, setIsCartOpen, clearCart } = useCart();
+  const { orderItems, updateItem, isCartOpen, setIsCartOpen, clearCart } = useCart();
 
   const menuTypeFromUrl = searchParams.get('menuType');
   const [selectedMenuType, setSelectedMenuType] = useState<string>(menuTypeFromUrl || '');
   const [locationValue, setLocationValue] = useState<string>('');
-  const [isPlacingOrder, setIsPlacingOrder] = useState(false);
-  const [capturedLocation, setCapturedLocation] = useState<{ latitude: number, longitude: number } | null>(null);
-  const [modifierTarget, setModifierTarget] = useState<MenuItem | null>(null);
-  
-  // Payment States
   const [paymentMethod, setPaymentMethod] = useState<'Pay at Delivery' | 'Stripe'>('Pay at Delivery');
   const [isStripeReady, setIsStripeReady] = useState(false);
 
   const sellerRef = useMemoFirebase(() => (firestore ? doc(firestore, 'sellers', sellerId) : null), [firestore, sellerId]);
   const { data: seller, isLoading: isSellerLoading } = useDoc<Seller>(sellerRef);
-
-  useEffect(() => {
-    if (isCartOpen && (selectedMenuType === 'Beverage Cart' || selectedMenuType === 'Clubhouse') && !capturedLocation) {
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-          (p) => setCapturedLocation({ latitude: p.coords.latitude, longitude: p.coords.longitude }),
-          () => console.warn('Location fallback active'),
-          { enableHighAccuracy: true, timeout: 5000 }
-        );
-      }
-    }
-  }, [isCartOpen, selectedMenuType, capturedLocation]);
 
   const menuItemsQuery = useMemoFirebase(() => {
     if (!firestore || !sellerId) return null;
@@ -117,56 +302,9 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
     return categories.filter(c => available.has(c));
   }, [seller, filteredMenuItems]);
 
-  const handlePlaceOrder = async () => {
-    if (!firestore || activeOrderItems.length === 0) return;
-    
-    // Validation for Stripe
-    if (paymentMethod === 'Stripe' && !isStripeReady) {
-      toast({ variant: 'destructive', title: 'Payment Required', description: 'Please enter your card details to proceed.' });
-      return;
-    }
-
-    setIsPlacingOrder(true);
-    
-    try {
-      let currentUser = user;
-      if (!currentUser && auth) {
-        const result = await signInAnonymously(auth);
-        currentUser = result.user;
-      }
-      if (!currentUser) throw new Error("Authentication failed");
-
-      // In a real app, you would confirm the payment intent here
-      // if (paymentMethod === 'Stripe') { ... stripe.confirmPayment ... }
-
-      const loc = capturedLocation || mockBuyerLocation;
-      const orderData: any = {
-        sellerId,
-        buyerProfileId: currentUser.uid,
-        customerName: currentUser.email || 'Guest Patron',
-        deliveryLocation: { latitude: loc.latitude, longitude: loc.longitude },
-        items: activeOrderItems,
-        subtotal,
-        serviceFee: platformFee,
-        tax,
-        tip,
-        total: finalTotal,
-        status: 'Placed',
-        paymentMethod: paymentMethod,
-        paymentStatus: paymentMethod === 'Stripe' ? 'Succeeded' : 'Pending',
-        menuType: selectedMenuType,
-        menuTypeLocation: locationValue || null,
-        createdAt: serverTimestamp(),
-      };
-
-      const orderRef = await addDoc(collection(firestore, 'orders'), orderData);
-      router.push(`/order/track?id=${orderRef.id}&sellerId=${sellerId}`);
-      clearCart();
-    } catch (e: any) {
-      toast({ variant: 'destructive', title: 'Order Failed', description: e.message });
-    } finally {
-      setIsPlacingOrder(false);
-    }
+  const handleOrderComplete = (orderId: string) => {
+    router.push(`/order/track?id=${orderId}&sellerId=${sellerId}`);
+    clearCart();
   };
 
   const isLoading = isSellerLoading || areItemsLoading;
@@ -194,7 +332,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
           <BuyerMenu 
             orderItems={orderItems} 
             onUpdateItem={updateItem} 
-            onOpenModifiers={setModifierTarget}
+            onOpenModifiers={() => {}}
             currentCategories={currentCategories} 
             menuItems={filteredMenuItems} 
             selectedMenuType={selectedMenuType}
@@ -212,103 +350,27 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
         )}
         <SheetContent side="bottom" className="rounded-t-[2rem] h-[90vh] flex flex-col p-0">
           <SheetHeader className="px-6 py-4 border-b bg-white"><SheetTitle>Review Order</SheetTitle></SheetHeader>
-          <ScrollArea className="flex-1">
-            <div className="p-6 space-y-8 pb-10">
-              {/* 1. ORDER SUMMARY */}
-              <OrderSummary items={activeOrderItems} onUpdateItem={updateItem} onRemoveItem={removeItem} />
-              
-              {/* 2. STATION SELECTION (IF APPLICABLE) */}
-              {selectedMenuType === 'Lane Delivery' && seller?.laneCount && (
-                <div className="space-y-3">
-                  <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground px-1">STATION</h3>
-                  <div className="grid grid-cols-6 gap-2">
-                    {Array.from({ length: seller.laneCount }, (_, i) => (i + 1).toString()).map(l => (
-                      <Button 
-                        key={l} 
-                        variant={locationValue === `Lane ${l}` ? 'default' : 'outline'} 
-                        size="sm" 
-                        onClick={() => setLocationValue(`Lane ${l}`)}
-                        className="font-bold"
-                      >
-                        {l}
-                      </Button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* 3. PRICING BREAKDOWN */}
-              <PricingBreakdown subtotal={subtotal} serviceFee={platformFee} tax={tax} tip={tip} taxRate={taxRate} />
-
-              {/* 4. PAYMENT METHODS */}
-              <div className="space-y-4">
-                <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground px-1">PAYMENT METHOD</h3>
-                <RadioGroup value={paymentMethod} onValueChange={(v: any) => setPaymentMethod(v)} className="grid grid-cols-1 gap-3">
-                  <div 
-                    className={cn(
-                      "flex items-center justify-between p-4 rounded-2xl border-2 transition-all cursor-pointer",
-                      paymentMethod === 'Pay at Delivery' ? "border-primary bg-primary/5 shadow-md" : "border-slate-100 hover:border-slate-200"
-                    )}
-                    onClick={() => setPaymentMethod('Pay at Delivery')}
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className={cn("p-2 rounded-lg", paymentMethod === 'Pay at Delivery' ? "bg-primary text-white" : "bg-slate-100 text-slate-400")}>
-                        <Banknote className="h-5 w-5" />
-                      </div>
-                      <div className="text-left">
-                        <p className="text-xs font-black uppercase tracking-tight text-[#213147]">Pay at Delivery</p>
-                        <p className="text-[9px] font-bold text-muted-foreground uppercase">Cash or Card on-site</p>
-                      </div>
-                    </div>
-                    <RadioGroupItem value="Pay at Delivery" id="cash" className="sr-only" />
-                    {paymentMethod === 'Pay at Delivery' && <Check className="h-4 w-4 text-primary" />}
-                  </div>
-
-                  <div 
-                    className={cn(
-                      "flex items-center justify-between p-4 rounded-2xl border-2 transition-all cursor-pointer",
-                      paymentMethod === 'Stripe' ? "border-primary bg-primary/5 shadow-md" : "border-slate-100 hover:border-slate-200"
-                    )}
-                    onClick={() => setPaymentMethod('Stripe')}
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className={cn("p-2 rounded-lg", paymentMethod === 'Stripe' ? "bg-primary text-white" : "bg-slate-100 text-slate-400")}>
-                        <CreditCard className="h-5 w-5" />
-                      </div>
-                      <div className="text-left">
-                        <p className="text-xs font-black uppercase tracking-tight text-[#213147]">Pay with Card</p>
-                        <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
-                          SECURE STRIPE CHECKOUT
-                        </p>
-                      </div>
-                    </div>
-                    <RadioGroupItem value="Stripe" id="stripe" className="sr-only" />
-                    {paymentMethod === 'Stripe' && <Check className="h-4 w-4 text-primary" />}
-                  </div>
-                </RadioGroup>
-
-                {/* STRIPE EMBEDDED FORM */}
-                {paymentMethod === 'Stripe' && (
-                  <div className="mt-4 p-4 border-2 border-slate-100 rounded-3xl bg-slate-50/50">
-                    <Elements stripe={stripePromise}>
-                      <StripeCheckoutForm onReadyStateChange={setIsStripeReady} />
-                    </Elements>
-                  </div>
-                )}
-              </div>
-            </div>
-          </ScrollArea>
-          <SheetFooter className="p-6 bg-white border-t">
-            <Button 
-              size="lg" 
-              className="w-full h-14 font-black uppercase tracking-widest gap-2 shadow-xl" 
-              onClick={handlePlaceOrder} 
-              disabled={isPlacingOrder || (paymentMethod === 'Stripe' && !isStripeReady)}
-            >
-              {isPlacingOrder ? <Loader2 className="animate-spin" /> : <ShoppingBag className="h-5 w-5" />} 
-              {paymentMethod === 'Stripe' ? 'PAY & PLACE ORDER' : 'PLACE ORDER'}
-            </Button>
-          </SheetFooter>
+          <Elements stripe={stripePromise}>
+            <CheckoutDrawerContent 
+              seller={seller}
+              sellerId={sellerId}
+              selectedMenuType={selectedMenuType}
+              locationValue={locationValue}
+              setLocationValue={setLocationValue}
+              activeOrderItems={activeOrderItems}
+              subtotal={subtotal}
+              platformFee={platformFee}
+              tax={tax}
+              tip={tip}
+              finalTotal={finalTotal}
+              taxRate={taxRate}
+              paymentMethod={paymentMethod}
+              setPaymentMethod={setPaymentMethod}
+              isStripeReady={isStripeReady}
+              setIsStripeReady={setIsStripeReady}
+              onOrderComplete={handleOrderComplete}
+            />
+          </Elements>
         </SheetContent>
       </Sheet>
     </div>

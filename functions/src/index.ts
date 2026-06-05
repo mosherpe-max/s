@@ -116,6 +116,71 @@ export const createStripeConnectAccount = onCall({
 });
 
 /**
+ * createPaymentIntent
+ * Initializes a Stripe PaymentIntent for a patron order, directed to the venue's Express account.
+ */
+export const createPaymentIntent = onCall({
+  secrets: ["STRIPE_SECRET_KEY"],
+  region: 'us-central1',
+  cors: true,
+  invoker: 'public',
+  maxInstances: 10,
+}, async (request) => {
+  // Allow anonymous patrons to pay
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "User must be logged in to pay.");
+  }
+
+  const { amount, sellerId } = request.data;
+  if (!amount || !sellerId) {
+    throw new HttpsError("invalid-argument", "Missing required fields: amount, sellerId.");
+  }
+
+  const secretKey = process.env.STRIPE_SECRET_KEY;
+  if (!secretKey) {
+    throw new HttpsError("failed-precondition", "Missing Stripe Configuration.");
+  }
+
+  const stripe = new Stripe(secretKey);
+
+  try {
+    // 1. Fetch Venue Stripe Identity
+    const venueRef = db.collection('venues').doc(sellerId);
+    const venueDoc = await venueRef.get();
+    
+    if (!venueDoc.exists) {
+      throw new HttpsError("not-found", "Venue registry entry not found.");
+    }
+
+    const venueData = venueDoc.data();
+    const stripeAccountId = venueData?.stripeAccountId;
+
+    if (!stripeAccountId) {
+      throw new HttpsError("failed-precondition", "This venue is not yet configured for digital payments.");
+    }
+
+    // 2. Create PaymentIntent (Destination Charge)
+    // Charge the platform, then transfer to the seller Express account
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount: Math.round(amount * 100), // convert to cents
+      currency: 'usd',
+      automatic_payment_methods: { enabled: true },
+      transfer_data: {
+        destination: stripeAccountId,
+      },
+      // Note: In a production app, you'd calculate the application_fee_amount here
+      // based on your platform's business logic.
+    });
+
+    return { clientSecret: paymentIntent.client_secret };
+
+  } catch (error: any) {
+    logger.error("Stripe Payment Intent Error:", error);
+    throw new HttpsError("internal", error.message || "Could not initialize payment session.");
+  }
+});
+
+/**
  * testFunction
  * Minimal health check to verify deployment connectivity.
  */
