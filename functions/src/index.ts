@@ -138,25 +138,26 @@ export const createPaymentIntent = onCall({
 
   const secretKey = process.env.STRIPE_SECRET_KEY;
   if (!secretKey) {
-    throw new HttpsError("failed-precondition", "Missing Stripe Configuration.");
+    logger.error("STRIPE_SECRET_KEY is missing from environment.");
+    throw new HttpsError("failed-precondition", "Platform Configuration Error: Missing Stripe API Key.");
   }
 
   const stripe = new Stripe(secretKey);
 
   try {
-    // 1. Fetch Venue Stripe Identity
+    // 1. Fetch Venue Stripe Identity from Registry
     const venueRef = db.collection('venues').doc(sellerId);
     const venueDoc = await venueRef.get();
     
     if (!venueDoc.exists) {
-      throw new HttpsError("not-found", "Venue registry entry not found.");
+      throw new HttpsError("not-found", `Venue registry entry for [${sellerId}] not found. Please initialize the registry in the Platform Admin Panel.`);
     }
 
     const venueData = venueDoc.data();
     const stripeAccountId = venueData?.stripeAccountId;
 
     if (!stripeAccountId) {
-      throw new HttpsError("failed-precondition", "This venue is not yet configured for digital payments.");
+      throw new HttpsError("failed-precondition", `The venue "${venueData?.name || sellerId}" is not yet configured for digital payments (Missing Stripe Account ID).`);
     }
 
     // 2. Create PaymentIntent (Destination Charge)
@@ -175,8 +176,16 @@ export const createPaymentIntent = onCall({
     return { clientSecret: paymentIntent.client_secret };
 
   } catch (error: any) {
+    // Log the real error to the server logs
     logger.error("Stripe Payment Intent Error:", error);
-    throw new HttpsError("internal", error.message || "Could not initialize payment session.");
+    
+    // If it's already an HttpsError (like the not-found or failed-precondition above), preserve it
+    if (error.code && typeof error.code === 'string' && error.code !== 'internal') {
+      throw error;
+    }
+    
+    // Otherwise, wrap in an HttpsError with a descriptive message
+    throw new HttpsError("internal", error.message || "The server encountered an error while initializing the payment session.");
   }
 });
 

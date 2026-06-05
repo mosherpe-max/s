@@ -123,29 +123,35 @@ function CheckoutDrawerContent({
         const createIntent = httpsCallable(functions, 'createPaymentIntent');
         
         // 2a. Server-side initialization
-        const result = await createIntent({ amount: finalTotal, sellerId });
-        const { clientSecret } = result.data as { clientSecret: string };
-        console.log('✅ Step 2 Complete: Intent established with Stripe Express.');
+        try {
+          const result = await createIntent({ amount: finalTotal, sellerId });
+          const { clientSecret } = result.data as { clientSecret: string };
+          console.log('✅ Step 2 Complete: Intent established with Stripe Express.');
 
-        // 3. Client-side confirmation
-        console.log('🔒 Step 3: Securely confirming payment with patron card...');
-        const confirmResult = await stripe.confirmCardPayment(clientSecret, {
-          payment_method: {
-            card: elements.getElement(CardElement)!,
-            billing_details: {
-              email: currentUser.email || undefined,
+          // 3. Client-side confirmation
+          console.log('🔒 Step 3: Securely confirming payment with patron card...');
+          const confirmResult = await stripe.confirmCardPayment(clientSecret, {
+            payment_method: {
+              card: elements.getElement(CardElement)!,
+              billing_details: {
+                email: currentUser.email || undefined,
+              },
             },
-          },
-        });
+          });
 
-        if (confirmResult.error) {
-          console.error('❌ Step 3 Failed:', confirmResult.error.message);
-          throw new Error(confirmResult.error.message);
+          if (confirmResult.error) {
+            console.error('❌ Step 3 Failed:', confirmResult.error.message);
+            throw new Error(confirmResult.error.message);
+          }
+
+          console.log('✅ Step 3 Complete: Funds captured and routed to venue.');
+          paymentId = confirmResult.paymentIntent.id;
+          pStatus = 'Succeeded';
+        } catch (funcError: any) {
+          console.error('❌ Step 2 Failed (Cloud Function Error):', funcError);
+          // Re-throw with descriptive message if available
+          throw new Error(funcError.message || "Failed to initialize the Stripe payment session.");
         }
-
-        console.log('✅ Step 3 Complete: Funds captured and routed to venue.');
-        paymentId = confirmResult.paymentIntent.id;
-        pStatus = 'Succeeded';
       } else {
         console.log('💵 Skipping digital payment: Patron selected "Pay at Delivery".');
       }
@@ -179,8 +185,12 @@ function CheckoutDrawerContent({
       onOrderComplete(orderRef.id);
       
     } catch (e: any) {
-      console.error('💥 CHECKOUT CRASHED:', e.message);
-      toast({ variant: 'destructive', title: 'Checkout Error', description: e.message });
+      console.error('💥 CHECKOUT CRASHED:', e);
+      toast({ 
+        variant: 'destructive', 
+        title: 'Checkout Error', 
+        description: e.message || "An unexpected error occurred during checkout." 
+      });
     } finally {
       setIsProcessing(false);
     }
