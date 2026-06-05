@@ -24,12 +24,23 @@ import {
   Utensils,
   MapPin,
   ShoppingBasket,
-  ShoppingBag
+  ShoppingBag,
+  CreditCard,
+  Banknote,
+  Check
 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useCart } from '@/lib/cart-context';
 import { Label } from '@/components/ui/label';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { mockBuyerLocation } from '@/lib/data';
+import { loadStripe } from '@stripe/stripe-js';
+import { Elements } from '@stripe/react-stripe-js';
+import { StripeCheckoutForm } from '@/components/stripe-checkout-form';
+import { cn } from '@/lib/utils';
+
+// Public Test Key for Prototype
+const stripePromise = loadStripe('pk_test_51O8R7zIuK7fM8y8m9f6a4zS2T5U8v4w3q1l0k9j8h7g6f5d4s3a2q1w0e9r8t7y6u5i4o3p2l1m0n9b8v7c6x5z');
 
 const serviceTypeIcons: Record<string, any> = {
   'Beverage Cart': Truck,
@@ -57,6 +68,10 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
   const [capturedLocation, setCapturedLocation] = useState<{ latitude: number, longitude: number } | null>(null);
   const [modifierTarget, setModifierTarget] = useState<MenuItem | null>(null);
+  
+  // Payment States
+  const [paymentMethod, setPaymentMethod] = useState<'Pay at Delivery' | 'Stripe'>('Pay at Delivery');
+  const [isStripeReady, setIsStripeReady] = useState(false);
 
   const sellerRef = useMemoFirebase(() => (firestore ? doc(firestore, 'sellers', sellerId) : null), [firestore, sellerId]);
   const { data: seller, isLoading: isSellerLoading } = useDoc<Seller>(sellerRef);
@@ -104,6 +119,13 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
 
   const handlePlaceOrder = async () => {
     if (!firestore || activeOrderItems.length === 0) return;
+    
+    // Validation for Stripe
+    if (paymentMethod === 'Stripe' && !isStripeReady) {
+      toast({ variant: 'destructive', title: 'Payment Required', description: 'Please enter your card details to proceed.' });
+      return;
+    }
+
     setIsPlacingOrder(true);
     
     try {
@@ -113,6 +135,9 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
         currentUser = result.user;
       }
       if (!currentUser) throw new Error("Authentication failed");
+
+      // In a real app, you would confirm the payment intent here
+      // if (paymentMethod === 'Stripe') { ... stripe.confirmPayment ... }
 
       const loc = capturedLocation || mockBuyerLocation;
       const orderData: any = {
@@ -127,7 +152,8 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
         tip,
         total: finalTotal,
         status: 'Placed',
-        paymentMethod: 'Pay at Delivery',
+        paymentMethod: paymentMethod,
+        paymentStatus: paymentMethod === 'Stripe' ? 'Succeeded' : 'Pending',
         menuType: selectedMenuType,
         menuTypeLocation: locationValue || null,
         createdAt: serverTimestamp(),
@@ -186,20 +212,85 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
         )}
         <SheetContent side="bottom" className="rounded-t-[2rem] h-[90vh] flex flex-col p-0">
           <SheetHeader className="px-6 py-4 border-b bg-white"><SheetTitle>Review Order</SheetTitle></SheetHeader>
-          <ScrollArea className="flex-1 px-6 py-6">
-            <div className="space-y-6">
+          <ScrollArea className="flex-1">
+            <div className="p-6 space-y-8 pb-10">
               <OrderSummary items={activeOrderItems} onUpdateItem={updateItem} onRemoveItem={removeItem} />
               
               {selectedMenuType === 'Lane Delivery' && seller?.laneCount && (
-                <div className="space-y-2">
-                  <Label>Select Lane</Label>
+                <div className="space-y-3">
+                  <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground px-1">STATION</h3>
                   <div className="grid grid-cols-6 gap-2">
                     {Array.from({ length: seller.laneCount }, (_, i) => (i + 1).toString()).map(l => (
-                      <Button key={l} variant={locationValue === `Lane ${l}` ? 'default' : 'outline'} size="sm" onClick={() => setLocationValue(`Lane ${l}`)}>{l}</Button>
+                      <Button 
+                        key={l} 
+                        variant={locationValue === `Lane ${l}` ? 'default' : 'outline'} 
+                        size="sm" 
+                        onClick={() => setLocationValue(`Lane ${l}`)}
+                        className="font-bold"
+                      >
+                        {l}
+                      </Button>
                     ))}
                   </div>
                 </div>
               )}
+
+              {/* PAYMENT SELECTION */}
+              <div className="space-y-4">
+                <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground px-1">PAYMENT METHOD</h3>
+                <RadioGroup value={paymentMethod} onValueChange={(v: any) => setPaymentMethod(v)} className="grid grid-cols-1 gap-3">
+                  <div 
+                    className={cn(
+                      "flex items-center justify-between p-4 rounded-2xl border-2 transition-all cursor-pointer",
+                      paymentMethod === 'Pay at Delivery' ? "border-primary bg-primary/5 shadow-md" : "border-slate-100 hover:border-slate-200"
+                    )}
+                    onClick={() => setPaymentMethod('Pay at Delivery')}
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className={cn("p-2 rounded-lg", paymentMethod === 'Pay at Delivery' ? "bg-primary text-white" : "bg-slate-100 text-slate-400")}>
+                        <Banknote className="h-5 w-5" />
+                      </div>
+                      <div className="text-left">
+                        <p className="text-xs font-black uppercase tracking-tight text-[#213147]">Pay at Delivery</p>
+                        <p className="text-[9px] font-bold text-muted-foreground uppercase">Cash or Card on-site</p>
+                      </div>
+                    </div>
+                    <RadioGroupItem value="Pay at Delivery" id="cash" className="sr-only" />
+                    {paymentMethod === 'Pay at Delivery' && <Check className="h-4 w-4 text-primary" />}
+                  </div>
+
+                  <div 
+                    className={cn(
+                      "flex items-center justify-between p-4 rounded-2xl border-2 transition-all cursor-pointer",
+                      paymentMethod === 'Stripe' ? "border-primary bg-primary/5 shadow-md" : "border-slate-100 hover:border-slate-200"
+                    )}
+                    onClick={() => setPaymentMethod('Stripe')}
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className={cn("p-2 rounded-lg", paymentMethod === 'Stripe' ? "bg-primary text-white" : "bg-slate-100 text-slate-400")}>
+                        <CreditCard className="h-5 w-5" />
+                      </div>
+                      <div className="text-left">
+                        <p className="text-xs font-black uppercase tracking-tight text-[#213147]">Pay with Card</p>
+                        <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
+                          SECURE STRIPE CHECKOUT
+                        </p>
+                      </div>
+                    </div>
+                    <RadioGroupItem value="Stripe" id="stripe" className="sr-only" />
+                    {paymentMethod === 'Stripe' && <Check className="h-4 w-4 text-primary" />}
+                  </div>
+                </RadioGroup>
+
+                {/* STRIPE EMBEDDED FORM */}
+                {paymentMethod === 'Stripe' && (
+                  <div className="mt-4 p-4 border-2 border-slate-100 rounded-3xl bg-slate-50/50">
+                    <Elements stripe={stripePromise}>
+                      <StripeCheckoutForm onReadyStateChange={setIsStripeReady} />
+                    </Elements>
+                  </div>
+                )}
+              </div>
 
               <PricingBreakdown subtotal={subtotal} serviceFee={platformFee} tax={tax} tip={tip} taxRate={taxRate} />
             </div>
@@ -207,12 +298,12 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
           <SheetFooter className="p-6 bg-white border-t">
             <Button 
               size="lg" 
-              className="w-full h-14 font-black uppercase tracking-widest gap-2" 
+              className="w-full h-14 font-black uppercase tracking-widest gap-2 shadow-xl" 
               onClick={handlePlaceOrder} 
-              disabled={isPlacingOrder}
+              disabled={isPlacingOrder || (paymentMethod === 'Stripe' && !isStripeReady)}
             >
               {isPlacingOrder ? <Loader2 className="animate-spin" /> : <ShoppingBag className="h-5 w-5" />} 
-              PLACE ORDER
+              {paymentMethod === 'Stripe' ? 'PAY & PLACE ORDER' : 'PLACE ORDER'}
             </Button>
           </SheetFooter>
         </SheetContent>
