@@ -85,14 +85,27 @@ function CheckoutDrawerContent({
   const { toast } = useToast();
   const [isProcessing, setIsProcessing] = useState(false);
 
+  /**
+   * handlePlaceOrder
+   * Orchestrates the multi-step Stripe and Firestore process.
+   * 
+   * INTERNAL ORDER OF OPERATIONS:
+   * 1. Identity Check: Ensure patron is authenticated (anonymous sign-in fallback).
+   * 2. Stripe Intent (Backend): Call Cloud Function to get clientSecret (Destination Charge).
+   * 3. Payment Confirmation (Stripe): Browser communicates directly with Stripe via confirmCardPayment.
+   * 4. Firestore Commitment: Record order only AFTER payment is confirmed successful.
+   */
   const handlePlaceOrder = async () => {
     if (!firestore || activeOrderItems.length === 0) return;
     
     setIsProcessing(true);
+    console.log('🚀 INITIALIZING CHECKOUT PROCESS...');
     
     try {
+      // STEP 1: AUTHENTICATION
       let currentUser = user;
       if (!currentUser && auth) {
+        console.log('👤 Step 1: Performing Anonymous Sign-in...');
         const result = await signInAnonymously(auth);
         currentUser = result.user;
       }
@@ -101,18 +114,21 @@ function CheckoutDrawerContent({
       let paymentId = 'manual_at_delivery';
       let pStatus = 'Pending';
 
-      // --- HANDLE STRIPE PAYMENT ---
+      // STEP 2 & 3: STRIPE HANDSHAKE
       if (paymentMethod === 'Stripe') {
         if (!stripe || !elements) throw new Error("Stripe not initialized");
 
+        console.log('💳 Step 2: Requesting Payment Intent from Cloud Functions...');
         const functions = getFunctions(firebaseApp);
         const createIntent = httpsCallable(functions, 'createPaymentIntent');
         
-        // 1. Initialize Payment Intent on Server
+        // 2a. Server-side initialization
         const result = await createIntent({ amount: finalTotal, sellerId });
         const { clientSecret } = result.data as { clientSecret: string };
+        console.log('✅ Step 2 Complete: Intent established with Stripe Express.');
 
-        // 2. Confirm Payment on Client
+        // 3. Client-side confirmation
+        console.log('🔒 Step 3: Securely confirming payment with patron card...');
         const confirmResult = await stripe.confirmCardPayment(clientSecret, {
           payment_method: {
             card: elements.getElement(CardElement)!,
@@ -123,14 +139,19 @@ function CheckoutDrawerContent({
         });
 
         if (confirmResult.error) {
+          console.error('❌ Step 3 Failed:', confirmResult.error.message);
           throw new Error(confirmResult.error.message);
         }
 
+        console.log('✅ Step 3 Complete: Funds captured and routed to venue.');
         paymentId = confirmResult.paymentIntent.id;
         pStatus = 'Succeeded';
+      } else {
+        console.log('💵 Skipping digital payment: Patron selected "Pay at Delivery".');
       }
 
-      // --- CREATE FIRESTORE ORDER ---
+      // STEP 4: FIRESTORE RECORDING
+      console.log('📝 Step 4: Finalizing order in Firestore registry...');
       const loc = mockBuyerLocation; // Fallback for prototype
       const orderData: any = {
         sellerId,
@@ -153,9 +174,12 @@ function CheckoutDrawerContent({
       };
 
       const orderRef = await addDoc(collection(firestore, 'orders'), orderData);
+      console.log('🎉 PROCESS COMPLETE: Order recorded as', orderRef.id);
+      
       onOrderComplete(orderRef.id);
       
     } catch (e: any) {
+      console.error('💥 CHECKOUT CRASHED:', e.message);
       toast({ variant: 'destructive', title: 'Checkout Error', description: e.message });
     } finally {
       setIsProcessing(false);
