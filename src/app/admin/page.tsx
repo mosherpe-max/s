@@ -288,15 +288,22 @@ export default function PlatformAdminPage() {
     setIsVerifyingStripe(true);
     setVerificationResult(null);
     try {
+      // Use standard Firebase v2 Callable pattern
       const functions = getFunctions(firebaseApp, 'us-central1');
       const verify = httpsCallable(functions, 'verifyVenueConnection');
+      
       const result = await verify({ venueId: selectedVenue.id });
       setVerificationResult(result.data);
-      toast({ title: "Real-time Verification Success" });
+      
+      toast({ 
+        title: "Real-time Verification Success",
+        description: `Connected to ${(result.data as any).businessName}`
+      });
     } catch (e: any) {
-      // EXTRACT EXACT INTERNAL ERROR DETAILS
+      // Detailed error logging for internal diagnostics
       const errorMsg = e?.details?.details || e.message || "Unknown server error during verification.";
-      console.error('💥 [VERIFY FAILED]:', errorMsg);
+      console.error('💥 [VERIFY FAILED]:', errorMsg, e);
+      
       toast({ 
         variant: "destructive", 
         title: "Connection Failed", 
@@ -515,3 +522,4 @@ export default function PlatformAdminPage() {
     </div>
   );
 }
+

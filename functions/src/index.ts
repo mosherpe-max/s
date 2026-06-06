@@ -17,8 +17,7 @@ const db = getFirestore();
 export const createStripeConnectAccount = onCall({
   secrets: ["STRIPE_SECRET_KEY"],
   region: 'us-central1',
-  cors: [/localhost/, /firebase\.studio/, /kooporders\.com/],
-  invoker: 'public',
+  cors: true,
   maxInstances: 10,
 }, async (request) => {
   if (!request.auth) {
@@ -101,8 +100,7 @@ export const createStripeConnectAccount = onCall({
 export const createPaymentIntent = onCall({
   secrets: ["STRIPE_SECRET_KEY"],
   region: 'us-central1',
-  cors: [/localhost/, /firebase\.studio/, /kooporders\.com/],
-  invoker: 'public',
+  cors: true,
   maxInstances: 10,
 }, async (request) => {
   if (!request.auth) {
@@ -161,36 +159,47 @@ export const createPaymentIntent = onCall({
 /**
  * verifyVenueConnection
  * Diagnostic utility to verify Stripe account status.
+ * Uses strict v2 onCall protocol with CORS enabled.
  */
 export const verifyVenueConnection = onCall({
   secrets: ["STRIPE_SECRET_KEY"],
   region: 'us-central1',
-  cors: [/localhost/, /firebase\.studio/, /kooporders\.com/],
-  invoker: 'public',
-  maxInstances: 10,
+  cors: true,
+  maxInstances: 5,
 }, async (request) => {
   const { venueId } = request.data;
-  if (!venueId) throw new HttpsError("invalid-argument", "venueId required.");
+  if (!venueId) {
+    throw new HttpsError("invalid-argument", "Missing required parameter: venueId");
+  }
 
   const secretKey = process.env.STRIPE_SECRET_KEY;
-  if (!secretKey) throw new HttpsError("failed-precondition", "STRIPE_SECRET_KEY missing.");
+  if (!secretKey || secretKey === 'REPLACE_ME') {
+    throw new HttpsError("failed-precondition", "STRIPE_SECRET_KEY is not configured on the server.");
+  }
 
   const stripe = new Stripe(secretKey);
 
   try {
+    // 1. Fetch from Firestore
     const venueRef = db.collection('venues').doc(venueId);
     const venueDoc = await venueRef.get();
 
-    if (!venueDoc.exists) throw new HttpsError("not-found", `Venue [${venueId}] not in Firestore.`);
+    if (!venueDoc.exists) {
+      throw new HttpsError("not-found", `Venue record for [${venueId}] not found in Firestore registry.`);
+    }
 
     const stripeAccountId = venueDoc.data()?.stripeAccountId;
-    if (!stripeAccountId) throw new HttpsError("failed-precondition", "stripeAccountId field missing.");
+    if (!stripeAccountId) {
+      throw new HttpsError("failed-precondition", `The venue [${venueId}] does not have a stripeAccountId assigned yet.`);
+    }
 
+    // 2. Fetch from Stripe
     const account = await stripe.accounts.retrieve(stripeAccountId);
 
+    // 3. Return structured payload
     return {
       id: account.id,
-      businessName: account.business_profile?.name || account.settings?.dashboard?.display_name || 'Unnamed Business',
+      businessName: account.business_profile?.name || account.settings?.dashboard?.display_name || 'Unnamed Merchant',
       capabilities: account.capabilities,
       detailsSubmitted: account.details_submitted,
       chargesEnabled: account.charges_enabled,
@@ -199,10 +208,12 @@ export const verifyVenueConnection = onCall({
     };
 
   } catch (error: any) {
-    logger.error("verifyVenueConnection Error:", error);
-    throw new HttpsError("internal", error.message || "Stripe API retrieval failed", { 
+    logger.error(`[verifyVenueConnection] Failed for ${venueId}:`, error);
+    
+    // Pass specific error details back to the client
+    throw new HttpsError("internal", error.message || "Stripe API retrieval failed", {
       details: error.message,
-      code: error.code 
+      code: error.code
     });
   }
 });
@@ -212,8 +223,7 @@ export const verifyVenueConnection = onCall({
  */
 export const testFunction = onCall({ 
   region: 'us-central1',
-  cors: [/localhost/, /firebase\.studio/],
-  invoker: 'public'
+  cors: true,
 }, (request) => {
   return { status: "healthy", timestamp: new Date().toISOString() };
 });
