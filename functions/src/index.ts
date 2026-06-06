@@ -13,9 +13,6 @@ const db = getFirestore();
 /**
  * createStripeConnectAccount
  * Securely provisions a Stripe Connect Express account and returns an onboarding link.
- * 
- * invoker: "public" - This is critical. It allows the browser's unauthenticated 
- * preflight (OPTIONS) handshake to reach the function.
  */
 export const createStripeConnectAccount = onCall({
   secrets: ["STRIPE_SECRET_KEY"],
@@ -24,48 +21,38 @@ export const createStripeConnectAccount = onCall({
   invoker: 'public',
   maxInstances: 10,
 }, async (request) => {
-  // 1. Authentication Check
   if (!request.auth) {
-    logger.error("Unauthorized attempt: No auth context found.");
-    throw new HttpsError("unauthenticated", "User must be logged in to initialize Stripe.");
+    throw new HttpsError("unauthenticated", "User must be logged in.");
   }
 
   const { venueId } = request.data;
   if (!venueId) {
-    logger.error("Missing venueId in request data");
     throw new HttpsError("invalid-argument", "Missing required field: venueId.");
   }
 
-  // 2. Secret Key Retrieval
   const secretKey = process.env.STRIPE_SECRET_KEY;
-  if (!secretKey) {
-    logger.error("STRIPE_SECRET_KEY is missing from environment.");
-    throw new HttpsError("failed-precondition", "System configuration error: Missing Stripe API Key in Firebase Console.");
+  if (!secretKey || secretKey === 'REPLACE_ME') {
+    throw new HttpsError("failed-precondition", "STRIPE_SECRET_KEY is missing from environment.", { source: 'config' });
   }
 
   const stripe = new Stripe(secretKey);
 
   try {
-    // 3. Ownership Verification
     const venueRef = db.collection('venues').doc(venueId);
     const venueDoc = await venueRef.get();
 
     if (!venueDoc.exists) {
-      logger.error(`Venue [${venueId}] not found in registry.`);
-      throw new HttpsError("not-found", `Venue record [${venueId}] not found in registry. Please initialize it in the admin panel.`);
+      throw new HttpsError("not-found", `Venue registry [${venueId}] not found.`, { venueId });
     }
 
     const venueData = venueDoc.data();
     if (venueData?.ownerUid !== request.auth.uid) {
-      logger.error(`Permission denied for user ${request.auth.uid} on venue ${venueId}`);
-      throw new HttpsError("permission-denied", "You do not have permission to manage this venue.");
+      throw new HttpsError("permission-denied", "Unauthorized venue management.");
     }
 
     let stripeAccountId = venueData?.stripeAccountId;
 
-    // 4. Provision Stripe Account if missing
     if (!stripeAccountId) {
-      logger.info(`Creating new Stripe Express account for venue: ${venueId}`);
       const account = await stripe.accounts.create({
         type: 'express',
         capabilities: {
@@ -76,7 +63,6 @@ export const createStripeConnectAccount = onCall({
       });
       stripeAccountId = account.id;
 
-      // Update registry
       await venueRef.update({
         stripeAccountId,
         stripeOnboardingComplete: false,
@@ -84,15 +70,11 @@ export const createStripeConnectAccount = onCall({
       });
     }
 
-    // 5. Generate Onboarding Link
-    // Default origin for local dev, will be overridden by header if present
     let origin = 'http://localhost:9002';
     const headerOrigin = request.rawRequest?.headers?.origin;
     if (headerOrigin) {
       origin = typeof headerOrigin === 'string' ? headerOrigin : headerOrigin[0];
     }
-    
-    logger.info(`Generating setup link for ${stripeAccountId} with origin ${origin}`);
     
     const accountLink = await stripe.accountLinks.create({
       account: stripeAccountId,
@@ -104,20 +86,17 @@ export const createStripeConnectAccount = onCall({
     return { url: accountLink.url };
 
   } catch (error: any) {
-    logger.error("Stripe Onboarding Logic Error:", {
-      message: error.message,
-      code: error.code
+    logger.error("createStripeConnectAccount Error:", error);
+    throw new HttpsError("internal", error.message || "Stripe initialization failed", { 
+      rawMessage: error.message,
+      type: error.type 
     });
-    
-    if (error instanceof HttpsError) throw error;
-    
-    throw new HttpsError("internal", error.message || "Failed to initialize the onboarding session.");
   }
 });
 
 /**
  * createPaymentIntent
- * Initializes a Stripe PaymentIntent for a patron order, directed to the venue's Express account.
+ * Initializes a Stripe PaymentIntent for a patron order.
  */
 export const createPaymentIntent = onCall({
   secrets: ["STRIPE_SECRET_KEY"],
@@ -126,53 +105,37 @@ export const createPaymentIntent = onCall({
   invoker: 'public',
   maxInstances: 10,
 }, async (request) => {
-  // Log request context for debugging
-  logger.info("createPaymentIntent invoked", { 
-    data: request.data, 
-    auth: request.auth?.uid || 'anonymous' 
-  });
-
-  // Allow anonymous patrons to pay
   if (!request.auth) {
-    throw new HttpsError("unauthenticated", "You must be identified (anonymous is OK) to place an order.");
+    throw new HttpsError("unauthenticated", "Authentication required.");
   }
 
   const { amount, sellerId } = request.data;
-  if (!amount || typeof amount !== 'number' || amount <= 0 || !sellerId) {
-    throw new HttpsError("invalid-argument", "Transaction failed: Missing or invalid amount/venue identifier.");
+  if (!amount || !sellerId) {
+    throw new HttpsError("invalid-argument", "Amount and sellerId are required.");
   }
 
   const secretKey = process.env.STRIPE_SECRET_KEY;
   if (!secretKey || secretKey === 'REPLACE_ME') {
-    logger.error("CRITICAL: STRIPE_SECRET_KEY is missing or unconfigured.");
-    throw new HttpsError("failed-precondition", "Platform Configuration Error: The payment gateway is not configured. Please add the STRIPE_SECRET_KEY to your functions environment.");
+    throw new HttpsError("failed-precondition", "Stripe Secret Key is not configured in the Firebase Console.", { source: 'system_config' });
   }
 
   const stripe = new Stripe(secretKey);
 
   try {
-    // 1. Fetch Venue Stripe Identity from Registry
     const venueRef = db.collection('venues').doc(sellerId);
     const venueDoc = await venueRef.get();
     
     if (!venueDoc.exists) {
-      logger.error(`Venue document missing for sellerId: ${sellerId}`);
-      throw new HttpsError("not-found", `Venue registry missing for "${sellerId}". Please visit the venue admin panel and click "Initialize Registry" under Payments.`);
+      throw new HttpsError("not-found", `Registry document missing for venue: ${sellerId}. Click "Initialize Registry" in the admin panel.`, { sellerId });
     }
 
-    const venueData = venueDoc.data();
-    const stripeAccountId = venueData?.stripeAccountId;
-
+    const stripeAccountId = venueDoc.data()?.stripeAccountId;
     if (!stripeAccountId) {
-      logger.error(`Stripe Account ID missing for venue: ${sellerId}`);
-      throw new HttpsError("failed-precondition", `Payment blocked: The venue "${venueData?.name || sellerId}" has not connected a Stripe Express account.`);
+      throw new HttpsError("failed-precondition", `Stripe Account ID is missing for venue: ${sellerId}.`, { sellerId });
     }
 
-    // 2. Create PaymentIntent (Destination Charge)
-    // Captures funds and routes them to the venue's connected account
-    logger.info(`Creating PaymentIntent for ${amount} to account ${stripeAccountId}`);
     const paymentIntent = await stripe.paymentIntents.create({
-      amount: Math.round(amount * 100), // convert to cents
+      amount: Math.round(amount * 100),
       currency: 'usd',
       automatic_payment_methods: { enabled: true },
       transfer_data: {
@@ -187,27 +150,18 @@ export const createPaymentIntent = onCall({
     return { clientSecret: paymentIntent.client_secret };
 
   } catch (error: any) {
-    logger.error("Stripe Transaction Handshake Error:", {
-      message: error.message,
-      type: error.type,
-      code: error.code
+    logger.error("createPaymentIntent Error:", error);
+    // Explicitly pass through the Stripe error message
+    throw new HttpsError("aborted", error.message || "Payment intent creation failed", { 
+      stripeError: error.message,
+      stripeCode: error.code 
     });
-    
-    // Preserve specific HttpsErrors thrown in the logic above
-    if (error instanceof HttpsError) throw error;
-    
-    // Wrap Stripe-specific errors in a descriptive HttpsError for the frontend
-    const userMessage = error.type === 'StripeInvalidRequestError' 
-      ? `Stripe rejected the request: ${error.message}`
-      : "The payment server encountered an error during processing.";
-
-    throw new HttpsError("aborted", userMessage);
   }
 });
 
 /**
  * verifyVenueConnection
- * Temporary utility to verify backend communication with a connected Stripe account.
+ * Diagnostic utility to verify Stripe account status.
  */
 export const verifyVenueConnection = onCall({
   secrets: ["STRIPE_SECRET_KEY"],
@@ -217,39 +171,27 @@ export const verifyVenueConnection = onCall({
   maxInstances: 10,
 }, async (request) => {
   const { venueId } = request.data;
-  if (!venueId) {
-    throw new HttpsError("invalid-argument", "Missing required field: venueId.");
-  }
+  if (!venueId) throw new HttpsError("invalid-argument", "venueId required.");
 
   const secretKey = process.env.STRIPE_SECRET_KEY;
-  if (!secretKey) {
-    throw new HttpsError("failed-precondition", "System configuration error: Missing Stripe API Key.");
-  }
+  if (!secretKey) throw new HttpsError("failed-precondition", "STRIPE_SECRET_KEY missing.");
 
   const stripe = new Stripe(secretKey);
 
   try {
-    // 1. Retrieve Registry Document
     const venueRef = db.collection('venues').doc(venueId);
     const venueDoc = await venueRef.get();
 
-    if (!venueDoc.exists) {
-      throw new HttpsError("not-found", `Venue document [${venueId}] not found in Firestore.`);
-    }
+    if (!venueDoc.exists) throw new HttpsError("not-found", `Venue [${venueId}] not in Firestore.`);
 
     const stripeAccountId = venueDoc.data()?.stripeAccountId;
-    if (!stripeAccountId) {
-      throw new HttpsError("failed-precondition", `The venue [${venueId}] does not have a stripeAccountId set in Firestore.`);
-    }
+    if (!stripeAccountId) throw new HttpsError("failed-precondition", "stripeAccountId field missing.");
 
-    // 2. Query Stripe SDK
-    logger.info(`Verifying Stripe connection for account: ${stripeAccountId}`);
     const account = await stripe.accounts.retrieve(stripeAccountId);
 
-    // 3. Return Diagnostic Data
     return {
       id: account.id,
-      businessName: account.business_profile?.name || account.settings?.dashboard?.display_name || 'No business name configured',
+      businessName: account.business_profile?.name || account.settings?.dashboard?.display_name || 'Unnamed Business',
       capabilities: account.capabilities,
       detailsSubmitted: account.details_submitted,
       chargesEnabled: account.charges_enabled,
@@ -258,30 +200,18 @@ export const verifyVenueConnection = onCall({
     };
 
   } catch (error: any) {
-    logger.error("Stripe SDK Verification Error:", {
-      message: error.message,
-      type: error.type,
-      code: error.code
-    });
-    
-    if (error instanceof HttpsError) throw error;
-    
-    throw new HttpsError("internal", error.message || "Failed to retrieve account details from Stripe.");
+    logger.error("verifyVenueConnection Error:", error);
+    throw new HttpsError("internal", error.message || "Stripe API retrieval failed", { details: error.message });
   }
 });
 
 /**
- * testFunction
- * Minimal health check to verify deployment connectivity.
+ * Health Check
  */
 export const testFunction = onCall({ 
   region: 'us-central1',
   cors: true,
   invoker: 'public'
 }, (request) => {
-  return { 
-    status: "healthy", 
-    timestamp: new Date().toISOString(),
-    project: process.env.GCLOUD_PROJECT || "unknown"
-  };
+  return { status: "healthy", timestamp: new Date().toISOString() };
 });

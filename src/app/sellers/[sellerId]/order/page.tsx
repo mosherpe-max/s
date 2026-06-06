@@ -41,7 +41,6 @@ import { StripeCheckoutForm } from '@/components/stripe-checkout-form';
 import { cn } from '@/lib/utils';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 
-// Public Test Key for Prototype
 const stripePromise = loadStripe('pk_test_51O8R7zIuK7fM8y8m9f6a4zS2T5U8v4w3q1l0k9j8h7g6f5d4s3a2q1w0e9r8t7y6u5i4o3p2l1m0n9b8v7c6x5z');
 
 const serviceTypeIcons: Record<string, any> = {
@@ -54,10 +53,6 @@ const serviceTypeIcons: Record<string, any> = {
   'Lane Delivery': MapPin,
 };
 
-/**
- * INTERNAL COMPONENT: CheckoutDrawerContent
- * This component is wrapped in <Elements> to allow usage of useStripe and useElements hooks.
- */
 function CheckoutDrawerContent({ 
   seller, 
   sellerId, 
@@ -86,71 +81,64 @@ function CheckoutDrawerContent({
   const { toast } = useToast();
   const [isProcessing, setIsProcessing] = useState(false);
 
-  /**
-   * handlePlaceOrder
-   * Orchestrates the multi-step Stripe and Firestore process.
-   */
   const handlePlaceOrder = async () => {
     if (!firestore || activeOrderItems.length === 0) return;
     
     setIsProcessing(true);
-    console.log('🚀 INITIALIZING CHECKOUT PROCESS...');
+    console.log('🚀 [CHECKOUT] STARTING TRANSACTION...');
     
     try {
-      // STEP 1: AUTHENTICATION
       let currentUser = user;
       if (!currentUser && auth) {
-        console.log('👤 Step 1: Performing Anonymous Sign-in...');
+        console.log('👤 [AUTH] Initiating session...');
         const result = await signInAnonymously(auth);
         currentUser = result.user;
       }
-      if (!currentUser) throw new Error("Could not verify your identity. Please refresh and try again.");
+      if (!currentUser) throw new Error("Authentication failed.");
 
       let paymentId = 'manual_at_delivery';
       let pStatus = 'Pending';
 
-      // STEP 2 & 3: STRIPE HANDSHAKE
       if (paymentMethod === 'Stripe') {
-        if (!stripe || !elements) throw new Error("The payment system (Stripe) is still initializing. Please wait a moment.");
+        if (!stripe || !elements) throw new Error("Stripe is not ready.");
 
-        console.log('💳 Step 2: Requesting Payment Intent from Cloud Functions...');
+        console.log('💳 [STRIPE] Fetching PaymentIntent from server...');
         const functions = getFunctions(firebaseApp, 'us-central1');
         const createIntent = httpsCallable(functions, 'createPaymentIntent');
         
         try {
           const result = await createIntent({ amount: finalTotal, sellerId });
           const { clientSecret } = result.data as { clientSecret: string };
-          console.log('✅ Step 2 Complete: Intent established.');
+          console.log('✅ [STRIPE] Intent received.');
 
-          // 3. Client-side confirmation
-          console.log('🔒 Step 3: Securely confirming payment...');
+          console.log('🔒 [STRIPE] Confirming payment with Stripe Elements...');
           const confirmResult = await stripe.confirmCardPayment(clientSecret, {
             payment_method: {
               card: elements.getElement(CardElement)!,
-              billing_details: {
-                email: currentUser.email || undefined,
-              },
+              billing_details: { email: currentUser.email || undefined },
             },
           });
 
           if (confirmResult.error) {
-            console.error('❌ Step 3 Failed:', confirmResult.error.message);
             throw new Error(confirmResult.error.message);
           }
 
-          console.log('✅ Step 3 Complete: Capture successful.');
+          console.log('✅ [STRIPE] Payment captured successfully.');
           paymentId = confirmResult.paymentIntent.id;
           pStatus = 'Succeeded';
         } catch (funcError: any) {
-          console.error('❌ Cloud Function Failure:', funcError);
-          // Extract specific message from Firebase error
-          const serverMessage = funcError?.message || funcError?.details?.message || "Internal server error during payment creation.";
-          throw new Error(serverMessage);
+          // EXTRACT EXACT INTERNAL ERROR
+          const detailedMsg = funcError?.details?.stripeError || 
+                             funcError?.details?.message || 
+                             funcError?.message || 
+                             "Internal Payment Server Error";
+          
+          console.error('💥 [DETAILED ERROR]:', detailedMsg, funcError);
+          throw new Error(detailedMsg);
         }
       }
 
-      // STEP 4: FIRESTORE RECORDING
-      console.log('📝 Step 4: Finalizing order in registry...');
+      console.log('📝 [FIRESTORE] Finalizing order record...');
       const loc = mockBuyerLocation; 
       const orderData: any = {
         sellerId,
@@ -173,15 +161,15 @@ function CheckoutDrawerContent({
       };
 
       const orderRef = await addDoc(collection(firestore, 'orders'), orderData);
-      console.log('✅ ORDER COMPLETE:', orderRef.id);
+      console.log('✅ [CHECKOUT] COMPLETE:', orderRef.id);
       onOrderComplete(orderRef.id);
       
     } catch (e: any) {
-      console.error('💥 CHECKOUT CRASHED:', e);
+      console.error('💥 [CHECKOUT CRASHED]:', e.message);
       toast({ 
         variant: 'destructive', 
-        title: 'Transaction Interrupted', 
-        description: e.message || "An unexpected error occurred. Please try again." 
+        title: 'Order Failed', 
+        description: e.message || "An unexpected error occurred." 
       });
     } finally {
       setIsProcessing(false);
@@ -250,9 +238,7 @@ function CheckoutDrawerContent({
                   </div>
                   <div className="text-left">
                     <p className="text-xs font-black uppercase tracking-tight text-[#213147]">Pay with Card</p>
-                    <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
-                      SECURE STRIPE CHECKOUT
-                    </p>
+                    <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">SECURE STRIPE CHECKOUT</p>
                   </div>
                 </div>
                 {paymentMethod === 'Stripe' && <Check className="h-4 w-4 text-primary" />}
