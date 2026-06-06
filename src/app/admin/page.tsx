@@ -46,7 +46,8 @@ import {
   Send,
   Link as LinkIcon,
   PanelLeftClose,
-  PanelLeft
+  PanelLeft,
+  HeartPulse
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -160,6 +161,8 @@ export default function PlatformAdminPage() {
   const [selectedVenueRegistry, setSelectedVenueRegistry] = useState<Venue | null>(null);
   const [isVenueDetailOpen, setIsVenueDetailOpen] = useState(false);
   const [isProcessingStripe, setIsProcessingStripe] = useState(false);
+  const [isVerifyingStripe, setIsVerifyingStripe] = useState(false);
+  const [verificationResult, setVerificationResult] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
   // Stripe Control Panel State
@@ -211,6 +214,7 @@ export default function PlatformAdminPage() {
         setPayoutsEnabled(false);
         setManualOnboardingLink('');
       }
+      setVerificationResult(null);
     };
     fetchRegistry();
   }, [selectedVenue, firestore]);
@@ -268,17 +272,11 @@ export default function PlatformAdminPage() {
     }
   };
 
-  /**
-   * handleSaveVenueStripeData
-   * Updates the core venue document in the 'venues' collection using standard Firestore SDK.
-   */
   const handleSaveVenueStripeData = async () => {
     if (!firestore || !selectedVenue) return;
     setIsProcessingStripe(true);
     try {
       const venueRef = doc(firestore, 'venues', selectedVenue.id);
-      
-      // Perform write using Standard Firestore SDK
       await setDoc(venueRef, {
         venueId: selectedVenue.id,
         name: selectedVenue.courseName,
@@ -290,16 +288,36 @@ export default function PlatformAdminPage() {
 
       toast({ 
         title: "Stripe Express Data Saved", 
-        description: `Stripe configuration for ${selectedVenue.courseName} has been successfully updated in the registry.` 
+        description: `Stripe configuration for ${selectedVenue.courseName} updated.` 
       });
     } catch (e: any) {
       toast({ 
         variant: "destructive", 
         title: "Registry Update Failed", 
-        description: e.message || "Could not save Stripe data." 
+        description: e.message 
       });
     } finally {
       setIsProcessingStripe(false);
+    }
+  };
+
+  const handleVerifyStripeConnection = async () => {
+    if (!firebaseApp || !selectedVenue) return;
+    setIsVerifyingStripe(true);
+    setVerificationResult(null);
+    try {
+      const functions = getFunctions(firebaseApp, 'us-central1');
+      const verify = httpsCallable(functions, 'verifyVenueConnection');
+      const result = await verify({ venueId: selectedVenue.id });
+      setVerificationResult(result.data);
+      toast({ 
+        title: "Health Check Complete", 
+        description: `Stripe identity: ${(result.data as any).businessName || 'Verified'}` 
+      });
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Verification Failed", description: e.message });
+    } finally {
+      setIsVerifyingStripe(false);
     }
   };
 
@@ -313,7 +331,6 @@ export default function PlatformAdminPage() {
       return;
     }
     
-    // Construct mailto link to "send" the onboarding link from the admin's machine
     const subject = encodeURIComponent(`Action Required: Complete your Stripe Setup for ${selectedVenue.courseName}`);
     const body = encodeURIComponent(
       `Hello ${selectedVenue.contactName || 'Manager'},\n\n` +
@@ -543,7 +560,7 @@ export default function PlatformAdminPage() {
                     <TableHeader className="bg-slate-50 border-b">
                       <TableRow>
                         <TableHead className="text-[10px] font-black uppercase">Establishment</TableHead>
-                        <TableHead className="text-[10px] font-black uppercase">Type / Rep</TableHead>
+                        <TableHead className="text-[10px) font-black uppercase">Type / Rep</TableHead>
                         <TableHead className="text-[10px] font-black uppercase">Fee Tier</TableHead>
                         <TableHead className="text-[10px] font-black uppercase">Status</TableHead>
                         <TableHead className="text-[10px] font-black uppercase text-right">Actions</TableHead>
@@ -877,7 +894,6 @@ export default function PlatformAdminPage() {
       </main>
 
       {/* VENUE PROFILE DIALOG */}
-      <div className={isVenueDetailOpen ? "" : "hidden"}>
       <Dialog open={isVenueDetailOpen} onOpenChange={setIsVenueDetailOpen}>
         <DialogContent className="sm:max-w-[700px] rounded-[2.5rem] p-0 overflow-hidden">
           <ScrollArea className="max-h-[90vh]">
@@ -1019,14 +1035,43 @@ export default function PlatformAdminPage() {
                       </div>
                     </div>
 
-                    <Button 
-                      onClick={handleSaveVenueStripeData} 
-                      disabled={isProcessingStripe}
-                      className="w-full h-12 bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-widest shadow-lg mt-2"
-                    >
-                      {isProcessingStripe ? <Loader2 className="h-5 w-5 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
-                      Save Venue Stripe Data
-                    </Button>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
+                      <Button 
+                        onClick={handleSaveVenueStripeData} 
+                        disabled={isProcessingStripe}
+                        className="h-12 bg-[#213147] hover:bg-black text-white font-black uppercase tracking-widest shadow-lg"
+                      >
+                        {isProcessingStripe ? <Loader2 className="h-5 w-5 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+                        Save Changes
+                      </Button>
+                      <Button 
+                        variant="outline"
+                        onClick={handleVerifyStripeConnection} 
+                        disabled={isVerifyingStripe || !stripeAccountId}
+                        className="h-12 border-2 text-indigo-600 border-indigo-100 bg-white hover:bg-indigo-50 font-black uppercase tracking-widest"
+                      >
+                        {isVerifyingStripe ? <Loader2 className="h-5 w-5 animate-spin" /> : <HeartPulse className="h-4 w-4 mr-2" />}
+                        Verify Health
+                      </Button>
+                    </div>
+
+                    {verificationResult && (
+                      <div className="p-4 bg-white border-2 border-indigo-200 rounded-xl animate-in fade-in slide-in-from-top-2">
+                        <p className="text-[9px] font-black uppercase tracking-widest text-indigo-600 mb-2 border-b pb-1">Real-time Connection Data</p>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <p className="text-[8px] font-bold text-muted-foreground uppercase">Business Name</p>
+                            <p className="text-xs font-black text-[#213147] truncate">{verificationResult.businessName}</p>
+                          </div>
+                          <div>
+                            <p className="text-[8px] font-bold text-muted-foreground uppercase">Capability Status</p>
+                            <Badge variant={verificationResult.status === 'Ready' ? 'default' : 'destructive'} className="text-[8px] font-black uppercase px-2 h-4">
+                              {verificationResult.status}
+                            </Badge>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   <div className="p-4 bg-amber-50 border-2 border-amber-100 rounded-xl flex gap-3">
@@ -1047,7 +1092,6 @@ export default function PlatformAdminPage() {
           </ScrollArea>
         </DialogContent>
       </Dialog>
-      </div>
 
     </div>
   );

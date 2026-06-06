@@ -53,7 +53,8 @@ import {
   Filter,
   TrendingUp,
   PanelLeftClose,
-  PanelLeft
+  PanelLeft,
+  HeartPulse
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -77,6 +78,7 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { StylizedKoopLogo } from '@/components/header';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 
 import {
   DndContext,
@@ -93,7 +95,7 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
   useSortable,
-} from '@dnd-kit/sortable';
+} from '@adnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
 import type { MenuItem, Seller, Order, StaffMember, Venue, PlatformConfig } from '@/lib/types';
@@ -189,6 +191,7 @@ function SortableMenuItem({ item, onRemove }: { item: MenuItem; onRemove: (item:
 
 export default function SellerAdminPage({ params }: { params: Promise<{ sellerId: string }> }) {
   const { sellerId } = use(params);
+  const { firebaseApp } = useFirebase();
   const firestore = useFirestore();
   const auth = useAuth();
   const { user, isUserLoading } = useUser();
@@ -205,6 +208,8 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   const [editingStaff, setEditingStaff] = useState<StaffMember | null>(null);
   const [isResettingDemo, setIsResettingDemo] = useState(false);
   const [isProvisioningRegistry, setIsProvisioningRegistry] = useState(false);
+  const [isVerifyingStripe, setIsVerifyingStripe] = useState(false);
+  const [verificationResult, setVerificationResult] = useState<any>(null);
   const [now, setNow] = useState(new Date());
 
   const sensors = useSensors(
@@ -334,6 +339,26 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
       toast({ variant: "destructive", title: "Provisioning Failed", description: e.message });
     } finally {
       setIsProvisioningRegistry(false);
+    }
+  };
+
+  const handleVerifyStripeConnection = async () => {
+    if (!firebaseApp || !sellerId) return;
+    setIsVerifyingStripe(true);
+    setVerificationResult(null);
+    try {
+      const functions = getFunctions(firebaseApp, 'us-central1');
+      const verify = httpsCallable(functions, 'verifyVenueConnection');
+      const result = await verify({ venueId: sellerId });
+      setVerificationResult(result.data);
+      toast({ 
+        title: "Stripe Connection Verified", 
+        description: `Verified merchant: ${(result.data as any).businessName}` 
+      });
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Verification Failed", description: e.message });
+    } finally {
+      setIsVerifyingStripe(false);
     }
   };
 
@@ -762,6 +787,45 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                           <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">PCI-DSS Compliant</span>
                         </div>
                       </div>
+
+                      {/* Connection Diagnostic Widget */}
+                      {venueData && (
+                        <div className="pt-6 border-t border-slate-100 mt-4">
+                          <h4 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-4">Connection Health</h4>
+                          <div className="flex flex-col gap-4">
+                            <Button 
+                              variant="outline" 
+                              onClick={handleVerifyStripeConnection}
+                              disabled={isVerifyingStripe}
+                              className="w-fit h-10 px-4 text-[10px] font-black uppercase tracking-widest border-2 gap-2"
+                            >
+                              {isVerifyingStripe ? <Loader2 className="h-3 w-3 animate-spin" /> : <HeartPulse className="h-3.5 w-3.5 text-primary" />}
+                              Verify Stripe Connection
+                            </Button>
+
+                            {verificationResult && (
+                              <div className="p-4 bg-slate-50 border-2 rounded-2xl animate-in fade-in slide-in-from-top-2">
+                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-6">
+                                  <div>
+                                    <p className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Merchant Identity</p>
+                                    <p className="text-xs font-black uppercase text-[#213147]">{verificationResult.businessName}</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Live Status</p>
+                                    <Badge variant={verificationResult.status === 'Ready' ? 'default' : 'destructive'} className="text-[9px] font-black uppercase px-2">
+                                      {verificationResult.status}
+                                    </Badge>
+                                  </div>
+                                  <div className="col-span-2 sm:col-span-1">
+                                    <p className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Charges Enabled</p>
+                                    <p className="text-xs font-bold">{verificationResult.chargesEnabled ? '✓ Verified' : '❌ Restricted'}</p>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     <div className="bg-slate-50 p-8 flex flex-col items-center justify-center text-center gap-6">
