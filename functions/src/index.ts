@@ -206,6 +206,71 @@ export const createPaymentIntent = onCall({
 });
 
 /**
+ * verifyVenueConnection
+ * Temporary utility to verify backend communication with a connected Stripe account.
+ */
+export const verifyVenueConnection = onCall({
+  secrets: ["STRIPE_SECRET_KEY"],
+  region: 'us-central1',
+  cors: true,
+  invoker: 'public',
+  maxInstances: 10,
+}, async (request) => {
+  const { venueId } = request.data;
+  if (!venueId) {
+    throw new HttpsError("invalid-argument", "Missing required field: venueId.");
+  }
+
+  const secretKey = process.env.STRIPE_SECRET_KEY;
+  if (!secretKey) {
+    throw new HttpsError("failed-precondition", "System configuration error: Missing Stripe API Key.");
+  }
+
+  const stripe = new Stripe(secretKey);
+
+  try {
+    // 1. Retrieve Registry Document
+    const venueRef = db.collection('venues').doc(venueId);
+    const venueDoc = await venueRef.get();
+
+    if (!venueDoc.exists) {
+      throw new HttpsError("not-found", `Venue document [${venueId}] not found in Firestore.`);
+    }
+
+    const stripeAccountId = venueDoc.data()?.stripeAccountId;
+    if (!stripeAccountId) {
+      throw new HttpsError("failed-precondition", `The venue [${venueId}] does not have a stripeAccountId set in Firestore.`);
+    }
+
+    // 2. Query Stripe SDK
+    logger.info(`Verifying Stripe connection for account: ${stripeAccountId}`);
+    const account = await stripe.accounts.retrieve(stripeAccountId);
+
+    // 3. Return Diagnostic Data
+    return {
+      id: account.id,
+      businessName: account.business_profile?.name || account.settings?.dashboard?.display_name || 'No business name configured',
+      capabilities: account.capabilities,
+      detailsSubmitted: account.details_submitted,
+      chargesEnabled: account.charges_enabled,
+      payoutsEnabled: account.payouts_enabled,
+      status: (account.charges_enabled && account.payouts_enabled) ? 'Ready' : 'Restricted'
+    };
+
+  } catch (error: any) {
+    logger.error("Stripe SDK Verification Error:", {
+      message: error.message,
+      type: error.type,
+      code: error.code
+    });
+    
+    if (error instanceof HttpsError) throw error;
+    
+    throw new HttpsError("internal", error.message || "Failed to retrieve account details from Stripe.");
+  }
+});
+
+/**
  * testFunction
  * Minimal health check to verify deployment connectivity.
  */
