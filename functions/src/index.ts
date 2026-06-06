@@ -201,7 +201,11 @@ export const verifyVenueConnection = onCall({
 
   } catch (error: any) {
     logger.error("verifyVenueConnection Error:", error);
-    throw new HttpsError("internal", error.message || "Stripe API retrieval failed", { details: error.message });
+    // Return descriptive detail object
+    throw new HttpsError("internal", error.message || "Stripe API retrieval failed", { 
+      details: error.message,
+      code: error.code 
+    });
   }
 });
 
