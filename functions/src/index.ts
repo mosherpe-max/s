@@ -2,14 +2,7 @@ import { onCall, HttpsError } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import { initializeApp } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
-import { defineSecret } from "firebase-functions/params";
 import Stripe from 'stripe';
-
-/**
- * 🌟 Explicitly bind the Secret Manager parameter.
- * This ensures the key is available via .value() during execution.
- */
-const stripeSecretKey = defineSecret("STRIPE_SECRET_KEY");
 
 /**
  * Initialize the Firebase Admin SDK.
@@ -22,7 +15,7 @@ const db = getFirestore();
  * Securely provisions a Stripe Connect Express account and returns an onboarding link.
  */
 export const createStripeConnectAccount = onCall({
-  secrets: [stripeSecretKey],
+  secrets: ["STRIPE_SECRET_KEY"],
   region: 'us-central1',
   cors: true,
   maxInstances: 10,
@@ -36,7 +29,12 @@ export const createStripeConnectAccount = onCall({
     throw new HttpsError("invalid-argument", "Missing required field: venueId.");
   }
 
-  const stripe = new Stripe(stripeSecretKey.value());
+  const apiKey = process.env.STRIPE_SECRET_KEY;
+  if (!apiKey) {
+    throw new HttpsError("internal", "STRIPE_SECRET_KEY not found in environment.");
+  }
+
+  const stripe = new Stripe(apiKey);
 
   try {
     const venueRef = db.collection('venues').doc(venueId);
@@ -100,7 +98,7 @@ export const createStripeConnectAccount = onCall({
  * Initializes a Stripe PaymentIntent for a patron order.
  */
 export const createPaymentIntent = onCall({
-  secrets: [stripeSecretKey],
+  secrets: ["STRIPE_SECRET_KEY"],
   region: 'us-central1',
   cors: true,
   maxInstances: 10,
@@ -114,7 +112,12 @@ export const createPaymentIntent = onCall({
     throw new HttpsError("invalid-argument", "Amount and sellerId are required.");
   }
 
-  const stripe = new Stripe(stripeSecretKey.value());
+  const apiKey = process.env.STRIPE_SECRET_KEY;
+  if (!apiKey) {
+    throw new HttpsError("internal", "STRIPE_SECRET_KEY not found in environment.");
+  }
+
+  const stripe = new Stripe(apiKey);
 
   try {
     const venueRef = db.collection('venues').doc(sellerId);
@@ -156,10 +159,10 @@ export const createPaymentIntent = onCall({
 /**
  * verifyVenueConnection
  * Diagnostic utility to verify Stripe account status.
- * Uses strict v2 onCall protocol with CORS enabled and Secret Manager binding.
+ * Uses strict v2 onCall protocol with CORS enabled.
  */
 export const verifyVenueConnection = onCall({
-  secrets: [stripeSecretKey],
+  secrets: ["STRIPE_SECRET_KEY"],
   region: 'us-central1',
   cors: true,
   maxInstances: 5,
@@ -169,7 +172,12 @@ export const verifyVenueConnection = onCall({
     throw new HttpsError("invalid-argument", "Missing required parameter: venueId");
   }
 
-  const stripe = new Stripe(stripeSecretKey.value());
+  const apiKey = process.env.STRIPE_SECRET_KEY;
+  if (!apiKey) {
+    throw new HttpsError("internal", "STRIPE_SECRET_KEY not found in environment.");
+  }
+
+  const stripe = new Stripe(apiKey);
 
   try {
     // 1. Fetch from Firestore
