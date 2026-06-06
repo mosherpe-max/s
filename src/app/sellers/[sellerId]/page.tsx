@@ -95,7 +95,7 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
   useSortable,
-} from '@adnd-kit/sortable';
+} from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
 import type { MenuItem, Seller, Order, StaffMember, Venue, PlatformConfig } from '@/lib/types';
