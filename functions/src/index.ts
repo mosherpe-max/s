@@ -17,7 +17,7 @@ const db = getFirestore();
 export const createStripeConnectAccount = onCall({
   secrets: ["STRIPE_SECRET_KEY"],
   region: 'us-central1',
-  cors: true,
+  cors: [/localhost/, /firebase\.studio/, /kooporders\.com/],
   invoker: 'public',
   maxInstances: 10,
 }, async (request) => {
@@ -101,7 +101,7 @@ export const createStripeConnectAccount = onCall({
 export const createPaymentIntent = onCall({
   secrets: ["STRIPE_SECRET_KEY"],
   region: 'us-central1',
-  cors: true,
+  cors: [/localhost/, /firebase\.studio/, /kooporders\.com/],
   invoker: 'public',
   maxInstances: 10,
 }, async (request) => {
@@ -151,7 +151,6 @@ export const createPaymentIntent = onCall({
 
   } catch (error: any) {
     logger.error("createPaymentIntent Error:", error);
-    // Explicitly pass through the Stripe error message
     throw new HttpsError("aborted", error.message || "Payment intent creation failed", { 
       stripeError: error.message,
       stripeCode: error.code 
@@ -166,7 +165,7 @@ export const createPaymentIntent = onCall({
 export const verifyVenueConnection = onCall({
   secrets: ["STRIPE_SECRET_KEY"],
   region: 'us-central1',
-  cors: true,
+  cors: [/localhost/, /firebase\.studio/, /kooporders\.com/],
   invoker: 'public',
   maxInstances: 10,
 }, async (request) => {
@@ -201,7 +200,6 @@ export const verifyVenueConnection = onCall({
 
   } catch (error: any) {
     logger.error("verifyVenueConnection Error:", error);
-    // Return descriptive detail object
     throw new HttpsError("internal", error.message || "Stripe API retrieval failed", { 
       details: error.message,
       code: error.code 
@@ -214,7 +212,7 @@ export const verifyVenueConnection = onCall({
  */
 export const testFunction = onCall({ 
   region: 'us-central1',
-  cors: true,
+  cors: [/localhost/, /firebase\.studio/],
   invoker: 'public'
 }, (request) => {
   return { status: "healthy", timestamp: new Date().toISOString() };
