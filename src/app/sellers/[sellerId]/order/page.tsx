@@ -54,6 +54,77 @@ const serviceTypeIcons: Record<string, any> = {
   'Lane Delivery': MapPin,
 };
 
+/**
+ * 🌟 SUB-COMPONENT: StripeActionArea
+ * This component is wrapped in <Elements> so it has access to useStripe()
+ */
+function StripeActionArea({ 
+  clientSecret, 
+  isProcessing, 
+  setIsProcessing, 
+  onOrderComplete,
+  orderData
+}: any) {
+  const stripe = useStripe();
+  const elements = useElements();
+  const { toast } = useToast();
+  const firestore = useFirestore();
+
+  const [isStripeReady, setIsStripeReady] = useState(false);
+
+  const handleStripePayment = async () => {
+    if (!stripe || !elements || !clientSecret || !firestore) return;
+    
+    setIsProcessing(true);
+    try {
+      const { error, paymentIntent } = await stripe.confirmPayment({
+        elements,
+        confirmParams: {
+          return_url: `${window.location.origin}/order/track`,
+        },
+        redirect: 'if_required',
+      });
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      if (paymentIntent && (paymentIntent.status === 'succeeded' || paymentIntent.status === 'processing')) {
+        const finalOrderData = {
+          ...orderData,
+          paymentStatus: paymentIntent.status === 'succeeded' ? 'Succeeded' : 'Processing',
+          stripePaymentIntentId: paymentIntent.id,
+        };
+        const orderRef = await addDoc(collection(firestore, 'orders'), finalOrderData);
+        onOrderComplete(orderRef.id);
+      }
+    } catch (e: any) {
+      toast({ variant: 'destructive', title: 'Payment Failed', description: e.message });
+      setIsProcessing(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="mt-4 p-4 border-2 border-slate-100 rounded-3xl bg-slate-50/50 min-h-[100px] flex flex-col justify-center">
+        <StripeCheckoutForm onReadyStateChange={setIsStripeReady} />
+      </div>
+      
+      <div className="fixed bottom-7 left-0 right-0 p-4 bg-white/80 backdrop-blur-md border-t z-50">
+        <Button 
+          size="lg" 
+          className="w-full h-14 font-black uppercase tracking-widest gap-2 shadow-xl" 
+          onClick={handleStripePayment}
+          disabled={isProcessing || !isStripeReady}
+        >
+          {isProcessing ? <Loader2 className="animate-spin" /> : <CreditCard className="h-5 w-5" />} 
+          PAY & PLACE ORDER
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 function CheckoutDrawerContent({ 
   seller, 
   sellerId, 
@@ -67,20 +138,15 @@ function CheckoutDrawerContent({
   tip, 
   finalTotal, 
   taxRate,
-  paymentMethod,
-  setPaymentMethod,
-  isStripeReady,
-  setIsStripeReady,
   onOrderComplete
 }: any) {
-  const stripe = useStripe();
-  const elements = useElements();
   const { firebaseApp } = useFirebase();
   const firestore = useFirestore();
   const auth = useAuth();
   const { user } = useUser();
   const { toast } = useToast();
   
+  const [paymentMethod, setPaymentMethod] = useState<'Pay at Delivery' | 'Stripe'>('Pay at Delivery');
   const [isProcessing, setIsProcessing] = useState(false);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [isFetchingIntent, setIsFetchingIntent] = useState(false);
@@ -107,11 +173,9 @@ function CheckoutDrawerContent({
     }
   }, [paymentMethod, finalTotal, sellerId, firebaseApp, clientSecret, isFetchingIntent]);
 
-  const handlePlaceOrder = async () => {
+  const handleManualOrder = async () => {
     if (!firestore || activeOrderItems.length === 0) return;
-    
     setIsProcessing(true);
-    
     try {
       let currentUser = user;
       if (!currentUser && auth) {
@@ -120,41 +184,11 @@ function CheckoutDrawerContent({
       }
       if (!currentUser) throw new Error("Authentication failed.");
 
-      let paymentId = 'manual_at_delivery';
-      let pStatus = 'Pending';
-
-      if (paymentMethod === 'Stripe') {
-        if (!stripe || !elements || !clientSecret) throw new Error("Payment system not ready.");
-
-        const { error, paymentIntent } = await stripe.confirmPayment({
-          elements,
-          confirmParams: {
-            return_url: `${window.location.origin}/order/track`,
-            payment_method_data: {
-              billing_details: { email: currentUser.email || undefined },
-            },
-          },
-          redirect: 'if_required',
-        });
-
-        if (error) {
-          throw new Error(error.message);
-        }
-
-        if (paymentIntent && paymentIntent.status === 'succeeded') {
-          paymentId = paymentIntent.id;
-          pStatus = 'Succeeded';
-        } else if (paymentIntent && paymentIntent.status === 'processing') {
-          pStatus = 'Processing';
-        }
-      }
-
-      const loc = mockBuyerLocation; 
       const orderData: any = {
         sellerId,
         buyerProfileId: currentUser.uid,
         customerName: currentUser.email || 'Guest Patron',
-        deliveryLocation: { latitude: loc.latitude, longitude: loc.longitude },
+        deliveryLocation: mockBuyerLocation,
         items: activeOrderItems,
         subtotal,
         serviceFee: platformFee,
@@ -162,9 +196,8 @@ function CheckoutDrawerContent({
         tip,
         total: finalTotal,
         status: 'Placed',
-        paymentMethod: paymentMethod,
-        paymentStatus: pStatus,
-        stripePaymentIntentId: paymentId,
+        paymentMethod: 'Pay at Delivery',
+        paymentStatus: 'Pending',
         menuType: selectedMenuType,
         menuTypeLocation: locationValue || null,
         createdAt: serverTimestamp(),
@@ -172,122 +205,141 @@ function CheckoutDrawerContent({
 
       const orderRef = await addDoc(collection(firestore, 'orders'), orderData);
       onOrderComplete(orderRef.id);
-      
     } catch (e: any) {
-      toast({ 
-        variant: 'destructive', 
-        title: 'Order Failed', 
-        description: e.message 
-      });
-    } finally {
+      toast({ variant: 'destructive', title: 'Order Failed', description: e.message });
       setIsProcessing(false);
     }
   };
 
+  const currentOrderData = useMemo(() => {
+    if (!user) return null;
+    return {
+      sellerId,
+      buyerProfileId: user.uid,
+      customerName: user.email || 'Guest Patron',
+      deliveryLocation: mockBuyerLocation,
+      items: activeOrderItems,
+      subtotal,
+      serviceFee: platformFee,
+      tax,
+      tip,
+      total: finalTotal,
+      status: 'Placed',
+      paymentMethod: 'Stripe',
+      menuType: selectedMenuType,
+      menuTypeLocation: locationValue || null,
+      createdAt: serverTimestamp(),
+    };
+  }, [user, sellerId, activeOrderItems, subtotal, platformFee, tax, tip, finalTotal, selectedMenuType, locationValue]);
+
   return (
-    <>
-      <ScrollArea className="flex-1">
-        <div className="p-6 space-y-8 pb-10">
-          <OrderSummary items={activeOrderItems} />
-          
-          {selectedMenuType === 'Lane Delivery' && seller?.laneCount && (
-            <div className="space-y-3">
-              <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground px-1">STATION</h3>
-              <div className="grid grid-cols-6 gap-2">
-                {Array.from({ length: seller.laneCount }, (_, i) => (i + 1).toString()).map(l => (
-                  <Button 
-                    key={l} 
-                    variant={locationValue === `Lane ${l}` ? 'default' : 'outline'} 
-                    size="sm" 
-                    onClick={() => setLocationValue(`Lane ${l}`)}
-                    className="font-bold"
-                  >
-                    {l}
-                  </Button>
-                ))}
-              </div>
+    <ScrollArea className="flex-1">
+      <div className="p-6 space-y-8 pb-32">
+        <OrderSummary items={activeOrderItems} />
+        
+        {selectedMenuType === 'Lane Delivery' && seller?.laneCount && (
+          <div className="space-y-3">
+            <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground px-1">STATION</h3>
+            <div className="grid grid-cols-6 gap-2">
+              {Array.from({ length: seller.laneCount }, (_, i) => (i + 1).toString()).map(l => (
+                <Button 
+                  key={l} 
+                  variant={locationValue === `Lane ${l}` ? 'default' : 'outline'} 
+                  size="sm" 
+                  onClick={() => setLocationValue(`Lane ${l}`)}
+                  className="font-bold"
+                >
+                  {l}
+                </Button>
+              ))}
             </div>
+          </div>
+        )}
+
+        <PricingBreakdown subtotal={subtotal} serviceFee={platformFee} tax={tax} tip={tip} taxRate={taxRate} />
+
+        <div className="space-y-4">
+          <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground px-1">PAYMENT METHOD</h3>
+          <RadioGroup value={paymentMethod} onValueChange={(v: any) => setPaymentMethod(v)} className="grid grid-cols-1 gap-3">
+            <div 
+              className={cn(
+                "flex items-center justify-between p-4 rounded-2xl border-2 transition-all cursor-pointer",
+                paymentMethod === 'Pay at Delivery' ? "border-primary bg-primary/5 shadow-md" : "border-slate-100 hover:border-slate-200"
+              )}
+              onClick={() => setPaymentMethod('Pay at Delivery')}
+            >
+              <div className="flex items-center gap-4">
+                <div className={cn("p-2 rounded-lg", paymentMethod === 'Pay at Delivery' ? "bg-primary text-white" : "bg-slate-100 text-slate-400")}>
+                  <Banknote className="h-5 w-5" />
+                </div>
+                <div className="text-left">
+                  <p className="text-xs font-black uppercase tracking-tight text-[#213147]">Pay at Delivery</p>
+                  <p className="text-[9px] font-bold text-muted-foreground uppercase">Cash or Card on-site</p>
+                </div>
+              </div>
+              {paymentMethod === 'Pay at Delivery' && <Check className="h-4 w-4 text-primary" />}
+            </div>
+
+            <div 
+              className={cn(
+                "flex items-center justify-between p-4 rounded-2xl border-2 transition-all cursor-pointer",
+                paymentMethod === 'Stripe' ? "border-primary bg-primary/5 shadow-md" : "border-slate-100 hover:border-slate-200"
+              )}
+              onClick={() => setPaymentMethod('Stripe')}
+            >
+              <div className="flex items-center gap-4">
+                <div className={cn("p-2 rounded-lg", paymentMethod === 'Stripe' ? "bg-primary text-white" : "bg-slate-100 text-slate-400")}>
+                  <CreditCard className="h-5 w-5" />
+                </div>
+                <div className="text-left">
+                  <p className="text-xs font-black uppercase tracking-tight text-[#213147]">Digital Checkout</p>
+                  <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">SECURE PAYMENT ELEMENT</p>
+                </div>
+              </div>
+              {paymentMethod === 'Stripe' && <Check className="h-4 w-4 text-primary" />}
+            </div>
+          </RadioGroup>
+
+          {paymentMethod === 'Stripe' && (
+            isFetchingIntent ? (
+              <div className="flex flex-col items-center gap-2 py-8">
+                <Loader2 className="h-6 w-6 animate-spin text-primary opacity-50" />
+                <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Initializing Secure Environment...</p>
+              </div>
+            ) : clientSecret ? (
+              <Elements stripe={stripePromise} options={{ clientSecret }}>
+                <StripeActionArea 
+                  clientSecret={clientSecret} 
+                  isProcessing={isProcessing} 
+                  setIsProcessing={setIsProcessing}
+                  onOrderComplete={onOrderComplete}
+                  orderData={currentOrderData}
+                />
+              </Elements>
+            ) : (
+              <div className="p-8 text-center border-2 border-dashed rounded-3xl">
+                <AlertTriangle className="h-6 w-6 text-amber-500 mx-auto mb-2" />
+                <p className="text-[10px] font-bold text-amber-700 uppercase">Configuration required to initialize payments</p>
+              </div>
+            )
           )}
 
-          <PricingBreakdown subtotal={subtotal} serviceFee={platformFee} tax={tax} tip={tip} taxRate={taxRate} />
-
-          <div className="space-y-4">
-            <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground px-1">PAYMENT METHOD</h3>
-            <RadioGroup value={paymentMethod} onValueChange={(v: any) => setPaymentMethod(v)} className="grid grid-cols-1 gap-3">
-              <div 
-                className={cn(
-                  "flex items-center justify-between p-4 rounded-2xl border-2 transition-all cursor-pointer",
-                  paymentMethod === 'Pay at Delivery' ? "border-primary bg-primary/5 shadow-md" : "border-slate-100 hover:border-slate-200"
-                )}
-                onClick={() => setPaymentMethod('Pay at Delivery')}
+          {paymentMethod === 'Pay at Delivery' && (
+            <div className="fixed bottom-7 left-0 right-0 p-4 bg-white/80 backdrop-blur-md border-t z-50">
+              <Button 
+                size="lg" 
+                className="w-full h-14 font-black uppercase tracking-widest gap-2 shadow-xl" 
+                onClick={handleManualOrder}
+                disabled={isProcessing}
               >
-                <div className="flex items-center gap-4">
-                  <div className={cn("p-2 rounded-lg", paymentMethod === 'Pay at Delivery' ? "bg-primary text-white" : "bg-slate-100 text-slate-400")}>
-                    <Banknote className="h-5 w-5" />
-                  </div>
-                  <div className="text-left">
-                    <p className="text-xs font-black uppercase tracking-tight text-[#213147]">Pay at Delivery</p>
-                    <p className="text-[9px] font-bold text-muted-foreground uppercase">Cash or Card on-site</p>
-                  </div>
-                </div>
-                {paymentMethod === 'Pay at Delivery' && <Check className="h-4 w-4 text-primary" />}
-              </div>
-
-              <div 
-                className={cn(
-                  "flex items-center justify-between p-4 rounded-2xl border-2 transition-all cursor-pointer",
-                  paymentMethod === 'Stripe' ? "border-primary bg-primary/5 shadow-md" : "border-slate-100 hover:border-slate-200"
-                )}
-                onClick={() => setPaymentMethod('Stripe')}
-              >
-                <div className="flex items-center gap-4">
-                  <div className={cn("p-2 rounded-lg", paymentMethod === 'Stripe' ? "bg-primary text-white" : "bg-slate-100 text-slate-400")}>
-                    <CreditCard className="h-5 w-5" />
-                  </div>
-                  <div className="text-left">
-                    <p className="text-xs font-black uppercase tracking-tight text-[#213147]">Digital Checkout</p>
-                    <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">SECURE PAYMENT ELEMENT</p>
-                  </div>
-                </div>
-                {paymentMethod === 'Stripe' && <Check className="h-4 w-4 text-primary" />}
-              </div>
-            </RadioGroup>
-
-            {paymentMethod === 'Stripe' && (
-              <div className="mt-4 p-4 border-2 border-slate-100 rounded-3xl bg-slate-50/50 min-h-[100px] flex flex-col justify-center">
-                {isFetchingIntent ? (
-                  <div className="flex flex-col items-center gap-2 py-4">
-                    <Loader2 className="h-6 w-6 animate-spin text-primary opacity-50" />
-                    <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Initializing Secure Environment...</p>
-                  </div>
-                ) : clientSecret ? (
-                  <Elements stripe={stripePromise} options={{ clientSecret }}>
-                    <StripeCheckoutForm onReadyStateChange={setIsStripeReady} />
-                  </Elements>
-                ) : (
-                  <div className="p-4 text-center">
-                    <AlertTriangle className="h-6 w-6 text-amber-500 mx-auto mb-2" />
-                    <p className="text-[10px] font-bold text-amber-700 uppercase">Configuration required to initialize payments</p>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
+                {isProcessing ? <Loader2 className="animate-spin" /> : <ShoppingBag className="h-5 w-5" />} 
+                PLACE ORDER
+              </Button>
+            </div>
+          )}
         </div>
-      </ScrollArea>
-      
-      <SheetFooter className="p-6 bg-white border-t">
-        <Button 
-          size="lg" 
-          className="w-full h-14 font-black uppercase tracking-widest gap-2 shadow-xl" 
-          onClick={handlePlaceOrder} 
-          disabled={isProcessing || isFetchingIntent || (paymentMethod === 'Stripe' && (!isStripeReady || !clientSecret))}
-        >
-          {isProcessing ? <Loader2 className="animate-spin" /> : <ShoppingBag className="h-5 w-5" />} 
-          {paymentMethod === 'Stripe' ? 'PAY & PLACE ORDER' : 'PLACE ORDER'}
-        </Button>
-      </SheetFooter>
-    </>
+      </div>
+    </ScrollArea>
   );
 }
 
@@ -301,8 +353,6 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
   const menuTypeFromUrl = searchParams.get('menuType');
   const [selectedMenuType, setSelectedMenuType] = useState<string>(menuTypeFromUrl || '');
   const [locationValue, setLocationValue] = useState<string>('');
-  const [paymentMethod, setPaymentMethod] = useState<'Pay at Delivery' | 'Stripe'>('Pay at Delivery');
-  const [isStripeReady, setIsStripeReady] = useState(false);
 
   const sellerRef = useMemoFirebase(() => (firestore ? doc(firestore, 'sellers', sellerId) : null), [firestore, sellerId]);
   const { data: seller, isLoading: isSellerLoading } = useDoc<Seller>(sellerRef);
@@ -397,10 +447,6 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
             tip={tip}
             finalTotal={finalTotal}
             taxRate={taxRate}
-            paymentMethod={paymentMethod}
-            setPaymentMethod={setPaymentMethod}
-            isStripeReady={isStripeReady}
-            setIsStripeReady={setIsStripeReady}
             onOrderComplete={handleOrderComplete}
           />
         </SheetContent>
