@@ -36,12 +36,13 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { mockBuyerLocation } from '@/lib/data';
 import { loadStripe } from '@stripe/stripe-js';
-import { Elements, useStripe, useElements, CardElement } from '@stripe/react-stripe-js';
+import { Elements, useStripe, useElements } from '@stripe/react-stripe-js';
 import { StripeCheckoutForm } from '@/components/stripe-checkout-form';
 import { cn } from '@/lib/utils';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 
-const stripePromise = loadStripe('pk_test_51O8R7zIuK7fM8y8m9f6a4zS2T5U8v4w3q1l0k9j8h7g6f5d4s3a2q1w0e9r8t7y6u5i4o3p2l1m0n9b8v7c6x5z');
+// 🌟 Load Stripe with environment variable
+const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || 'pk_test_placeholder');
 
 const serviceTypeIcons: Record<string, any> = {
   'Beverage Cart': Truck,
@@ -79,18 +80,41 @@ function CheckoutDrawerContent({
   const auth = useAuth();
   const { user } = useUser();
   const { toast } = useToast();
+  
   const [isProcessing, setIsProcessing] = useState(false);
+  const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [isFetchingIntent, setIsFetchingIntent] = useState(false);
+
+  // 🌟 Fetch Payment Intent when user selects Stripe
+  useEffect(() => {
+    if (paymentMethod === 'Stripe' && !clientSecret && !isFetchingIntent && finalTotal > 0) {
+      const fetchIntent = async () => {
+        setIsFetchingIntent(true);
+        try {
+          const functions = getFunctions(firebaseApp, 'us-central1');
+          const createIntent = httpsCallable(functions, 'createPaymentIntent');
+          const result = await createIntent({ amount: finalTotal, sellerId });
+          const { clientSecret: secret } = result.data as { clientSecret: string };
+          setClientSecret(secret);
+        } catch (e: any) {
+          console.error('💥 [INTENT FAILED]:', e);
+          toast({ variant: 'destructive', title: 'Payment Setup Error', description: e.message });
+        } finally {
+          setIsFetchingIntent(false);
+        }
+      };
+      fetchIntent();
+    }
+  }, [paymentMethod, finalTotal, sellerId, firebaseApp, clientSecret, isFetchingIntent]);
 
   const handlePlaceOrder = async () => {
     if (!firestore || activeOrderItems.length === 0) return;
     
     setIsProcessing(true);
-    console.log('🚀 [CHECKOUT] STARTING TRANSACTION...');
     
     try {
       let currentUser = user;
       if (!currentUser && auth) {
-        console.log('👤 [AUTH] Initiating session...');
         const result = await signInAnonymously(auth);
         currentUser = result.user;
       }
@@ -100,45 +124,31 @@ function CheckoutDrawerContent({
       let pStatus = 'Pending';
 
       if (paymentMethod === 'Stripe') {
-        if (!stripe || !elements) throw new Error("Stripe is not ready.");
+        if (!stripe || !elements || !clientSecret) throw new Error("Payment system not ready.");
 
-        console.log('💳 [STRIPE] Fetching PaymentIntent from server...');
-        const functions = getFunctions(firebaseApp, 'us-central1');
-        const createIntent = httpsCallable(functions, 'createPaymentIntent');
-        
-        try {
-          const result = await createIntent({ amount: finalTotal, sellerId });
-          const { clientSecret } = result.data as { clientSecret: string };
-          console.log('✅ [STRIPE] Intent received.');
-
-          console.log('🔒 [STRIPE] Confirming payment with Stripe Elements...');
-          const confirmResult = await stripe.confirmCardPayment(clientSecret, {
-            payment_method: {
-              card: elements.getElement(CardElement)!,
+        const { error, paymentIntent } = await stripe.confirmPayment({
+          elements,
+          confirmParams: {
+            return_url: `${window.location.origin}/order/track`,
+            payment_method_data: {
               billing_details: { email: currentUser.email || undefined },
             },
-          });
+          },
+          redirect: 'if_required',
+        });
 
-          if (confirmResult.error) {
-            throw new Error(confirmResult.error.message);
-          }
+        if (error) {
+          throw new Error(error.message);
+        }
 
-          console.log('✅ [STRIPE] Payment captured successfully.');
-          paymentId = confirmResult.paymentIntent.id;
+        if (paymentIntent && paymentIntent.status === 'succeeded') {
+          paymentId = paymentIntent.id;
           pStatus = 'Succeeded';
-        } catch (funcError: any) {
-          // EXTRACT EXACT INTERNAL ERROR
-          const detailedMsg = funcError?.details?.stripeError || 
-                             funcError?.details?.message || 
-                             funcError?.message || 
-                             "Internal Payment Server Error";
-          
-          console.error('💥 [DETAILED ERROR]:', detailedMsg, funcError);
-          throw new Error(detailedMsg);
+        } else if (paymentIntent && paymentIntent.status === 'processing') {
+          pStatus = 'Processing';
         }
       }
 
-      console.log('📝 [FIRESTORE] Finalizing order record...');
       const loc = mockBuyerLocation; 
       const orderData: any = {
         sellerId,
@@ -161,15 +171,13 @@ function CheckoutDrawerContent({
       };
 
       const orderRef = await addDoc(collection(firestore, 'orders'), orderData);
-      console.log('✅ [CHECKOUT] COMPLETE:', orderRef.id);
       onOrderComplete(orderRef.id);
       
     } catch (e: any) {
-      console.error('💥 [CHECKOUT CRASHED]:', e.message);
       toast({ 
         variant: 'destructive', 
         title: 'Order Failed', 
-        description: e.message || "An unexpected error occurred." 
+        description: e.message 
       });
     } finally {
       setIsProcessing(false);
@@ -237,8 +245,8 @@ function CheckoutDrawerContent({
                     <CreditCard className="h-5 w-5" />
                   </div>
                   <div className="text-left">
-                    <p className="text-xs font-black uppercase tracking-tight text-[#213147]">Pay with Card</p>
-                    <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">SECURE STRIPE CHECKOUT</p>
+                    <p className="text-xs font-black uppercase tracking-tight text-[#213147]">Digital Checkout</p>
+                    <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">SECURE PAYMENT ELEMENT</p>
                   </div>
                 </div>
                 {paymentMethod === 'Stripe' && <Check className="h-4 w-4 text-primary" />}
@@ -246,8 +254,22 @@ function CheckoutDrawerContent({
             </RadioGroup>
 
             {paymentMethod === 'Stripe' && (
-              <div className="mt-4 p-4 border-2 border-slate-100 rounded-3xl bg-slate-50/50">
-                <StripeCheckoutForm onReadyStateChange={setIsStripeReady} />
+              <div className="mt-4 p-4 border-2 border-slate-100 rounded-3xl bg-slate-50/50 min-h-[100px] flex flex-col justify-center">
+                {isFetchingIntent ? (
+                  <div className="flex flex-col items-center gap-2 py-4">
+                    <Loader2 className="h-6 w-6 animate-spin text-primary opacity-50" />
+                    <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Initializing Secure Environment...</p>
+                  </div>
+                ) : clientSecret ? (
+                  <Elements stripe={stripePromise} options={{ clientSecret }}>
+                    <StripeCheckoutForm onReadyStateChange={setIsStripeReady} />
+                  </Elements>
+                ) : (
+                  <div className="p-4 text-center">
+                    <AlertTriangle className="h-6 w-6 text-amber-500 mx-auto mb-2" />
+                    <p className="text-[10px] font-bold text-amber-700 uppercase">Configuration required to initialize payments</p>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -259,7 +281,7 @@ function CheckoutDrawerContent({
           size="lg" 
           className="w-full h-14 font-black uppercase tracking-widest gap-2 shadow-xl" 
           onClick={handlePlaceOrder} 
-          disabled={isProcessing || (paymentMethod === 'Stripe' && !isStripeReady)}
+          disabled={isProcessing || isFetchingIntent || (paymentMethod === 'Stripe' && (!isStripeReady || !clientSecret))}
         >
           {isProcessing ? <Loader2 className="animate-spin" /> : <ShoppingBag className="h-5 w-5" />} 
           {paymentMethod === 'Stripe' ? 'PAY & PLACE ORDER' : 'PLACE ORDER'}
@@ -362,27 +384,25 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
         )}
         <SheetContent side="bottom" className="rounded-t-[2rem] h-[90vh] flex flex-col p-0">
           <SheetHeader className="px-6 py-4 border-b bg-white"><SheetTitle>Review Order</SheetTitle></SheetHeader>
-          <Elements stripe={stripePromise}>
-            <CheckoutDrawerContent 
-              seller={seller}
-              sellerId={sellerId}
-              selectedMenuType={selectedMenuType}
-              locationValue={locationValue}
-              setLocationValue={setLocationValue}
-              activeOrderItems={activeOrderItems}
-              subtotal={subtotal}
-              platformFee={platformFee}
-              tax={tax}
-              tip={tip}
-              finalTotal={finalTotal}
-              taxRate={taxRate}
-              paymentMethod={paymentMethod}
-              setPaymentMethod={setPaymentMethod}
-              isStripeReady={isStripeReady}
-              setIsStripeReady={setIsStripeReady}
-              onOrderComplete={handleOrderComplete}
-            />
-          </Elements>
+          <CheckoutDrawerContent 
+            seller={seller}
+            sellerId={sellerId}
+            selectedMenuType={selectedMenuType}
+            locationValue={locationValue}
+            setLocationValue={setLocationValue}
+            activeOrderItems={activeOrderItems}
+            subtotal={subtotal}
+            platformFee={platformFee}
+            tax={tax}
+            tip={tip}
+            finalTotal={finalTotal}
+            taxRate={taxRate}
+            paymentMethod={paymentMethod}
+            setPaymentMethod={setPaymentMethod}
+            isStripeReady={isStripeReady}
+            setIsStripeReady={setIsStripeReady}
+            onOrderComplete={handleOrderComplete}
+          />
         </SheetContent>
       </Sheet>
     </div>
