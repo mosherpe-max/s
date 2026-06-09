@@ -350,15 +350,15 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
   return (
     <div className="flex flex-col min-h-screen bg-background">
       {/* 🌟 DYNAMIC VENUE HEADER - TOP THIRD */}
-      <header className="relative w-full h-[35vh] flex flex-col items-center justify-center text-center px-6 bg-[#213147] overflow-hidden shrink-0">
+      <header className="relative w-full min-h-[35vh] flex flex-col bg-[#213147] overflow-hidden shrink-0 pt-4 pb-8 px-6">
         {/* Background Decorative Rings */}
-        <div className="absolute inset-0 z-0 opacity-10">
+        <div className="absolute inset-0 z-0 opacity-10 pointer-events-none">
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full border-[30px] border-white" />
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] rounded-full border-[20px] border-white" />
         </div>
 
-        {/* 🌟 INTEGRATED CART BUTTON (Replaces Global Header Cart) */}
-        <div className="absolute top-4 right-4 z-20">
+        {/* 🌟 TOP UTILITY ROW - CART BUTTON */}
+        <div className="relative z-20 flex justify-end w-full mb-6">
           <Button 
             variant="outline" 
             className="flex items-center gap-2 h-11 px-4 border-white/20 text-white hover:bg-white/10 hover:text-white bg-[#213147]/50 backdrop-blur-md rounded-full transition-all"
@@ -379,15 +379,16 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
           </Button>
         </div>
         
-        <div className="relative z-10 space-y-6 max-w-lg w-full">
+        {/* 🌟 CENTERED BRANDING & CONTROLS */}
+        <div className="relative z-10 flex flex-col items-center text-center space-y-6 max-w-lg w-full mx-auto">
           <div className="space-y-1">
             <p className="text-[10px] font-black uppercase tracking-[0.3em] text-primary">Ordering From</p>
-            <h1 className="font-headline text-3xl sm:text-4xl font-black text-white uppercase tracking-tight leading-none drop-shadow-lg">
+            <h1 className="font-headline text-3xl sm:text-4xl font-black text-white uppercase tracking-tight leading-tight drop-shadow-lg max-w-[80vw]">
               {seller?.courseName}
             </h1>
           </div>
 
-          <div className="space-y-3">
+          <div className="space-y-3 w-full">
             <p className="text-[9px] font-bold uppercase tracking-widest text-white/40">Select Service Mode</p>
             <div className="flex flex-wrap justify-center gap-2">
               {seller?.menuTypes?.map((type) => {
