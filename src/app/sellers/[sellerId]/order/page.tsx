@@ -56,7 +56,7 @@ const serviceTypeIcons: Record<string, any> = {
 
 /**
  * 🌟 SUB-COMPONENT: StripeActionArea
- * This component is wrapped in <Elements> so it has access to useStripe()
+ * This component handles the final confirmation and SCA authentication.
  */
 function StripeActionArea({ 
   clientSecret, 
@@ -77,18 +77,21 @@ function StripeActionArea({
     
     setIsProcessing(true);
     try {
+      // 🌟 SECURE CONFIRMATION: This handles 3D Secure (SCA) popups automatically
       const { error, paymentIntent } = await stripe.confirmPayment({
         elements,
         confirmParams: {
+          // Redirect URL if a bank requires off-site authentication
           return_url: `${window.location.origin}/order/track`,
         },
-        redirect: 'if_required',
+        redirect: 'if_required', // Only redirect if necessary for 3DS
       });
 
       if (error) {
         throw new Error(error.message);
       }
 
+      // Success branch (handles both immediate success and "processing" for asynchronous methods)
       if (paymentIntent && (paymentIntent.status === 'succeeded' || paymentIntent.status === 'processing')) {
         const finalOrderData = {
           ...orderData,
@@ -99,7 +102,7 @@ function StripeActionArea({
         onOrderComplete(orderRef.id);
       }
     } catch (e: any) {
-      toast({ variant: 'destructive', title: 'Payment Failed', description: e.message });
+      toast({ variant: 'destructive', title: 'Payment Denied', description: e.message });
       setIsProcessing(false);
     }
   };
@@ -152,7 +155,6 @@ function CheckoutDrawerContent({
   const [isFetchingIntent, setIsFetchingIntent] = useState(false);
 
   // 🌟 Base amount for calculation: Subtotal + Tax + Tip
-  // The server will fetch the convenience fee from the venue registry and add it.
   const baseTotalForBackend = subtotal + tax + tip;
 
   useEffect(() => {
@@ -160,22 +162,32 @@ function CheckoutDrawerContent({
       const fetchIntent = async () => {
         setIsFetchingIntent(true);
         try {
+          // 🌟 IDENTITY CHECK: Ensure an anonymous identity is established before calling protected backend
+          let currentUser = user;
+          if (!currentUser && auth) {
+            const result = await signInAnonymously(auth);
+            currentUser = result.user;
+          }
+          
+          if (!currentUser) throw new Error("Identity verification failed.");
+
           const functions = getFunctions(firebaseApp, 'us-central1');
           const createIntent = httpsCallable(functions, 'createPaymentIntent');
-          // Send the base amount; server adds regulated fee
+          
           const result = await createIntent({ amount: baseTotalForBackend, sellerId });
           const { clientSecret: secret } = result.data as { clientSecret: string };
           setClientSecret(secret);
         } catch (e: any) {
           console.error('💥 [INTENT FAILED]:', e);
-          toast({ variant: 'destructive', title: 'Payment Setup Error', description: e.details?.message || e.message });
+          const errorMsg = e.details?.message || e.message || "Could not initialize secure payment.";
+          toast({ variant: 'destructive', title: 'Payment Setup Error', description: errorMsg });
         } finally {
           setIsFetchingIntent(false);
         }
       };
       fetchIntent();
     }
-  }, [paymentMethod, baseTotalForBackend, sellerId, firebaseApp, clientSecret, isFetchingIntent, toast]);
+  }, [paymentMethod, baseTotalForBackend, sellerId, firebaseApp, clientSecret, isFetchingIntent, toast, user, auth]);
 
   const handleManualOrder = async () => {
     if (!firestore || activeOrderItems.length === 0) return;

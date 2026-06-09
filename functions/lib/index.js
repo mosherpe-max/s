@@ -114,11 +114,15 @@ export const createPaymentIntent = onCall({
             throw new HttpsError("failed-precondition", `Stripe Account ID is missing for venue: ${sellerId}.`, { sellerId });
         }
         // 2. Fetch Fee Configuration from Registry
+        // patronConvenienceFee: amount charged to patron (e.g. 150 cents)
+        // platformFeeFixed: Koop's "fee coverage" coverage (e.g. 20 cents)
         const patronConvenienceFee = venueData?.patronConvenienceFee ?? 150;
         const platformFeeFixed = venueData?.platformFeeFixed ?? 20;
         // 3. Calculate Final Stripe Values
+        // Total Charge = Items/Tax/Tip + Convenience Fee
         const baseAmountInCents = Math.round(amount * 100);
         const totalChargeAmount = baseAmountInCents + patronConvenienceFee;
+        // Application Fee (Koop's Cut) = Convenience Fee - Fee Subsidy
         const applicationFeeAmount = Math.max(0, patronConvenienceFee - platformFeeFixed);
         // 4. Create the PaymentIntent
         const paymentIntent = await stripe.paymentIntents.create({
