@@ -49,7 +49,7 @@ export const createStripeConnectAccount = onCall({
       throw new HttpsError("permission-denied", "Unauthorized venue management.");
     }
 
-    let stripeAccountId = venueData?.stripeAccountId;
+    let stripeAccountId = venueData?.stripeAccountId || venueData?.stripeConnectId;
 
     if (!stripeAccountId) {
       const account = await stripe.accounts.create({
@@ -64,6 +64,7 @@ export const createStripeConnectAccount = onCall({
 
       await venueRef.update({
         stripeAccountId,
+        stripeConnectId: stripeAccountId,
         stripeOnboardingComplete: false,
         updatedAt: new Date().toISOString()
       });
@@ -95,7 +96,7 @@ export const createStripeConnectAccount = onCall({
 
 /**
  * createPaymentIntent
- * Initializes a Stripe PaymentIntent for a patron order.
+ * Initializes a Stripe PaymentIntent for a patron order with dynamic platform fee splitting.
  */
 export const createPaymentIntent = onCall({
   secrets: ["STRIPE_SECRET_KEY"],
@@ -120,28 +121,43 @@ export const createPaymentIntent = onCall({
   const stripe = new Stripe(apiKey);
 
   try {
+    // 1. Fetch Venue Registry for routing and fee data
     const venueRef = db.collection('venues').doc(sellerId);
     const venueDoc = await venueRef.get();
     
     if (!venueDoc.exists) {
-      throw new HttpsError("not-found", `Registry document missing for venue: ${sellerId}. Click "Initialize Registry" in the admin panel.`, { sellerId });
+      throw new HttpsError("not-found", `Registry document missing for venue: ${sellerId}. Please initialize via admin panel.`, { sellerId });
     }
 
-    const stripeAccountId = venueDoc.data()?.stripeAccountId;
-    if (!stripeAccountId) {
+    const venueData = venueDoc.data();
+    const stripeConnectId = venueData?.stripeConnectId || venueData?.stripeAccountId;
+    
+    if (!stripeConnectId) {
       throw new HttpsError("failed-precondition", `Stripe Account ID is missing for venue: ${sellerId}.`, { sellerId });
     }
 
+    // 2. Calculate Dynamic Platform Fee (Koop's cut)
+    const fixedFee = venueData?.platformFeeFixed ?? 20; // Default 20 cents
+    const percentFee = venueData?.platformFeePercent ?? 0;
+    
+    const amountInCents = Math.round(amount * 100);
+    const calculatedPercentFee = Math.round(amountInCents * (percentFee / 100));
+    const totalApplicationFee = fixedFee + calculatedPercentFee;
+
+    // 3. Create the PaymentIntent with Destination Charges logic
     const paymentIntent = await stripe.paymentIntents.create({
-      amount: Math.round(amount * 100),
+      amount: amountInCents,
       currency: 'usd',
       automatic_payment_methods: { enabled: true },
+      application_fee_amount: totalApplicationFee,
       transfer_data: {
-        destination: stripeAccountId,
+        destination: stripeConnectId,
       },
       metadata: {
         sellerId,
-        buyerUid: request.auth.uid
+        buyerUid: request.auth.uid,
+        fixedFeeCalculated: fixedFee.toString(),
+        percentFeeCalculated: percentFee.toString()
       }
     });
 
@@ -188,9 +204,11 @@ export const verifyVenueConnection = onCall({
       throw new HttpsError("not-found", `Venue record for [${venueId}] not found in Firestore registry.`);
     }
 
-    const stripeAccountId = venueDoc.data()?.stripeAccountId;
+    const venueData = venueDoc.data();
+    const stripeAccountId = venueData?.stripeConnectId || venueData?.stripeAccountId;
+    
     if (!stripeAccountId) {
-      throw new HttpsError("failed-precondition", `The venue [${venueId}] does not have a stripeAccountId assigned yet.`);
+      throw new HttpsError("failed-precondition", `The venue [${venueId}] does not have a stripeConnectId assigned yet.`);
     }
 
     // 2. Fetch from Stripe
