@@ -28,7 +28,8 @@ import {
   CreditCard,
   Banknote,
   Check,
-  AlertTriangle
+  AlertTriangle,
+  Info
 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useCart } from '@/lib/cart-context';
@@ -41,7 +42,6 @@ import { StripeCheckoutForm } from '@/components/stripe-checkout-form';
 import { cn } from '@/lib/utils';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 
-// 🌟 Load Stripe with environment variable
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || 'pk_test_placeholder');
 
 const serviceTypeIcons: Record<string, any> = {
@@ -54,10 +54,6 @@ const serviceTypeIcons: Record<string, any> = {
   'Lane Delivery': MapPin,
 };
 
-/**
- * 🌟 SUB-COMPONENT: StripeActionArea
- * This component handles the final confirmation and SCA authentication.
- */
 function StripeActionArea({ 
   clientSecret, 
   isProcessing, 
@@ -69,29 +65,20 @@ function StripeActionArea({
   const elements = useElements();
   const { toast } = useToast();
   const firestore = useFirestore();
-
   const [isStripeReady, setIsStripeReady] = useState(false);
 
   const handleStripePayment = async () => {
     if (!stripe || !elements || !clientSecret || !firestore) return;
-    
     setIsProcessing(true);
     try {
-      // 🌟 SECURE CONFIRMATION: This handles 3D Secure (SCA) popups automatically
       const { error, paymentIntent } = await stripe.confirmPayment({
         elements,
         confirmParams: {
-          // Redirect URL if a bank requires off-site authentication
           return_url: `${window.location.origin}/order/track`,
         },
-        redirect: 'if_required', // Only redirect if necessary for 3DS
+        redirect: 'if_required',
       });
-
-      if (error) {
-        throw new Error(error.message);
-      }
-
-      // Success branch (handles both immediate success and "processing" for asynchronous methods)
+      if (error) throw new Error(error.message);
       if (paymentIntent && (paymentIntent.status === 'succeeded' || paymentIntent.status === 'processing')) {
         const finalOrderData = {
           ...orderData,
@@ -112,7 +99,6 @@ function StripeActionArea({
       <div className="mt-4 p-4 border-2 border-slate-100 rounded-3xl bg-slate-50/50 min-h-[100px] flex flex-col justify-center">
         <StripeCheckoutForm onReadyStateChange={setIsStripeReady} />
       </div>
-      
       <div className="fixed bottom-7 left-0 right-0 p-4 bg-white/80 backdrop-blur-md border-t z-50">
         <Button 
           size="lg" 
@@ -148,13 +134,11 @@ function CheckoutDrawerContent({
   const auth = useAuth();
   const { user } = useUser();
   const { toast } = useToast();
-  
   const [paymentMethod, setPaymentMethod] = useState<'Pay at Delivery' | 'Stripe'>('Pay at Delivery');
   const [isProcessing, setIsProcessing] = useState(false);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [isFetchingIntent, setIsFetchingIntent] = useState(false);
 
-  // 🌟 Base amount for calculation: Subtotal + Tax + Tip
   const baseTotalForBackend = subtotal + tax + tip;
 
   useEffect(() => {
@@ -162,25 +146,19 @@ function CheckoutDrawerContent({
       const fetchIntent = async () => {
         setIsFetchingIntent(true);
         try {
-          // 🌟 IDENTITY CHECK: Ensure an anonymous identity is established before calling protected backend
           let currentUser = user;
           if (!currentUser && auth) {
             const result = await signInAnonymously(auth);
             currentUser = result.user;
           }
-          
           if (!currentUser) throw new Error("Identity verification failed.");
-
           const functions = getFunctions(firebaseApp, 'us-central1');
           const createIntent = httpsCallable(functions, 'createPaymentIntent');
-          
           const result = await createIntent({ amount: baseTotalForBackend, sellerId });
           const { clientSecret: secret } = result.data as { clientSecret: string };
           setClientSecret(secret);
         } catch (e: any) {
-          console.error('💥 [INTENT FAILED]:', e);
-          const errorMsg = e.details?.message || e.message || "Could not initialize secure payment.";
-          toast({ variant: 'destructive', title: 'Payment Setup Error', description: errorMsg });
+          toast({ variant: 'destructive', title: 'Payment Setup Error', description: e.message || "Could not initialize secure payment." });
         } finally {
           setIsFetchingIntent(false);
         }
@@ -199,7 +177,6 @@ function CheckoutDrawerContent({
         currentUser = result.user;
       }
       if (!currentUser) throw new Error("Authentication failed.");
-
       const orderData: any = {
         sellerId,
         buyerProfileId: currentUser.uid,
@@ -218,7 +195,6 @@ function CheckoutDrawerContent({
         menuTypeLocation: locationValue || null,
         createdAt: serverTimestamp(),
       };
-
       const orderRef = await addDoc(collection(firestore, 'orders'), orderData);
       onOrderComplete(orderRef.id);
     } catch (e: any) {
@@ -252,107 +228,37 @@ function CheckoutDrawerContent({
     <ScrollArea className="flex-1">
       <div className="p-6 space-y-8 pb-32">
         <OrderSummary items={activeOrderItems} />
-        
         {selectedMenuType === 'Lane Delivery' && seller?.laneCount && (
           <div className="space-y-3">
             <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground px-1">STATION</h3>
             <div className="grid grid-cols-6 gap-2">
               {Array.from({ length: seller.laneCount }, (_, i) => (i + 1).toString()).map(l => (
-                <Button 
-                  key={l} 
-                  variant={locationValue === `Lane ${l}` ? 'default' : 'outline'} 
-                  size="sm" 
-                  onClick={() => setLocationValue(`Lane ${l}`)}
-                  className="font-bold"
-                >
-                  {l}
-                </Button>
+                <Button key={l} variant={locationValue === `Lane ${l}` ? 'default' : 'outline'} size="sm" onClick={() => setLocationValue(`Lane ${l}`)} className="font-bold">{l}</Button>
               ))}
             </div>
           </div>
         )}
-
         <PricingBreakdown subtotal={subtotal} serviceFee={platformFee} tax={tax} tip={tip} taxRate={taxRate} />
-
         <div className="space-y-4">
           <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground px-1">PAYMENT METHOD</h3>
           <RadioGroup value={paymentMethod} onValueChange={(v: any) => setPaymentMethod(v)} className="grid grid-cols-1 gap-3">
-            <div 
-              className={cn(
-                "flex items-center justify-between p-4 rounded-2xl border-2 transition-all cursor-pointer",
-                paymentMethod === 'Pay at Delivery' ? "border-primary bg-primary/5 shadow-md" : "border-slate-100 hover:border-slate-200"
-              )}
-              onClick={() => setPaymentMethod('Pay at Delivery')}
-            >
+            <div className={cn("flex items-center justify-between p-4 rounded-2xl border-2 transition-all cursor-pointer", paymentMethod === 'Pay at Delivery' ? "border-primary bg-primary/5 shadow-md" : "border-slate-100 hover:border-slate-200")} onClick={() => setPaymentMethod('Pay at Delivery')}>
               <div className="flex items-center gap-4">
-                <div className={cn("p-2 rounded-lg", paymentMethod === 'Pay at Delivery' ? "bg-primary text-white" : "bg-slate-100 text-slate-400")}>
-                  <Banknote className="h-5 w-5" />
-                </div>
-                <div className="text-left">
-                  <p className="text-xs font-black uppercase tracking-tight text-[#213147]">Pay at Delivery</p>
-                  <p className="text-[9px] font-bold text-muted-foreground uppercase">Cash or Card on-site</p>
-                </div>
+                <div className={cn("p-2 rounded-lg", paymentMethod === 'Pay at Delivery' ? "bg-primary text-white" : "bg-slate-100 text-slate-400")}><Banknote className="h-5 w-5" /></div>
+                <div className="text-left"><p className="text-xs font-black uppercase tracking-tight text-[#213147]">Pay at Delivery</p><p className="text-[9px] font-bold text-muted-foreground uppercase">Cash or Card on-site</p></div>
               </div>
               {paymentMethod === 'Pay at Delivery' && <Check className="h-4 w-4 text-primary" />}
             </div>
-
-            <div 
-              className={cn(
-                "flex items-center justify-between p-4 rounded-2xl border-2 transition-all cursor-pointer",
-                paymentMethod === 'Stripe' ? "border-primary bg-primary/5 shadow-md" : "border-slate-100 hover:border-slate-200"
-              )}
-              onClick={() => setPaymentMethod('Stripe')}
-            >
+            <div className={cn("flex items-center justify-between p-4 rounded-2xl border-2 transition-all cursor-pointer", paymentMethod === 'Stripe' ? "border-primary bg-primary/5 shadow-md" : "border-slate-100 hover:border-slate-200")} onClick={() => setPaymentMethod('Stripe')}>
               <div className="flex items-center gap-4">
-                <div className={cn("p-2 rounded-lg", paymentMethod === 'Stripe' ? "bg-primary text-white" : "bg-slate-100 text-slate-400")}>
-                  <CreditCard className="h-5 w-5" />
-                </div>
-                <div className="text-left">
-                  <p className="text-xs font-black uppercase tracking-tight text-[#213147]">Digital Checkout</p>
-                  <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">SECURE PAYMENT ELEMENT</p>
-                </div>
+                <div className={cn("p-2 rounded-lg", paymentMethod === 'Stripe' ? "bg-primary text-white" : "bg-slate-100 text-slate-400")}><CreditCard className="h-5 w-5" /></div>
+                <div className="text-left"><p className="text-xs font-black uppercase tracking-tight text-[#213147]">Digital Checkout</p><p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">SECURE PAYMENT ELEMENT</p></div>
               </div>
               {paymentMethod === 'Stripe' && <Check className="h-4 w-4 text-primary" />}
             </div>
           </RadioGroup>
-
-          {paymentMethod === 'Stripe' && (
-            isFetchingIntent ? (
-              <div className="flex flex-col items-center gap-2 py-8">
-                <Loader2 className="h-6 w-6 animate-spin text-primary opacity-50" />
-                <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Initializing Secure Environment...</p>
-              </div>
-            ) : clientSecret ? (
-              <Elements stripe={stripePromise} options={{ clientSecret }}>
-                <StripeActionArea 
-                  clientSecret={clientSecret} 
-                  isProcessing={isProcessing} 
-                  setIsProcessing={setIsProcessing}
-                  onOrderComplete={onOrderComplete}
-                  orderData={currentOrderData}
-                />
-              </Elements>
-            ) : (
-              <div className="p-8 text-center border-2 border-dashed rounded-3xl">
-                <AlertTriangle className="h-6 w-6 text-amber-500 mx-auto mb-2" />
-                <p className="text-[10px] font-bold text-amber-700 uppercase">Configuration required to initialize payments</p>
-              </div>
-            )
-          )}
-
-          {paymentMethod === 'Pay at Delivery' && (
-            <div className="fixed bottom-7 left-0 right-0 p-4 bg-white/80 backdrop-blur-md border-t z-50">
-              <Button 
-                size="lg" 
-                className="w-full h-14 font-black uppercase tracking-widest gap-2 shadow-xl" 
-                onClick={handleManualOrder}
-                disabled={isProcessing}
-              >
-                {isProcessing ? <Loader2 className="animate-spin" /> : <ShoppingBag className="h-5 w-5" />} 
-                PLACE ORDER
-              </Button>
-            </div>
-          )}
+          {paymentMethod === 'Stripe' && (isFetchingIntent ? (<div className="flex flex-col items-center gap-2 py-8"><Loader2 className="h-6 w-6 animate-spin text-primary opacity-50" /><p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Initializing Secure Environment...</p></div>) : clientSecret ? (<Elements stripe={stripePromise} options={{ clientSecret }}><StripeActionArea clientSecret={clientSecret} isProcessing={isProcessing} setIsProcessing={setIsProcessing} onOrderComplete={onOrderComplete} orderData={currentOrderData} /></Elements>) : (<div className="p-8 text-center border-2 border-dashed rounded-3xl"><AlertTriangle className="h-6 w-6 text-amber-500 mx-auto mb-2" /><p className="text-[10px] font-bold text-amber-700 uppercase">Configuration required to initialize payments</p></div>))}
+          {paymentMethod === 'Pay at Delivery' && (<div className="fixed bottom-7 left-0 right-0 p-4 bg-white/80 backdrop-blur-md border-t z-50"><Button size="lg" className="w-full h-14 font-black uppercase tracking-widest gap-2 shadow-xl" onClick={handleManualOrder} disabled={isProcessing}>{isProcessing ? <Loader2 className="animate-spin" /> : <ShoppingBag className="h-5 w-5" />} PLACE ORDER</Button></div>)}
         </div>
       </div>
     </ScrollArea>
@@ -365,7 +271,6 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
   const router = useRouter();
   const searchParams = useSearchParams();
   const { orderItems, updateItem, isCartOpen, setIsCartOpen, clearCart } = useCart();
-
   const menuTypeFromUrl = searchParams.get('menuType');
   const [selectedMenuType, setSelectedMenuType] = useState<string>(menuTypeFromUrl || '');
   const [locationValue, setLocationValue] = useState<string>('');
@@ -407,28 +312,113 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
     clearCart();
   };
 
+  const scrollToCategory = (category: string) => {
+    const element = document.getElementById(category.toLowerCase().replace(/\s+/g, '-'));
+    if (element) {
+      const offset = 140; // Space for sticky nav
+      const bodyRect = document.body.getBoundingClientRect().top;
+      const elementRect = element.getBoundingClientRect().top;
+      const elementPosition = elementRect - bodyRect;
+      const offsetPosition = elementPosition - offset;
+      window.scrollTo({ top: offsetPosition, behavior: 'smooth' });
+    }
+  };
+
+  const isServiceActive = (type: string) => {
+    if (!seller) return false;
+    switch(type) {
+      case 'Beverage Cart': return seller.bevcartActive;
+      case 'Clubhouse': return seller.clubhouseActive;
+      case 'Lane Delivery': return seller.lanedeliveryActive;
+      case 'Take Out': return seller.takeoutActive;
+      default: return true;
+    }
+  };
+
   const isLoading = isSellerLoading || areItemsLoading;
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col min-h-screen bg-background items-center justify-center">
+        <Loader2 className="animate-spin h-10 w-10 text-primary" />
+        <p className="mt-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground">Initializing Menu...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
-      <div className="bg-muted/30 border-b">
-        <div className="px-4 py-3 space-y-3 max-w-2xl mx-auto">
-          <Label className="text-[9px] uppercase font-bold tracking-widest text-muted-foreground">Select Service</Label>
-          <div className="flex gap-2 overflow-x-auto no-scrollbar">
-            {seller?.menuTypes?.map((type) => {
-              const Icon = serviceTypeIcons[type] || Store;
-              return (
-                <Button key={type} variant={selectedMenuType === type ? 'default' : 'secondary'} size="sm" onClick={() => setSelectedMenuType(type)} className="h-8 text-[10px] font-bold">
-                  <Icon className="h-3.5 w-3.5 mr-1.5" /> {type}
-                </Button>
-              );
-            })}
+      {/* 🌟 DYNAMIC VENUE HEADER - TOP THIRD */}
+      <header className="relative w-full h-[35vh] flex flex-col items-center justify-center text-center px-6 bg-[#213147] overflow-hidden">
+        {/* Background Decorative Rings */}
+        <div className="absolute inset-0 z-0 opacity-10">
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full border-[30px] border-white" />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] rounded-full border-[20px] border-white" />
+        </div>
+        
+        <div className="relative z-10 space-y-6 max-w-lg w-full">
+          <div className="space-y-1">
+            <p className="text-[10px] font-black uppercase tracking-[0.3em] text-primary">Ordering From</p>
+            <h1 className="font-headline text-3xl sm:text-4xl font-black text-white uppercase tracking-tight leading-none drop-shadow-lg">
+              {seller?.courseName}
+            </h1>
+          </div>
+
+          <div className="space-y-3">
+            <p className="text-[9px] font-bold uppercase tracking-widest text-white/40">Select Service Mode</p>
+            <div className="flex flex-wrap justify-center gap-2">
+              {seller?.menuTypes?.map((type) => {
+                const Icon = serviceTypeIcons[type] || Store;
+                const active = isServiceActive(type);
+                const isSelected = selectedMenuType === type;
+                
+                return (
+                  <button
+                    key={type}
+                    disabled={!active}
+                    onClick={() => setSelectedMenuType(type)}
+                    className={cn(
+                      "flex items-center gap-2 px-4 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all shadow-lg",
+                      isSelected 
+                        ? "bg-primary text-white scale-105" 
+                        : (active ? "bg-white/10 text-white hover:bg-white/20" : "bg-white/5 text-white/30 grayscale cursor-not-allowed")
+                    )}
+                  >
+                    <Icon className="h-3.5 w-3.5" />
+                    {type}
+                    {!active && <span className="ml-1 opacity-50">(OFF)</span>}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <p className="text-[9px] font-bold uppercase tracking-[0.1em] text-white/50 flex items-center justify-center gap-1.5">
+            <Info className="h-2.5 w-2.5" />
+            All orders include a small convenience fee
+          </p>
+        </div>
+      </header>
+
+      {/* 🌟 STICKY CATEGORY NAV */}
+      <div className="sticky top-16 z-30 bg-white/95 backdrop-blur-md border-b-2 shadow-sm">
+        <div className="max-w-2xl mx-auto px-4 py-3">
+          <div className="flex gap-2 overflow-x-auto no-scrollbar py-1">
+            {currentCategories.map((cat) => (
+              <button
+                key={cat}
+                onClick={() => scrollToCategory(cat)}
+                className="whitespace-nowrap px-4 py-1.5 rounded-full bg-slate-50 border-2 border-slate-100 text-[9px] font-black uppercase tracking-widest text-slate-500 hover:border-primary/30 hover:text-primary transition-all active:scale-95"
+              >
+                {cat}
+              </button>
+            ))}
           </div>
         </div>
       </div>
 
-      <main className="flex-1 px-4 pt-6 pb-32 max-w-2xl mx-auto w-full">
-        {isLoading ? <Skeleton className="h-40 w-full" /> : (
+      <main className="flex-1 px-4 pt-8 pb-32 max-w-2xl mx-auto w-full">
+        {selectedMenuType ? (
           <BuyerMenu 
             orderItems={orderItems} 
             onUpdateItem={updateItem} 
@@ -437,21 +427,34 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
             menuItems={filteredMenuItems} 
             selectedMenuType={selectedMenuType}
           />
+        ) : (
+          <div className="flex flex-col items-center justify-center py-20 text-center space-y-4 opacity-40">
+            <div className="p-6 bg-slate-100 rounded-full">
+              <Utensils className="h-12 w-12 text-[#213147]" />
+            </div>
+            <div className="space-y-1">
+              <p className="font-headline font-black uppercase tracking-widest text-[#213147]">Awaiting Selection</p>
+              <p className="text-[10px] font-bold uppercase tracking-widest">Please choose a service mode above to view the menu</p>
+            </div>
+          </div>
         )}
       </main>
 
       <Sheet open={isCartOpen} onOpenChange={setIsCartOpen}>
         {activeOrderItems.length > 0 && (
-          <div className="fixed bottom-7 left-0 right-0 p-4 bg-white/80 backdrop-blur-md border-t z-30">
+          <div className="fixed bottom-7 left-0 right-0 p-4 bg-white/80 backdrop-blur-md border-t z-40">
             <SheetTrigger asChild>
-              <Button size="lg" className="w-full font-black uppercase tracking-widest">Review Order — ${subtotal.toFixed(2)}</Button>
+              <Button size="lg" className="w-full h-14 font-black uppercase tracking-widest shadow-xl flex justify-between px-8">
+                <span>REVIEW ORDER</span>
+                <span className="bg-white/20 px-3 py-1 rounded-lg">${subtotal.toFixed(2)}</span>
+              </Button>
             </SheetTrigger>
           </div>
         )}
         <SheetContent side="bottom" className="rounded-t-[2rem] h-[90vh] flex flex-col p-0">
           <SheetHeader className="px-6 py-4 border-b bg-white">
             <div className="flex justify-between items-center pr-10">
-              <SheetTitle>Review Order</SheetTitle>
+              <SheetTitle className="font-headline font-black uppercase tracking-tight">Checkout</SheetTitle>
             </div>
           </SheetHeader>
           <CheckoutDrawerContent 
