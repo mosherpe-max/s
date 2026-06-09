@@ -48,7 +48,9 @@ import {
   Link as LinkIcon,
   PanelLeftClose,
   PanelLeft,
-  HeartPulse
+  HeartPulse,
+  Database,
+  RefreshCw
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -89,7 +91,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useFirestore, useCollection, useMemoFirebase, useFirebase, useAuth, useDoc } from '@/firebase';
 import { signOut } from 'firebase/auth';
-import { collection, query, limit, doc, setDoc, serverTimestamp, where, orderBy, updateDoc, getDoc } from 'firebase/firestore';
+import { collection, query, limit, doc, setDoc, serverTimestamp, where, orderBy, updateDoc, getDoc, getDocs, writeBatch } from 'firebase/firestore';
 import { httpsCallable, getFunctions } from 'firebase/functions';
 import type { Seller, PlatformConfig, Order, SalesRepRole, Venue } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -157,6 +159,7 @@ export default function PlatformAdminPage() {
   const [isVenueDetailOpen, setIsVenueDetailOpen] = useState(false);
   const [isProcessingStripe, setIsProcessingStripe] = useState(false);
   const [isVerifyingStripe, setIsVerifyingStripe] = useState(false);
+  const [isMigrating, setIsMigrating] = useState(false);
   const [verificationResult, setVerificationResult] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -165,6 +168,7 @@ export default function PlatformAdminPage() {
   const [stripeConnectId, setStripeConnectId] = useState('');
   const [platformFeeFixed, setPlatformFeeFixed] = useState(20);
   const [platformFeePercent, setPlatformFeePercent] = useState(0);
+  const [patronConvenienceFee, setPatronConvenienceFee] = useState(150);
   const [payoutsEnabled, setPayoutsEnabled] = useState(false);
   const [manualOnboardingLink, setManualOnboardingLink] = useState('');
 
@@ -205,6 +209,7 @@ export default function PlatformAdminPage() {
         setStripeConnectId(data.stripeConnectId || '');
         setPlatformFeeFixed(data.platformFeeFixed ?? 20);
         setPlatformFeePercent(data.platformFeePercent ?? 0);
+        setPatronConvenienceFee(data.patronConvenienceFee ?? 150);
         setPayoutsEnabled(data.payoutsEnabled || false);
         setManualOnboardingLink((data as any).stripeOnboardingLink || '');
       } else {
@@ -213,6 +218,7 @@ export default function PlatformAdminPage() {
         setStripeConnectId('');
         setPlatformFeeFixed(20);
         setPlatformFeePercent(0);
+        setPatronConvenienceFee(150);
         setPayoutsEnabled(false);
         setManualOnboardingLink('');
       }
@@ -246,7 +252,7 @@ export default function PlatformAdminPage() {
     return {
       venueCounts: { total: activeSellers.length, golf: golfVenues.length, bowling: bowlingVenues.length, other: activeSellers.length - golfVenues.length - bowlingVenues.length },
       gmv: { mtd: mtdGMV, trailing30: trailing30GMV },
-      orders: { today: todayOrders.length, mtd: mtdOrders.length, allTime: orders.length },
+      orders: { today: todayOrders.length, mtd: mtdOrders.length, all_time: orders.length },
       fees: { mtd: mtdFees, projected: projectedFees }
     };
   }, [sellers, orders]);
@@ -258,17 +264,6 @@ export default function PlatformAdminPage() {
       router.push('/login');
     } catch (error: any) {
       toast({ variant: "destructive", title: "Logout Failed", description: error.message });
-    }
-  };
-
-  const handleToggleVenueStatus = async (venue: Seller) => {
-    if (!firestore) return;
-    const newStatus = venue.status === 'Active' ? 'Inactive' : 'Active';
-    try {
-      await updateDoc(doc(firestore, 'sellers', venue.id), { status: newStatus });
-      toast({ title: "Status Updated", description: `${venue.courseName} is now ${newStatus}.` });
-    } catch (e: any) {
-      toast({ variant: "destructive", title: "Error", description: e.message });
     }
   };
 
@@ -284,6 +279,7 @@ export default function PlatformAdminPage() {
         stripeConnectId: stripeConnectId.trim(),
         platformFeeFixed: Number(platformFeeFixed),
         platformFeePercent: Number(platformFeePercent),
+        patronConvenienceFee: Number(patronConvenienceFee),
         payoutsEnabled: payoutsEnabled,
         stripeOnboardingLink: manualOnboardingLink.trim(),
         updatedAt: serverTimestamp(),
@@ -314,8 +310,6 @@ export default function PlatformAdminPage() {
       });
     } catch (e: any) {
       const errorMsg = e?.details?.details || e.message || "Unknown server error during verification.";
-      console.error('💥 [VERIFY FAILED]:', errorMsg, e);
-      
       toast({ 
         variant: "destructive", 
         title: "Connection Failed", 
@@ -323,6 +317,35 @@ export default function PlatformAdminPage() {
       });
     } finally {
       setIsVerifyingStripe(false);
+    }
+  };
+
+  const handleRunConvenienceFeeMigration = async () => {
+    if (!firestore) return;
+    setIsMigrating(true);
+    try {
+      const batch = writeBatch(firestore);
+      const snapshot = await getDocs(collection(firestore, 'venues'));
+      
+      let count = 0;
+      snapshot.docs.forEach(docSnap => {
+        const data = docSnap.data();
+        if (data.patronConvenienceFee === undefined) {
+          batch.update(docSnap.ref, { patronConvenienceFee: 150, updatedAt: serverTimestamp() });
+          count++;
+        }
+      });
+
+      if (count > 0) {
+        await batch.commit();
+        toast({ title: "Migration Complete", description: `Updated ${count} venues with default $1.50 fee.` });
+      } else {
+        toast({ title: "Migration Skipped", description: "All venues already have convenience fee defined." });
+      }
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Migration Failed", description: e.message });
+    } finally {
+      setIsMigrating(false);
     }
   };
 
@@ -398,7 +421,7 @@ export default function PlatformAdminPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                   <KPICard label="Active Partners" value={metrics?.venueCounts.total || 0} sub={`${metrics?.venueCounts.golf} Golf • ${metrics?.venueCounts.bowling} Bowling`} icon={Store} colorClass="bg-indigo-600" trend="+2" />
                   <KPICard label="Platform GMV" value={`$${metrics?.gmv.mtd.toLocaleString(undefined, { minimumFractionDigits: 2 })}`} sub={`30D Vol: $${metrics?.gmv.trailing30.toLocaleString()}`} icon={DollarSign} colorClass="bg-green-600" trend="+12%" />
-                  <KPICard label="Orders Processed" value={metrics?.orders.mtd || 0} sub={`${metrics?.orders.today} today • ${metrics?.orders.allTime} total`} icon={ShoppingBag} colorClass="bg-primary" trend="+8%" />
+                  <KPICard label="Orders Processed" value={metrics?.orders.mtd || 0} sub={`${metrics?.orders.today} today • ${metrics?.orders.all_time} total`} icon={ShoppingBag} colorClass="bg-primary" trend="+8%" />
                   <KPICard label="Fee Revenue (MTD)" value={`$${metrics?.fees.mtd.toLocaleString(undefined, { minimumFractionDigits: 2 })}`} sub={`Projected: $${metrics?.fees.projected.toLocaleString()}`} icon={BarChart3} colorClass="bg-amber-500" />
                 </div>
               </div>
@@ -439,6 +462,39 @@ export default function PlatformAdminPage() {
                       ))}
                     </TableBody>
                   </Table>
+                </div>
+              </div>
+            )}
+
+            {activeNav === 'system' && (
+              <div className="space-y-6 animate-in fade-in duration-500">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                   <Card className="border-2 shadow-sm">
+                      <CardHeader className="border-b bg-slate-50/50">
+                        <div className="flex items-center gap-3">
+                          <Database className="h-5 w-5 text-indigo-600" />
+                          <CardTitle className="font-black uppercase tracking-tight text-sm">Database Maintenance</CardTitle>
+                        </div>
+                        <CardDescription className="text-[10px] font-bold uppercase">Multi-tenant schema updates</CardDescription>
+                      </CardHeader>
+                      <CardContent className="p-6 space-y-4">
+                        <div className="space-y-2">
+                           <p className="text-xs font-bold text-[#213147] uppercase tracking-tight">Initialize Patron Convenience Fee</p>
+                           <p className="text-[10px] text-muted-foreground leading-relaxed">
+                             This script adds the `patronConvenienceFee` field to all existing venue registries that are missing it. 
+                             Default value: <span className="font-black text-primary">150 cents ($1.50)</span>.
+                           </p>
+                        </div>
+                        <Button 
+                          onClick={handleRunConvenienceFeeMigration} 
+                          disabled={isMigrating} 
+                          className="w-full bg-[#213147] hover:bg-black font-black uppercase tracking-widest text-[10px] h-12 gap-2"
+                        >
+                          {isMigrating ? <Loader2 className="animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                          Run Schema Migration
+                        </Button>
+                      </CardContent>
+                   </Card>
                 </div>
               </div>
             )}
@@ -486,14 +542,18 @@ export default function PlatformAdminPage() {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-indigo-100 pt-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 border-t border-indigo-100 pt-4">
                       <div className="grid gap-2">
-                        <Label className="text-[10px] font-black uppercase tracking-widest text-indigo-600">Platform Fixed Fee (Cents)</Label>
+                        <Label className="text-[10px] font-black uppercase tracking-widest text-indigo-600">Koop Fixed (Cents)</Label>
                         <Input type="number" value={platformFeeFixed} onChange={(e) => setPlatformFeeFixed(Number(e.target.value))} className="font-bold border-2 border-indigo-200" />
                       </div>
                       <div className="grid gap-2">
-                        <Label className="text-[10px] font-black uppercase tracking-widest text-indigo-600">Platform Percent Fee (%)</Label>
+                        <Label className="text-[10px] font-black uppercase tracking-widest text-indigo-600">Koop % Fee</Label>
                         <Input type="number" step="0.1" value={platformFeePercent} onChange={(e) => setPlatformFeePercent(Number(e.target.value))} className="font-bold border-2 border-indigo-200" />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label className="text-[10px] font-black uppercase tracking-widest text-primary">Patron Fee (Cents)</Label>
+                        <Input type="number" value={patronConvenienceFee} onChange={(e) => setPatronConvenienceFee(Number(e.target.value))} className="font-bold border-2 border-primary/20" />
                       </div>
                     </div>
 

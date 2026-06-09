@@ -25,6 +25,7 @@ export interface Venue {
   stripeConnectId?: string;
   platformFeeFixed?: number;
   platformFeePercent?: number;
+  patronConvenienceFee?: number;
   stripeOnboardingComplete?: boolean;
   payoutsEnabled?: boolean;
   createdAt: Timestamp;
