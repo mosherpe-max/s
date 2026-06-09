@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -87,14 +86,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Switch } from '@/components/ui/switch';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useFirestore, useCollection, useMemoFirebase, useFirebase, useAuth, useDoc } from '@/firebase';
 import { signOut } from 'firebase/auth';
 import { collection, query, limit, doc, setDoc, serverTimestamp, where, orderBy, updateDoc, getDoc, getDocs, writeBatch } from 'firebase/firestore';
 import { httpsCallable, getFunctions } from 'firebase/functions';
 import type { Seller, PlatformConfig, Order, SalesRepRole, Venue } from '@/lib/types';
-import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { StylizedKoopLogo } from '@/components/header';
@@ -271,8 +268,11 @@ export default function PlatformAdminPage() {
     if (!firestore || !selectedVenue) return;
     setIsProcessingStripe(true);
     try {
+      const batch = writeBatch(firestore);
       const venueRef = doc(firestore, 'venues', selectedVenue.id);
-      await setDoc(venueRef, {
+      const sellerRef = doc(firestore, 'sellers', selectedVenue.id);
+
+      const registryData = {
         venueId: selectedVenue.id,
         name: selectedVenue.courseName,
         stripeAccountId: stripeAccountId.trim(),
@@ -283,9 +283,18 @@ export default function PlatformAdminPage() {
         payoutsEnabled: payoutsEnabled,
         stripeOnboardingLink: manualOnboardingLink.trim(),
         updatedAt: serverTimestamp(),
-      }, { merge: true });
+      };
 
-      toast({ title: "Venue Payment Registry Saved" });
+      batch.set(venueRef, registryData, { merge: true });
+      
+      // Keep operational Seller document in sync with the variable fee (stored in dollars)
+      batch.update(sellerRef, {
+        serviceFee: Number(patronConvenienceFee) / 100,
+        updatedAt: serverTimestamp()
+      });
+
+      await batch.commit();
+      toast({ title: "Venue Payment Registry & Profile Updated" });
     } catch (e: any) {
       toast({ variant: "destructive", title: "Update Failed", description: e.message });
     } finally {
@@ -325,20 +334,26 @@ export default function PlatformAdminPage() {
     setIsMigrating(true);
     try {
       const batch = writeBatch(firestore);
-      const snapshot = await getDocs(collection(firestore, 'venues'));
+      const venuesSnapshot = await getDocs(collection(firestore, 'venues'));
       
       let count = 0;
-      snapshot.docs.forEach(docSnap => {
+      venuesSnapshot.docs.forEach(docSnap => {
         const data = docSnap.data();
         if (data.patronConvenienceFee === undefined) {
+          // Update Registry
           batch.update(docSnap.ref, { patronConvenienceFee: 150, updatedAt: serverTimestamp() });
+          
+          // Update corresponding operational Seller profile
+          const sellerRef = doc(firestore, 'sellers', docSnap.id);
+          batch.update(sellerRef, { serviceFee: 1.50, updatedAt: serverTimestamp() });
+          
           count++;
         }
       });
 
       if (count > 0) {
         await batch.commit();
-        toast({ title: "Migration Complete", description: `Updated ${count} venues with default $1.50 fee.` });
+        toast({ title: "Migration Complete", description: `Updated ${count} venues with default $1.50 variable fee.` });
       } else {
         toast({ title: "Migration Skipped", description: "All venues already have convenience fee defined." });
       }
@@ -443,7 +458,7 @@ export default function PlatformAdminPage() {
                       <TableRow>
                         <TableHead className="text-[10px] font-black uppercase">Establishment</TableHead>
                         <TableHead className="text-[10px] font-black uppercase">Type</TableHead>
-                        <TableHead className="text-[10px] font-black uppercase">Fee Tier</TableHead>
+                        <TableHead className="text-[10px] font-black uppercase">Service Fee</TableHead>
                         <TableHead className="text-[10px] font-black uppercase">Status</TableHead>
                         <TableHead className="text-[10px] font-black uppercase text-right">Actions</TableHead>
                       </TableRow>
