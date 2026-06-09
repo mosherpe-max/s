@@ -316,7 +316,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
   const scrollToCategory = (category: string) => {
     const element = document.getElementById(category.toLowerCase().replace(/\s+/g, '-'));
     if (element) {
-      const offset = 140; // Space for sticky nav
+      const offset = 160; // Space for sticky nav + context bar
       const bodyRect = document.body.getBoundingClientRect().top;
       const elementRect = element.getBoundingClientRect().top;
       const elementPosition = elementRect - bodyRect;
@@ -424,9 +424,9 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
         </div>
       </header>
 
-      {/* 🌟 STICKY CATEGORY NAV */}
+      {/* 🌟 STICKY CATEGORY NAV & CONTEXT BAR */}
       <div className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b-2 shadow-sm">
-        <div className="max-w-2xl mx-auto px-4 py-3">
+        <div className="max-w-2xl mx-auto px-4 pt-3 pb-1">
           <div className="flex gap-2 overflow-x-auto no-scrollbar py-1">
             {currentCategories.map((cat) => (
               <button
@@ -438,6 +438,18 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
               </button>
             ))}
           </div>
+        </div>
+        {/* Sticky Ordering Context Statement */}
+        <div className="max-w-2xl mx-auto px-4 pb-3 pt-1 text-center">
+          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 leading-tight">
+            You are ordering from <span className="text-[#213147]">{seller?.courseName}</span>
+            {selectedMenuType && (
+              <span className="text-primary ml-1">
+                <span className="mx-1.5 opacity-30">•</span>
+                {selectedMenuType}
+              </span>
+            )}
+          </p>
         </div>
       </div>
 
