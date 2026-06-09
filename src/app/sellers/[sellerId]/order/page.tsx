@@ -29,7 +29,8 @@ import {
   Banknote,
   Check,
   AlertTriangle,
-  Info
+  Info,
+  ShoppingCart
 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useCart } from '@/lib/cart-context';
@@ -270,7 +271,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
   const firestore = useFirestore();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { orderItems, updateItem, isCartOpen, setIsCartOpen, clearCart } = useCart();
+  const { orderItems, updateItem, isCartOpen, setIsCartOpen, clearCart, total, totalItems } = useCart();
   const menuTypeFromUrl = searchParams.get('menuType');
   const [selectedMenuType, setSelectedMenuType] = useState<string>(menuTypeFromUrl || '');
   const [locationValue, setLocationValue] = useState<string>('');
@@ -349,11 +350,33 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
   return (
     <div className="flex flex-col min-h-screen bg-background">
       {/* 🌟 DYNAMIC VENUE HEADER - TOP THIRD */}
-      <header className="relative w-full h-[35vh] flex flex-col items-center justify-center text-center px-6 bg-[#213147] overflow-hidden">
+      <header className="relative w-full h-[35vh] flex flex-col items-center justify-center text-center px-6 bg-[#213147] overflow-hidden shrink-0">
         {/* Background Decorative Rings */}
         <div className="absolute inset-0 z-0 opacity-10">
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full border-[30px] border-white" />
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] rounded-full border-[20px] border-white" />
+        </div>
+
+        {/* 🌟 INTEGRATED CART BUTTON (Replaces Global Header Cart) */}
+        <div className="absolute top-4 right-4 z-20">
+          <Button 
+            variant="outline" 
+            className="flex items-center gap-2 h-11 px-4 border-white/20 text-white hover:bg-white/10 hover:text-white bg-[#213147]/50 backdrop-blur-md rounded-full transition-all"
+            onClick={() => setIsCartOpen(true)}
+          >
+            <div className="flex flex-col items-end leading-none mr-1">
+              <span className="text-[9px] uppercase font-black text-white/50 tracking-widest">Order</span>
+              <span className="text-sm font-mono font-black text-white">${total.toFixed(2)}</span>
+            </div>
+            <div className="relative">
+              <ShoppingCart className="h-5 w-5 text-white" />
+              {totalItems > 0 && (
+                <span className="absolute -top-2 -right-2 bg-red-600 text-white text-[9px] font-black rounded-full w-4 h-4 flex items-center justify-center shadow-lg animate-in zoom-in duration-300">
+                  {totalItems}
+                </span>
+              )}
+            </div>
+          </Button>
         </div>
         
         <div className="relative z-10 space-y-6 max-w-lg w-full">
@@ -401,7 +424,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
       </header>
 
       {/* 🌟 STICKY CATEGORY NAV */}
-      <div className="sticky top-16 z-30 bg-white/95 backdrop-blur-md border-b-2 shadow-sm">
+      <div className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b-2 shadow-sm">
         <div className="max-w-2xl mx-auto px-4 py-3">
           <div className="flex gap-2 overflow-x-auto no-scrollbar py-1">
             {currentCategories.map((cat) => (

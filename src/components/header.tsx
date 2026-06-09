@@ -134,12 +134,14 @@ export function AppHeader() {
 
   const isDriverPage = pathname?.includes('/bevcart') || pathname?.includes('/clubhouse') || pathname?.includes('/laneside');
   const isTrackingPage = pathname?.includes('/order/track');
-  const isBuyerView = pathname?.includes('/order') && !isDriverPage;
   
-  const showServiceSubtext = (isBuyerView || isTrackingPage) && !isDriverPage;
-  const activeMenuType = menuTypeParam || order?.menuType;
+  // 🌟 HIDE GLOBAL HEADER ON BUYER MENU PAGE
+  const isBuyerView = pathname?.includes('/order') && !isDriverPage && !isTrackingPage;
+  
+  if (isDriverPage || isBuyerView) return null;
 
-  if (isDriverPage) return null;
+  const showServiceSubtext = isTrackingPage && !isDriverPage;
+  const activeMenuType = menuTypeParam || order?.menuType;
 
   const NavigationLinks = ({ mobile = false }: { mobile?: boolean }) => {
     const itemClass = mobile 
@@ -356,27 +358,6 @@ export function AppHeader() {
         )}
         
         <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-          {isMounted && isBuyerView && !isTrackingPage && (
-            <Button 
-              variant="outline" 
-              className="flex items-center gap-2 h-10 px-3 sm:px-4 border-white/20 text-white hover:bg-white/10 hover:text-white bg-transparent rounded-full transition-all"
-              onClick={() => setIsCartOpen(true)}
-            >
-              <div className="flex flex-col items-end leading-none mr-1 hidden sm:flex">
-                <span className="text-[9px] uppercase font-black text-white/50 tracking-widest">Order</span>
-                <span className="text-sm font-mono font-black text-white">${total.toFixed(2)}</span>
-              </div>
-              <div className="relative">
-                <ShoppingCart className="h-5 w-5 text-white" />
-                {totalItems > 0 && (
-                  <span className="absolute -top-2 -right-2 bg-red-600 text-white text-[9px] font-black rounded-full w-4 h-4 flex items-center justify-center shadow-lg">
-                    {totalItems}
-                  </span>
-                )}
-              </div>
-            </Button>
-          )}
-
           {isMounted && isHomePage && (
             <Button asChild className="h-9 px-6 font-headline font-black uppercase text-[11px] tracking-widest bg-[#E50000] hover:bg-[#c40000] text-white rounded-full transition-all shadow-lg">
               <Link href="/login">INTERNAL</Link>
