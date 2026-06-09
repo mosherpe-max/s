@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -159,7 +160,11 @@ export default function PlatformAdminPage() {
   const [verificationResult, setVerificationResult] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
+  // Venue Stripe State
   const [stripeAccountId, setStripeAccountId] = useState('');
+  const [stripeConnectId, setStripeConnectId] = useState('');
+  const [platformFeeFixed, setPlatformFeeFixed] = useState(20);
+  const [platformFeePercent, setPlatformFeePercent] = useState(0);
   const [payoutsEnabled, setPayoutsEnabled] = useState(false);
   const [manualOnboardingLink, setManualOnboardingLink] = useState('');
 
@@ -197,11 +202,17 @@ export default function PlatformAdminPage() {
         const data = venueDoc.data() as Venue;
         setSelectedVenueRegistry(data);
         setStripeAccountId(data.stripeAccountId || '');
+        setStripeConnectId(data.stripeConnectId || '');
+        setPlatformFeeFixed(data.platformFeeFixed ?? 20);
+        setPlatformFeePercent(data.platformFeePercent ?? 0);
         setPayoutsEnabled(data.payoutsEnabled || false);
         setManualOnboardingLink((data as any).stripeOnboardingLink || '');
       } else {
         setSelectedVenueRegistry(null);
         setStripeAccountId('');
+        setStripeConnectId('');
+        setPlatformFeeFixed(20);
+        setPlatformFeePercent(0);
         setPayoutsEnabled(false);
         setManualOnboardingLink('');
       }
@@ -270,12 +281,15 @@ export default function PlatformAdminPage() {
         venueId: selectedVenue.id,
         name: selectedVenue.courseName,
         stripeAccountId: stripeAccountId.trim(),
+        stripeConnectId: stripeConnectId.trim(),
+        platformFeeFixed: Number(platformFeeFixed),
+        platformFeePercent: Number(platformFeePercent),
         payoutsEnabled: payoutsEnabled,
         stripeOnboardingLink: manualOnboardingLink.trim(),
         updatedAt: serverTimestamp(),
       }, { merge: true });
 
-      toast({ title: "Stripe Registry Saved" });
+      toast({ title: "Venue Payment Registry Saved" });
     } catch (e: any) {
       toast({ variant: "destructive", title: "Update Failed", description: e.message });
     } finally {
@@ -288,7 +302,6 @@ export default function PlatformAdminPage() {
     setIsVerifyingStripe(true);
     setVerificationResult(null);
     try {
-      // Use standard Firebase v2 Callable pattern
       const functions = getFunctions(firebaseApp, 'us-central1');
       const verify = httpsCallable(functions, 'verifyVenueConnection');
       
@@ -300,7 +313,6 @@ export default function PlatformAdminPage() {
         description: `Connected to ${(result.data as any).businessName}`
       });
     } catch (e: any) {
-      // Detailed error logging for internal diagnostics
       const errorMsg = e?.details?.details || e.message || "Unknown server error during verification.";
       console.error('💥 [VERIFY FAILED]:', errorMsg, e);
       
@@ -314,13 +326,6 @@ export default function PlatformAdminPage() {
     }
   };
 
-  const handleSendOnboardingLink = () => {
-    if (!manualOnboardingLink || !selectedVenue?.contactEmail) return;
-    const subject = encodeURIComponent(`Stripe Setup: ${selectedVenue.courseName}`);
-    const body = encodeURIComponent(`Link: ${manualOnboardingLink}`);
-    window.location.href = `mailto:${selectedVenue.contactEmail}?subject=${subject}&body=${body}`;
-  };
-
   if (!isMounted) return null;
 
   const NAV_ITEMS = [
@@ -330,7 +335,6 @@ export default function PlatformAdminPage() {
     { id: "orders", label: "Global Order Feed", icon: ClipboardList },
     { id: "reps", label: "Sales Rep Hub", icon: Briefcase },
     { id: "system", label: "System Control", icon: Settings2 },
-    { id: "patrons", label: "Patron Accounts", icon: UserCircle, disabled: true },
   ];
 
   return (
@@ -346,13 +350,13 @@ export default function PlatformAdminPage() {
 
         <nav className="flex-1 p-3 space-y-1">
           {NAV_ITEMS.map((item) => (
-            <div key={item.id} className={item.disabled ? "opacity-40 cursor-not-allowed" : ""}>
+            <div key={item.id}>
               <NavButton 
                 id={item.id} 
                 label={item.label} 
                 icon={item.icon} 
                 active={activeNav === item.id} 
-                onClick={item.disabled ? () => {} : setActiveNav}
+                onClick={setActiveNav}
                 sidebarOpen={sidebarOpen}
               />
             </div>
@@ -470,10 +474,27 @@ export default function PlatformAdminPage() {
                 </TabsContent>
 
                 <TabsContent value="stripe" className="space-y-6 pb-6">
-                  <div className="space-y-4 bg-indigo-50/50 p-6 rounded-[1.5rem] border-2 border-indigo-100">
-                    <div className="grid gap-2">
-                      <Label className="text-[10px] font-black uppercase tracking-widest text-indigo-600">Account ID</Label>
-                      <Input value={stripeAccountId} onChange={(e) => setStripeAccountId(e.target.value)} placeholder="acct_xxxxxxxx" className="font-mono font-bold border-2 border-indigo-200" />
+                  <div className="space-y-6 bg-indigo-50/50 p-6 rounded-[1.5rem] border-2 border-indigo-100">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="grid gap-2">
+                        <Label className="text-[10px] font-black uppercase tracking-widest text-indigo-600">Stripe Account ID</Label>
+                        <Input value={stripeAccountId} onChange={(e) => setStripeAccountId(e.target.value)} placeholder="acct_xxxxxxxx" className="font-mono font-bold border-2 border-indigo-200" />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label className="text-[10px] font-black uppercase tracking-widest text-indigo-600">Stripe Connect ID</Label>
+                        <Input value={stripeConnectId} onChange={(e) => setStripeConnectId(e.target.value)} placeholder="acct_xxxxxxxx" className="font-mono font-bold border-2 border-indigo-200" />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-indigo-100 pt-4">
+                      <div className="grid gap-2">
+                        <Label className="text-[10px] font-black uppercase tracking-widest text-indigo-600">Platform Fixed Fee (Cents)</Label>
+                        <Input type="number" value={platformFeeFixed} onChange={(e) => setPlatformFeeFixed(Number(e.target.value))} className="font-bold border-2 border-indigo-200" />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label className="text-[10px] font-black uppercase tracking-widest text-indigo-600">Platform Percent Fee (%)</Label>
+                        <Input type="number" step="0.1" value={platformFeePercent} onChange={(e) => setPlatformFeePercent(Number(e.target.value))} className="font-bold border-2 border-indigo-200" />
+                      </div>
                     </div>
 
                     <div className="flex items-center justify-between bg-white p-4 rounded-xl border-2 border-indigo-100">
@@ -522,4 +543,3 @@ export default function PlatformAdminPage() {
     </div>
   );
 }
-

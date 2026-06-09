@@ -1,3 +1,4 @@
+
 import { Timestamp } from "firebase/firestore";
 
 export type SellerType = 'Private Golf Course' | 'Semi Private Golf Course' | 'Public Golf Course' | 'Bowling Alley' | 'Brewery' | 'Restaurant';
@@ -21,6 +22,9 @@ export interface Venue {
   name: string;
   ownerUid: string;
   stripeAccountId?: string;
+  stripeConnectId?: string;
+  platformFeeFixed?: number;
+  platformFeePercent?: number;
   stripeOnboardingComplete?: boolean;
   payoutsEnabled?: boolean;
   createdAt: Timestamp;
