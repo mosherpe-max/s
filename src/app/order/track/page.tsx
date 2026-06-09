@@ -1,7 +1,7 @@
 
 'use client';
 
-import { Suspense, useEffect, useRef, useState } from 'react';
+import { Suspense, useEffect, useRef, useState, use } from 'react';
 import { collection, query, orderBy, limit, doc, updateDoc, serverTimestamp, where } from 'firebase/firestore';
 import { useCollection, useDoc, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import type { Order, Seller } from '@/lib/types';
@@ -14,9 +14,10 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { ShoppingBag, MapPin, Loader2, Store, ClipboardList, Satellite } from 'lucide-react';
+import { ShoppingBag, MapPin, Loader2, Store, ClipboardList, Satellite, Info } from 'lucide-react';
 import { APIProvider } from '@vis.gl/react-google-maps';
 import { getNumericOrderId } from '@/lib/utils';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 function OrderTrackingContent() {
   const firestore = useFirestore();
@@ -24,7 +25,6 @@ function OrderTrackingContent() {
   const searchParams = useSearchParams();
   const orderId = searchParams.get('id');
   
-  const wakeLockRef = useRef<any>(null);
   const watchIdRef = useRef<number | null>(null);
 
   const orderRef = useMemoFirebase(() => (firestore && orderId ? doc(firestore, 'orders', orderId) : null), [firestore, orderId]);
@@ -80,19 +80,66 @@ function OrderTrackingContent() {
               <div><p className="text-[9px] font-black text-muted-foreground uppercase">Venue</p><p className="text-xs font-bold">{seller?.courseName}</p></div>
               <div className="text-right"><p className="text-[9px] font-black text-muted-foreground uppercase">Service</p><p className="text-xs font-bold">{order.menuType}</p></div>
             </div>
+            
             <div className="space-y-2">
               <p className="text-[9px] font-black text-muted-foreground uppercase">Items</p>
               {order.items.map(i => (
-                <div key={i.cartId} className="flex justify-between text-xs font-medium">
-                  <span>{i.quantity}x {i.name}</span>
-                  <span className="font-mono">${(i.price * i.quantity).toFixed(2)}</span>
+                <div key={i.cartId} className="space-y-1">
+                  <div className="flex justify-between text-xs font-medium">
+                    <span>{i.quantity}x {i.name}</span>
+                    <span className="font-mono">${(i.price * i.quantity).toFixed(2)}</span>
+                  </div>
+                  {i.selectedModifiers && Object.values(i.selectedModifiers).flat().length > 0 && (
+                    <div className="flex flex-wrap gap-1 pl-4">
+                      {Object.values(i.selectedModifiers).flat().map((mod, idx) => (
+                        <span key={`${i.cartId}-mod-${idx}`} className="text-[8px] font-bold text-muted-foreground uppercase">
+                          + {mod.name}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
+
+            <Separator className="border-dashed" />
+
+            <div className="space-y-2.5">
+               <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                 <span>Subtotal</span>
+                 <span className="font-mono">${order.subtotal.toFixed(2)}</span>
+               </div>
+               <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                 <span>Tax</span>
+                 <span className="font-mono">${order.tax.toFixed(2)}</span>
+               </div>
+               <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                 <span>Gratuity</span>
+                 <span className="font-mono">${order.tip.toFixed(2)}</span>
+               </div>
+               <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                 <div className="flex items-center gap-1.5">
+                   <span>Convenience Fee</span>
+                   <Popover>
+                    <PopoverTrigger asChild>
+                      <button className="text-slate-300 hover:text-primary transition-colors">
+                        <Info className="h-3 w-3" />
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent className="text-[10px] normal-case tracking-normal p-3 rounded-xl max-w-[200px]">
+                      This fee supports the mobile ordering platform and real-time delivery logistics.
+                    </PopoverContent>
+                   </Popover>
+                 </div>
+                 <span className="font-mono">${order.serviceFee.toFixed(2)}</span>
+               </div>
+            </div>
+
             <Separator />
-            <div className="flex justify-between font-black text-lg uppercase tracking-tight">
+            
+            <div className="flex justify-between font-black text-lg uppercase tracking-tight text-[#213147]">
               <span>Total</span>
-              <span>${order.total.toFixed(2)}</span>
+              <span className="text-primary">${order.total.toFixed(2)}</span>
             </div>
           </CardContent>
         </Card>
@@ -104,7 +151,9 @@ function OrderTrackingContent() {
 export default function OrderTrackingPage() {
   return (
     <APIProvider apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!}>
-      <Suspense fallback={<Loader2 className="animate-spin" />}><OrderTrackingContent /></Suspense>
+      <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8 text-primary" /></div>}>
+        <OrderTrackingContent />
+      </Suspense>
     </APIProvider>
   );
 }
