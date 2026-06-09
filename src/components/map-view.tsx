@@ -1,8 +1,8 @@
 'use client'
 
-import { Truck, User, AlertCircle } from 'lucide-react';
+import { Truck, User, AlertCircle, Loader2 } from 'lucide-react';
 import { cn, getDriverColor } from '@/lib/utils';
-import { Map, Marker, useMap } from '@vis.gl/react-google-maps';
+import { Map, Marker, useMap, useApiIsLoaded } from '@vis.gl/react-google-maps';
 import { useEffect, useState } from 'react';
 
 interface MapViewProps {
@@ -28,46 +28,58 @@ interface MapViewProps {
   fitTrigger?: number; // A value that triggers a re-fit when changed
 }
 
+/**
+ * Internal component to handle map bounds and overlays.
+ * Only runs once the API is loaded and the map instance is ready.
+ */
 function MapElements({ buyerLocation, sellerLocation, sellers, buyers, radius, zoomMode = 'all', fitTrigger }: Omit<MapViewProps, 'interactive'>) {
   const map = useMap();
+  const apiIsLoaded = useApiIsLoaded();
 
   useEffect(() => {
-    if (!map) return;
+    // 🌟 CRITICAL: Ensure window.google exists before attempting bounds logic
+    if (!map || !apiIsLoaded || typeof window === 'undefined' || !window.google) return;
 
     const bounds = new window.google.maps.LatLngBounds();
     const hasBuyers = buyers && buyers.length > 0;
     const hasSellers = sellers && sellers.length > 0;
 
+    let hasPoints = false;
+
     if (buyerLocation && sellerLocation) {
       bounds.extend(new window.google.maps.LatLng(sellerLocation.latitude, sellerLocation.longitude));
       bounds.extend(new window.google.maps.LatLng(buyerLocation.latitude, buyerLocation.longitude));
-      map.fitBounds(bounds, 50);
-
+      hasPoints = true;
     } else if (zoomMode === 'all' && (hasBuyers || hasSellers || sellerLocation)) {
       if (sellerLocation) {
         bounds.extend(new window.google.maps.LatLng(sellerLocation.latitude, sellerLocation.longitude));
+        hasPoints = true;
       }
       if (sellers) {
         sellers.forEach(s => {
           bounds.extend(new window.google.maps.LatLng(s.location.latitude, s.location.longitude));
+          hasPoints = true;
         });
       }
       if (buyers) {
         buyers.forEach(buyer => {
           bounds.extend(new window.google.maps.LatLng(buyer.location.latitude, buyer.location.longitude));
+          hasPoints = true;
         });
       }
-      map.fitBounds(bounds, 100);
+    }
 
+    if (hasPoints) {
+      map.fitBounds(bounds, { top: 50, bottom: 50, left: 50, right: 50 });
     } else if (sellerLocation) {
       map.setCenter({ lat: sellerLocation.latitude, lng: sellerLocation.longitude });
       map.setZoom(15);
     }
 
-  }, [map, zoomMode, fitTrigger, buyerLocation?.latitude, buyerLocation?.longitude, sellerLocation?.latitude, sellerLocation?.longitude, buyers?.length]);
+  }, [map, apiIsLoaded, zoomMode, fitTrigger, buyerLocation?.latitude, buyerLocation?.longitude, sellerLocation?.latitude, sellerLocation?.longitude, buyers?.length]);
 
   useEffect(() => {
-    if (!map || !radius || !sellerLocation) return;
+    if (!map || !apiIsLoaded || !radius || !sellerLocation || !window.google) return;
 
     const circle = new window.google.maps.Circle({
       strokeColor: "#E50000",
@@ -83,30 +95,39 @@ function MapElements({ buyerLocation, sellerLocation, sellers, buyers, radius, z
     return () => {
       circle.setMap(null);
     };
-  }, [map, sellerLocation?.latitude, sellerLocation?.longitude, radius]);
+  }, [map, apiIsLoaded, sellerLocation?.latitude, sellerLocation?.longitude, radius]);
 
   return null;
 }
 
 export function MapView({ buyerLocation, sellerLocation, showPrimaryMarker = true, primaryDriverId = 'demo-course', sellers, buyers, radius, zoomMode, interactive = true, fitTrigger }: MapViewProps) {
+  const apiIsLoaded = useApiIsLoaded();
   const center = buyerLocation ? { lat: buyerLocation.latitude, lng: buyerLocation.longitude } : (sellerLocation ? { lat: sellerLocation.latitude, lng: sellerLocation.longitude } : { lat: 0, lng: 0 });
+  
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
-  const isKeyUnset = !apiKey || apiKey === "REPLACE_WITH_YOUR_KEY_IN_CONSOLE";
+  const isKeyUnset = !apiKey || apiKey === "REPLACE_WITH_YOUR_KEY_IN_CONSOLE" || apiKey === "";
 
   if (isKeyUnset) {
     return (
-      <div className="w-full h-full flex flex-col items-center justify-center bg-slate-900 text-white p-6 text-center">
-        <AlertCircle className="h-12 w-12 text-red-500 mb-4" />
-        <h3 className="font-headline font-black uppercase text-lg mb-2">Google Maps Key Required</h3>
-        <p className="text-xs text-slate-400 max-w-xs leading-relaxed uppercase font-bold">
-          Please add your Google Maps API Key to the project configuration to enable live tracking and navigation.
+      <div className="w-full h-full flex flex-col items-center justify-center bg-[#1a2d44] text-white p-8 text-center border-4 border-white/5">
+        <AlertCircle className="h-12 w-12 text-red-500 mb-6 drop-shadow-xl" />
+        <h3 className="font-headline font-black uppercase text-lg mb-2 tracking-tight">Map Service Unavailable</h3>
+        <p className="text-[10px] text-white/50 max-w-xs leading-relaxed uppercase font-black tracking-widest">
+          Please add a valid Google Maps API Key to your environment variables to enable live delivery tracking.
         </p>
       </div>
     );
   }
 
   return (
-    <div className="relative w-full h-full">
+    <div className="relative w-full h-full bg-[#1a2d44]">
+      {!apiIsLoaded && (
+        <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-[#1a2d44] text-white gap-4">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="text-[9px] font-black uppercase tracking-[0.3em] text-white/40">Initializing Satellite Data...</p>
+        </div>
+      )}
+
       <Map
         defaultCenter={center}
         defaultZoom={15}
@@ -139,14 +160,14 @@ export function MapView({ buyerLocation, sellerLocation, showPrimaryMarker = tru
         {showPrimaryMarker && sellerLocation && (!sellers || !sellers.some(s => s.location.latitude === sellerLocation.latitude && s.location.longitude === sellerLocation.longitude)) && (
           <Marker 
             position={{ lat: sellerLocation.latitude, lng: sellerLocation.longitude }}
-            title="Your Location"
+            title="Current Location"
           />
         )}
 
         {buyerLocation && (
           <Marker 
             position={{ lat: buyerLocation.latitude, lng: buyerLocation.longitude }}
-            title="Patron Location"
+            title="Patron Destination"
           />
         )}
 
