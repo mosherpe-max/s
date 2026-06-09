@@ -30,7 +30,7 @@ export default function HomePage() {
       <section className="relative min-h-[90vh] flex flex-col justify-center px-6 md:px-12 py-20 overflow-hidden">
         {/* Animated Background Elements */}
         <div className="absolute inset-0 z-0">
-          <div className="absolute inset-0 bg-gradient-to-br from-[#16243a] via-[#213147] to-[#1a2d44]" />
+          <div className="absolute inset-0 bg-gradient-to-br from-[#213147] via-[#213147] to-[#1a2d44]" />
           <div className="absolute top-1/2 right-0 -translate-y-1/2 w-[85%] h-[80%] bg-[radial-gradient(ellipse_at_center,rgba(229,0,0,0.07)_0%,transparent_60%)]" />
           <div className="absolute bottom-0 left-0 w-[50%] h-[60%] bg-[radial-gradient(ellipse_at_center,rgba(44,66,96,0.5)_0%,transparent_60%)]" />
           
@@ -93,8 +93,7 @@ export default function HomePage() {
       {/* VENUE SPLIT SECTION */}
       <section id="venues" className="grid grid-cols-1 lg:grid-cols-2">
         {/* Golf Card */}
-        <div className="reveal opacity-0 translate-y-8 transition-all duration-700 ease-out bg-[#1a2d44] px-8 md:px-16 py-24 relative overflow-hidden group">
-          <div className="absolute top-0 right-0 bottom-0 w-px bg-white/5 hidden lg:block" />
+        <div className="reveal opacity-0 translate-y-8 transition-all duration-700 ease-out bg-[#213147] px-8 md:px-16 py-24 relative overflow-hidden group border-r border-white/5">
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_30%_30%,rgba(229,0,0,0.08),transparent_60%)] opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
           
           <div className="relative z-10">
@@ -125,7 +124,7 @@ export default function HomePage() {
         </div>
 
         {/* Bowling Card */}
-        <div className="reveal opacity-0 translate-y-8 transition-all duration-700 delay-100 ease-out bg-[#192840] px-8 md:px-16 py-24 relative overflow-hidden group">
+        <div className="reveal opacity-0 translate-y-8 transition-all duration-700 delay-100 ease-out bg-[#213147] px-8 md:px-16 py-24 relative overflow-hidden group">
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_70%_30%,rgba(229,0,0,0.08),transparent_60%)] opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
           
           <div className="relative z-10">
@@ -152,7 +151,7 @@ export default function HomePage() {
       </section>
 
       {/* HOW IT WORKS */}
-      <section id="how" className="px-6 md:px-12 py-24 md:py-32">
+      <section id="how" className="px-6 md:px-12 py-24 md:py-32 bg-[#213147]">
         <div className="font-headline text-[13px] font-bold uppercase tracking-[0.2em] text-[#E50000] mb-4">Simple by Design</div>
         <h2 className="font-headline text-4xl md:text-6xl font-black uppercase leading-tight mb-6">Up and Running<br />in Days, Not Months</h2>
         <p className="text-lg text-[#8a9ab0] max-w-[520px] mb-16 leading-relaxed">No POS integration. No IT department. No long contracts. Koop is built to go live fast and stay out of your way.</p>
@@ -168,7 +167,7 @@ export default function HomePage() {
             { n: '04', nClass: 'delay-300', t: 'Revenue Hits Account', d: 'Payments flow directly into your merchant account via Stripe Express. Koop never touches your money.' }
           ].map((step, i) => (
             <div key={step.n} className={cn("reveal opacity-0 translate-y-8 transition-all duration-700 relative z-10", step.nClass)}>
-              <div className="w-16 h-16 rounded-full border-2 border-[#E50000] bg-[#16243a] flex items-center justify-center font-headline text-2xl font-black text-[#E50000] mb-6">
+              <div className="w-16 h-16 rounded-full border-2 border-[#E50000] bg-[#213147] flex items-center justify-center font-headline text-2xl font-black text-[#E50000] mb-6">
                 {step.n}
               </div>
               <h3 className="font-headline text-xl font-extrabold uppercase text-white mb-3 tracking-tight">{step.t}</h3>
@@ -179,7 +178,7 @@ export default function HomePage() {
       </section>
 
       {/* WHY KOOP */}
-      <section id="why" className="px-6 md:px-12 py-24 md:py-32 bg-[#16243a]">
+      <section id="why" className="px-6 md:px-12 py-24 md:py-32 bg-[#213147]/95">
         <div className="font-headline text-[13px] font-bold uppercase tracking-[0.2em] text-[#E50000] mb-4 text-center md:text-left">Why Koop Works</div>
         <h2 className="font-headline text-4xl md:text-6xl font-black uppercase leading-tight mb-6 text-center md:text-left">Built for the Way<br />Venues Actually Operate</h2>
         
@@ -192,7 +191,7 @@ export default function HomePage() {
             { i: '📱', t: 'No App to Download', d: 'Patrons scan, order, and pay right in their mobile browser. No friction, higher completion.' },
             { i: '💰', t: 'Money Goes Direct', d: 'Payments flow directly into your existing merchant account via Stripe Express. Koop never holds or routes your funds.' }
           ].map(feature => (
-            <div key={feature.t} className="reveal opacity-0 translate-y-8 transition-all duration-700 bg-[#16243a] hover:bg-[#1d2f46] p-10 border border-white/5 transition-colors group">
+            <div key={feature.t} className="reveal opacity-0 translate-y-8 transition-all duration-700 bg-[#213147] hover:bg-white/5 p-10 border border-white/5 transition-colors group">
               <span className="text-4xl mb-6 block">{feature.i}</span>
               <h3 className="font-headline text-2xl font-extrabold uppercase text-white mb-3 tracking-tight">{feature.t}</h3>
               <p className="text-[15px] text-[#8a9ab0] leading-relaxed mb-4">{feature.d}</p>
@@ -203,7 +202,7 @@ export default function HomePage() {
       </section>
 
       {/* PRICING */}
-      <section id="pricing" className="px-6 md:px-12 py-24 md:py-32 bg-[#1a2d44]">
+      <section id="pricing" className="px-6 md:px-12 py-24 md:py-32 bg-[#213147]">
         <div className="font-headline text-[13px] font-bold uppercase tracking-[0.2em] text-[#E50000] mb-4">Transparent Pricing</div>
         <h2 className="font-headline text-4xl md:text-6xl font-black uppercase leading-tight mb-16">Simple. Straightforward.</h2>
 
@@ -241,7 +240,7 @@ export default function HomePage() {
       </section>
 
       {/* CTA */}
-      <section id="contact" className="px-6 md:px-12 py-32 text-center relative overflow-hidden">
+      <section id="contact" className="px-6 md:px-12 py-32 text-center relative overflow-hidden bg-[#213147]">
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] rounded-full bg-[radial-gradient(circle,rgba(229,0,0,0.05)_0%,transparent_60%)]" />
         <div className="relative z-10">
           <h2 className="font-headline text-5xl md:text-8xl font-black uppercase mb-6 tracking-tighter leading-none">Ready to Take<br />More Orders?</h2>
