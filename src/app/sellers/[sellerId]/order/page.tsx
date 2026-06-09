@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetFooter } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { 
   Loader2, 
   Store, 
@@ -33,7 +33,7 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useCart } from '@/lib/cart-context';
 import { Label } from '@/components/ui/label';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { RadioGroup } from '@/components/ui/radio-group';
 import { mockBuyerLocation } from '@/lib/data';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, useStripe, useElements } from '@stripe/react-stripe-js';
@@ -151,27 +151,31 @@ function CheckoutDrawerContent({
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [isFetchingIntent, setIsFetchingIntent] = useState(false);
 
-  // 🌟 Fetch Payment Intent when user selects Stripe
+  // 🌟 Base amount for calculation: Subtotal + Tax + Tip
+  // The server will fetch the convenience fee from the venue registry and add it.
+  const baseTotalForBackend = subtotal + tax + tip;
+
   useEffect(() => {
-    if (paymentMethod === 'Stripe' && !clientSecret && !isFetchingIntent && finalTotal > 0) {
+    if (paymentMethod === 'Stripe' && !clientSecret && !isFetchingIntent && baseTotalForBackend > 0) {
       const fetchIntent = async () => {
         setIsFetchingIntent(true);
         try {
           const functions = getFunctions(firebaseApp, 'us-central1');
           const createIntent = httpsCallable(functions, 'createPaymentIntent');
-          const result = await createIntent({ amount: finalTotal, sellerId });
+          // Send the base amount; server adds regulated fee
+          const result = await createIntent({ amount: baseTotalForBackend, sellerId });
           const { clientSecret: secret } = result.data as { clientSecret: string };
           setClientSecret(secret);
         } catch (e: any) {
           console.error('💥 [INTENT FAILED]:', e);
-          toast({ variant: 'destructive', title: 'Payment Setup Error', description: e.message });
+          toast({ variant: 'destructive', title: 'Payment Setup Error', description: e.details?.message || e.message });
         } finally {
           setIsFetchingIntent(false);
         }
       };
       fetchIntent();
     }
-  }, [paymentMethod, finalTotal, sellerId, firebaseApp, clientSecret, isFetchingIntent]);
+  }, [paymentMethod, baseTotalForBackend, sellerId, firebaseApp, clientSecret, isFetchingIntent, toast]);
 
   const handleManualOrder = async () => {
     if (!firestore || activeOrderItems.length === 0) return;
@@ -433,7 +437,11 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
           </div>
         )}
         <SheetContent side="bottom" className="rounded-t-[2rem] h-[90vh] flex flex-col p-0">
-          <SheetHeader className="px-6 py-4 border-b bg-white"><SheetTitle>Review Order</SheetTitle></SheetHeader>
+          <SheetHeader className="px-6 py-4 border-b bg-white">
+            <div className="flex justify-between items-center pr-10">
+              <SheetTitle>Review Order</SheetTitle>
+            </div>
+          </SheetHeader>
           <CheckoutDrawerContent 
             seller={seller}
             sellerId={sellerId}

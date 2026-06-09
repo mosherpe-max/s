@@ -96,7 +96,7 @@ export const createStripeConnectAccount = onCall({
 
 /**
  * createPaymentIntent
- * Initializes a Stripe PaymentIntent for a patron order with dynamic platform fee splitting.
+ * Initializes a Stripe PaymentIntent with a Patron-paid convenience fee and Koop coverage.
  */
 export const createPaymentIntent = onCall({
   secrets: ["STRIPE_SECRET_KEY"],
@@ -109,24 +109,24 @@ export const createPaymentIntent = onCall({
   }
 
   const { amount, sellerId } = request.data;
-  if (!amount || !sellerId) {
-    throw new HttpsError("invalid-argument", "Amount and sellerId are required.");
+  if (amount === undefined || !sellerId) {
+    throw new HttpsError("invalid-argument", "Base amount and sellerId are required.");
   }
 
   const apiKey = process.env.STRIPE_SECRET_KEY;
   if (!apiKey) {
-    throw new HttpsError("internal", "STRIPE_SECRET_KEY not found in environment.");
+    throw new HttpsError("internal", "STRIPE_SECRET_KEY missing in environment.");
   }
 
   const stripe = new Stripe(apiKey);
 
   try {
-    // 1. Fetch Venue Registry for routing and fee data
+    // 1. Fetch Venue Registry for routing and fee policy
     const venueRef = db.collection('venues').doc(sellerId);
     const venueDoc = await venueRef.get();
     
     if (!venueDoc.exists) {
-      throw new HttpsError("not-found", `Registry document missing for venue: ${sellerId}. Please initialize via admin panel.`, { sellerId });
+      throw new HttpsError("not-found", `Registry document missing for venue: ${sellerId}.`, { sellerId });
     }
 
     const venueData = venueDoc.data();
@@ -136,28 +136,35 @@ export const createPaymentIntent = onCall({
       throw new HttpsError("failed-precondition", `Stripe Account ID is missing for venue: ${sellerId}.`, { sellerId });
     }
 
-    // 2. Calculate Dynamic Platform Fee (Koop's cut)
-    const fixedFee = venueData?.platformFeeFixed ?? 20; // Default 20 cents
-    const percentFee = venueData?.platformFeePercent ?? 0;
-    
-    const amountInCents = Math.round(amount * 100);
-    const calculatedPercentFee = Math.round(amountInCents * (percentFee / 100));
-    const totalApplicationFee = fixedFee + calculatedPercentFee;
+    // 2. Fetch Fee Configuration from Registry
+    // patronConvenienceFee: amount charged to patron (e.g. 150 cents)
+    // platformFeeFixed: Koop's "fee coverage" coverage (e.g. 20 cents)
+    const patronConvenienceFee = venueData?.patronConvenienceFee ?? 150; 
+    const platformFeeFixed = venueData?.platformFeeFixed ?? 20;
 
-    // 3. Create the PaymentIntent with Destination Charges logic
+    // 3. Calculate Final Stripe Values
+    // Total Charge = Items/Tax/Tip + Convenience Fee
+    const baseAmountInCents = Math.round(amount * 100);
+    const totalChargeAmount = baseAmountInCents + patronConvenienceFee;
+    
+    // Application Fee (Koop's Cut) = Convenience Fee - Fee Subsidy
+    const applicationFeeAmount = Math.max(0, patronConvenienceFee - platformFeeFixed);
+
+    // 4. Create the PaymentIntent
     const paymentIntent = await stripe.paymentIntents.create({
-      amount: amountInCents,
+      amount: totalChargeAmount,
       currency: 'usd',
       automatic_payment_methods: { enabled: true },
-      application_fee_amount: totalApplicationFee,
+      application_fee_amount: applicationFeeAmount,
       transfer_data: {
         destination: stripeConnectId,
       },
       metadata: {
         sellerId,
         buyerUid: request.auth.uid,
-        fixedFeeCalculated: fixedFee.toString(),
-        percentFeeCalculated: percentFee.toString()
+        patronFeeCents: patronConvenienceFee.toString(),
+        koopCoverageCents: platformFeeFixed.toString(),
+        baseAmountCents: baseAmountInCents.toString()
       }
     });
 
@@ -175,7 +182,6 @@ export const createPaymentIntent = onCall({
 /**
  * verifyVenueConnection
  * Diagnostic utility to verify Stripe account status.
- * Uses strict v2 onCall protocol with CORS enabled.
  */
 export const verifyVenueConnection = onCall({
   secrets: ["STRIPE_SECRET_KEY"],
@@ -196,7 +202,6 @@ export const verifyVenueConnection = onCall({
   const stripe = new Stripe(apiKey);
 
   try {
-    // 1. Fetch from Firestore
     const venueRef = db.collection('venues').doc(venueId);
     const venueDoc = await venueRef.get();
 
@@ -211,10 +216,8 @@ export const verifyVenueConnection = onCall({
       throw new HttpsError("failed-precondition", `The venue [${venueId}] does not have a stripeConnectId assigned yet.`);
     }
 
-    // 2. Fetch from Stripe
     const account = await stripe.accounts.retrieve(stripeAccountId);
 
-    // 3. Return structured payload
     return {
       id: account.id,
       businessName: account.business_profile?.name || account.settings?.dashboard?.display_name || 'Unnamed Merchant',
@@ -227,8 +230,6 @@ export const verifyVenueConnection = onCall({
 
   } catch (error: any) {
     logger.error(`[verifyVenueConnection] Failed for ${venueId}:`, error);
-    
-    // Pass specific error details back to the client
     throw new HttpsError("internal", error.message || "Stripe API retrieval failed", {
       details: error.message,
       code: error.code
