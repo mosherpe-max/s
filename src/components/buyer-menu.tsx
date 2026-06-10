@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import type { OrderItem, MenuItem, Category } from '@/lib/types';
 import { ImageIcon, Plus, Minus } from 'lucide-react';
 import { categoryIcons } from './icons';
-import Image from 'image';
+import Image from 'next/image';
 import { cn } from '@/lib/utils';
 
 interface BuyerMenuProps {
@@ -89,7 +89,7 @@ export function BuyerMenu({
                     key={item.id} 
                     className="bg-white rounded-[1.5rem] border shadow-sm overflow-hidden flex flex-col transition-all active:scale-[0.98] group"
                   >
-                    {/* Immersive Image - Overlay Removed to keep picture visible */}
+                    {/* Immersive Image */}
                     <div className="relative aspect-square w-full bg-muted shrink-0 shadow-sm border-b">
                       {item.imageUrl ? (
                         <Image 
@@ -122,7 +122,7 @@ export function BuyerMenu({
                           ${item.price.toFixed(2)}{isModifierEnabled && '+'}
                         </span>
 
-                        {/* Controls - Quantity displayed in stepper area */}
+                        {/* Controls */}
                         <div className="flex items-center gap-1 shrink-0">
                           {isModifierEnabled ? (
                             <Button
