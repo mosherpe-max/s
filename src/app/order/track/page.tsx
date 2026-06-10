@@ -13,17 +13,19 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { ShoppingBag, MapPin, Loader2, Store, ClipboardList, Satellite, Info, Smartphone, Zap } from 'lucide-react';
+import { ShoppingBag, MapPin, Loader2, Store, ClipboardList, Satellite, Info, Smartphone, Zap, Edit2 } from 'lucide-react';
 import { APIProvider } from '@vis.gl/react-google-maps';
 import { getNumericOrderId } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
 
 function OrderTrackingContent() {
   const firestore = useFirestore();
   const { user } = useUser();
   const searchParams = useSearchParams();
   const orderId = searchParams.get('id');
+  const { toast } = useToast();
   
   const watchIdRef = useRef<number | null>(null);
   const wakeLockRef = useRef<any>(null);
@@ -78,6 +80,17 @@ function OrderTrackingContent() {
     return () => { if (watchIdRef.current) navigator.geolocation.clearWatch(watchIdRef.current); };
   }, [order?.status, order?.id, firestore]);
 
+  const handleUpdateLane = (lane: string) => {
+    if (!firestore || !order) return;
+    const newLocation = `Lane ${lane}`;
+    updateDoc(doc(firestore, 'orders', order.id), { 
+      menuTypeLocation: newLocation,
+      updatedAt: serverTimestamp()
+    }).then(() => {
+      toast({ title: "Lane Updated", description: `Staff will now deliver to ${newLocation}.` });
+    });
+  };
+
   const isLoading = isOrderLoading || isSellerLoading;
 
   if (isLoading) return <div className="flex-1 flex items-center justify-center p-8"><Loader2 className="animate-spin h-10 w-10 text-primary" /></div>;
@@ -116,12 +129,48 @@ function OrderTrackingContent() {
           </div>
         )}
 
-        <Card className="shadow-lg">
-          <CardHeader className="py-4 px-6 flex flex-row items-center justify-between">
-            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Order Status</span>
+        <Card className="shadow-lg overflow-hidden">
+          <CardHeader className="py-4 px-6 flex flex-row items-center justify-between border-b bg-muted/20">
+            <div className="flex flex-col">
+              <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Order Status</span>
+              {isBowling && order.menuTypeLocation && (
+                <div className="flex items-center gap-2 mt-1">
+                  <Badge className="bg-primary text-white font-black uppercase tracking-tight text-[11px] px-3">
+                    {order.menuTypeLocation}
+                  </Badge>
+                  {order.status !== 'Delivered' && (
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <button className="flex items-center gap-1 text-[9px] font-black uppercase text-primary hover:text-primary/80 transition-colors">
+                          <Edit2 className="h-2.5 w-2.5" /> Change
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-64 p-4 rounded-[1.5rem]">
+                        <div className="space-y-3">
+                          <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest text-center">Correct Your Lane</p>
+                          <div className="grid grid-cols-5 gap-1.5">
+                            {Array.from({ length: seller?.laneCount || 20 }, (_, i) => (i + 1).toString()).map(l => (
+                              <Button 
+                                key={l} 
+                                variant={order.menuTypeLocation === `Lane ${l}` ? 'default' : 'outline'} 
+                                size="sm" 
+                                onClick={() => handleUpdateLane(l)} 
+                                className="h-8 p-0 text-[10px] font-bold"
+                              >
+                                {l}
+                              </Button>
+                            ))}
+                          </div>
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+                  )}
+                </div>
+              )}
+            </div>
             <Badge variant="outline" className="font-mono text-[9px]">#{getNumericOrderId(order.id)}</Badge>
           </CardHeader>
-          <CardContent className="px-6 pb-6">
+          <CardContent className="px-6 py-8">
             <OrderStatus currentStatus={order.status} />
           </CardContent>
         </Card>
