@@ -157,6 +157,8 @@ function CheckoutDrawerContent({
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [isFetchingIntent, setIsFetchingIntent] = useState(false);
 
+  const isGolf = seller?.type?.toLowerCase().includes('golf');
+
   const tax = subtotal * (taxRate / 100);
   const finalTotal = subtotal + platformFee + tax + tip;
   const baseTotalForBackend = subtotal + tax + tip;
@@ -280,15 +282,17 @@ function CheckoutDrawerContent({
             </p>
           </div>
 
-          <div className="bg-primary/5 border border-primary/10 p-4 rounded-2xl flex items-start gap-3 animate-in fade-in slide-in-from-bottom-2 duration-700">
-            <Satellite className="h-4 w-4 text-primary shrink-0 mt-0.5" />
-            <div className="space-y-0.5">
-              <p className="text-[10px] font-black text-primary uppercase tracking-widest">Delivery Pro Tip</p>
-              <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-tight leading-relaxed">
-                Enable GPS tracking when prompted at checkout. This allows our staff to find you instantly and ensures a faster delivery experience.
-              </p>
+          {isGolf && (
+            <div className="bg-primary/5 border border-primary/10 p-4 rounded-2xl flex items-start gap-3 animate-in fade-in slide-in-from-bottom-2 duration-700">
+              <Satellite className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+              <div className="space-y-0.5">
+                <p className="text-[10px] font-black text-primary uppercase tracking-widest">Delivery Pro Tip</p>
+                <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-tight leading-relaxed">
+                  Enable GPS tracking when prompted at checkout. This allows our staff to find you instantly and ensures a faster delivery experience.
+                </p>
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         <div className="space-y-4">
