@@ -440,16 +440,17 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
           </div>
         </div>
         {/* Sticky Ordering Context Statement */}
-        <div className="max-w-2xl mx-auto px-4 pb-3 pt-1 text-center">
-          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 leading-tight">
-            You are ordering from <span className="text-[#213147]">{seller?.courseName}</span>
+        <div className="max-w-2xl mx-auto px-4 pb-3 pt-1">
+          <div className="flex items-center justify-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-muted-foreground/60 whitespace-nowrap overflow-hidden">
+            <span>Ordering from</span>
+            <span className="text-[#213147] truncate max-w-[120px] sm:max-w-none">{seller?.courseName}</span>
             {selectedMenuType && (
-              <span className="text-primary ml-1">
-                <span className="mx-1.5 opacity-30">•</span>
-                {selectedMenuType}
-              </span>
+              <>
+                <span className="opacity-30">•</span>
+                <span className="text-primary truncate">{selectedMenuType}</span>
+              </>
             )}
-          </p>
+          </div>
         </div>
       </div>
 
