@@ -482,7 +482,10 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
           <div className="fixed bottom-7 left-0 right-0 p-4 bg-white/80 backdrop-blur-md border-t z-40">
             <SheetTrigger asChild>
               <Button size="lg" className="w-full h-14 font-black uppercase tracking-widest shadow-xl flex justify-between px-8">
-                <span>REVIEW ORDER</span>
+                <div className="flex items-center gap-3">
+                  <span>REVIEW ORDER</span>
+                  <span className="bg-white/20 text-[10px] px-2 py-0.5 rounded-full">{totalItems} ITEMS</span>
+                </div>
                 <span className="bg-white/20 px-3 py-1 rounded-lg">${subtotal.toFixed(2)}</span>
               </Button>
             </SheetTrigger>
