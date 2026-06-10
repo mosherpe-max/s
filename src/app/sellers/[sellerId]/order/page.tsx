@@ -31,7 +31,8 @@ import {
   Check,
   AlertTriangle,
   Info,
-  ShoppingCart
+  ShoppingCart,
+  Satellite
 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useCart } from '@/lib/cart-context';
@@ -248,12 +249,25 @@ function CheckoutDrawerContent({
 
         <PricingBreakdown subtotal={subtotal} serviceFee={platformFee} tax={tax} tip={tip} taxRate={taxRate} />
 
-        {/* CONVENIENCE FEE NOTIFICATION */}
-        <div className="bg-slate-50 border border-slate-100 p-4 rounded-2xl flex items-start gap-3 animate-in fade-in slide-in-from-bottom-2 duration-500">
-          <Info className="h-4 w-4 text-slate-400 shrink-0 mt-0.5" />
-          <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-tight leading-relaxed">
-            Notice: A small convenience fee is included in your order total. This fee supports the mobile technology and real-time logistics required to fulfill your delivery.
-          </p>
+        <div className="space-y-3">
+          {/* CONVENIENCE FEE NOTIFICATION */}
+          <div className="bg-slate-50 border border-slate-100 p-4 rounded-2xl flex items-start gap-3 animate-in fade-in slide-in-from-bottom-2 duration-500">
+            <Info className="h-4 w-4 text-slate-400 shrink-0 mt-0.5" />
+            <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-tight leading-relaxed">
+              Notice: A small convenience fee is included in your order total. This fee supports the mobile technology and real-time logistics required to fulfill your delivery.
+            </p>
+          </div>
+
+          {/* PRO TIP - GPS TRACKING */}
+          <div className="bg-primary/5 border border-primary/10 p-4 rounded-2xl flex items-start gap-3 animate-in fade-in slide-in-from-bottom-2 duration-700">
+            <Satellite className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+            <div className="space-y-0.5">
+              <p className="text-[10px] font-black text-primary uppercase tracking-widest">Delivery Pro Tip</p>
+              <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-tight leading-relaxed">
+                Enable GPS tracking when prompted at checkout. This allows our staff to find you instantly and ensures a faster delivery experience.
+              </p>
+            </div>
+          </div>
         </div>
 
         <div className="space-y-4">
