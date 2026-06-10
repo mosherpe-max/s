@@ -241,6 +241,15 @@ function CheckoutDrawerContent({
           </div>
         )}
         <PricingBreakdown subtotal={subtotal} serviceFee={platformFee} tax={tax} tip={tip} taxRate={taxRate} />
+
+        {/* CONVENIENCE FEE NOTIFICATION */}
+        <div className="bg-slate-50 border border-slate-100 p-4 rounded-2xl flex items-start gap-3 animate-in fade-in slide-in-from-bottom-2 duration-500">
+          <Info className="h-4 w-4 text-slate-400 shrink-0 mt-0.5" />
+          <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-tight leading-relaxed">
+            Notice: A small convenience fee is included in your order total. This fee supports the mobile technology and real-time logistics required to fulfill your delivery.
+          </p>
+        </div>
+
         <div className="space-y-4">
           <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground px-1">PAYMENT METHOD</h3>
           <RadioGroup value={paymentMethod} onValueChange={(v: any) => setPaymentMethod(v)} className="grid grid-cols-1 gap-3">
