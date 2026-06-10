@@ -13,10 +13,11 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { ShoppingBag, MapPin, Loader2, Store, ClipboardList, Satellite, Info } from 'lucide-react';
+import { ShoppingBag, MapPin, Loader2, Store, ClipboardList, Satellite, Info, Smartphone, Zap } from 'lucide-react';
 import { APIProvider } from '@vis.gl/react-google-maps';
 import { getNumericOrderId } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { cn } from '@/lib/utils';
 
 function OrderTrackingContent() {
   const firestore = useFirestore();
@@ -25,12 +26,35 @@ function OrderTrackingContent() {
   const orderId = searchParams.get('id');
   
   const watchIdRef = useRef<number | null>(null);
+  const wakeLockRef = useRef<any>(null);
 
   const orderRef = useMemoFirebase(() => (firestore && orderId ? doc(firestore, 'orders', orderId) : null), [firestore, orderId]);
   const { data: order, isLoading } = useDoc<Order>(orderRef);
 
   const sellerRef = useMemoFirebase(() => (firestore && order?.sellerId ? doc(firestore, 'sellers', order.sellerId) : null), [firestore, order?.sellerId]);
   const { data: seller } = useDoc<Seller>(sellerRef);
+
+  // Implement Screen Wake Lock
+  useEffect(() => {
+    const requestWakeLock = async () => {
+      if ('wakeLock' in navigator && order && order.status !== 'Delivered') {
+        try {
+          wakeLockRef.current = await (navigator as any).wakeLock.request('screen');
+        } catch (err) {
+          console.error('Wake Lock failed:', err);
+        }
+      }
+    };
+
+    requestWakeLock();
+
+    return () => {
+      if (wakeLockRef.current) {
+        wakeLockRef.current.release();
+        wakeLockRef.current = null;
+      }
+    };
+  }, [order?.status]);
 
   useEffect(() => {
     if (!order || !firestore || order.status === 'Delivered') return;
@@ -60,6 +84,29 @@ function OrderTrackingContent() {
       </div>
 
       <div className="p-4 space-y-4 max-w-2xl mx-auto w-full pb-24">
+        
+        {/* WAKE LOCK & LIVE SYNC NOTIFICATION */}
+        {order.status !== 'Delivered' && (
+          <div className="bg-[#213147] rounded-2xl p-4 shadow-xl border-t-2 border-primary/30 flex items-center gap-4 animate-in slide-in-from-top-4 duration-700">
+            <div className="bg-primary/20 p-2.5 rounded-xl shrink-0">
+              <Zap className="h-5 w-5 text-primary animate-pulse" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-0.5">
+                <p className="text-[10px] font-black text-white uppercase tracking-widest">Live Sync Active</p>
+                <div className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
+              </div>
+              <p className="text-[10px] font-bold text-white/60 uppercase leading-relaxed">
+                Screen is locked open for precision. Keep this page visible for the best delivery service.
+              </p>
+            </div>
+            <div className="shrink-0 flex flex-col items-center">
+              <Smartphone className="h-5 w-5 text-white/20 mb-0.5" />
+              <span className="text-[8px] font-black text-white/40 uppercase tracking-tighter">Locked</span>
+            </div>
+          </div>
+        )}
+
         <Card className="shadow-lg">
           <CardHeader className="py-4 px-6 flex flex-row items-center justify-between">
             <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Order Status</span>
