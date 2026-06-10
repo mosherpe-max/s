@@ -4,13 +4,17 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
-import { DollarSign, Percent } from 'lucide-react';
+import { DollarSign } from 'lucide-react';
 
 interface TipSelectorProps {
   subtotal: number;
   onTipChange: (amount: number) => void;
 }
 
+/**
+ * High-fidelity tip selection component.
+ * Features more defined outlines for mobile clarity.
+ */
 export function TipSelector({ subtotal, onTipChange }: TipSelectorProps) {
   const isSmallOrder = subtotal < 10;
   const [selectedType, setSelectedType] = useState<'preset' | 'custom'>('preset');
@@ -46,32 +50,37 @@ export function TipSelector({ subtotal, onTipChange }: TipSelectorProps) {
       </div>
 
       <div className="grid grid-cols-4 gap-2">
-        {options.map((option) => (
-          <Button
-            key={option}
-            variant={selectedType === 'preset' && presetValue === option ? 'default' : 'outline'}
-            className={cn(
-              "h-11 font-black text-xs transition-all",
-              selectedType === 'preset' && presetValue === option ? "shadow-md scale-105" : "border-slate-100"
-            )}
-            onClick={() => {
-              setSelectedType('preset');
-              setPresetValue(option);
-            }}
-          >
-            {isSmallOrder ? `$${option}` : `${option}%`}
-          </Button>
-        ))}
-        <Button
-          variant={selectedType === 'custom' ? 'default' : 'outline'}
-          className={cn(
-            "h-11 font-black text-[10px] uppercase tracking-widest transition-all",
-            selectedType === 'custom' ? "shadow-md scale-105" : "border-slate-100"
-          )}
+        {options.map((option) => {
+          const isActive = selectedType === 'preset' && presetValue === option;
+          return (
+            <button
+              key={option}
+              onClick={() => {
+                setSelectedType('preset');
+                setPresetValue(option);
+              }}
+              className={cn(
+                "h-12 rounded-xl font-black text-sm transition-all border-2 flex items-center justify-center",
+                isActive 
+                  ? "bg-primary border-primary text-white shadow-lg scale-105 z-10" 
+                  : "bg-white border-slate-300 text-[#213147] hover:border-slate-400 active:scale-95"
+              )}
+            >
+              {isSmallOrder ? `$${option}` : `${option}%`}
+            </button>
+          );
+        })}
+        <button
           onClick={() => setSelectedType('custom')}
+          className={cn(
+            "h-12 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all border-2 flex items-center justify-center",
+            selectedType === 'custom'
+              ? "bg-primary border-primary text-white shadow-lg scale-105 z-10" 
+              : "bg-white border-slate-300 text-[#213147] hover:border-slate-400 active:scale-95"
+          )}
         >
           Custom
-        </Button>
+        </button>
       </div>
 
       {selectedType === 'custom' && (
@@ -82,7 +91,7 @@ export function TipSelector({ subtotal, onTipChange }: TipSelectorProps) {
             placeholder="0.00"
             value={customValue}
             onChange={(e) => setCustomValue(e.target.value)}
-            className="pl-9 h-12 border-2 border-primary/20 font-mono font-bold focus-visible:ring-primary"
+            className="pl-9 h-12 border-2 border-primary/30 font-mono font-bold focus-visible:ring-primary rounded-xl"
             autoFocus
           />
         </div>
