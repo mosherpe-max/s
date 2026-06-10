@@ -42,8 +42,8 @@ export default function Icon() {
             fill="none"
             xmlns="http://www.w3.org/2000/svg"
           >
-            <circle cx="12" cy="12" r="10" stroke="#E50000" strokeWidth="2.8" />
-            <circle cx="12" cy="12" r="5.5" stroke="#E50000" strokeWidth="2.5" />
+            <circle cx="12" cy="12" r="10.5" stroke="#E50000" strokeWidth="2.8" />
+            <circle cx="12" cy="12" r="6" stroke="#E50000" strokeWidth="2.4" />
             <circle cx="12" cy="12" r="2.2" fill="#E50000" />
           </svg>
         </div>

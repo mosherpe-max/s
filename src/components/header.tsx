@@ -44,13 +44,13 @@ export function StylizedKoopLogo({ size = 'md', colorClass = 'text-white' }: { s
   const s = sizes[size];
 
   return (
-    <div className={cn("flex items-center font-headline font-black tracking-tighter leading-none select-none", colorClass, s.text)}>
+    <div className={cn("flex items-center font-headline font-black tracking-tighter leading-none select-none uppercase", colorClass, s.text)}>
       <span>K</span>
       <span className={cn(s.spacing)}>O</span>
       <div className={cn("relative flex items-center justify-center shrink-0", s.spacing, s.svg)}>
         <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
-          <circle cx="12" cy="12" r="10" stroke="#E50000" strokeWidth="2.8" />
-          <circle cx="12" cy="12" r="5.5" stroke="#E50000" strokeWidth="2.5" />
+          <circle cx="12" cy="12" r="10.5" stroke="#E50000" strokeWidth="2.8" />
+          <circle cx="12" cy="12" r="6" stroke="#E50000" strokeWidth="2.4" />
           <circle cx="12" cy="12" r="2.2" fill="#E50000" />
         </svg>
       </div>
@@ -195,7 +195,7 @@ export function AppHeader() {
   if (isHomePage) {
     return (
       <header className="sticky top-0 z-40 bg-[#213147] border-b-2 border-[#E50000] shadow-md h-16 flex items-center justify-between px-6 shrink-0">
-        <div className="w-10" /> {/* Left spacer to help center logo if needed, or place for future icon */}
+        <div className="w-10" /> 
         <StylizedKoopLogo size="lg" />
         <HomeNavigationMenu />
       </header>
