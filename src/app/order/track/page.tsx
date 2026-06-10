@@ -35,6 +35,7 @@ function OrderTrackingContent() {
   const { data: seller, isLoading: isSellerLoading } = useDoc<Seller>(sellerRef);
 
   const isGolf = seller?.type?.toLowerCase().includes('golf');
+  const isBowling = seller?.type?.toLowerCase().includes('bowling');
 
   // Implement Screen Wake Lock - ONLY FOR GOLF COURSES
   useEffect(() => {
@@ -84,9 +85,12 @@ function OrderTrackingContent() {
 
   return (
     <div className="flex flex-col min-h-screen bg-muted/10">
-      <div className="h-[40vh] relative border-b-2">
-        <MapView sellerLocation={seller ? { latitude: seller.latitude, longitude: seller.longitude } : undefined} buyerLocation={order.deliveryLocation} interactive={true} />
-      </div>
+      {/* Map View - Only shown for non-bowling venues (e.g., Golf Courses) */}
+      {!isBowling && (
+        <div className="h-[40vh] relative border-b-2">
+          <MapView sellerLocation={seller ? { latitude: seller.latitude, longitude: seller.longitude } : undefined} buyerLocation={order.deliveryLocation} interactive={true} />
+        </div>
+      )}
 
       <div className="p-4 space-y-4 max-w-2xl mx-auto w-full pb-24">
         
