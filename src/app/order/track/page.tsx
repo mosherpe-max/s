@@ -29,15 +29,18 @@ function OrderTrackingContent() {
   const wakeLockRef = useRef<any>(null);
 
   const orderRef = useMemoFirebase(() => (firestore && orderId ? doc(firestore, 'orders', orderId) : null), [firestore, orderId]);
-  const { data: order, isLoading } = useDoc<Order>(orderRef);
+  const { data: order, isLoading: isOrderLoading } = useDoc<Order>(orderRef);
 
   const sellerRef = useMemoFirebase(() => (firestore && order?.sellerId ? doc(firestore, 'sellers', order.sellerId) : null), [firestore, order?.sellerId]);
-  const { data: seller } = useDoc<Seller>(sellerRef);
+  const { data: seller, isLoading: isSellerLoading } = useDoc<Seller>(sellerRef);
 
-  // Implement Screen Wake Lock
+  const isGolf = seller?.type?.toLowerCase().includes('golf');
+
+  // Implement Screen Wake Lock - ONLY FOR GOLF COURSES
   useEffect(() => {
     const requestWakeLock = async () => {
-      if ('wakeLock' in navigator && order && order.status !== 'Delivered') {
+      // Only request wake lock for golf courses where tracking is active
+      if ('wakeLock' in navigator && order && order.status !== 'Delivered' && isGolf) {
         try {
           wakeLockRef.current = await (navigator as any).wakeLock.request('screen');
         } catch (err) {
@@ -54,7 +57,7 @@ function OrderTrackingContent() {
         wakeLockRef.current = null;
       }
     };
-  }, [order?.status]);
+  }, [order?.status, isGolf]);
 
   useEffect(() => {
     if (!order || !firestore || order.status === 'Delivered') return;
@@ -74,6 +77,8 @@ function OrderTrackingContent() {
     return () => { if (watchIdRef.current) navigator.geolocation.clearWatch(watchIdRef.current); };
   }, [order?.status, order?.id, firestore]);
 
+  const isLoading = isOrderLoading || isSellerLoading;
+
   if (isLoading) return <div className="flex-1 flex items-center justify-center p-8"><Loader2 className="animate-spin h-10 w-10 text-primary" /></div>;
   if (!order) return <div className="p-8 text-center"><p>Order not found.</p><Button asChild className="mt-4"><Link href="/">Back Home</Link></Button></div>;
 
@@ -85,8 +90,8 @@ function OrderTrackingContent() {
 
       <div className="p-4 space-y-4 max-w-2xl mx-auto w-full pb-24">
         
-        {/* WAKE LOCK & LIVE SYNC NOTIFICATION */}
-        {order.status !== 'Delivered' && (
+        {/* WAKE LOCK & LIVE SYNC NOTIFICATION - ONLY FOR GOLF COURSES */}
+        {order.status !== 'Delivered' && isGolf && (
           <div className="bg-[#213147] rounded-2xl p-4 shadow-xl border-t-2 border-primary/30 flex items-center gap-4 animate-in slide-in-from-top-4 duration-700">
             <div className="bg-primary/20 p-2.5 rounded-xl shrink-0">
               <Zap className="h-5 w-5 text-primary animate-pulse" />
