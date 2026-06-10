@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetClose } from '@/components/ui/sheet';
 import { 
   Loader2, 
   Store, 
@@ -32,7 +32,8 @@ import {
   AlertTriangle,
   Info,
   ShoppingCart,
-  Satellite
+  Satellite,
+  ChevronLeft
 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useCart } from '@/lib/cart-context';
@@ -246,6 +247,14 @@ function CheckoutDrawerContent({
   return (
     <ScrollArea className="flex-1">
       <div className="p-6 space-y-8 pb-32">
+        <div className="flex justify-start -mb-4">
+          <SheetClose asChild>
+            <Button variant="ghost" className="text-[10px] font-black uppercase tracking-widest text-primary h-8 gap-1.5 p-0 hover:bg-transparent hover:text-primary/80">
+              <ChevronLeft className="h-3.5 w-3.5" /> Add More Items
+            </Button>
+          </SheetClose>
+        </div>
+
         <OrderSummary items={activeOrderItems} />
         
         {selectedMenuType === 'Lane Delivery' && seller?.laneCount && (
