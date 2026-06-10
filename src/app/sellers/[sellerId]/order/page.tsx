@@ -42,6 +42,7 @@ import { Elements, useStripe, useElements } from '@stripe/react-stripe-js';
 import { StripeCheckoutForm } from '@/components/stripe-checkout-form';
 import { cn } from '@/lib/utils';
 import { getFunctions, httpsCallable } from 'firebase/functions';
+import { Badge } from '@/components/ui/badge';
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || 'pk_test_placeholder');
 
@@ -491,10 +492,16 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
             </SheetTrigger>
           </div>
         )}
-        <SheetContent side="bottom" className="rounded-t-[2rem] h-[90vh] flex flex-col p-0">
-          <SheetHeader className="px-6 py-4 border-b bg-white">
-            <div className="flex justify-between items-center pr-10">
-              <SheetTitle className="font-headline font-black uppercase tracking-tight">Checkout</SheetTitle>
+        <SheetContent side="bottom" className="rounded-t-[2rem] h-[90vh] flex flex-col p-0 overflow-hidden">
+          <SheetHeader className="px-6 py-5 border-b bg-[#213147] text-white shrink-0">
+            <div className="flex flex-col items-start pr-10">
+              <div className="flex items-center gap-3 mb-1">
+                <SheetTitle className="font-headline font-black uppercase tracking-tight text-white text-xl">Checkout</SheetTitle>
+                <Badge variant="outline" className="text-[9px] font-black border-primary/40 bg-primary/10 text-primary uppercase h-5">
+                  {selectedMenuType}
+                </Badge>
+              </div>
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/50">{seller?.courseName}</p>
             </div>
           </SheetHeader>
           <CheckoutDrawerContent 
