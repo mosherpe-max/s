@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 
 /**
  * High-fidelity logo component used across the platform.
- * Replicates the brand logo: K-O-[Target]-P
+ * Replicates the brand logo: K-O-[Target]-P exactly as shown in reference.
  */
 export function StylizedKoopLogo({ size = 'md', colorClass = 'text-white' }: { size?: 'sm' | 'md' | 'lg', colorClass?: string }) {
   const sizes = {
@@ -21,13 +21,13 @@ export function StylizedKoopLogo({ size = 'md', colorClass = 'text-white' }: { s
   const s = sizes[size];
 
   return (
-    <div className={cn("flex items-center font-headline font-black tracking-tighter leading-none", colorClass, s.text)}>
+    <div className={cn("flex items-center font-headline font-black tracking-tighter leading-none select-none", colorClass, s.text)}>
       <span>KO</span>
       <div className={cn("relative flex items-center justify-center shrink-0", s.spacing, s.svg)}>
         <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
-          <circle cx="12" cy="12" r="10" stroke="#E50000" strokeWidth="2.5" />
-          <circle cx="12" cy="12" r="6" stroke="#E50000" strokeWidth="2.5" />
-          <circle cx="12" cy="12" r="2.5" fill="#E50000" />
+          <circle cx="12" cy="12" r="10" stroke="#E50000" strokeWidth="2.8" />
+          <circle cx="12" cy="12" r="5.5" stroke="#E50000" strokeWidth="2.5" />
+          <circle cx="12" cy="12" r="2.2" fill="#E50000" />
         </svg>
       </div>
       <span>P</span>

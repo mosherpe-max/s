@@ -35,7 +35,7 @@ export default function Icon() {
             fontWeight: 900,
             fontSize: 64,
             fontFamily: 'sans-serif',
-            letterSpacing: '-0.05em',
+            letterSpacing: '-0.07em',
           }}
         >
           <span>KO</span>
@@ -46,7 +46,7 @@ export default function Icon() {
               justifyContent: 'center',
               width: 64,
               height: 64,
-              margin: '0 6px',
+              margin: '0 4px',
             }}
           >
             <svg
@@ -56,9 +56,9 @@ export default function Icon() {
               fill="none"
               xmlns="http://www.w3.org/2000/svg"
             >
-              <circle cx="12" cy="12" r="10" stroke="#E50000" strokeWidth="2.5" />
-              <circle cx="12" cy="12" r="6" stroke="#E50000" strokeWidth="2.5" />
-              <circle cx="12" cy="12" r="2.5" fill="#E50000" />
+              <circle cx="12" cy="12" r="10" stroke="#E50000" strokeWidth="2.8" />
+              <circle cx="12" cy="12" r="5.5" stroke="#E50000" strokeWidth="2.5" />
+              <circle cx="12" cy="12" r="2.2" fill="#E50000" />
             </svg>
           </div>
           <span>P</span>
