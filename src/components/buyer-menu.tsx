@@ -2,7 +2,7 @@
 
 import { Button } from '@/components/ui/button';
 import type { OrderItem, MenuItem, Category } from '@/lib/types';
-import { PlusCircle, MinusCircle, ImageIcon, Plus, Minus } from 'lucide-react';
+import { ImageIcon, Plus, Minus } from 'lucide-react';
 import { categoryIcons } from './icons';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
@@ -79,7 +79,7 @@ export function BuyerMenu({
               <h2 className="font-headline text-[13px] font-black uppercase tracking-[0.1em] text-[#213147]">{category}</h2>
             </div>
             
-            <div className="bg-white rounded-[1.5rem] border shadow-sm overflow-hidden divide-y">
+            <div className="grid grid-cols-2 gap-3">
               {itemsInCategory.map((item) => {
                 const relevantCartItems = orderItems.filter(i => i.id === item.id);
                 const totalQuantity = relevantCartItems.reduce((acc, i) => acc + i.quantity, 0);
@@ -87,10 +87,10 @@ export function BuyerMenu({
                 return (
                   <div 
                     key={item.id} 
-                    className="p-4 flex items-center gap-4 bg-white hover:bg-muted/5 transition-all active:bg-muted/10 group"
+                    className="bg-white rounded-[1.5rem] border shadow-sm overflow-hidden flex flex-col transition-all active:scale-[0.98] group"
                   >
-                    {/* Item Image Thumbnail - List Style */}
-                    <div className="relative w-16 h-16 rounded-xl overflow-hidden border bg-muted shrink-0 shadow-sm">
+                    {/* Larger Aspect-Square Image at top of card */}
+                    <div className="relative aspect-square w-full bg-muted shrink-0 shadow-sm border-b">
                       {item.imageUrl ? (
                         <Image 
                           src={item.imageUrl} 
@@ -100,71 +100,72 @@ export function BuyerMenu({
                         />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center text-muted-foreground/20">
-                          <ImageIcon className="w-6 h-6" />
+                          <ImageIcon className="w-8 h-8" />
                         </div>
                       )}
                       
-                      {/* Active Quantity Dark Overlay (Matches Summary Style) */}
+                      {/* Active Quantity Dark Overlay (Centered on Card) */}
                       {totalQuantity > 0 && (
-                        <div className="absolute inset-0 bg-[#213147]/80 flex items-center justify-center animate-in fade-in duration-300">
-                          <span className="text-white font-black text-xl">{totalQuantity}</span>
+                        <div className="absolute inset-0 bg-[#213147]/80 flex items-center justify-center animate-in fade-in duration-300 backdrop-blur-[2px]">
+                          <span className="text-white font-black text-3xl">{totalQuantity}</span>
                         </div>
                       )}
                     </div>
 
                     {/* Content Area */}
-                    <div className="flex-1 min-w-0">
-                      <p className="font-black text-sm leading-tight text-[#213147] uppercase tracking-tight truncate">
+                    <div className="p-3 flex flex-col flex-1 min-w-0">
+                      <p className="font-black text-xs leading-tight text-[#213147] uppercase tracking-tight line-clamp-2">
                         {item.name}
                       </p>
                       {item.description && (
-                        <p className="text-[10px] text-muted-foreground font-medium line-clamp-1 mt-0.5 uppercase tracking-tighter">
+                        <p className="text-[9px] text-muted-foreground font-medium line-clamp-1 mt-0.5 uppercase tracking-tighter">
                           {item.description}
                         </p>
                       )}
-                      <div className="mt-1">
+                      
+                      <div className="mt-auto pt-3 flex items-center justify-between">
                         <span className="font-mono text-xs font-black text-primary">
                           ${item.price.toFixed(2)}{isModifierEnabled && '+'}
                         </span>
-                      </div>
-                    </div>
 
-                    {/* Controls - Minimalist List Style */}
-                    <div className="flex items-center gap-1 shrink-0">
-                      {isModifierEnabled ? (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleQuantityChange(item, 1)}
-                          className="h-10 w-10 rounded-xl hover:bg-primary/10 text-primary border-2 border-primary/10"
-                        >
-                          <Plus className="h-5 w-5" />
-                        </Button>
-                      ) : (
-                        <div className="flex items-center gap-1.5 bg-muted/30 p-1 rounded-xl border border-muted">
-                          {totalQuantity > 0 && (
+                        {/* Controls - Minimalist Style */}
+                        <div className="flex items-center gap-1 shrink-0">
+                          {isModifierEnabled ? (
                             <Button
                               variant="ghost"
                               size="icon"
-                              onClick={() => handleQuantityChange(item, -1)}
-                              className="h-8 w-8 rounded-lg hover:bg-white transition-colors"
+                              onClick={() => handleQuantityChange(item, 1)}
+                              className="h-8 w-8 rounded-lg hover:bg-primary/10 text-primary border-2 border-primary/10"
                             >
-                              <Minus className="h-4 w-4" />
+                              <Plus className="h-4 w-4" />
                             </Button>
+                          ) : (
+                            <div className="flex items-center gap-1 bg-muted/30 p-0.5 rounded-lg border border-muted">
+                              {totalQuantity > 0 && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handleQuantityChange(item, -1)}
+                                  className="h-7 w-7 rounded-md hover:bg-white transition-colors"
+                                >
+                                  <Minus className="h-3 w-3" />
+                                </Button>
+                              )}
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleQuantityChange(item, 1)}
+                                className={cn(
+                                  "h-7 w-7 rounded-md transition-colors text-primary hover:bg-white",
+                                  totalQuantity === 0 && "bg-white shadow-sm"
+                                )}
+                              >
+                                <Plus className="h-3 w-3" />
+                              </Button>
+                            </div>
                           )}
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleQuantityChange(item, 1)}
-                            className={cn(
-                              "h-8 w-8 rounded-lg transition-colors text-primary hover:bg-white",
-                              totalQuantity === 0 && "bg-white shadow-sm"
-                            )}
-                          >
-                            <Plus className="h-4 w-4" />
-                          </Button>
                         </div>
-                      )}
+                      </div>
                     </div>
                   </div>
                 );
