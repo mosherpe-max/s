@@ -158,6 +158,7 @@ function CheckoutDrawerContent({
   const [isFetchingIntent, setIsFetchingIntent] = useState(false);
 
   const isGolf = seller?.type?.toLowerCase().includes('golf');
+  const isBowling = seller?.type?.toLowerCase().includes('bowling');
 
   const tax = subtotal * (taxRate / 100);
   const finalTotal = subtotal + platformFee + tax + tip;
@@ -246,6 +247,12 @@ function CheckoutDrawerContent({
     };
   }, [user, sellerId, activeOrderItems, subtotal, platformFee, tax, tip, finalTotal, selectedMenuType, locationValue]);
 
+  const checkoutNotice = isGolf 
+    ? "A small convenience fee has been added to support mobile ordering on the course."
+    : isBowling 
+    ? "A small convenience fee has been added so you can order without leaving your lane."
+    : "A small convenience fee is included in your order total to support mobile ordering technology.";
+
   return (
     <ScrollArea className="flex-1">
       <div className="p-6 space-y-8 pb-32">
@@ -278,7 +285,7 @@ function CheckoutDrawerContent({
           <div className="bg-slate-50 border border-slate-100 p-4 rounded-2xl flex items-start gap-3 animate-in fade-in slide-in-from-bottom-2 duration-500">
             <Info className="h-4 w-4 text-slate-400 shrink-0 mt-0.5" />
             <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-tight leading-relaxed">
-              Notice: A small convenience fee is included in your order total. This fee supports the mobile technology and real-time logistics required to fulfill your delivery.
+              {checkoutNotice}
             </p>
           </div>
 
@@ -397,6 +404,15 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
     }
   };
 
+  const isGolf = seller?.type?.toLowerCase().includes('golf');
+  const isBowling = seller?.type?.toLowerCase().includes('bowling');
+
+  const topMenuNotice = isGolf 
+    ? "Order from anywhere on the course — a small convenience fee applies at checkout."
+    : isBowling 
+    ? "Order from your lane and stay in the game — a small convenience fee applies at checkout."
+    : "Select items to begin your order — a small convenience fee applies at checkout.";
+
   const isLoading = isSellerLoading || areItemsLoading;
 
   if (isLoading) {
@@ -474,9 +490,9 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
             </div>
           </div>
 
-          <p className="text-[9px] font-bold uppercase tracking-[0.1em] text-white/50 flex items-center justify-center gap-1.5">
-            <Info className="h-2.5 w-2.5" />
-            All orders include a small convenience fee
+          <p className="text-[9px] font-bold uppercase tracking-[0.1em] text-white/50 flex items-center justify-center gap-1.5 px-4 max-w-xs mx-auto">
+            <Info className="h-2.5 w-2.5 shrink-0" />
+            {topMenuNotice}
           </p>
         </div>
       </header>
