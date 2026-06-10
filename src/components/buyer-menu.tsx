@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import type { OrderItem, MenuItem, Category } from '@/lib/types';
 import { ImageIcon, Plus, Minus } from 'lucide-react';
 import { categoryIcons } from './icons';
-import Image from 'next/image';
+import Image from 'image';
 import { cn } from '@/lib/utils';
 
 interface BuyerMenuProps {
@@ -89,7 +89,7 @@ export function BuyerMenu({
                     key={item.id} 
                     className="bg-white rounded-[1.5rem] border shadow-sm overflow-hidden flex flex-col transition-all active:scale-[0.98] group"
                   >
-                    {/* Larger Aspect-Square Image at top of card */}
+                    {/* Immersive Image - Overlay Removed to keep picture visible */}
                     <div className="relative aspect-square w-full bg-muted shrink-0 shadow-sm border-b">
                       {item.imageUrl ? (
                         <Image 
@@ -97,17 +97,11 @@ export function BuyerMenu({
                           alt={item.name} 
                           fill 
                           className="object-cover transition-transform duration-500 group-hover:scale-110" 
+                          data-ai-hint={item.name}
                         />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center text-muted-foreground/20">
                           <ImageIcon className="w-8 h-8" />
-                        </div>
-                      )}
-                      
-                      {/* Active Quantity Dark Overlay (Centered on Card) */}
-                      {totalQuantity > 0 && (
-                        <div className="absolute inset-0 bg-[#213147]/80 flex items-center justify-center animate-in fade-in duration-300 backdrop-blur-[2px]">
-                          <span className="text-white font-black text-3xl">{totalQuantity}</span>
                         </div>
                       )}
                     </div>
@@ -128,7 +122,7 @@ export function BuyerMenu({
                           ${item.price.toFixed(2)}{isModifierEnabled && '+'}
                         </span>
 
-                        {/* Controls - Minimalist Style */}
+                        {/* Controls - Quantity displayed in stepper area */}
                         <div className="flex items-center gap-1 shrink-0">
                           {isModifierEnabled ? (
                             <Button
@@ -140,28 +134,39 @@ export function BuyerMenu({
                               <Plus className="h-4 w-4" />
                             </Button>
                           ) : (
-                            <div className="flex items-center gap-1 bg-muted/30 p-0.5 rounded-lg border border-muted">
-                              {totalQuantity > 0 && (
+                            <div className="flex items-center gap-1 bg-muted/30 p-0.5 rounded-lg border border-muted min-h-[32px]">
+                              {totalQuantity > 0 ? (
+                                <>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => handleQuantityChange(item, -1)}
+                                    className="h-7 w-7 rounded-md hover:bg-white transition-colors"
+                                  >
+                                    <Minus className="h-3 w-3" />
+                                  </Button>
+                                  <span className="text-[10px] font-black w-4 text-center text-[#213147]">
+                                    {totalQuantity}
+                                  </span>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => handleQuantityChange(item, 1)}
+                                    className="h-7 w-7 rounded-md transition-colors text-primary hover:bg-white"
+                                  >
+                                    <Plus className="h-3 w-3" />
+                                  </Button>
+                                </>
+                              ) : (
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  onClick={() => handleQuantityChange(item, -1)}
-                                  className="h-7 w-7 rounded-md hover:bg-white transition-colors"
+                                  onClick={() => handleQuantityChange(item, 1)}
+                                  className="h-7 w-7 rounded-md transition-colors text-primary bg-white shadow-sm hover:bg-white"
                                 >
-                                  <Minus className="h-3 w-3" />
+                                  <Plus className="h-3 w-3" />
                                 </Button>
                               )}
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => handleQuantityChange(item, 1)}
-                                className={cn(
-                                  "h-7 w-7 rounded-md transition-colors text-primary hover:bg-white",
-                                  totalQuantity === 0 && "bg-white shadow-sm"
-                                )}
-                              >
-                                <Plus className="h-3 w-3" />
-                              </Button>
                             </div>
                           )}
                         </div>
