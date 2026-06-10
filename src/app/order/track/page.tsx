@@ -12,7 +12,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import Link from 'next/link';
+import Link from 'link';
 import { useSearchParams } from 'next/navigation';
 import { ShoppingBag, MapPin, Loader2, Store, ClipboardList, Satellite, Info } from 'lucide-react';
 import { APIProvider } from '@vis.gl/react-google-maps';
@@ -143,6 +143,14 @@ function OrderTrackingContent() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Convenience Fee Notice */}
+        <div className="bg-white/50 backdrop-blur-sm border border-slate-200 p-4 rounded-2xl flex items-start gap-3 animate-in fade-in slide-in-from-bottom-2 duration-500">
+          <Info className="h-4 w-4 text-slate-400 shrink-0 mt-0.5" />
+          <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-tight leading-relaxed">
+            Notice: A small convenience fee is included in your order total. This fee supports the mobile technology and real-time logistics required to fulfill your delivery.
+          </p>
+        </div>
       </div>
     </div>
   );
