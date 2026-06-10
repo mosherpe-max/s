@@ -45,6 +45,7 @@ import { StripeCheckoutForm } from '@/components/stripe-checkout-form';
 import { cn } from '@/lib/utils';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { Badge } from '@/components/ui/badge';
+import { StylizedKoopLogo } from '@/components/header';
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || 'pk_test_placeholder');
 
@@ -57,6 +58,18 @@ const serviceTypeIcons: Record<string, any> = {
   'Dine-In': Utensils,
   'Lane Delivery': MapPin,
 };
+
+function CheckoutBrandingBar() {
+  return (
+    <div className="fixed bottom-0 left-0 right-0 h-7 bg-[#213147] text-white flex items-center justify-between px-6 z-[60] w-full border-t border-white/5">
+      <span className="text-[10px] font-black uppercase tracking-widest text-white/40">Secure Order</span>
+      <div className="flex items-center gap-2">
+        <span className="text-[10px] font-black uppercase tracking-widest text-white/60">Powered by</span>
+        <StylizedKoopLogo size="sm" />
+      </div>
+    </div>
+  );
+}
 
 function StripeActionArea({ 
   clientSecret, 
@@ -114,6 +127,7 @@ function StripeActionArea({
           PAY & PLACE ORDER
         </Button>
       </div>
+      <CheckoutBrandingBar />
     </div>
   );
 }
@@ -250,7 +264,6 @@ function CheckoutDrawerContent({
         <PricingBreakdown subtotal={subtotal} serviceFee={platformFee} tax={tax} tip={tip} taxRate={taxRate} />
 
         <div className="space-y-3">
-          {/* CONVENIENCE FEE NOTIFICATION */}
           <div className="bg-slate-50 border border-slate-100 p-4 rounded-2xl flex items-start gap-3 animate-in fade-in slide-in-from-bottom-2 duration-500">
             <Info className="h-4 w-4 text-slate-400 shrink-0 mt-0.5" />
             <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-tight leading-relaxed">
@@ -258,7 +271,6 @@ function CheckoutDrawerContent({
             </p>
           </div>
 
-          {/* PRO TIP - GPS TRACKING */}
           <div className="bg-primary/5 border border-primary/10 p-4 rounded-2xl flex items-start gap-3 animate-in fade-in slide-in-from-bottom-2 duration-700">
             <Satellite className="h-4 w-4 text-primary shrink-0 mt-0.5" />
             <div className="space-y-0.5">
@@ -289,7 +301,16 @@ function CheckoutDrawerContent({
             </div>
           </RadioGroup>
           {paymentMethod === 'Stripe' && (isFetchingIntent ? (<div className="flex flex-col items-center gap-2 py-8"><Loader2 className="h-6 w-6 animate-spin text-primary opacity-50" /><p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Initializing Secure Environment...</p></div>) : clientSecret ? (<Elements stripe={stripePromise} options={{ clientSecret }}><StripeActionArea clientSecret={clientSecret} isProcessing={isProcessing} setIsProcessing={setIsProcessing} onOrderComplete={onOrderComplete} orderData={currentOrderData} /></Elements>) : (<div className="p-8 text-center border-2 border-dashed rounded-3xl"><AlertTriangle className="h-6 w-6 text-amber-500 mx-auto mb-2" /><p className="text-[10px] font-bold text-amber-700 uppercase">Configuration required to initialize payments</p></div>))}
-          {paymentMethod === 'Pay at Delivery' && (<div className="fixed bottom-7 left-0 right-0 p-4 bg-white/80 backdrop-blur-md border-t z-50"><Button size="lg" className="w-full h-14 font-black uppercase tracking-widest gap-2 shadow-xl" onClick={handleManualOrder} disabled={isProcessing}>{isProcessing ? <Loader2 className="animate-spin" /> : <ShoppingBag className="h-5 w-5" />} PLACE ORDER</Button></div>)}
+          {paymentMethod === 'Pay at Delivery' && (
+            <>
+              <div className="fixed bottom-7 left-0 right-0 p-4 bg-white/80 backdrop-blur-md border-t z-50">
+                <Button size="lg" className="w-full h-14 font-black uppercase tracking-widest gap-2 shadow-xl" onClick={handleManualOrder} disabled={isProcessing}>
+                  {isProcessing ? <Loader2 className="animate-spin" /> : <ShoppingBag className="h-5 w-5" />} PLACE ORDER
+                </Button>
+              </div>
+              <CheckoutBrandingBar />
+            </>
+          )}
         </div>
       </div>
     </ScrollArea>
@@ -343,7 +364,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
   const scrollToCategory = (category: string) => {
     const element = document.getElementById(category.toLowerCase().replace(/\s+/g, '-'));
     if (element) {
-      const offset = 160; // Space for sticky nav + context bar
+      const offset = 160; 
       const bodyRect = document.body.getBoundingClientRect().top;
       const elementRect = element.getBoundingClientRect().top;
       const elementPosition = elementRect - bodyRect;
@@ -376,15 +397,12 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
-      {/* 🌟 DYNAMIC VENUE HEADER - TOP THIRD */}
       <header className="relative w-full min-h-[35vh] flex flex-col bg-[#213147] overflow-hidden shrink-0 pt-4 pb-8 px-6">
-        {/* Background Decorative Rings */}
         <div className="absolute inset-0 z-0 opacity-10 pointer-events-none">
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full border-[30px] border-white" />
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] rounded-full border-[20px] border-white" />
         </div>
 
-        {/* 🌟 TOP UTILITY ROW - CART BUTTON */}
         <div className="relative z-20 flex justify-end w-full mb-6">
           <Button 
             variant="outline" 
@@ -406,7 +424,6 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
           </Button>
         </div>
         
-        {/* 🌟 CENTERED BRANDING & CONTROLS */}
         <div className="relative z-10 flex flex-col items-center text-center space-y-6 max-w-lg w-full mx-auto">
           <div className="space-y-1">
             <p className="text-[10px] font-black uppercase tracking-[0.3em] text-primary">Ordering From</p>
@@ -451,7 +468,6 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
         </div>
       </header>
 
-      {/* 🌟 STICKY CATEGORY NAV & CONTEXT BAR */}
       <div className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b-2 shadow-sm">
         <div className="max-w-2xl mx-auto px-4 pt-3 pb-1">
           <div className="flex gap-2 overflow-x-auto no-scrollbar py-1">
@@ -466,7 +482,6 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
             ))}
           </div>
         </div>
-        {/* Sticky Ordering Context Statement */}
         <div className="max-w-2xl mx-auto px-4 pb-3 pt-1">
           <div className="flex items-center justify-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-muted-foreground/60 whitespace-nowrap overflow-hidden">
             <span>Ordering from</span>
