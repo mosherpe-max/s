@@ -426,7 +426,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
-      <header className="relative w-full min-h-[35vh] flex flex-col bg-[#213147] overflow-hidden shrink-0 pt-4 pb-8 px-6">
+      <header className="relative w-full min-h-[25vh] flex flex-col bg-[#213147] overflow-hidden shrink-0 pt-4 pb-8 px-6">
         <div className="absolute inset-0 z-0 opacity-10 pointer-events-none">
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full border-[30px] border-white" />
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] rounded-full border-[20px] border-white" />
@@ -454,13 +454,6 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
         </div>
         
         <div className="relative z-10 flex flex-col items-center text-center space-y-6 max-w-lg w-full mx-auto">
-          <div className="space-y-1">
-            <p className="text-[10px] font-black uppercase tracking-[0.3em] text-primary">Ordering From</p>
-            <h1 className="font-headline text-3xl sm:text-4xl font-black text-white uppercase tracking-tight leading-tight drop-shadow-lg max-w-[80vw]">
-              {seller?.courseName}
-            </h1>
-          </div>
-
           <div className="space-y-3 w-full">
             <p className="text-[9px] font-bold uppercase tracking-widest text-white/40">Select Service Mode</p>
             <div className="flex flex-wrap justify-center gap-2">
@@ -498,7 +491,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
       </header>
 
       <div className="sticky top-16 z-30 bg-white/95 backdrop-blur-md border-b-2 shadow-sm">
-        <div className="max-w-2xl mx-auto px-4 pt-3 pb-1">
+        <div className="max-w-2xl mx-auto px-4 py-3">
           <div className="flex gap-2 overflow-x-auto no-scrollbar py-1">
             {currentCategories.map((cat) => (
               <button
@@ -509,18 +502,6 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
                 {cat}
               </button>
             ))}
-          </div>
-        </div>
-        <div className="max-w-2xl mx-auto px-4 pb-3 pt-1">
-          <div className="flex items-center justify-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-muted-foreground/60 whitespace-nowrap overflow-hidden">
-            <span>Ordering from</span>
-            <span className="text-[#213147] truncate max-w-[120px] sm:max-w-none">{seller?.courseName}</span>
-            {selectedMenuType && (
-              <>
-                <span className="opacity-30">•</span>
-                <span className="text-primary truncate">{selectedMenuType}</span>
-              </>
-            )}
           </div>
         </div>
       </div>
