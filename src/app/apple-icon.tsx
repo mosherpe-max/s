@@ -31,37 +31,37 @@ export default function Icon() {
           style={{
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center',
-            width: 120,
-            height: 120,
-            position: 'relative',
-            marginBottom: '10px',
-          }}
-        >
-          {/* Target Symbol Replacement for character 3 in KOOP */}
-          <svg
-            width="120"
-            height="120"
-            viewBox="0 0 24 24"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <circle cx="12" cy="12" r="10" stroke="#FF0000" strokeWidth="3" />
-            <circle cx="12" cy="12" r="5" stroke="#FF0000" strokeWidth="3" />
-            <circle cx="12" cy="12" r="2" fill="#FF0000" />
-          </svg>
-        </div>
-        <div 
-          style={{ 
-            color: 'white', 
-            fontSize: 32, 
-            fontWeight: 900, 
-            letterSpacing: '-0.05em',
+            color: 'white',
+            fontWeight: 900,
+            fontSize: 64,
             fontFamily: 'sans-serif',
-            marginTop: '5px'
+            letterSpacing: '-0.05em',
           }}
         >
-          KOOP
+          <span>KO</span>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: 64,
+              height: 64,
+              margin: '0 6px',
+            }}
+          >
+            <svg
+              width="64"
+              height="64"
+              viewBox="0 0 24 24"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <circle cx="12" cy="12" r="10" stroke="#E50000" strokeWidth="2.5" />
+              <circle cx="12" cy="12" r="6" stroke="#E50000" strokeWidth="2.5" />
+              <circle cx="12" cy="12" r="2.5" fill="#E50000" />
+            </svg>
+          </div>
+          <span>P</span>
         </div>
       </div>
     ),
