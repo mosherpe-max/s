@@ -477,7 +477,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
         </div>
       </header>
 
-      <div className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b-2 shadow-sm">
+      <div className="sticky top-16 z-30 bg-white/95 backdrop-blur-md border-b-2 shadow-sm">
         <div className="max-w-2xl mx-auto px-4 pt-3 pb-1">
           <div className="flex gap-2 overflow-x-auto no-scrollbar py-1">
             {currentCategories.map((cat) => (
