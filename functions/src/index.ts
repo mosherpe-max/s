@@ -96,7 +96,7 @@ export const createStripeConnectAccount = onCall({
 
 /**
  * createPaymentIntent
- * Initializes a Stripe PaymentIntent with a Patron-paid convenience fee and Koop coverage.
+ * Initializes a Stripe PaymentIntent restricted to card payments with a Patron-paid fee.
  */
 export const createPaymentIntent = onCall({
   secrets: ["STRIPE_SECRET_KEY"],

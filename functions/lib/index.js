@@ -81,7 +81,7 @@ export const createStripeConnectAccount = onCall({
 });
 /**
  * createPaymentIntent
- * Initializes a Stripe PaymentIntent with a Patron-paid convenience fee and Koop coverage.
+ * Initializes a Stripe PaymentIntent restricted to card payments with a Patron-paid fee.
  */
 export const createPaymentIntent = onCall({
     secrets: ["STRIPE_SECRET_KEY"],
@@ -102,7 +102,6 @@ export const createPaymentIntent = onCall({
     }
     const stripe = new Stripe(apiKey);
     try {
-        // 1. Fetch Venue Registry for routing and fee policy
         const venueRef = db.collection('venues').doc(sellerId);
         const venueDoc = await venueRef.get();
         if (!venueDoc.exists) {
@@ -113,14 +112,11 @@ export const createPaymentIntent = onCall({
         if (!stripeConnectId) {
             throw new HttpsError("failed-precondition", `Stripe Account ID is missing for venue: ${sellerId}.`, { sellerId });
         }
-        // 2. Fetch Fee Configuration from Registry
         const patronConvenienceFee = venueData?.patronConvenienceFee ?? 150;
         const platformFeeFixed = venueData?.platformFeeFixed ?? 20;
-        // 3. Calculate Final Stripe Values
         const baseAmountInCents = Math.round(amount * 100);
         const totalChargeAmount = baseAmountInCents + patronConvenienceFee;
         const applicationFeeAmount = Math.max(0, patronConvenienceFee - platformFeeFixed);
-        // 4. Create the PaymentIntent with card-only restriction
         const paymentIntent = await stripe.paymentIntents.create({
             amount: totalChargeAmount,
             currency: 'usd',
