@@ -1,4 +1,3 @@
-
 'use client';
 
 import { Suspense, useEffect, useRef, useState, use } from 'react';
@@ -12,7 +11,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import Link from 'link';
+import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { ShoppingBag, MapPin, Loader2, Store, ClipboardList, Satellite, Info } from 'lucide-react';
 import { APIProvider } from '@vis.gl/react-google-maps';
