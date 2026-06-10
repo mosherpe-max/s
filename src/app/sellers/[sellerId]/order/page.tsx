@@ -9,6 +9,7 @@ import { categories } from '@/lib/types';
 import { BuyerMenu } from '@/components/buyer-menu';
 import { OrderSummary } from '@/components/order-summary';
 import { PricingBreakdown } from '@/components/pricing-breakdown';
+import { TipSelector } from '@/components/tip-selector';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -125,9 +126,6 @@ function CheckoutDrawerContent({
   activeOrderItems, 
   subtotal, 
   platformFee, 
-  tax, 
-  tip, 
-  finalTotal, 
   taxRate,
   onOrderComplete
 }: any) {
@@ -136,11 +134,15 @@ function CheckoutDrawerContent({
   const auth = useAuth();
   const { user } = useUser();
   const { toast } = useToast();
+  
+  const [tip, setTip] = useState(0);
   const [paymentMethod, setPaymentMethod] = useState<'Pay at Delivery' | 'Stripe'>('Pay at Delivery');
   const [isProcessing, setIsProcessing] = useState(false);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [isFetchingIntent, setIsFetchingIntent] = useState(false);
 
+  const tax = subtotal * (taxRate / 100);
+  const finalTotal = subtotal + platformFee + tax + tip;
   const baseTotalForBackend = subtotal + tax + tip;
 
   useEffect(() => {
@@ -230,6 +232,7 @@ function CheckoutDrawerContent({
     <ScrollArea className="flex-1">
       <div className="p-6 space-y-8 pb-32">
         <OrderSummary items={activeOrderItems} />
+        
         {selectedMenuType === 'Lane Delivery' && seller?.laneCount && (
           <div className="space-y-3">
             <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground px-1">STATION</h3>
@@ -240,6 +243,9 @@ function CheckoutDrawerContent({
             </div>
           </div>
         )}
+
+        <TipSelector subtotal={subtotal} onTipChange={setTip} />
+
         <PricingBreakdown subtotal={subtotal} serviceFee={platformFee} tax={tax} tip={tip} taxRate={taxRate} />
 
         {/* CONVENIENCE FEE NOTIFICATION */}
@@ -302,10 +308,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
   }, 0), [activeOrderItems]);
   
   const taxRate = seller?.taxRate ?? 6.0;
-  const tax = subtotal * (taxRate / 100);
   const platformFee = seller?.serviceFee || 0;
-  const tip = subtotal * 0.15;
-  const finalTotal = subtotal + platformFee + tax + tip;
 
   const filteredMenuItems = useMemo(() => {
     if (!menuItems || !selectedMenuType) return [];
@@ -522,9 +525,6 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
             activeOrderItems={activeOrderItems}
             subtotal={subtotal}
             platformFee={platformFee}
-            tax={tax}
-            tip={tip}
-            finalTotal={finalTotal}
             taxRate={taxRate}
             onOrderComplete={handleOrderComplete}
           />
