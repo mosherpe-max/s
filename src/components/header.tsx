@@ -42,9 +42,9 @@ export function StylizedKoopLogo({ size = 'md', colorClass = 'text-white' }: { s
   const { data: config } = useDoc<PlatformConfig>(configRef);
 
   const sizes = {
-    sm: { text: 'text-[13px]', svg: 'w-[18px] h-[18px]', img: 'h-5 w-auto', spacing: 'mx-0.5' },
-    md: { text: 'text-xl', svg: 'w-6 h-6', img: 'h-8 w-auto', spacing: 'mx-0.5' },
-    lg: { text: 'text-3xl', svg: 'w-8 h-8', img: 'h-12 w-auto', spacing: 'mx-1' }
+    sm: { text: 'text-[13px]', svg: 'w-[18px] h-[18px]', img: 'h-5 w-auto', gap: 'gap-0.5' },
+    md: { text: 'text-xl', svg: 'w-6 h-6', img: 'h-8 w-auto', gap: 'gap-1' },
+    lg: { text: 'text-3xl', svg: 'w-8 h-8', img: 'h-12 w-auto', gap: 'gap-1.5' }
   };
   const s = sizes[size];
 
@@ -63,10 +63,10 @@ export function StylizedKoopLogo({ size = 'md', colorClass = 'text-white' }: { s
 
   // Fallback to stylized SVG wordmark matching K-O-[Target]-P
   return (
-    <div className={cn("flex items-center font-headline font-black tracking-tighter leading-none select-none uppercase", colorClass, s.text)}>
+    <div className={cn("flex items-center font-headline font-black tracking-tighter leading-none select-none uppercase", colorClass, s.text, s.gap)}>
       <span>K</span>
-      <span className={cn(s.spacing)}>O</span>
-      <div className={cn("relative flex items-center justify-center shrink-0", s.spacing, s.svg)}>
+      <span>O</span>
+      <div className={cn("relative flex items-center justify-center shrink-0", s.svg)}>
         <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
           <circle cx="12" cy="12" r="10.5" stroke="#E50000" strokeWidth="2.8" />
           <circle cx="12" cy="12" r="6" stroke="#E50000" strokeWidth="2.4" />
