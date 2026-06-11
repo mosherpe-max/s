@@ -1,4 +1,3 @@
-
 'use client';
 
 import Link from 'next/link';
@@ -43,7 +42,7 @@ export function StylizedKoopLogo({ size = 'md', colorClass = 'text-white' }: { s
   const { data: config } = useDoc<PlatformConfig>(configRef);
 
   const sizes = {
-    sm: { text: 'text-xs', svg: 'w-4 h-4', img: 'h-4 w-auto', spacing: 'mx-0.5' },
+    sm: { text: 'text-[13px]', svg: 'w-[18px] h-[18px]', img: 'h-5 w-auto', spacing: 'mx-0.5' },
     md: { text: 'text-xl', svg: 'w-6 h-6', img: 'h-8 w-auto', spacing: 'mx-0.5' },
     lg: { text: 'text-3xl', svg: 'w-8 h-8', img: 'h-12 w-auto', spacing: 'mx-1' }
   };
@@ -62,7 +61,7 @@ export function StylizedKoopLogo({ size = 'md', colorClass = 'text-white' }: { s
     );
   }
 
-  // Fallback to stylized SVG wordmark
+  // Fallback to stylized SVG wordmark matching K-O-[Target]-P
   return (
     <div className={cn("flex items-center font-headline font-black tracking-tighter leading-none select-none uppercase", colorClass, s.text)}>
       <span>K</span>
