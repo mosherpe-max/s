@@ -3,7 +3,6 @@
 import { collection, query, where, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { useCollection, useFirestore, useMemoFirebase, useDoc, useUser } from '@/firebase';
 import { MapView } from '@/components/map-view';
-import { APIProvider } from '@vis.gl/react-google-maps';
 import { useEffect, useState, useMemo, useRef, use } from 'react';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
@@ -136,69 +135,67 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
   const isLoading = areActiveOrdersLoading || isPrimaryLoading;
 
   return (
-    <APIProvider apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!}>
-      <div className="flex flex-col h-screen overflow-hidden bg-muted/20">
-        <header className="flex-shrink-0 px-4 h-16 flex items-center justify-between border-b-2 border-[#E50000] bg-[#213147] z-20 shadow-sm">
-          <div className="flex flex-col min-w-0">
-            <h1 className="font-headline text-sm font-bold text-white uppercase tracking-tight">BEVCART PORTAL</h1>
-            <Badge variant="outline" className="h-4 px-1.5 text-[8px] bg-white/5 text-white border-white/10 uppercase">
-              {primarySeller?.courseName || 'Loading...'}
-            </Badge>
-          </div>
-          <div className="flex items-center space-x-3">
-            <Switch checked={isBevCartActive} onCheckedChange={handleToggleActive} className="data-[state=checked]:bg-green-600" />
-            <Button variant="ghost" size="icon" onClick={() => router.push('/')} className="text-white/40 hover:text-white"><LogOut className="h-4 w-4" /></Button>
-          </div>
-        </header>
-
-        <div className="flex-shrink-0 px-4 py-2 bg-background border-b flex items-center justify-center gap-6">
-          <div className="flex flex-col items-center">
-            <span className="text-[8px] font-black uppercase text-muted-foreground">Daily Tips</span>
-            <span className="text-xs font-bold">${metrics?.dailyTips.toFixed(2) || '0.00'}</span>
-          </div>
-          <div className="h-6 w-px bg-muted" />
-          <div className="flex flex-col items-center">
-            <span className="text-[8px] font-black uppercase text-muted-foreground">Deliveries</span>
-            <span className="text-xs font-bold">{metrics?.count || '0'}</span>
-          </div>
+    <div className="flex flex-col h-screen overflow-hidden bg-muted/20">
+      <header className="flex-shrink-0 px-4 h-16 flex items-center justify-between border-b-2 border-[#E50000] bg-[#213147] z-20 shadow-sm">
+        <div className="flex flex-col min-w-0">
+          <h1 className="font-headline text-sm font-bold text-white uppercase tracking-tight">BEVCART PORTAL</h1>
+          <Badge variant="outline" className="h-4 px-1.5 text-[8px] bg-white/5 text-white border-white/10 uppercase">
+            {primarySeller?.courseName || 'Loading...'}
+          </Badge>
         </div>
+        <div className="flex items-center space-x-3">
+          <Switch checked={isBevCartActive} onCheckedChange={handleToggleActive} className="data-[state=checked]:bg-green-600" />
+          <Button variant="ghost" size="icon" onClick={() => router.push('/')} className="text-white/40 hover:text-white"><LogOut className="h-4 w-4" /></Button>
+        </div>
+      </header>
 
-        <div className="flex-1 flex flex-col md:flex-row overflow-hidden p-4 gap-4">
-          <div className="relative w-full md:w-2/3 h-[40vh] md:h-full bg-muted rounded-xl overflow-hidden border-2 shadow-sm">
-           <Button variant="outline" size="icon" className="absolute top-2 right-2 z-10 bg-background/80 h-8 w-8" onClick={() => setFitTrigger(p => p + 1)}><Focus className="h-4 w-4" /></Button>
-            {sellerLocation ? (
-              <MapView 
-                sellerLocation={sellerLocation} 
-                buyers={mappedBuyers} 
-                radius={1609.34} 
-                fitTrigger={fitTrigger}
-                showPrimaryMarker={isBevCartActive} 
-                primaryDriverId={sellerId} 
-              />
-            ) : <Skeleton className="w-full h-full" />}
-          </div>
-          <div className="w-full md:w-1/3 flex flex-col bg-background border-2 rounded-xl overflow-hidden min-h-0">
-            <h2 className="font-headline text-xs font-black px-4 py-3 shrink-0 border-b flex items-center justify-between uppercase bg-muted/10 tracking-widest">
-              <span>Active Orders</span>
-              <span className="bg-[#E50000] text-white text-[10px] font-black rounded-full px-2 py-0.5">{driverOrders.length}</span>
-            </h2>
-            <ScrollArea className="flex-1 px-2">
-              <div className="py-2.5 space-y-3">
-                {isLoading ? <Skeleton className="h-40 w-full" /> : driverOrders.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-20 text-muted-foreground opacity-40">
-                    <Package className="h-10 w-10 mb-2" />
-                    <p className="text-[10px] font-black uppercase">No active orders</p>
-                  </div>
-                ) : (
-                  driverOrders.map((order, index) => (
-                    <OrderCard key={order.id} order={order} orderNumber={index + 1} onUpdateStatus={handleUpdateOrderStatus} />
-                  ))
-                )}
-              </div>
-            </ScrollArea>
-          </div>
+      <div className="flex-shrink-0 px-4 py-2 bg-background border-b flex items-center justify-center gap-6">
+        <div className="flex flex-col items-center">
+          <span className="text-[8px] font-black uppercase text-muted-foreground">Daily Tips</span>
+          <span className="text-xs font-bold">${metrics?.dailyTips.toFixed(2) || '0.00'}</span>
+        </div>
+        <div className="h-6 w-px bg-muted" />
+        <div className="flex flex-col items-center">
+          <span className="text-[8px] font-black uppercase text-muted-foreground">Deliveries</span>
+          <span className="text-xs font-bold">{metrics?.count || '0'}</span>
         </div>
       </div>
-    </APIProvider>
+
+      <div className="flex-1 flex flex-col md:flex-row overflow-hidden p-4 gap-4">
+        <div className="relative w-full md:w-2/3 h-[40vh] md:h-full bg-muted rounded-xl overflow-hidden border-2 shadow-sm">
+         <Button variant="outline" size="icon" className="absolute top-2 right-2 z-10 bg-background/80 h-8 w-8" onClick={() => setFitTrigger(p => p + 1)}><Focus className="h-4 w-4" /></Button>
+          {sellerLocation ? (
+            <MapView 
+              sellerLocation={sellerLocation} 
+              buyers={mappedBuyers} 
+              radius={1609.34} 
+              fitTrigger={fitTrigger}
+              showPrimaryMarker={isBevCartActive} 
+              primaryDriverId={sellerId} 
+            />
+          ) : <Skeleton className="w-full h-full" />}
+        </div>
+        <div className="w-full md:w-1/3 flex flex-col bg-background border-2 rounded-xl overflow-hidden min-h-0">
+          <h2 className="font-headline text-xs font-black px-4 py-3 shrink-0 border-b flex items-center justify-between uppercase bg-muted/10 tracking-widest">
+            <span>Active Orders</span>
+            <span className="bg-[#E50000] text-white text-[10px] font-black rounded-full px-2 py-0.5">{driverOrders.length}</span>
+          </h2>
+          <ScrollArea className="flex-1 px-2">
+            <div className="py-2.5 space-y-3">
+              {isLoading ? <Skeleton className="h-40 w-full" /> : driverOrders.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-20 text-muted-foreground opacity-40">
+                  <Package className="h-10 w-10 mb-2" />
+                  <p className="text-[10px] font-black uppercase">No active orders</p>
+                </div>
+              ) : (
+                driverOrders.map((order, index) => (
+                  <OrderCard key={order.id} order={order} orderNumber={index + 1} onUpdateStatus={handleUpdateOrderStatus} />
+                ))
+              )}
+            </div>
+          </ScrollArea>
+        </div>
+      </div>
+    </div>
   );
 }

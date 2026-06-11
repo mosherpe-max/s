@@ -14,7 +14,6 @@ import { Package, LogOut, MapPin, Focus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { MapView } from '@/components/map-view';
-import { APIProvider } from '@vis.gl/react-google-maps';
 
 export default function LaneSideServerDashboardPage({ params }: { params: Promise<{ sellerId: string }> }) {
   const { sellerId } = use(params);
@@ -88,57 +87,55 @@ export default function LaneSideServerDashboardPage({ params }: { params: Promis
   const isLoading = areActiveOrdersLoading || isPrimaryLoading;
 
   return (
-    <APIProvider apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!}>
-      <div className="flex flex-col h-screen overflow-hidden bg-muted/20">
-        <header className="flex-shrink-0 px-4 h-16 flex items-center justify-between border-b-2 border-[#E50000] bg-[#213147] z-20 shadow-sm">
-          <div className="flex flex-col min-w-0">
-            <h1 className="font-headline text-sm font-bold text-white uppercase tracking-tight">LANESIDE PORTAL</h1>
-            <Badge variant="outline" className="h-4 px-1.5 text-[8px] bg-white/5 text-white border-white/10 uppercase">
-              {primarySeller?.courseName || 'Venue'}
-            </Badge>
-          </div>
-          <div className="flex items-center space-x-3">
-            <Switch checked={isServerActive} onCheckedChange={handleToggleActive} className="data-[state=checked]:bg-green-600" />
-            <Button variant="ghost" size="icon" onClick={() => router.push('/')} className="text-white/40 hover:text-white"><LogOut className="h-4 w-4" /></Button>
-          </div>
-        </header>
+    <div className="flex flex-col h-screen overflow-hidden bg-muted/20">
+      <header className="flex-shrink-0 px-4 h-16 flex items-center justify-between border-b-2 border-[#E50000] bg-[#213147] z-20 shadow-sm">
+        <div className="flex flex-col min-w-0">
+          <h1 className="font-headline text-sm font-bold text-white uppercase tracking-tight">LANESIDE PORTAL</h1>
+          <Badge variant="outline" className="h-4 px-1.5 text-[8px] bg-white/5 text-white border-white/10 uppercase">
+            {primarySeller?.courseName || 'Venue'}
+          </Badge>
+        </div>
+        <div className="flex items-center space-x-3">
+          <Switch checked={isServerActive} onCheckedChange={handleToggleActive} className="data-[state=checked]:bg-green-600" />
+          <Button variant="ghost" size="icon" onClick={() => router.push('/')} className="text-white/40 hover:text-white"><LogOut className="h-4 w-4" /></Button>
+        </div>
+      </header>
 
-        <div className="flex-1 flex flex-col md:flex-row overflow-hidden p-4 gap-4">
-          {/* Map View for Laneside (mostly symbolic but shows layout density) */}
-          <div className="relative w-full md:w-1/2 h-[35vh] md:h-full bg-muted rounded-xl overflow-hidden border-2 shadow-sm">
-            <Button variant="outline" size="icon" className="absolute top-2 right-2 z-10 bg-background/80 h-8 w-8" onClick={() => setFitTrigger(p => p + 1)}><Focus className="h-4 w-4" /></Button>
-            {primarySeller?.latitude ? (
-              <MapView 
-                sellerLocation={{ latitude: primarySeller.latitude, longitude: primarySeller.longitude }} 
-                buyers={mappedBuyers} 
-                fitTrigger={fitTrigger}
-                showPrimaryMarker={true} 
-              />
-            ) : <Skeleton className="w-full h-full" />}
-          </div>
+      <div className="flex-1 flex flex-col md:flex-row overflow-hidden p-4 gap-4">
+        {/* Map View for Laneside (mostly symbolic but shows layout density) */}
+        <div className="relative w-full md:w-1/2 h-[35vh] md:h-full bg-muted rounded-xl overflow-hidden border-2 shadow-sm">
+          <Button variant="outline" size="icon" className="absolute top-2 right-2 z-10 bg-background/80 h-8 w-8" onClick={() => setFitTrigger(p => p + 1)}><Focus className="h-4 w-4" /></Button>
+          {primarySeller?.latitude ? (
+            <MapView 
+              sellerLocation={{ latitude: primarySeller.latitude, longitude: primarySeller.longitude }} 
+              buyers={mappedBuyers} 
+              fitTrigger={fitTrigger}
+              showPrimaryMarker={true} 
+            />
+          ) : <Skeleton className="w-full h-full" />}
+        </div>
 
-          <div className="w-full md:w-1/2 flex flex-col bg-background border-2 rounded-xl overflow-hidden min-h-0">
-            <h2 className="font-headline text-xs font-black px-4 py-3 shrink-0 border-b flex items-center justify-between uppercase bg-muted/10">
-              <span>Pending Deliveries</span>
-              <Badge variant="secondary">{lanesideOrders.length}</Badge>
-            </h2>
-            <ScrollArea className="flex-1">
-              <div className="p-4 grid grid-cols-1 gap-4">
-                {isLoading ? <Skeleton className="h-48 w-full" /> : lanesideOrders.length === 0 ? (
-                  <div className="py-32 text-center text-muted-foreground opacity-40">
-                    <MapPin className="h-12 w-12 mx-auto mb-4" />
-                    <p className="text-[10px] font-black uppercase">No active lane deliveries</p>
-                  </div>
-                ) : (
-                  lanesideOrders.map((order, index) => (
-                    <OrderCard key={order.id} order={order} orderNumber={index + 1} onUpdateStatus={handleUpdateOrderStatus} />
-                  ))
-                )}
-              </div>
-            </ScrollArea>
-          </div>
+        <div className="w-full md:w-1/2 flex flex-col bg-background border-2 rounded-xl overflow-hidden min-h-0">
+          <h2 className="font-headline text-xs font-black px-4 py-3 shrink-0 border-b flex items-center justify-between uppercase bg-muted/10">
+            <span>Pending Deliveries</span>
+            <Badge variant="secondary">{lanesideOrders.length}</Badge>
+          </h2>
+          <ScrollArea className="flex-1">
+            <div className="p-4 grid grid-cols-1 gap-4">
+              {isLoading ? <Skeleton className="h-48 w-full" /> : lanesideOrders.length === 0 ? (
+                <div className="py-32 text-center text-muted-foreground opacity-40">
+                  <MapPin className="h-12 w-12 mx-auto mb-4" />
+                  <p className="text-[10px] font-black uppercase">No active lane deliveries</p>
+                </div>
+              ) : (
+                lanesideOrders.map((order, index) => (
+                  <OrderCard key={order.id} order={order} orderNumber={index + 1} onUpdateStatus={handleUpdateOrderStatus} />
+                ))
+              )}
+            </div>
+          </ScrollArea>
         </div>
       </div>
-    </APIProvider>
+    </div>
   );
 }

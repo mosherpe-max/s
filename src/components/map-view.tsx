@@ -2,7 +2,7 @@
 
 import { Truck, User, AlertCircle, Loader2 } from 'lucide-react';
 import { cn, getDriverColor } from '@/lib/utils';
-import { Map, Marker, useMap, useApiIsLoaded } from '@vis.gl/react-google-maps';
+import { Map, Marker, useMap, useApiIsLoaded, APIProvider } from '@vis.gl/react-google-maps';
 import { useEffect, useState } from 'react';
 
 interface MapViewProps {
@@ -100,24 +100,13 @@ function MapElements({ buyerLocation, sellerLocation, sellers, buyers, radius, z
   return null;
 }
 
-export function MapView({ buyerLocation, sellerLocation, showPrimaryMarker = true, primaryDriverId = 'demo-course', sellers, buyers, radius, zoomMode, interactive = true, fitTrigger }: MapViewProps) {
+/**
+ * The core map rendering logic. 
+ * This is separated so it can safely use the useApiIsLoaded hook inside APIProvider.
+ */
+function MapInternal({ buyerLocation, sellerLocation, showPrimaryMarker, primaryDriverId, sellers, buyers, radius, zoomMode, interactive, fitTrigger }: MapViewProps) {
   const apiIsLoaded = useApiIsLoaded();
   const center = buyerLocation ? { lat: buyerLocation.latitude, lng: buyerLocation.longitude } : (sellerLocation ? { lat: sellerLocation.latitude, lng: sellerLocation.longitude } : { lat: 0, lng: 0 });
-  
-  const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
-  const isKeyUnset = !apiKey || apiKey === "REPLACE_WITH_YOUR_KEY_IN_CONSOLE" || apiKey === "";
-
-  if (isKeyUnset) {
-    return (
-      <div className="w-full h-full flex flex-col items-center justify-center bg-[#1a2d44] text-white p-8 text-center border-4 border-white/5">
-        <AlertCircle className="h-12 w-12 text-red-500 mb-6 drop-shadow-xl" />
-        <h3 className="font-headline font-black uppercase text-lg mb-2 tracking-tight">Map Service Unavailable</h3>
-        <p className="text-[10px] text-white/50 max-w-xs leading-relaxed uppercase font-black tracking-widest">
-          Please add a valid Google Maps API Key to your environment variables to enable live delivery tracking.
-        </p>
-      </div>
-    );
-  }
 
   return (
     <div className="relative w-full h-full bg-[#1a2d44]">
@@ -181,5 +170,28 @@ export function MapView({ buyerLocation, sellerLocation, showPrimaryMarker = tru
         ))}
       </Map>
     </div>
+  );
+}
+
+export function MapView(props: MapViewProps) {
+  const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+  const isKeyUnset = !apiKey || apiKey === "REPLACE_WITH_YOUR_KEY_IN_CONSOLE" || apiKey === "";
+
+  if (isKeyUnset) {
+    return (
+      <div className="w-full h-full flex flex-col items-center justify-center bg-[#1a2d44] text-white p-8 text-center border-4 border-white/5">
+        <AlertCircle className="h-12 w-12 text-red-500 mb-6 drop-shadow-xl" />
+        <h3 className="font-headline font-black uppercase text-lg mb-2 tracking-tight">Map Service Unavailable</h3>
+        <p className="text-[10px] text-white/50 max-w-xs leading-relaxed uppercase font-black tracking-widest">
+          Please add a valid Google Maps API Key to your environment variables to enable live delivery tracking.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <APIProvider apiKey={apiKey!}>
+      <MapInternal {...props} />
+    </APIProvider>
   );
 }

@@ -11,4 +11,6 @@ env:
   # For local development, these are usually in .env.local
   # For production, set these in the Firebase Console or here.
   - variable: NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
-    value: "REPLACE_WITH_YOUR_KEY_IN_CONSOLE"
+    availability:
+      - BUILD
+      - RUNTIME
