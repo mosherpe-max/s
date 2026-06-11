@@ -14,6 +14,7 @@ export const sellerTypes: readonly SellerType[] = [
 
 export interface PlatformConfig {
   supportEmail: string;
+  logoUrl?: string;
   updatedAt: Timestamp;
 }
 

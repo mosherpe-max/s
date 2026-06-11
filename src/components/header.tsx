@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -30,19 +31,38 @@ import {
 } from "@/components/ui/sheet";
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import type { PlatformConfig } from '@/lib/types';
 
 /**
  * High-fidelity logo component used across the platform.
- * Replicates the brand logo: K-O-[Target]-P exactly as shown in reference.
+ * Supports custom branding upload with SVG wordmark fallback.
  */
 export function StylizedKoopLogo({ size = 'md', colorClass = 'text-white' }: { size?: 'sm' | 'md' | 'lg', colorClass?: string }) {
+  const firestore = useFirestore();
+  const configRef = useMemoFirebase(() => (firestore ? doc(firestore, 'platform', 'config') : null), [firestore]);
+  const { data: config } = useDoc<PlatformConfig>(configRef);
+
   const sizes = {
-    sm: { text: 'text-xs', svg: 'w-4 h-4', spacing: 'mx-0.5' },
-    md: { text: 'text-xl', svg: 'w-6 h-6', spacing: 'mx-0.5' },
-    lg: { text: 'text-3xl', svg: 'w-8 h-8', spacing: 'mx-1' }
+    sm: { text: 'text-xs', svg: 'w-4 h-4', img: 'h-4 w-auto', spacing: 'mx-0.5' },
+    md: { text: 'text-xl', svg: 'w-6 h-6', img: 'h-8 w-auto', spacing: 'mx-0.5' },
+    lg: { text: 'text-3xl', svg: 'w-8 h-8', img: 'h-12 w-auto', spacing: 'mx-1' }
   };
   const s = sizes[size];
 
+  // Render custom uploaded logo if available
+  if (config?.logoUrl) {
+    return (
+      <div className={cn("flex items-center justify-center select-none", s.img)}>
+        <img 
+          src={config.logoUrl} 
+          alt="KOOP" 
+          className="max-h-full max-w-full object-contain"
+        />
+      </div>
+    );
+  }
+
+  // Fallback to stylized SVG wordmark
   return (
     <div className={cn("flex items-center font-headline font-black tracking-tighter leading-none select-none uppercase", colorClass, s.text)}>
       <span>K</span>

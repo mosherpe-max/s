@@ -44,6 +44,7 @@
       "description": "Global configuration settings for the KOOP platform.",
       "properties": {
         "supportEmail": { "type": "string", "format": "email" },
+        "logoUrl": { "type": "string", "description": "The URL or Base64 data of the platform logo." },
         "updatedAt": { "type": "string", "format": "date-time" }
       }
     },

@@ -1,6 +1,7 @@
+
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { 
   Store, 
@@ -49,7 +50,10 @@ import {
   PanelLeft,
   HeartPulse,
   Database,
-  RefreshCw
+  RefreshCw,
+  Image as ImageIcon,
+  Upload,
+  Trash2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -97,6 +101,7 @@ import { cn } from '@/lib/utils';
 import { StylizedKoopLogo } from '@/components/header';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { format, isToday, startOfMonth, subDays } from 'date-fns';
+import Image from 'next/image';
 
 function NavButton({ id, label, icon: Icon, active, onClick, sidebarOpen }: { 
   id: string, label: string, icon: any, active: boolean, onClick: (id: string) => void, sidebarOpen: boolean 
@@ -159,6 +164,11 @@ export default function PlatformAdminPage() {
   const [isMigrating, setIsMigrating] = useState(false);
   const [verificationResult, setVerificationResult] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState('');
+
+  // Logo Upload State
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isUploadingLogo, setIsProcessingLogo] = useState(false);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
 
   // Venue Stripe State
   const [stripeAccountId, setStripeAccountId] = useState('');
@@ -364,6 +374,58 @@ export default function PlatformAdminPage() {
     }
   };
 
+  // Logo Upload Functions
+  const handleLogoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.includes('png')) {
+      toast({ variant: "destructive", title: "Invalid Format", description: "Please upload a PNG file for high-resolution branding." });
+      return;
+    }
+
+    if (file.size > 800000) { // Keep under 800KB for Firestore doc safety
+      toast({ variant: "destructive", title: "File Too Large", description: "Please optimize your PNG to be under 800KB." });
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setLogoPreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleUploadLogo = async () => {
+    if (!firestore || !logoPreview) return;
+    setIsProcessingLogo(true);
+    try {
+      await setDoc(doc(firestore, 'platform', 'config'), {
+        logoUrl: logoPreview,
+        updatedAt: serverTimestamp()
+      }, { merge: true });
+      toast({ title: "Platform Branding Updated", description: "Your custom logo is now active site-wide." });
+      setLogoPreview(null);
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Upload Failed", description: e.message });
+    } finally {
+      setIsProcessingLogo(false);
+    }
+  };
+
+  const handleRemoveLogo = async () => {
+    if (!firestore) return;
+    try {
+      await updateDoc(doc(firestore, 'platform', 'config'), {
+        logoUrl: null,
+        updatedAt: serverTimestamp()
+      });
+      toast({ title: "Logo Removed", description: "The platform has reverted to default SVG branding." });
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Error", description: e.message });
+    }
+  };
+
   if (!isMounted) return null;
 
   const NAV_ITEMS = [
@@ -484,6 +546,94 @@ export default function PlatformAdminPage() {
             {activeNav === 'system' && (
               <div className="space-y-6 animate-in fade-in duration-500">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                   {/* PLATFORM BRANDING UPLOAD */}
+                   <Card className="border-2 shadow-sm overflow-hidden">
+                      <CardHeader className="border-b bg-primary/5">
+                        <div className="flex items-center gap-3">
+                          <ImageIcon className="h-5 w-5 text-primary" />
+                          <CardTitle className="font-black uppercase tracking-tight text-sm">Platform Branding</CardTitle>
+                        </div>
+                        <CardDescription className="text-[10px] font-bold uppercase">High-Resolution Logo Assets</CardDescription>
+                      </CardHeader>
+                      <CardContent className="p-6 space-y-6">
+                        <div className="space-y-4">
+                           <div className="flex items-center justify-between mb-2">
+                             <p className="text-xs font-black uppercase text-[#213147]">Site-Wide Logo</p>
+                             {config?.logoUrl && (
+                               <Button variant="ghost" size="sm" onClick={handleRemoveLogo} className="h-7 text-[9px] font-black uppercase tracking-widest text-destructive hover:bg-destructive/5">
+                                 <Trash2 className="h-3 w-3 mr-1.5" /> Remove Custom
+                               </Button>
+                             )}
+                           </div>
+
+                           <div 
+                             onClick={() => fileInputRef.current?.click()}
+                             className={cn(
+                               "relative w-full aspect-[3/1] bg-slate-50 border-2 border-dashed rounded-2xl flex flex-col items-center justify-center cursor-pointer transition-all hover:bg-slate-100/50 group overflow-hidden",
+                               logoPreview ? "border-primary/50" : "border-slate-200"
+                             )}
+                           >
+                             {logoPreview || config?.logoUrl ? (
+                               <div className="relative w-full h-full p-4 flex items-center justify-center">
+                                 <img 
+                                   src={logoPreview || config?.logoUrl} 
+                                   alt="Logo Preview" 
+                                   className="max-h-full max-w-full object-contain drop-shadow-sm" 
+                                 />
+                                 <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3 backdrop-blur-[2px]">
+                                   <Upload className="h-6 w-6 text-white" />
+                                   <span className="text-xs font-black text-white uppercase tracking-widest">Replace PNG</span>
+                                 </div>
+                               </div>
+                             ) : (
+                               <div className="text-center space-y-2">
+                                 <div className="bg-white p-3 rounded-full shadow-sm border mx-auto inline-block text-slate-400 group-hover:text-primary transition-colors">
+                                   <Upload className="h-6 w-6" />
+                                 </div>
+                                 <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Tap to select high-res PNG</p>
+                                 <p className="text-[8px] text-muted-foreground font-bold uppercase tracking-tighter">Recommended: Transparent Background • Max 800KB</p>
+                               </div>
+                             )}
+                             <input 
+                               type="file" 
+                               ref={fileInputRef} 
+                               className="hidden" 
+                               accept="image/png" 
+                               onChange={handleLogoSelect} 
+                             />
+                           </div>
+
+                           {logoPreview && (
+                             <div className="flex gap-2 animate-in slide-in-from-top-2">
+                               <Button 
+                                 onClick={handleUploadLogo} 
+                                 disabled={isUploadingLogo}
+                                 className="flex-1 bg-primary hover:bg-primary/90 font-black uppercase text-[10px] tracking-widest h-10"
+                               >
+                                 {isUploadingLogo ? <Loader2 className="animate-spin" /> : "Commit Branding"}
+                               </Button>
+                               <Button 
+                                 variant="outline" 
+                                 onClick={() => setLogoPreview(null)}
+                                 className="px-4 text-[10px] font-black uppercase border-2 h-10"
+                               >
+                                 Cancel
+                               </Button>
+                             </div>
+                           )}
+                        </div>
+
+                        <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                          <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
+                            <ShieldCheck className="h-3 w-3" /> Branding Policy
+                          </p>
+                          <p className="text-[10px] text-muted-foreground leading-relaxed font-medium">
+                            Once updated, this logo will propagate immediately to the App Header, Landing Page, Admin Dashboards, and the Patron Checkout experience.
+                          </p>
+                        </div>
+                      </CardContent>
+                   </Card>
+
                    <Card className="border-2 shadow-sm">
                       <CardHeader className="border-b bg-slate-50/50">
                         <div className="flex items-center gap-3">
