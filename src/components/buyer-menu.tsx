@@ -2,7 +2,7 @@
 
 import { Button } from '@/components/ui/button';
 import type { OrderItem, MenuItem, Category } from '@/lib/types';
-import { ImageIcon, Plus, Minus } from 'lucide-react';
+import { Image as LucideImage, Plus, Minus } from 'lucide-react';
 import { categoryIcons } from './icons';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
@@ -101,7 +101,7 @@ export function BuyerMenu({
                         />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center text-muted-foreground/20">
-                          <ImageIcon className="w-8 h-8" />
+                          <LucideImage className="w-8 h-8" />
                         </div>
                       )}
                     </div>

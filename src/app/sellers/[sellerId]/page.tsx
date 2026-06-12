@@ -57,7 +57,7 @@ import {
   PanelLeft,
   HeartPulse,
   Menu,
-  ImageIcon
+  Image as LucideImage
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -765,7 +765,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                                   {item.imageUrl ? (
                                     <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />
                                   ) : (
-                                    <ImageIcon className="h-6 w-6 text-slate-300" />
+                                    <LucideImage className="h-6 w-6 text-slate-300" />
                                   )}
                                   <Badge className="absolute top-1 right-1 bg-white/90 text-primary border shadow-sm text-[8px] font-black">${item.price.toFixed(2)}</Badge>
                                 </div>

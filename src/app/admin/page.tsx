@@ -50,7 +50,7 @@ import {
   HeartPulse,
   Database,
   RefreshCw,
-  Image as ImageIcon,
+  Image as LucideImage,
   Upload,
   Trash2,
   Menu
@@ -597,7 +597,7 @@ export default function PlatformAdminPage() {
                    <Card className="border-2 shadow-sm overflow-hidden">
                       <CardHeader className="border-b bg-primary/5">
                         <div className="flex items-center gap-3">
-                          <ImageIcon className="h-5 w-5 text-primary" />
+                          <LucideImage className="h-5 w-5 text-primary" />
                           <CardTitle className="font-black uppercase tracking-tight text-sm">Platform Branding</CardTitle>
                         </div>
                         <CardDescription className="text-[10px] font-bold uppercase">High-Resolution Logo Assets</CardDescription>
@@ -678,7 +678,7 @@ export default function PlatformAdminPage() {
                             Once updated, this logo will propagate immediately to the App Header, Landing Page, and Admin Dashboards.
                           </p>
                         </div>
-                      </CardHeader>
+                      </CardContent>
                    </Card>
 
                    <Card className="border-2 shadow-sm">
