@@ -27,8 +27,9 @@ export interface Venue {
   platformFeeFixed?: number;
   platformFeePercent?: number;
   patronConvenienceFee?: number;
-  stripeOnboardingComplete?: boolean;
   payoutsEnabled?: boolean;
+  monthlyPlatformFee?: number;
+  serviceStartDate?: Timestamp;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }

@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
@@ -53,7 +54,10 @@ import {
   Image as LucideImage,
   Upload,
   Trash2,
-  Menu
+  Menu,
+  Phone,
+  Building,
+  Target
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -82,20 +86,20 @@ import {
   TabsTrigger,
 } from "@/components/ui/tabs";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Switch } from '@/components/ui/switch';
 import { useRouter } from 'next/navigation';
 import { useFirestore, useCollection, useMemoFirebase, useFirebase, useAuth, useDoc } from '@/firebase';
 import { signOut } from 'firebase/auth';
-import { collection, query, limit, doc, setDoc, serverTimestamp, where, orderBy, updateDoc, getDoc, getDocs, writeBatch } from 'firebase/firestore';
+import { collection, query, limit, doc, setDoc, serverTimestamp, where, orderBy, updateDoc, getDoc, getDocs, writeBatch, Timestamp } from 'firebase/firestore';
 import { httpsCallable, getFunctions } from 'firebase/functions';
-import type { Seller, PlatformConfig, Order, SalesRepRole, Venue } from '@/lib/types';
+import type { Seller, PlatformConfig, Order, SalesRepRole, Venue, SellerType } from '@/lib/types';
+import { sellerTypes } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { StylizedKoopLogo } from '@/components/header';
@@ -110,6 +114,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import { Checkbox } from '@/components/ui/checkbox';
 
 function NavButton({ id, label, icon: Icon, active, onClick, sidebarOpen }: { 
   id: string, label: string, icon: any, active: boolean, onClick: (id: string) => void, sidebarOpen: boolean 
@@ -168,25 +173,39 @@ export default function PlatformAdminPage() {
   const [selectedVenue, setSelectedVenue] = useState<Seller | null>(null);
   const [selectedVenueRegistry, setSelectedVenueRegistry] = useState<Venue | null>(null);
   const [isVenueDetailOpen, setIsVenueDetailOpen] = useState(false);
-  const [isProcessingStripe, setIsProcessingStripe] = useState(false);
+  const [isProcessingSave, setIsProcessingSave] = useState(false);
   const [isVerifyingStripe, setIsVerifyingStripe] = useState(false);
-  const [isMigrating, setIsMigrating] = useState(false);
   const [verificationResult, setVerificationResult] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Logo Upload State
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [isUploadingLogo, setIsProcessingLogo] = useState(false);
-  const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  // --- VENUE FORM STATE ---
+  const [vName, setVName] = useState('');
+  const [vType, setVType] = useState<SellerType>('Public Golf Course');
+  const [vLanes, setVLanes] = useState(0);
+  const [vAddress, setVAddress] = useState('');
+  const [vCity, setVCity] = useState('');
+  const [vState, setVState] = useState('');
+  const [vZip, setVZip] = useState('');
+  const [vContactName, setVContactName] = useState('');
+  const [vContactEmail, setVContactEmail] = useState('');
+  const [vContactPhone, setVContactPhone] = useState('');
+  const [vTaxRate, setVTaxRate] = useState(6.0);
+  const [vMonthlyRate, setVMonthlyRate] = useState(0);
+  const [vStartDate, setVStartDate] = useState('');
+  const [vActiveModes, setVActiveModes] = useState<string[]>([]);
 
-  // Venue Stripe State
+  // Stripe & Fee Registry State
   const [stripeAccountId, setStripeAccountId] = useState('');
   const [stripeConnectId, setStripeConnectId] = useState('');
   const [platformFeeFixed, setPlatformFeeFixed] = useState(20);
   const [platformFeePercent, setPlatformFeePercent] = useState(0);
   const [patronConvenienceFee, setPatronConvenienceFee] = useState(150);
   const [payoutsEnabled, setPayoutsEnabled] = useState(false);
-  const [manualOnboardingLink, setManualOnboardingLink] = useState('');
+
+  // Logo Upload State
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isUploadingLogo, setIsProcessingLogo] = useState(false);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
 
   useEffect(() => {
     setIsMounted(true);
@@ -208,18 +227,28 @@ export default function PlatformAdminPage() {
     return query(collection(firestore, 'orders'), limit(500), orderBy('createdAt', 'desc'));
   }, [firestore]);
 
-  const repsQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
-    return query(collection(firestore, 'roles_sales_rep'), limit(50));
-  }, [firestore]);
-
-  const { data: sellers, isLoading: isSellersLoading } = useCollection<Seller>(sellersQuery);
-  const { data: orders, isLoading: isOrdersLoading } = useCollection<Order>(ordersQuery);
-  const { data: reps } = useCollection<SalesRepRole>(repsQuery);
+  const { data: sellers } = useCollection<Seller>(sellersQuery);
+  const { data: orders } = useCollection<Order>(ordersQuery);
 
   useEffect(() => {
-    const fetchRegistry = async () => {
+    const loadVenueData = async () => {
       if (!firestore || !selectedVenue) return;
+      
+      // Load Profile (Seller)
+      setVName(selectedVenue.courseName || '');
+      setVType(selectedVenue.type || 'Public Golf Course');
+      setVLanes(selectedVenue.laneCount || 0);
+      setVAddress(selectedVenue.streetAddress || '');
+      setVCity(selectedVenue.city || '');
+      setVState(selectedVenue.state || '');
+      setVZip(selectedVenue.zip || '');
+      setVContactName(selectedVenue.contactName || '');
+      setVContactEmail(selectedVenue.contactEmail || '');
+      setVContactPhone(selectedVenue.contactPhone || '');
+      setVTaxRate(selectedVenue.taxRate || 6.0);
+      setVActiveModes(selectedVenue.menuTypes || []);
+
+      // Load Registry (Venue)
       const venueDoc = await getDoc(doc(firestore, 'venues', selectedVenue.id));
       if (venueDoc.exists()) {
         const data = venueDoc.data() as Venue;
@@ -230,7 +259,8 @@ export default function PlatformAdminPage() {
         setPlatformFeePercent(data.platformFeePercent ?? 0);
         setPatronConvenienceFee(data.patronConvenienceFee ?? 150);
         setPayoutsEnabled(data.payoutsEnabled || false);
-        setManualOnboardingLink((data as any).stripeOnboardingLink || '');
+        setVMonthlyRate(data.monthlyPlatformFee || 0);
+        setVStartDate(data.serviceStartDate ? format(data.serviceStartDate.toDate(), 'yyyy-MM-dd') : '');
       } else {
         setSelectedVenueRegistry(null);
         setStripeAccountId('');
@@ -239,37 +269,27 @@ export default function PlatformAdminPage() {
         setPlatformFeePercent(0);
         setPatronConvenienceFee(150);
         setPayoutsEnabled(false);
-        setManualOnboardingLink('');
+        setVMonthlyRate(0);
+        setVStartDate('');
       }
       setVerificationResult(null);
     };
-    fetchRegistry();
+    loadVenueData();
   }, [selectedVenue, firestore]);
 
   const metrics = useMemo(() => {
     if (!sellers || !orders) return null;
-
     const now = new Date();
     const monthStart = startOfMonth(now);
-    const thirtyDaysAgo = subDays(now, 30);
-
     const activeSellers = sellers.filter(s => s.status === 'Active');
     const mtdOrders = orders.filter(o => o.createdAt?.toDate() >= monthStart);
-    const todayOrders = orders.filter(o => o.createdAt && isToday(o.createdAt.toDate()));
-    const trailing30Orders = orders.filter(o => o.createdAt?.toDate() >= thirtyDaysAgo);
-
     const mtdGMV = mtdOrders.reduce((acc, o) => acc + o.total, 0);
-    const trailing30GMV = trailing30Orders.reduce((acc, o) => acc + o.total, 0);
     const mtdFees = mtdOrders.reduce((acc, o) => acc + (o.serviceFee || 0), 0);
-
-    const currentDayOfMonth = now.getDate() || 1;
-    const projectedFees = (mtdFees / currentDayOfMonth) * 30;
-
     return {
       venueCounts: { total: activeSellers.length },
-      gmv: { mtd: mtdGMV, trailing30: trailing30GMV },
-      orders: { today: todayOrders.length, mtd: mtdOrders.length, all_time: orders.length },
-      fees: { mtd: mtdFees, projected: projectedFees }
+      gmv: { mtd: mtdGMV },
+      orders: { mtd: mtdOrders.length },
+      fees: { mtd: mtdFees }
     };
   }, [sellers, orders]);
 
@@ -283,39 +303,56 @@ export default function PlatformAdminPage() {
     }
   };
 
-  const handleSaveVenueStripeData = async () => {
+  const handleSaveVenueData = async () => {
     if (!firestore || !selectedVenue) return;
-    setIsProcessingStripe(true);
+    setIsProcessingSave(true);
     try {
       const batch = writeBatch(firestore);
       const venueRef = doc(firestore, 'venues', selectedVenue.id);
       const sellerRef = doc(firestore, 'sellers', selectedVenue.id);
 
+      // 1. Update Registry (Venue Entity)
       const registryData = {
         venueId: selectedVenue.id,
-        name: selectedVenue.courseName,
+        name: vName,
         stripeAccountId: stripeAccountId.trim(),
         stripeConnectId: stripeConnectId.trim(),
         platformFeeFixed: Number(platformFeeFixed),
         platformFeePercent: Number(platformFeePercent),
         patronConvenienceFee: Number(patronConvenienceFee),
         payoutsEnabled: payoutsEnabled,
-        stripeOnboardingLink: manualOnboardingLink.trim(),
+        monthlyPlatformFee: Number(vMonthlyRate),
+        serviceStartDate: vStartDate ? Timestamp.fromDate(new Date(vStartDate)) : null,
         updatedAt: serverTimestamp(),
       };
-
       batch.set(venueRef, registryData, { merge: true });
-      batch.update(sellerRef, {
-        serviceFee: Number(patronConvenienceFee) / 100,
+
+      // 2. Update Operational Profile (Seller Entity)
+      const profileData = {
+        courseName: vName,
+        type: vType,
+        laneCount: vType === 'Bowling Alley' ? Number(vLanes) : 0,
+        streetAddress: vAddress,
+        city: vCity,
+        state: vState,
+        zip: vZip,
+        contactName: vContactName,
+        contactEmail: vContactEmail,
+        contactPhone: vContactPhone,
+        taxRate: Number(vTaxRate),
+        menuTypes: vActiveModes,
+        serviceFee: Number(patronConvenienceFee) / 100, // Sync dollars to registry cents
         updatedAt: serverTimestamp()
-      });
+      };
+      batch.update(sellerRef, profileData);
 
       await batch.commit();
-      toast({ title: "Venue Payment Registry & Profile Updated" });
+      toast({ title: "Venue Data Synchronized", description: `${vName} profiles updated successfully.` });
+      setIsVenueDetailOpen(false);
     } catch (e: any) {
       toast({ variant: "destructive", title: "Update Failed", description: e.message });
     } finally {
-      setIsProcessingStripe(false);
+      setIsProcessingSave(false);
     }
   };
 
@@ -333,25 +370,6 @@ export default function PlatformAdminPage() {
       toast({ variant: "destructive", title: "Connection Failed", description: e.message });
     } finally {
       setIsVerifyingStripe(false);
-    }
-  };
-
-  const handleRunConvenienceFeeMigration = async () => {
-    if (!firestore) return;
-    setIsMigrating(true);
-    try {
-      const batch = writeBatch(firestore);
-      const venuesSnapshot = await getDocs(collection(firestore, 'venues'));
-      venuesSnapshot.docs.forEach(docSnap => {
-        batch.update(docSnap.ref, { patronConvenienceFee: 150, updatedAt: serverTimestamp() });
-        batch.update(doc(firestore, 'sellers', docSnap.id), { serviceFee: 1.50, updatedAt: serverTimestamp() });
-      });
-      await batch.commit();
-      toast({ title: "Migration Complete" });
-    } catch (e: any) {
-      toast({ variant: "destructive", title: "Migration Failed", description: e.message });
-    } finally {
-      setIsMigrating(false);
     }
   };
 
@@ -375,12 +393,6 @@ export default function PlatformAdminPage() {
     } finally {
       setIsProcessingLogo(false);
     }
-  };
-
-  const handleRemoveLogo = async () => {
-    if (!firestore) return;
-    await updateDoc(doc(firestore, 'platform', 'config'), { logoUrl: null, updatedAt: serverTimestamp() });
-    toast({ title: "Logo Removed" });
   };
 
   if (!isMounted) return null;
@@ -470,30 +482,37 @@ export default function PlatformAdminPage() {
 
             {activeNav === 'venues' && (
               <div className="space-y-6 animate-in fade-in duration-500">
-                <div className="flex bg-white p-4 rounded-2xl border-2 shadow-sm gap-4">
-                  <Input placeholder="Search registry..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+                <div className="flex bg-white p-4 rounded-2xl border-2 shadow-sm gap-4 items-center">
+                  <Search className="h-4 w-4 text-muted-foreground ml-2" />
+                  <Input placeholder="Search registry by venue name..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="border-0 shadow-none focus-visible:ring-0 text-sm font-medium" />
                 </div>
-                <div className="border-2 rounded-2xl overflow-hidden bg-white shadow-sm overflow-x-auto">
-                  <Table>
-                    <TableHeader className="bg-slate-50 border-b">
-                      <TableRow>
-                        <TableHead className="text-[10px] font-black uppercase">Establishment</TableHead>
-                        <TableHead className="text-[10px] font-black uppercase">Status</TableHead>
-                        <TableHead className="text-right text-[10px] font-black uppercase">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {sellers?.filter(s => s.courseName.toLowerCase().includes(searchTerm.toLowerCase())).map((venue) => (
-                        <TableRow key={venue.id}>
-                          <TableCell className="font-black text-sm uppercase text-[#213147]">{venue.courseName}</TableCell>
-                          <TableCell><Badge className={cn(venue.status === 'Active' ? 'bg-green-600' : 'bg-slate-300')}>{venue.status}</Badge></TableCell>
-                          <TableCell className="text-right">
-                            <Button variant="outline" size="sm" onClick={() => { setSelectedVenue(venue); setIsVenueDetailOpen(true); }}>Profile</Button>
-                          </TableCell>
+                <div className="border-2 rounded-2xl overflow-hidden bg-white shadow-sm">
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader className="bg-slate-50 border-b">
+                        <TableRow>
+                          <TableHead className="text-[10px] font-black uppercase">Establishment</TableHead>
+                          <TableHead className="text-[10px] font-black uppercase">Type</TableHead>
+                          <TableHead className="text-[10px] font-black uppercase">Contact</TableHead>
+                          <TableHead className="text-[10px] font-black uppercase">Status</TableHead>
+                          <TableHead className="text-right text-[10px] font-black uppercase">Actions</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                      </TableHeader>
+                      <TableBody>
+                        {sellers?.filter(s => s.courseName.toLowerCase().includes(searchTerm.toLowerCase())).map((venue) => (
+                          <TableRow key={venue.id}>
+                            <TableCell className="font-black text-sm uppercase text-[#213147]">{venue.courseName}</TableCell>
+                            <TableCell className="text-[10px] font-bold text-muted-foreground uppercase">{venue.type}</TableCell>
+                            <TableCell className="text-[10px] font-medium">{venue.contactName}</TableCell>
+                            <TableCell><Badge className={cn(venue.status === 'Active' ? 'bg-green-600' : 'bg-slate-300')}>{venue.status}</Badge></TableCell>
+                            <TableCell className="text-right">
+                              <Button variant="outline" size="sm" onClick={() => { setSelectedVenue(venue); setIsVenueDetailOpen(true); }} className="text-[10px] font-black uppercase">Manage</Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
                 </div>
               </div>
             )}
@@ -503,7 +522,7 @@ export default function PlatformAdminPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <Card className="border-2 shadow-sm overflow-hidden">
                     <CardHeader className="border-b bg-primary/5">
-                      <CardTitle className="font-black uppercase tracking-tight text-sm">Branding</CardTitle>
+                      <CardTitle className="font-black uppercase tracking-tight text-sm">Platform Branding</CardTitle>
                     </CardHeader>
                     <CardContent className="p-6 space-y-4">
                       <div 
@@ -526,19 +545,6 @@ export default function PlatformAdminPage() {
                           <Button variant="outline" onClick={() => setLogoPreview(null)}>Cancel</Button>
                         </div>
                       )}
-                      {config?.logoUrl && <Button variant="ghost" className="w-full text-destructive" onClick={handleRemoveLogo}>Remove Logo</Button>}
-                    </CardContent>
-                  </Card>
-
-                  <Card className="border-2 shadow-sm">
-                    <CardHeader className="border-b bg-slate-50/50">
-                      <CardTitle className="font-black uppercase tracking-tight text-sm">Maintenance</CardTitle>
-                    </CardHeader>
-                    <CardContent className="p-6 space-y-4">
-                      <Button onClick={handleRunConvenienceFeeMigration} disabled={isMigrating} className="w-full h-12 gap-2">
-                        {isMigrating ? <Loader2 className="animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-                        Run Migration
-                      </Button>
                     </CardContent>
                   </Card>
                 </div>
@@ -549,50 +555,174 @@ export default function PlatformAdminPage() {
       </main>
 
       <Dialog open={isVenueDetailOpen} onOpenChange={setIsVenueDetailOpen}>
-        <DialogContent className="sm:max-w-[700px] max-w-[95vw] rounded-[2rem] p-0 overflow-hidden">
+        <DialogContent className="sm:max-w-[800px] max-w-[95vw] rounded-[2rem] p-0 overflow-hidden">
           <ScrollArea className="max-h-[90vh]">
-            <div className="p-6 sm:p-10 space-y-6">
+            <div className="p-6 sm:p-10 space-y-8">
               <DialogHeader>
-                <DialogTitle className="font-headline font-black uppercase text-[#213147] text-2xl">{selectedVenue?.courseName}</DialogTitle>
-                <Badge variant="outline">{selectedVenue?.type}</Badge>
+                <div className="flex items-center gap-4">
+                  <div className="bg-primary/10 p-3 rounded-2xl">
+                    <Building className="h-6 w-6 text-primary" />
+                  </div>
+                  <div className="text-left">
+                    <DialogTitle className="font-headline font-black uppercase text-[#213147] text-2xl leading-none mb-1">{vName}</DialogTitle>
+                    <Badge variant="outline" className="text-[9px] font-black uppercase tracking-widest">{vType}</Badge>
+                  </div>
+                </div>
               </DialogHeader>
-              <div className="bg-indigo-50/50 p-6 rounded-[1.5rem] border-2 border-indigo-100 space-y-6">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="grid gap-2">
-                    <Label className="text-[10px] font-black uppercase">Stripe Account ID</Label>
-                    <Input value={stripeAccountId} onChange={(e) => setStripeAccountId(e.target.value)} className="border-2" />
+
+              <Tabs defaultValue="profile" className="w-full">
+                <TabsList className="bg-slate-100 p-1 mb-6 rounded-xl w-full justify-start overflow-x-auto no-scrollbar">
+                  <TabsTrigger value="profile" className="text-[10px] font-black uppercase tracking-widest px-6 h-9">Operational Profile</TabsTrigger>
+                  <TabsTrigger value="billing" className="text-[10px] font-black uppercase tracking-widest px-6 h-9">Billing & Fees</TabsTrigger>
+                  <TabsTrigger value="stripe" className="text-[10px] font-black uppercase tracking-widest px-6 h-9">Stripe Engine</TabsTrigger>
+                </TabsList>
+
+                {/* PROFILE TAB */}
+                <TabsContent value="profile" className="space-y-6 animate-in fade-in slide-in-from-left-2">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-4">
+                      <h3 className="text-[10px] font-black uppercase text-primary tracking-widest border-b pb-1">Core Identity</h3>
+                      <div className="grid gap-2">
+                        <Label className="text-[10px] font-black uppercase">Venue Name</Label>
+                        <Input value={vName} onChange={e => setVName(e.target.value)} className="border-2 font-bold" />
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="grid gap-2">
+                          <Label className="text-[10px] font-black uppercase">Type</Label>
+                          <Select onValueChange={(v: any) => setVType(v)} value={vType}>
+                            <SelectTrigger className="border-2 font-bold"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              {sellerTypes.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        {vType === 'Bowling Alley' && (
+                          <div className="grid gap-2">
+                            <Label className="text-[10px] font-black uppercase">Lanes</Label>
+                            <Input type="number" value={vLanes} onChange={e => setVLanes(Number(e.target.value))} className="border-2 font-bold" />
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="space-y-4">
+                      <h3 className="text-[10px] font-black uppercase text-primary tracking-widest border-b pb-1">Location</h3>
+                      <div className="grid gap-2">
+                        <Label className="text-[10px] font-black uppercase">Street Address</Label>
+                        <Input value={vAddress} onChange={e => setVAddress(e.target.value)} className="border-2 font-bold" />
+                      </div>
+                      <div className="grid grid-cols-3 gap-2">
+                        <div className="col-span-1"><Label className="text-[10px] font-black uppercase">City</Label><Input value={vCity} onChange={e => setVCity(e.target.value)} className="border-2 font-bold" /></div>
+                        <div className="col-span-1"><Label className="text-[10px] font-black uppercase">State</Label><Input value={vState} onChange={e => setVState(e.target.value)} className="border-2 font-bold" /></div>
+                        <div className="col-span-1"><Label className="text-[10px] font-black uppercase">Zip</Label><Input value={vZip} onChange={e => setVZip(e.target.value)} className="border-2 font-bold" /></div>
+                      </div>
+                    </div>
                   </div>
-                  <div className="grid gap-2">
-                    <Label className="text-[10px] font-black uppercase">Stripe Connect ID</Label>
-                    <Input value={stripeConnectId} onChange={(e) => setStripeConnectId(e.target.value)} className="border-2" />
+
+                  <div className="space-y-4">
+                    <h3 className="text-[10px] font-black uppercase text-primary tracking-widest border-b pb-1">Primary Contact</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="grid gap-2"><Label className="text-[10px] font-black uppercase">Person Name</Label><Input value={vContactName} onChange={e => setVContactName(e.target.value)} className="border-2 font-bold" /></div>
+                      <div className="grid gap-2"><Label className="text-[10px] font-black uppercase">Email</Label><Input value={vContactEmail} onChange={e => setVContactEmail(e.target.value)} className="border-2 font-bold" /></div>
+                      <div className="grid gap-2"><Label className="text-[10px] font-black uppercase">Phone</Label><Input value={vContactPhone} onChange={e => setVContactPhone(e.target.value)} className="border-2 font-bold" /></div>
+                    </div>
                   </div>
-                </div>
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="grid gap-2">
-                    <Label className="text-[10px] font-black uppercase">Fixed Fee (Cents)</Label>
-                    <Input type="number" value={platformFeeFixed} onChange={(e) => setPlatformFeeFixed(Number(e.target.value))} className="border-2" />
+                </TabsContent>
+
+                {/* BILLING TAB */}
+                <TabsContent value="billing" className="space-y-6 animate-in fade-in slide-in-from-left-2">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div className="space-y-5">
+                      <h3 className="text-[10px] font-black uppercase text-primary tracking-widest border-b pb-1">Platform Revenue</h3>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="grid gap-2">
+                          <Label className="text-[10px] font-black uppercase">Monthly Rate ($)</Label>
+                          <Input type="number" value={vMonthlyRate} onChange={e => setVMonthlyRate(Number(e.target.value))} className="border-2 font-bold h-12" />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label className="text-[10px] font-black uppercase">Start Date</Label>
+                          <Input type="date" value={vStartDate} onChange={e => setVStartDate(e.target.value)} className="border-2 font-bold h-12" />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="grid gap-2"><Label className="text-[10px] font-black uppercase">Fixed Fee (Cents)</Label><Input type="number" value={platformFeeFixed} onChange={e => setPlatformFeeFixed(Number(e.target.value))} className="border-2 font-bold" /></div>
+                        <div className="grid gap-2"><Label className="text-[10px] font-black uppercase">Percent Fee (%)</Label><Input type="number" value={platformFeePercent} onChange={e => setPlatformFeePercent(Number(e.target.value))} className="border-2 font-bold" /></div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-5">
+                      <h3 className="text-[10px] font-black uppercase text-primary tracking-widest border-b pb-1">Patron Logistics</h3>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="grid gap-2">
+                          <Label className="text-[10px] font-black uppercase">Convenience Fee (Cents)</Label>
+                          <Input type="number" value={patronConvenienceFee} onChange={e => setPatronConvenienceFee(Number(e.target.value))} className="border-2 font-bold h-12" />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label className="text-[10px] font-black uppercase">Venue Tax Rate (%)</Label>
+                          <Input type="number" step="0.1" value={vTaxRate} onChange={e => setVTaxRate(Number(e.target.value))} className="border-2 font-bold h-12" />
+                        </div>
+                      </div>
+                      <div className="space-y-3">
+                        <Label className="text-[10px] font-black uppercase">Active Channels</Label>
+                        <div className="flex flex-wrap gap-2">
+                          {['Beverage Cart', 'Clubhouse', 'Lane Delivery', 'Take Out'].map(mode => (
+                            <button
+                              key={mode}
+                              onClick={() => {
+                                setVActiveModes(prev => prev.includes(mode) ? prev.filter(m => m !== mode) : [...prev, mode]);
+                              }}
+                              className={cn(
+                                "px-3 py-1.5 rounded-full border-2 text-[9px] font-black uppercase tracking-widest transition-all",
+                                vActiveModes.includes(mode) ? "bg-primary border-primary text-white" : "bg-slate-50 border-slate-200 text-slate-400 hover:border-slate-300"
+                              )}
+                            >
+                              {mode}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                  <div className="grid gap-2">
-                    <Label className="text-[10px] font-black uppercase">Percent Fee</Label>
-                    <Input type="number" value={platformFeePercent} onChange={(e) => setPlatformFeePercent(Number(e.target.value))} className="border-2" />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label className="text-[10px] font-black uppercase">Patron Fee (Cents)</Label>
-                    <Input type="number" value={patronConvenienceFee} onChange={(e) => setPatronConvenienceFee(Number(e.target.value))} className="border-2" />
-                  </div>
-                </div>
-                <div className="flex items-center justify-between bg-white p-4 rounded-xl border-2">
-                  <Label className="font-black uppercase text-xs">Enable Payouts</Label>
-                  <Switch checked={payoutsEnabled} onCheckedChange={setPayoutsEnabled} />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <Button onClick={handleSaveVenueStripeData} disabled={isProcessingStripe} className="h-12"><Save className="h-4 w-4 mr-2" /> Save</Button>
-                  <Button variant="outline" onClick={handleVerifyStripeConnection} disabled={isVerifyingStripe} className="h-12"><HeartPulse className="h-4 w-4 mr-2" /> Verify</Button>
-                </div>
+                </TabsContent>
+
+                {/* STRIPE TAB */}
+                <TabsContent value="stripe" className="space-y-6 animate-in fade-in slide-in-from-left-2">
+                   <div className="bg-indigo-50/50 p-6 rounded-3xl border-2 border-indigo-100 space-y-6">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="grid gap-2"><Label className="text-[10px] font-black uppercase">Stripe Account ID</Label><Input value={stripeAccountId} onChange={e => setStripeAccountId(e.target.value)} className="border-2 font-mono" /></div>
+                        <div className="grid gap-2"><Label className="text-[10px] font-black uppercase">Stripe Connect ID</Label><Input value={stripeConnectId} onChange={e => setStripeConnectId(e.target.value)} className="border-2 font-mono" /></div>
+                      </div>
+                      <div className="flex items-center justify-between bg-white p-4 rounded-2xl border-2">
+                        <div className="flex items-center gap-3">
+                          <ShieldCheck className={cn("h-5 w-5", payoutsEnabled ? "text-green-500" : "text-slate-300")} />
+                          <Label className="font-black uppercase text-xs">Enable Live Payouts</Label>
+                        </div>
+                        <Switch checked={payoutsEnabled} onCheckedChange={setPayoutsEnabled} className="data-[state=checked]:bg-green-600" />
+                      </div>
+                      <Button variant="outline" onClick={handleVerifyStripeConnection} disabled={isVerifyingStripe} className="w-full h-12 font-black uppercase tracking-widest border-2 gap-2">
+                        {isVerifyingStripe ? <Loader2 className="h-4 w-4 animate-spin" /> : <HeartPulse className="h-4 w-4 text-primary" />}
+                        Run Diagnostic Verification
+                      </Button>
+                      {verificationResult && (
+                        <div className="p-4 bg-white border-2 rounded-2xl animate-in zoom-in-95">
+                          <p className="text-[9px] font-black uppercase text-indigo-600 mb-2">Diagnostic Results</p>
+                          <div className="grid grid-cols-2 gap-4 text-xs font-bold">
+                            <div><span className="text-[8px] text-muted-foreground block">MERCHANT</span>{verificationResult.businessName}</div>
+                            <div><span className="text-[8px] text-muted-foreground block">STATUS</span>{verificationResult.status}</div>
+                          </div>
+                        </div>
+                      )}
+                   </div>
+                </TabsContent>
+              </Tabs>
+
+              <div className="pt-6 border-t flex flex-col sm:flex-row gap-3">
+                <Button onClick={handleSaveVenueData} disabled={isProcessingSave} className="flex-1 h-14 bg-[#213147] hover:bg-black font-black uppercase tracking-widest shadow-xl text-lg gap-3 rounded-2xl">
+                  {isProcessingSave ? <Loader2 className="h-6 w-6 animate-spin" /> : <Save className="h-6 w-6" />}
+                  Synchronize Master Records
+                </Button>
+                <Button variant="ghost" onClick={() => setIsVenueDetailOpen(false)} className="h-14 px-8 font-black uppercase tracking-widest rounded-2xl">Discard</Button>
               </div>
-              <DialogFooter>
-                <Button variant="ghost" onClick={() => setIsVenueDetailOpen(false)} className="w-full">Close</Button>
-              </DialogFooter>
             </div>
           </ScrollArea>
         </DialogContent>
