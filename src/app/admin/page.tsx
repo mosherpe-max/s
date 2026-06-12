@@ -162,7 +162,7 @@ export default function PlatformAdminPage() {
   const isMobile = useIsMobile();
 
   const [activeNav, setActiveNav] = useState('dashboard');
-  const [sidebarOpen, setSidebarOpen] = useState(!isMobile);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isMounted, setIsMounted] = useState(false);
   
   const [selectedVenue, setSelectedVenue] = useState<Seller | null>(null);
@@ -190,13 +190,10 @@ export default function PlatformAdminPage() {
 
   useEffect(() => {
     setIsMounted(true);
-  }, []);
-
-  useEffect(() => {
-    if (isMounted) {
-      setSidebarOpen(!isMobile);
+    if (window.innerWidth < 1024) {
+      setSidebarOpen(false);
     }
-  }, [isMobile, isMounted]);
+  }, []);
 
   const configRef = useMemoFirebase(() => (firestore ? doc(firestore, 'platform', 'config') : null), [firestore]);
   const { data: config } = useDoc<PlatformConfig>(configRef);
@@ -680,7 +677,7 @@ export default function PlatformAdminPage() {
                             Once updated, this logo will propagate immediately to the App Header, Landing Page, and Admin Dashboards.
                           </p>
                         </div>
-                      </CardContent>
+                      </CardHeader>
                    </Card>
 
                    <Card className="border-2 shadow-sm">

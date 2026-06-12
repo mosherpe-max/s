@@ -70,6 +70,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
 import { cn, SUPER_ADMIN_ID } from '@/lib/utils';
 import { isThisMonth, isThisYear, format, isToday } from 'date-fns';
 import * as XLSX from 'xlsx';
@@ -210,7 +211,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
 
   // Navigation State
   const [activeNav, setActiveNav] = useState('dashboard');
-  const [sidebarOpen, setSidebarOpen] = useState(!isMobile);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
 
   // Functional State
   const [isMounted, setIsMounted] = useState(false);
@@ -248,15 +249,12 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
 
   useEffect(() => { 
     setIsMounted(true); 
+    if (window.innerWidth < 1024) {
+      setSidebarOpen(false);
+    }
     const timer = setInterval(() => setNow(new Date()), 60000);
     return () => clearInterval(timer);
   }, []);
-
-  useEffect(() => {
-    if (isMounted) {
-      setSidebarOpen(!isMobile);
-    }
-  }, [isMobile, isMounted]);
 
   // Data Fetching
   const sellerRef = useMemoFirebase(() => (firestore ? doc(firestore, 'sellers', sellerId) : null), [firestore, sellerId]);
@@ -418,9 +416,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     <>
       <div className="p-6 border-b border-white/5 flex items-center justify-between">
         <StylizedKoopLogo size={sidebarOpen ? "md" : "sm"} />
-        {sidebarOpen && (
-            <p className="text-[9px] font-black text-primary uppercase tracking-[0.2em] mt-1 ml-1 animate-in fade-in duration-500">Establishment Admin</p>
-        )}
       </div>
 
       <nav className="flex-1 p-3 space-y-1">
