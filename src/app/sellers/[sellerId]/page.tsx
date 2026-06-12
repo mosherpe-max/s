@@ -244,7 +244,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   const { data: platformConfig } = useDoc<PlatformConfig>(platformConfigRef);
 
   // Access enabled for prototyping phase
-  const isPlatformAdmin = isHardcodedSuperAdmin || !!platformRole;
   const hasAccess = true; 
 
   useEffect(() => { 
@@ -404,7 +403,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   const NAV_ITEMS = [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
     { id: "orders", label: "Orders", icon: ClipboardList },
-    { id: "menu", label: "Menu", icon: UtensilsCrossed },
+    { id: "menu", label: "Menu Items", icon: UtensilsCrossed },
     { id: "service", label: "Service Modes", icon: Zap },
     { id: "staff", label: "Staff Registry", icon: Users },
     { id: "payments", label: "Payments", icon: CreditCard },
@@ -504,7 +503,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
               </div>
             )}
 
-            {isPlatformAdmin && (
+            {platformRole && (
               <Badge className="bg-primary/10 text-primary border-primary/20 uppercase font-black text-[8px] sm:text-[9px] h-7 sm:h-8 px-2 sm:px-3">
                 {isMobile ? 'Admin' : 'Impersonation Active'}
               </Badge>
