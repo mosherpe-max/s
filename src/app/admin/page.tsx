@@ -58,7 +58,8 @@ import {
   Phone,
   Building,
   Target,
-  ChevronDown
+  ChevronDown,
+  Star
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -195,6 +196,7 @@ export default function PlatformAdminPage() {
   const [vMonthlyRate, setVMonthlyRate] = useState(0);
   const [vStartDate, setVStartDate] = useState('');
   const [vActiveModes, setVActiveModes] = useState<string[]>([]);
+  const [vIsFoundingPartner, setVIsFoundingPartner] = useState(false);
 
   // Stripe & Fee Registry State
   const [stripeAccountId, setStripeAccountId] = useState('');
@@ -250,6 +252,7 @@ export default function PlatformAdminPage() {
       setVContactPhone(selectedVenue.contactPhone || '');
       setVTaxRate(selectedVenue.taxRate || 6.0);
       setVActiveModes(selectedVenue.menuTypes || []);
+      setVIsFoundingPartner(selectedVenue.isFoundingPartner || false);
 
       // Load Registry (Venue)
       const venueDoc = await getDoc(doc(firestore, 'venues', selectedVenue.id));
@@ -265,6 +268,7 @@ export default function PlatformAdminPage() {
         setPayoutsEnabled(data.payoutsEnabled || false);
         setVMonthlyRate(data.monthlyPlatformFee || 0);
         setVStartDate(data.serviceStartDate ? format(data.serviceStartDate.toDate(), 'yyyy-MM-dd') : '');
+        setVIsFoundingPartner(data.isFoundingPartner || false);
       } else {
         setSelectedVenueRegistry(null);
         setStripeAccountId('');
@@ -338,12 +342,12 @@ export default function PlatformAdminPage() {
         payoutsEnabled: payoutsEnabled,
         monthlyPlatformFee: Number(vMonthlyRate),
         serviceStartDate: vStartDate ? Timestamp.fromDate(new Date(vStartDate)) : null,
+        isFoundingPartner: vIsFoundingPartner,
         updatedAt: serverTimestamp(),
       };
       batch.set(venueRef, registryData, { merge: true });
 
       // 2. Update Operational Profile (Seller Entity)
-      // Convert fees from cents to dollars for the profile
       const serviceFeesInDollars: Record<string, number> = {};
       Object.entries(serviceFees).forEach(([mode, cents]) => {
         serviceFeesInDollars[mode] = cents / 100;
@@ -362,8 +366,9 @@ export default function PlatformAdminPage() {
         contactPhone: vContactPhone,
         taxRate: Number(vTaxRate),
         menuTypes: vActiveModes,
-        serviceFee: Number(patronConvenienceFee) / 100, // Sync master dollars
-        serviceFees: serviceFeesInDollars, // Sync mode-specific dollars
+        serviceFee: Number(patronConvenienceFee) / 100, 
+        serviceFees: serviceFeesInDollars,
+        isFoundingPartner: vIsFoundingPartner,
         updatedAt: serverTimestamp()
       };
       batch.update(sellerRef, profileData);
@@ -374,7 +379,6 @@ export default function PlatformAdminPage() {
     } catch (e: any) {
       toast({ variant: "destructive", title: "Update Failed", description: e.message });
     } finally {
-      setIsVenueDetailOpen(false); // Close dialog even on failure for demo stability
       setIsProcessingSave(false);
     }
   };
@@ -524,7 +528,17 @@ export default function PlatformAdminPage() {
                       <TableBody>
                         {sellers?.filter(s => s.courseName.toLowerCase().includes(searchTerm.toLowerCase())).map((venue) => (
                           <TableRow key={venue.id}>
-                            <TableCell className="font-black text-sm uppercase text-[#213147]">{venue.courseName}</TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                <span className="font-black text-sm uppercase text-[#213147]">{venue.courseName}</span>
+                                {venue.isFoundingPartner && (
+                                  <Badge className="bg-amber-500 hover:bg-amber-600 text-white border-0 h-4 px-1.5 gap-0.5">
+                                    <Star className="h-2 w-2 fill-current" />
+                                    <span className="text-[8px] font-black tracking-tight">FOUNDING</span>
+                                  </Badge>
+                                )}
+                              </div>
+                            </TableCell>
                             <TableCell className="text-[10px] font-bold text-muted-foreground uppercase">{venue.type}</TableCell>
                             <TableCell className="text-[10px] font-medium">{venue.contactName}</TableCell>
                             <TableCell><Badge className={cn(venue.status === 'Active' ? 'bg-green-600' : 'bg-slate-300')}>{venue.status}</Badge></TableCell>
@@ -583,11 +597,19 @@ export default function PlatformAdminPage() {
             <div className="p-6 sm:p-10 space-y-8">
               <DialogHeader>
                 <div className="flex items-center gap-4">
-                  <div className="bg-primary/10 p-3 rounded-2xl">
+                  <div className="bg-primary/10 p-3 rounded-2xl shrink-0">
                     <Building className="h-6 w-6 text-primary" />
                   </div>
-                  <div className="text-left">
-                    <DialogTitle className="font-headline font-black uppercase text-[#213147] text-2xl leading-none mb-1">{vName}</DialogTitle>
+                  <div className="text-left min-w-0">
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                      <DialogTitle className="font-headline font-black uppercase text-[#213147] text-2xl leading-none">{vName}</DialogTitle>
+                      {vIsFoundingPartner && (
+                        <Badge className="bg-amber-500 text-white border-0 h-5 px-2 gap-1">
+                          <Star className="h-2.5 w-2.5 fill-current" />
+                          <span className="text-[9px] font-black tracking-tight">FOUNDING PARTNER</span>
+                        </Badge>
+                      )}
+                    </div>
                     <Badge variant="outline" className="text-[9px] font-black uppercase tracking-widest">{vType}</Badge>
                   </div>
                 </div>
@@ -625,6 +647,13 @@ export default function PlatformAdminPage() {
                             <Input type="number" value={vLanes} onChange={e => setVLanes(Number(e.target.value))} className="border-2 font-bold" />
                           </div>
                         )}
+                      </div>
+                      <div className="flex items-center justify-between p-4 bg-amber-50 rounded-2xl border-2 border-amber-100">
+                        <div className="flex items-center gap-3">
+                          <Star className={cn("h-5 w-5", vIsFoundingPartner ? "text-amber-500 fill-current" : "text-amber-200")} />
+                          <Label className="font-black uppercase text-xs text-amber-900">Founding Partner</Label>
+                        </div>
+                        <Switch checked={vIsFoundingPartner} onCheckedChange={setVIsFoundingPartner} className="data-[state=checked]:bg-amber-600" />
                       </div>
                     </div>
 

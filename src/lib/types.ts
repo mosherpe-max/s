@@ -31,6 +31,7 @@ export interface Venue {
   payoutsEnabled?: boolean;
   monthlyPlatformFee?: number;
   serviceStartDate?: Timestamp;
+  isFoundingPartner?: boolean;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
@@ -67,6 +68,7 @@ export interface Seller {
   serviceFees?: Record<string, number>; // Individual overrides in dollars
   taxRate: number;
   status: 'Active' | 'Inactive';
+  isFoundingPartner?: boolean;
   bevcartActive?: boolean;
   clubhouseActive?: boolean;
   lanedeliveryActive?: boolean;

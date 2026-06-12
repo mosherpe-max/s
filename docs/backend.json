@@ -16,6 +16,7 @@
         "patronConvenienceFee": { "type": "number", "description": "The fee charged to the patron in cents." },
         "stripeOnboardingComplete": { "type": "boolean", "description": "Whether the user has completed the Stripe onboarding flow." },
         "payoutsEnabled": { "type": "boolean", "description": "Manual override to enable payouts for a venue." },
+        "isFoundingPartner": { "type": "boolean", "description": "Identifies early-adopter venues with special platform status." },
         "createdAt": { "type": "string", "format": "date-time" },
         "updatedAt": { "type": "string", "format": "date-time" }
       },
@@ -33,6 +34,7 @@
         "status": { "type": "string", "enum": ["Active", "Inactive"] },
         "serviceFee": { "type": "number" },
         "taxRate": { "type": "number" },
+        "isFoundingPartner": { "type": "boolean" },
         "createdAt": { "type": "string", "format": "date-time" },
         "updatedAt": { "type": "string", "format": "date-time" }
       },
