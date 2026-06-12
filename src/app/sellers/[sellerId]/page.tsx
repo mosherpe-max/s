@@ -105,7 +105,7 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
   useSortable,
-} from '@radix-ui/react-sortable'; // Corrected import path
+} from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
 import type { MenuItem, Seller, Order, StaffMember, Venue, PlatformConfig } from '@/lib/types';
@@ -603,7 +603,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                             <TableHead className="text-[10px] font-black uppercase">Order ID</TableHead>
                             <TableHead className="text-[10px] font-black uppercase">Service</TableHead>
                             <TableHead className="text-[10px] font-black uppercase">Patron</TableHead>
-                            <TableHead className="text-[10px) font-black uppercase text-right">Total</TableHead>
+                            <TableHead className="text-[10px] font-black uppercase text-right">Total</TableHead>
                             <TableHead className="text-[10px] font-black uppercase text-right">Status</TableHead>
                           </TableRow>
                         </TableHeader>
