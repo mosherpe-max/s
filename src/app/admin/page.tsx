@@ -631,14 +631,14 @@ export default function PlatformAdminPage() {
                         <CardDescription className="text-xs">{venue.sub}</CardDescription>
                       </CardHeader>
                       <CardContent className="flex-1 space-y-6">
-                        <div className="flex items-center gap-4 bg-muted/30 p-3 rounded-xl border border-dashed">
-                          <div className="bg-white p-1 rounded-lg border-2 shadow-sm">
+                        <div className="flex items-center gap-4 bg-muted/30 p-4 rounded-[2rem] border-2 border-dashed">
+                          <div className="bg-white p-2 rounded-2xl border-2 shadow-lg hover:scale-105 transition-transform cursor-pointer">
                             <img 
-                              src={`https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${baseUrl}${venue.buyerUrl}`}
+                              src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${baseUrl}${venue.buyerUrl}`}
                               alt="Menu QR"
-                              width={60}
-                              height={60}
-                              className="rounded-sm"
+                              width={128}
+                              height={128}
+                              className="rounded-xl w-32 h-32"
                             />
                           </div>
                           <div className="space-y-1">
@@ -975,11 +975,11 @@ export default function PlatformAdminPage() {
                     {/* Primary QR Section */}
                     <Card className="md:col-span-1 border-2 shadow-sm flex flex-col items-center justify-center p-8 bg-slate-50 relative overflow-hidden">
                       <div className="absolute top-0 left-0 w-full h-1 bg-primary" />
-                      <div className="bg-white p-4 rounded-[2rem] shadow-xl border-4 border-white mb-6">
+                      <div className="bg-white p-5 rounded-[2.5rem] shadow-2xl border-4 border-white mb-6 hover:scale-110 transition-transform">
                         <img 
                           src={qrCodeUrl} 
                           alt="Venue QR" 
-                          className="w-32 h-32 rounded-xl"
+                          className="w-56 h-56 rounded-[1.5rem]"
                         />
                       </div>
                       <h3 className="font-headline font-black text-sm uppercase tracking-tight mb-1">Master Access QR</h3>
@@ -1048,7 +1048,6 @@ export default function PlatformAdminPage() {
                           <CardFooter className="pt-0">
                             <Badge variant="secondary" className="text-[8px] font-black uppercase opacity-60">Coming Soon</Badge>
                           </CardFooter>
-                        </Card>
 
                         {/* Custom Generator */}
                         <Card className="border-2 border-dashed bg-muted/5 flex flex-col items-center justify-center p-6 text-center">

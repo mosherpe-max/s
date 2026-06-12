@@ -126,14 +126,14 @@ export default function SalesDashboardPage() {
                   <CardDescription className="text-xs">{venue.sub}</CardDescription>
                 </CardHeader>
                 <CardContent className="flex-1 space-y-6">
-                  <div className="flex items-center gap-4 bg-muted/30 p-3 rounded-xl border border-dashed">
-                    <div className="bg-white p-1 rounded-lg border-2 shadow-sm">
+                  <div className="flex items-center gap-4 bg-muted/30 p-4 rounded-[2rem] border-2 border-dashed">
+                    <div className="bg-white p-2 rounded-2xl border-2 shadow-lg hover:scale-105 transition-transform cursor-pointer">
                       <Image 
-                        src={`https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${baseUrl}${venue.buyerUrl}`}
+                        src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${baseUrl}${venue.buyerUrl}`}
                         alt="Menu QR"
-                        width={60}
-                        height={60}
-                        className="rounded-sm"
+                        width={128}
+                        height={128}
+                        className="rounded-xl w-32 h-32"
                       />
                     </div>
                     <div className="space-y-1">
@@ -307,7 +307,7 @@ export default function SalesDashboardPage() {
               <CardFooter>
                 <span className="text-[9px] font-black uppercase text-indigo-600 group-hover:translate-x-1 transition-transform flex items-center gap-1">Read Guide <ChevronRight className="h-2 w-2" /></span>
               </CardFooter>
-            </Card>
+            </div>
           </div>
         </section>
       </div>
