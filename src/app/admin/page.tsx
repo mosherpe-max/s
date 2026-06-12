@@ -254,9 +254,6 @@ export default function PlatformAdminPage() {
     const thirtyDaysAgo = subDays(now, 30);
 
     const activeSellers = sellers.filter(s => s.status === 'Active');
-    const golfVenues = activeSellers.filter(s => s.type.includes('Golf'));
-    const bowlingVenues = activeSellers.filter(s => s.type.includes('Bowling'));
-
     const mtdOrders = orders.filter(o => o.createdAt?.toDate() >= monthStart);
     const todayOrders = orders.filter(o => o.createdAt && isToday(o.createdAt.toDate()));
     const trailing30Orders = orders.filter(o => o.createdAt?.toDate() >= thirtyDaysAgo);
@@ -269,7 +266,7 @@ export default function PlatformAdminPage() {
     const projectedFees = (mtdFees / currentDayOfMonth) * 30;
 
     return {
-      venueCounts: { total: activeSellers.length, golf: golfVenues.length, bowling: bowlingVenues.length, other: activeSellers.length - golfVenues.length - bowlingVenues.length },
+      venueCounts: { total: activeSellers.length },
       gmv: { mtd: mtdGMV, trailing30: trailing30GMV },
       orders: { today: todayOrders.length, mtd: mtdOrders.length, all_time: orders.length },
       fees: { mtd: mtdFees, projected: projectedFees }
@@ -308,8 +305,6 @@ export default function PlatformAdminPage() {
       };
 
       batch.set(venueRef, registryData, { merge: true });
-      
-      // Keep operational Seller document in sync with the variable fee (stored in dollars)
       batch.update(sellerRef, {
         serviceFee: Number(patronConvenienceFee) / 100,
         updatedAt: serverTimestamp()
@@ -331,21 +326,11 @@ export default function PlatformAdminPage() {
     try {
       const functions = getFunctions(firebaseApp, 'us-central1');
       const verify = httpsCallable(functions, 'verifyVenueConnection');
-      
       const result = await verify({ venueId: selectedVenue.id });
       setVerificationResult(result.data);
-      
-      toast({ 
-        title: "Real-time Verification Success",
-        description: `Connected to ${(result.data as any).businessName}`
-      });
+      toast({ title: "Verification Success" });
     } catch (e: any) {
-      const errorMsg = e?.details?.details || e.message || "Unknown server error during verification.";
-      toast({ 
-        variant: "destructive", 
-        title: "Connection Failed", 
-        description: errorMsg 
-      });
+      toast({ variant: "destructive", title: "Connection Failed", description: e.message });
     } finally {
       setIsVerifyingStripe(false);
     }
@@ -357,28 +342,12 @@ export default function PlatformAdminPage() {
     try {
       const batch = writeBatch(firestore);
       const venuesSnapshot = await getDocs(collection(firestore, 'venues'));
-      
-      let count = 0;
       venuesSnapshot.docs.forEach(docSnap => {
-        const data = docSnap.data();
-        if (data.patronConvenienceFee === undefined) {
-          // Update Registry
-          batch.update(docSnap.ref, { patronConvenienceFee: 150, updatedAt: serverTimestamp() });
-          
-          // Update corresponding operational Seller profile
-          const sellerRef = doc(firestore, 'sellers', docSnap.id);
-          batch.update(sellerRef, { serviceFee: 1.50, updatedAt: serverTimestamp() });
-          
-          count++;
-        }
+        batch.update(docSnap.ref, { patronConvenienceFee: 150, updatedAt: serverTimestamp() });
+        batch.update(doc(firestore, 'sellers', docSnap.id), { serviceFee: 1.50, updatedAt: serverTimestamp() });
       });
-
-      if (count > 0) {
-        await batch.commit();
-        toast({ title: "Migration Complete", description: `Updated ${count} venues with default $1.50 variable fee.` });
-      } else {
-        toast({ title: "Migration Skipped", description: "All venues already have convenience fee defined." });
-      }
+      await batch.commit();
+      toast({ title: "Migration Complete" });
     } catch (e: any) {
       toast({ variant: "destructive", title: "Migration Failed", description: e.message });
     } finally {
@@ -386,25 +355,11 @@ export default function PlatformAdminPage() {
     }
   };
 
-  // Logo Upload Functions
   const handleLogoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    if (!file.type.includes('png')) {
-      toast({ variant: "destructive", title: "Invalid Format", description: "Please upload a PNG file for high-resolution branding." });
-      return;
-    }
-
-    if (file.size > 800000) { // Keep under 800KB for Firestore doc safety
-      toast({ variant: "destructive", title: "File Too Large", description: "Please optimize your PNG to be under 800KB." });
-      return;
-    }
-
     const reader = new FileReader();
-    reader.onloadend = () => {
-      setLogoPreview(reader.result as string);
-    };
+    reader.onloadend = () => setLogoPreview(reader.result as string);
     reader.readAsDataURL(file);
   };
 
@@ -412,11 +367,8 @@ export default function PlatformAdminPage() {
     if (!firestore || !logoPreview) return;
     setIsProcessingLogo(true);
     try {
-      await setDoc(doc(firestore, 'platform', 'config'), {
-        logoUrl: logoPreview,
-        updatedAt: serverTimestamp()
-      }, { merge: true });
-      toast({ title: "Platform Branding Updated", description: "Your custom logo is now active site-wide." });
+      await setDoc(doc(firestore, 'platform', 'config'), { logoUrl: logoPreview, updatedAt: serverTimestamp() }, { merge: true });
+      toast({ title: "Platform Branding Updated" });
       setLogoPreview(null);
     } catch (e: any) {
       toast({ variant: "destructive", title: "Upload Failed", description: e.message });
@@ -427,15 +379,8 @@ export default function PlatformAdminPage() {
 
   const handleRemoveLogo = async () => {
     if (!firestore) return;
-    try {
-      await updateDoc(doc(firestore, 'platform', 'config'), {
-        logoUrl: null,
-        updatedAt: serverTimestamp()
-      });
-      toast({ title: "Logo Removed", description: "The platform has reverted to default SVG branding." });
-    } catch (e: any) {
-      toast({ variant: "destructive", title: "Error", description: e.message });
-    }
+    await updateDoc(doc(firestore, 'platform', 'config'), { logoUrl: null, updatedAt: serverTimestamp() });
+    toast({ title: "Logo Removed" });
   };
 
   if (!isMounted) return null;
@@ -443,9 +388,6 @@ export default function PlatformAdminPage() {
   const NAV_ITEMS = [
     { id: "dashboard", label: "Global Overview", icon: LayoutDashboard },
     { id: "venues", label: "Venue Management", icon: Store },
-    { id: "finance", label: "Financial & Billing", icon: CreditCard },
-    { id: "orders", label: "Global Order Feed", icon: ClipboardList },
-    { id: "reps", label: "Sales Rep Hub", icon: Briefcase },
     { id: "system", label: "System Control", icon: Settings2 },
   ];
 
@@ -456,7 +398,6 @@ export default function PlatformAdminPage() {
         <div className="p-6 border-b border-white/5 flex items-center justify-between">
           <StylizedKoopLogo size={showLabels ? "md" : "sm"} />
         </div>
-
         <nav className="flex-1 p-3 space-y-1">
           {NAV_ITEMS.map((item) => (
             <NavButton 
@@ -470,7 +411,6 @@ export default function PlatformAdminPage() {
             />
           ))}
         </nav>
-
         <div className="mt-auto border-t border-white/5 p-4">
           {!isMobile && (
             <button onClick={() => setSidebarOpen(!sidebarOpen)} className="w-full flex items-center justify-center p-2 text-slate-400 hover:text-white transition-colors">
@@ -484,8 +424,6 @@ export default function PlatformAdminPage() {
 
   return (
     <div className="flex h-screen bg-[#F8FAFC] overflow-hidden">
-      
-      {/* SIDEBAR (Desktop) */}
       <aside className={cn(
         "bg-[#213147] hidden lg:flex flex-col transition-all duration-300 relative border-r-4 border-primary/20 shrink-0",
         sidebarOpen ? "w-64" : "w-20"
@@ -504,83 +442,53 @@ export default function PlatformAdminPage() {
                   </Button>
                 </SheetTrigger>
                 <SheetContent side="left" className="p-0 bg-[#213147] border-r-4 border-primary/20">
-                  <div className="flex flex-col h-full">
-                    <SideBarContent forceLabels={true} />
-                  </div>
+                  <SideBarContent forceLabels={true} />
                 </SheetContent>
               </Sheet>
             )}
-            <h2 className="text-lg sm:text-xl font-black font-headline uppercase tracking-tight text-[#213147] truncate max-w-[150px] sm:max-w-none">
+            <h2 className="text-lg sm:text-xl font-black font-headline uppercase tracking-tight text-[#213147]">
               {NAV_ITEMS.find(n => n.id === activeNav)?.label}
             </h2>
-            <Badge variant="outline" className="text-[9px] font-black uppercase tracking-widest bg-primary/5 text-primary hidden sm:flex">Master Access</Badge>
           </div>
-
-          <div className="flex items-center gap-2 sm:gap-4">
-            {!isMobile && (
-              <div className="bg-indigo-50 border border-indigo-100 rounded-full px-4 py-1.5 flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
-                <span className="text-[9px] font-black uppercase tracking-widest text-indigo-700">Production Mode</span>
-              </div>
-            )}
-            <button onClick={handleLogout} className="p-2 text-muted-foreground hover:text-destructive transition-colors">
-              <LogOut className="h-5 w-5" />
-            </button>
-          </div>
+          <button onClick={handleLogout} className="p-2 text-muted-foreground hover:text-destructive">
+            <LogOut className="h-5 w-5" />
+          </button>
         </header>
 
         <ScrollArea className="flex-1 p-4 sm:p-8">
           <div className="max-w-7xl mx-auto space-y-8 sm:space-y-10 pb-20">
-
             {activeNav === 'dashboard' && (
-              <div className="space-y-8 sm:space-y-10 animate-in fade-in duration-500">
-                <div className="flex overflow-x-auto gap-4 sm:gap-6 pb-2 no-scrollbar -mx-2 px-2 md:grid md:grid-cols-2 lg:grid-cols-4 md:pb-0 md:mx-0 md:px-0">
-                  <div className="min-w-[200px] flex-1">
-                    <KPICard label="Active Partners" value={metrics?.venueCounts.total || 0} sub={`${metrics?.venueCounts.golf} Golf • ${metrics?.venueCounts.bowling} Bowling`} icon={Store} colorClass="bg-indigo-600" trend="+2" />
-                  </div>
-                  <div className="min-w-[200px] flex-1">
-                    <KPICard label="Platform GMV" value={`$${metrics?.gmv.mtd.toLocaleString(undefined, { minimumFractionDigits: 2 })}`} sub={`30D Vol: $${metrics?.gmv.trailing30.toLocaleString()}`} icon={DollarSign} colorClass="bg-green-600" trend="+12%" />
-                  </div>
-                  <div className="min-w-[200px] flex-1">
-                    <KPICard label="Orders Processed" value={metrics?.orders.mtd || 0} sub={`${metrics?.orders.today} today • ${metrics?.orders.all_time} total`} icon={ShoppingBag} colorClass="bg-primary" trend="+8%" />
-                  </div>
-                  <div className="min-w-[200px] flex-1">
-                    <KPICard label="Fee Revenue (MTD)" value={`$${metrics?.fees.mtd.toLocaleString(undefined, { minimumFractionDigits: 2 })}`} sub={`Projected: $${metrics?.fees.projected.toLocaleString()}`} icon={BarChart3} colorClass="bg-amber-500" />
-                  </div>
+              <div className="space-y-8 animate-in fade-in duration-500">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <KPICard label="Active Partners" value={metrics?.venueCounts.total || 0} sub="Global registry" icon={Store} colorClass="bg-indigo-600" />
+                  <KPICard label="GMV (MTD)" value={`$${metrics?.gmv.mtd.toLocaleString()}`} sub="Gross sales" icon={DollarSign} colorClass="bg-green-600" />
+                  <KPICard label="Orders (MTD)" value={metrics?.orders.mtd || 0} sub="Processed" icon={ShoppingBag} colorClass="bg-primary" />
+                  <KPICard label="Fee Revenue" value={`$${metrics?.fees.mtd.toLocaleString()}`} sub="Platform cut" icon={BarChart3} colorClass="bg-amber-500" />
                 </div>
               </div>
             )}
 
             {activeNav === 'venues' && (
               <div className="space-y-6 animate-in fade-in duration-500">
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-white p-4 rounded-2xl border-2 shadow-sm gap-4">
-                  <div className="flex-1 w-full max-w-md relative">
-                    <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input placeholder="Search registry..." className="pl-10 h-10 border-2" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
-                  </div>
-                  <Button className="w-full sm:w-auto bg-[#213147] font-black uppercase text-[10px] tracking-widest h-10 gap-2"><Plus className="h-4 w-4" /> Provision Venue</Button>
+                <div className="flex bg-white p-4 rounded-2xl border-2 shadow-sm gap-4">
+                  <Input placeholder="Search registry..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
                 </div>
-
-                <div className="border-2 rounded-2xl overflow-hidden bg-white shadow-sm overflow-x-auto no-scrollbar">
+                <div className="border-2 rounded-2xl overflow-hidden bg-white shadow-sm overflow-x-auto">
                   <Table>
                     <TableHeader className="bg-slate-50 border-b">
                       <TableRow>
                         <TableHead className="text-[10px] font-black uppercase">Establishment</TableHead>
-                        <TableHead className="text-[10px] font-black uppercase">Type</TableHead>
-                        <TableHead className="text-[10px] font-black uppercase">Service Fee</TableHead>
                         <TableHead className="text-[10px] font-black uppercase">Status</TableHead>
-                        <TableHead className="text-[10px] font-black uppercase text-right">Actions</TableHead>
+                        <TableHead className="text-right text-[10px] font-black uppercase">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {sellers?.filter(s => s.courseName.toLowerCase().includes(searchTerm.toLowerCase())).map((venue) => (
                         <TableRow key={venue.id}>
-                          <TableCell className="font-black text-sm uppercase text-[#213147] truncate max-w-[150px]">{venue.courseName}</TableCell>
-                          <TableCell><Badge variant="secondary" className="text-[8px] uppercase">{venue.type}</Badge></TableCell>
-                          <TableCell className="font-bold text-xs">${venue.serviceFee?.toFixed(2)}</TableCell>
-                          <TableCell><Badge className={cn("text-[8px] uppercase", venue.status === 'Active' ? 'bg-green-600' : 'bg-slate-300')}>{venue.status}</Badge></TableCell>
+                          <TableCell className="font-black text-sm uppercase text-[#213147]">{venue.courseName}</TableCell>
+                          <TableCell><Badge className={cn(venue.status === 'Active' ? 'bg-green-600' : 'bg-slate-300')}>{venue.status}</Badge></TableCell>
                           <TableCell className="text-right">
-                            <Button variant="outline" size="sm" onClick={() => { setSelectedVenue(venue); setIsVenueDetailOpen(true); }} className="h-8 text-[9px] font-black uppercase tracking-widest border-2">Profile</Button>
+                            <Button variant="outline" size="sm" onClick={() => { setSelectedVenue(venue); setIsVenueDetailOpen(true); }}>Profile</Button>
                           </TableCell>
                         </TableRow>
                       ))}
@@ -593,119 +501,46 @@ export default function PlatformAdminPage() {
             {activeNav === 'system' && (
               <div className="space-y-6 animate-in fade-in duration-500">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                   {/* PLATFORM BRANDING UPLOAD */}
-                   <Card className="border-2 shadow-sm overflow-hidden">
-                      <CardHeader className="border-b bg-primary/5">
-                        <div className="flex items-center gap-3">
-                          <LucideImage className="h-5 w-5 text-primary" />
-                          <CardTitle className="font-black uppercase tracking-tight text-sm">Platform Branding</CardTitle>
+                  <Card className="border-2 shadow-sm overflow-hidden">
+                    <CardHeader className="border-b bg-primary/5">
+                      <CardTitle className="font-black uppercase tracking-tight text-sm">Branding</CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-6 space-y-4">
+                      <div 
+                        onClick={() => fileInputRef.current?.click()}
+                        className="w-full aspect-[3/1] bg-slate-50 border-2 border-dashed rounded-2xl flex flex-col items-center justify-center cursor-pointer overflow-hidden"
+                      >
+                        {logoPreview || config?.logoUrl ? (
+                          <img src={logoPreview || config?.logoUrl} alt="Logo" className="max-h-full max-w-full object-contain" />
+                        ) : (
+                          <div className="text-center">
+                            <Upload className="h-6 w-6 mx-auto mb-2 text-slate-400" />
+                            <p className="text-[10px] font-black uppercase">Select PNG</p>
+                          </div>
+                        )}
+                        <input type="file" ref={fileInputRef} className="hidden" accept="image/png" onChange={handleLogoSelect} />
+                      </div>
+                      {logoPreview && (
+                        <div className="flex gap-2">
+                          <Button onClick={handleUploadLogo} disabled={isUploadingLogo} className="flex-1">Commit</Button>
+                          <Button variant="outline" onClick={() => setLogoPreview(null)}>Cancel</Button>
                         </div>
-                        <CardDescription className="text-[10px] font-bold uppercase">High-Resolution Logo Assets</CardDescription>
-                      </CardHeader>
-                      <CardContent className="p-4 sm:p-6 space-y-6">
-                        <div className="space-y-4">
-                           <div className="flex items-center justify-between mb-2">
-                             <p className="text-xs font-black uppercase text-[#213147]">Site-Wide Logo</p>
-                             {config?.logoUrl && (
-                               <Button variant="ghost" size="sm" onClick={handleRemoveLogo} className="h-7 text-[9px] font-black uppercase tracking-widest text-destructive hover:bg-destructive/5">
-                                 <Trash2 className="h-3 w-3 mr-1.5" /> Remove
-                               </Button>
-                             )}
-                           </div>
+                      )}
+                      {config?.logoUrl && <Button variant="ghost" className="w-full text-destructive" onClick={handleRemoveLogo}>Remove Logo</Button>}
+                    </CardContent>
+                  </Card>
 
-                           <div 
-                             onClick={() => fileInputRef.current?.click()}
-                             className={cn(
-                               "relative w-full aspect-[3/1] bg-slate-50 border-2 border-dashed rounded-2xl flex flex-col items-center justify-center cursor-pointer transition-all hover:bg-slate-100/50 group overflow-hidden",
-                               logoPreview ? "border-primary/50" : "border-slate-200"
-                             )}
-                           >
-                             {logoPreview || config?.logoUrl ? (
-                               <div className="relative w-full h-full p-4 flex items-center justify-center">
-                                 <img 
-                                   src={logoPreview || config?.logoUrl} 
-                                   alt="Logo Preview" 
-                                   className="max-h-full max-w-full object-contain drop-shadow-sm" 
-                                 />
-                                 <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3 backdrop-blur-[2px]">
-                                   <Upload className="h-6 w-6 text-white" />
-                                   <span className="text-xs font-black text-white uppercase tracking-widest">Replace PNG</span>
-                                 </div>
-                               </div>
-                             ) : (
-                               <div className="text-center space-y-2">
-                                 <div className="bg-white p-3 rounded-full shadow-sm border mx-auto inline-block text-slate-400 group-hover:text-primary transition-colors">
-                                   <Upload className="h-6 w-6" />
-                                 </div>
-                                 <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Tap to select high-res PNG</p>
-                                 <p className="text-[8px] text-muted-foreground font-bold uppercase tracking-tighter">Transparent • Max 800KB</p>
-                               </div>
-                             )}
-                             <input 
-                               type="file" 
-                               ref={fileInputRef} 
-                               className="hidden" 
-                               accept="image/png" 
-                               onChange={handleLogoSelect} 
-                             />
-                           </div>
-
-                           {logoPreview && (
-                             <div className="flex gap-2 animate-in slide-in-from-top-2">
-                               <Button 
-                                 onClick={handleUploadLogo} 
-                                 disabled={isUploadingLogo}
-                                 className="flex-1 bg-primary hover:bg-primary/90 font-black uppercase text-[10px] tracking-widest h-10"
-                               >
-                                 {isUploadingLogo ? <Loader2 className="animate-spin" /> : "Commit Branding"}
-                               </Button>
-                               <Button 
-                                 variant="outline" 
-                                 onClick={() => setLogoPreview(null)}
-                                 className="px-4 text-[10px] font-black uppercase border-2 h-10"
-                               >
-                                 Cancel
-                               </Button>
-                             </div>
-                           )}
-                        </div>
-
-                        <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
-                          <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
-                            <ShieldCheck className="h-3 w-3" /> Branding Policy
-                          </p>
-                          <p className="text-[10px] text-muted-foreground leading-relaxed font-medium">
-                            Once updated, this logo will propagate immediately to the App Header, Landing Page, and Admin Dashboards.
-                          </p>
-                        </div>
-                      </CardContent>
-                   </Card>
-
-                   <Card className="border-2 shadow-sm">
-                      <CardHeader className="border-b bg-slate-50/50">
-                        <div className="flex items-center gap-3">
-                          <Database className="h-5 w-5 text-indigo-600" />
-                          <CardTitle className="font-black uppercase tracking-tight text-sm">Maintenance</CardTitle>
-                        </div>
-                        <CardDescription className="text-[10px] font-bold uppercase">Database maintenance</CardDescription>
-                      </CardHeader>
-                      <CardContent className="p-4 sm:p-6 space-y-4">
-                        <div className="space-y-2">
-                           <p className="text-xs font-bold text-[#213147] uppercase tracking-tight">Initialize Convenience Fee</p>
-                           <p className="text-[10px] text-muted-foreground leading-relaxed">
-                             Sync missing `patronConvenienceFee` fields to existing venues.
-                           </p>
-                        </div>
-                        <Button 
-                          onClick={handleRunConvenienceFeeMigration} 
-                          disabled={isMigrating} 
-                          className="w-full bg-[#213147] hover:bg-black font-black uppercase tracking-widest text-[10px] h-12 gap-2"
-                        >
-                          {isMigrating ? <Loader2 className="animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-                          Run Migration
-                        </Button>
-                      </CardContent>
-                   </Card>
+                  <Card className="border-2 shadow-sm">
+                    <CardHeader className="border-b bg-slate-50/50">
+                      <CardTitle className="font-black uppercase tracking-tight text-sm">Maintenance</CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-6 space-y-4">
+                      <Button onClick={handleRunConvenienceFeeMigration} disabled={isMigrating} className="w-full h-12 gap-2">
+                        {isMigrating ? <Loader2 className="animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                        Run Migration
+                      </Button>
+                    </CardContent>
+                  </Card>
                 </div>
               </div>
             )}
@@ -714,98 +549,49 @@ export default function PlatformAdminPage() {
       </main>
 
       <Dialog open={isVenueDetailOpen} onOpenChange={setIsVenueDetailOpen}>
-        <DialogContent className="sm:max-w-[700px] max-w-[95vw] rounded-[2rem] sm:rounded-[2.5rem] p-0 overflow-hidden">
+        <DialogContent className="sm:max-w-[700px] max-w-[95vw] rounded-[2rem] p-0 overflow-hidden">
           <ScrollArea className="max-h-[90vh]">
-            <div className="p-4 sm:p-10 space-y-6">
+            <div className="p-6 sm:p-10 space-y-6">
               <DialogHeader>
-                <div className="flex items-center gap-4 mb-2 sm:mb-4">
-                  <div className="bg-indigo-50 p-3 sm:p-4 rounded-2xl text-indigo-600"><Store className="h-6 sm:h-8 w-6 sm:w-8" /></div>
-                  <div>
-                    <DialogTitle className="font-headline font-black uppercase text-[#213147] text-xl sm:text-2xl">{selectedVenue?.courseName}</DialogTitle>
-                    <Badge variant="outline" className="text-[8px] sm:text-[9px] uppercase font-black">{selectedVenue?.type}</Badge>
+                <DialogTitle className="font-headline font-black uppercase text-[#213147] text-2xl">{selectedVenue?.courseName}</DialogTitle>
+                <Badge variant="outline">{selectedVenue?.type}</Badge>
+              </DialogHeader>
+              <div className="bg-indigo-50/50 p-6 rounded-[1.5rem] border-2 border-indigo-100 space-y-6">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <Label className="text-[10px] font-black uppercase">Stripe Account ID</Label>
+                    <Input value={stripeAccountId} onChange={(e) => setStripeAccountId(e.target.value)} className="border-2" />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label className="text-[10px] font-black uppercase">Stripe Connect ID</Label>
+                    <Input value={stripeConnectId} onChange={(e) => setStripeConnectId(e.target.value)} className="border-2" />
                   </div>
                 </div>
-              </DialogHeader>
-
-              <Tabs defaultValue="stripe" className="mt-2">
-                <TabsList className="bg-slate-50 border p-1 h-10 rounded-xl mb-4 sm:mb-6 w-full justify-start overflow-x-auto no-scrollbar flex-nowrap">
-                  <TabsTrigger value="details" className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest px-4 h-full">Details</TabsTrigger>
-                  <TabsTrigger value="stripe" className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest px-4 h-full">Stripe Control</TabsTrigger>
-                </TabsList>
-
-                <TabsContent value="details" className="grid grid-cols-1 sm:grid-cols-2 gap-6 pb-6">
-                   <div>
-                     <Label className="text-[9px] font-black uppercase text-muted-foreground">Contact Email</Label>
-                     <p className="text-sm font-bold">{selectedVenue?.contactEmail}</p>
-                   </div>
-                </TabsContent>
-
-                <TabsContent value="stripe" className="space-y-6 pb-6">
-                  <div className="space-y-6 bg-indigo-50/50 p-4 sm:p-6 rounded-[1.5rem] border-2 border-indigo-100">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div className="grid gap-2">
-                        <Label className="text-[10px] font-black uppercase tracking-widest text-indigo-600">Stripe Account ID</Label>
-                        <Input value={stripeAccountId} onChange={(e) => setStripeAccountId(e.target.value)} placeholder="acct_xxxxxxxx" className="font-mono font-bold border-2 border-indigo-200" />
-                      </div>
-                      <div className="grid gap-2">
-                        <Label className="text-[10px] font-black uppercase tracking-widest text-indigo-600">Stripe Connect ID</Label>
-                        <Input value={stripeConnectId} onChange={(e) => setStripeConnectId(e.target.value)} placeholder="acct_xxxxxxxx" className="font-mono font-bold border-2 border-indigo-200" />
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 border-t border-indigo-100 pt-4">
-                      <div className="grid gap-2">
-                        <Label className="text-[10px] font-black uppercase tracking-widest text-indigo-600">Koop Fixed (Cents)</Label>
-                        <Input type="number" value={platformFeeFixed} onChange={(e) => setPlatformFeeFixed(Number(e.target.value))} className="font-bold border-2 border-indigo-200" />
-                      </div>
-                      <div className="grid gap-2">
-                        <Label className="text-[10px] font-black uppercase tracking-widest text-indigo-600">Koop % Fee</Label>
-                        <Input type="number" step="0.1" value={platformFeePercent} onChange={(e) => setPlatformFeePercent(Number(e.target.value))} className="font-bold border-2 border-indigo-200" />
-                      </div>
-                      <div className="grid gap-2">
-                        <Label className="text-[10px] font-black uppercase tracking-widest text-primary">Patron Fee (Cents)</Label>
-                        <Input type="number" value={patronConvenienceFee} onChange={(e) => setPatronConvenienceFee(Number(e.target.value))} className="font-bold border-2 border-primary/20" />
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between bg-white p-4 rounded-xl border-2 border-indigo-100">
-                      <div>
-                        <p className="text-xs font-black uppercase text-[#213147]">Enable Payouts</p>
-                        <p className="text-[8px] font-bold text-muted-foreground uppercase">Allow automated Transfers.</p>
-                      </div>
-                      <Switch checked={payoutsEnabled} onCheckedChange={setPayoutsEnabled} />
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
-                      <Button onClick={handleSaveVenueStripeData} disabled={isProcessingStripe} className="h-12 bg-[#213147] font-black uppercase tracking-widest shadow-lg">
-                        {isProcessingStripe ? <Loader2 className="h-5 w-5 animate-spin" /> : <Save className="h-4 w-4 mr-2" />} Save Registry
-                      </Button>
-                      <Button variant="outline" onClick={handleVerifyStripeConnection} disabled={isVerifyingStripe || !stripeAccountId} className="h-12 border-2 text-indigo-600 border-indigo-100 gap-2 font-black uppercase tracking-widest">
-                        {isVerifyingStripe ? <Loader2 className="h-5 w-5 animate-spin" /> : <HeartPulse className="h-4 w-4 mr-2" />} Verify Health
-                      </Button>
-                    </div>
-
-                    {verificationResult && (
-                      <div className="p-4 bg-white border-2 border-indigo-200 rounded-xl animate-in fade-in slide-in-from-top-2">
-                        <p className="text-[9px] font-black uppercase tracking-widest text-indigo-600 mb-2 border-b pb-1">Real-time Connection Data</p>
-                        <div className="grid grid-cols-2 gap-4">
-                          <div>
-                            <p className="text-[8px] font-bold text-muted-foreground uppercase">Business Name</p>
-                            <p className="text-xs font-black text-[#213147] truncate">{verificationResult.businessName}</p>
-                          </div>
-                          <div>
-                            <p className="text-[8px] font-bold text-muted-foreground uppercase">Capability Status</p>
-                            <Badge variant={verificationResult.status === 'Ready' ? 'default' : 'destructive'} className="text-[8px] font-black uppercase px-2 h-4">{verificationResult.status}</Badge>
-                          </div>
-                        </div>
-                      </div>
-                    )}
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="grid gap-2">
+                    <Label className="text-[10px] font-black uppercase">Fixed Fee (Cents)</Label>
+                    <Input type="number" value={platformFeeFixed} onChange={(e) => setPlatformFeeFixed(Number(e.target.value))} className="border-2" />
                   </div>
-                </TabsContent>
-              </Tabs>
-
-              <DialogFooter className="bg-slate-50 -mx-4 -mb-4 p-4 sm:-mx-10 sm:-mb-10 sm:p-10 rounded-b-[2.5rem] border-t">
-                <Button variant="ghost" onClick={() => setIsVenueDetailOpen(false)} className="text-[10px] font-black uppercase tracking-widest w-full">Close Profile</Button>
+                  <div className="grid gap-2">
+                    <Label className="text-[10px] font-black uppercase">Percent Fee</Label>
+                    <Input type="number" value={platformFeePercent} onChange={(e) => setPlatformFeePercent(Number(e.target.value))} className="border-2" />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label className="text-[10px] font-black uppercase">Patron Fee (Cents)</Label>
+                    <Input type="number" value={patronConvenienceFee} onChange={(e) => setPatronConvenienceFee(Number(e.target.value))} className="border-2" />
+                  </div>
+                </div>
+                <div className="flex items-center justify-between bg-white p-4 rounded-xl border-2">
+                  <Label className="font-black uppercase text-xs">Enable Payouts</Label>
+                  <Switch checked={payoutsEnabled} onCheckedChange={setPayoutsEnabled} />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <Button onClick={handleSaveVenueStripeData} disabled={isProcessingStripe} className="h-12"><Save className="h-4 w-4 mr-2" /> Save</Button>
+                  <Button variant="outline" onClick={handleVerifyStripeConnection} disabled={isVerifyingStripe} className="h-12"><HeartPulse className="h-4 w-4 mr-2" /> Verify</Button>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="ghost" onClick={() => setIsVenueDetailOpen(false)} className="w-full">Close</Button>
               </DialogFooter>
             </div>
           </ScrollArea>
