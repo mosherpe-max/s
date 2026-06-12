@@ -412,60 +412,61 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     { id: "settings", label: "Settings", icon: Settings },
   ];
 
-  const SideBarContent = () => (
-    <>
-      <div className="p-6 border-b border-white/5 flex items-center justify-between">
-        <StylizedKoopLogo size={sidebarOpen ? "md" : "sm"} />
-      </div>
+  const SideBarContent = ({ forceLabels = false }: { forceLabels?: boolean }) => {
+    const showLabels = forceLabels || sidebarOpen;
+    return (
+      <>
+        <div className="p-6 border-b border-white/5 flex items-center justify-between">
+          <StylizedKoopLogo size={showLabels ? "md" : "sm"} />
+        </div>
 
-      <nav className="flex-1 p-3 space-y-1">
-        {NAV_ITEMS.map((item) => (
-          <NavButton 
-            key={item.id} 
-            id={item.id} 
-            label={item.label} 
-            icon={item.icon} 
-            active={activeNav === item.id} 
-            onClick={(id) => { setActiveNav(id); if (isMobile) setSidebarOpen(false); }}
-            sidebarOpen={sidebarOpen}
-          />
-        ))}
-      </nav>
+        <nav className="flex-1 p-3 space-y-1">
+          {NAV_ITEMS.map((item) => (
+            <NavButton 
+              key={item.id} 
+              id={item.id} 
+              label={item.label} 
+              icon={item.icon} 
+              active={activeNav === item.id} 
+              onClick={(id) => { setActiveNav(id); if (isMobile) setSidebarOpen(false); }}
+              sidebarOpen={showLabels}
+            />
+          ))}
+        </nav>
 
-      <div className="mt-auto border-t border-white/5 p-4">
-        {sidebarOpen && (
-          <div className="bg-white/5 rounded-xl p-4 mb-4 animate-in fade-in duration-500">
-            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Active Venue</p>
-            <p className="text-xs font-black text-white uppercase tracking-tight truncate">{seller?.courseName}</p>
-            <Badge variant="outline" className="mt-2 text-[8px] border-primary/30 text-primary uppercase font-black tracking-widest">
-              {seller?.type}
-            </Badge>
-          </div>
-        )}
-        {!isMobile && (
-          <button 
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="w-full flex items-center justify-center p-2 text-slate-400 hover:text-white transition-colors"
-          >
-            {sidebarOpen ? <ChevronLeft /> : <ChevronRight />}
-          </button>
-        )}
-      </div>
-    </>
-  );
+        <div className="mt-auto border-t border-white/5 p-4">
+          {showLabels && (
+            <div className="bg-white/5 rounded-xl p-4 mb-4 animate-in fade-in duration-500">
+              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Active Venue</p>
+              <p className="text-xs font-black text-white uppercase tracking-tight truncate">{seller?.courseName}</p>
+              <Badge variant="outline" className="mt-2 text-[8px] border-primary/30 text-primary uppercase font-black tracking-widest">
+                {seller?.type}
+              </Badge>
+            </div>
+          )}
+          {!isMobile && (
+            <button 
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              className="w-full flex items-center justify-center p-2 text-slate-400 hover:text-white transition-colors"
+            >
+              {sidebarOpen ? <ChevronLeft /> : <ChevronRight />}
+            </button>
+          )}
+        </div>
+      </>
+    );
+  };
 
   return (
     <div className="flex h-screen bg-[#F8FAFC] overflow-hidden">
       
       {/* SIDEBAR NAVIGATION (Desktop) */}
-      {!isMobile && (
-        <aside className={cn(
-          "bg-[#213147] flex flex-col transition-all duration-300 relative border-r-4 border-primary/20 shrink-0",
-          sidebarOpen ? "w-64" : "w-20"
-        )}>
-          <SideBarContent />
-        </aside>
-      )}
+      <aside className={cn(
+        "bg-[#213147] hidden lg:flex flex-col transition-all duration-300 relative border-r-4 border-primary/20 shrink-0",
+        sidebarOpen ? "w-64" : "w-20"
+      )}>
+        <SideBarContent />
+      </aside>
 
       {/* MAIN CONTENT AREA */}
       <main className="flex-1 flex flex-col overflow-hidden">
@@ -482,7 +483,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                 </SheetTrigger>
                 <SheetContent side="left" className="p-0 bg-[#213147] border-r-4 border-primary/20">
                   <div className="flex flex-col h-full">
-                    <SideBarContent />
+                    <SideBarContent forceLabels={true} />
                   </div>
                 </SheetContent>
               </Sheet>
@@ -795,8 +796,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                          <div className="text-2xl sm:text-3xl font-black font-headline tracking-tighter text-primary">0%</div>
                          <p className="text-[9px] font-bold text-muted-foreground uppercase mt-1">Venue keeps 100%</p>
                        </CardContent>
-                     </Card>
-                   </div>
+                     </div>
                 </div>
 
                 <Card className="border-2 shadow-sm overflow-hidden">

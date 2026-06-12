@@ -449,48 +449,49 @@ export default function PlatformAdminPage() {
     { id: "system", label: "System Control", icon: Settings2 },
   ];
 
-  const SideBarContent = () => (
-    <>
-      <div className="p-6 border-b border-white/5 flex items-center justify-between">
-        <StylizedKoopLogo size={sidebarOpen ? "md" : "sm"} />
-      </div>
+  const SideBarContent = ({ forceLabels = false }: { forceLabels?: boolean }) => {
+    const showLabels = forceLabels || sidebarOpen;
+    return (
+      <>
+        <div className="p-6 border-b border-white/5 flex items-center justify-between">
+          <StylizedKoopLogo size={showLabels ? "md" : "sm"} />
+        </div>
 
-      <nav className="flex-1 p-3 space-y-1">
-        {NAV_ITEMS.map((item) => (
-          <NavButton 
-            key={item.id}
-            id={item.id} 
-            label={item.label} 
-            icon={item.icon} 
-            active={activeNav === item.id} 
-            onClick={(id) => { setActiveNav(id); if (isMobile) setSidebarOpen(false); }}
-            sidebarOpen={sidebarOpen}
-          />
-        ))}
-      </nav>
+        <nav className="flex-1 p-3 space-y-1">
+          {NAV_ITEMS.map((item) => (
+            <NavButton 
+              key={item.id}
+              id={item.id} 
+              label={item.label} 
+              icon={item.icon} 
+              active={activeNav === item.id} 
+              onClick={(id) => { setActiveNav(id); if (isMobile) setSidebarOpen(false); }}
+              sidebarOpen={showLabels}
+            />
+          ))}
+        </nav>
 
-      <div className="mt-auto border-t border-white/5 p-4">
-        {!isMobile && (
-          <button onClick={() => setSidebarOpen(!sidebarOpen)} className="w-full flex items-center justify-center p-2 text-slate-400 hover:text-white">
-            {sidebarOpen ? <ChevronLeft /> : <ChevronRight />}
-          </button>
-        )}
-      </div>
-    </>
-  );
+        <div className="mt-auto border-t border-white/5 p-4">
+          {!isMobile && (
+            <button onClick={() => setSidebarOpen(!sidebarOpen)} className="w-full flex items-center justify-center p-2 text-slate-400 hover:text-white transition-colors">
+              {sidebarOpen ? <ChevronLeft /> : <ChevronRight />}
+            </button>
+          )}
+        </div>
+      </>
+    );
+  };
 
   return (
     <div className="flex h-screen bg-[#F8FAFC] overflow-hidden">
       
       {/* SIDEBAR (Desktop) */}
-      {!isMobile && (
-        <aside className={cn(
-          "bg-[#213147] flex flex-col transition-all duration-300 relative border-r-4 border-primary/20 shrink-0",
-          sidebarOpen ? "w-64" : "w-20"
-        )}>
-          <SideBarContent />
-        </aside>
-      )}
+      <aside className={cn(
+        "bg-[#213147] hidden lg:flex flex-col transition-all duration-300 relative border-r-4 border-primary/20 shrink-0",
+        sidebarOpen ? "w-64" : "w-20"
+      )}>
+        <SideBarContent />
+      </aside>
 
       <main className="flex-1 flex flex-col overflow-hidden">
         <header className="h-16 bg-white border-b-2 flex items-center justify-between px-4 sm:px-8 shrink-0 z-20 shadow-sm">
@@ -504,7 +505,7 @@ export default function PlatformAdminPage() {
                 </SheetTrigger>
                 <SheetContent side="left" className="p-0 bg-[#213147] border-r-4 border-primary/20">
                   <div className="flex flex-col h-full">
-                    <SideBarContent />
+                    <SideBarContent forceLabels={true} />
                   </div>
                 </SheetContent>
               </Sheet>
