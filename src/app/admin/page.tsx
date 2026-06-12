@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
@@ -53,7 +52,8 @@ import {
   RefreshCw,
   Image as ImageIcon,
   Upload,
-  Trash2
+  Trash2,
+  Menu
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -102,6 +102,14 @@ import { StylizedKoopLogo } from '@/components/header';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { format, isToday, startOfMonth, subDays } from 'date-fns';
 import Image from 'next/image';
+import { useIsMobile } from '@/hooks/use-mobile';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 
 function NavButton({ id, label, icon: Icon, active, onClick, sidebarOpen }: { 
   id: string, label: string, icon: any, active: boolean, onClick: (id: string) => void, sidebarOpen: boolean 
@@ -138,7 +146,7 @@ function KPICard({ label, value, sub, icon: Icon, colorClass, trend }: { label: 
         </CardDescription>
       </CardHeader>
       <CardContent className="pb-5">
-        <div className="text-3xl font-black font-headline tracking-tighter text-[#213147] mb-1">{value}</div>
+        <div className="text-2xl sm:text-3xl font-black font-headline tracking-tighter text-[#213147] mb-1">{value}</div>
         <p className="text-[10px] font-bold text-muted-foreground uppercase">{sub}</p>
       </CardContent>
     </Card>
@@ -151,9 +159,10 @@ export default function PlatformAdminPage() {
   const auth = useAuth();
   const router = useRouter();
   const { toast } = useToast();
+  const isMobile = useIsMobile();
 
   const [activeNav, setActiveNav] = useState('dashboard');
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(!isMobile);
   const [isMounted, setIsMounted] = useState(false);
   
   const [selectedVenue, setSelectedVenue] = useState<Seller | null>(null);
@@ -182,6 +191,12 @@ export default function PlatformAdminPage() {
   useEffect(() => {
     setIsMounted(true);
   }, []);
+
+  useEffect(() => {
+    if (isMounted) {
+      setSidebarOpen(!isMobile);
+    }
+  }, [isMobile, isMounted]);
 
   const configRef = useMemoFirebase(() => (firestore ? doc(firestore, 'platform', 'config') : null), [firestore]);
   const { data: config } = useDoc<PlatformConfig>(configRef);
@@ -437,69 +452,103 @@ export default function PlatformAdminPage() {
     { id: "system", label: "System Control", icon: Settings2 },
   ];
 
-  return (
-    <div className="flex h-screen bg-[#F8FAFC] overflow-hidden">
-      
-      <aside className={cn(
-        "bg-[#213147] flex flex-col transition-all duration-300 relative border-r-4 border-primary/20 shrink-0",
-        sidebarOpen ? "w-64" : "w-20"
-      )}>
-        <div className="p-6 border-b border-white/5 flex items-center justify-between">
-          <StylizedKoopLogo size={sidebarOpen ? "md" : "sm"} />
-        </div>
+  const SideBarContent = () => (
+    <>
+      <div className="p-6 border-b border-white/5 flex items-center justify-between">
+        <StylizedKoopLogo size={sidebarOpen ? "md" : "sm"} />
+      </div>
 
-        <nav className="flex-1 p-3 space-y-1">
-          {NAV_ITEMS.map((item) => (
-            <div key={item.id}>
-              <NavButton 
-                id={item.id} 
-                label={item.label} 
-                icon={item.icon} 
-                active={activeNav === item.id} 
-                onClick={setActiveNav}
-                sidebarOpen={sidebarOpen}
-              />
-            </div>
-          ))}
-        </nav>
+      <nav className="flex-1 p-3 space-y-1">
+        {NAV_ITEMS.map((item) => (
+          <NavButton 
+            key={item.id}
+            id={item.id} 
+            label={item.label} 
+            icon={item.icon} 
+            active={activeNav === item.id} 
+            onClick={(id) => { setActiveNav(id); if (isMobile) setSidebarOpen(false); }}
+            sidebarOpen={sidebarOpen}
+          />
+        ))}
+      </nav>
 
-        <div className="mt-auto border-t border-white/5 p-4">
+      <div className="mt-auto border-t border-white/5 p-4">
+        {!isMobile && (
           <button onClick={() => setSidebarOpen(!sidebarOpen)} className="w-full flex items-center justify-center p-2 text-slate-400 hover:text-white">
             {sidebarOpen ? <ChevronLeft /> : <ChevronRight />}
           </button>
-        </div>
-      </aside>
+        )}
+      </div>
+    </>
+  );
+
+  return (
+    <div className="flex h-screen bg-[#F8FAFC] overflow-hidden">
+      
+      {/* SIDEBAR (Desktop) */}
+      {!isMobile && (
+        <aside className={cn(
+          "bg-[#213147] flex flex-col transition-all duration-300 relative border-r-4 border-primary/20 shrink-0",
+          sidebarOpen ? "w-64" : "w-20"
+        )}>
+          <SideBarContent />
+        </aside>
+      )}
 
       <main className="flex-1 flex flex-col overflow-hidden">
-        <header className="h-16 bg-white border-b-2 flex items-center justify-between px-8 shrink-0 z-20 shadow-sm">
-          <div className="flex items-center gap-4">
-            <h2 className="text-xl font-black font-headline uppercase tracking-tight text-[#213147]">
+        <header className="h-16 bg-white border-b-2 flex items-center justify-between px-4 sm:px-8 shrink-0 z-20 shadow-sm">
+          <div className="flex items-center gap-3 sm:gap-4">
+            {isMobile && (
+              <Sheet>
+                <SheetTrigger asChild>
+                  <Button variant="ghost" size="icon" className="text-[#213147]">
+                    <Menu className="h-6 w-6" />
+                  </Button>
+                </SheetTrigger>
+                <SheetContent side="left" className="p-0 bg-[#213147] border-r-4 border-primary/20">
+                  <div className="flex flex-col h-full">
+                    <SideBarContent />
+                  </div>
+                </SheetContent>
+              </Sheet>
+            )}
+            <h2 className="text-lg sm:text-xl font-black font-headline uppercase tracking-tight text-[#213147] truncate max-w-[150px] sm:max-w-none">
               {NAV_ITEMS.find(n => n.id === activeNav)?.label}
             </h2>
-            <Badge variant="outline" className="text-[10px] font-black uppercase tracking-widest bg-primary/5 text-primary">Master Access</Badge>
+            <Badge variant="outline" className="text-[9px] font-black uppercase tracking-widest bg-primary/5 text-primary hidden sm:flex">Master Access</Badge>
           </div>
 
-          <div className="flex items-center gap-4">
-            <div className="bg-indigo-50 border border-indigo-100 rounded-full px-4 py-1.5 flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
-              <span className="text-[9px] font-black uppercase tracking-widest text-indigo-700">Production Mode</span>
-            </div>
+          <div className="flex items-center gap-2 sm:gap-4">
+            {!isMobile && (
+              <div className="bg-indigo-50 border border-indigo-100 rounded-full px-4 py-1.5 flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
+                <span className="text-[9px] font-black uppercase tracking-widest text-indigo-700">Production Mode</span>
+              </div>
+            )}
             <button onClick={handleLogout} className="p-2 text-muted-foreground hover:text-destructive transition-colors">
               <LogOut className="h-5 w-5" />
             </button>
           </div>
         </header>
 
-        <ScrollArea className="flex-1 p-8">
-          <div className="max-w-7xl mx-auto space-y-10 pb-20">
+        <ScrollArea className="flex-1 p-4 sm:p-8">
+          <div className="max-w-7xl mx-auto space-y-8 sm:space-y-10 pb-20">
 
             {activeNav === 'dashboard' && (
-              <div className="space-y-10 animate-in fade-in duration-500">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                  <KPICard label="Active Partners" value={metrics?.venueCounts.total || 0} sub={`${metrics?.venueCounts.golf} Golf • ${metrics?.venueCounts.bowling} Bowling`} icon={Store} colorClass="bg-indigo-600" trend="+2" />
-                  <KPICard label="Platform GMV" value={`$${metrics?.gmv.mtd.toLocaleString(undefined, { minimumFractionDigits: 2 })}`} sub={`30D Vol: $${metrics?.gmv.trailing30.toLocaleString()}`} icon={DollarSign} colorClass="bg-green-600" trend="+12%" />
-                  <KPICard label="Orders Processed" value={metrics?.orders.mtd || 0} sub={`${metrics?.orders.today} today • ${metrics?.orders.all_time} total`} icon={ShoppingBag} colorClass="bg-primary" trend="+8%" />
-                  <KPICard label="Fee Revenue (MTD)" value={`$${metrics?.fees.mtd.toLocaleString(undefined, { minimumFractionDigits: 2 })}`} sub={`Projected: $${metrics?.fees.projected.toLocaleString()}`} icon={BarChart3} colorClass="bg-amber-500" />
+              <div className="space-y-8 sm:space-y-10 animate-in fade-in duration-500">
+                <div className="flex overflow-x-auto gap-4 sm:gap-6 pb-2 no-scrollbar -mx-2 px-2 md:grid md:grid-cols-2 lg:grid-cols-4 md:pb-0 md:mx-0 md:px-0">
+                  <div className="min-w-[200px] flex-1">
+                    <KPICard label="Active Partners" value={metrics?.venueCounts.total || 0} sub={`${metrics?.venueCounts.golf} Golf • ${metrics?.venueCounts.bowling} Bowling`} icon={Store} colorClass="bg-indigo-600" trend="+2" />
+                  </div>
+                  <div className="min-w-[200px] flex-1">
+                    <KPICard label="Platform GMV" value={`$${metrics?.gmv.mtd.toLocaleString(undefined, { minimumFractionDigits: 2 })}`} sub={`30D Vol: $${metrics?.gmv.trailing30.toLocaleString()}`} icon={DollarSign} colorClass="bg-green-600" trend="+12%" />
+                  </div>
+                  <div className="min-w-[200px] flex-1">
+                    <KPICard label="Orders Processed" value={metrics?.orders.mtd || 0} sub={`${metrics?.orders.today} today • ${metrics?.orders.all_time} total`} icon={ShoppingBag} colorClass="bg-primary" trend="+8%" />
+                  </div>
+                  <div className="min-w-[200px] flex-1">
+                    <KPICard label="Fee Revenue (MTD)" value={`$${metrics?.fees.mtd.toLocaleString(undefined, { minimumFractionDigits: 2 })}`} sub={`Projected: $${metrics?.fees.projected.toLocaleString()}`} icon={BarChart3} colorClass="bg-amber-500" />
+                  </div>
                 </div>
               </div>
             )}
@@ -511,7 +560,7 @@ export default function PlatformAdminPage() {
                     <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                     <Input placeholder="Search registry..." className="pl-10 h-10 border-2" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
                   </div>
-                  <Button className="bg-[#213147] font-black uppercase text-[10px] tracking-widest h-10 gap-2"><Plus className="h-4 w-4" /> Provision Venue</Button>
+                  <Button className="w-full sm:w-auto bg-[#213147] font-black uppercase text-[10px] tracking-widest h-10 gap-2"><Plus className="h-4 w-4" /> Provision Venue</Button>
                 </div>
 
                 <div className="border-2 rounded-2xl overflow-hidden bg-white shadow-sm overflow-x-auto no-scrollbar">
@@ -528,7 +577,7 @@ export default function PlatformAdminPage() {
                     <TableBody>
                       {sellers?.filter(s => s.courseName.toLowerCase().includes(searchTerm.toLowerCase())).map((venue) => (
                         <TableRow key={venue.id}>
-                          <TableCell className="font-black text-sm uppercase text-[#213147]">{venue.courseName}</TableCell>
+                          <TableCell className="font-black text-sm uppercase text-[#213147] truncate max-w-[150px]">{venue.courseName}</TableCell>
                           <TableCell><Badge variant="secondary" className="text-[8px] uppercase">{venue.type}</Badge></TableCell>
                           <TableCell className="font-bold text-xs">${venue.serviceFee?.toFixed(2)}</TableCell>
                           <TableCell><Badge className={cn("text-[8px] uppercase", venue.status === 'Active' ? 'bg-green-600' : 'bg-slate-300')}>{venue.status}</Badge></TableCell>
@@ -555,13 +604,13 @@ export default function PlatformAdminPage() {
                         </div>
                         <CardDescription className="text-[10px] font-bold uppercase">High-Resolution Logo Assets</CardDescription>
                       </CardHeader>
-                      <CardContent className="p-6 space-y-6">
+                      <CardContent className="p-4 sm:p-6 space-y-6">
                         <div className="space-y-4">
                            <div className="flex items-center justify-between mb-2">
                              <p className="text-xs font-black uppercase text-[#213147]">Site-Wide Logo</p>
                              {config?.logoUrl && (
                                <Button variant="ghost" size="sm" onClick={handleRemoveLogo} className="h-7 text-[9px] font-black uppercase tracking-widest text-destructive hover:bg-destructive/5">
-                                 <Trash2 className="h-3 w-3 mr-1.5" /> Remove Custom
+                                 <Trash2 className="h-3 w-3 mr-1.5" /> Remove
                                </Button>
                              )}
                            </div>
@@ -591,7 +640,7 @@ export default function PlatformAdminPage() {
                                    <Upload className="h-6 w-6" />
                                  </div>
                                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Tap to select high-res PNG</p>
-                                 <p className="text-[8px] text-muted-foreground font-bold uppercase tracking-tighter">Recommended: Transparent Background • Max 800KB</p>
+                                 <p className="text-[8px] text-muted-foreground font-bold uppercase tracking-tighter">Transparent • Max 800KB</p>
                                </div>
                              )}
                              <input 
@@ -628,7 +677,7 @@ export default function PlatformAdminPage() {
                             <ShieldCheck className="h-3 w-3" /> Branding Policy
                           </p>
                           <p className="text-[10px] text-muted-foreground leading-relaxed font-medium">
-                            Once updated, this logo will propagate immediately to the App Header, Landing Page, Admin Dashboards, and the Patron Checkout experience.
+                            Once updated, this logo will propagate immediately to the App Header, Landing Page, and Admin Dashboards.
                           </p>
                         </div>
                       </CardContent>
@@ -638,16 +687,15 @@ export default function PlatformAdminPage() {
                       <CardHeader className="border-b bg-slate-50/50">
                         <div className="flex items-center gap-3">
                           <Database className="h-5 w-5 text-indigo-600" />
-                          <CardTitle className="font-black uppercase tracking-tight text-sm">Database Maintenance</CardTitle>
+                          <CardTitle className="font-black uppercase tracking-tight text-sm">Maintenance</CardTitle>
                         </div>
-                        <CardDescription className="text-[10px] font-bold uppercase">Multi-tenant schema updates</CardDescription>
+                        <CardDescription className="text-[10px] font-bold uppercase">Database maintenance</CardDescription>
                       </CardHeader>
-                      <CardContent className="p-6 space-y-4">
+                      <CardContent className="p-4 sm:p-6 space-y-4">
                         <div className="space-y-2">
-                           <p className="text-xs font-bold text-[#213147] uppercase tracking-tight">Initialize Patron Convenience Fee</p>
+                           <p className="text-xs font-bold text-[#213147] uppercase tracking-tight">Initialize Convenience Fee</p>
                            <p className="text-[10px] text-muted-foreground leading-relaxed">
-                             This script adds the `patronConvenienceFee` field to all existing venue registries that are missing it. 
-                             Default value: <span className="font-black text-primary">150 cents ($1.50)</span>.
+                             Sync missing `patronConvenienceFee` fields to existing venues.
                            </p>
                         </div>
                         <Button 
@@ -656,7 +704,7 @@ export default function PlatformAdminPage() {
                           className="w-full bg-[#213147] hover:bg-black font-black uppercase tracking-widest text-[10px] h-12 gap-2"
                         >
                           {isMigrating ? <Loader2 className="animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-                          Run Schema Migration
+                          Run Migration
                         </Button>
                       </CardContent>
                    </Card>
@@ -668,23 +716,23 @@ export default function PlatformAdminPage() {
       </main>
 
       <Dialog open={isVenueDetailOpen} onOpenChange={setIsVenueDetailOpen}>
-        <DialogContent className="sm:max-w-[700px] rounded-[2.5rem] p-0 overflow-hidden">
+        <DialogContent className="sm:max-w-[700px] max-w-[95vw] rounded-[2rem] sm:rounded-[2.5rem] p-0 overflow-hidden">
           <ScrollArea className="max-h-[90vh]">
-            <div className="p-6 sm:p-10 space-y-6">
+            <div className="p-4 sm:p-10 space-y-6">
               <DialogHeader>
-                <div className="flex items-center gap-4 mb-4">
-                  <div className="bg-indigo-50 p-4 rounded-2xl text-indigo-600"><Store className="h-8 w-8" /></div>
+                <div className="flex items-center gap-4 mb-2 sm:mb-4">
+                  <div className="bg-indigo-50 p-3 sm:p-4 rounded-2xl text-indigo-600"><Store className="h-6 sm:h-8 w-6 sm:w-8" /></div>
                   <div>
-                    <DialogTitle className="font-headline font-black uppercase text-[#213147] text-2xl">{selectedVenue?.courseName}</DialogTitle>
-                    <Badge variant="outline" className="text-[9px] uppercase font-black">{selectedVenue?.type}</Badge>
+                    <DialogTitle className="font-headline font-black uppercase text-[#213147] text-xl sm:text-2xl">{selectedVenue?.courseName}</DialogTitle>
+                    <Badge variant="outline" className="text-[8px] sm:text-[9px] uppercase font-black">{selectedVenue?.type}</Badge>
                   </div>
                 </div>
               </DialogHeader>
 
-              <Tabs defaultValue="stripe" className="mt-4">
-                <TabsList className="bg-slate-50 border p-1 h-10 rounded-xl mb-6 w-full justify-start overflow-x-auto no-scrollbar flex-nowrap">
-                  <TabsTrigger value="details" className="text-[10px] font-black uppercase tracking-widest px-4 h-full">Details</TabsTrigger>
-                  <TabsTrigger value="stripe" className="text-[10px] font-black uppercase tracking-widest px-4 h-full">Stripe Control</TabsTrigger>
+              <Tabs defaultValue="stripe" className="mt-2">
+                <TabsList className="bg-slate-50 border p-1 h-10 rounded-xl mb-4 sm:mb-6 w-full justify-start overflow-x-auto no-scrollbar flex-nowrap">
+                  <TabsTrigger value="details" className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest px-4 h-full">Details</TabsTrigger>
+                  <TabsTrigger value="stripe" className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest px-4 h-full">Stripe Control</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="details" className="grid grid-cols-1 sm:grid-cols-2 gap-6 pb-6">
@@ -695,7 +743,7 @@ export default function PlatformAdminPage() {
                 </TabsContent>
 
                 <TabsContent value="stripe" className="space-y-6 pb-6">
-                  <div className="space-y-6 bg-indigo-50/50 p-6 rounded-[1.5rem] border-2 border-indigo-100">
+                  <div className="space-y-6 bg-indigo-50/50 p-4 sm:p-6 rounded-[1.5rem] border-2 border-indigo-100">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="grid gap-2">
                         <Label className="text-[10px] font-black uppercase tracking-widest text-indigo-600">Stripe Account ID</Label>
@@ -725,7 +773,7 @@ export default function PlatformAdminPage() {
                     <div className="flex items-center justify-between bg-white p-4 rounded-xl border-2 border-indigo-100">
                       <div>
                         <p className="text-xs font-black uppercase text-[#213147]">Enable Payouts</p>
-                        <p className="text-[8px] font-bold text-muted-foreground uppercase">Allow automated ACH transfers.</p>
+                        <p className="text-[8px] font-bold text-muted-foreground uppercase">Allow automated Transfers.</p>
                       </div>
                       <Switch checked={payoutsEnabled} onCheckedChange={setPayoutsEnabled} />
                     </div>
@@ -758,7 +806,7 @@ export default function PlatformAdminPage() {
                 </TabsContent>
               </Tabs>
 
-              <DialogFooter className="bg-slate-50 -mx-6 -mb-6 p-6 sm:-mx-10 sm:-mb-10 sm:p-10 rounded-b-[2.5rem] border-t">
+              <DialogFooter className="bg-slate-50 -mx-4 -mb-4 p-4 sm:-mx-10 sm:-mb-10 sm:p-10 rounded-b-[2.5rem] border-t">
                 <Button variant="ghost" onClick={() => setIsVenueDetailOpen(false)} className="text-[10px] font-black uppercase tracking-widest w-full">Close Profile</Button>
               </DialogFooter>
             </div>
