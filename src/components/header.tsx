@@ -18,7 +18,8 @@ import {
   ChevronRight,
   ExternalLink,
   Store,
-  LayoutDashboard
+  LayoutDashboard,
+  ShoppingCart
 } from 'lucide-react';
 import {
   Sheet,
@@ -31,6 +32,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import type { PlatformConfig } from '@/lib/types';
+import { useCart } from '@/lib/cart-context';
 
 /**
  * High-fidelity logo component used across the platform.
@@ -173,6 +175,7 @@ export function AppHeader() {
   const searchParams = useSearchParams();
   const firestore = useFirestore();
   const [isMounted, setIsMounted] = useState(false);
+  const { total, totalItems, setIsCartOpen } = useCart();
 
   useEffect(() => {
     setIsMounted(true);
@@ -206,6 +209,7 @@ export function AppHeader() {
   const { data: order } = useDoc(orderRef);
 
   const isHomePage = pathname === '/';
+  const isOrderPage = pathname?.includes('/order');
   const activeMenuType = menuTypeParam || order?.menuType;
 
   if (!isMounted) return null;
@@ -223,10 +227,17 @@ export function AppHeader() {
 
   return (
     <header className="sticky top-0 z-40 bg-[#213147] border-b-2 border-[#E50000] shadow-md h-16 shrink-0">
-      <div className="container mx-auto h-full flex items-center justify-center px-4">
-        <div className="flex items-center gap-3 min-w-0 max-w-full">
+      <div className="container mx-auto h-full flex items-center px-4">
+        {/* Balanced Grid for Centering Title */}
+        <div className="grid grid-cols-3 items-center w-full">
+          {/* Left Spacer or Back Button Placeholder */}
+          <div className="flex justify-start">
+            <div className="w-10" />
+          </div>
+
+          {/* Center: Venue Identity */}
           <div className="flex flex-col items-center text-center min-w-0">
-            <h1 className="font-headline text-sm font-black text-white uppercase tracking-tight truncate leading-tight w-full max-w-[280px]">
+            <h1 className="font-headline text-sm font-black text-white uppercase tracking-tight truncate leading-tight w-full max-w-[180px] sm:max-w-[280px]">
               {seller?.courseName || 'KOOP Platform'}
             </h1>
             {activeMenuType && (
@@ -236,6 +247,30 @@ export function AppHeader() {
                   {activeMenuType}
                 </span>
               </div>
+            )}
+          </div>
+
+          {/* Right: Cart Access (Only on Order/Menu pages) */}
+          <div className="flex justify-end">
+            {isOrderPage && (
+              <Button 
+                variant="ghost" 
+                className="flex items-center gap-2 h-11 px-3 text-white hover:bg-white/10 relative group"
+                onClick={() => setIsCartOpen(true)}
+              >
+                <div className="flex flex-col items-end leading-none mr-0.5">
+                  <span className="text-[8px] uppercase font-black text-white/40 tracking-widest group-hover:text-white/60">Cart</span>
+                  <span className="text-xs font-mono font-black text-white">${total.toFixed(2)}</span>
+                </div>
+                <div className="relative">
+                  <ShoppingCart className="h-5 w-5 text-white" />
+                  {totalItems > 0 && (
+                    <span className="absolute -top-2 -right-2 bg-red-600 text-white text-[9px] font-black rounded-full w-4 h-4 flex items-center justify-center shadow-lg animate-in zoom-in duration-300">
+                      {totalItems}
+                    </span>
+                  )}
+                </div>
+              </Button>
             )}
           </div>
         </div>

@@ -343,7 +343,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const { orderItems, updateItem, isCartOpen, setIsCartOpen, clearCart, total, totalItems } = useCart();
+  const { orderItems, updateItem, isCartOpen, setIsCartOpen, clearCart, totalItems } = useCart();
   
   const menuTypeFromUrl = searchParams.get('menuType');
   const selectedMenuType = menuTypeFromUrl || '';
@@ -466,31 +466,10 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
-      <header className="relative w-full min-h-[25vh] flex flex-col bg-[#213147] overflow-hidden shrink-0 pt-4 pb-8 px-6">
+      <header className="relative w-full min-h-[25vh] flex flex-col bg-[#213147] overflow-hidden shrink-0 pt-8 pb-8 px-6">
         <div className="absolute inset-0 z-0 opacity-10 pointer-events-none">
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full border-[30px] border-white" />
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] rounded-full border-[20px] border-white" />
-        </div>
-
-        <div className="relative z-20 flex justify-end w-full mb-6">
-          <Button 
-            variant="outline" 
-            className="flex items-center gap-2 h-11 px-4 border-white/20 text-white hover:bg-white/10 hover:text-white bg-[#213147]/50 backdrop-blur-md rounded-full transition-all"
-            onClick={() => setIsCartOpen(true)}
-          >
-            <div className="flex flex-col items-end leading-none mr-1">
-              <span className="text-[9px] uppercase font-black text-white/50 tracking-widest">Order</span>
-              <span className="text-sm font-mono font-black text-white">${total.toFixed(2)}</span>
-            </div>
-            <div className="relative">
-              <ShoppingCart className="h-5 w-5 text-white" />
-              {totalItems > 0 && (
-                <span className="absolute -top-2 -right-2 bg-red-600 text-white text-[9px] font-black rounded-full w-4 h-4 flex items-center justify-center shadow-lg animate-in zoom-in duration-300">
-                  {totalItems}
-                </span>
-              )}
-            </div>
-          </Button>
         </div>
         
         <div className="relative z-10 flex flex-col items-center text-center space-y-6 max-w-lg w-full mx-auto">
