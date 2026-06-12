@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, use, useEffect, useMemo } from 'react';
@@ -13,7 +12,7 @@ import { PricingBreakdown } from '@/components/pricing-breakdown';
 import { TipSelector } from '@/components/tip-selector';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetClose } from '@/components/ui/sheet';
 import { 
@@ -342,10 +341,12 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
   const { sellerId } = use(params);
   const firestore = useFirestore();
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const { orderItems, updateItem, isCartOpen, setIsCartOpen, clearCart, total, totalItems } = useCart();
+  
   const menuTypeFromUrl = searchParams.get('menuType');
-  const [selectedMenuType, setSelectedMenuType] = useState<string>(menuTypeFromUrl || '');
+  const selectedMenuType = menuTypeFromUrl || '';
   const [locationValue, setLocationValue] = useState<string>('');
 
   const sellerRef = useMemoFirebase(() => (firestore ? doc(firestore, 'sellers', sellerId) : null), [firestore, sellerId]);
@@ -356,6 +357,34 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
     return collection(firestore, 'sellers', sellerId, 'menuItems');
   }, [firestore, sellerId]);
   const { data: menuItems, isLoading: areItemsLoading } = useCollection<MenuItem>(menuItemsQuery);
+
+  // Helper to update menu type in URL
+  const updateMenuType = (type: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('menuType', type);
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  };
+
+  // Set default service mode based on venue type if none selected
+  useEffect(() => {
+    if (!menuTypeFromUrl && seller && !isSellerLoading) {
+      let defaultType = '';
+      if (seller.type.toLowerCase().includes('bowling')) {
+        defaultType = 'Lane Delivery';
+      } else {
+        // Default for Golf or others
+        defaultType = 'Beverage Cart';
+      }
+
+      // Check if suggested default is available for this seller
+      if (seller.menuTypes.includes(defaultType)) {
+        updateMenuType(defaultType);
+      } else if (seller.menuTypes.length > 0) {
+        // Fallback to first available
+        updateMenuType(seller.menuTypes[0]);
+      }
+    }
+  }, [seller, menuTypeFromUrl, isSellerLoading]);
 
   const activeOrderItems = useMemo(() => orderItems.filter((item) => item.quantity > 0), [orderItems]);
   const subtotal = useMemo(() => activeOrderItems.reduce((acc, item) => {
@@ -477,7 +506,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
                   <button
                     key={type}
                     disabled={!active}
-                    onClick={() => setSelectedMenuType(type)}
+                    onClick={() => updateMenuType(type)}
                     className={cn(
                       "flex items-center gap-2 px-4 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all shadow-lg",
                       isSelected 
