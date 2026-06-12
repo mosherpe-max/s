@@ -26,7 +26,8 @@ export interface Venue {
   stripeConnectId?: string;
   platformFeeFixed?: number;
   platformFeePercent?: number;
-  patronConvenienceFee?: number;
+  patronConvenienceFee?: number; // Master fee in cents
+  serviceFees?: Record<string, number>; // Individual overrides in cents
   payoutsEnabled?: boolean;
   monthlyPlatformFee?: number;
   serviceStartDate?: Timestamp;
@@ -62,7 +63,8 @@ export interface Seller {
   contactName: string;
   contactEmail: string;
   contactPhone: string;
-  serviceFee: number;
+  serviceFee: number; // Legacy/Master fee in dollars
+  serviceFees?: Record<string, number>; // Individual overrides in dollars
   taxRate: number;
   status: 'Active' | 'Inactive';
   bevcartActive?: boolean;

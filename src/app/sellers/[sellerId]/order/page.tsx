@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, use, useEffect, useMemo } from 'react';
@@ -363,7 +364,17 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
   }, 0), [activeOrderItems]);
   
   const taxRate = seller?.taxRate ?? 6.0;
-  const platformFee = seller?.serviceFee || 0;
+  
+  // Logical selector for platform fee: Per-mode override OR master venue fee
+  const platformFee = useMemo(() => {
+    if (!seller) return 0;
+    // Check for service-specific override in Seller profile
+    if (selectedMenuType && seller.serviceFees?.[selectedMenuType]) {
+      return seller.serviceFees[selectedMenuType];
+    }
+    // Fallback to master service fee
+    return seller.serviceFee || 0;
+  }, [seller, selectedMenuType]);
 
   const filteredMenuItems = useMemo(() => {
     if (!menuItems || !selectedMenuType) return [];

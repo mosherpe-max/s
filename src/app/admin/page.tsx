@@ -57,7 +57,8 @@ import {
   Menu,
   Phone,
   Building,
-  Target
+  Target,
+  ChevronDown
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -115,6 +116,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { Checkbox } from '@/components/ui/checkbox';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
 function NavButton({ id, label, icon: Icon, active, onClick, sidebarOpen }: { 
   id: string, label: string, icon: any, active: boolean, onClick: (id: string) => void, sidebarOpen: boolean 
@@ -200,6 +202,7 @@ export default function PlatformAdminPage() {
   const [platformFeeFixed, setPlatformFeeFixed] = useState(20);
   const [platformFeePercent, setPlatformFeePercent] = useState(0);
   const [patronConvenienceFee, setPatronConvenienceFee] = useState(150);
+  const [serviceFees, setServiceFees] = useState<Record<string, number>>({});
   const [payoutsEnabled, setPayoutsEnabled] = useState(false);
 
   // Logo Upload State
@@ -258,6 +261,7 @@ export default function PlatformAdminPage() {
         setPlatformFeeFixed(data.platformFeeFixed ?? 20);
         setPlatformFeePercent(data.platformFeePercent ?? 0);
         setPatronConvenienceFee(data.patronConvenienceFee ?? 150);
+        setServiceFees(data.serviceFees || {});
         setPayoutsEnabled(data.payoutsEnabled || false);
         setVMonthlyRate(data.monthlyPlatformFee || 0);
         setVStartDate(data.serviceStartDate ? format(data.serviceStartDate.toDate(), 'yyyy-MM-dd') : '');
@@ -268,6 +272,7 @@ export default function PlatformAdminPage() {
         setPlatformFeeFixed(20);
         setPlatformFeePercent(0);
         setPatronConvenienceFee(150);
+        setServiceFees({});
         setPayoutsEnabled(false);
         setVMonthlyRate(0);
         setVStartDate('');
@@ -303,6 +308,15 @@ export default function PlatformAdminPage() {
     }
   };
 
+  const handleApplyMasterFeeToAll = () => {
+    const updated = { ...serviceFees };
+    vActiveModes.forEach(mode => {
+      updated[mode] = patronConvenienceFee;
+    });
+    setServiceFees(updated);
+    toast({ title: "Master Fee Applied", description: `Defaulting all active modes to ${patronConvenienceFee} cents.` });
+  };
+
   const handleSaveVenueData = async () => {
     if (!firestore || !selectedVenue) return;
     setIsProcessingSave(true);
@@ -320,6 +334,7 @@ export default function PlatformAdminPage() {
         platformFeeFixed: Number(platformFeeFixed),
         platformFeePercent: Number(platformFeePercent),
         patronConvenienceFee: Number(patronConvenienceFee),
+        serviceFees: serviceFees,
         payoutsEnabled: payoutsEnabled,
         monthlyPlatformFee: Number(vMonthlyRate),
         serviceStartDate: vStartDate ? Timestamp.fromDate(new Date(vStartDate)) : null,
@@ -328,6 +343,12 @@ export default function PlatformAdminPage() {
       batch.set(venueRef, registryData, { merge: true });
 
       // 2. Update Operational Profile (Seller Entity)
+      // Convert fees from cents to dollars for the profile
+      const serviceFeesInDollars: Record<string, number> = {};
+      Object.entries(serviceFees).forEach(([mode, cents]) => {
+        serviceFeesInDollars[mode] = cents / 100;
+      });
+
       const profileData = {
         courseName: vName,
         type: vType,
@@ -341,7 +362,8 @@ export default function PlatformAdminPage() {
         contactPhone: vContactPhone,
         taxRate: Number(vTaxRate),
         menuTypes: vActiveModes,
-        serviceFee: Number(patronConvenienceFee) / 100, // Sync dollars to registry cents
+        serviceFee: Number(patronConvenienceFee) / 100, // Sync master dollars
+        serviceFees: serviceFeesInDollars, // Sync mode-specific dollars
         updatedAt: serverTimestamp()
       };
       batch.update(sellerRef, profileData);
@@ -352,6 +374,7 @@ export default function PlatformAdminPage() {
     } catch (e: any) {
       toast({ variant: "destructive", title: "Update Failed", description: e.message });
     } finally {
+      setIsVenueDetailOpen(false); // Close dialog even on failure for demo stability
       setIsProcessingSave(false);
     }
   };
@@ -406,11 +429,11 @@ export default function PlatformAdminPage() {
   const SideBarContent = ({ forceLabels = false }: { forceLabels?: boolean }) => {
     const showLabels = forceLabels || sidebarOpen;
     return (
-      <>
-        <div className="p-6 border-b border-white/5 flex items-center justify-between">
+      <div className="flex flex-col h-full">
+        <div className="p-6 border-b border-white/5 flex items-center justify-between shrink-0">
           <StylizedKoopLogo size={showLabels ? "md" : "sm"} />
         </div>
-        <nav className="flex-1 p-3 space-y-1">
+        <nav className="flex-1 p-3 space-y-1 overflow-y-auto no-scrollbar">
           {NAV_ITEMS.map((item) => (
             <NavButton 
               key={item.id}
@@ -423,14 +446,14 @@ export default function PlatformAdminPage() {
             />
           ))}
         </nav>
-        <div className="mt-auto border-t border-white/5 p-4">
+        <div className="mt-auto border-t border-white/5 p-4 shrink-0">
           {!isMobile && (
             <button onClick={() => setSidebarOpen(!sidebarOpen)} className="w-full flex items-center justify-center p-2 text-slate-400 hover:text-white transition-colors">
               {sidebarOpen ? <ChevronLeft /> : <ChevronRight />}
             </button>
           )}
         </div>
-      </>
+      </div>
     );
   };
 
@@ -630,7 +653,7 @@ export default function PlatformAdminPage() {
                 </TabsContent>
 
                 {/* BILLING TAB */}
-                <TabsContent value="billing" className="space-y-6 animate-in fade-in slide-in-from-left-2">
+                <TabsContent value="billing" className="space-y-8 animate-in fade-in slide-in-from-left-2">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     <div className="space-y-5">
                       <h3 className="text-[10px] font-black uppercase text-primary tracking-widest border-b pb-1">Platform Revenue</h3>
@@ -654,14 +677,20 @@ export default function PlatformAdminPage() {
                       <h3 className="text-[10px] font-black uppercase text-primary tracking-widest border-b pb-1">Patron Logistics</h3>
                       <div className="grid grid-cols-2 gap-4">
                         <div className="grid gap-2">
-                          <Label className="text-[10px] font-black uppercase">Convenience Fee (Cents)</Label>
-                          <Input type="number" value={patronConvenienceFee} onChange={e => setPatronConvenienceFee(Number(e.target.value))} className="border-2 font-bold h-12" />
+                          <Label className="text-[10px] font-black uppercase">Master Fee (Cents)</Label>
+                          <Input 
+                            type="number" 
+                            value={patronConvenienceFee} 
+                            onChange={e => setPatronConvenienceFee(Number(e.target.value))} 
+                            className="border-2 font-bold h-12 border-primary/20" 
+                          />
                         </div>
                         <div className="grid gap-2">
                           <Label className="text-[10px] font-black uppercase">Venue Tax Rate (%)</Label>
                           <Input type="number" step="0.1" value={vTaxRate} onChange={e => setVTaxRate(Number(e.target.value))} className="border-2 font-bold h-12" />
                         </div>
                       </div>
+
                       <div className="space-y-3">
                         <Label className="text-[10px] font-black uppercase">Active Channels</Label>
                         <div className="flex flex-wrap gap-2">
@@ -682,6 +711,60 @@ export default function PlatformAdminPage() {
                         </div>
                       </div>
                     </div>
+                  </div>
+
+                  {/* GRANULAR FEES SECTION */}
+                  <div className="bg-slate-50 p-6 rounded-[2rem] border-2 space-y-6">
+                    <Collapsible>
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 bg-primary/10 rounded-lg"><Zap className="h-4 w-4 text-primary" /></div>
+                          <div>
+                            <p className="text-[10px] font-black uppercase tracking-widest">Service Specific Overrides</p>
+                            <p className="text-[8px] font-bold text-muted-foreground uppercase">Define custom convenience fees per channel</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={handleApplyMasterFeeToAll}
+                            className="text-[9px] font-black uppercase h-8 border-primary/20 hover:bg-primary/5 text-primary"
+                          >
+                            Apply Master to All
+                          </Button>
+                          <CollapsibleTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8"><ChevronDown className="h-4 w-4" /></Button>
+                          </CollapsibleTrigger>
+                        </div>
+                      </div>
+
+                      <CollapsibleContent className="animate-in slide-in-from-top-2 duration-300">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
+                          {['Beverage Cart', 'Clubhouse', 'Lane Delivery', 'Take Out'].map(mode => {
+                            const isActive = vActiveModes.includes(mode);
+                            return (
+                              <div key={mode} className={cn("space-y-2 p-3 rounded-2xl border-2 bg-white transition-opacity", !isActive && "opacity-40 grayscale")}>
+                                <div className="flex justify-between items-center mb-1">
+                                  <Label className="text-[9px] font-black uppercase text-[#213147] truncate">{mode}</Label>
+                                  {!isActive && <Badge variant="outline" className="text-[7px] font-bold h-3 px-1 uppercase">OFF</Badge>}
+                                </div>
+                                <div className="relative">
+                                  <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[9px] font-black text-muted-foreground uppercase">¢</span>
+                                  <Input 
+                                    type="number" 
+                                    disabled={!isActive}
+                                    value={serviceFees[mode] ?? patronConvenienceFee} 
+                                    onChange={e => setServiceFees(prev => ({ ...prev, [mode]: Number(e.target.value) }))}
+                                    className="h-10 pl-6 border-2 font-bold text-sm focus-visible:ring-primary" 
+                                  />
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </CollapsibleContent>
+                    </Collapsible>
                   </div>
                 </TabsContent>
 
