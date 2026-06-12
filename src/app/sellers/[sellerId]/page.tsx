@@ -11,6 +11,7 @@ import {
   updateDoc, 
   serverTimestamp, 
   getDocs,
+  deleteDoc,
   Timestamp 
 } from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
@@ -55,7 +56,8 @@ import {
   PanelLeftClose,
   PanelLeft,
   HeartPulse,
-  Menu
+  Menu,
+  ImageIcon
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -109,6 +111,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 
 import type { MenuItem, Seller, Order, StaffMember, Venue, PlatformConfig } from '@/lib/types';
+import { categories } from '@/lib/types';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { publicGolfItems, privateGolfItems, bowlingAlleyItems } from '@/lib/data';
 import {
@@ -117,6 +120,7 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
+import { Checkbox } from '@/components/ui/checkbox';
 
 // --- SCHEMAS ---
 
@@ -128,6 +132,17 @@ const staffSchema = z.object({
 });
 
 type StaffFormData = z.infer<typeof staffSchema>;
+
+const itemSchema = z.object({
+  name: z.string().min(2, 'Name required'),
+  description: z.string().optional(),
+  price: z.coerce.number().min(0),
+  category: z.enum(categories as any),
+  imageUrl: z.string().optional(),
+  availableOn: z.array(z.string()).default([]),
+});
+
+type ItemFormData = z.infer<typeof itemSchema>;
 
 // --- UI COMPONENTS ---
 
@@ -217,6 +232,8 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   const [isMounted, setIsMounted] = useState(false);
   const [isStaffFormOpen, setIsStaffFormOpen] = useState(false);
   const [editingStaff, setEditingStaff] = useState<StaffMember | null>(null);
+  const [isItemFormOpen, setIsItemFormOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
   const [isResettingDemo, setIsResettingDemo] = useState(false);
   const [isProvisioningRegistry, setIsProvisioningRegistry] = useState(false);
   const [isVerifyingStripe, setIsVerifyingStripe] = useState(false);
@@ -274,6 +291,11 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     defaultValues: { name: '', role: 'Driver', pin: '', isActive: true } 
   });
 
+  const itemForm = useForm<ItemFormData>({
+    resolver: zodResolver(itemSchema),
+    defaultValues: { name: '', description: '', price: 0, category: 'Beer', availableOn: [] }
+  });
+
   const onSaveStaff = async (data: StaffFormData) => {
     if (!firestore || !hasAccess) return;
     const staffId = editingStaff ? editingStaff.id : Math.random().toString(36).substr(2, 9);
@@ -286,6 +308,27 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     setEditingStaff(null); 
     staffForm.reset();
     toast({ title: "Staff member saved" });
+  };
+
+  const onSaveItem = async (data: ItemFormData) => {
+    if (!firestore || !hasAccess) return;
+    const itemId = editingItem ? editingItem.id : Math.random().toString(36).substr(2, 9);
+    await setDoc(doc(firestore, 'sellers', sellerId, 'menuItems', itemId), {
+      ...data,
+      id: itemId,
+      rank: editingItem?.rank || 0,
+      createdAt: editingItem?.createdAt || serverTimestamp()
+    }, { merge: true });
+    setIsItemFormOpen(false);
+    setEditingItem(null);
+    itemForm.reset();
+    toast({ title: editingItem ? "Item Updated" : "Item Added" });
+  };
+
+  const handleDeleteItem = async (itemId: string) => {
+    if (!firestore || !hasAccess) return;
+    await deleteDoc(doc(firestore, 'sellers', sellerId, 'menuItems', itemId));
+    toast({ title: "Item Deleted" });
   };
 
   const handleToggleMode = async (mode: string, current: boolean) => {
@@ -390,6 +433,15 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
       avgOrderValue: avgOrderValue.toFixed(2)
     };
   }, [orders]);
+
+  const categorizedItems = useMemo(() => {
+    const groups: Record<string, MenuItem[]> = {};
+    menuItems?.forEach(item => {
+      if (!groups[item.category]) groups[item.category] = [];
+      groups[item.category].push(item);
+    });
+    return groups;
+  }, [menuItems]);
 
   if (isUserLoading || isSellerRoleLoading || isPlatformRoleLoading || !isMounted) {
     return (
@@ -681,40 +733,159 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
               </div>
             )}
 
-            {/* MENU SECTION */}
+            {/* MASTER MENU ITEMS SECTION */}
             {activeNav === 'menu' && (
-              <div className="space-y-8">
-                {seller?.menuTypes?.map(type => {
-                  const items = menuItems?.filter(i => i.availableOn?.includes(type)) || [];
-                  return (
-                    <div key={type} className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <Layers className="h-5 w-5 text-primary" />
-                          <h4 className="font-headline font-black text-base uppercase tracking-tight text-[#213147]">{type} Lineup</h4>
+              <div className="space-y-8 animate-in fade-in duration-500">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                  <div className="space-y-1">
+                    <h3 className="font-headline font-black text-lg uppercase tracking-tight text-[#213147]">Inventory Master</h3>
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Global Item Registry & Categorization</p>
+                  </div>
+                  <Button onClick={() => { setEditingItem(null); itemForm.reset(); setIsItemFormOpen(true); }} className="bg-primary hover:bg-primary/90 font-black uppercase text-[10px] tracking-widest h-10 gap-2">
+                    <Plus className="h-4 w-4" /> Add Master Item
+                  </Button>
+                </div>
+
+                <div className="space-y-10">
+                  {categories.map((category) => {
+                    const items = categorizedItems[category] || [];
+                    if (items.length === 0) return null;
+                    return (
+                      <div key={category} className="space-y-4">
+                        <div className="flex items-center gap-3 border-b-2 pb-2">
+                          <Layers className="h-4 w-4 text-primary" />
+                          <h4 className="font-headline font-black text-sm uppercase tracking-widest text-[#213147]">{category}</h4>
+                          <Badge variant="secondary" className="text-[8px] font-black">{items.length} items</Badge>
                         </div>
-                        <Button variant="outline" size="sm" className="h-8 text-[10px] font-black uppercase tracking-widest rounded-lg">
-                          Modify
-                        </Button>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                          {items.map((item) => (
+                            <Card key={item.id} className="border-2 shadow-sm hover:border-primary/30 transition-all group overflow-hidden">
+                              <div className="flex h-24">
+                                <div className="w-24 shrink-0 bg-slate-50 border-r-2 flex items-center justify-center relative">
+                                  {item.imageUrl ? (
+                                    <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />
+                                  ) : (
+                                    <ImageIcon className="h-6 w-6 text-slate-300" />
+                                  )}
+                                  <Badge className="absolute top-1 right-1 bg-white/90 text-primary border shadow-sm text-[8px] font-black">${item.price.toFixed(2)}</Badge>
+                                </div>
+                                <div className="flex-1 p-3 flex flex-col justify-between min-w-0">
+                                  <div className="space-y-0.5">
+                                    <p className="font-black text-xs uppercase text-[#213147] truncate">{item.name}</p>
+                                    <p className="text-[9px] text-muted-foreground line-clamp-2 leading-tight uppercase font-medium">{item.description}</p>
+                                  </div>
+                                  <div className="flex justify-between items-center mt-1">
+                                    <div className="flex gap-1 overflow-hidden">
+                                      {item.availableOn?.map(mode => (
+                                        <div key={mode} className="w-1.5 h-1.5 rounded-full bg-primary" title={mode} />
+                                      ))}
+                                    </div>
+                                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                      <Button variant="ghost" size="icon" className="h-7 w-7 text-primary" onClick={() => { setEditingItem(item); itemForm.reset(item); setIsItemFormOpen(true); }}>
+                                        <Edit className="h-3.5 w-3.5" />
+                                      </Button>
+                                      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleDeleteItem(item.id)}>
+                                        <Trash2 className="h-3.5 w-3.5" />
+                                      </Button>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </Card>
+                          ))}
+                        </div>
                       </div>
-                      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(e) => handleDragEnd(e as any, type, items)}>
-                        <SortableContext items={items.map(i => i.id)} strategy={verticalListSortingStrategy}>
-                          <div className="grid gap-3">
-                            {items.map(i => (
-                              <SortableMenuItem 
-                                key={i.id} 
-                                item={i} 
-                                onRemove={(it) => updateDoc(doc(firestore!, 'sellers', sellerId, 'menuItems', it.id), { 
-                                  availableOn: it.availableOn?.filter(t => t !== type) 
-                                })} 
-                              />
-                            ))}
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* SERVICE MODES SECTION */}
+            {activeNav === 'service' && (
+              <div className="space-y-8 animate-in fade-in duration-500">
+                <div className="space-y-1">
+                  <h3 className="font-headline font-black text-lg uppercase tracking-tight text-[#213147]">Service Core</h3>
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Active Channels & Ordering Strategy</p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  {['Beverage Cart', 'Clubhouse', 'Lane Delivery', 'Take Out'].map((mode) => {
+                    const isActive = (mode === 'Beverage Cart' && seller?.bevcartActive) || 
+                                     (mode === 'Clubhouse' && seller?.clubhouseActive) ||
+                                     (mode === 'Lane Delivery' && seller?.lanedeliveryActive) ||
+                                     (mode === 'Take Out' && seller?.takeoutActive);
+                    return (
+                      <Card 
+                        key={mode} 
+                        className={cn(
+                          "cursor-pointer transition-all duration-300 border-2",
+                          isActive ? "border-primary bg-primary/5" : "border-slate-100 bg-white"
+                        )}
+                        onClick={() => handleToggleMode(mode, !!isActive)}
+                      >
+                        <CardContent className="p-4 flex items-center justify-between">
+                          <div className="space-y-1">
+                            <p className="text-[10px] font-black uppercase text-[#213147] tracking-tight">{mode}</p>
+                            <Badge className={cn("text-[7px] font-black h-4 px-1.5", isActive ? "bg-primary" : "bg-slate-200 text-slate-400")}>{isActive ? 'LIVE' : 'OFF'}</Badge>
                           </div>
-                        </SortableContext>
-                      </DndContext>
-                    </div>
-                  );
-                })}
+                          <Zap className={cn("h-4 w-4", isActive ? "text-primary" : "text-slate-200")} />
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+
+                <div className="space-y-6 pt-4 border-t-2">
+                  <div className="flex items-center gap-3">
+                    <TrendingUp className="h-5 w-5 text-primary" />
+                    <h4 className="font-headline font-black text-base uppercase tracking-tight text-[#213147]">Menu Staging</h4>
+                  </div>
+
+                  <Tabs defaultValue={seller?.menuTypes?.[0] || 'Beverage Cart'} className="w-full">
+                    <TabsList className="bg-slate-100 p-1 rounded-xl h-12 mb-6 overflow-x-auto no-scrollbar justify-start">
+                      {seller?.menuTypes?.map(type => (
+                        <TabsTrigger key={type} value={type} className="text-[10px] font-black uppercase tracking-widest px-6 h-full data-[state=active]:bg-white data-[state=active]:shadow-sm">
+                          {type}
+                        </TabsTrigger>
+                      ))}
+                    </TabsList>
+                    
+                    {seller?.menuTypes?.map(type => {
+                      const items = menuItems?.filter(i => i.availableOn?.includes(type)) || [];
+                      return (
+                        <TabsContent key={type} value={type} className="space-y-4">
+                          <div className="bg-slate-50 p-4 rounded-2xl border-2 border-dashed flex items-center justify-between">
+                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Drag items to prioritize patron viewing order in {type}</p>
+                            <span className="text-[9px] font-black bg-primary/10 text-primary px-2 py-0.5 rounded-full uppercase">{items.length} ACTIVE</span>
+                          </div>
+                          
+                          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(e) => handleDragEnd(e as any, type, items)}>
+                            <SortableContext items={items.map(i => i.id)} strategy={verticalListSortingStrategy}>
+                              <div className="grid gap-3">
+                                {items.length > 0 ? items.map(i => (
+                                  <SortableMenuItem 
+                                    key={i.id} 
+                                    item={i} 
+                                    onRemove={(it) => updateDoc(doc(firestore!, 'sellers', sellerId, 'menuItems', it.id), { 
+                                      availableOn: it.availableOn?.filter(t => t !== type) 
+                                    })} 
+                                  />
+                                )) : (
+                                  <div className="py-20 text-center opacity-40">
+                                    <UtensilsCrossed className="h-10 w-10 mx-auto mb-4" />
+                                    <p className="text-[10px] font-black uppercase tracking-widest">No items staged for this mode</p>
+                                    <Button variant="link" onClick={() => setActiveNav('menu')} className="text-primary text-[10px] font-black uppercase">Browse Master List</Button>
+                                  </div>
+                                )}
+                              </div>
+                            </SortableContext>
+                          </DndContext>
+                        </TabsContent>
+                      );
+                    })}
+                  </Tabs>
+                </div>
               </div>
             )}
 
@@ -1004,6 +1175,103 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
               <DialogFooter>
                 <Button type="submit" className="w-full h-12 bg-[#213147] font-black uppercase tracking-widest shadow-xl">
                   Save Registry
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      {/* MASTER ITEM DIALOG */}
+      <Dialog open={isItemFormOpen} onOpenChange={setIsItemFormOpen}>
+        <DialogContent className="rounded-[2rem] border-2 max-w-[95vw] sm:max-w-xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="font-headline font-black uppercase text-[#213147] tracking-tight">
+              {editingItem ? 'Update Master Item' : 'New Master Item'}
+            </DialogTitle>
+            <DialogDescription className="text-xs font-medium">Configure global item properties and service availability.</DialogDescription>
+          </DialogHeader>
+          <Form {...itemForm}>
+            <form onSubmit={itemForm.handleSubmit(onSaveItem)} className="space-y-6 pt-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField control={itemForm.control} name="name" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-[10px] font-black uppercase tracking-widest">Item Name</FormLabel>
+                    <FormControl><Input {...field} className="h-12 border-2 font-bold" /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+                <FormField control={itemForm.control} name="category" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-[10px] font-black uppercase tracking-widest">Category</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl><SelectTrigger className="h-12 border-2 font-bold"><SelectValue /></SelectTrigger></FormControl>
+                      <SelectContent>
+                        {categories.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </FormItem>
+                )} />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField control={itemForm.control} name="price" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-[10px] font-black uppercase tracking-widest">Price ($)</FormLabel>
+                    <FormControl><Input type="number" step="0.01" {...field} className="h-12 border-2 font-bold" /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+                <FormField control={itemForm.control} name="imageUrl" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-[10px] font-black uppercase tracking-widest">Image URL</FormLabel>
+                    <FormControl><Input {...field} className="h-12 border-2 font-bold" /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+              </div>
+
+              <FormField control={itemForm.control} name="description" render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-[10px] font-black uppercase tracking-widest">Description</FormLabel>
+                  <FormControl><Input {...field} className="h-12 border-2 font-bold" /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+
+              <div className="space-y-3">
+                <Label className="text-[10px] font-black uppercase tracking-widest">Service Channel Availability</Label>
+                <div className="grid grid-cols-2 gap-3 bg-slate-50 p-4 rounded-xl border-2">
+                  {seller?.menuTypes?.map(mode => (
+                    <FormField
+                      key={mode}
+                      control={itemForm.control}
+                      name="availableOn"
+                      render={({ field }) => {
+                        return (
+                          <FormItem className="flex items-center space-x-3 space-y-0">
+                            <FormControl>
+                              <Checkbox
+                                checked={field.value?.includes(mode)}
+                                onCheckedChange={(checked) => {
+                                  return checked
+                                    ? field.onChange([...field.value, mode])
+                                    : field.onChange(field.value?.filter((value) => value !== mode))
+                                }}
+                              />
+                            </FormControl>
+                            <FormLabel className="text-[10px] font-bold uppercase tracking-widest cursor-pointer">{mode}</FormLabel>
+                          </FormItem>
+                        )
+                      }}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              <DialogFooter>
+                <Button type="submit" className="w-full h-12 bg-[#213147] font-black uppercase tracking-widest shadow-xl">
+                  {editingItem ? 'Save Updates' : 'Commit to Master List'}
                 </Button>
               </DialogFooter>
             </form>
