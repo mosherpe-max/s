@@ -1048,6 +1048,7 @@ export default function PlatformAdminPage() {
                           <CardFooter className="pt-0">
                             <Badge variant="secondary" className="text-[8px] font-black uppercase opacity-60">Coming Soon</Badge>
                           </CardFooter>
+                        </Card>
 
                         {/* Custom Generator */}
                         <Card className="border-2 border-dashed bg-muted/5 flex flex-col items-center justify-center p-6 text-center">
