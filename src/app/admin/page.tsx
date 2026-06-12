@@ -62,7 +62,10 @@ import {
   Printer,
   Copy,
   Smartphone,
-  SmartphoneNfc
+  SmartphoneNfc,
+  Truck,
+  PlayCircle,
+  Lock
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -103,7 +106,7 @@ import { useFirestore, useCollection, useMemoFirebase, useFirebase, useAuth, use
 import { signOut } from 'firebase/auth';
 import { collection, query, limit, doc, setDoc, serverTimestamp, where, orderBy, updateDoc, getDoc, getDocs, writeBatch, Timestamp } from 'firebase/firestore';
 import { httpsCallable, getFunctions } from 'firebase/functions';
-import type { Seller, PlatformConfig, Order, SalesRepRole, Venue, SellerType } from '@/lib/types';
+import type { Seller, PlatformConfig, Order, Venue, SellerType } from '@/lib/types';
 import { sellerTypes } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -175,6 +178,7 @@ export default function PlatformAdminPage() {
   const [activeNav, setActiveNav] = useState('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isMounted, setIsMounted] = useState(false);
+  const [baseUrl, setBaseUrl] = useState('');
   
   const [selectedVenue, setSelectedVenue] = useState<Seller | null>(null);
   const [selectedVenueRegistry, setSelectedVenueRegistry] = useState<Venue | null>(null);
@@ -217,6 +221,7 @@ export default function PlatformAdminPage() {
 
   useEffect(() => {
     setIsMounted(true);
+    setBaseUrl(window.location.origin);
     if (window.innerWidth < 1024) {
       setSidebarOpen(false);
     }
@@ -430,6 +435,7 @@ export default function PlatformAdminPage() {
   const NAV_ITEMS = [
     { id: "dashboard", label: "Global Overview", icon: LayoutDashboard },
     { id: "venues", label: "Venue Management", icon: Store },
+    { id: "demos", label: "Sales Demos", icon: Zap },
     { id: "system", label: "System Control", icon: Settings2 },
   ];
 
@@ -464,7 +470,50 @@ export default function PlatformAdminPage() {
     );
   };
 
-  const venueOrderUrl = selectedVenue ? `${typeof window !== 'undefined' ? window.location.origin : ''}/sellers/${selectedVenue.id}/order` : '';
+  const demoVenues = [
+    {
+      id: 'demo-course',
+      title: 'Public Golf Menu',
+      sub: 'Beverage Cart & Clubhouse',
+      type: 'On-Course Ordering',
+      gradient: 'from-indigo-500 to-blue-600',
+      icon: <Globe className="text-white/20 h-16 w-16 absolute -right-2 -top-2" />,
+      buyerUrl: '/sellers/demo-course/order?menuType=Beverage Cart',
+      adminUrl: '/sellers/demo-course',
+      staffViews: [
+        { label: 'BevCart Driver', url: '/sellers/demo-course/bevcart', icon: <Truck className="h-3.5 w-3.5" /> },
+        { label: 'Clubhouse Staff', url: '/sellers/demo-course/clubhouse', icon: <LayoutDashboard className="h-3.5 w-3.5" /> }
+      ]
+    },
+    {
+      id: 'demo-private-course',
+      title: 'Private Golf Menu',
+      sub: 'Member-Only Clubhouse',
+      type: 'Private Experience',
+      gradient: 'from-[#213147] to-slate-700',
+      icon: <Lock className="text-white/20 h-16 w-16 absolute -right-2 -top-2" />,
+      buyerUrl: '/sellers/demo-private-course/order?menuType=Clubhouse',
+      adminUrl: '/sellers/demo-private-course',
+      staffViews: [
+        { label: 'Clubhouse Staff', url: '/sellers/demo-private-course/clubhouse', icon: <LayoutDashboard className="h-3.5 w-3.5" /> }
+      ]
+    },
+    {
+      id: 'demo-bowling-alley',
+      title: 'Bowling Alley',
+      sub: 'In-Game Food & Drinks',
+      type: 'Laneside Service',
+      gradient: 'from-pink-600 to-rose-500',
+      icon: <Smartphone className="text-white/20 h-16 w-16 absolute -right-2 -top-2" />,
+      buyerUrl: '/sellers/demo-bowling-alley/order?menuType=Lane Delivery',
+      adminUrl: '/sellers/demo-bowling-alley',
+      staffViews: [
+        { label: 'Laneside Server', url: '/sellers/demo-bowling-alley/laneside', icon: <Users className="h-3.5 w-3.5" /> }
+      ]
+    }
+  ];
+
+  const venueOrderUrl = selectedVenue ? `${baseUrl}/sellers/${selectedVenue.id}/order` : '';
   const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(venueOrderUrl)}`;
 
   return (
@@ -560,7 +609,85 @@ export default function PlatformAdminPage() {
               </div>
             )}
 
-            {activeNav === 'system' && (
+            {activeNav === 'demos' && (
+              <div className="space-y-8 animate-in fade-in duration-500">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {demoVenues.map((venue) => (
+                    <Card key={venue.id} className="group hover:border-indigo-500 transition-all border-2 shadow-sm overflow-hidden flex flex-col h-full">
+                      <div className={cn("h-24 bg-gradient-to-br p-6 flex items-end relative", venue.gradient)}>
+                        {venue.icon}
+                        <Badge className="bg-white/20 text-white border-white/30 backdrop-blur-md uppercase text-[9px] font-black">{venue.type}</Badge>
+                      </div>
+                      <CardHeader className="pt-4 space-y-1">
+                        <CardTitle className="text-lg font-black uppercase">{venue.title}</CardTitle>
+                        <CardDescription className="text-xs">{venue.sub}</CardDescription>
+                      </CardHeader>
+                      <CardContent className="flex-1 space-y-6">
+                        <div className="flex items-center gap-4 bg-muted/30 p-3 rounded-xl border border-dashed">
+                          <div className="bg-white p-1 rounded-lg border-2 shadow-sm">
+                            <img 
+                              src={`https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${baseUrl}${venue.buyerUrl}`}
+                              alt="Menu QR"
+                              width={60}
+                              height={60}
+                              className="rounded-sm"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
+                              <QrCode className="h-2.5 w-2.5" /> Scan to Preview
+                            </p>
+                            <p className="text-[10px] font-bold text-slate-600 leading-tight">Live Mobile Order Interface</p>
+                          </div>
+                        </div>
+
+                        <div className="space-y-3">
+                          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground px-1">Staff Interfaces</p>
+                          <div className="grid grid-cols-1 gap-2">
+                            {venue.staffViews.map((view) => (
+                              <Button 
+                                key={view.url}
+                                variant="outline" 
+                                size="sm" 
+                                asChild
+                                className="h-9 justify-start text-[10px] font-black uppercase tracking-widest border-indigo-100 text-indigo-600 hover:bg-indigo-50"
+                              >
+                                <Link href={view.url}>
+                                  {view.icon}
+                                  <span className="ml-2">{view.label}</span>
+                                  <ExternalLink className="ml-auto h-3 w-3 opacity-30" />
+                                </Link>
+                              </Button>
+                            ))}
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              asChild
+                              className="h-9 justify-start text-[10px] font-black uppercase tracking-widest text-[#213147] hover:bg-slate-100"
+                            >
+                              <Link href={venue.adminUrl}>
+                                <LayoutDashboard className="h-3.5 w-3.5" />
+                                <span className="ml-2">Venue Admin</span>
+                                <ExternalLink className="ml-auto h-3 w-3 opacity-30" />
+                              </Link>
+                            </Button>
+                          </div>
+                        </div>
+                      </CardContent>
+                      <CardFooter className="pt-4 border-t bg-muted/5">
+                        <Button asChild className="w-full justify-between h-11 bg-[#213147] hover:bg-black font-black uppercase tracking-widest text-[10px]">
+                          <Link href={venue.buyerUrl}>
+                            Launch Patron Menu <PlayCircle className="h-4 w-4" />
+                          </Link>
+                        </Button>
+                      </CardFooter>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {activeNav === 'system' && (activeNav === 'system' && (
               <div className="space-y-6 animate-in fade-in duration-500">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <Card className="border-2 shadow-sm overflow-hidden">
@@ -592,7 +719,7 @@ export default function PlatformAdminPage() {
                   </Card>
                 </div>
               </div>
-            )}
+            ))}
           </div>
         </ScrollArea>
       </main>
