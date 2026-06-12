@@ -120,10 +120,12 @@ import {
   SheetContent,
   SheetHeader,
   SheetTitle,
+  SheetDescription,
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { Checkbox } from '@/components/ui/checkbox';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import Link from 'next/link';
 
 function NavButton({ id, label, icon: Icon, active, onClick, sidebarOpen }: { 
   id: string, label: string, icon: any, active: boolean, onClick: (id: string) => void, sidebarOpen: boolean 
@@ -221,9 +223,11 @@ export default function PlatformAdminPage() {
 
   useEffect(() => {
     setIsMounted(true);
-    setBaseUrl(window.location.origin);
-    if (window.innerWidth < 1024) {
-      setSidebarOpen(false);
+    if (typeof window !== 'undefined') {
+      setBaseUrl(window.location.origin);
+      if (window.innerWidth < 1024) {
+        setSidebarOpen(false);
+      }
     }
   }, []);
 
@@ -536,6 +540,10 @@ export default function PlatformAdminPage() {
                   </Button>
                 </SheetTrigger>
                 <SheetContent side="left" className="p-0 bg-[#213147] border-r-4 border-primary/20">
+                  <SheetHeader className="sr-only">
+                    <SheetTitle>Platform Administration Navigator</SheetTitle>
+                    <SheetDescription>Main navigation menu for global system administration.</SheetDescription>
+                  </SheetHeader>
                   <SideBarContent forceLabels={true} />
                 </SheetContent>
               </Sheet>
@@ -687,7 +695,7 @@ export default function PlatformAdminPage() {
               </div>
             )}
 
-            {activeNav === 'system' && (activeNav === 'system' && (
+            {activeNav === 'system' && (
               <div className="space-y-6 animate-in fade-in duration-500">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <Card className="border-2 shadow-sm overflow-hidden">
@@ -719,7 +727,7 @@ export default function PlatformAdminPage() {
                   </Card>
                 </div>
               </div>
-            ))}
+            )}
           </div>
         </ScrollArea>
       </main>

@@ -89,6 +89,7 @@ import {
   SheetContent,
   SheetHeader,
   SheetTitle,
+  SheetDescription,
   SheetTrigger,
 } from "@/components/ui/sheet";
 
@@ -265,8 +266,10 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
 
   useEffect(() => { 
     setIsMounted(true); 
-    if (window.innerWidth < 1024) {
-      setSidebarOpen(false);
+    if (typeof window !== 'undefined') {
+      if (window.innerWidth < 1024) {
+        setSidebarOpen(false);
+      }
     }
     const timer = setInterval(() => setNow(new Date()), 60000);
     return () => clearInterval(timer);
@@ -467,11 +470,11 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     const showLabels = forceLabels || sidebarOpen;
     return (
       <>
-        <div className="p-6 border-b border-white/5 flex items-center justify-between">
+        <div className="p-6 border-b border-white/5 flex items-center justify-between shrink-0">
           <StylizedKoopLogo size={showLabels ? "md" : "sm"} />
         </div>
 
-        <nav className="flex-1 p-3 space-y-1">
+        <nav className="flex-1 p-3 space-y-1 overflow-y-auto no-scrollbar">
           {NAV_ITEMS.map((item) => (
             <NavButton 
               key={item.id} 
@@ -485,7 +488,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
           ))}
         </nav>
 
-        <div className="mt-auto border-t border-white/5 p-4">
+        <div className="mt-auto border-t border-white/5 p-4 shrink-0">
           {showLabels && (
             <div className="bg-white/5 rounded-xl p-4 mb-4 animate-in fade-in duration-500">
               <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Active Venue</p>
@@ -533,6 +536,10 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                   </Button>
                 </SheetTrigger>
                 <SheetContent side="left" className="p-0 bg-[#213147] border-r-4 border-primary/20">
+                  <SheetHeader className="sr-only">
+                    <SheetTitle>Establishment Management Navigator</SheetTitle>
+                    <SheetDescription>Access tools for menus, staff, orders, and venue configurations.</SheetDescription>
+                  </SheetHeader>
                   <div className="flex flex-col h-full">
                     <SideBarContent forceLabels={true} />
                   </div>
@@ -1217,7 +1224,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField control={itemForm.control} name="price" render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-[10px] font-black uppercase tracking-widest">Price ($)</FormLabel>
+                    <FormLabel className="text-[10px] font-black uppercase tracking-widest">Price ($)</Label>
                     <FormControl><Input type="number" step="0.01" {...field} className="h-12 border-2 font-bold" /></FormControl>
                     <FormMessage />
                   </FormItem>
