@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
@@ -59,7 +58,11 @@ import {
   Building,
   Target,
   ChevronDown,
-  Star
+  Star,
+  Printer,
+  Copy,
+  Smartphone,
+  SmartphoneNfc
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -461,6 +464,9 @@ export default function PlatformAdminPage() {
     );
   };
 
+  const venueOrderUrl = selectedVenue ? `${typeof window !== 'undefined' ? window.location.origin : ''}/sellers/${selectedVenue.id}/order` : '';
+  const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(venueOrderUrl)}`;
+
   return (
     <div className="flex h-screen bg-[#F8FAFC] overflow-hidden">
       <aside className={cn(
@@ -620,6 +626,7 @@ export default function PlatformAdminPage() {
                   <TabsTrigger value="profile" className="text-[10px] font-black uppercase tracking-widest px-6 h-9">Operational Profile</TabsTrigger>
                   <TabsTrigger value="billing" className="text-[10px] font-black uppercase tracking-widest px-6 h-9">Billing & Fees</TabsTrigger>
                   <TabsTrigger value="stripe" className="text-[10px] font-black uppercase tracking-widest px-6 h-9">Stripe Engine</TabsTrigger>
+                  <TabsTrigger value="marketing" className="text-[10px] font-black uppercase tracking-widest px-6 h-9">Marketing Package</TabsTrigger>
                 </TabsList>
 
                 {/* PROFILE TAB */}
@@ -825,6 +832,103 @@ export default function PlatformAdminPage() {
                         </div>
                       )}
                    </div>
+                </TabsContent>
+
+                {/* MARKETING TAB */}
+                <TabsContent value="marketing" className="space-y-8 animate-in fade-in slide-in-from-left-2">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {/* Primary QR Section */}
+                    <Card className="md:col-span-1 border-2 shadow-sm flex flex-col items-center justify-center p-8 bg-slate-50 relative overflow-hidden">
+                      <div className="absolute top-0 left-0 w-full h-1 bg-primary" />
+                      <div className="bg-white p-4 rounded-[2rem] shadow-xl border-4 border-white mb-6">
+                        <img 
+                          src={qrCodeUrl} 
+                          alt="Venue QR" 
+                          className="w-32 h-32 rounded-xl"
+                        />
+                      </div>
+                      <h3 className="font-headline font-black text-sm uppercase tracking-tight mb-1">Master Access QR</h3>
+                      <p className="text-[9px] font-bold text-muted-foreground uppercase mb-6">Redirects to active menu</p>
+                      
+                      <div className="grid grid-cols-1 w-full gap-2">
+                        <Button variant="outline" className="w-full h-10 text-[9px] font-black uppercase tracking-widest border-2 gap-2" asChild>
+                          <a href={qrCodeUrl} download={`KOOP_QR_${vName.replace(/\s/g, '_')}.png`}>
+                            <Download className="h-3.5 w-3.5" /> Download PNG
+                          </a>
+                        </Button>
+                        <Button variant="ghost" className="w-full h-10 text-[9px] font-black uppercase tracking-widest gap-2" onClick={() => {
+                          navigator.clipboard.writeText(venueOrderUrl);
+                          toast({ title: "URL Copied to Clipboard" });
+                        }}>
+                          <Copy className="h-3.5 w-3.5" /> Copy Order Link
+                        </Button>
+                      </div>
+                    </Card>
+
+                    {/* Marketing Material Registry */}
+                    <div className="md:col-span-2 space-y-6">
+                      <div className="space-y-1">
+                        <h3 className="text-[10px] font-black uppercase text-primary tracking-[0.2em] border-b pb-1">Print Collateral Suite</h3>
+                        <p className="text-[9px] font-bold text-muted-foreground uppercase">White-labeled assets for physical venue presence</p>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {/* Table Tents (Bowling/Clubhouse) */}
+                        <Card className="border-2 hover:bg-slate-50 transition-all cursor-not-allowed group">
+                          <CardHeader className="pb-3">
+                            <div className="bg-indigo-50 p-2.5 rounded-xl w-fit text-indigo-600 mb-2">
+                              <SmartphoneNfc className="h-5 w-5" />
+                            </div>
+                            <CardTitle className="text-xs font-black uppercase">Table Tents</CardTitle>
+                            <CardDescription className="text-[9px] font-bold uppercase">QR Placards for Lanes & Dining</CardDescription>
+                          </CardHeader>
+                          <CardFooter className="pt-0">
+                            <Badge variant="secondary" className="text-[8px] font-black uppercase opacity-60">Coming Soon</Badge>
+                          </CardFooter>
+                        </Card>
+
+                        {/* Course Signage (Golf) */}
+                        <Card className="border-2 hover:bg-slate-50 transition-all cursor-not-allowed group">
+                          <CardHeader className="pb-3">
+                            <div className="bg-green-50 p-2.5 rounded-xl w-fit text-green-600 mb-2">
+                              <Flag className="h-5 w-5" />
+                            </div>
+                            <CardTitle className="text-xs font-black uppercase">Tee Box Signs</CardTitle>
+                            <CardDescription className="text-[9px] font-bold uppercase">Large-format hole markers</CardDescription>
+                          </CardHeader>
+                          <CardFooter className="pt-0">
+                            <Badge variant="secondary" className="text-[8px] font-black uppercase opacity-60">Coming Soon</Badge>
+                          </CardFooter>
+                        </Card>
+
+                        {/* Cart Decals (Golf) */}
+                        <Card className="border-2 hover:bg-slate-50 transition-all cursor-not-allowed group">
+                          <CardHeader className="pb-3">
+                            <div className="bg-amber-50 p-2.5 rounded-xl w-fit text-amber-600 mb-2">
+                              <Printer className="h-5 w-5" />
+                            </div>
+                            <CardTitle className="text-xs font-black uppercase">Cart Decals</CardTitle>
+                            <CardDescription className="text-[9px] font-bold uppercase">Vinyl stickers for cart fleets</CardDescription>
+                          </CardHeader>
+                          <CardFooter className="pt-0">
+                            <Badge variant="secondary" className="text-[8px] font-black uppercase opacity-60">Coming Soon</Badge>
+                          </CardFooter>
+                        </Card>
+
+                        {/* Custom Generator */}
+                        <Card className="border-2 border-dashed bg-muted/5 flex flex-col items-center justify-center p-6 text-center">
+                          <Smartphone className="h-8 w-8 text-slate-300 mb-4" />
+                          <h4 className="font-headline font-black text-[10px] uppercase mb-1">Custom Asset Builder</h4>
+                          <p className="text-[8px] font-bold text-muted-foreground uppercase leading-relaxed max-w-[140px]">
+                            Design your own venue specific collateral.
+                          </p>
+                          <Button variant="link" className="mt-2 h-auto p-0 text-primary font-black uppercase text-[8px] tracking-widest opacity-40 cursor-not-allowed">
+                            Request Beta Access
+                          </Button>
+                        </Card>
+                      </div>
+                    </div>
+                  </div>
                 </TabsContent>
               </Tabs>
 
