@@ -54,7 +54,9 @@ import {
   Smartphone,
   Check,
   X,
-  Target
+  Target,
+  Filter,
+  MousePointer2
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -72,7 +74,7 @@ import {
 } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { cn, getNumericOrderId, SUPER_ADMIN_ID } from '@/lib/utils';
-import { isThisMonth, isToday, format, startOfHour, eachHourOfInterval, subHours } from 'date-fns';
+import { isThisMonth, isToday, format, startOfHour, eachHourOfInterval, subHours, differenceInMinutes } from 'date-fns';
 import * as XLSX from 'xlsx';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -108,6 +110,7 @@ import type { MenuItem, Seller, Order, StaffMember, Venue, PlatformConfig } from
 import { categories } from '@/lib/types';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 // --- SCHEMAS ---
 
@@ -160,9 +163,9 @@ function NavButton({ id, label, icon: Icon, active, onClick, sidebarOpen }: {
   );
 }
 
-function KPICard({ label, value, sub, icon: Icon, colorClass }: { label: string, value: string | number, sub: string, icon: any, colorClass?: string }) {
+function KPICard({ label, value, sub, icon: Icon, colorClass, highlight = false }: { label: string, value: string | number, sub: string, icon: any, colorClass?: string, highlight?: boolean }) {
   return (
-    <Card className="border-2 shadow-sm overflow-hidden relative h-full">
+    <Card className={cn("border-2 shadow-sm overflow-hidden relative h-full transition-all", highlight ? "border-primary/20 ring-4 ring-primary/5" : "")}>
       <div className={cn("absolute top-0 left-0 bottom-0 w-1.5", colorClass)} />
       <CardHeader className="pb-2 pt-5">
         <CardDescription className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
@@ -193,6 +196,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   const [activeNav, setActiveNav] = useState('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isMounted, setIsMounted] = useState(false);
+  const [dashboardFilter, setDashboardFilter] = useState('All');
 
   // Operational State
   const [isStaffFormOpen, setIsStaffFormOpen] = useState(false);
@@ -321,38 +325,73 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
 
   const stats = useMemo(() => {
     if (!orders) return null;
-    const today = orders.filter(o => o.createdAt && isToday(o.createdAt.toDate()));
+    
+    // Filter by mode if applicable
+    const filteredOrders = dashboardFilter === 'All' 
+      ? orders 
+      : orders.filter(o => o.menuType === dashboardFilter);
+
+    const today = filteredOrders.filter(o => o.createdAt && isToday(o.createdAt.toDate()));
     const revenue = today.reduce((acc, o) => acc + o.total, 0);
     const fees = today.reduce((acc, o) => acc + o.serviceFee, 0);
+    
+    // Calculate Overdue Orders (Beyond Max Threshold)
+    const now = new Date();
+    const overdueCount = filteredOrders.filter(o => {
+      if (o.status === 'Delivered' || o.status === 'Cancelled') return false;
+      const threshold = seller?.orderThresholds?.[o.menuType]?.max || 20;
+      const minutes = differenceInMinutes(now, o.createdAt.toDate());
+      return minutes >= threshold;
+    }).length;
+
     return {
       revenue: revenue.toFixed(2),
       fees: fees.toFixed(2),
-      active: orders.filter(o => o.status !== 'Delivered').length,
+      active: filteredOrders.filter(o => o.status !== 'Delivered').length,
       volume: today.length,
-      avg: today.length > 0 ? (revenue / today.length).toFixed(2) : '0.00'
+      avg: today.length > 0 ? (revenue / today.length).toFixed(2) : '0.00',
+      overdue: overdueCount
     };
-  }, [orders]);
+  }, [orders, dashboardFilter, seller]);
 
   const analyticsData = useMemo(() => {
     if (!orders) return { hourly: [], revenueByMode: [] };
+
+    // Filter by mode if applicable
+    const filteredOrders = dashboardFilter === 'All' 
+      ? orders 
+      : orders.filter(o => o.menuType === dashboardFilter);
+
     const last12Hours = eachHourOfInterval({
       start: subHours(startOfHour(new Date()), 11),
       end: startOfHour(new Date()),
     });
+
     const hourly = last12Hours.map(hour => {
-      const count = orders.filter(o => 
+      const hourStr = format(hour, 'yyyy-MM-dd HH');
+      const ordersInHour = filteredOrders.filter(o => 
         o.createdAt && 
-        format(o.createdAt.toDate(), 'yyyy-MM-dd HH') === format(hour, 'yyyy-MM-dd HH')
-      ).length;
-      return { time: format(hour, 'ha'), count };
+        format(o.createdAt.toDate(), 'yyyy-MM-dd HH') === hourStr
+      );
+      
+      const sales = ordersInHour.reduce((acc, o) => acc + o.total, 0);
+      const delivered = ordersInHour.filter(o => o.status === 'Delivered').length;
+      
+      return { 
+        time: format(hour, 'ha'), 
+        sales: Math.round(sales), 
+        deliveries: delivered 
+      };
     });
+
     const modes: Record<string, number> = {};
     orders.forEach(o => {
       modes[o.menuType] = (modes[o.menuType] || 0) + o.total;
     });
     const revenueByMode = Object.entries(modes).map(([name, value]) => ({ name, value }));
+
     return { hourly, revenueByMode };
-  }, [orders]);
+  }, [orders, dashboardFilter]);
 
   const COLORS = ['#E50000', '#213147', '#4F46E5', '#F59E0B', '#10B981'];
 
@@ -381,7 +420,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
           )}
         </div>
         
-        {/* SCROLLABLE NAV SECTION */}
         <nav className="flex-1 p-3 space-y-1 overflow-y-auto no-scrollbar min-h-0">
           {NAV_ITEMS.map((item) => (
             <NavButton 
@@ -399,7 +437,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
         <div className="mt-auto border-t border-white/5 p-4 shrink-0">
           {!isMobile && (
             <button onClick={() => setSidebarOpen(!sidebarOpen)} className="w-full flex items-center justify-center p-3 text-slate-400 hover:text-white hover:bg-white/5 rounded-xl transition-all">
-              {sidebarOpen ? <ChevronRight /> : <ChevronLeft />}
+              {sidebarOpen ? <ChevronLeft /> : <ChevronRight />}
             </button>
           )}
         </div>
@@ -411,7 +449,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
 
   return (
     <div className="flex flex-col h-screen bg-[#F8FAFC] overflow-hidden">
-      {/* GLOBAL HEADER */}
       <header className="h-16 bg-white border-b-2 flex items-center justify-between px-4 sm:px-8 shrink-0 z-30 shadow-sm relative">
         <div className="flex items-center gap-4">
           <div className="bg-primary/10 p-2 rounded-xl">
@@ -452,60 +489,137 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
         </div>
       </header>
 
-      {/* MAIN WORKSPACE */}
       <div className="flex-1 flex overflow-hidden">
         <main className="flex-1 flex flex-col overflow-hidden relative">
           <ScrollArea className="flex-1 p-4 sm:p-8">
             <div className="max-w-6xl mx-auto space-y-10 pb-24">
 
               {activeNav === 'dashboard' && (
-                <div className="space-y-10 animate-in fade-in duration-500">
+                <div className="space-y-8 animate-in fade-in duration-500">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-4 rounded-2xl border-2 shadow-sm">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-indigo-50 rounded-xl text-indigo-600"><Filter className="h-4 w-4" /></div>
+                      <h3 className="text-[10px] font-black uppercase tracking-widest text-[#213147]">Dashboard Filter</h3>
+                    </div>
+                    <Tabs value={dashboardFilter} onValueChange={setDashboardFilter} className="w-full sm:w-auto">
+                      <TabsList className="bg-slate-100 p-1 rounded-xl h-10 w-full sm:w-auto">
+                        <TabsTrigger value="All" className="text-[10px] font-black uppercase tracking-widest px-4 h-8">All Modes</TabsTrigger>
+                        {seller?.menuTypes?.map(mode => (
+                          <TabsTrigger key={mode} value={mode} className="text-[10px] font-black uppercase tracking-widest px-4 h-8">{mode}</TabsTrigger>
+                        ))}
+                      </TabsList>
+                    </Tabs>
+                  </div>
+
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <KPICard label="Direct Revenue" value={`$${stats?.revenue}`} sub="Today" icon={DollarSign} colorClass="bg-green-500" />
-                    <KPICard label="Platform Fees" value={`$${stats?.fees}`} sub="Generated" icon={CreditCard} colorClass="bg-[#213147]" />
-                    <KPICard label="Open Tickets" value={stats?.active || 0} sub="Pending fulfillment" icon={ShoppingBag} colorClass="bg-primary" />
-                    <KPICard label="Average Ticket" value={`$${stats?.avg}`} sub="Today's mean" icon={TrendingUp} colorClass="bg-amber-500" />
+                    <KPICard label="Filtered Sales" value={`$${stats?.revenue}`} sub="Today" icon={DollarSign} colorClass="bg-green-500" />
+                    <KPICard label="Avg. Order" value={`$${stats?.avg}`} sub="Mean Revenue" icon={TrendingUp} colorClass="bg-indigo-600" />
+                    <KPICard label="Active Tickets" value={stats?.active || 0} sub="In Pipeline" icon={ShoppingBag} colorClass="bg-primary" />
+                    <KPICard 
+                      label="Overdue Orders" 
+                      value={stats?.overdue || 0} 
+                      sub="Beyond Threshold" 
+                      icon={Clock} 
+                      colorClass="bg-red-600" 
+                      highlight={!!(stats?.overdue && stats.overdue > 0)}
+                    />
                   </div>
 
                   <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <Card className="lg:col-span-1 border-2">
-                      <CardHeader className="bg-slate-50/50 border-b">
-                        <CardTitle className="text-xs font-black uppercase tracking-widest">Mode Control</CardTitle>
+                    <Card className="lg:col-span-2 border-2 shadow-sm overflow-hidden">
+                      <CardHeader className="bg-slate-50 border-b flex flex-row items-center justify-between">
+                         <div className="space-y-0.5">
+                            <CardTitle className="text-xs font-black uppercase tracking-widest">Today's Pulse</CardTitle>
+                            <CardDescription className="text-[9px] font-bold uppercase">Hourly Sales & Deliveries</CardDescription>
+                         </div>
+                         <Badge variant="outline" className="text-[9px] font-black uppercase border-2 text-indigo-600 border-indigo-100">{dashboardFilter}</Badge>
                       </CardHeader>
-                      <CardContent className="p-4 space-y-3">
-                        {['Beverage Cart', 'Clubhouse', 'Lane Delivery', 'Take Out'].map(mode => {
-                          const isActive = (mode === 'Beverage Cart' && seller?.bevcartActive) || (mode === 'Clubhouse' && seller?.clubhouseActive) || (mode === 'Lane Delivery' && seller?.lanedeliveryActive) || (mode === 'Take Out' && seller?.takeoutActive);
-                          return (
-                            <div key={mode} className={cn("flex items-center justify-between p-3 rounded-xl border-2 transition-all", isActive ? "bg-white border-primary/20 shadow-sm" : "bg-slate-50 border-slate-100 opacity-60")}>
-                               <span className="text-[10px] font-black uppercase text-[#213147]">{mode}</span>
-                               <Switch checked={isActive} onCheckedChange={() => handleToggleMode(mode, !!isActive)} className="data-[state=checked]:bg-primary" />
-                            </div>
-                          );
-                        })}
+                      <CardContent className="pt-8 h-[350px]">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={analyticsData.hourly}>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
+                            <XAxis 
+                              dataKey="time" 
+                              axisLine={false} 
+                              tickLine={false} 
+                              fontSize={10} 
+                              fontWeight="bold" 
+                              tick={{ fill: '#64748B' }}
+                            />
+                            <YAxis 
+                              yId="left"
+                              axisLine={false} 
+                              tickLine={false} 
+                              fontSize={10} 
+                              fontWeight="bold" 
+                              tick={{ fill: '#64748B' }}
+                              label={{ value: 'Revenue ($)', angle: -90, position: 'insideLeft', offset: 0, style: { textAnchor: 'middle', fontSize: '9px', fontWeight: '900', textTransform: 'uppercase', fill: '#64748B' } }}
+                            />
+                            <YAxis 
+                              yId="right"
+                              orientation="right"
+                              axisLine={false} 
+                              tickLine={false} 
+                              fontSize={10} 
+                              fontWeight="bold" 
+                              tick={{ fill: '#64748B' }}
+                              label={{ value: 'Orders', angle: 90, position: 'insideRight', offset: 0, style: { textAnchor: 'middle', fontSize: '9px', fontWeight: '900', textTransform: 'uppercase', fill: '#64748B' } }}
+                            />
+                            <ChartTooltip 
+                              cursor={{ fill: 'transparent' }}
+                              contentStyle={{ 
+                                borderRadius: '16px', 
+                                border: '2px solid #E2E8F0',
+                                boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)',
+                                padding: '12px'
+                              }} 
+                              labelStyle={{ fontWeight: '900', textTransform: 'uppercase', marginBottom: '4px', fontSize: '12px' }}
+                            />
+                            <Legend verticalAlign="top" align="right" iconType="circle" wrapperStyle={{ fontSize: '10px', textTransform: 'uppercase', fontWeight: 'bold', paddingBottom: '20px' }} />
+                            <Bar yId="left" name="Hourly Sales" dataKey="sales" fill="#E50000" radius={[4, 4, 0, 0]} barSize={20} />
+                            <Bar yId="right" name="Deliveries" dataKey="deliveries" fill="#213147" radius={[4, 4, 0, 0]} barSize={20} />
+                          </BarChart>
+                        </ResponsiveContainer>
                       </CardContent>
                     </Card>
 
-                    <Card className="lg:col-span-2 border-2">
-                      <CardHeader className="bg-slate-50/50 border-b flex flex-row items-center justify-between">
-                        <CardTitle className="text-xs font-black uppercase tracking-widest">Recent Tickets</CardTitle>
-                        <Button variant="link" onClick={() => setActiveNav('orders')} className="h-auto p-0 text-[10px] font-black uppercase text-primary">View Queue</Button>
-                      </CardHeader>
-                      <CardContent className="p-0">
-                        <Table>
-                          <TableBody>
-                            {orders?.slice(0, 5).map(o => (
-                              <TableRow key={o.id} className="hover:bg-slate-50 cursor-pointer" onClick={() => setActiveNav('orders')}>
-                                <TableCell className="font-mono text-[10px] font-bold text-primary">#{getNumericOrderId(o.id)}</TableCell>
-                                <TableCell className="text-[10px] font-black uppercase">{o.menuType}</TableCell>
-                                <TableCell className="font-bold text-xs">{o.customerName}</TableCell>
-                                <TableCell className="text-right font-black text-xs">${o.total.toFixed(2)}</TableCell>
-                                <TableCell className="text-right"><Badge variant="outline" className="text-[8px] font-black uppercase">{o.status}</Badge></TableCell>
-                              </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
-                      </CardContent>
-                    </Card>
+                    <div className="lg:col-span-1 space-y-6">
+                      <Card className="border-2 shadow-sm">
+                        <CardHeader className="bg-slate-50 border-b">
+                          <CardTitle className="text-xs font-black uppercase tracking-widest">Active Channels</CardTitle>
+                          <CardDescription className="text-[9px] font-bold uppercase">Quick Mode Toggles</CardDescription>
+                        </CardHeader>
+                        <CardContent className="p-4 space-y-3">
+                          {['Beverage Cart', 'Clubhouse', 'Lane Delivery', 'Take Out'].map(mode => {
+                            const isActive = (mode === 'Beverage Cart' && seller?.bevcartActive) || (mode === 'Clubhouse' && seller?.clubhouseActive) || (mode === 'Lane Delivery' && seller?.lanedeliveryActive) || (mode === 'Take Out' && seller?.takeoutActive);
+                            const isAvailableForSeller = seller?.menuTypes?.includes(mode);
+                            if (!isAvailableForSeller) return null;
+
+                            return (
+                              <div key={mode} className={cn("flex items-center justify-between p-3 rounded-xl border-2 transition-all", isActive ? "bg-white border-primary/20 shadow-sm" : "bg-slate-50 border-slate-100 opacity-60")}>
+                                <div className="flex items-center gap-2">
+                                  <div className={cn("w-1.5 h-1.5 rounded-full animate-pulse", isActive ? "bg-green-500" : "bg-slate-300")} />
+                                  <span className="text-[10px] font-black uppercase text-[#213147]">{mode}</span>
+                                </div>
+                                <Switch checked={isActive} onCheckedChange={() => handleToggleMode(mode, !!isActive)} className="data-[state=checked]:bg-primary" />
+                              </div>
+                            );
+                          })}
+                        </CardContent>
+                        <CardFooter className="p-3 bg-slate-50 border-t">
+                           <Button variant="ghost" size="sm" onClick={() => setActiveNav('service')} className="w-full text-[9px] font-black uppercase text-muted-foreground hover:text-primary">Advanced Channel Settings <ChevronRight className="ml-1 h-3 w-3" /></Button>
+                        </CardFooter>
+                      </Card>
+
+                      <Card className="border-2 shadow-sm bg-[#213147] text-white">
+                        <CardHeader className="pb-2">
+                           <p className="text-[10px] font-black uppercase tracking-widest text-primary">System Notice</p>
+                        </CardHeader>
+                        <CardContent>
+                           <p className="text-xs font-bold leading-relaxed">Ensure location tracking is active for on-course orders to maintain sub-20 minute delivery times.</p>
+                        </CardContent>
+                      </Card>
+                    </div>
                   </div>
                 </div>
               )}
@@ -691,7 +805,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                       <Card className="border-2 border-amber-100 bg-amber-50/30">
                          <CardHeader className="pb-2 pt-6 px-6"><CardDescription className="text-amber-600/60 text-[9px] font-black uppercase tracking-widest">Venue Commission</CardDescription></CardHeader>
                          <CardContent className="px-6 pb-8"><div className="text-4xl font-black font-headline tracking-tighter text-amber-700">100%</div><p className="text-[8px] font-bold uppercase text-amber-600/40 mt-1">You keep full menu price</p></CardContent>
-                      </Card>
                    </div>
 
                    <Card className="border-2 shadow-sm overflow-hidden">
@@ -730,11 +843,11 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                          <CardContent className="pt-10 h-[300px]">
                             <ResponsiveContainer width="100%" height="100%">
                                <BarChart data={analyticsData.hourly}>
-                                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
                                   <XAxis dataKey="time" axisLine={false} tickLine={false} fontSize={10} fontWeight="bold" />
                                   <YAxis axisLine={false} tickLine={false} fontSize={10} fontWeight="bold" />
                                   <ChartTooltip contentStyle={{ fontSize: '10px', borderRadius: '12px' }} />
-                                  <Bar dataKey="count" fill="#E50000" radius={[4, 4, 0, 0]} />
+                                  <Bar dataKey="sales" fill="#E50000" radius={[4, 4, 0, 0]} />
                                </BarChart>
                             </ResponsiveContainer>
                          </CardContent>
@@ -812,7 +925,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
           </ScrollArea>
         </main>
 
-        {/* PERSISTENT DESKTOP SIDEBAR - ANCHORED RIGHT */}
         <aside className={cn(
           "bg-[#213147] hidden md:flex flex-col transition-all duration-300 relative border-l-4 border-primary/20 shrink-0 shadow-2xl z-20",
           sidebarOpen ? "w-64" : "w-20"
@@ -841,7 +953,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                  <div className="grid grid-cols-2 gap-4">
                     <FormField control={itemForm.control} name="price" render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-[10px] font-black uppercase">{"Price ($)"}</FormLabel>
+                        <FormLabel className="text-[10px] font-black uppercase">Price ($)</FormLabel>
                         <FormControl><Input type="number" step="0.01" {...field} className="h-11 border-2 font-bold" /></FormControl>
                         <FormMessage />
                       </FormItem>
