@@ -29,7 +29,7 @@ export function BrandingFooter({ className }: BrandingFooterProps) {
       <span className="font-body text-[9px] font-bold uppercase tracking-[0.2em] text-[#8a9ab0]">
         COPYRIGHT 2026
       </span>
-      <div className="flex items-center gap-1.5">
+      <div className="flex items-center gap-1">
         <span className="font-body text-[9px] font-bold uppercase tracking-[0.2em] text-[#8a9ab0]">
           POWERED BY
         </span>
