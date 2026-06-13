@@ -205,7 +205,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   useEffect(() => { 
     setIsMounted(true); 
     if (typeof window !== 'undefined') {
-      // Collapse sidebar by default on smaller screens but keep it functional
       if (window.innerWidth < 1024) setSidebarOpen(false);
     }
   }, []);
@@ -371,7 +370,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   const SideBarContent = ({ forceLabels = false }: { forceLabels?: boolean }) => {
     const showLabels = forceLabels || sidebarOpen;
     return (
-      <div className="flex flex-col h-full bg-[#213147]">
+      <div className="flex flex-col h-full bg-[#213147] overflow-hidden">
         <div className="p-6 border-b border-white/5 space-y-4 shrink-0">
           <StylizedKoopLogo size={showLabels ? "md" : "sm"} />
           {showLabels && (
@@ -381,7 +380,9 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
             </div>
           )}
         </div>
-        <nav className="flex-1 p-3 space-y-1 overflow-y-auto no-scrollbar">
+        
+        {/* SCROLLABLE NAV SECTION */}
+        <nav className="flex-1 p-3 space-y-1 overflow-y-auto no-scrollbar min-h-0">
           {NAV_ITEMS.map((item) => (
             <NavButton 
               key={item.id} 
@@ -394,6 +395,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
             />
           ))}
         </nav>
+
         <div className="mt-auto border-t border-white/5 p-4 shrink-0">
           {!isMobile && (
             <button onClick={() => setSidebarOpen(!sidebarOpen)} className="w-full flex items-center justify-center p-3 text-slate-400 hover:text-white hover:bg-white/5 rounded-xl transition-all">
@@ -519,7 +521,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {orders?.filter(o => o.status !== 'Delivered').sort((a, b) => b.createdAt?.toMillis() - a.createdAt?.toMillis()).map((order) => (
+                    {orders?.filter(o => o.status !== 'Delivered').sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0)).map((order) => (
                       <Card key={order.id} className="border-2 shadow-sm overflow-hidden flex flex-col group hover:border-primary/30 transition-all">
                         <div className="p-4 bg-slate-50 border-b flex justify-between items-center">
                           <span className="font-mono text-[10px] font-black text-primary">#{getNumericOrderId(order.id)}</span>
@@ -795,8 +797,8 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                             <CardHeader className="bg-slate-50/50 border-b"><CardTitle className="text-xs font-black uppercase tracking-widest">Venue Profile</CardTitle></CardHeader>
                             <CardContent className="p-6">
                                <div className="grid grid-cols-2 gap-4">
-                                  <div className="space-y-1"><Label className="text-[10px] font-black uppercase">Official Name</Label><Input value={seller?.courseName} className="border-2 font-bold h-10" /></div>
-                                  <div className="space-y-1"><Label className="text-[10px] font-black uppercase">Tax Rate (%)</Label><Input value={seller?.taxRate} className="border-2 font-bold h-10" /></div>
+                                  <div className="space-y-1"><Label className="text-[10px] font-black uppercase">Official Name</Label><Input defaultValue={seller?.courseName} className="border-2 font-bold h-10" /></div>
+                                  <div className="space-y-1"><Label className="text-[10px] font-black uppercase">Tax Rate (%)</Label><Input defaultValue={seller?.taxRate} className="border-2 font-bold h-10" /></div>
                                </div>
                                <Button className="w-full mt-6 bg-[#213147] font-black uppercase tracking-widest h-12 text-[10px]">Update Master Registry</Button>
                             </CardContent>
