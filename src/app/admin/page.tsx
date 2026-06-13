@@ -527,6 +527,15 @@ export default function PlatformAdminPage() {
     <div className="flex flex-col h-screen bg-[#F8FAFC] overflow-hidden">
       <header className="h-16 bg-white border-b-2 flex items-center justify-between px-4 sm:px-8 shrink-0 z-30 shadow-sm relative">
         <div className="flex items-center gap-3 sm:gap-4">
+          <div className="flex flex-col">
+            <h2 className="text-lg sm:text-xl font-black font-headline uppercase tracking-tight text-[#213147]">
+              {NAV_ITEMS.find(n => n.id === activeNav)?.label}
+            </h2>
+            <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">Platform Command Console</p>
+          </div>
+        </div>
+        
+        <div className="flex items-center gap-4">
           {isMobile && (
             <Sheet>
               <SheetTrigger asChild>
@@ -543,16 +552,10 @@ export default function PlatformAdminPage() {
               </SheetContent>
             </Sheet>
           )}
-          <div className="flex flex-col">
-            <h2 className="text-lg sm:text-xl font-black font-headline uppercase tracking-tight text-[#213147]">
-              {NAV_ITEMS.find(n => n.id === activeNav)?.label}
-            </h2>
-            <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">Platform Command Console</p>
-          </div>
+          <button onClick={handleLogout} className="p-2 text-muted-foreground hover:text-destructive transition-colors">
+            <LogOut className="h-5 w-5" />
+          </button>
         </div>
-        <button onClick={handleLogout} className="p-2 text-muted-foreground hover:text-destructive transition-colors">
-          <LogOut className="h-5 w-5" />
-        </button>
       </header>
 
       <div className="flex-1 flex overflow-hidden">
