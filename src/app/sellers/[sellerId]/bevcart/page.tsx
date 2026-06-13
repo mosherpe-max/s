@@ -128,9 +128,20 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
     }
   }, [firestore, sellerId]);
 
-  const handleUpdateOrderStatus = (orderId: string, status: Order['status']) => {
+  const handleUpdateOrderStatus = (orderId: string, currentStatus: string) => {
     if (!firestore) return;
-    updateDoc(doc(firestore, 'orders', orderId), { status, deliveredAt: status === 'Delivered' ? serverTimestamp() : null }).catch(() => {});
+    const stages: Order['status'][] = ['Placed', 'Preparing', 'Out for Delivery', 'Delivered'];
+    const nextIdx = stages.indexOf(currentStatus as any) + 1;
+    
+    if (nextIdx < stages.length) {
+      const nextStatus = stages[nextIdx];
+      updateDoc(doc(firestore, 'orders', orderId), { 
+        status: nextStatus, 
+        deliveredAt: nextStatus === 'Delivered' ? serverTimestamp() : null 
+      }).catch((err) => {
+        console.error("Status update failed:", err);
+      });
+    }
   };
 
   const mappedBuyers = useMemo(() => {
