@@ -114,8 +114,6 @@ import {
 import type { MenuItem, Seller, Order, StaffMember, Venue, PlatformConfig } from '@/lib/types';
 import { categories } from '@/lib/types';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 // --- CONSTANTS ---
 
@@ -158,7 +156,7 @@ function NavButton({ id, label, icon: Icon, active, onClick, sidebarOpen }: {
       onClick={() => onClick(id)}
       title={!sidebarOpen ? label : undefined}
       className={cn(
-        "flex items-center gap-3 w-full px-4 py-3 rounded-xl transition-all duration-200 group relative",
+        "flex items-center gap-3 w-full px-4 py-3 rounded-xl transition-all duration-200 group relative text-left",
         active 
           ? "bg-primary/10 text-primary" 
           : "text-slate-400 hover:bg-white/5 hover:text-white"
@@ -816,6 +814,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                       <Card className="border-2 border-amber-100 bg-amber-50/30">
                          <CardHeader className="pb-2 pt-6 px-6"><CardDescription className="text-amber-600/60 text-[9px] font-black uppercase tracking-widest">Venue Commission</CardDescription></CardHeader>
                          <CardContent className="px-6 pb-8"><div className="text-4xl font-black font-headline tracking-tighter text-amber-700">100%</div></CardContent>
+                      </Card>
                    </div>
                 </div>
               )}
