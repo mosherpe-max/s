@@ -46,13 +46,13 @@ export function StylizedKoopLogo({ size = 'md', colorClass = 'text-white' }: { s
   const sizes = {
     sm: { text: 'text-[13px]', svg: 'w-[18px] h-[18px]', img: 'h-5 w-auto', gap: 'gap-0.5' },
     md: { text: 'text-xl', svg: 'w-6 h-6', img: 'h-8 w-auto', gap: 'gap-1' },
-    lg: { text: 'text-3xl', svg: 'w-8 h-8', img: 'h-12 w-auto', gap: 'gap-1.5' }
+    lg: { text: 'text-4xl', svg: 'w-10 h-10', img: 'h-14 w-auto', gap: 'gap-2' }
   };
   const s = sizes[size];
 
   // While loading, return a stable placeholder to prevent the default logo flash
   if (isLoading) {
-    return <div className={cn("animate-pulse bg-white/5 rounded-lg", s.img)} style={{ width: size === 'lg' ? '120px' : '80px' }} />;
+    return <div className={cn("animate-pulse bg-white/5 rounded-lg", s.img)} style={{ width: size === 'lg' ? '180px' : '80px' }} />;
   }
 
   // Render custom uploaded logo if available
@@ -100,7 +100,7 @@ function HomeNavigationMenu() {
         <SheetHeader className="p-6 border-b border-white/5 text-left">
           <StylizedKoopLogo size="md" />
           <SheetTitle className="text-[10px] font-black uppercase tracking-[0.2em] text-primary mt-2">Platform Navigator</SheetTitle>
-          <SheetDescription className="hidden">KOOP Platform Demo Links</SheetDescription>
+          <SheetDescription className="text-xs text-white/40">Access demo environments and administrative portals.</SheetDescription>
         </SheetHeader>
         <ScrollArea className="h-[calc(100vh-100px)]">
           <div className="p-6 space-y-8 pb-20">
@@ -222,9 +222,11 @@ export function AppHeader() {
   // On the landing page, we show branding and the demo navigation menu
   if (isHomePage) {
     return (
-      <header className="sticky top-0 z-40 bg-[#213147] border-b-2 border-[#E50000] shadow-md h-16 flex items-center justify-between px-6 shrink-0">
+      <header className="sticky top-0 z-40 bg-[#213147] border-b-2 border-[#E50000] shadow-md h-20 flex items-center justify-between px-6 shrink-0">
         <div className="w-10" /> 
-        <StylizedKoopLogo size="lg" />
+        <div className="flex-1 flex justify-center">
+          <StylizedKoopLogo size="lg" />
+        </div>
         <HomeNavigationMenu />
       </header>
     );
