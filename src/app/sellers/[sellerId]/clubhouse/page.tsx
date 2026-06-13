@@ -9,10 +9,16 @@ import type { Order, Seller } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
-import { Package, LogOut, Building, LayoutList } from 'lucide-react';
+import { Package, LogOut, Building, LayoutList, Focus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { useRouter } from 'next/navigation';
+import { MapView } from '@/components/map-view';
+
+type LatLng = {
+  latitude: number;
+  longitude: number;
+};
 
 export default function ClubhouseDriverDashboardPage({ params }: { params: Promise<{ sellerId: string }> }) {
   const { sellerId } = use(params);
@@ -21,6 +27,8 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
   const router = useRouter();
   
   const [now, setNow] = useState<number>(Date.now());
+  const [sellerLocation, setSellerLocation] = useState<LatLng | null>(null);
+  const [fitTrigger, setFitTrigger] = useState<number>(0);
   const lastOrderIdsRef = useRef<Set<string>>(new Set());
 
   const primarySellerRef = useMemoFirebase(() => {
@@ -29,7 +37,31 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
   }, [firestore, sellerId]);
   const { data: primarySeller, isLoading: isPrimaryLoading } = useDoc<Seller>(primarySellerRef);
 
+  const isGolf = primarySeller?.type?.toLowerCase().includes('golf');
   const isClubhouseActive = primarySeller?.clubhouseActive === true;
+
+  // Track Server Location for Golf Courses
+  useEffect(() => {
+    if (isGolf && navigator.geolocation && firestore && sellerId) {
+      const watchId = navigator.geolocation.watchPosition(
+        (p) => {
+          const lat = p.coords.latitude;
+          const lng = p.coords.longitude;
+          setSellerLocation({ latitude: lat, longitude: lng });
+          
+          // BROADCAST LIVE GPS TO FIRESTORE
+          updateDoc(doc(firestore, 'sellers', sellerId), {
+            latitude: lat,
+            longitude: lng,
+            lastActive: serverTimestamp()
+          }).catch(err => console.error("GPS Broadcast Failed", err));
+        },
+        null,
+        { enableHighAccuracy: true, timeout: 10000 }
+      );
+      return () => navigator.geolocation.clearWatch(watchId);
+    }
+  }, [isGolf, firestore, sellerId]);
 
   const handleToggleActive = (checked: boolean) => {
     if (!firestore || !sellerId) return;
@@ -84,6 +116,19 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
     }
   };
 
+  const mappedBuyers = useMemo(() => {
+    if (!now || !clubhouseOrders) return [];
+    // Only map delivery orders (not Take Out) for the satellite view
+    return clubhouseOrders
+      .filter(o => o.menuType === 'Clubhouse')
+      .map(o => ({ 
+        id: o.id, 
+        name: o.customerName, 
+        location: o.deliveryLocation, 
+        colorClass: o.status === 'Out for Delivery' ? "bg-blue-600" : "bg-indigo-600" 
+      }));
+  }, [clubhouseOrders, now]);
+
   const isLoading = areActiveOrdersLoading || isPrimaryLoading;
 
   return (
@@ -101,27 +146,46 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
         </div>
       </header>
 
-      <div className="flex-1 flex flex-col overflow-hidden p-4 max-w-4xl mx-auto w-full">
-        <div className="w-full flex flex-col bg-background border-2 rounded-[2rem] overflow-hidden min-h-0 shadow-xl">
-          <h2 className="font-headline text-xs font-black px-6 py-4 shrink-0 border-b flex items-center justify-between uppercase bg-muted/10 tracking-widest">
+      <div className="flex-1 flex flex-col md:flex-row overflow-hidden p-4 gap-4">
+        {/* Map View - Only for Golf Delivery */}
+        {isGolf && (
+          <div className="relative w-full md:w-2/3 h-[40vh] md:h-full bg-muted rounded-xl overflow-hidden border-2 shadow-sm">
+            <Button variant="outline" size="icon" className="absolute top-2 right-2 z-10 bg-background/80 h-8 w-8" onClick={() => setFitTrigger(p => p + 1)}><Focus className="h-4 w-4" /></Button>
+            {primarySeller ? (
+              <MapView 
+                sellerLocation={sellerLocation || { latitude: primarySeller.latitude, longitude: primarySeller.longitude }} 
+                buyers={mappedBuyers} 
+                radius={1609.34} 
+                fitTrigger={fitTrigger}
+                showPrimaryMarker={isClubhouseActive} 
+                primaryDriverId={sellerId} 
+              />
+            ) : <Skeleton className="w-full h-full" />}
+          </div>
+        )}
+
+        <div className={cn(
+          "flex flex-col bg-background border-2 rounded-xl overflow-hidden min-h-0",
+          isGolf ? "w-full md:w-1/3" : "w-full max-w-4xl mx-auto"
+        )}>
+          <h2 className="font-headline text-xs font-black px-4 py-3 shrink-0 border-b flex items-center justify-between uppercase bg-muted/10 tracking-widest">
             <div className="flex items-center gap-2">
               <LayoutList className="h-4 w-4 text-primary" />
               <span>Orders Queue</span>
             </div>
             <Badge variant="secondary" className="font-black">{clubhouseOrders.length}</Badge>
           </h2>
-          <ScrollArea className="flex-1">
-            <div className="p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <ScrollArea className="flex-1 px-2">
+            <div className={cn(
+              "py-2.5 gap-3",
+              isGolf ? "space-y-3" : "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 p-4"
+            )}>
               {isLoading ? (
-                <>
-                  <Skeleton className="h-48 w-full rounded-2xl" />
-                  <Skeleton className="h-48 w-full rounded-2xl" />
-                  <Skeleton className="h-48 w-full rounded-2xl" />
-                </>
+                <Skeleton className="h-40 w-full" />
               ) : clubhouseOrders.length === 0 ? (
-                <div className="col-span-full py-40 text-center text-muted-foreground opacity-40">
-                  <Building className="h-16 w-16 mx-auto mb-4" />
-                  <p className="text-[10px] font-black uppercase tracking-[0.2em]">No active clubhouse orders</p>
+                <div className="col-span-full py-20 text-center text-muted-foreground opacity-40">
+                  <Building className="h-10 w-10 mx-auto mb-2" />
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em]">No active orders</p>
                 </div>
               ) : (
                 clubhouseOrders.map((order, index) => (
