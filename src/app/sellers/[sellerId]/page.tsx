@@ -805,6 +805,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                       <Card className="border-2 border-amber-100 bg-amber-50/30">
                          <CardHeader className="pb-2 pt-6 px-6"><CardDescription className="text-amber-600/60 text-[9px] font-black uppercase tracking-widest">Venue Commission</CardDescription></CardHeader>
                          <CardContent className="px-6 pb-8"><div className="text-4xl font-black font-headline tracking-tighter text-amber-700">100%</div><p className="text-[8px] font-bold uppercase text-amber-600/40 mt-1">You keep full menu price</p></CardContent>
+                      </Card>
                    </div>
 
                    <Card className="border-2 shadow-sm overflow-hidden">
