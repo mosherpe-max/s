@@ -14,6 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { useRouter } from 'next/navigation';
 import { MapView } from '@/components/map-view';
+import { cn } from '@/lib/utils';
 
 type LatLng = {
   latitude: number;
@@ -170,7 +171,7 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
         )}>
           <h2 className="font-headline text-xs font-black px-4 py-3 shrink-0 border-b flex items-center justify-between uppercase bg-muted/10 tracking-widest">
             <div className="flex items-center gap-2">
-              <LayoutList className="h-4 w-4 text-primary" />
+              <Building className="h-4 w-4 text-primary" />
               <span>Orders Queue</span>
             </div>
             <Badge variant="secondary" className="font-black">{clubhouseOrders.length}</Badge>
@@ -194,7 +195,8 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
                     order={order} 
                     orderNumber={index + 1} 
                     now={now} 
-                    onUpdateStatus={handleUpdateOrderStatus} 
+                    onUpdateStatus={handleUpdateOrderStatus}
+                    thresholds={primarySeller?.orderThresholds?.[order.menuType]}
                   />
                 ))
               )}

@@ -630,7 +630,14 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                   )}
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                     {orders?.filter(o => o.status !== 'Delivered' && o.status !== 'Cancelled').sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0)).map((order, idx) => (
-                      <OrderCard key={order.id} order={order} orderNumber={idx + 1} now={now} onUpdateStatus={handleUpdateStatus} />
+                      <OrderCard 
+                        key={order.id} 
+                        order={order} 
+                        orderNumber={idx + 1} 
+                        now={now} 
+                        onUpdateStatus={handleUpdateStatus} 
+                        thresholds={seller?.orderThresholds?.[order.menuType]}
+                      />
                     ))}
                   </div>
                 </div>

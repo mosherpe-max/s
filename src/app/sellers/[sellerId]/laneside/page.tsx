@@ -129,7 +129,8 @@ export default function LaneSideServerDashboardPage({ params }: { params: Promis
                     order={order} 
                     orderNumber={index + 1} 
                     now={now} 
-                    onUpdateStatus={handleUpdateOrderStatus} 
+                    onUpdateStatus={handleUpdateOrderStatus}
+                    thresholds={primarySeller?.orderThresholds?.[order.menuType]}
                   />
                 ))
               )}

@@ -211,7 +211,14 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
                 </div>
               ) : (
                 driverOrders.map((order, index) => (
-                  <OrderCard key={order.id} order={order} orderNumber={index + 1} now={now} onUpdateStatus={handleUpdateOrderStatus} />
+                  <OrderCard 
+                    key={order.id} 
+                    order={order} 
+                    orderNumber={index + 1} 
+                    now={now} 
+                    onUpdateStatus={handleUpdateOrderStatus}
+                    thresholds={primarySeller?.orderThresholds?.[order.menuType]}
+                  />
                 ))
               )}
             </div>
