@@ -41,7 +41,7 @@ import { useCart } from '@/lib/cart-context';
 export function StylizedKoopLogo({ size = 'md', colorClass = 'text-white' }: { size?: 'sm' | 'md' | 'lg', colorClass?: string }) {
   const firestore = useFirestore();
   const configRef = useMemoFirebase(() => (firestore ? doc(firestore, 'platform', 'config') : null), [firestore]);
-  const { data: config } = useDoc<PlatformConfig>(configRef);
+  const { data: config, isLoading } = useDoc<PlatformConfig>(configRef);
 
   const sizes = {
     sm: { text: 'text-[13px]', svg: 'w-[18px] h-[18px]', img: 'h-5 w-auto', gap: 'gap-0.5' },
@@ -49,6 +49,11 @@ export function StylizedKoopLogo({ size = 'md', colorClass = 'text-white' }: { s
     lg: { text: 'text-3xl', svg: 'w-8 h-8', img: 'h-12 w-auto', gap: 'gap-1.5' }
   };
   const s = sizes[size];
+
+  // While loading, return a stable placeholder to prevent the default logo flash
+  if (isLoading) {
+    return <div className={cn("animate-pulse bg-white/5 rounded-lg", s.img)} style={{ width: size === 'lg' ? '120px' : '80px' }} />;
+  }
 
   // Render custom uploaded logo if available
   if (config?.logoUrl) {
@@ -205,7 +210,7 @@ export function AppHeader() {
     return doc(firestore, 'orders', orderId);
   }, [firestore, orderId]);
 
-  const { data: seller } = useDoc(sellerRef);
+  const { data: seller, isLoading: isSellerLoading } = useDoc(sellerRef);
   const { data: order } = useDoc(orderRef);
 
   const isHomePage = pathname === '/';
@@ -237,9 +242,13 @@ export function AppHeader() {
 
           {/* Center: Venue Identity */}
           <div className="flex flex-col items-center text-center min-w-0">
-            <h1 className="font-headline text-sm font-black text-white uppercase tracking-tight truncate leading-tight w-full max-w-[180px] sm:max-w-[280px]">
-              {seller?.courseName || 'KOOP Platform'}
-            </h1>
+            {isSellerLoading ? (
+              <div className="h-4 w-32 bg-white/10 animate-pulse rounded-full" />
+            ) : (
+              <h1 className="font-headline text-sm font-black text-white uppercase tracking-tight truncate leading-tight w-full max-w-[180px] sm:max-w-[280px]">
+                {seller?.courseName || 'KOOP Platform'}
+              </h1>
+            )}
             {activeMenuType && (
               <div className="flex items-center gap-1.5 mt-0.5">
                 <div className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
