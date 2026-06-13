@@ -1,85 +1,112 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
 import type { Order } from '@/lib/types';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from './ui/card';
-import { Avatar, AvatarFallback } from './ui/avatar';
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from './ui/card';
 import { Separator } from './ui/separator';
 import { Button } from './ui/button';
-import { Navigation, PartyPopper, ClipboardList, Send, MoveHorizontal, User, Satellite, Clock, MapPin, Smartphone } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
+import { Clock, AlertTriangle, ChevronRight, CheckCircle2, Truck, Timer } from 'lucide-react';
 import { Badge } from './ui/badge';
-import { cn, getDriverColor, getNumericOrderId } from '@/lib/utils';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { cn, getNumericOrderId } from '@/lib/utils';
+
+interface OrderCardProps {
+  order: Order;
+  orderNumber: number;
+  onUpdateStatus: (id: string, currentStatus: string) => void;
+  thresholds?: { warning: number; max: number };
+  now: number;
+}
 
 const getStatusConfig = (status: Order['status']) => {
-  const config: Record<Order['status'], { label: string, badgeVariant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
-    'Placed': { label: 'PENDING', badgeVariant: 'secondary' },
-    'Preparing': { label: 'CONFIRMED', badgeVariant: 'default' },
-    'Out for Delivery': { label: 'OUT FOR DELIVERY', badgeVariant: 'outline' },
-    'Delivered': { label: 'DELIVERED', badgeVariant: 'default' },
-    'Cancelled': { label: 'CANCELLED', badgeVariant: 'destructive' },
+  const config: Record<Order['status'], { label: string, icon: any, variant: 'default' | 'secondary' | 'outline' }> = {
+    'Placed': { label: 'NEW', icon: Clock, variant: 'secondary' },
+    'Preparing': { label: 'PREP', icon: Timer, variant: 'default' },
+    'Out for Delivery': { label: 'TRANSIT', icon: Truck, variant: 'outline' },
+    'Delivered': { label: 'DONE', icon: CheckCircle2, variant: 'default' },
+    'Cancelled': { label: 'VOID', icon: AlertTriangle, variant: 'outline' },
   };
   return config[status];
 };
 
-export function OrderCard({ order, orderNumber, onUpdateStatus, thresholds, now }: { order: Order; orderNumber: number; onUpdateStatus: (id: string, status: Order['status']) => void; thresholds?: { warning: number; max: number }; now?: number; }) {
+export function OrderCard({ order, orderNumber, onUpdateStatus, thresholds, now }: OrderCardProps) {
   const statusInfo = getStatusConfig(order.status);
-  const minutesElapsed = order.createdAt && now ? Math.floor((now - order.createdAt.toDate().getTime()) / 60000) : 0;
-  const isExceeded = thresholds && minutesElapsed >= thresholds.max;
-  const isWarning = thresholds && minutesElapsed >= thresholds.warning && !isExceeded;
+  
+  const minutesElapsed = order.createdAt ? Math.floor((now - order.createdAt.toDate().getTime()) / 60000) : 0;
+  const warningThreshold = thresholds?.warning || 15;
+  const maxThreshold = thresholds?.max || 20;
+  
+  const isOverdue = minutesElapsed >= maxThreshold;
+  const isWarning = minutesElapsed >= warningThreshold && !isOverdue;
 
   return (
-    <Card className={cn('overflow-hidden flex flex-col h-full border-2', isExceeded ? 'border-destructive bg-red-50' : (isWarning ? 'border-yellow-500 bg-yellow-50' : 'border-muted'))}>
-      <CardHeader className="p-4 bg-muted/30">
-        <div className="flex justify-between items-start">
-          <div className="flex items-center gap-3">
-            <div className={cn("flex items-center justify-center w-8 h-8 rounded-full font-black text-white text-xs", isExceeded ? 'bg-red-600' : (isWarning ? 'bg-yellow-500' : 'bg-green-600'))}>
-              {orderNumber}
-            </div>
-            <CardTitle className="text-sm font-black uppercase truncate max-w-[120px]">{order.customerName}</CardTitle>
+    <Card className={cn(
+      'overflow-hidden flex flex-col border-2 transition-all duration-300 shadow-sm',
+      isOverdue 
+        ? 'border-destructive bg-red-50 ring-2 ring-destructive/20' 
+        : (isWarning ? 'border-amber-400 bg-amber-50' : 'border-slate-100 hover:border-slate-200')
+    )}>
+      {/* COMPACT HEADER */}
+      <CardHeader className="p-3 bg-white border-b flex flex-row items-center justify-between space-y-0">
+        <div className="flex items-center gap-2">
+          <div className={cn(
+            "flex items-center justify-center w-6 h-6 rounded-lg font-black text-white text-[10px]",
+            isOverdue ? 'bg-destructive' : 'bg-[#213147]'
+          )}>
+            {orderNumber}
           </div>
-          <Badge variant={statusInfo.badgeVariant} className="text-[8px] font-black uppercase">{statusInfo.label}</Badge>
+          <div className="flex flex-col">
+            <span className="text-[10px] font-black uppercase text-[#213147] tracking-tight leading-none truncate max-w-[100px]">
+              {order.customerName}
+            </span>
+            <span className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest mt-0.5">
+              #{getNumericOrderId(order.id)}
+            </span>
+          </div>
+        </div>
+        <div className="flex items-center gap-1.5">
+           <div className={cn(
+             "flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black uppercase",
+             isOverdue ? "bg-destructive text-white" : "bg-slate-100 text-slate-500"
+           )}>
+             {isOverdue && <AlertTriangle className="h-2.5 w-2.5" />}
+             {minutesElapsed}m
+           </div>
+           <Badge variant={statusInfo.variant} className="h-5 px-1.5 text-[8px] font-black uppercase border-0">
+             {statusInfo.label}
+           </Badge>
         </div>
       </CardHeader>
-      <CardContent className="p-4 space-y-3 flex-1">
-        <div className="space-y-2">
+
+      {/* COMPACT CONTENT */}
+      <CardContent className="p-3 flex-1 space-y-2">
+        <div className="space-y-1">
           {order.items.map(item => (
-            <div key={item.cartId} className="space-y-1">
-              <div className="flex justify-between text-xs font-bold">
-                <span>{item.quantity}x {item.name}</span>
-                <span className="font-mono text-muted-foreground">${(item.price * item.quantity).toFixed(2)}</span>
-              </div>
-              {item.selectedModifiers && Object.values(item.selectedModifiers).flat().length > 0 && (
-                <div className="flex flex-wrap gap-1 pl-4">
-                  {Object.values(item.selectedModifiers).flat().map((mod, idx) => (
-                    <span key={`${item.cartId}-mod-${idx}`} className="text-[8px] font-bold bg-primary/5 text-primary px-1.5 py-0.5 rounded uppercase">
-                      + {mod.name}
-                    </span>
-                  ))}
-                </div>
-              )}
+            <div key={item.cartId} className="flex justify-between text-[10px] leading-tight">
+              <span className="font-bold text-slate-700 truncate max-w-[140px]">{item.quantity}x {item.name}</span>
+              <span className="font-mono text-slate-400 shrink-0">${(item.price * item.quantity).toFixed(2)}</span>
             </div>
           ))}
         </div>
-        <Separator className="border-dashed" />
-        <div className="flex justify-between items-center">
-          <span className="text-[10px] font-black uppercase text-muted-foreground">TOTAL</span>
-          <span className="font-mono font-black text-primary">${order.total.toFixed(2)}</span>
-        </div>
+        
+        {order.menuTypeLocation && (
+          <div className="flex items-center gap-1 text-[9px] font-black text-primary uppercase border-t pt-2">
+            <Clock className="h-2.5 w-2.5" /> {order.menuTypeLocation}
+          </div>
+        )}
       </CardContent>
-      <CardFooter className="p-2 border-t">
-        {order.status === 'Placed' && <Button className="w-full text-[10px] font-bold uppercase h-9" onClick={() => onUpdateStatus(order.id, 'Preparing')}>Confirm Order</Button>}
-        {order.status === 'Preparing' && <Button className="w-full text-[10px] font-bold uppercase h-9" onClick={() => onUpdateStatus(order.id, 'Out for Delivery')}>Start Delivery</Button>}
-        {order.status === 'Out for Delivery' && <Button className="w-full text-[10px] font-bold uppercase h-9 bg-green-600 hover:bg-green-700" onClick={() => onUpdateStatus(order.id, 'Delivered')}>Delivered</Button>}
+
+      {/* COMPACT FOOTER */}
+      <CardFooter className="p-1 bg-slate-50 border-t gap-1">
+        <Button 
+          variant={isOverdue ? "destructive" : "default"}
+          className="flex-1 h-8 text-[9px] font-black uppercase tracking-widest gap-1 rounded-sm" 
+          onClick={() => onUpdateStatus(order.id, order.status)}
+        >
+          {order.status === 'Placed' && "Prepare"}
+          {order.status === 'Preparing' && "Dispatch"}
+          {order.status === 'Out for Delivery' && "Deliver"}
+          <ChevronRight className="h-3 w-3" />
+        </Button>
       </CardFooter>
     </Card>
   );

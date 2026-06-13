@@ -56,7 +56,8 @@ import {
   X,
   Target,
   Filter,
-  MousePointer2
+  MousePointer2,
+  Map as MapIcon
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -84,6 +85,8 @@ import { StylizedKoopLogo } from '@/components/header';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { MapView } from '@/components/map-view';
+import { OrderCard } from '@/components/order-card';
 import {
   Sheet,
   SheetContent,
@@ -197,6 +200,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isMounted, setIsMounted] = useState(false);
   const [dashboardFilter, setDashboardFilter] = useState('All');
+  const [now, setNow] = useState<number>(Date.now());
 
   // Operational State
   const [isStaffFormOpen, setIsStaffFormOpen] = useState(false);
@@ -211,6 +215,9 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     if (typeof window !== 'undefined') {
       if (window.innerWidth < 1024) setSidebarOpen(false);
     }
+
+    const interval = setInterval(() => setNow(Date.now()), 30000);
+    return () => clearInterval(interval);
   }, []);
 
   // Data Fetching
@@ -326,7 +333,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   const stats = useMemo(() => {
     if (!orders) return null;
     
-    // Filter by mode if applicable
     const filteredOrders = dashboardFilter === 'All' 
       ? orders 
       : orders.filter(o => o.menuType === dashboardFilter);
@@ -335,12 +341,11 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     const revenue = today.reduce((acc, o) => acc + o.total, 0);
     const fees = today.reduce((acc, o) => acc + o.serviceFee, 0);
     
-    // Calculate Overdue Orders (Beyond Max Threshold)
-    const now = new Date();
+    const nowLocal = new Date();
     const overdueCount = filteredOrders.filter(o => {
       if (o.status === 'Delivered' || o.status === 'Cancelled') return false;
       const threshold = seller?.orderThresholds?.[o.menuType]?.max || 20;
-      const minutes = differenceInMinutes(now, o.createdAt.toDate());
+      const minutes = differenceInMinutes(nowLocal, o.createdAt.toDate());
       return minutes >= threshold;
     }).length;
 
@@ -357,7 +362,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   const analyticsData = useMemo(() => {
     if (!orders) return { hourly: [], revenueByMode: [] };
 
-    // Filter by mode if applicable
     const filteredOrders = dashboardFilter === 'All' 
       ? orders 
       : orders.filter(o => o.menuType === dashboardFilter);
@@ -393,6 +397,18 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     return { hourly, revenueByMode };
   }, [orders, dashboardFilter]);
 
+  const mappedBuyers = useMemo(() => {
+    if (!orders) return [];
+    return orders
+      .filter(o => o.status !== 'Delivered' && o.status !== 'Cancelled')
+      .map(o => ({
+        id: o.id,
+        name: o.customerName,
+        location: o.deliveryLocation,
+        colorClass: o.menuType === 'Beverage Cart' ? "bg-red-600" : "bg-indigo-600"
+      }));
+  }, [orders]);
+
   const COLORS = ['#E50000', '#213147', '#4F46E5', '#F59E0B', '#10B981'];
 
   const NAV_ITEMS = [
@@ -405,6 +421,8 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     { id: "analytics", label: "Analytics", icon: BarChart3 },
     { id: "settings", label: "Venue Settings", icon: Settings },
   ];
+
+  const isGolf = seller?.type?.toLowerCase().includes('golf');
 
   const SideBarContent = ({ forceLabels = false }: { forceLabels?: boolean }) => {
     const showLabels = forceLabels || sidebarOpen;
@@ -626,49 +644,46 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
 
               {activeNav === 'orders' && (
                 <div className="space-y-6 animate-in fade-in duration-500">
+                  {/* SATELLITE OPERATIONS MAP (GOLF ONLY) */}
+                  {isGolf && (
+                    <Card className="border-2 shadow-sm overflow-hidden h-[300px] relative">
+                      <div className="absolute top-4 left-4 z-10 space-y-1">
+                        <div className="bg-[#213147] text-white px-3 py-1.5 rounded-full flex items-center gap-2 shadow-xl border border-white/10">
+                          <MapIcon className="h-3 w-3 text-primary" />
+                          <span className="text-[9px] font-black uppercase tracking-widest">Live Operations Map</span>
+                        </div>
+                        <div className="flex gap-1.5">
+                          <Badge className="bg-red-600 text-white text-[8px] font-black uppercase border-0">BevCart</Badge>
+                          <Badge className="bg-indigo-600 text-white text-[8px] font-black uppercase border-0">Clubhouse</Badge>
+                        </div>
+                      </div>
+                      <MapView 
+                        sellerLocation={seller ? { latitude: seller.latitude, longitude: seller.longitude } : undefined}
+                        buyers={mappedBuyers}
+                        interactive={true}
+                        showPrimaryMarker={true}
+                      />
+                    </Card>
+                  )}
+
                   <div className="flex justify-between items-center bg-white p-4 rounded-2xl border-2 shadow-sm">
                     <div className="flex gap-2">
                       <Button size="sm" variant="secondary" className="text-[9px] font-black uppercase tracking-widest rounded-full px-4">All Active</Button>
                       <Button size="sm" variant="outline" className="text-[9px] font-black uppercase tracking-widest rounded-full px-4 border-2">Pending</Button>
                     </div>
-                    <p className="text-[10px] font-black text-muted-foreground uppercase">{orders?.filter(o => o.status !== 'Delivered').length} Open Tickets</p>
+                    <p className="text-[10px] font-black text-muted-foreground uppercase">{orders?.filter(o => o.status !== 'Delivered').length} Active Tickets</p>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {orders?.filter(o => o.status !== 'Delivered').sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0)).map((order) => (
-                      <Card key={order.id} className="border-2 shadow-sm overflow-hidden flex flex-col group hover:border-primary/30 transition-all">
-                        <div className="p-4 bg-slate-50 border-b flex justify-between items-center">
-                          <span className="font-mono text-[10px] font-black text-primary">#{getNumericOrderId(order.id)}</span>
-                          <Badge className="text-[8px] font-black uppercase bg-[#213147]">{order.menuType}</Badge>
-                        </div>
-                        <CardContent className="p-5 flex-1 space-y-4">
-                          <div>
-                            <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-1">Patron</p>
-                            <p className="font-headline font-black text-sm text-[#213147] uppercase">{order.customerName}</p>
-                            {order.menuTypeLocation && <p className="text-[10px] font-bold text-primary mt-1 uppercase">{order.menuTypeLocation}</p>}
-                          </div>
-                          <div className="space-y-1.5">
-                            {order.items.map(i => (
-                              <div key={i.cartId} className="flex justify-between text-xs">
-                                <span className="font-bold text-slate-600">{i.quantity}x {i.name}</span>
-                                <span className="font-mono text-slate-400">${(i.price * i.quantity).toFixed(2)}</span>
-                              </div>
-                            ))}
-                          </div>
-                          <div className="pt-4 border-t border-dashed flex justify-between items-center">
-                            <span className="text-[10px] font-black text-muted-foreground uppercase">Revenue</span>
-                            <span className="text-sm font-black text-[#213147]">${order.total.toFixed(2)}</span>
-                          </div>
-                        </CardContent>
-                        <CardFooter className="p-2 bg-slate-50 border-t flex gap-2">
-                           <Button className="flex-1 h-10 font-black uppercase text-[10px] tracking-widest" onClick={() => handleUpdateStatus(order.id, order.status)}>
-                              {order.status === 'Placed' && "Advance To Preparing"}
-                              {order.status === 'Preparing' && "Start Delivery"}
-                              {order.status === 'Out for Delivery' && "Mark Delivered"}
-                           </Button>
-                           <Button size="icon" variant="outline" className="h-10 w-10 border-2 text-destructive hover:bg-destructive/10"><X className="h-4 w-4" /></Button>
-                        </CardFooter>
-                      </Card>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                    {orders?.filter(o => o.status !== 'Delivered' && o.status !== 'Cancelled').sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0)).map((order, idx) => (
+                      <OrderCard 
+                        key={order.id} 
+                        order={order} 
+                        orderNumber={idx + 1} 
+                        now={now}
+                        thresholds={seller?.orderThresholds?.[order.menuType] || { warning: 15, max: 20 }}
+                        onUpdateStatus={handleUpdateStatus} 
+                      />
                     ))}
                   </div>
                 </div>
@@ -954,8 +969,8 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                  <div className="grid grid-cols-2 gap-4">
                     <FormField control={itemForm.control} name="price" render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-[10px] font-black uppercase">Price ($)</FormLabel>
-                        <FormControl><Input type="number" step="0.01" {...field} className="h-11 border-2 font-bold" /></FormControl>
+                        <FormLabel className="text-[10px] font-black uppercase tracking-widest">Price ($)</FormLabel>
+                        <FormControl><Input type="number" step="0.01" {...field} className="h-12 border-2 font-bold" /></FormControl>
                         <FormMessage />
                       </FormItem>
                     )} />
