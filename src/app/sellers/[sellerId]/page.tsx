@@ -104,34 +104,9 @@ import {
   Legend
 } from 'recharts';
 
-import {
-  DndContext,
-  closestCenter,
-  KeyboardSensor,
-  PointerSensor,
-  useSensors,
-  useSensor,
-  DragEndEvent,
-} from '@dnd-kit/core';
-import {
-  arrayMove,
-  SortableContext,
-  sortableKeyboardCoordinates,
-  verticalListSortingStrategy,
-  useSortable,
-} from '@radix-ui/react-sortable';
-import { CSS } from '@dnd-kit/utilities';
-
 import type { MenuItem, Seller, Order, StaffMember, Venue, PlatformConfig } from '@/lib/types';
 import { categories } from '@/lib/types';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { publicGolfItems, privateGolfItems, bowlingAlleyItems } from '@/lib/data';
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs";
 import { Checkbox } from '@/components/ui/checkbox';
 
 // --- SCHEMAS ---
@@ -217,21 +192,20 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   // Navigation State
   const [activeNav, setActiveNav] = useState('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(true);
-
-  // Functional State
   const [isMounted, setIsMounted] = useState(false);
+
+  // Operational State
   const [isStaffFormOpen, setIsStaffFormOpen] = useState(false);
   const [editingStaff, setEditingStaff] = useState<StaffMember | null>(null);
   const [isItemFormOpen, setIsItemFormOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
-  const [isResettingDemo, setIsResettingDemo] = useState(false);
-  const [isProvisioningRegistry, setIsProvisioningRegistry] = useState(false);
   const [isVerifyingStripe, setIsVerifyingStripe] = useState(false);
   const [verificationResult, setVerificationResult] = useState<any>(null);
 
   useEffect(() => { 
     setIsMounted(true); 
     if (typeof window !== 'undefined') {
+      // Collapse sidebar by default on smaller screens but keep it functional
       if (window.innerWidth < 1024) setSidebarOpen(false);
     }
   }, []);
@@ -362,13 +336,10 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
 
   const analyticsData = useMemo(() => {
     if (!orders) return { hourly: [], revenueByMode: [] };
-    
-    // Hourly volume for last 12 hours
     const last12Hours = eachHourOfInterval({
       start: subHours(startOfHour(new Date()), 11),
       end: startOfHour(new Date()),
     });
-    
     const hourly = last12Hours.map(hour => {
       const count = orders.filter(o => 
         o.createdAt && 
@@ -376,14 +347,11 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
       ).length;
       return { time: format(hour, 'ha'), count };
     });
-
-    // Revenue by service mode
     const modes: Record<string, number> = {};
     orders.forEach(o => {
       modes[o.menuType] = (modes[o.menuType] || 0) + o.total;
     });
     const revenueByMode = Object.entries(modes).map(([name, value]) => ({ name, value }));
-
     return { hourly, revenueByMode };
   }, [orders]);
 
@@ -441,6 +409,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
 
   return (
     <div className="flex flex-col h-screen bg-[#F8FAFC] overflow-hidden">
+      {/* GLOBAL HEADER */}
       <header className="h-16 bg-white border-b-2 flex items-center justify-between px-4 sm:px-8 shrink-0 z-30 shadow-sm relative">
         <div className="flex items-center gap-4">
           <div className="bg-primary/10 p-2 rounded-xl">
@@ -461,17 +430,27 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
           </div>
           {isMobile && (
             <Sheet>
-              <SheetTrigger asChild><Button variant="ghost" size="icon" className="text-[#213147]"><LucideMenu className="h-6 w-6" /></Button></SheetTrigger>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="icon" className="text-[#213147]">
+                  <LucideMenu className="h-6 w-6" />
+                </Button>
+              </SheetTrigger>
               <SheetContent side="right" className="p-0 bg-[#213147] border-l-4 border-primary/20">
-                <SheetHeader className="sr-only"><SheetTitle>Navigation</SheetTitle><SheetDescription>Main Menu</SheetDescription></SheetHeader>
+                <SheetHeader className="sr-only">
+                  <SheetTitle>Navigation</SheetTitle>
+                  <SheetDescription>Venue Management Sections</SheetDescription>
+                </SheetHeader>
                 <SideBarContent forceLabels={true} />
               </SheetContent>
             </Sheet>
           )}
-          <button onClick={() => router.push('/')} className="p-2 text-muted-foreground hover:text-destructive transition-colors"><LogOut className="h-5 w-5" /></button>
+          <button onClick={() => router.push('/')} className="p-2 text-muted-foreground hover:text-destructive transition-colors">
+            <LogOut className="h-5 w-5" />
+          </button>
         </div>
       </header>
 
+      {/* MAIN WORKSPACE */}
       <div className="flex-1 flex overflow-hidden">
         <main className="flex-1 flex flex-col overflow-hidden relative">
           <ScrollArea className="flex-1 p-4 sm:p-8">
@@ -540,7 +519,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {orders?.filter(o => o.status !== 'Delivered').sort((a, b) => b.createdAt?.toMillis() - a.createdAt?.toMillis()).map((order, idx) => (
+                    {orders?.filter(o => o.status !== 'Delivered').sort((a, b) => b.createdAt?.toMillis() - a.createdAt?.toMillis()).map((order) => (
                       <Card key={order.id} className="border-2 shadow-sm overflow-hidden flex flex-col group hover:border-primary/30 transition-all">
                         <div className="p-4 bg-slate-50 border-b flex justify-between items-center">
                           <span className="font-mono text-[10px] font-black text-primary">#{getNumericOrderId(order.id)}</span>
@@ -831,7 +810,11 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
           </ScrollArea>
         </main>
 
-        <aside className={cn("bg-[#213147] hidden lg:flex flex-col transition-all duration-300 relative border-l-4 border-primary/20 shrink-0 shadow-2xl", sidebarOpen ? "w-64" : "w-20")}>
+        {/* PERSISTENT DESKTOP SIDEBAR - ANCHORED RIGHT */}
+        <aside className={cn(
+          "bg-[#213147] hidden md:flex flex-col transition-all duration-300 relative border-l-4 border-primary/20 shrink-0 shadow-2xl z-20",
+          sidebarOpen ? "w-64" : "w-20"
+        )}>
           <SideBarContent />
         </aside>
       </div>
@@ -839,7 +822,14 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
       {/* ITEM DIALOG */}
       <Dialog open={isItemFormOpen} onOpenChange={setIsItemFormOpen}>
         <DialogContent className="rounded-[2.5rem] border-2 max-w-xl">
-           <DialogHeader><DialogTitle className="font-headline font-black uppercase text-[#213147]">{editingItem ? 'Edit Master Record' : 'New Inventory Item'}</DialogTitle><DialogDescription className="text-[10px] font-bold uppercase text-muted-foreground">Configure global item properties and service availability</DialogDescription></DialogHeader>
+           <DialogHeader>
+              <DialogTitle className="font-headline font-black uppercase text-[#213147]">
+                {editingItem ? 'Edit Master Record' : 'New Inventory Item'}
+              </DialogTitle>
+              <DialogDescription className="text-[10px] font-bold uppercase text-muted-foreground">
+                Configure global item properties and service availability
+              </DialogDescription>
+           </DialogHeader>
            <Form {...itemForm}>
               <form onSubmit={itemForm.handleSubmit(onSaveItem)} className="space-y-6 pt-4">
                  <div className="grid grid-cols-2 gap-4">
@@ -847,7 +837,13 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                     <FormField control={itemForm.control} name="category" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase">Category</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger className="h-11 border-2 font-bold"><SelectValue /></SelectTrigger></FormControl><SelectContent>{categories.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent></Select></FormItem>)} />
                  </div>
                  <div className="grid grid-cols-2 gap-4">
-                    <FormField control={itemForm.control} name="price" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase">Price ($)</FormLabel><FormControl><Input type="number" step="0.01" {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>)} />
+                    <FormField control={itemForm.control} name="price" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-[10px] font-black uppercase">{"Price ($)"}</FormLabel>
+                        <FormControl><Input type="number" step="0.01" {...field} className="h-11 border-2 font-bold" /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
                     <FormField control={itemForm.control} name="imageUrl" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase">Image URL</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>)} />
                  </div>
                  <div className="space-y-2">
