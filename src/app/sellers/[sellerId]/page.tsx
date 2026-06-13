@@ -378,12 +378,13 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     }
   };
 
-  const handleThresholdChange = (mode: string, type: 'warning' | 'max', value: number) => {
+  const handleThresholdChange = (mode: string, type: 'warning' | 'max', value: string) => {
+    const numValue = parseInt(value, 10);
     setVenueThresholds(prev => ({
       ...prev,
       [mode]: {
         ...prev[mode],
-        [type]: value
+        [type]: isNaN(numValue) ? 0 : numValue
       }
     }));
   };
@@ -815,7 +816,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                       <Card className="border-2 border-amber-100 bg-amber-50/30">
                          <CardHeader className="pb-2 pt-6 px-6"><CardDescription className="text-amber-600/60 text-[9px] font-black uppercase tracking-widest">Venue Commission</CardDescription></CardHeader>
                          <CardContent className="px-6 pb-8"><div className="text-4xl font-black font-headline tracking-tighter text-amber-700">100%</div></CardContent>
-                      </Card>
                    </div>
                 </div>
               )}
@@ -931,8 +931,10 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                                           <Label className="text-[8px] font-black uppercase text-amber-600">Warning (Min)</Label>
                                           <Input 
                                             type="number" 
+                                            min="0"
+                                            step="1"
                                             value={thresholds.warning} 
-                                            onChange={e => handleThresholdChange(mode, 'warning', Number(e.target.value))} 
+                                            onChange={e => handleThresholdChange(mode, 'warning', e.target.value)} 
                                             className="h-9 border-2 font-bold focus-visible:ring-amber-400"
                                           />
                                        </div>
@@ -940,8 +942,10 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                                           <Label className="text-[8px] font-black uppercase text-red-600">Max (Overdue)</Label>
                                           <Input 
                                             type="number" 
+                                            min="0"
+                                            step="1"
                                             value={thresholds.max} 
-                                            onChange={e => handleThresholdChange(mode, 'max', Number(e.target.value))} 
+                                            onChange={e => handleThresholdChange(mode, 'max', e.target.value)} 
                                             className="h-9 border-2 font-bold focus-visible:ring-red-600"
                                           />
                                        </div>

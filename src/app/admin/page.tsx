@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
@@ -307,12 +306,13 @@ export default function PlatformAdminPage() {
     }
   };
 
-  const handleThresholdChange = (mode: string, type: 'warning' | 'max', value: number) => {
+  const handleThresholdChange = (mode: string, type: 'warning' | 'max', value: string) => {
+    const numValue = parseInt(value, 10);
     setSystemThresholds(prev => ({
       ...prev,
       [mode]: {
         ...prev[mode],
-        [type]: value
+        [type]: isNaN(numValue) ? 0 : numValue
       }
     }));
   };
@@ -630,8 +630,10 @@ export default function PlatformAdminPage() {
                                       <Label className="text-[8px] font-black uppercase text-amber-600 tracking-widest">Warning (Min)</Label>
                                       <Input 
                                         type="number" 
+                                        min="0"
+                                        step="1"
                                         value={thresholds.warning} 
-                                        onChange={e => handleThresholdChange(mode, 'warning', Number(e.target.value))} 
+                                        onChange={e => handleThresholdChange(mode, 'warning', e.target.value)} 
                                         className="h-10 border-2 font-bold focus-visible:ring-amber-400"
                                       />
                                    </div>
@@ -639,8 +641,10 @@ export default function PlatformAdminPage() {
                                       <Label className="text-[8px] font-black uppercase text-red-600 tracking-widest">Max Window (Min)</Label>
                                       <Input 
                                         type="number" 
+                                        min="0"
+                                        step="1"
                                         value={thresholds.max} 
-                                        onChange={e => handleThresholdChange(mode, 'max', Number(e.target.value))} 
+                                        onChange={e => handleThresholdChange(mode, 'max', e.target.value)} 
                                         className="h-10 border-2 font-bold focus-visible:ring-red-600"
                                       />
                                    </div>
