@@ -170,14 +170,14 @@ function KPICard({ label, value, sub, icon: Icon, colorClass, highlight = false 
   return (
     <Card className={cn("border-2 shadow-sm overflow-hidden relative h-full transition-all", highlight ? "border-primary/20 ring-4 ring-primary/5" : "")}>
       <div className={cn("absolute top-0 left-0 bottom-0 w-1.5", colorClass)} />
-      <CardHeader className="pb-2 pt-5">
-        <CardDescription className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
-          <Icon className="h-3 w-3" /> {label}
+      <CardHeader className="pb-1 pt-3 px-3 sm:px-4">
+        <CardDescription className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
+          <Icon className="h-2.5 w-2.5" /> {label}
         </CardDescription>
       </CardHeader>
-      <CardContent className="pb-5">
-        <div className="text-2xl sm:text-3xl font-black font-headline tracking-tighter text-[#213147] mb-1">{value}</div>
-        <p className="text-[10px] font-bold text-muted-foreground uppercase">{sub}</p>
+      <CardContent className="pb-3 px-3 sm:px-4">
+        <div className="text-xl sm:text-2xl lg:text-3xl font-black font-headline tracking-tighter text-[#213147] mb-0.5">{value}</div>
+        <p className="text-[8px] sm:text-[10px] font-bold text-muted-foreground uppercase leading-none">{sub}</p>
       </CardContent>
     </Card>
   );
@@ -537,7 +537,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
             <div className="max-w-6xl mx-auto space-y-10 pb-24">
 
               {activeNav === 'dashboard' && (
-                <div className="space-y-8 animate-in fade-in duration-500">
+                <div className="space-y-6 sm:space-y-8 animate-in fade-in duration-500">
                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-4 rounded-2xl border-2 shadow-sm">
                     <div className="flex items-center gap-3">
                       <div className="p-2 bg-indigo-50 rounded-xl text-indigo-600"><Filter className="h-4 w-4" /></div>
@@ -553,7 +553,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                     </Tabs>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
                     <KPICard label="Filtered Sales" value={`$${stats?.revenue}`} sub="Today" icon={DollarSign} colorClass="bg-green-500" />
                     <KPICard label="Avg. Order" value={`$${stats?.avg}`} sub="Mean Revenue" icon={TrendingUp} colorClass="bg-indigo-600" />
                     <KPICard label="Active Tickets" value={stats?.active || 0} sub="In Pipeline" icon={ShoppingBag} colorClass="bg-primary" />
@@ -569,7 +569,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
 
                   <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     <Card className="lg:col-span-2 border-2 shadow-sm overflow-hidden">
-                      <CardHeader className="bg-slate-50 border-b flex flex-row items-center justify-between">
+                      <CardHeader className="bg-slate-50 border-b flex flex-row items-center justify-between py-4">
                          <div className="space-y-0.5">
                             <CardTitle className="text-xs font-black uppercase tracking-widest">Today's Pulse</CardTitle>
                             <CardDescription className="text-[9px] font-bold uppercase">Hourly Sales & Deliveries</CardDescription>
