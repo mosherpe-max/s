@@ -117,6 +117,15 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
+// --- CONSTANTS ---
+
+const DEFAULT_THRESHOLDS: Record<string, { warning: number; max: number }> = {
+  'Beverage Cart': { warning: 10, max: 15 },
+  'Clubhouse': { warning: 15, max: 20 },
+  'Lane Delivery': { warning: 10, max: 15 },
+  'Take Out': { warning: 15, max: 25 }
+};
+
 // --- SCHEMAS ---
 
 const staffSchema = z.object({
@@ -241,8 +250,8 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   const staffQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'sellers', sellerId, 'staff') : null), [firestore, sellerId]);
   const { data: staff } = useCollection<StaffMember>(staffQuery);
 
-  const venueRef = useMemoFirebase(() => (firestore ? doc(firestore, 'venues', sellerId) : null), [firestore, sellerId]);
-  const { data: venueData } = useDoc<Venue>(venueRef);
+  const venueDocRef = useMemoFirebase(() => (firestore ? doc(firestore, 'venues', sellerId) : null), [firestore, sellerId]);
+  const { data: venueData } = useDoc<Venue>(venueDocRef);
 
   // Initialize Settings State from Seller Data
   useEffect(() => {
@@ -250,15 +259,8 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
       setVenueName(seller.courseName || '');
       setVenueTaxRate(seller.taxRate || 0);
       
-      const defaults = {
-        'Beverage Cart': { warning: 10, max: 15 },
-        'Clubhouse': { warning: 15, max: 20 },
-        'Lane Delivery': { warning: 10, max: 15 },
-        'Take Out': { warning: 15, max: 25 }
-      };
-
       setVenueThresholds({
-        ...defaults,
+        ...DEFAULT_THRESHOLDS,
         ...(seller.orderThresholds || {})
       });
     }
@@ -400,7 +402,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     const nowLocal = new Date();
     const overdueCount = filteredOrders.filter(o => {
       if (o.status === 'Delivered' || o.status === 'Cancelled') return false;
-      const threshold = seller?.orderThresholds?.[o.menuType]?.max || 20;
+      const threshold = seller?.orderThresholds?.[o.menuType]?.max || DEFAULT_THRESHOLDS[o.menuType]?.max || 20;
       const minutes = differenceInMinutes(nowLocal, o.createdAt.toDate());
       return minutes >= threshold;
     }).length;
@@ -495,7 +497,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     { id: "menu", label: "Menu Items", icon: UtensilsCrossed },
     { id: "service", label: "Service Modes", icon: Zap },
     { id: "staff", label: "Staff", icon: Users },
-    { id: "payments", label: "Payments", icon: CreditCard },
+    { id: "payments", label: "Payments", icon: DollarSign },
     { id: "stripe", label: "Stripe Settings", icon: ShieldCheck },
     { id: "analytics", label: "Analytics", icon: BarChart3 },
     { id: "settings", label: "Settings", icon: SettingsIcon },
@@ -917,7 +919,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                            </p>
                            <div className="space-y-6">
                               {['Beverage Cart', 'Clubhouse', 'Lane Delivery', 'Take Out'].map(mode => {
-                                const thresholds = venueThresholds[mode] || { warning: 15, max: 20 };
+                                const thresholds = venueThresholds[mode] || DEFAULT_THRESHOLDS[mode] || { warning: 15, max: 20 };
                                 return (
                                   <div key={mode} className="space-y-3 p-4 bg-slate-50 rounded-2xl border-2">
                                     <div className="flex items-center justify-between mb-1">

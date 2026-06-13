@@ -30,6 +30,13 @@ const getStatusConfig = (status: Order['status']) => {
   return config[status] || { label: '???', icon: Clock, variant: 'outline' };
 };
 
+const DEFAULT_THRESHOLDS: Record<string, { warning: number; max: number }> = {
+  'Beverage Cart': { warning: 10, max: 15 },
+  'Clubhouse': { warning: 15, max: 20 },
+  'Lane Delivery': { warning: 10, max: 15 },
+  'Take Out': { warning: 15, max: 25 }
+};
+
 export function OrderCard({ order, orderNumber, onUpdateStatus, thresholds, now }: OrderCardProps) {
   const statusInfo = getStatusConfig(order.status);
   
@@ -37,8 +44,9 @@ export function OrderCard({ order, orderNumber, onUpdateStatus, thresholds, now 
   const orderTime = order.createdAt?.toDate?.()?.getTime() || now;
   const minutesElapsed = Math.floor((now - orderTime) / 60000);
   
-  const warningThreshold = thresholds?.warning || 15;
-  const maxThreshold = thresholds?.max || 20;
+  const modeDefaults = DEFAULT_THRESHOLDS[order.menuType] || { warning: 15, max: 20 };
+  const warningThreshold = thresholds?.warning || modeDefaults.warning;
+  const maxThreshold = thresholds?.max || modeDefaults.max;
   
   const isOverdue = minutesElapsed >= maxThreshold;
   const isWarning = minutesElapsed >= warningThreshold && !isOverdue;
