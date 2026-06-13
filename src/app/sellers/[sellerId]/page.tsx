@@ -122,8 +122,8 @@ import {
   closestCenter,
   KeyboardSensor,
   PointerSensor,
-  useSensor,
   useSensors,
+  useSensor,
   DragEndEvent,
 } from '@dnd-kit/core';
 import {
@@ -921,17 +921,17 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                       <div className="bg-primary/10 p-2 rounded-xl text-primary"><Zap className="h-5 w-5" /></div>
                       <h3 className="font-headline font-black text-lg text-[#213147] uppercase">Channel Status</h3>
                     </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
                        {['Beverage Cart', 'Clubhouse', 'Lane Delivery', 'Take Out'].map(mode => {
                           const isActive = (mode === 'Beverage Cart' && seller?.bevcartActive) || (mode === 'Clubhouse' && seller?.clubhouseActive) || (mode === 'Lane Delivery' && seller?.lanedeliveryActive) || (mode === 'Take Out' && seller?.takeoutActive);
                           if (!seller?.menuTypes?.includes(mode)) return null;
                           return (
                             <Card key={mode} className={cn("border-2 transition-all cursor-pointer group", isActive ? "border-primary bg-primary/5 shadow-md" : "border-slate-100 hover:border-slate-200")} onClick={() => handleToggleMode(mode, !!isActive)}>
-                               <CardContent className="p-5 flex flex-col items-center text-center gap-4">
-                                  <div className={cn("p-4 rounded-2xl transition-all group-hover:scale-110", isActive ? "bg-primary text-white" : "bg-slate-100 text-slate-400")}><Zap className="h-6 w-6" /></div>
-                                  <div className="space-y-1">
-                                    <p className="font-black uppercase text-xs text-[#213147]">{mode}</p>
-                                    <Badge variant="outline" className={cn("text-[8px] font-black uppercase h-4", isActive ? "bg-green-50 text-green-600 border-green-100" : "bg-slate-50 text-slate-400 border-slate-200")}>{isActive ? 'ONLINE' : 'OFFLINE'}</Badge>
+                               <CardContent className="p-2.5 flex flex-col items-center text-center gap-2">
+                                  <div className={cn("p-2 rounded-xl transition-all group-hover:scale-110", isActive ? "bg-primary text-white" : "bg-slate-100 text-slate-400")}><Zap className="h-3.5 w-3.5" /></div>
+                                  <div className="space-y-0.5">
+                                    <p className="font-black uppercase text-[9px] text-[#213147] leading-tight truncate w-full">{mode}</p>
+                                    <Badge variant="outline" className={cn("text-[7px] font-black uppercase h-3.5 px-1.5", isActive ? "bg-green-50 text-green-600 border-green-100" : "bg-slate-50 text-slate-400 border-slate-200")}>{isActive ? 'ON' : 'OFF'}</Badge>
                                   </div>
                                </CardContent>
                             </Card>
