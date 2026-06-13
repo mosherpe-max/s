@@ -157,13 +157,13 @@ function NavButton({ id, label, icon: Icon, active, onClick, sidebarOpen }: {
       className={cn(
         "flex items-center gap-3 w-full px-4 py-3 rounded-xl transition-all duration-200 group",
         active 
-          ? "bg-primary/10 text-white border-l-4 border-primary" 
+          ? "bg-primary/10 text-white border-r-4 border-primary" 
           : "text-slate-400 hover:bg-white/5 hover:text-white"
       )}
     >
       <Icon className={cn("h-5 w-5 shrink-0", active ? "text-primary" : "group-hover:text-white")} />
       {sidebarOpen && (
-        <span className={cn("text-xs font-bold uppercase tracking-widest whitespace-nowrap overflow-hidden animate-in fade-in slide-in-from-left-2 duration-300", active ? "text-white" : "")}>
+        <span className={cn("text-xs font-bold uppercase tracking-widest whitespace-nowrap overflow-hidden animate-in fade-in slide-in-from-right-2 duration-300", active ? "text-white" : "")}>
           {label}
         </span>
       )}
@@ -441,8 +441,19 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     const showLabels = forceLabels || sidebarOpen;
     return (
       <div className="flex flex-col h-full">
-        <div className="p-6 border-b border-white/5 flex items-center justify-between shrink-0">
-          <StylizedKoopLogo size={showLabels ? "md" : "sm"} />
+        <div className="p-6 border-b border-white/5 space-y-4 shrink-0">
+          <div className="flex items-center justify-between">
+            <StylizedKoopLogo size={showLabels ? "md" : "sm"} />
+          </div>
+          {showLabels && (
+            <div className="bg-white/5 rounded-xl p-3 border border-white/10 animate-in fade-in slide-in-from-top-2 duration-500">
+              <p className="text-[9px] font-black text-primary uppercase tracking-[0.2em] mb-1">Active Venue</p>
+              <p className="text-xs font-black text-white uppercase tracking-tight truncate leading-tight">{seller?.courseName}</p>
+              <Badge variant="outline" className="mt-2 text-[8px] border-white/20 text-white/60 uppercase font-black tracking-widest h-4 px-1.5">
+                {seller?.type}
+              </Badge>
+            </div>
+          )}
         </div>
 
         <nav className="flex-1 p-3 space-y-1 overflow-y-auto no-scrollbar">
@@ -460,21 +471,12 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
         </nav>
 
         <div className="mt-auto border-t border-white/5 p-4 shrink-0">
-          {showLabels && (
-            <div className="bg-white/5 rounded-xl p-4 mb-4">
-              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Active Venue</p>
-              <p className="text-xs font-black text-white uppercase tracking-tight truncate">{seller?.courseName}</p>
-              <Badge variant="outline" className="mt-2 text-[8px] border-primary/30 text-primary uppercase font-black tracking-widest">
-                {seller?.type}
-              </Badge>
-            </div>
-          )}
           {!isMobile && (
             <button 
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="w-full flex items-center justify-center p-2 text-slate-400 hover:text-white transition-colors"
+              className="w-full flex items-center justify-center p-3 text-slate-400 hover:text-white hover:bg-white/5 rounded-xl transition-all"
             >
-              {sidebarOpen ? <ChevronLeft /> : <ChevronRight />}
+              {sidebarOpen ? <ChevronRight /> : <ChevronLeft />}
             </button>
           )}
         </div>
@@ -486,99 +488,151 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   if (!isMounted) return null;
 
   return (
-    <div className="flex h-screen bg-[#F8FAFC] overflow-hidden">
+    <div className="flex flex-col h-screen bg-[#F8FAFC] overflow-hidden">
       
-      {/* SIDEBAR NAVIGATION (Desktop) */}
-      <aside className={cn(
-        "bg-[#213147] hidden lg:flex flex-col transition-all duration-300 relative border-r-4 border-primary/20 shrink-0",
-        sidebarOpen ? "w-64" : "w-20"
-      )}>
-        <SideBarContent />
-      </aside>
-
-      {/* MAIN CONTENT AREA */}
-      <main className="flex-1 flex flex-col overflow-hidden">
-        
-        {/* TOP HEADER */}
-        <header className="h-16 bg-white border-b-2 flex items-center justify-between px-4 sm:px-8 shrink-0 z-20 shadow-sm">
-          <div className="flex items-center gap-3 sm:gap-4">
-            {isMobile && (
-              <Sheet>
-                <SheetTrigger asChild>
-                  <Button variant="ghost" size="icon" className="text-[#213147]">
-                    <Menu className="h-6 w-6" />
-                  </Button>
-                </SheetTrigger>
-                <SheetContent side="left" className="p-0 bg-[#213147] border-r-4 border-primary/20">
-                  <SheetHeader className="sr-only">
-                    <SheetTitle>Establishment Navigator</SheetTitle>
-                    <SheetDescription>Access management tools for your venue.</SheetDescription>
-                  </SheetHeader>
-                  <SideBarContent forceLabels={true} />
-                </SheetContent>
-              </Sheet>
-            )}
+      {/* TOP HEADER */}
+      <header className="h-16 bg-white border-b-2 flex items-center justify-between px-4 sm:px-8 shrink-0 z-20 shadow-sm">
+        <div className="flex items-center gap-3 sm:gap-4">
+          {isMobile && (
+            <Sheet>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="icon" className="text-[#213147]">
+                  <Menu className="h-6 w-6" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="right" className="p-0 bg-[#213147] border-l-4 border-primary/20">
+                <SheetHeader className="sr-only">
+                  <SheetTitle>Establishment Navigator</SheetTitle>
+                  <SheetDescription>Access management tools for your venue.</SheetDescription>
+                </SheetHeader>
+                <SideBarContent forceLabels={true} />
+              </SheetContent>
+            </Sheet>
+          )}
+          <div className="flex flex-col">
             <h2 className="text-lg sm:text-xl font-black font-headline uppercase tracking-tight text-[#213147] truncate">
               {NAV_ITEMS.find(n => n.id === activeNav)?.label}
             </h2>
-          </div>
-
-          <div className="flex items-center gap-2 sm:gap-4">
             {!isMobile && (
-              <div className="flex items-center gap-2 px-4 py-2 bg-slate-50 border rounded-full">
-                <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
-                <span className="text-[10px] font-black uppercase tracking-widest text-[#213147]">System Online</span>
-              </div>
+              <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">{seller?.courseName}</p>
             )}
-            <button 
-              onClick={() => router.push('/')}
-              className="p-2 text-muted-foreground hover:text-destructive transition-colors"
-            >
-              <LogOut className="h-5 w-5" />
-            </button>
           </div>
-        </header>
+        </div>
 
-        {/* SECTION CONTENT */}
-        <ScrollArea className="flex-1 p-4 sm:p-8">
-          <div className="max-w-6xl mx-auto space-y-8 sm:space-y-10 pb-20">
-            
-            {/* DASHBOARD SECTION */}
-            {activeNav === 'dashboard' && (
-              <div className="space-y-8 sm:space-y-10">
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                  <KPICard label="Today's Revenue" value={`$${stats?.todayRevenue}`} sub="+14% vs yesterday" icon={DollarSign} colorClass="bg-green-500" />
-                  <KPICard label="Active Orders" value={stats?.activeCount || 0} sub="In progress" icon={ShoppingBag} colorClass="bg-primary" />
-                  <KPICard label="Volume Today" value={stats?.totalOrdersCount || 0} sub="Confirmed" icon={Activity} colorClass="bg-[#213147]" />
-                  <KPICard label="Avg Order" value={`$${stats?.avgOrderValue}`} sub="MTD" icon={TrendingUp} colorClass="bg-amber-500" />
-                </div>
+        <div className="flex items-center gap-2 sm:gap-4">
+          {!isMobile && (
+            <div className="flex items-center gap-2 px-4 py-2 bg-slate-50 border rounded-full">
+              <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+              <span className="text-[10px] font-black uppercase tracking-widest text-[#213147]">System Online</span>
+            </div>
+          )}
+          <button 
+            onClick={() => router.push('/')}
+            className="p-2 text-muted-foreground hover:text-destructive transition-colors"
+          >
+            <LogOut className="h-5 w-5" />
+          </button>
+        </div>
+      </header>
 
-                <div className="space-y-4">
-                  <div className="flex items-center gap-3">
-                    <Activity className="h-5 w-5 text-primary" />
-                    <h3 className="font-headline font-black text-lg uppercase tracking-tight text-[#213147]">Recent Activity</h3>
+      <div className="flex-1 flex overflow-hidden">
+        {/* MAIN CONTENT AREA (Left) */}
+        <main className="flex-1 flex flex-col overflow-hidden">
+          <ScrollArea className="flex-1 p-4 sm:p-8">
+            <div className="max-w-6xl mx-auto space-y-8 sm:space-y-10 pb-20">
+              
+              {/* DASHBOARD SECTION */}
+              {activeNav === 'dashboard' && (
+                <div className="space-y-8 sm:space-y-10">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <KPICard label="Today's Revenue" value={`$${stats?.todayRevenue}`} sub="+14% vs yesterday" icon={DollarSign} colorClass="bg-green-500" />
+                    <KPICard label="Active Orders" value={stats?.activeCount || 0} sub="In progress" icon={ShoppingBag} colorClass="bg-primary" />
+                    <KPICard label="Volume Today" value={stats?.totalOrdersCount || 0} sub="Confirmed" icon={Activity} colorClass="bg-[#213147]" />
+                    <KPICard label="Avg Order" value={`$${stats?.avgOrderValue}`} sub="MTD" icon={TrendingUp} colorClass="bg-amber-500" />
                   </div>
+
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-3">
+                      <Activity className="h-5 w-5 text-primary" />
+                      <h3 className="font-headline font-black text-lg uppercase tracking-tight text-[#213147]">Recent Activity</h3>
+                    </div>
+                    <Card className="border-2 shadow-sm overflow-hidden">
+                      <div className="overflow-x-auto">
+                        <Table>
+                          <TableHeader className="bg-slate-50 border-b">
+                            <TableRow>
+                              <TableHead className="text-[10px] font-black uppercase">Order ID</TableHead>
+                              <TableHead className="text-[10px] font-black uppercase">Service</TableHead>
+                              <TableHead className="text-[10px] font-black uppercase">Patron</TableHead>
+                              <TableHead className="text-right text-[10px] font-black uppercase">Total</TableHead>
+                              <TableHead className="text-right text-[10px] font-black uppercase">Status</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {orders?.slice(0, 5).map((order) => (
+                              <TableRow key={order.id} className="hover:bg-slate-50/50">
+                                <TableCell className="font-mono text-xs font-bold text-primary">#{order.id.slice(-5).toUpperCase()}</TableCell>
+                                <TableCell className="text-[10px] font-black uppercase">{order.menuType}</TableCell>
+                                <TableCell className="text-[10px] font-medium">{order.customerName}</TableCell>
+                                <TableCell className="text-right font-bold text-xs">${order.total.toFixed(2)}</TableCell>
+                                <TableCell className="text-right">
+                                  <Badge variant="outline" className="text-[8px] font-black uppercase">{order.status}</Badge>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </Card>
+                  </div>
+                </div>
+              )}
+
+              {/* ORDERS SECTION */}
+              {activeNav === 'orders' && (
+                <div className="space-y-6">
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div className="flex gap-2 overflow-x-auto no-scrollbar">
+                      {['All', 'Placed', 'Preparing', 'Delivered'].map(status => (
+                        <Button key={status} variant="outline" className="h-9 px-4 text-[10px] font-black uppercase tracking-widest rounded-full whitespace-nowrap">
+                          {status}
+                        </Button>
+                      ))}
+                    </div>
+                    <Button onClick={() => {
+                      const worksheet = XLSX.utils.json_to_sheet(orders?.map(o => ({ ID: o.id, Patron: o.customerName, Total: o.total, Status: o.status, Date: o.createdAt?.toDate() })) || []);
+                      const workbook = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(workbook, worksheet, "Orders");
+                      XLSX.writeFile(workbook, `Koop_Export_${sellerId}.xlsx`);
+                    }} className="h-10 bg-[#213147] font-black uppercase text-[10px] tracking-widest gap-2">
+                      <Download className="h-4 w-4" /> Export Ledger
+                    </Button>
+                  </div>
+
                   <Card className="border-2 shadow-sm overflow-hidden">
                     <div className="overflow-x-auto">
                       <Table>
                         <TableHeader className="bg-slate-50 border-b">
                           <TableRow>
-                            <TableHead className="text-[10px] font-black uppercase">Order ID</TableHead>
-                            <TableHead className="text-[10px] font-black uppercase">Service</TableHead>
+                            <TableHead className="text-[10px] font-black uppercase">Timestamp</TableHead>
                             <TableHead className="text-[10px] font-black uppercase">Patron</TableHead>
-                            <TableHead className="text-right text-[10px] font-black uppercase">Total</TableHead>
+                            <TableHead className="text-[10px] font-black uppercase">Items</TableHead>
+                            <TableHead className="text-right text-[10px] font-black uppercase">Revenue</TableHead>
                             <TableHead className="text-right text-[10px] font-black uppercase">Status</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {orders?.slice(0, 5).map((order) => (
-                            <TableRow key={order.id} className="hover:bg-slate-50/50">
-                              <TableCell className="font-mono text-xs font-bold text-primary">#{order.id.slice(-5).toUpperCase()}</TableCell>
-                              <TableCell className="text-[10px] font-black uppercase">{order.menuType}</TableCell>
-                              <TableCell className="text-[10px] font-medium">{order.customerName}</TableCell>
-                              <TableCell className="text-right font-bold text-xs">${order.total.toFixed(2)}</TableCell>
+                          {orders?.map((order) => (
+                            <TableRow key={order.id}>
+                              <TableCell className="text-[10px] font-mono text-muted-foreground">
+                                {order.createdAt ? format(order.createdAt.toDate(), 'HH:mm:ss') : '--'}
+                              </TableCell>
+                              <TableCell className="font-bold text-xs">{order.customerName}</TableCell>
+                              <TableCell className="text-xs text-muted-foreground truncate max-w-[200px]">
+                                {order.items.map(i => `${i.quantity}x ${i.name}`).join(', ')}
+                              </TableCell>
+                              <TableCell className="text-right font-black text-xs">${order.total.toFixed(2)}</TableCell>
                               <TableCell className="text-right">
-                                <Badge variant="outline" className="text-[8px] font-black uppercase">{order.status}</Badge>
+                                <Badge className="text-[9px] font-black uppercase">{order.status}</Badge>
                               </TableCell>
                             </TableRow>
                           ))}
@@ -587,391 +641,344 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                     </div>
                   </Card>
                 </div>
-              </div>
-            )}
+              )}
 
-            {/* ORDERS SECTION */}
-            {activeNav === 'orders' && (
-              <div className="space-y-6">
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                  <div className="flex gap-2 overflow-x-auto no-scrollbar">
-                    {['All', 'Placed', 'Preparing', 'Delivered'].map(status => (
-                      <Button key={status} variant="outline" className="h-9 px-4 text-[10px] font-black uppercase tracking-widest rounded-full whitespace-nowrap">
-                        {status}
-                      </Button>
-                    ))}
-                  </div>
-                  <Button onClick={() => {
-                    const worksheet = XLSX.utils.json_to_sheet(orders?.map(o => ({ ID: o.id, Patron: o.customerName, Total: o.total, Status: o.status, Date: o.createdAt?.toDate() })) || []);
-                    const workbook = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(workbook, worksheet, "Orders");
-                    XLSX.writeFile(workbook, `Koop_Export_${sellerId}.xlsx`);
-                  }} className="h-10 bg-[#213147] font-black uppercase text-[10px] tracking-widest gap-2">
-                    <Download className="h-4 w-4" /> Export Ledger
-                  </Button>
-                </div>
-
-                <Card className="border-2 shadow-sm overflow-hidden">
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader className="bg-slate-50 border-b">
-                        <TableRow>
-                          <TableHead className="text-[10px] font-black uppercase">Timestamp</TableHead>
-                          <TableHead className="text-[10px] font-black uppercase">Patron</TableHead>
-                          <TableHead className="text-[10px] font-black uppercase">Items</TableHead>
-                          <TableHead className="text-right text-[10px] font-black uppercase">Revenue</TableHead>
-                          <TableHead className="text-right text-[10px] font-black uppercase">Status</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {orders?.map((order) => (
-                          <TableRow key={order.id}>
-                            <TableCell className="text-[10px] font-mono text-muted-foreground">
-                              {order.createdAt ? format(order.createdAt.toDate(), 'HH:mm:ss') : '--'}
-                            </TableCell>
-                            <TableCell className="font-bold text-xs">{order.customerName}</TableCell>
-                            <TableCell className="text-xs text-muted-foreground truncate max-w-[200px]">
-                              {order.items.map(i => `${i.quantity}x ${i.name}`).join(', ')}
-                            </TableCell>
-                            <TableCell className="text-right font-black text-xs">${order.total.toFixed(2)}</TableCell>
-                            <TableCell className="text-right">
-                              <Badge className="text-[9px] font-black uppercase">{order.status}</Badge>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                </Card>
-              </div>
-            )}
-
-            {/* MENU SECTION */}
-            {activeNav === 'menu' && (
-              <div className="space-y-8 animate-in fade-in duration-500">
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                  <div className="space-y-1">
-                    <h3 className="font-headline font-black text-lg uppercase tracking-tight text-[#213147]">Inventory Master</h3>
-                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Manage Global Item Registry</p>
-                  </div>
-                  <Button onClick={() => { setEditingItem(null); itemForm.reset(); setIsItemFormOpen(true); }} className="bg-primary hover:bg-primary/90 font-black uppercase text-[10px] tracking-widest h-10 gap-2">
-                    <Plus className="h-4 w-4" /> Add Item
-                  </Button>
-                </div>
-
-                <div className="space-y-10">
-                  {categories.map((category) => {
-                    const items = categorizedItems[category] || [];
-                    if (items.length === 0) return null;
-                    return (
-                      <div key={category} className="space-y-4">
-                        <div className="flex items-center gap-3 border-b-2 pb-2">
-                          <Layers className="h-4 w-4 text-primary" />
-                          <h4 className="font-headline font-black text-sm uppercase tracking-widest text-[#213147]">{category}</h4>
-                          <Badge variant="secondary" className="text-[8px] font-black">{items.length} items</Badge>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                          {items.map((item) => (
-                            <Card key={item.id} className="border-2 shadow-sm hover:border-primary/30 transition-all group overflow-hidden">
-                              <div className="flex h-24">
-                                <div className="w-24 shrink-0 bg-slate-50 border-r-2 flex items-center justify-center relative">
-                                  {item.imageUrl ? (
-                                    <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />
-                                  ) : (
-                                    <LucideImage className="h-6 w-6 text-slate-300" />
-                                  )}
-                                  <Badge className="absolute top-1 right-1 bg-white/90 text-primary border shadow-sm text-[8px] font-black">${item.price.toFixed(2)}</Badge>
-                                </div>
-                                <div className="flex-1 p-3 flex flex-col justify-between min-w-0">
-                                  <div className="space-y-0.5">
-                                    <p className="font-black text-xs uppercase text-[#213147] truncate">{item.name}</p>
-                                    <p className="text-[9px] text-muted-foreground line-clamp-2 leading-tight uppercase font-medium">{item.description}</p>
-                                  </div>
-                                  <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-primary" onClick={() => { setEditingItem(item); itemForm.reset(item); setIsItemFormOpen(true); }}>
-                                      <Edit className="h-3.5 w-3.5" />
-                                    </Button>
-                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleDeleteItem(item.id)}>
-                                      <Trash2 className="h-3.5 w-3.5" />
-                                    </Button>
-                                  </div>
-                                </div>
-                              </div>
-                            </Card>
-                          ))}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* SERVICE MODES SECTION */}
-            {activeNav === 'service' && (
-              <div className="space-y-8 animate-in fade-in duration-500">
-                <div className="space-y-1">
-                  <h3 className="font-headline font-black text-lg uppercase tracking-tight text-[#213147]">Service Core</h3>
-                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Active Channels & Menu Staging</p>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-                  {['Beverage Cart', 'Clubhouse', 'Lane Delivery', 'Take Out'].map((mode) => {
-                    const isActive = (mode === 'Beverage Cart' && seller?.bevcartActive) || 
-                                     (mode === 'Clubhouse' && seller?.clubhouseActive) ||
-                                     (mode === 'Lane Delivery' && seller?.lanedeliveryActive) ||
-                                     (mode === 'Take Out' && seller?.takeoutActive);
-                    return (
-                      <Card 
-                        key={mode} 
-                        className={cn(
-                          "cursor-pointer transition-all duration-300 border-2",
-                          isActive ? "border-primary bg-primary/5 shadow-md" : "border-slate-100 bg-white hover:border-slate-200"
-                        )}
-                        onClick={() => handleToggleMode(mode, !!isActive)}
-                      >
-                        <CardContent className="p-4 flex items-center justify-between">
-                          <div className="space-y-1">
-                            <p className="text-[10px] font-black uppercase text-[#213147] tracking-tight">{mode}</p>
-                            <Badge className={cn("text-[7px] font-black h-4 px-1.5", isActive ? "bg-primary" : "bg-slate-200 text-slate-400")}>{isActive ? 'LIVE' : 'OFF'}</Badge>
-                          </div>
-                          <Zap className={cn("h-4 w-4", isActive ? "text-primary" : "text-slate-200")} />
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
-                </div>
-
-                <div className="space-y-6 pt-4 border-t-2">
-                  <div className="flex items-center gap-3">
-                    <TrendingUp className="h-5 w-5 text-primary" />
-                    <h4 className="font-headline font-black text-base uppercase tracking-tight text-[#213147]">Priority Staging</h4>
+              {/* MENU SECTION */}
+              {activeNav === 'menu' && (
+                <div className="space-y-8 animate-in fade-in duration-500">
+                  <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                    <div className="space-y-1">
+                      <h3 className="font-headline font-black text-lg uppercase tracking-tight text-[#213147]">Inventory Master</h3>
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Manage Global Item Registry</p>
+                    </div>
+                    <Button onClick={() => { setEditingItem(null); itemForm.reset(); setIsItemFormOpen(true); }} className="bg-primary hover:bg-primary/90 font-black uppercase text-[10px] tracking-widest h-10 gap-2">
+                      <Plus className="h-4 w-4" /> Add Item
+                    </Button>
                   </div>
 
-                  <Tabs defaultValue={seller?.menuTypes?.[0] || 'Beverage Cart'} className="w-full">
-                    <TabsList className="bg-slate-100 p-1 rounded-xl h-12 mb-6 overflow-x-auto no-scrollbar justify-start">
-                      {seller?.menuTypes?.map(type => (
-                        <TabsTrigger key={type} value={type} className="text-[10px] font-black uppercase tracking-widest px-6 h-full data-[state=active]:bg-white data-[state=active]:shadow-sm">
-                          {type}
-                        </TabsTrigger>
-                      ))}
-                    </TabsList>
-                    
-                    {seller?.menuTypes?.map(type => {
-                      const items = menuItems?.filter(i => i.availableOn?.includes(type)) || [];
+                  <div className="space-y-10">
+                    {categories.map((category) => {
+                      const items = categorizedItems[category] || [];
+                      if (items.length === 0) return null;
                       return (
-                        <TabsContent key={type} value={type} className="space-y-4">
-                          <div className="bg-slate-50 p-4 rounded-2xl border-2 border-dashed flex items-center justify-between">
-                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Drag items to prioritize patron viewing order in {type}</p>
-                            <span className="text-[9px] font-black bg-primary/10 text-primary px-2 py-0.5 rounded-full uppercase">{items.length} ACTIVE</span>
+                        <div key={category} className="space-y-4">
+                          <div className="flex items-center gap-3 border-b-2 pb-2">
+                            <Layers className="h-4 w-4 text-primary" />
+                            <h4 className="font-headline font-black text-sm uppercase tracking-widest text-[#213147]">{category}</h4>
+                            <Badge variant="secondary" className="text-[8px] font-black">{items.length} items</Badge>
                           </div>
-                          
-                          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(e) => handleDragEnd(e as any, type, items)}>
-                            <SortableContext items={items.map(i => i.id)} strategy={verticalListSortingStrategy}>
-                              <div className="grid gap-3">
-                                {items.length > 0 ? items.map(i => (
-                                  <SortableMenuItem 
-                                    key={i.id} 
-                                    item={i} 
-                                    onRemove={(it) => updateDoc(doc(firestore!, 'sellers', sellerId, 'menuItems', it.id), { 
-                                      availableOn: it.availableOn?.filter(t => t !== type) 
-                                    })} 
-                                  />
-                                )) : (
-                                  <div className="py-20 text-center opacity-40">
-                                    <UtensilsCrossed className="h-10 w-10 mx-auto mb-4" />
-                                    <p className="text-[10px] font-black uppercase tracking-widest">No items staged for this mode</p>
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {items.map((item) => (
+                              <Card key={item.id} className="border-2 shadow-sm hover:border-primary/30 transition-all group overflow-hidden">
+                                <div className="flex h-24">
+                                  <div className="w-24 shrink-0 bg-slate-50 border-r-2 flex items-center justify-center relative">
+                                    {item.imageUrl ? (
+                                      <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />
+                                    ) : (
+                                      <LucideImage className="h-6 w-6 text-slate-300" />
+                                    )}
+                                    <Badge className="absolute top-1 right-1 bg-white/90 text-primary border shadow-sm text-[8px] font-black">${item.price.toFixed(2)}</Badge>
                                   </div>
-                                )}
-                              </div>
-                            </SortableContext>
-                          </DndContext>
-                        </TabsContent>
+                                  <div className="flex-1 p-3 flex flex-col justify-between min-w-0">
+                                    <div className="space-y-0.5">
+                                      <p className="font-black text-xs uppercase text-[#213147] truncate">{item.name}</p>
+                                      <p className="text-[9px] text-muted-foreground line-clamp-2 leading-tight uppercase font-medium">{item.description}</p>
+                                    </div>
+                                    <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                      <Button variant="ghost" size="icon" className="h-7 w-7 text-primary" onClick={() => { setEditingItem(item); itemForm.reset(item); setIsItemFormOpen(true); }}>
+                                        <Edit className="h-3.5 w-3.5" />
+                                      </Button>
+                                      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleDeleteItem(item.id)}>
+                                        <Trash2 className="h-3.5 w-3.5" />
+                                      </Button>
+                                    </div>
+                                  </div>
+                                </div>
+                              </Card>
+                            ))}
+                          </div>
+                        </div>
                       );
                     })}
-                  </Tabs>
-                </div>
-              </div>
-            )}
-
-            {/* STAFF SECTION */}
-            {activeNav === 'staff' && (
-              <div className="space-y-6">
-                <div className="flex justify-between items-center">
-                   <h3 className="font-headline font-black text-lg uppercase tracking-tight text-[#213147]">Personnel Registry</h3>
-                   <Button onClick={() => { setEditingStaff(null); staffForm.reset(); setIsStaffFormOpen(true); }} className="bg-primary hover:bg-primary/90 font-black uppercase text-[10px] tracking-widest">
-                     Add Staff
-                   </Button>
-                </div>
-                <Card className="border-2 shadow-sm overflow-hidden">
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader className="bg-slate-50 border-b">
-                        <TableRow>
-                          <TableHead className="text-[10px] font-black uppercase">Name</TableHead>
-                          <TableHead className="text-[10px] font-black uppercase">Role</TableHead>
-                          <TableHead className="text-[10px] font-black uppercase">PIN</TableHead>
-                          <TableHead className="text-right text-[10px] font-black uppercase">Actions</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {staff?.map(s => (
-                          <TableRow key={s.id}>
-                            <TableCell className="font-bold text-xs uppercase">{s.name}</TableCell>
-                            <TableCell>
-                              <Badge variant="secondary" className="text-[9px] font-black uppercase">{s.role}</Badge>
-                            </TableCell>
-                            <TableCell><code className="text-xs font-mono font-black tracking-widest text-primary">{s.pin}</code></TableCell>
-                            <TableCell className="text-right">
-                              <Button variant="ghost" size="icon" onClick={() => { setEditingStaff(s); staffForm.reset(s); setIsStaffFormOpen(true); }}>
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
                   </div>
-                </Card>
-              </div>
-            )}
-
-            {/* PAYMENTS SECTION */}
-            {activeNav === 'payments' && (
-              <div className="space-y-8">
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                   <Card className="border-2 border-primary/20 bg-primary/5">
-                     <CardHeader className="pb-2 pt-5">
-                       <CardDescription className="text-[10px] font-black uppercase tracking-widest text-primary">MTD Revenue</CardDescription>
-                     </CardHeader>
-                     <CardContent>
-                       <div className="text-3xl font-black font-headline tracking-tighter text-[#213147]">${stats?.todayRevenue}</div>
-                       <p className="text-[9px] font-bold text-muted-foreground uppercase mt-1 italic"> payout pending</p>
-                     </CardContent>
-                   </Card>
-                   <Card className="border-2 border-slate-100 bg-white">
-                     <CardHeader className="pb-2 pt-5">
-                       <CardDescription className="text-[10px] font-black uppercase tracking-widest">Platform Fee</CardDescription>
-                     </CardHeader>
-                     <CardContent>
-                       <div className="text-3xl font-black font-headline tracking-tighter text-[#213147]">${seller?.serviceFee?.toFixed(2)}</div>
-                       <p className="text-[9px] font-bold text-muted-foreground uppercase mt-1">Per transaction</p>
-                     </CardContent>
-                   </Card>
-                   <Card className="border-2 border-slate-100 bg-white">
-                     <CardHeader className="pb-2 pt-5">
-                       <CardDescription className="text-[10px] font-black uppercase tracking-widest">Tax Rate</CardDescription>
-                     </CardHeader>
-                     <CardContent>
-                       <div className="text-3xl font-black font-headline tracking-tighter text-primary">{seller?.taxRate}%</div>
-                       <p className="text-[9px] font-bold text-muted-foreground uppercase mt-1">Venue collection</p>
-                     </CardContent>
-                   </Card>
                 </div>
+              )}
 
-                <Card className="border-2 shadow-sm overflow-hidden">
-                  <div className="grid grid-cols-1 lg:grid-cols-3">
-                    <div className="lg:col-span-2 p-8 space-y-4 border-r-2 border-slate-100">
-                      <div className="flex items-center gap-4">
-                        <div className="bg-primary/10 p-3 rounded-2xl text-primary">
-                          <CreditCard className="h-8 w-8" />
+              {/* SERVICE MODES SECTION */}
+              {activeNav === 'service' && (
+                <div className="space-y-8 animate-in fade-in duration-500">
+                  <div className="space-y-1">
+                    <h3 className="font-headline font-black text-lg uppercase tracking-tight text-[#213147]">Service Core</h3>
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Active Channels & Menu Staging</p>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                    {['Beverage Cart', 'Clubhouse', 'Lane Delivery', 'Take Out'].map((mode) => {
+                      const isActive = (mode === 'Beverage Cart' && seller?.bevcartActive) || 
+                                      (mode === 'Clubhouse' && seller?.clubhouseActive) ||
+                                      (mode === 'Lane Delivery' && seller?.lanedeliveryActive) ||
+                                      (mode === 'Take Out' && seller?.takeoutActive);
+                      return (
+                        <Card 
+                          key={mode} 
+                          className={cn(
+                            "cursor-pointer transition-all duration-300 border-2",
+                            isActive ? "border-primary bg-primary/5 shadow-md" : "border-slate-100 bg-white hover:border-slate-200"
+                          )}
+                          onClick={() => handleToggleMode(mode, !!isActive)}
+                        >
+                          <CardContent className="p-4 flex items-center justify-between">
+                            <div className="space-y-1">
+                              <p className="text-[10px] font-black uppercase text-[#213147] tracking-tight">{mode}</p>
+                              <Badge className={cn("text-[7px] font-black h-4 px-1.5", isActive ? "bg-primary" : "bg-slate-200 text-slate-400")}>{isActive ? 'LIVE' : 'OFF'}</Badge>
+                            </div>
+                            <Zap className={cn("h-4 w-4", isActive ? "text-primary" : "text-slate-200")} />
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+                  </div>
+
+                  <div className="space-y-6 pt-4 border-t-2">
+                    <div className="flex items-center gap-3">
+                      <TrendingUp className="h-5 w-5 text-primary" />
+                      <h4 className="font-headline font-black text-base uppercase tracking-tight text-[#213147]">Priority Staging</h4>
+                    </div>
+
+                    <Tabs defaultValue={seller?.menuTypes?.[0] || 'Beverage Cart'} className="w-full">
+                      <TabsList className="bg-slate-100 p-1 rounded-xl h-12 mb-6 overflow-x-auto no-scrollbar justify-start">
+                        {seller?.menuTypes?.map(type => (
+                          <TabsTrigger key={type} value={type} className="text-[10px] font-black uppercase tracking-widest px-6 h-full data-[state=active]:bg-white data-[state=active]:shadow-sm">
+                            {type}
+                          </TabsTrigger>
+                        ))}
+                      </TabsList>
+                      
+                      {seller?.menuTypes?.map(type => {
+                        const items = menuItems?.filter(i => i.availableOn?.includes(type)) || [];
+                        return (
+                          <TabsContent key={type} value={type} className="space-y-4">
+                            <div className="bg-slate-50 p-4 rounded-2xl border-2 border-dashed flex items-center justify-between">
+                              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Drag items to prioritize patron viewing order in {type}</p>
+                              <span className="text-[9px] font-black bg-primary/10 text-primary px-2 py-0.5 rounded-full uppercase">{items.length} ACTIVE</span>
+                            </div>
+                            
+                            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(e) => handleDragEnd(e as any, type, items)}>
+                              <SortableContext items={items.map(i => i.id)} strategy={verticalListSortingStrategy}>
+                                <div className="grid gap-3">
+                                  {items.length > 0 ? items.map(i => (
+                                    <SortableMenuItem 
+                                      key={i.id} 
+                                      item={i} 
+                                      onRemove={(it) => updateDoc(doc(firestore!, 'sellers', sellerId, 'menuItems', it.id), { 
+                                        availableOn: it.availableOn?.filter(t => t !== type) 
+                                      })} 
+                                    />
+                                  )) : (
+                                    <div className="py-20 text-center opacity-40">
+                                      <UtensilsCrossed className="h-10 w-10 mx-auto mb-4" />
+                                      <p className="text-[10px] font-black uppercase tracking-widest">No items staged for this mode</p>
+                                    </div>
+                                  )}
+                                </div>
+                              </SortableContext>
+                            </DndContext>
+                          </TabsContent>
+                        );
+                      })}
+                    </Tabs>
+                  </div>
+                </div>
+              )}
+
+              {/* STAFF SECTION */}
+              {activeNav === 'staff' && (
+                <div className="space-y-6">
+                  <div className="flex justify-between items-center">
+                    <h3 className="font-headline font-black text-lg uppercase tracking-tight text-[#213147]">Personnel Registry</h3>
+                    <Button onClick={() => { setEditingStaff(null); staffForm.reset(); setIsStaffFormOpen(true); }} className="bg-primary hover:bg-primary/90 font-black uppercase text-[10px] tracking-widest">
+                      Add Staff
+                    </Button>
+                  </div>
+                  <Card className="border-2 shadow-sm overflow-hidden">
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader className="bg-slate-50 border-b">
+                          <TableRow>
+                            <TableHead className="text-[10px] font-black uppercase">Name</TableHead>
+                            <TableHead className="text-[10px] font-black uppercase">Role</TableHead>
+                            <TableHead className="text-[10px] font-black uppercase">PIN</TableHead>
+                            <TableHead className="text-right text-[10px] font-black uppercase">Actions</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {staff?.map(s => (
+                            <TableRow key={s.id}>
+                              <TableCell className="font-bold text-xs uppercase">{s.name}</TableCell>
+                              <TableCell>
+                                <Badge variant="secondary" className="text-[9px] font-black uppercase">{s.role}</Badge>
+                              </TableCell>
+                              <TableCell><code className="text-xs font-mono font-black tracking-widest text-primary">{s.pin}</code></TableCell>
+                              <TableCell className="text-right">
+                                <Button variant="ghost" size="icon" onClick={() => { setEditingStaff(s); staffForm.reset(s); setIsStaffFormOpen(true); }}>
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </Card>
+                </div>
+              )}
+
+              {/* PAYMENTS SECTION */}
+              {activeNav === 'payments' && (
+                <div className="space-y-8">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                    <Card className="border-2 border-primary/20 bg-primary/5">
+                      <CardHeader className="pb-2 pt-5">
+                        <CardDescription className="text-[10px] font-black uppercase tracking-widest text-primary">MTD Revenue</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="text-3xl font-black font-headline tracking-tighter text-[#213147]">${stats?.todayRevenue}</div>
+                        <p className="text-[9px] font-bold text-muted-foreground uppercase mt-1 italic"> payout pending</p>
+                      </CardContent>
+                    </Card>
+                    <Card className="border-2 border-slate-100 bg-white">
+                      <CardHeader className="pb-2 pt-5">
+                        <CardDescription className="text-[10px] font-black uppercase tracking-widest">Platform Fee</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="text-3xl font-black font-headline tracking-tighter text-[#213147]">${seller?.serviceFee?.toFixed(2)}</div>
+                        <p className="text-[9px] font-bold text-muted-foreground uppercase mt-1">Per transaction</p>
+                      </CardContent>
+                    </Card>
+                    <Card className="border-2 border-slate-100 bg-white">
+                      <CardHeader className="pb-2 pt-5">
+                        <CardDescription className="text-[10px] font-black uppercase tracking-widest">Tax Rate</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="text-3xl font-black font-headline tracking-tighter text-primary">{seller?.taxRate}%</div>
+                        <p className="text-[9px] font-bold text-muted-foreground uppercase mt-1">Venue collection</p>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  <Card className="border-2 shadow-sm overflow-hidden">
+                    <div className="grid grid-cols-1 lg:grid-cols-3">
+                      <div className="lg:col-span-2 p-8 space-y-4 border-r-2 border-slate-100">
+                        <div className="flex items-center gap-4">
+                          <div className="bg-primary/10 p-3 rounded-2xl text-primary">
+                            <CreditCard className="h-8 w-8" />
+                          </div>
+                          <div>
+                            <h3 className="font-headline font-black text-xl uppercase tracking-tight text-[#213147]">Stripe Connectivity</h3>
+                            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">PCI-DSS Level 1 Secure</p>
+                          </div>
                         </div>
-                        <div>
-                          <h3 className="font-headline font-black text-xl uppercase tracking-tight text-[#213147]">Stripe Connectivity</h3>
-                          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">PCI-DSS Level 1 Secure</p>
+                        <p className="text-sm text-slate-600 leading-relaxed max-w-xl">
+                          Your revenue is processed securely via Stripe Express and deposited directly into your linked bank account every 48 hours.
+                        </p>
+                        <div className="pt-6 border-t border-slate-100 mt-4">
+                          <Button 
+                            variant="outline" 
+                            onClick={handleVerifyStripeConnection}
+                            disabled={isVerifyingStripe}
+                            className="h-10 px-4 text-[10px] font-black uppercase tracking-widest border-2 gap-2"
+                          >
+                            {isVerifyingStripe ? <Loader2 className="h-3 w-3 animate-spin" /> : <HeartPulse className="h-3.5 w-3.5 text-primary" />}
+                            Run Diagnostic
+                          </Button>
+                          {verificationResult && (
+                            <div className="mt-4 p-4 bg-slate-50 border-2 rounded-2xl">
+                              <p className="text-[9px] font-black text-primary uppercase mb-1">Status Report</p>
+                              <p className="text-xs font-bold uppercase">{verificationResult.businessName}: {verificationResult.status}</p>
+                            </div>
+                          )}
                         </div>
                       </div>
-                      <p className="text-sm text-slate-600 leading-relaxed max-w-xl">
-                        Your revenue is processed securely via Stripe Express and deposited directly into your linked bank account every 48 hours.
-                      </p>
-                      <div className="pt-6 border-t border-slate-100 mt-4">
-                        <Button 
-                          variant="outline" 
-                          onClick={handleVerifyStripeConnection}
-                          disabled={isVerifyingStripe}
-                          className="h-10 px-4 text-[10px] font-black uppercase tracking-widest border-2 gap-2"
-                        >
-                          {isVerifyingStripe ? <Loader2 className="h-3 w-3 animate-spin" /> : <HeartPulse className="h-3.5 w-3.5 text-primary" />}
-                          Run Diagnostic
-                        </Button>
-                        {verificationResult && (
-                          <div className="mt-4 p-4 bg-slate-50 border-2 rounded-2xl">
-                             <p className="text-[9px] font-black text-primary uppercase mb-1">Status Report</p>
-                             <p className="text-xs font-bold uppercase">{verificationResult.businessName}: {verificationResult.status}</p>
+
+                      <div className="bg-slate-50 p-8 flex flex-col items-center justify-center text-center gap-6">
+                        {!venueData ? (
+                          <div className="space-y-4">
+                            <AlertTriangle className="h-12 w-12 text-amber-500 mx-auto" />
+                            <p className="text-[10px] font-bold text-muted-foreground uppercase leading-relaxed">
+                              Payment Registry not provisioned for this venue.
+                            </p>
+                            <Button onClick={handleProvisionRegistry} disabled={isProvisioningRegistry} className="w-full bg-[#213147] font-black uppercase text-[10px] tracking-widest h-12">
+                              {isProvisioningRegistry ? <Loader2 className="animate-spin" /> : "Initialize Registry"}
+                            </Button>
                           </div>
+                        ) : venueData.payoutsEnabled ? (
+                          <>
+                            <div className="bg-green-100 p-5 rounded-full text-green-600 mb-2">
+                              <ShieldCheck className="h-12 w-12" />
+                            </div>
+                            <Badge className="bg-green-600 uppercase font-black px-4 py-1 h-auto">Payouts Enabled</Badge>
+                            <Button variant="outline" className="w-full text-[10px] font-black uppercase tracking-widest border-2" asChild>
+                              <a href="https://dashboard.stripe.com" target="_blank" rel="noopener noreferrer">Open Stripe <ExternalLink className="ml-2 h-3 w-3" /></a>
+                            </Button>
+                          </>
+                        ) : (
+                          <>
+                            <div className="bg-primary/10 p-5 rounded-full text-primary mb-2">
+                              <Mail className="h-12 w-12" />
+                            </div>
+                            <h4 className="font-headline font-black text-sm uppercase">Awaiting Activation</h4>
+                            <p className="text-[9px] font-bold text-muted-foreground uppercase">Onboarding incomplete or pending verification.</p>
+                            <Button className="w-full bg-primary font-black uppercase text-[10px] tracking-widest h-12 shadow-lg rounded-xl">
+                              Request Manual Setup
+                            </Button>
+                          </>
                         )}
                       </div>
                     </div>
+                  </Card>
+                </div>
+              )}
 
-                    <div className="bg-slate-50 p-8 flex flex-col items-center justify-center text-center gap-6">
-                      {!venueData ? (
-                        <div className="space-y-4">
-                          <AlertTriangle className="h-12 w-12 text-amber-500 mx-auto" />
-                          <p className="text-[10px] font-bold text-muted-foreground uppercase leading-relaxed">
-                            Payment Registry not provisioned for this venue.
-                          </p>
-                          <Button onClick={handleProvisionRegistry} disabled={isProvisioningRegistry} className="w-full bg-[#213147] font-black uppercase text-[10px] tracking-widest h-12">
-                            {isProvisioningRegistry ? <Loader2 className="animate-spin" /> : "Initialize Registry"}
-                          </Button>
-                        </div>
-                      ) : venueData.payoutsEnabled ? (
-                        <>
-                          <div className="bg-green-100 p-5 rounded-full text-green-600 mb-2">
-                            <ShieldCheck className="h-12 w-12" />
-                          </div>
-                          <Badge className="bg-green-600 uppercase font-black px-4 py-1 h-auto">Payouts Enabled</Badge>
-                          <Button variant="outline" className="w-full text-[10px] font-black uppercase tracking-widest border-2" asChild>
-                            <a href="https://dashboard.stripe.com" target="_blank" rel="noopener noreferrer">Open Stripe <ExternalLink className="ml-2 h-3 w-3" /></a>
-                          </Button>
-                        </>
-                      ) : (
-                        <>
-                          <div className="bg-primary/10 p-5 rounded-full text-primary mb-2">
-                            <Mail className="h-12 w-12" />
-                          </div>
-                          <h4 className="font-headline font-black text-sm uppercase">Awaiting Activation</h4>
-                          <p className="text-[9px] font-bold text-muted-foreground uppercase">Onboarding incomplete or pending verification.</p>
-                          <Button className="w-full bg-primary font-black uppercase text-[10px] tracking-widest h-12 shadow-lg rounded-xl">
-                            Request Manual Setup
-                          </Button>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                </Card>
-              </div>
-            )}
+              {/* SETTINGS SECTION */}
+              {activeNav === 'settings' && (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                  <Card className="border-2 shadow-sm">
+                    <CardHeader className="border-b bg-slate-50/50">
+                      <CardTitle className="text-sm font-black uppercase tracking-widest">Venue Maintenance</CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-6 space-y-4">
+                      <p className="text-xs text-muted-foreground leading-relaxed">
+                        Reset your demonstration data or assuming a staff role for the current shift.
+                      </p>
+                      <div className="flex flex-col gap-3 pt-4">
+                        <Button variant="outline" className="justify-between h-12 font-black uppercase text-[10px] tracking-widest border-2" onClick={handleResetDemo} disabled={isResettingDemo}>
+                          {isResettingDemo ? <Loader2 className="animate-spin" /> : "Reset Demo Data"}
+                          <Sparkles className="h-4 w-4 text-primary" />
+                        </Button>
+                        <Button variant="outline" className="justify-between h-12 font-black uppercase text-[10px] tracking-widest border-2" asChild>
+                          <Link href={`/sellers/${sellerId}/staff-login`}>
+                            Staff Interface
+                            <ExternalLink className="h-4 w-4" />
+                          </Link>
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
 
-            {/* SETTINGS SECTION */}
-            {activeNav === 'settings' && (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <Card className="border-2 shadow-sm">
-                   <CardHeader className="border-b bg-slate-50/50">
-                     <CardTitle className="text-sm font-black uppercase tracking-widest">Venue Maintenance</CardTitle>
-                   </CardHeader>
-                   <CardContent className="p-6 space-y-4">
-                     <p className="text-xs text-muted-foreground leading-relaxed">
-                       Reset your demonstration data or assuming a staff role for the current shift.
-                     </p>
-                     <div className="flex flex-col gap-3 pt-4">
-                       <Button variant="outline" className="justify-between h-12 font-black uppercase text-[10px] tracking-widest border-2" onClick={handleResetDemo} disabled={isResettingDemo}>
-                         {isResettingDemo ? <Loader2 className="animate-spin" /> : "Reset Demo Data"}
-                         <Sparkles className="h-4 w-4 text-primary" />
-                       </Button>
-                       <Button variant="outline" className="justify-between h-12 font-black uppercase text-[10px] tracking-widest border-2" asChild>
-                         <Link href={`/sellers/${sellerId}/staff-login`}>
-                           Staff Interface
-                           <ExternalLink className="h-4 w-4" />
-                         </Link>
-                       </Button>
-                     </div>
-                   </CardContent>
-                </Card>
-              </div>
-            )}
+            </div>
+          </ScrollArea>
+        </main>
 
-          </div>
-        </ScrollArea>
-      </main>
+        {/* SIDEBAR NAVIGATION (Desktop - Right Side) */}
+        <aside className={cn(
+          "bg-[#213147] hidden lg:flex flex-col transition-all duration-300 relative border-l-4 border-primary/20 shrink-0",
+          sidebarOpen ? "w-64" : "w-20"
+        )}>
+          <SideBarContent />
+        </aside>
+      </div>
 
       {/* STAFF DIALOG */}
       <Dialog open={isStaffFormOpen} onOpenChange={setIsStaffFormOpen}>
