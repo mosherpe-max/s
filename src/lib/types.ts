@@ -15,6 +15,7 @@ export const sellerTypes: readonly SellerType[] = [
 export interface PlatformConfig {
   supportEmail: string;
   logoUrl?: string;
+  defaultThresholds?: Record<string, { warning: number; max: number }>;
   updatedAt: Timestamp;
 }
 

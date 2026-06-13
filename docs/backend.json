@@ -47,6 +47,10 @@
       "properties": {
         "supportEmail": { "type": "string", "format": "email" },
         "logoUrl": { "type": "string", "description": "The URL or Base64 data of the platform logo." },
+        "defaultThresholds": { 
+          "type": "object", 
+          "description": "System-wide default timing thresholds for service modes."
+        },
         "updatedAt": { "type": "string", "format": "date-time" }
       }
     },
