@@ -135,17 +135,20 @@ function NavButton({ id, label, icon: Icon, active, onClick, sidebarOpen }: {
       onClick={() => onClick(id)}
       title={!sidebarOpen ? label : undefined}
       className={cn(
-        "flex items-center gap-3 w-full px-4 py-3 rounded-xl transition-all duration-200 group",
+        "flex items-center gap-3 w-full px-4 py-3 rounded-xl transition-all duration-200 group relative",
         active 
-          ? "bg-primary/10 text-white border-l-4 border-primary" 
+          ? "bg-primary/10 text-primary" 
           : "text-slate-400 hover:bg-white/5 hover:text-white"
       )}
     >
       <Icon className={cn("h-5 w-5 shrink-0", active ? "text-primary" : "group-hover:text-white")} />
       {sidebarOpen && (
-        <span className={cn("text-xs font-bold uppercase tracking-widest whitespace-nowrap overflow-hidden animate-in fade-in slide-in-from-left-2 duration-300", active ? "text-white" : "")}>
+        <span className={cn("text-xs font-bold uppercase tracking-widest whitespace-nowrap overflow-hidden animate-in fade-in slide-in-from-right-2 duration-300", active ? "text-primary" : "")}>
           {label}
         </span>
+      )}
+      {active && (
+        <div className="absolute right-0 top-0 bottom-0 w-1 bg-primary rounded-l-full" />
       )}
     </button>
   );
@@ -225,7 +228,7 @@ export default function PlatformAdminPage() {
     setIsMounted(true);
     if (typeof window !== 'undefined') {
       setBaseUrl(window.location.origin);
-      if (window.innerWidth < 1024) {
+      if (window.innerWidth < 768) {
         setSidebarOpen(false);
       }
     }
@@ -446,7 +449,7 @@ export default function PlatformAdminPage() {
   const SideBarContent = ({ forceLabels = false }: { forceLabels?: boolean }) => {
     const showLabels = forceLabels || sidebarOpen;
     return (
-      <div className="flex flex-col h-full">
+      <div className="flex flex-col h-full bg-[#213147] overflow-hidden">
         <div className="p-6 border-b border-white/5 flex items-center justify-between shrink-0">
           <StylizedKoopLogo size={showLabels ? "md" : "sm"} />
         </div>
@@ -465,7 +468,7 @@ export default function PlatformAdminPage() {
         </nav>
         <div className="mt-auto border-t border-white/5 p-4 shrink-0">
           {!isMobile && (
-            <button onClick={() => setSidebarOpen(!sidebarOpen)} className="w-full flex items-center justify-center p-2 text-slate-400 hover:text-white transition-colors">
+            <button onClick={() => setSidebarOpen(!sidebarOpen)} className="w-full flex items-center justify-center p-3 text-slate-400 hover:text-white hover:bg-white/5 rounded-xl transition-all">
               {sidebarOpen ? <ChevronLeft /> : <ChevronRight />}
             </button>
           )}
@@ -521,216 +524,221 @@ export default function PlatformAdminPage() {
   const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(venueOrderUrl)}`;
 
   return (
-    <div className="flex h-screen bg-[#F8FAFC] overflow-hidden">
-      <aside className={cn(
-        "bg-[#213147] hidden lg:flex flex-col transition-all duration-300 relative border-r-4 border-primary/20 shrink-0",
-        sidebarOpen ? "w-64" : "w-20"
-      )}>
-        <SideBarContent />
-      </aside>
-
-      <main className="flex-1 flex flex-col overflow-hidden">
-        <header className="h-16 bg-white border-b-2 flex items-center justify-between px-4 sm:px-8 shrink-0 z-20 shadow-sm">
-          <div className="flex items-center gap-3 sm:gap-4">
-            {isMobile && (
-              <Sheet>
-                <SheetTrigger asChild>
-                  <Button variant="ghost" size="icon" className="text-[#213147]">
-                    <Menu className="h-6 w-6" />
-                  </Button>
-                </SheetTrigger>
-                <SheetContent side="left" className="p-0 bg-[#213147] border-r-4 border-primary/20">
-                  <SheetHeader className="sr-only">
-                    <SheetTitle>Platform Administration Navigator</SheetTitle>
-                    <SheetDescription>Main navigation menu for global system administration.</SheetDescription>
-                  </SheetHeader>
-                  <SideBarContent forceLabels={true} />
-                </SheetContent>
-              </Sheet>
-            )}
+    <div className="flex flex-col h-screen bg-[#F8FAFC] overflow-hidden">
+      <header className="h-16 bg-white border-b-2 flex items-center justify-between px-4 sm:px-8 shrink-0 z-30 shadow-sm relative">
+        <div className="flex items-center gap-3 sm:gap-4">
+          {isMobile && (
+            <Sheet>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="icon" className="text-[#213147]">
+                  <Menu className="h-6 w-6" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="right" className="p-0 bg-[#213147] border-l-4 border-primary/20">
+                <SheetHeader className="sr-only">
+                  <SheetTitle>Platform Administration Navigator</SheetTitle>
+                  <SheetDescription>Main navigation menu for global system administration.</SheetDescription>
+                </SheetHeader>
+                <SideBarContent forceLabels={true} />
+              </SheetContent>
+            </Sheet>
+          )}
+          <div className="flex flex-col">
             <h2 className="text-lg sm:text-xl font-black font-headline uppercase tracking-tight text-[#213147]">
               {NAV_ITEMS.find(n => n.id === activeNav)?.label}
             </h2>
+            <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">Platform Command Console</p>
           </div>
-          <button onClick={handleLogout} className="p-2 text-muted-foreground hover:text-destructive">
-            <LogOut className="h-5 w-5" />
-          </button>
-        </header>
+        </div>
+        <button onClick={handleLogout} className="p-2 text-muted-foreground hover:text-destructive transition-colors">
+          <LogOut className="h-5 w-5" />
+        </button>
+      </header>
 
-        <ScrollArea className="flex-1 p-4 sm:p-8">
-          <div className="max-w-7xl mx-auto space-y-8 sm:space-y-10 pb-20">
-            {activeNav === 'dashboard' && (
-              <div className="space-y-8 animate-in fade-in duration-500">
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                  <KPICard label="Active Partners" value={metrics?.venueCounts.total || 0} sub="Global registry" icon={Store} colorClass="bg-indigo-600" />
-                  <KPICard label="GMV (MTD)" value={`$${metrics?.gmv.mtd.toLocaleString()}`} sub="Gross sales" icon={DollarSign} colorClass="bg-green-600" />
-                  <KPICard label="Orders (MTD)" value={metrics?.orders.mtd || 0} sub="Processed" icon={ShoppingBag} colorClass="bg-primary" />
-                  <KPICard label="Fee Revenue" value={`$${metrics?.fees.mtd.toLocaleString()}`} sub="Platform cut" icon={BarChart3} colorClass="bg-amber-500" />
-                </div>
-              </div>
-            )}
-
-            {activeNav === 'venues' && (
-              <div className="space-y-6 animate-in fade-in duration-500">
-                <div className="flex bg-white p-4 rounded-2xl border-2 shadow-sm gap-4 items-center">
-                  <Search className="h-4 w-4 text-muted-foreground ml-2" />
-                  <Input placeholder="Search registry by venue name..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="border-0 shadow-none focus-visible:ring-0 text-sm font-medium" />
-                </div>
-                <div className="border-2 rounded-2xl overflow-hidden bg-white shadow-sm">
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader className="bg-slate-50 border-b">
-                        <TableRow>
-                          <TableHead className="text-[10px] font-black uppercase">Establishment</TableHead>
-                          <TableHead className="text-[10px] font-black uppercase">Type</TableHead>
-                          <TableHead className="text-[10px] font-black uppercase">Contact</TableHead>
-                          <TableHead className="text-[10px] font-black uppercase">Status</TableHead>
-                          <TableHead className="text-right text-[10px] font-black uppercase">Actions</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {sellers?.filter(s => s.courseName.toLowerCase().includes(searchTerm.toLowerCase())).map((venue) => (
-                          <TableRow key={venue.id}>
-                            <TableCell>
-                              <div className="flex items-center gap-2">
-                                <span className="font-black text-sm uppercase text-[#213147]">{venue.courseName}</span>
-                                {venue.isFoundingPartner && (
-                                  <Badge className="bg-amber-500 hover:bg-amber-600 text-white border-0 h-4 px-1.5 gap-0.5">
-                                    <Star className="h-2 w-2 fill-current" />
-                                    <span className="text-[8px] font-black tracking-tight">FOUNDING</span>
-                                  </Badge>
-                                )}
-                              </div>
-                            </TableCell>
-                            <TableCell className="text-[10px] font-bold text-muted-foreground uppercase">{venue.type}</TableCell>
-                            <TableCell className="text-[10px] font-medium">{venue.contactName}</TableCell>
-                            <TableCell><Badge className={cn(venue.status === 'Active' ? 'bg-green-600' : 'bg-slate-300')}>{venue.status}</Badge></TableCell>
-                            <TableCell className="text-right">
-                              <Button variant="outline" size="sm" onClick={() => { setSelectedVenue(venue); setIsVenueDetailOpen(true); }} className="text-[10px] font-black uppercase">Manage</Button>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
+      <div className="flex-1 flex overflow-hidden">
+        <main className="flex-1 flex flex-col overflow-hidden relative">
+          <ScrollArea className="flex-1 p-4 sm:p-8">
+            <div className="max-w-7xl mx-auto space-y-8 sm:space-y-10 pb-20">
+              {activeNav === 'dashboard' && (
+                <div className="space-y-8 animate-in fade-in duration-500">
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                    <KPICard label="Active Partners" value={metrics?.venueCounts.total || 0} sub="Global registry" icon={Store} colorClass="bg-indigo-600" />
+                    <KPICard label="GMV (MTD)" value={`$${metrics?.gmv.mtd.toLocaleString()}`} sub="Gross sales" icon={DollarSign} colorClass="bg-green-600" />
+                    <KPICard label="Orders (MTD)" value={metrics?.orders.mtd || 0} sub="Processed" icon={ShoppingBag} colorClass="bg-primary" />
+                    <KPICard label="Fee Revenue" value={`$${metrics?.fees.mtd.toLocaleString()}`} sub="Platform cut" icon={BarChart3} colorClass="bg-amber-500" />
                   </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            {activeNav === 'demos' && (
-              <div className="space-y-8 animate-in fade-in duration-500">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {demoVenues.map((venue) => (
-                    <Card key={venue.id} className="group hover:border-indigo-500 transition-all border-2 shadow-sm overflow-hidden flex flex-col h-full">
-                      <div className={cn("h-24 bg-gradient-to-br p-6 flex items-end relative", venue.gradient)}>
-                        {venue.icon}
-                        <Badge className="bg-white/20 text-white border-white/30 backdrop-blur-md uppercase text-[9px] font-black">{venue.type}</Badge>
-                      </div>
-                      <CardHeader className="pt-4 space-y-1">
-                        <CardTitle className="text-lg font-black uppercase">{venue.title}</CardTitle>
-                        <CardDescription className="text-xs">{venue.sub}</CardDescription>
-                      </CardHeader>
-                      <CardContent className="flex-1 space-y-6">
-                        <div className="flex items-center gap-4 bg-muted/30 p-4 rounded-[2rem] border-2 border-dashed">
-                          <div className="bg-white p-2 rounded-2xl border-2 shadow-lg hover:scale-105 transition-transform cursor-pointer">
-                            <img 
-                              src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${baseUrl}${venue.buyerUrl}`}
-                              alt="Menu QR"
-                              width={128}
-                              height={128}
-                              className="rounded-xl w-32 h-32"
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
-                              <QrCode className="h-2.5 w-2.5" /> Scan to Preview
-                            </p>
-                            <p className="text-[10px] font-bold text-slate-600 leading-tight">Live Mobile Order Interface</p>
-                          </div>
+              {activeNav === 'venues' && (
+                <div className="space-y-6 animate-in fade-in duration-500">
+                  <div className="flex bg-white p-4 rounded-2xl border-2 shadow-sm gap-4 items-center">
+                    <Search className="h-4 w-4 text-muted-foreground ml-2" />
+                    <Input placeholder="Search registry by venue name..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="border-0 shadow-none focus-visible:ring-0 text-sm font-medium" />
+                  </div>
+                  <div className="border-2 rounded-2xl overflow-hidden bg-white shadow-sm">
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader className="bg-slate-50 border-b">
+                          <TableRow>
+                            <TableHead className="text-[10px] font-black uppercase">Establishment</TableHead>
+                            <TableHead className="text-[10px] font-black uppercase">Type</TableHead>
+                            <TableHead className="text-[10px] font-black uppercase">Contact</TableHead>
+                            <TableHead className="text-[10px] font-black uppercase">Status</TableHead>
+                            <TableHead className="text-right text-[10px] font-black uppercase">Actions</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {sellers?.filter(s => s.courseName.toLowerCase().includes(searchTerm.toLowerCase())).map((venue) => (
+                            <TableRow key={venue.id}>
+                              <TableCell>
+                                <div className="flex items-center gap-2">
+                                  <span className="font-black text-sm uppercase text-[#213147]">{venue.courseName}</span>
+                                  {venue.isFoundingPartner && (
+                                    <Badge className="bg-amber-500 hover:bg-amber-600 text-white border-0 h-4 px-1.5 gap-0.5">
+                                      <Star className="h-2 w-2 fill-current" />
+                                      <span className="text-[8px] font-black tracking-tight">FOUNDING</span>
+                                    </Badge>
+                                  )}
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-[10px] font-bold text-muted-foreground uppercase">{venue.type}</TableCell>
+                              <TableCell className="text-[10px] font-medium">{venue.contactName}</TableCell>
+                              <TableCell><Badge className={cn(venue.status === 'Active' ? 'bg-green-600' : 'bg-slate-300')}>{venue.status}</Badge></TableCell>
+                              <TableCell className="text-right">
+                                <Button variant="outline" size="sm" onClick={() => { setSelectedVenue(venue); setIsVenueDetailOpen(true); }} className="text-[10px] font-black uppercase">Manage</Button>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {activeNav === 'demos' && (
+                <div className="space-y-8 animate-in fade-in duration-500">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {demoVenues.map((venue) => (
+                      <Card key={venue.id} className="group hover:border-indigo-500 transition-all border-2 shadow-sm overflow-hidden flex flex-col h-full">
+                        <div className={cn("h-24 bg-gradient-to-br p-6 flex items-end relative", venue.gradient)}>
+                          {venue.icon}
+                          <Badge className="bg-white/20 text-white border-white/30 backdrop-blur-md uppercase text-[9px] font-black">{venue.type}</Badge>
                         </div>
+                        <CardHeader className="pt-4 space-y-1">
+                          <CardTitle className="text-lg font-black uppercase">{venue.title}</CardTitle>
+                          <CardDescription className="text-xs">{venue.sub}</CardDescription>
+                        </CardHeader>
+                        <CardContent className="flex-1 space-y-6">
+                          <div className="flex items-center gap-4 bg-muted/30 p-4 rounded-[2rem] border-2 border-dashed">
+                            <div className="bg-white p-2 rounded-2xl border-2 shadow-lg hover:scale-105 transition-transform cursor-pointer">
+                              <img 
+                                src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${baseUrl}${venue.buyerUrl}`}
+                                alt="Menu QR"
+                                width={128}
+                                height={128}
+                                className="rounded-xl w-32 h-32"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
+                                <QrCode className="h-2.5 w-2.5" /> Scan to Preview
+                              </p>
+                              <p className="text-[10px] font-bold text-slate-600 leading-tight">Live Mobile Order Interface</p>
+                            </div>
+                          </div>
 
-                        <div className="space-y-3">
-                          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground px-1">Staff Interfaces</p>
-                          <div className="grid grid-cols-1 gap-2">
-                            {venue.staffViews.map((view) => (
+                          <div className="space-y-3">
+                            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground px-1">Staff Interfaces</p>
+                            <div className="grid grid-cols-1 gap-2">
+                              {venue.staffViews.map((view) => (
+                                <Button 
+                                  key={view.url}
+                                  variant="outline" 
+                                  size="sm" 
+                                  asChild
+                                  className="h-9 justify-start text-[10px] font-black uppercase tracking-widest border-indigo-100 text-indigo-600 hover:bg-indigo-50"
+                                >
+                                  <Link href={view.url}>
+                                    {view.icon}
+                                    <span className="ml-2">{view.label}</span>
+                                    <ExternalLink className="ml-auto h-3 w-3 opacity-30" />
+                                  </Link>
+                                </Button>
+                              ))}
                               <Button 
-                                key={view.url}
-                                variant="outline" 
+                                variant="ghost" 
                                 size="sm" 
                                 asChild
-                                className="h-9 justify-start text-[10px] font-black uppercase tracking-widest border-indigo-100 text-indigo-600 hover:bg-indigo-50"
+                                className="h-9 justify-start text-[10px] font-black uppercase tracking-widest text-[#213147] hover:bg-slate-100"
                               >
-                                <Link href={view.url}>
-                                  {view.icon}
-                                  <span className="ml-2">{view.label}</span>
+                                <Link href={venue.adminUrl}>
+                                  <LayoutDashboard className="h-3.5 w-3.5" />
+                                  <span className="ml-2">Venue Admin</span>
                                   <ExternalLink className="ml-auto h-3 w-3 opacity-30" />
                                 </Link>
                               </Button>
-                            ))}
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              asChild
-                              className="h-9 justify-start text-[10px] font-black uppercase tracking-widest text-[#213147] hover:bg-slate-100"
-                            >
-                              <Link href={venue.adminUrl}>
-                                <LayoutDashboard className="h-3.5 w-3.5" />
-                                <span className="ml-2">Venue Admin</span>
-                                <ExternalLink className="ml-auto h-3 w-3 opacity-30" />
-                              </Link>
-                            </Button>
+                            </div>
                           </div>
-                        </div>
-                      </CardContent>
-                      <CardFooter className="pt-4 border-t bg-muted/5">
-                        <Button asChild className="w-full justify-between h-11 bg-[#213147] hover:bg-black font-black uppercase tracking-widest text-[10px]">
-                          <Link href={venue.buyerUrl}>
-                            Launch Patron Menu <PlayCircle className="h-4 w-4" />
-                          </Link>
-                        </Button>
-                      </CardFooter>
-                    </Card>
-                  ))}
+                        </CardContent>
+                        <CardFooter className="pt-4 border-t bg-muted/5">
+                          <Button asChild className="w-full justify-between h-11 bg-[#213147] hover:bg-black font-black uppercase tracking-widest text-[10px]">
+                            <Link href={venue.buyerUrl}>
+                              Launch Patron Menu <PlayCircle className="h-4 w-4" />
+                            </Link>
+                          </Button>
+                        </CardFooter>
+                      </Card>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            {activeNav === 'system' && (
-              <div className="space-y-6 animate-in fade-in duration-500">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <Card className="border-2 shadow-sm overflow-hidden">
-                    <CardHeader className="border-b bg-primary/5">
-                      <CardTitle className="font-black uppercase tracking-tight text-sm">Platform Branding</CardTitle>
-                    </CardHeader>
-                    <CardContent className="p-6 space-y-4">
-                      <div 
-                        onClick={() => fileInputRef.current?.click()}
-                        className="w-full aspect-[3/1] bg-slate-50 border-2 border-dashed rounded-2xl flex flex-col items-center justify-center cursor-pointer overflow-hidden"
-                      >
-                        {logoPreview || config?.logoUrl ? (
-                          <img src={logoPreview || config?.logoUrl} alt="Logo" className="max-h-full max-w-full object-contain" />
-                        ) : (
-                          <div className="text-center">
-                            <Upload className="h-6 w-6 mx-auto mb-2 text-slate-400" />
-                            <p className="text-[10px] font-black uppercase">Select PNG</p>
+              {activeNav === 'system' && (
+                <div className="space-y-6 animate-in fade-in duration-500">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <Card className="border-2 shadow-sm overflow-hidden">
+                      <CardHeader className="border-b bg-primary/5">
+                        <CardTitle className="font-black uppercase tracking-tight text-sm">Platform Branding</CardTitle>
+                      </CardHeader>
+                      <CardContent className="p-6 space-y-4">
+                        <div 
+                          onClick={() => fileInputRef.current?.click()}
+                          className="w-full aspect-[3/1] bg-slate-50 border-2 border-dashed rounded-2xl flex flex-col items-center justify-center cursor-pointer overflow-hidden"
+                        >
+                          {logoPreview || config?.logoUrl ? (
+                            <img src={logoPreview || config?.logoUrl} alt="Logo" className="max-h-full max-w-full object-contain" />
+                          ) : (
+                            <div className="text-center">
+                              <Upload className="h-6 w-6 mx-auto mb-2 text-slate-400" />
+                              <p className="text-[10px] font-black uppercase">Select PNG</p>
+                            </div>
+                          )}
+                          <input type="file" ref={fileInputRef} className="hidden" accept="image/png" onChange={handleLogoSelect} />
+                        </div>
+                        {logoPreview && (
+                          <div className="flex gap-2">
+                            <Button onClick={handleUploadLogo} disabled={isUploadingLogo} className="flex-1">Commit</Button>
+                            <Button variant="outline" onClick={() => setLogoPreview(null)}>Cancel</Button>
                           </div>
                         )}
-                        <input type="file" ref={fileInputRef} className="hidden" accept="image/png" onChange={handleLogoSelect} />
-                      </div>
-                      {logoPreview && (
-                        <div className="flex gap-2">
-                          <Button onClick={handleUploadLogo} disabled={isUploadingLogo} className="flex-1">Commit</Button>
-                          <Button variant="outline" onClick={() => setLogoPreview(null)}>Cancel</Button>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
+                      </CardContent>
+                    </Card>
+                  </div>
                 </div>
-              </div>
-            )}
-          </div>
-        </ScrollArea>
-      </main>
+              )}
+            </div>
+          </ScrollArea>
+        </main>
+
+        <aside className={cn(
+          "bg-[#213147] hidden md:flex flex-col transition-all duration-300 relative border-l-4 border-primary/20 shrink-0 shadow-2xl z-20",
+          sidebarOpen ? "w-64" : "w-20"
+        )}>
+          <SideBarContent />
+        </aside>
+      </div>
 
       <Dialog open={isVenueDetailOpen} onOpenChange={setIsVenueDetailOpen}>
         <DialogContent className="sm:max-w-[800px] max-w-[95vw] rounded-[2rem] p-0 overflow-hidden">
