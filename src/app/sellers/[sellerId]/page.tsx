@@ -409,6 +409,35 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
       }));
   }, [orders]);
 
+  // Derived Drivers for Map
+  const mappedDrivers = useMemo(() => {
+    if (!seller) return [];
+    const drivers = [];
+    
+    // Add primary cart location if active
+    if (seller.bevcartActive && seller.latitude) {
+      drivers.push({
+        id: 'primary-bevcart',
+        name: 'Beverage Cart',
+        location: { latitude: seller.latitude, longitude: seller.longitude },
+        type: 'Beverage Cart'
+      });
+    }
+
+    // Add static clubhouse location
+    if (seller.clubhouseActive) {
+      // Mocked slightly offset from seller if coordinates are identical
+      drivers.push({
+        id: 'clubhouse-server',
+        name: 'Clubhouse Dispatch',
+        location: { latitude: (seller.latitude || 0) + 0.0002, longitude: (seller.longitude || 0) + 0.0002 },
+        type: 'Clubhouse'
+      });
+    }
+
+    return drivers;
+  }, [seller]);
+
   const COLORS = ['#E50000', '#213147', '#4F46E5', '#F59E0B', '#10B981'];
 
   const NAV_ITEMS = [
@@ -660,6 +689,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                       <MapView 
                         sellerLocation={seller ? { latitude: seller.latitude, longitude: seller.longitude } : undefined}
                         buyers={mappedBuyers}
+                        drivers={mappedDrivers}
                         interactive={true}
                         showPrimaryMarker={true}
                       />

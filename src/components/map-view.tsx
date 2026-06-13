@@ -15,6 +15,12 @@ interface MapViewProps {
     name: string;
     location: { latitude: number; longitude: number };
   }[];
+  drivers?: {
+    id: string;
+    name: string;
+    location: { latitude: number; longitude: number };
+    type: string;
+  }[];
   buyers?: {
     id: string;
     name: string;
@@ -32,7 +38,7 @@ interface MapViewProps {
  * Internal component to handle map bounds and overlays.
  * Only runs once the API is loaded and the map instance is ready.
  */
-function MapElements({ buyerLocation, sellerLocation, sellers, buyers, radius, zoomMode = 'all', fitTrigger }: Omit<MapViewProps, 'interactive'>) {
+function MapElements({ buyerLocation, sellerLocation, sellers, buyers, drivers, radius, zoomMode = 'all', fitTrigger }: Omit<MapViewProps, 'interactive'>) {
   const map = useMap();
   const apiIsLoaded = useApiIsLoaded();
 
@@ -43,6 +49,7 @@ function MapElements({ buyerLocation, sellerLocation, sellers, buyers, radius, z
     const bounds = new window.google.maps.LatLngBounds();
     const hasBuyers = buyers && buyers.length > 0;
     const hasSellers = sellers && sellers.length > 0;
+    const hasDrivers = drivers && drivers.length > 0;
 
     let hasPoints = false;
 
@@ -50,7 +57,7 @@ function MapElements({ buyerLocation, sellerLocation, sellers, buyers, radius, z
       bounds.extend(new window.google.maps.LatLng(sellerLocation.latitude, sellerLocation.longitude));
       bounds.extend(new window.google.maps.LatLng(buyerLocation.latitude, buyerLocation.longitude));
       hasPoints = true;
-    } else if (zoomMode === 'all' && (hasBuyers || hasSellers || sellerLocation)) {
+    } else if (zoomMode === 'all' && (hasBuyers || hasSellers || hasDrivers || sellerLocation)) {
       if (sellerLocation) {
         bounds.extend(new window.google.maps.LatLng(sellerLocation.latitude, sellerLocation.longitude));
         hasPoints = true;
@@ -58,6 +65,12 @@ function MapElements({ buyerLocation, sellerLocation, sellers, buyers, radius, z
       if (sellers) {
         sellers.forEach(s => {
           bounds.extend(new window.google.maps.LatLng(s.location.latitude, s.location.longitude));
+          hasPoints = true;
+        });
+      }
+      if (drivers) {
+        drivers.forEach(d => {
+          bounds.extend(new window.google.maps.LatLng(d.location.latitude, d.location.longitude));
           hasPoints = true;
         });
       }
@@ -76,7 +89,7 @@ function MapElements({ buyerLocation, sellerLocation, sellers, buyers, radius, z
       map.setZoom(15);
     }
 
-  }, [map, apiIsLoaded, zoomMode, fitTrigger, buyerLocation?.latitude, buyerLocation?.longitude, sellerLocation?.latitude, sellerLocation?.longitude, buyers?.length]);
+  }, [map, apiIsLoaded, zoomMode, fitTrigger, buyerLocation?.latitude, buyerLocation?.longitude, sellerLocation?.latitude, sellerLocation?.longitude, buyers?.length, drivers?.length]);
 
   useEffect(() => {
     if (!map || !apiIsLoaded || !radius || !sellerLocation || !window.google) return;
@@ -104,7 +117,7 @@ function MapElements({ buyerLocation, sellerLocation, sellers, buyers, radius, z
  * The core map rendering logic. 
  * This is separated so it can safely use the useApiIsLoaded hook inside APIProvider.
  */
-function MapInternal({ buyerLocation, sellerLocation, showPrimaryMarker, primaryDriverId, sellers, buyers, radius, zoomMode, interactive, fitTrigger }: MapViewProps) {
+function MapInternal({ buyerLocation, sellerLocation, showPrimaryMarker, primaryDriverId, sellers, buyers, drivers, radius, zoomMode, interactive, fitTrigger }: MapViewProps) {
   const apiIsLoaded = useApiIsLoaded();
   const center = buyerLocation ? { lat: buyerLocation.latitude, lng: buyerLocation.longitude } : (sellerLocation ? { lat: sellerLocation.latitude, lng: sellerLocation.longitude } : { lat: 0, lng: 0 });
 
@@ -133,6 +146,7 @@ function MapInternal({ buyerLocation, sellerLocation, showPrimaryMarker, primary
           buyerLocation={buyerLocation} 
           sellers={sellers} 
           buyers={buyers} 
+          drivers={drivers}
           radius={radius} 
           zoomMode={zoomMode} 
           fitTrigger={fitTrigger}
@@ -146,10 +160,27 @@ function MapInternal({ buyerLocation, sellerLocation, showPrimaryMarker, primary
           />
         ))}
 
+        {/* Driver Pins - Unique Hexagonal Shape */}
+        {drivers && drivers.map(driver => (
+          <Marker 
+            key={driver.id} 
+            position={{ lat: driver.location.latitude, lng: driver.location.longitude }}
+            title={`${driver.name} (${driver.type})`}
+            icon={{
+              path: "M 0,-15 L 13,-7.5 L 13,7.5 L 0,15 L -13,7.5 L -13,-7.5 Z", // Pointy top Hexagon
+              fillColor: driver.type === 'Beverage Cart' ? '#E50000' : '#4F46E5',
+              fillOpacity: 1,
+              strokeWeight: 2,
+              strokeColor: '#FFFFFF',
+              scale: 1,
+            }}
+          />
+        ))}
+
         {showPrimaryMarker && sellerLocation && (!sellers || !sellers.some(s => s.location.latitude === sellerLocation.latitude && s.location.longitude === sellerLocation.longitude)) && (
           <Marker 
             position={{ lat: sellerLocation.latitude, lng: sellerLocation.longitude }}
-            title="Current Location"
+            title="Venue/Cart Hub"
           />
         )}
 
@@ -164,7 +195,12 @@ function MapInternal({ buyerLocation, sellerLocation, showPrimaryMarker, primary
           <Marker 
             key={buyer.id} 
             position={{ lat: buyer.location.latitude, lng: buyer.location.longitude }}
-            label={(index + 1).toString()}
+            label={{
+              text: (index + 1).toString(),
+              color: 'white',
+              fontSize: '10px',
+              fontWeight: '900'
+            }}
             title={buyer.name}
           />
         ))}

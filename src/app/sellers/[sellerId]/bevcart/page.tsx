@@ -107,15 +107,26 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
   }, []);
 
   useEffect(() => {
-    if (navigator.geolocation) {
+    if (navigator.geolocation && firestore && sellerId) {
       const watchId = navigator.geolocation.watchPosition(
-        (p) => setSellerLocation({ latitude: p.coords.latitude, longitude: p.coords.longitude }),
+        (p) => {
+          const lat = p.coords.latitude;
+          const lng = p.coords.longitude;
+          setSellerLocation({ latitude: lat, longitude: lng });
+          
+          // BROADCAST LIVE GPS TO FIRESTORE FOR ADMIN MONITORING
+          updateDoc(doc(firestore, 'sellers', sellerId), {
+            latitude: lat,
+            longitude: lng,
+            lastActive: serverTimestamp()
+          }).catch(err => console.error("GPS Broadcast Failed", err));
+        },
         null,
         { enableHighAccuracy: true, timeout: 10000 }
       );
       return () => navigator.geolocation.clearWatch(watchId);
     }
-  }, []);
+  }, [firestore, sellerId]);
 
   const handleUpdateOrderStatus = (orderId: string, status: Order['status']) => {
     if (!firestore) return;
@@ -189,7 +200,7 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
                 </div>
               ) : (
                 driverOrders.map((order, index) => (
-                  <OrderCard key={order.id} order={order} orderNumber={index + 1} onUpdateStatus={handleUpdateOrderStatus} />
+                  <OrderCard key={order.id} order={order} orderNumber={index + 1} now={now} onUpdateStatus={handleUpdateOrderStatus} />
                 ))
               )}
             </div>
