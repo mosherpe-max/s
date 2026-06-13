@@ -80,9 +80,10 @@ export interface Seller {
   stripeOnboardingComplete?: boolean;
 }
 
-export type Category = 'Beer' | 'Spirits' | 'Soft Drinks' | 'Snacks' | 'Other' | 'Handhelds' | 'Appetizers' | 'Entrees' | 'Pizza' | 'Salad' | 'Dessert' | 'Kids';
+export type Category = 'Featured' | 'Beer' | 'Spirits' | 'Soft Drinks' | 'Snacks' | 'Other' | 'Handhelds' | 'Appetizers' | 'Entrees' | 'Pizza' | 'Salad' | 'Dessert' | 'Kids';
 
 export const categories: readonly Category[] = [
+  'Featured',
   'Beer', 
   'Spirits', 
   'Soft Drinks', 

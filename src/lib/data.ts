@@ -1,3 +1,4 @@
+
 import type { MenuItem } from './types';
 import { PlaceHolderImages } from './placeholder-images';
 
@@ -44,9 +45,9 @@ export const commonMenuItems: (Omit<MenuItem, 'id' | 'rank'> & { id?: string, ra
 export const publicGolfItems: (Omit<MenuItem, 'id' | 'rank'> & { id?: string, rank?: number })[] = [
   { 
     name: 'Transfusion', 
-    description: 'Vodka, grape juice, ginger ale.', 
+    description: 'Signature Drink! Vodka, grape juice, ginger ale.', 
     price: 11.00, 
-    category: 'Spirits', 
+    category: 'Featured', 
     imageUrl: getImg('vodka bottle'), 
     availableOn: ['Beverage Cart', 'Clubhouse'] 
   },
@@ -94,7 +95,7 @@ export const privateGolfItems: (Omit<MenuItem, 'id' | 'rank'> & { id?: string, r
     name: 'Grilled Salmon', 
     description: 'Wild-caught with asparagus.', 
     price: 26.00, 
-    category: 'Entrees', 
+    category: 'Featured', 
     imageUrl: getImg('grilled salmon'), 
     availableOn: ['Clubhouse'] 
   },
@@ -142,7 +143,7 @@ export const bowlingAlleyItems: (Omit<MenuItem, 'id' | 'rank'> & { id?: string, 
     name: 'Pepperoni Pizza', 
     description: '12-inch stone fired.', 
     price: 18.00, 
-    category: 'Pizza', 
+    category: 'Featured', 
     imageUrl: getImg('pepperoni pizza'), 
     availableOn: ['Lane Delivery', 'Take Out'] 
   },
