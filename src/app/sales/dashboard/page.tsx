@@ -38,7 +38,9 @@ export default function SalesDashboardPage() {
 
   useEffect(() => {
     setIsMounted(true);
-    setBaseUrl(window.location.origin);
+    if (typeof window !== 'undefined') {
+      setBaseUrl(window.location.origin);
+    }
   }, []);
 
   if (!isMounted) return null;
@@ -307,7 +309,7 @@ export default function SalesDashboardPage() {
               <CardFooter>
                 <span className="text-[9px] font-black uppercase text-indigo-600 group-hover:translate-x-1 transition-transform flex items-center gap-1">Read Guide <ChevronRight className="h-2 w-2" /></span>
               </CardFooter>
-            </div>
+            </Card>
           </div>
         </section>
       </div>

@@ -1224,7 +1224,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField control={itemForm.control} name="price" render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-[10px] font-black uppercase tracking-widest">Price ($)</Label>
+                    <FormLabel className="text-[10px] font-black uppercase tracking-widest">Price ($)</FormLabel>
                     <FormControl><Input type="number" step="0.01" {...field} className="h-12 border-2 font-bold" /></FormControl>
                     <FormMessage />
                   </FormItem>
