@@ -25,7 +25,7 @@ import {
   Users,
   CreditCard,
   BarChart3,
-  Settings,
+  Settings as SettingsIcon,
   ChevronRight,
   ChevronLeft,
   Plus,
@@ -409,12 +409,9 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
       }));
   }, [orders]);
 
-  // Derived Drivers for Map
   const mappedDrivers = useMemo(() => {
     if (!seller) return [];
     const drivers = [];
-    
-    // Add primary cart location if active
     if (seller.bevcartActive && seller.latitude) {
       drivers.push({
         id: 'primary-bevcart',
@@ -423,10 +420,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
         type: 'Beverage Cart'
       });
     }
-
-    // Add static clubhouse location
     if (seller.clubhouseActive) {
-      // Mocked slightly offset from seller if coordinates are identical
       drivers.push({
         id: 'clubhouse-server',
         name: 'Clubhouse Dispatch',
@@ -434,7 +428,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
         type: 'Clubhouse'
       });
     }
-
     return drivers;
   }, [seller]);
 
@@ -442,13 +435,15 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
 
   const NAV_ITEMS = [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
-    { id: "orders", label: "Orders Queue", icon: ClipboardList },
-    { id: "menu", label: "Inventory / 86'd", icon: UtensilsCrossed },
-    { id: "service", label: "Service Center", icon: Zap },
-    { id: "staff", label: "Staff Registry", icon: Users },
-    { id: "payments", label: "Ledger", icon: CreditCard },
+    { id: "orders", label: "Orders", icon: ClipboardList },
+    { id: "menu", label: "Menu Items", icon: UtensilsCrossed },
+    { id: "service", label: "Service Modes", icon: Zap },
+    { id: "staff", label: "Staff", icon: Users },
+    { id: "payments", label: "Payments", icon: CreditCard },
+    { id: "stripe", label: "Stripe Settings", icon: ShieldCheck },
     { id: "analytics", label: "Analytics", icon: BarChart3 },
-    { id: "settings", label: "Venue Settings", icon: Settings },
+    { id: "settings", label: "Settings", icon: SettingsIcon },
+    { id: "marketing", label: "Marketing", icon: Smartphone },
   ];
 
   const isGolf = seller?.type?.toLowerCase().includes('golf');
@@ -585,44 +580,11 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                         <ResponsiveContainer width="100%" height="100%">
                           <BarChart data={analyticsData.hourly}>
                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
-                            <XAxis 
-                              dataKey="time" 
-                              axisLine={false} 
-                              tickLine={false} 
-                              fontSize={10} 
-                              fontWeight="bold" 
-                              tick={{ fill: '#64748B' }}
-                            />
-                            <YAxis 
-                              yId="left"
-                              axisLine={false} 
-                              tickLine={false} 
-                              fontSize={10} 
-                              fontWeight="bold" 
-                              tick={{ fill: '#64748B' }}
-                              label={{ value: 'Revenue ($)', angle: -90, position: 'insideLeft', offset: 0, style: { textAnchor: 'middle', fontSize: '9px', fontWeight: '900', textTransform: 'uppercase', fill: '#64748B' } }}
-                            />
-                            <YAxis 
-                              yId="right"
-                              orientation="right"
-                              axisLine={false} 
-                              tickLine={false} 
-                              fontSize={10} 
-                              fontWeight="bold" 
-                              tick={{ fill: '#64748B' }}
-                              label={{ value: 'Orders', angle: 90, position: 'insideRight', offset: 0, style: { textAnchor: 'middle', fontSize: '9px', fontWeight: '900', textTransform: 'uppercase', fill: '#64748B' } }}
-                            />
-                            <ChartTooltip 
-                              cursor={{ fill: 'transparent' }}
-                              contentStyle={{ 
-                                borderRadius: '16px', 
-                                border: '2px solid #E2E8F0',
-                                boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)',
-                                padding: '12px'
-                              }} 
-                              labelStyle={{ fontWeight: '900', textTransform: 'uppercase', marginBottom: '4px', fontSize: '12px' }}
-                            />
-                            <Legend verticalAlign="top" align="right" iconType="circle" wrapperStyle={{ fontSize: '10px', textTransform: 'uppercase', fontWeight: 'bold', paddingBottom: '20px' }} />
+                            <XAxis dataKey="time" axisLine={false} tickLine={false} fontSize={10} fontWeight="bold" tick={{ fill: '#64748B' }} />
+                            <YAxis yId="left" axisLine={false} tickLine={false} fontSize={10} fontWeight="bold" tick={{ fill: '#64748B' }} />
+                            <YAxis yId="right" orientation="right" axisLine={false} tickLine={false} fontSize={10} fontWeight="bold" tick={{ fill: '#64748B' }} />
+                            <ChartTooltip cursor={{ fill: 'transparent' }} contentStyle={{ borderRadius: '16px', border: '2px solid #E2E8F0', padding: '12px' }} />
+                            <Legend verticalAlign="top" align="right" iconType="circle" wrapperStyle={{ fontSize: '10px', textTransform: 'uppercase', fontWeight: 'bold' }} />
                             <Bar yId="left" name="Hourly Sales" dataKey="sales" fill="#E50000" radius={[4, 4, 0, 0]} barSize={20} />
                             <Bar yId="right" name="Deliveries" dataKey="deliveries" fill="#213147" radius={[4, 4, 0, 0]} barSize={20} />
                           </BarChart>
@@ -634,36 +596,18 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                       <Card className="border-2 shadow-sm">
                         <CardHeader className="bg-slate-50 border-b">
                           <CardTitle className="text-xs font-black uppercase tracking-widest">Active Channels</CardTitle>
-                          <CardDescription className="text-[9px] font-bold uppercase">Quick Mode Toggles</CardDescription>
                         </CardHeader>
                         <CardContent className="p-4 space-y-3">
                           {['Beverage Cart', 'Clubhouse', 'Lane Delivery', 'Take Out'].map(mode => {
                             const isActive = (mode === 'Beverage Cart' && seller?.bevcartActive) || (mode === 'Clubhouse' && seller?.clubhouseActive) || (mode === 'Lane Delivery' && seller?.lanedeliveryActive) || (mode === 'Take Out' && seller?.takeoutActive);
-                            const isAvailableForSeller = seller?.menuTypes?.includes(mode);
-                            if (!isAvailableForSeller) return null;
-
+                            if (!seller?.menuTypes?.includes(mode)) return null;
                             return (
                               <div key={mode} className={cn("flex items-center justify-between p-3 rounded-xl border-2 transition-all", isActive ? "bg-white border-primary/20 shadow-sm" : "bg-slate-50 border-slate-100 opacity-60")}>
-                                <div className="flex items-center gap-2">
-                                  <div className={cn("w-1.5 h-1.5 rounded-full animate-pulse", isActive ? "bg-green-500" : "bg-slate-300")} />
-                                  <span className="text-[10px] font-black uppercase text-[#213147]">{mode}</span>
-                                </div>
+                                <div className="flex items-center gap-2"><div className={cn("w-1.5 h-1.5 rounded-full animate-pulse", isActive ? "bg-green-500" : "bg-slate-300")} /><span className="text-[10px] font-black uppercase text-[#213147]">{mode}</span></div>
                                 <Switch checked={isActive} onCheckedChange={() => handleToggleMode(mode, !!isActive)} className="data-[state=checked]:bg-primary" />
                               </div>
                             );
                           })}
-                        </CardContent>
-                        <CardFooter className="p-3 bg-slate-50 border-t">
-                           <Button variant="ghost" size="sm" onClick={() => setActiveNav('service')} className="w-full text-[9px] font-black uppercase text-muted-foreground hover:text-primary">Advanced Channel Settings <ChevronRight className="ml-1 h-3 w-3" /></Button>
-                        </CardFooter>
-                      </Card>
-
-                      <Card className="border-2 shadow-sm bg-[#213147] text-white">
-                        <CardHeader className="pb-2">
-                           <p className="text-[10px] font-black uppercase tracking-widest text-primary">System Notice</p>
-                        </CardHeader>
-                        <CardContent>
-                           <p className="text-xs font-bold leading-relaxed">Ensure location tracking is active for on-course orders to maintain sub-20 minute delivery times.</p>
                         </CardContent>
                       </Card>
                     </div>
@@ -673,19 +617,8 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
 
               {activeNav === 'orders' && (
                 <div className="space-y-6 animate-in fade-in duration-500">
-                  {/* SATELLITE OPERATIONS MAP (GOLF ONLY) */}
                   {isGolf && (
                     <Card className="border-2 shadow-sm overflow-hidden h-[300px] relative">
-                      <div className="absolute top-4 left-4 z-10 space-y-1">
-                        <div className="bg-[#213147] text-white px-3 py-1.5 rounded-full flex items-center gap-2 shadow-xl border border-white/10">
-                          <MapIcon className="h-3 w-3 text-primary" />
-                          <span className="text-[9px] font-black uppercase tracking-widest">Live Operations Map</span>
-                        </div>
-                        <div className="flex gap-1.5">
-                          <Badge className="bg-red-600 text-white text-[8px] font-black uppercase border-0">BevCart</Badge>
-                          <Badge className="bg-indigo-600 text-white text-[8px] font-black uppercase border-0">Clubhouse</Badge>
-                        </div>
-                      </div>
                       <MapView 
                         sellerLocation={seller ? { latitude: seller.latitude, longitude: seller.longitude } : undefined}
                         buyers={mappedBuyers}
@@ -695,25 +628,9 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                       />
                     </Card>
                   )}
-
-                  <div className="flex justify-between items-center bg-white p-4 rounded-2xl border-2 shadow-sm">
-                    <div className="flex gap-2">
-                      <Button size="sm" variant="secondary" className="text-[9px] font-black uppercase tracking-widest rounded-full px-4">All Active</Button>
-                      <Button size="sm" variant="outline" className="text-[9px] font-black uppercase tracking-widest rounded-full px-4 border-2">Pending</Button>
-                    </div>
-                    <p className="text-[10px] font-black text-muted-foreground uppercase">{orders?.filter(o => o.status !== 'Delivered').length} Active Tickets</p>
-                  </div>
-
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                     {orders?.filter(o => o.status !== 'Delivered' && o.status !== 'Cancelled').sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0)).map((order, idx) => (
-                      <OrderCard 
-                        key={order.id} 
-                        order={order} 
-                        orderNumber={idx + 1} 
-                        now={now}
-                        thresholds={seller?.orderThresholds?.[order.menuType] || { warning: 15, max: 20 }}
-                        onUpdateStatus={handleUpdateStatus} 
-                      />
+                      <OrderCard key={order.id} order={order} orderNumber={idx + 1} now={now} onUpdateStatus={handleUpdateStatus} />
                     ))}
                   </div>
                 </div>
@@ -722,13 +639,9 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
               {activeNav === 'menu' && (
                 <div className="space-y-8 animate-in fade-in duration-500">
                   <div className="flex justify-between items-center">
-                    <div className="space-y-1">
-                       <h3 className="font-headline font-black text-lg text-[#213147] uppercase tracking-tight">Master Inventory</h3>
-                       <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Global visibility & 86'd management</p>
-                    </div>
+                    <h3 className="font-headline font-black text-lg text-[#213147] uppercase">Master Inventory</h3>
                     <Button onClick={() => { setEditingItem(null); itemForm.reset(); setIsItemFormOpen(true); }} className="bg-primary hover:bg-primary/90 font-black uppercase text-[10px] h-10 gap-2"><Plus className="h-4 w-4" /> Add Item</Button>
                   </div>
-
                   <div className="space-y-10">
                     {categories.map(cat => {
                       const items = menuItems?.filter(i => i.category === cat) || [];
@@ -737,15 +650,13 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                         <div key={cat} className="space-y-4">
                            <div className="flex items-center gap-3 border-b-2 pb-2">
                               <h4 className="font-headline font-black text-sm uppercase tracking-widest text-[#213147]">{cat}</h4>
-                              <Badge variant="secondary" className="text-[9px] font-black h-5">{items.length} Total</Badge>
                            </div>
                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                               {items.map(item => (
-                                <Card key={item.id} className={cn("border-2 overflow-hidden group transition-all", !item.isAvailable && "opacity-60 bg-slate-50 grayscale border-dashed")}>
+                                <Card key={item.id} className={cn("border-2 overflow-hidden group transition-all", !item.isAvailable && "opacity-60 bg-slate-50 border-dashed")}>
                                    <div className="flex h-24">
                                       <div className="w-24 bg-slate-100 border-r-2 flex items-center justify-center relative">
                                          {item.imageUrl ? <img src={item.imageUrl} alt="" className="w-full h-full object-cover" /> : <LucideImage className="h-8 w-8 text-slate-300" />}
-                                         {!item.isAvailable && <div className="absolute inset-0 bg-red-600/60 flex items-center justify-center"><span className="text-[10px] font-black text-white uppercase tracking-[0.2em] -rotate-12">86'D</span></div>}
                                       </div>
                                       <div className="flex-1 p-3 flex flex-col justify-between min-w-0">
                                          <div>
@@ -753,10 +664,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                                             <p className="font-mono text-primary text-[10px] font-bold">${item.price.toFixed(2)}</p>
                                          </div>
                                          <div className="flex items-center justify-between gap-1">
-                                            <div className="flex items-center gap-2">
-                                              <Switch checked={item.isAvailable !== false} onCheckedChange={() => toggleItemAvailability(item)} className="data-[state=checked]:bg-green-600 h-4 w-7" />
-                                              <span className="text-[8px] font-black uppercase text-muted-foreground">{item.isAvailable !== false ? 'Live' : 'Hidden'}</span>
-                                            </div>
+                                            <Switch checked={item.isAvailable !== false} onCheckedChange={() => toggleItemAvailability(item)} className="data-[state=checked]:bg-green-600 h-4 w-7" />
                                             <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                                <Button size="icon" variant="ghost" className="h-7 w-7 text-primary" onClick={() => { setEditingItem(item); itemForm.reset(item); setIsItemFormOpen(true); }}><Edit className="h-3.5 w-3.5" /></Button>
                                                <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => deleteDoc(doc(firestore!, 'sellers', sellerId, 'menuItems', item.id))}><Trash2 className="h-3.5 w-3.5" /></Button>
@@ -776,23 +684,15 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
 
               {activeNav === 'service' && (
                  <div className="space-y-8 animate-in fade-in duration-500">
-                    <div className="space-y-1">
-                       <h3 className="font-headline font-black text-lg text-[#213147] uppercase tracking-tight">Active Channels</h3>
-                       <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Global delivery management</p>
-                    </div>
+                    <h3 className="font-headline font-black text-lg text-[#213147] uppercase">Active Channels</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                        {['Beverage Cart', 'Clubhouse', 'Lane Delivery', 'Take Out'].map(mode => {
                           const isActive = (mode === 'Beverage Cart' && seller?.bevcartActive) || (mode === 'Clubhouse' && seller?.clubhouseActive) || (mode === 'Lane Delivery' && seller?.lanedeliveryActive) || (mode === 'Take Out' && seller?.takeoutActive);
                           return (
                             <Card key={mode} className={cn("border-2 transition-all cursor-pointer", isActive ? "border-primary bg-primary/5 shadow-md" : "border-slate-100 hover:border-slate-200")} onClick={() => handleToggleMode(mode, !!isActive)}>
                                <CardContent className="p-6 flex flex-col items-center text-center gap-4">
-                                  <div className={cn("p-4 rounded-2xl", isActive ? "bg-primary text-white" : "bg-slate-100 text-slate-400")}>
-                                     <Zap className="h-6 w-6" />
-                                  </div>
-                                  <div className="space-y-1">
-                                     <p className="font-black uppercase text-sm text-[#213147]">{mode}</p>
-                                     <Badge className={isActive ? "bg-primary" : "bg-slate-200 text-slate-400"}>{isActive ? 'LIVE' : 'OFFLINE'}</Badge>
-                                  </div>
+                                  <div className={cn("p-4 rounded-2xl", isActive ? "bg-primary text-white" : "bg-slate-100 text-slate-400")}><Zap className="h-6 w-6" /></div>
+                                  <p className="font-black uppercase text-sm text-[#213147]">{mode}</p>
                                </CardContent>
                             </Card>
                           );
@@ -804,7 +704,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
               {activeNav === 'staff' && (
                 <div className="space-y-6 animate-in fade-in duration-500">
                    <div className="flex justify-between items-center">
-                      <h3 className="font-headline font-black text-lg text-[#213147] uppercase tracking-tight">Personnel Registry</h3>
+                      <h3 className="font-headline font-black text-lg text-[#213147] uppercase">Personnel Registry</h3>
                       <Button onClick={() => { setEditingStaff(null); staffForm.reset(); setIsStaffFormOpen(true); }} className="bg-[#213147] font-black uppercase text-[10px] h-10 tracking-widest px-6">Add Staff</Button>
                    </div>
                    <Card className="border-2 shadow-sm overflow-hidden">
@@ -813,16 +713,16 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                             <TableRow>
                                <TableHead className="text-[10px] font-black uppercase">Name</TableHead>
                                <TableHead className="text-[10px] font-black uppercase">Role</TableHead>
-                               <TableHead className="text-[10px] font-black uppercase">Secure PIN</TableHead>
+                               <TableHead className="text-[10px] font-black uppercase">PIN</TableHead>
                                <TableHead className="text-right text-[10px] font-black uppercase">Actions</TableHead>
                             </TableRow>
                          </TableHeader>
                          <TableBody>
                             {staff?.map(s => (
-                              <TableRow key={s.id} className="hover:bg-slate-50">
+                              <TableRow key={s.id}>
                                  <TableCell className="font-bold text-xs uppercase text-[#213147]">{s.name}</TableCell>
                                  <TableCell><Badge variant="secondary" className="text-[9px] font-black uppercase">{s.role}</Badge></TableCell>
-                                 <TableCell><code className="text-xs font-mono font-black tracking-widest text-primary">{s.pin}</code></TableCell>
+                                 <TableCell><code className="text-xs font-mono font-black text-primary">{s.pin}</code></TableCell>
                                  <TableCell className="text-right">
                                     <Button variant="ghost" size="icon" className="h-8 w-8 text-primary" onClick={() => { setEditingStaff(s); staffForm.reset(s); setIsStaffFormOpen(true); }}><Edit className="h-4 w-4" /></Button>
                                     <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => deleteDoc(doc(firestore!, 'sellers', sellerId, 'staff', s.id))}><Trash2 className="h-4 w-4" /></Button>
@@ -841,43 +741,39 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                       <Card className="bg-[#213147] text-white border-0 shadow-xl overflow-hidden relative">
                          <div className="absolute top-0 right-0 p-8 opacity-10"><DollarSign className="h-24 w-24" /></div>
                          <CardHeader className="pb-2 pt-6 px-6"><CardDescription className="text-white/60 text-[9px] font-black uppercase tracking-widest">Available Revenue</CardDescription></CardHeader>
-                         <CardContent className="px-6 pb-8"><div className="text-4xl font-black font-headline tracking-tighter">${stats?.revenue}</div><p className="text-[8px] font-bold uppercase text-white/40 mt-1">Pending 48h settlement</p></CardContent>
+                         <CardContent className="px-6 pb-8"><div className="text-4xl font-black font-headline tracking-tighter">${stats?.revenue}</div></CardContent>
                       </Card>
                       <Card className="border-2 border-indigo-100 bg-indigo-50/30">
-                         <CardHeader className="pb-2 pt-6 px-6"><CardDescription className="text-indigo-600/60 text-[9px] font-black uppercase tracking-widest">Convenience Collected</CardDescription></CardHeader>
-                         <CardContent className="px-6 pb-8"><div className="text-4xl font-black font-headline tracking-tighter text-indigo-700">${stats?.fees}</div><p className="text-[8px] font-bold uppercase text-indigo-600/40 mt-1">Supporting Platform Ops</p></CardContent>
+                         <CardHeader className="pb-2 pt-6 px-6"><CardDescription className="text-indigo-600/60 text-[9px] font-black uppercase tracking-widest">Platform Fees</CardDescription></CardHeader>
+                         <CardContent className="px-6 pb-8"><div className="text-4xl font-black font-headline tracking-tighter text-indigo-700">${stats?.fees}</div></CardContent>
                       </Card>
                       <Card className="border-2 border-amber-100 bg-amber-50/30">
                          <CardHeader className="pb-2 pt-6 px-6"><CardDescription className="text-amber-600/60 text-[9px] font-black uppercase tracking-widest">Venue Commission</CardDescription></CardHeader>
-                         <CardContent className="px-6 pb-8"><div className="text-4xl font-black font-headline tracking-tighter text-amber-700">100%</div><p className="text-[8px] font-bold uppercase text-amber-600/40 mt-1">You keep full menu price</p></CardContent>
+                         <CardContent className="px-6 pb-8"><div className="text-4xl font-black font-headline tracking-tighter text-amber-700">100%</div></CardContent>
                       </Card>
                    </div>
+                </div>
+              )}
 
-                   <Card className="border-2 shadow-sm overflow-hidden">
-                      <CardHeader className="bg-slate-50 border-b"><CardTitle className="text-[10px] font-black uppercase tracking-widest text-[#213147]">Direct Deposit History</CardTitle></CardHeader>
-                      <CardContent className="p-0">
-                         <Table>
-                            <TableHeader className="bg-slate-50/50 border-b">
-                               <TableRow>
-                                  <TableHead className="text-[10px] font-black uppercase">Settlement Date</TableHead>
-                                  <TableHead className="text-[10px] font-black uppercase">Orders</TableHead>
-                                  <TableHead className="text-[10px] font-black uppercase">Net Deposit</TableHead>
-                                  <TableHead className="text-right text-[10px] font-black uppercase">Status</TableHead>
-                               </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                               {[...Array(3)].map((_, i) => (
-                                 <TableRow key={i}>
-                                    <TableCell className="text-[10px] font-bold">{format(subHours(new Date(), (i + 1) * 24), 'MMM dd, yyyy')}</TableCell>
-                                    <TableCell className="text-xs font-medium">-- orders</TableCell>
-                                    <TableCell className="font-mono text-xs font-black text-green-600">Pending</TableCell>
-                                    <TableCell className="text-right"><Badge variant="outline" className="text-[8px] font-black uppercase">Processing</Badge></TableCell>
-                                 </TableRow>
-                               ))}
-                            </TableBody>
-                         </Table>
-                      </CardContent>
-                   </Card>
+              {activeNav === 'stripe' && (
+                <div className="space-y-8 animate-in fade-in duration-500">
+                  <h3 className="font-headline font-black text-lg text-[#213147] uppercase">Stripe Settings</h3>
+                  <Card className="border-2 shadow-sm max-w-2xl">
+                    <CardHeader className="bg-slate-50/50 border-b flex flex-row items-center justify-between">
+                       <div><CardTitle className="text-xs font-black uppercase tracking-widest">Stripe Engine</CardTitle><CardDescription className="text-[9px] uppercase font-bold text-muted-foreground">Revenue disbursement configuration</CardDescription></div>
+                       <Badge className="bg-indigo-600 uppercase text-[8px] font-black">PCI-DSS Secure</Badge>
+                    </CardHeader>
+                    <CardContent className="p-6 space-y-4">
+                       <div className="flex items-center justify-between p-4 bg-white rounded-2xl border-2 border-indigo-100">
+                          <div className="flex items-center gap-4">
+                             <div className="p-2 bg-indigo-50 rounded-xl text-indigo-600"><ShieldCheck className="h-6 w-6" /></div>
+                             <div><p className="text-[10px] font-black uppercase text-[#213147]">Status: {venueData?.payoutsEnabled ? 'Live' : 'Onboarding'}</p><p className="text-[8px] font-bold text-indigo-600 uppercase">Payouts Settlement: Direct to Bank</p></div>
+                          </div>
+                          <Button variant="outline" size="sm" onClick={handleVerifyStripe} disabled={isVerifyingStripe} className="text-[9px] font-black uppercase border-2">{isVerifyingStripe ? <Loader2 className="animate-spin" /> : "Run Diagnostic"}</Button>
+                       </div>
+                       {verificationResult && <div className="p-3 bg-slate-50 rounded-xl border-2 border-dashed text-center"><p className="text-[8px] font-black uppercase text-indigo-600">{verificationResult.businessName}: {verificationResult.status}</p></div>}
+                    </CardContent>
+                  </Card>
                 </div>
               )}
 
@@ -898,7 +794,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                             </ResponsiveContainer>
                          </CardContent>
                       </Card>
-
                       <Card className="border-2">
                          <CardHeader className="bg-slate-50/50 border-b"><CardTitle className="text-xs font-black uppercase tracking-widest text-[#213147]">Revenue Share by Mode</CardTitle></CardHeader>
                          <CardContent className="h-[300px] flex items-center justify-center">
@@ -921,49 +816,34 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
 
               {activeNav === 'settings' && (
                 <div className="space-y-10 animate-in fade-in duration-500">
-                   <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                      <Card className="lg:col-span-1 border-2 text-center p-8 bg-slate-50 relative overflow-hidden">
-                         <div className="absolute top-0 left-0 w-full h-1 bg-primary" />
-                         <div className="bg-white p-4 rounded-[2rem] shadow-2xl border-4 border-white mb-6 inline-block">
-                             <img src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(`${window.location.origin}/sellers/${sellerId}/order`)}`} className="w-40 h-40" alt="" />
+                   <h3 className="font-headline font-black text-lg text-[#213147] uppercase">Venue Settings</h3>
+                   <Card className="border-2 max-w-2xl">
+                      <CardHeader className="bg-slate-50/50 border-b"><CardTitle className="text-xs font-black uppercase tracking-widest">Venue Profile</CardTitle></CardHeader>
+                      <CardContent className="p-6">
+                         <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-1"><Label className="text-[10px] font-black uppercase">Official Name</Label><Input defaultValue={seller?.courseName} className="border-2 font-bold h-10" /></div>
+                            <div className="space-y-1"><Label className="text-[10px] font-black uppercase">Tax Rate (%)</Label><Input defaultValue={seller?.taxRate} className="border-2 font-bold h-10" /></div>
                          </div>
-                         <h3 className="font-headline font-black text-sm uppercase tracking-tight mb-4">Master Order QR</h3>
-                         <div className="grid gap-2">
-                            <Button variant="outline" className="h-10 text-[9px] font-black uppercase tracking-widest border-2 gap-2"><Download className="h-3.5 w-3.5" /> Download PNG</Button>
-                            <Button variant="ghost" className="h-10 text-[9px] font-black uppercase tracking-widest gap-2"><Smartphone className="h-3.5 w-3.5" /> View Sample Signs</Button>
-                         </div>
-                      </Card>
+                         <Button className="w-full mt-6 bg-[#213147] font-black uppercase tracking-widest h-12 text-[10px]">Update Master Registry</Button>
+                      </CardContent>
+                   </Card>
+                </div>
+              )}
 
-                      <div className="lg:col-span-2 space-y-6">
-                         <Card className="border-2">
-                            <CardHeader className="bg-slate-50/50 border-b flex flex-row items-center justify-between">
-                               <div><CardTitle className="text-xs font-black uppercase tracking-widest">Stripe Engine</CardTitle><CardDescription className="text-[9px] uppercase font-bold text-muted-foreground">Revenue disbursement configuration</CardDescription></div>
-                               <Badge className="bg-indigo-600 uppercase text-[8px] font-black">PCI-DSS Secure</Badge>
-                            </CardHeader>
-                            <CardContent className="p-6 space-y-4">
-                               <div className="flex items-center justify-between p-4 bg-white rounded-2xl border-2 border-indigo-100">
-                                  <div className="flex items-center gap-4">
-                                     <div className="p-2 bg-indigo-50 rounded-xl text-indigo-600"><ShieldCheck className="h-6 w-6" /></div>
-                                     <div><p className="text-[10px] font-black uppercase text-[#213147]">Status: {venueData?.payoutsEnabled ? 'Live' : 'Onboarding'}</p><p className="text-[8px] font-bold text-indigo-600 uppercase">Payouts Settlement: Direct to Bank</p></div>
-                                  </div>
-                                  <Button variant="outline" size="sm" onClick={handleVerifyStripe} disabled={isVerifyingStripe} className="text-[9px] font-black uppercase border-2">{isVerifyingStripe ? <Loader2 className="animate-spin" /> : "Run Diagnostic"}</Button>
-                               </div>
-                               {verificationResult && <div className="p-3 bg-slate-50 rounded-xl border-2 border-dashed text-center"><p className="text-[8px] font-black uppercase text-indigo-600">{verificationResult.businessName}: {verificationResult.status}</p></div>}
-                            </CardContent>
-                         </Card>
-
-                         <Card className="border-2">
-                            <CardHeader className="bg-slate-50/50 border-b"><CardTitle className="text-xs font-black uppercase tracking-widest">Venue Profile</CardTitle></CardHeader>
-                            <CardContent className="p-6">
-                               <div className="grid grid-cols-2 gap-4">
-                                  <div className="space-y-1"><Label className="text-[10px] font-black uppercase">Official Name</Label><Input defaultValue={seller?.courseName} className="border-2 font-bold h-10" /></div>
-                                  <div className="space-y-1"><Label className="text-[10px] font-black uppercase">Tax Rate (%)</Label><Input defaultValue={seller?.taxRate} className="border-2 font-bold h-10" /></div>
-                               </div>
-                               <Button className="w-full mt-6 bg-[#213147] font-black uppercase tracking-widest h-12 text-[10px]">Update Master Registry</Button>
-                            </CardContent>
-                         </Card>
+              {activeNav === 'marketing' && (
+                <div className="space-y-10 animate-in fade-in duration-500">
+                   <h3 className="font-headline font-black text-lg text-[#213147] uppercase">Marketing</h3>
+                   <Card className="max-w-md border-2 text-center p-8 bg-slate-50 relative overflow-hidden">
+                      <div className="absolute top-0 left-0 w-full h-1 bg-primary" />
+                      <div className="bg-white p-4 rounded-[2rem] shadow-2xl border-4 border-white mb-6 inline-block">
+                          <img src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(`${window.location.origin}/sellers/${sellerId}/order`)}`} className="w-40 h-40" alt="" />
                       </div>
-                   </div>
+                      <h3 className="font-headline font-black text-sm uppercase tracking-tight mb-4">Master Order QR</h3>
+                      <div className="grid gap-2">
+                         <Button variant="outline" className="h-10 text-[9px] font-black uppercase tracking-widest border-2 gap-2"><Download className="h-3.5 w-3.5" /> Download PNG</Button>
+                         <Button variant="ghost" className="h-10 text-[9px] font-black uppercase tracking-widest gap-2"><Smartphone className="h-3.5 w-3.5" /> View Sample Signs</Button>
+                      </div>
+                   </Card>
                 </div>
               )}
 
@@ -986,9 +866,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
               <DialogTitle className="font-headline font-black uppercase text-[#213147]">
                 {editingItem ? 'Edit Master Record' : 'New Inventory Item'}
               </DialogTitle>
-              <DialogDescription className="text-[10px] font-bold uppercase text-muted-foreground">
-                Configure global item properties and service availability
-              </DialogDescription>
            </DialogHeader>
            <Form {...itemForm}>
               <form onSubmit={itemForm.handleSubmit(onSaveItem)} className="space-y-6 pt-4">
@@ -1005,19 +882,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                       </FormItem>
                     )} />
                     <FormField control={itemForm.control} name="imageUrl" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase">Image URL</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>)} />
-                 </div>
-                 <div className="space-y-2">
-                    <Label className="text-[10px] font-black uppercase">Active Channels</Label>
-                    <div className="grid grid-cols-2 gap-2 bg-slate-50 p-4 rounded-2xl border-2">
-                       {['Beverage Cart', 'Clubhouse', 'Lane Delivery', 'Take Out'].map(mode => (
-                         <FormField key={mode} control={itemForm.control} name="availableOn" render={({ field }) => (
-                           <FormItem className="flex items-center space-x-2 space-y-0">
-                             <FormControl><Checkbox checked={field.value?.includes(mode)} onCheckedChange={(c) => c ? field.onChange([...field.value, mode]) : field.onChange(field.value.filter(v => v !== mode))} /></FormControl>
-                             <FormLabel className="text-[9px] font-black uppercase cursor-pointer">{mode}</FormLabel>
-                           </FormItem>
-                         )} />
-                       ))}
-                    </div>
                  </div>
                  <Button type="submit" className="w-full h-14 bg-[#213147] font-black uppercase tracking-widest text-xs shadow-xl">{editingItem ? 'Update Registry' : 'Add to Inventory'}</Button>
               </form>
