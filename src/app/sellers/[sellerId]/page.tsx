@@ -111,7 +111,7 @@ import {
   Legend
 } from 'recharts';
 
-import type { MenuItem, Seller, Order, StaffMember, Venue, PlatformConfig } from '@/lib/types';
+import type { MenuItem, Seller, Order, StaffMember, Venue, PlatformConfig, SellerAdminRole } from '@/lib/types';
 import { categories } from '@/lib/types';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
@@ -169,7 +169,7 @@ function NavButton({ id, label, icon: Icon, active, onClick, sidebarOpen }: {
         </span>
       )}
       {active && (
-        <div className="absolute right-0 top-0 bottom-0 w-1 bg-primary rounded-l-full" />
+        <div className="absolute right-0 top-0 bottom-0 w-1 bg-primary rounded-r-full" />
       )}
     </button>
   );
@@ -237,7 +237,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
 
   // Data Fetching
   const sellerRef = useMemoFirebase(() => (firestore ? doc(firestore, 'sellers', sellerId) : null), [firestore, sellerId]);
-  const { data: seller } = useDoc<Seller>(sellerRef);
+  const { data: seller, isLoading: isSellerLoading } = useDoc<Seller>(sellerRef);
 
   const menuItemsQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'sellers', sellerId, 'menuItems') : null), [firestore, sellerId]);
   const { data: menuItems } = useCollection<MenuItem>(menuItemsQuery);
@@ -250,6 +250,16 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
 
   const venueDocRef = useMemoFirebase(() => (firestore ? doc(firestore, 'venues', sellerId) : null), [firestore, sellerId]);
   const { data: venueData } = useDoc<Venue>(venueDocRef);
+
+  // Security Verification for Venue Admin
+  const sellerRoleRef = useMemoFirebase(() => {
+    if (!firestore || !user?.email) return null;
+    return doc(firestore, 'roles_seller_admin', user.email.toLowerCase());
+  }, [firestore, user]);
+  const { data: sellerRole, isLoading: isRoleLoading } = useDoc<SellerAdminRole>(sellerRoleRef);
+
+  const isSuperAdmin = user?.uid === SUPER_ADMIN_ID || user?.email === 'mosherpe@gmail.com';
+  const isAuthorized = isSuperAdmin || (sellerRole?.sellerId === sellerId) || (venueData?.ownerUid === user?.uid);
 
   // Initialize Settings State from Seller Data
   useEffect(() => {
@@ -503,8 +513,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     { id: "marketing", label: "Marketing", icon: Smartphone },
   ];
 
-  const isGolf = seller?.type?.toLowerCase().includes('golf');
-
   const SideBarContent = ({ forceLabels = false }: { forceLabels?: boolean }) => {
     const showLabels = forceLabels || sidebarOpen;
     return (
@@ -545,6 +553,34 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   };
 
   if (!isMounted) return null;
+
+  const isDataLoading = isSellerLoading || isRoleLoading;
+
+  if (isDataLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center h-screen bg-slate-50">
+        <Loader2 className="h-10 w-10 animate-spin text-primary mb-4" />
+        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Synchronizing Admin Credentials...</p>
+      </div>
+    );
+  }
+
+  if (!isAuthorized) {
+    return (
+      <div className="flex flex-col items-center justify-center h-screen bg-[#213147] text-white p-8 text-center">
+        <div className="bg-red-500/10 p-6 rounded-[2.5rem] border-2 border-red-500/20 mb-8">
+          <ShieldCheck className="h-16 w-16 text-red-500 mx-auto" />
+        </div>
+        <h2 className="font-headline text-3xl font-black uppercase tracking-tight mb-4">Access Restricted</h2>
+        <p className="text-white/60 text-sm max-w-md mb-10 leading-relaxed font-medium">
+          You are not authorized to manage the administration terminal for this establishment. Please sign in with an authorized account.
+        </p>
+        <Button asChild className="h-14 bg-red-600 hover:bg-red-700 text-white font-black uppercase tracking-widest px-10 shadow-xl">
+          <Link href="/login">Return to Gateway</Link>
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-screen bg-[#F8FAFC] overflow-hidden">
@@ -674,7 +710,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
 
               {activeNav === 'orders' && (
                 <div className="space-y-6 animate-in fade-in duration-500">
-                  {isGolf && (
+                  {seller?.type?.toLowerCase().includes('golf') && (
                     <Card className="border-2 shadow-sm overflow-hidden h-[300px] relative">
                       <MapView 
                         sellerLocation={seller ? { latitude: seller.latitude, longitude: seller.longitude } : undefined}

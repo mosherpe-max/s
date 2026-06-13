@@ -12,16 +12,17 @@ import {
 } from 'firebase/auth';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
-import { Loader2, ShieldCheck, Mail, Lock, User, LogOut, CheckCircle2, LogIn, ArrowRight, Copy, Zap, Target } from 'lucide-react';
+import { Loader2, ShieldCheck, Mail, Lock, User, LogOut, CheckCircle2, LogIn, ArrowRight, Copy, Zap, Target, Store } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { StylizedKoopLogo } from '@/components/header';
 import { SUPER_ADMIN_ID } from '@/lib/utils';
+import type { SellerAdminRole } from '@/lib/types';
 
 /**
  * INTERNAL PLATFORM GATEWAY
- * Restricted exclusively to Platform Administrators and 
- * Internal Sales Representatives. Venue Managers and Staff 
- * access the platform through PIN-based entry or open dashboards.
+ * Restricted exclusively to Platform Administrators, Sales Reps,
+ * and Venue Managers. Staff access the platform through 
+ * PIN-based entry on dedicated devices.
  */
 export default function LoginPage() {
   const auth = useAuth();
@@ -53,10 +54,18 @@ export default function LoginPage() {
   }, [firestore, user]);
   const { data: salesRole, isLoading: isSalesRoleLoading } = useDoc(salesRoleRef);
 
+  // Check Seller Admin Role (Venue Manager)
+  const sellerRoleRef = useMemoFirebase(() => {
+    if (!firestore || !user?.email) return null;
+    return doc(firestore, 'roles_seller_admin', user.email.toLowerCase());
+  }, [firestore, user]);
+  const { data: sellerRole, isLoading: isSellerRoleLoading } = useDoc<SellerAdminRole>(sellerRoleRef);
+
   const isPlatformAdmin = isSuperAdmin || !!globalRole;
   const isInternalStaff = !!salesRole;
+  const isVenueManager = !!sellerRole;
 
-  const isVerifyingRoles = isGlobalRoleLoading || isSalesRoleLoading;
+  const isVerifyingRoles = isGlobalRoleLoading || isSalesRoleLoading || isSellerRoleLoading;
 
   // Redirection Logic
   useEffect(() => {
@@ -66,8 +75,10 @@ export default function LoginPage() {
       router.push('/admin');
     } else if (isInternalStaff) {
       router.push('/sales/dashboard');
+    } else if (isVenueManager && sellerRole?.sellerId) {
+      router.push(`/sellers/${sellerRole.sellerId}`);
     }
-  }, [user, isUserLoading, isPlatformAdmin, isInternalStaff, router, isVerifyingRoles]);
+  }, [user, isUserLoading, isPlatformAdmin, isInternalStaff, isVenueManager, sellerRole, router, isVerifyingRoles]);
 
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -170,17 +181,17 @@ export default function LoginPage() {
                   <Loader2 className="h-8 w-8 animate-spin text-primary" />
                   <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Verifying Authorizations...</p>
                 </div>
-              ) : (isPlatformAdmin || isInternalStaff) ? (
+              ) : (isPlatformAdmin || isInternalStaff || isVenueManager) ? (
                 <div className="space-y-4">
                   <div className="p-5 bg-primary/10 border-2 border-primary/20 rounded-2xl flex flex-col items-center text-center gap-2">
-                    {isInternalStaff ? <Target className="h-10 w-10 text-indigo-600" /> : <ShieldCheck className="h-10 w-10 text-primary" />}
+                    {isVenueManager ? <Store className="h-10 w-10 text-primary" /> : isInternalStaff ? <Target className="h-10 w-10 text-indigo-600" /> : <ShieldCheck className="h-10 w-10 text-primary" />}
                     <h3 className="font-headline font-bold text-primary uppercase">INTERNAL VERIFIED</h3>
                     <p className="text-xs text-muted-foreground">
-                      {isPlatformAdmin ? 'Platform Management Console' : 'Sales Professional Workspace'}
+                      {isPlatformAdmin ? 'Platform Management Console' : isVenueManager ? `Venue Manager: ${sellerRole?.courseName}` : 'Sales Professional Workspace'}
                     </p>
                   </div>
                   <Button asChild className="w-full h-14 bg-[#213147] hover:bg-[#213147]/90 text-white font-headline font-black uppercase tracking-widest shadow-xl">
-                    <a href={isPlatformAdmin ? '/admin' : '/sales/dashboard'}>
+                    <a href={isPlatformAdmin ? '/admin' : isVenueManager ? `/sellers/${sellerRole?.sellerId}` : '/sales/dashboard'}>
                       LAUNCH DASHBOARD
                       <ArrowRight className="ml-2 h-5 w-5" />
                     </a>
@@ -263,7 +274,7 @@ export default function LoginPage() {
 
               <div className="bg-amber-50 border border-amber-100 p-3 rounded-xl">
                 <p className="text-[9px] text-amber-800 font-bold uppercase tracking-wide leading-relaxed text-center">
-                  This gateway is restricted to authorized platform personnel only.
+                  This gateway is restricted to authorized platform personnel and establishment managers.
                 </p>
               </div>
 
@@ -280,7 +291,7 @@ export default function LoginPage() {
         </CardContent>
         <CardFooter className="bg-muted/10 border-t py-4 text-center justify-center">
           <p className="text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground">
-            INTERNAL ACCESS ONLY • v3.5
+            AUTHORIZED ACCESS ONLY • v3.8
           </p>
         </CardFooter>
       </Card>
