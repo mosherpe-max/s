@@ -57,7 +57,9 @@ import {
   Target,
   Filter,
   MousePointer2,
-  Map as MapIcon
+  Map as MapIcon,
+  Timer,
+  Save
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -209,6 +211,12 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
   const [isVerifyingStripe, setIsVerifyingStripe] = useState(false);
   const [verificationResult, setVerificationResult] = useState<any>(null);
+  const [isProcessingSave, setIsProcessingSave] = useState(false);
+
+  // Settings State
+  const [venueThresholds, setVenueThresholds] = useState<Record<string, { warning: number; max: number }>>({});
+  const [venueName, setVenueName] = useState('');
+  const [venueTaxRate, setVenueTaxRate] = useState(0);
 
   useEffect(() => { 
     setIsMounted(true); 
@@ -235,6 +243,26 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
 
   const venueRef = useMemoFirebase(() => (firestore ? doc(firestore, 'venues', sellerId) : null), [firestore, sellerId]);
   const { data: venueData } = useDoc<Venue>(venueRef);
+
+  // Initialize Settings State from Seller Data
+  useEffect(() => {
+    if (seller) {
+      setVenueName(seller.courseName || '');
+      setVenueTaxRate(seller.taxRate || 0);
+      
+      const defaults = {
+        'Beverage Cart': { warning: 10, max: 15 },
+        'Clubhouse': { warning: 15, max: 20 },
+        'Lane Delivery': { warning: 10, max: 15 },
+        'Take Out': { warning: 15, max: 25 }
+      };
+
+      setVenueThresholds({
+        ...defaults,
+        ...(seller.orderThresholds || {})
+      });
+    }
+  }, [seller]);
 
   // Form Logic
   const staffForm = useForm<StaffFormData>({ 
@@ -328,6 +356,34 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     } finally {
       setIsVerifyingStripe(false);
     }
+  };
+
+  const handleUpdateVenueRegistry = async () => {
+    if (!firestore || !sellerId) return;
+    setIsProcessingSave(true);
+    try {
+      await updateDoc(doc(firestore, 'sellers', sellerId), {
+        courseName: venueName,
+        taxRate: venueTaxRate,
+        orderThresholds: venueThresholds,
+        updatedAt: serverTimestamp()
+      });
+      toast({ title: "Venue Registry Updated", description: "All profile and timing settings have been synchronized." });
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Update Failed", description: e.message });
+    } finally {
+      setIsProcessingSave(false);
+    }
+  };
+
+  const handleThresholdChange = (mode: string, type: 'warning' | 'max', value: number) => {
+    setVenueThresholds(prev => ({
+      ...prev,
+      [mode]: {
+        ...prev[mode],
+        [type]: value
+      }
+    }));
   };
 
   const stats = useMemo(() => {
@@ -823,17 +879,78 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
 
               {activeNav === 'settings' && (
                 <div className="space-y-10 animate-in fade-in duration-500">
-                   <h3 className="font-headline font-black text-lg text-[#213147] uppercase">Venue Settings</h3>
-                   <Card className="border-2 max-w-2xl">
-                      <CardHeader className="bg-slate-50/50 border-b"><CardTitle className="text-xs font-black uppercase tracking-widest">Venue Profile</CardTitle></CardHeader>
-                      <CardContent className="p-6">
-                         <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-1"><Label className="text-[10px] font-black uppercase">Official Name</Label><Input defaultValue={seller?.courseName} className="border-2 font-bold h-10" /></div>
-                            <div className="space-y-1"><Label className="text-[10px] font-black uppercase">Tax Rate (%)</Label><Input defaultValue={seller?.taxRate} className="border-2 font-bold h-10" /></div>
-                         </div>
-                         <Button className="w-full mt-6 bg-[#213147] font-black uppercase tracking-widest h-12 text-[10px]">Update Master Registry</Button>
-                      </CardContent>
-                   </Card>
+                   <div className="flex items-center justify-between">
+                     <h3 className="font-headline font-black text-xl text-[#213147] uppercase">Venue Terminal Settings</h3>
+                     <Button onClick={handleUpdateVenueRegistry} disabled={isProcessingSave} className="bg-primary hover:bg-primary/90 text-white font-black uppercase tracking-widest px-8 gap-2 shadow-xl h-12">
+                       {isProcessingSave ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Synchronize Terminal
+                     </Button>
+                   </div>
+
+                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                     <Card className="border-2 shadow-sm">
+                        <CardHeader className="bg-slate-50/50 border-b flex flex-row items-center gap-3">
+                          <Target className="h-4 w-4 text-indigo-600" />
+                          <CardTitle className="text-xs font-black uppercase tracking-widest">Venue Profile</CardTitle>
+                        </CardHeader>
+                        <CardContent className="p-6 space-y-4">
+                           <div className="grid grid-cols-1 gap-4">
+                              <div className="space-y-2">
+                                <Label className="text-[10px] font-black uppercase text-muted-foreground">Official Venue Name</Label>
+                                <Input value={venueName} onChange={e => setVenueName(e.target.value)} className="border-2 font-bold h-11" />
+                              </div>
+                              <div className="space-y-2">
+                                <Label className="text-[10px] font-black uppercase text-muted-foreground">Sales Tax Rate (%)</Label>
+                                <Input type="number" value={venueTaxRate} onChange={e => setVenueTaxRate(Number(e.target.value))} className="border-2 font-bold h-11" />
+                              </div>
+                           </div>
+                        </CardContent>
+                     </Card>
+
+                     <Card className="border-2 shadow-sm">
+                        <CardHeader className="bg-slate-50/50 border-b flex flex-row items-center gap-3">
+                          <Timer className="h-4 w-4 text-primary" />
+                          <CardTitle className="text-xs font-black uppercase tracking-widest">Order Delivery Thresholds</CardTitle>
+                        </CardHeader>
+                        <CardContent className="p-6">
+                           <p className="text-[9px] font-bold text-muted-foreground uppercase mb-6 leading-relaxed">
+                             Define how long staff has to fulfill orders. Warnings and Overdue alerts will trigger for staff based on these durations (minutes).
+                           </p>
+                           <div className="space-y-6">
+                              {['Beverage Cart', 'Clubhouse', 'Lane Delivery', 'Take Out'].map(mode => {
+                                const thresholds = venueThresholds[mode] || { warning: 15, max: 20 };
+                                return (
+                                  <div key={mode} className="space-y-3 p-4 bg-slate-50 rounded-2xl border-2">
+                                    <div className="flex items-center justify-between mb-1">
+                                      <span className="text-[10px] font-black uppercase text-[#213147]">{mode}</span>
+                                      <Badge variant="outline" className="text-[8px] font-bold">Active Thresholds</Badge>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4">
+                                       <div className="space-y-1.5">
+                                          <Label className="text-[8px] font-black uppercase text-amber-600">Warning (Min)</Label>
+                                          <Input 
+                                            type="number" 
+                                            value={thresholds.warning} 
+                                            onChange={e => handleThresholdChange(mode, 'warning', Number(e.target.value))} 
+                                            className="h-9 border-2 font-bold focus-visible:ring-amber-400"
+                                          />
+                                       </div>
+                                       <div className="space-y-1.5">
+                                          <Label className="text-[8px] font-black uppercase text-red-600">Max (Overdue)</Label>
+                                          <Input 
+                                            type="number" 
+                                            value={thresholds.max} 
+                                            onChange={e => handleThresholdChange(mode, 'max', Number(e.target.value))} 
+                                            className="h-9 border-2 font-bold focus-visible:ring-red-600"
+                                          />
+                                       </div>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                           </div>
+                        </CardContent>
+                     </Card>
+                   </div>
                 </div>
               )}
 
@@ -905,7 +1022,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                  <FormField control={staffForm.control} name="name" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase">Full Name</FormLabel><FormControl><Input {...field} className="h-12 border-2 font-bold uppercase" /></FormControl></FormItem>)} />
                  <div className="grid grid-cols-2 gap-4">
                     <FormField control={staffForm.control} name="role" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase">Role</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger className="h-12 border-2 font-bold"><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="Driver">Driver (BevCart)</SelectItem><SelectItem value="Server">Server (Clubhouse)</SelectItem><SelectItem value="Manager">Manager</SelectItem></SelectContent></Select></FormItem>)} />
-                    <FormField control={staffForm.control} name="pin" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase">4-Digit PIN</FormLabel><FormControl><Input {...field} maxLength={4} className="h-12 border-2 font-mono text-xl font-black text-center tracking-[0.5em] text-primary" /></FormControl></FormItem>)} />
+                    <FormField control={staffForm.control} name="pin" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase">4-Digit PIN</Label><FormControl><Input {...field} maxLength={4} className="h-12 border-2 font-mono text-xl font-black text-center tracking-[0.5em] text-primary" /></FormControl></FormItem>)} />
                  </div>
                  <Button type="submit" className="w-full h-14 bg-[#213147] font-black uppercase tracking-widest text-xs">Save Registry</Button>
               </form>
