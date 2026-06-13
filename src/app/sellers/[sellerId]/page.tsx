@@ -994,18 +994,65 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
            <Form {...itemForm}>
               <form onSubmit={itemForm.handleSubmit(onSaveItem)} className="space-y-6 pt-4">
                  <div className="grid grid-cols-2 gap-4">
-                    <FormField control={itemForm.control} name="name" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase">Display Name</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl><FormMessage /></FormItem>)} />
-                    <FormField control={itemForm.control} name="category" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase">Category</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger className="h-11 border-2 font-bold"><SelectValue /></SelectTrigger></FormControl><SelectContent>{categories.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent></Select></FormItem>)} />
+                    <FormField 
+                      control={itemForm.control} 
+                      name="name" 
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-[10px] font-black uppercase">Display Name</FormLabel>
+                          <FormControl>
+                            <Input {...field} className="h-11 border-2 font-bold" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )} 
+                    />
+                    <FormField 
+                      control={itemForm.control} 
+                      name="category" 
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-[10px] font-black uppercase">Category</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                              <SelectTrigger className="h-11 border-2 font-bold">
+                                <SelectValue />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {categories.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                        </FormItem>
+                      )} 
+                    />
                  </div>
                  <div className="grid grid-cols-2 gap-4">
-                    <FormField control={itemForm.control} name="price" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-[10px] font-black uppercase tracking-widest">Price ($)</FormLabel>
-                        <FormControl><Input type="number" step="0.01" {...field} className="h-12 border-2 font-bold" /></FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )} />
-                    <FormField control={itemForm.control} name="imageUrl" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase">Image URL</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>)} />
+                    <FormField 
+                      control={itemForm.control} 
+                      name="price" 
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-[10px] font-black uppercase tracking-widest">Price ($)</FormLabel>
+                          <FormControl>
+                            <Input type="number" step="0.01" {...field} className="h-12 border-2 font-bold" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )} 
+                    />
+                    <FormField 
+                      control={itemForm.control} 
+                      name="imageUrl" 
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-[10px] font-black uppercase">Image URL</FormLabel>
+                          <FormControl>
+                            <Input {...field} className="h-11 border-2 font-bold" />
+                          </FormControl>
+                        </FormItem>
+                      )} 
+                    />
                  </div>
                  <Button type="submit" className="w-full h-14 bg-[#213147] font-black uppercase tracking-widest text-xs shadow-xl">{editingItem ? 'Update Registry' : 'Add to Inventory'}</Button>
               </form>
@@ -1016,13 +1063,59 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
       {/* STAFF DIALOG */}
       <Dialog open={isStaffFormOpen} onOpenChange={setIsStaffFormOpen}>
         <DialogContent className="rounded-[2.5rem] border-2 max-w-md">
-           <DialogHeader><DialogTitle className="font-headline font-black uppercase text-[#213147]">{editingStaff ? 'Edit Credentials' : 'New Personnel'}</DialogTitle></DialogHeader>
+           <DialogHeader>
+              <DialogTitle className="font-headline font-black uppercase text-[#213147]">
+                {editingStaff ? 'Edit Credentials' : 'New Personnel'}
+              </DialogTitle>
+           </DialogHeader>
            <Form {...staffForm}>
               <form onSubmit={staffForm.handleSubmit(onSaveStaff)} className="space-y-6 pt-4">
-                 <FormField control={staffForm.control} name="name" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase">Full Name</FormLabel><FormControl><Input {...field} className="h-12 border-2 font-bold uppercase" /></FormControl></FormItem>)} />
+                 <FormField 
+                   control={staffForm.control} 
+                   name="name" 
+                   render={({ field }) => (
+                     <FormItem>
+                       <FormLabel className="text-[10px] font-black uppercase">Full Name</FormLabel>
+                       <FormControl>
+                         <Input {...field} className="h-12 border-2 font-bold uppercase" />
+                       </FormControl>
+                     </FormItem>
+                   )} 
+                 />
                  <div className="grid grid-cols-2 gap-4">
-                    <FormField control={staffForm.control} name="role" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase">Role</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger className="h-12 border-2 font-bold"><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="Driver">Driver (BevCart)</SelectItem><SelectItem value="Server">Server (Clubhouse)</SelectItem><SelectItem value="Manager">Manager</SelectItem></SelectContent></Select></FormItem>)} />
-                    <FormField control={staffForm.control} name="pin" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase">4-Digit PIN</Label><FormControl><Input {...field} maxLength={4} className="h-12 border-2 font-mono text-xl font-black text-center tracking-[0.5em] text-primary" /></FormControl></FormItem>)} />
+                    <FormField 
+                      control={staffForm.control} 
+                      name="role" 
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-[10px] font-black uppercase">Role</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                              <SelectTrigger className="h-12 border-2 font-bold">
+                                <SelectValue />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="Driver">Driver (BevCart)</SelectItem>
+                              <SelectItem value="Server">Server (Clubhouse)</SelectItem>
+                              <SelectItem value="Manager">Manager</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </FormItem>
+                      )} 
+                    />
+                    <FormField 
+                      control={staffForm.control} 
+                      name="pin" 
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-[10px] font-black uppercase">4-Digit PIN</FormLabel>
+                          <FormControl>
+                            <Input {...field} maxLength={4} className="h-12 border-2 font-mono text-xl font-black text-center tracking-[0.5em] text-primary" />
+                          </FormControl>
+                        </FormItem>
+                      )} 
+                    />
                  </div>
                  <Button type="submit" className="w-full h-14 bg-[#213147] font-black uppercase tracking-widest text-xs">Save Registry</Button>
               </form>
