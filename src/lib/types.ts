@@ -106,6 +106,7 @@ export interface MenuItem {
     imageUrl?: string;
     availableOn?: string[];
     menuRanks?: Record<string, number>;
+    isAvailable?: boolean; // 86'd feature
 }
 
 export interface OrderItem extends MenuItem {
