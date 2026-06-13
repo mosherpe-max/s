@@ -75,6 +75,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
 import { Label } from '@/components/ui/label';
 import { cn, getNumericOrderId, SUPER_ADMIN_ID } from '@/lib/utils';
 import { isThisMonth, isToday, format, startOfHour, eachHourOfInterval, subHours, differenceInMinutes } from 'date-fns';
