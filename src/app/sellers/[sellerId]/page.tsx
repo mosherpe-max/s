@@ -220,7 +220,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   const { firebaseApp } = useFirebase();
   const firestore = useFirestore();
   const auth = useAuth();
-  const { user, isUserLoading } = useUser();
+  const { user } = useUser();
   const router = useRouter();
   const { toast } = useToast();
   const isMobile = useIsMobile();
@@ -239,7 +239,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   const [isProvisioningRegistry, setIsProvisioningRegistry] = useState(false);
   const [isVerifyingStripe, setIsVerifyingStripe] = useState(false);
   const [verificationResult, setVerificationResult] = useState<any>(null);
-  const [now, setNow] = useState(new Date());
 
   const sensors = useSensors(
     useSensor(PointerSensor), 
@@ -248,21 +247,11 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   
   const isHardcodedSuperAdmin = user?.uid === SUPER_ADMIN_ID || user?.email === 'mosherpe@gmail.com';
 
-  // Role Checks
-  const roleRef = useMemoFirebase(() => (!firestore || !user?.email ? null : doc(firestore, 'roles_seller_admin', user.email.toLowerCase())), [firestore, user]);
-  const { data: sellerRole, isLoading: isSellerRoleLoading } = useDoc(roleRef);
-  
-  const platformRoleRef = useMemoFirebase(() => (!firestore || !user ? null : doc(firestore, 'roles_admin', user.uid)), [firestore, user]);
-  const { data: platformRole, isLoading: isPlatformRoleLoading } = useDoc(platformRoleRef);
-
   const venueRef = useMemoFirebase(() => (!firestore || !sellerId ? null : doc(firestore, 'venues', sellerId)), [firestore, sellerId]);
   const { data: venueData } = useDoc<Venue>(venueRef);
 
   const platformConfigRef = useMemoFirebase(() => (firestore ? doc(firestore, 'platform', 'config') : null), [firestore]);
   const { data: platformConfig } = useDoc<PlatformConfig>(platformConfigRef);
-
-  // Access check logic
-  const hasAccess = true; // Enabled for MVP prototyping
 
   useEffect(() => { 
     setIsMounted(true); 
@@ -271,21 +260,19 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
         setSidebarOpen(false);
       }
     }
-    const timer = setInterval(() => setNow(new Date()), 60000);
-    return () => clearInterval(timer);
   }, []);
 
   // Data Fetching
   const sellerRef = useMemoFirebase(() => (firestore ? doc(firestore, 'sellers', sellerId) : null), [firestore, sellerId]);
   const { data: seller } = useDoc<Seller>(sellerRef);
 
-  const menuItemsQuery = useMemoFirebase(() => (firestore && hasAccess ? collection(firestore, 'sellers', sellerId, 'menuItems') : null), [firestore, sellerId, hasAccess]);
+  const menuItemsQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'sellers', sellerId, 'menuItems') : null), [firestore, sellerId]);
   const { data: menuItems } = useCollection<MenuItem>(menuItemsQuery);
 
-  const ordersQuery = useMemoFirebase(() => (firestore && hasAccess ? query(collection(firestore, 'orders'), where('sellerId', '==', sellerId)) : null), [firestore, sellerId, hasAccess]);
+  const ordersQuery = useMemoFirebase(() => (firestore ? query(collection(firestore, 'orders'), where('sellerId', '==', sellerId)) : null), [firestore, sellerId]);
   const { data: orders } = useCollection<Order>(ordersQuery);
 
-  const staffQuery = useMemoFirebase(() => (firestore && hasAccess ? collection(firestore, 'sellers', sellerId, 'staff') : null), [firestore, sellerId, hasAccess]);
+  const staffQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'sellers', sellerId, 'staff') : null), [firestore, sellerId]);
   const { data: staff } = useCollection<StaffMember>(staffQuery);
 
   // Form Logic
@@ -300,7 +287,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   });
 
   const onSaveStaff = async (data: StaffFormData) => {
-    if (!firestore || !hasAccess) return;
+    if (!firestore) return;
     const staffId = editingStaff ? editingStaff.id : Math.random().toString(36).substr(2, 9);
     await setDoc(doc(firestore, 'sellers', sellerId, 'staff', staffId), { 
       ...data, 
@@ -314,7 +301,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   };
 
   const onSaveItem = async (data: ItemFormData) => {
-    if (!firestore || !hasAccess) return;
+    if (!firestore) return;
     const itemId = editingItem ? editingItem.id : Math.random().toString(36).substr(2, 9);
     await setDoc(doc(firestore, 'sellers', sellerId, 'menuItems', itemId), {
       ...data,
@@ -329,7 +316,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   };
 
   const handleDeleteItem = async (itemId: string) => {
-    if (!firestore || !hasAccess) return;
+    if (!firestore) return;
     await deleteDoc(doc(firestore, 'sellers', sellerId, 'menuItems', itemId));
     toast({ title: "Item Deleted" });
   };
@@ -350,7 +337,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   };
 
   const handleResetDemo = async () => {
-    if (!firestore || !sellerId || !hasAccess) return;
+    if (!firestore || !sellerId) return;
     setIsResettingDemo(true);
     try {
       const batch = writeBatch(firestore);
@@ -368,7 +355,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
 
   const handleDragEnd = (event: DragEndEvent, menuType: string, items: MenuItem[]) => {
     const { active, over } = event;
-    if (!over || active.id === over.id || !firestore || !hasAccess) return;
+    if (!over || active.id === over.id || !firestore) return;
     const oldIndex = items.findIndex((i) => i.id === active.id);
     const newIndex = items.findIndex((i) => i.id === over.id);
     const reordered = arrayMove(items, oldIndex, newIndex);
@@ -494,6 +481,9 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
       </div>
     );
   };
+
+  // HYDRATION GUARD
+  if (!isMounted) return null;
 
   return (
     <div className="flex h-screen bg-[#F8FAFC] overflow-hidden">
@@ -1093,7 +1083,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
               <div className="space-y-3">
                 <Label className="text-[10px] font-black uppercase tracking-widest">Service Channel Availability</Label>
                 <div className="grid grid-cols-2 gap-3 bg-slate-50 p-4 rounded-xl border-2">
-                  {seller?.menuTypes?.map(mode => (
+                  {['Beverage Cart', 'Clubhouse', 'Lane Delivery', 'Take Out'].map(mode => (
                     <FormField
                       key={mode}
                       control={itemForm.control}

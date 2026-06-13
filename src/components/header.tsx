@@ -36,7 +36,6 @@ import { useCart } from '@/lib/cart-context';
 
 /**
  * High-fidelity logo component used across the platform.
- * Supports custom branding upload with SVG wordmark fallback.
  */
 export function StylizedKoopLogo({ size = 'md', colorClass = 'text-white' }: { size?: 'sm' | 'md' | 'lg', colorClass?: string }) {
   const firestore = useFirestore();
@@ -50,12 +49,10 @@ export function StylizedKoopLogo({ size = 'md', colorClass = 'text-white' }: { s
   };
   const s = sizes[size];
 
-  // While loading, return a stable placeholder to prevent the default logo flash
   if (isLoading) {
     return <div className={cn("animate-pulse bg-white/5 rounded-lg", s.img)} style={{ width: size === 'lg' ? '180px' : '80px' }} />;
   }
 
-  // Render custom uploaded logo if available
   if (config?.logoUrl) {
     return (
       <div className={cn("flex items-center justify-center select-none", s.img)}>
@@ -68,7 +65,6 @@ export function StylizedKoopLogo({ size = 'md', colorClass = 'text-white' }: { s
     );
   }
 
-  // Fallback to stylized SVG wordmark matching K-O-[Target]-P
   return (
     <div className={cn("flex items-center font-headline font-black tracking-tighter leading-none select-none uppercase", colorClass, s.text, s.gap)}>
       <span>K</span>
@@ -85,9 +81,6 @@ export function StylizedKoopLogo({ size = 'md', colorClass = 'text-white' }: { s
   );
 }
 
-/**
- * Navigation menu for the landing page containing demo and admin links.
- */
 function HomeNavigationMenu() {
   return (
     <Sheet>
@@ -104,7 +97,6 @@ function HomeNavigationMenu() {
         </SheetHeader>
         <ScrollArea className="h-[calc(100vh-100px)]">
           <div className="p-6 space-y-8 pb-20">
-            {/* Platform Gateway */}
             <div className="space-y-3">
               <p className="text-[9px] font-black text-white/40 uppercase tracking-[0.2em]">Authentication</p>
               <Button asChild variant="outline" className="w-full justify-start h-12 bg-white/5 border-white/10 hover:bg-white/10 hover:text-white text-white border-2 gap-3 group">
@@ -116,7 +108,6 @@ function HomeNavigationMenu() {
               </Button>
             </div>
 
-            {/* Public Golf Demo */}
             <div className="space-y-3">
               <div className="flex items-center gap-2">
                 <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
@@ -129,7 +120,6 @@ function HomeNavigationMenu() {
               </div>
             </div>
 
-            {/* Private Golf Demo */}
             <div className="space-y-3">
               <div className="flex items-center gap-2">
                 <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
@@ -141,7 +131,6 @@ function HomeNavigationMenu() {
               </div>
             </div>
 
-            {/* Bowling Demo */}
             <div className="space-y-3">
               <div className="flex items-center gap-2">
                 <div className="w-1.5 h-1.5 rounded-full bg-pink-500" />
@@ -171,10 +160,6 @@ function MenuLink({ href, label, icon: Icon }: { href: string, label: string, ic
   );
 }
 
-/**
- * A simplified, high-fidelity header for the patron experience.
- * Focused exclusively on Venue and Service context.
- */
 export function AppHeader() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -197,6 +182,13 @@ export function AppHeader() {
     return searchParams.get('sellerId');
   }, [pathname, searchParams]);
 
+  // SUPPRESS HEADER FOR ADMIN ROUTES
+  // The Admin Pages have their own internal navigation (Sidebars/Sheets)
+  const isAdminRoute = pathname?.startsWith('/admin') || 
+                      (pathname?.startsWith('/sellers/') && !pathname.includes('/order') && !pathname.includes('/staff-login'));
+
+  if (!isMounted || isAdminRoute) return null;
+
   const orderId = searchParams.get('id');
   const menuTypeParam = searchParams.get('menuType');
 
@@ -217,9 +209,6 @@ export function AppHeader() {
   const isOrderPage = pathname?.includes('/order');
   const activeMenuType = menuTypeParam || order?.menuType;
 
-  if (!isMounted) return null;
-
-  // On the landing page, we show branding and the demo navigation menu
   if (isHomePage) {
     return (
       <header className="sticky top-0 z-40 bg-[#213147] border-b-2 border-[#E50000] shadow-md h-20 flex items-center justify-between px-6 shrink-0">
@@ -235,14 +224,11 @@ export function AppHeader() {
   return (
     <header className="sticky top-0 z-40 bg-[#213147] border-b-2 border-[#E50000] shadow-md h-16 shrink-0">
       <div className="container mx-auto h-full flex items-center px-4">
-        {/* Balanced Grid for Centering Title */}
         <div className="grid grid-cols-3 items-center w-full">
-          {/* Left Spacer or Back Button Placeholder */}
           <div className="flex justify-start">
             <div className="w-10" />
           </div>
 
-          {/* Center: Venue Identity */}
           <div className="flex flex-col items-center text-center min-w-0">
             {isSellerLoading ? (
               <div className="h-4 w-32 bg-white/10 animate-pulse rounded-full" />
@@ -261,7 +247,6 @@ export function AppHeader() {
             )}
           </div>
 
-          {/* Right: Cart Access (Only on Order/Menu pages) */}
           <div className="flex justify-end">
             {isOrderPage && (
               <Button 
