@@ -200,16 +200,12 @@ export function AppHeader() {
   const { data: order } = useDoc(orderRef);
 
   // SUPPRESS HEADER FOR ADMIN ROUTES
-  // The Admin Pages have their own internal navigation (Sidebars/Sheets)
   const isAdminRoute = pathname?.startsWith('/admin') || 
                       (pathname?.startsWith('/sellers/') && !pathname.includes('/order') && !pathname.includes('/staff-login'));
 
   if (!isMounted || isAdminRoute) return null;
 
   const isHomePage = pathname === '/';
-  
-  // Only show cart on the actual ordering/menu page
-  // The Tracking page (/order/track) already has a placed order, so cart should be hidden
   const isMenuPage = pathname?.includes('/order') && !pathname?.includes('/track');
   
   const activeMenuType = menuTypeParam || order?.menuType;

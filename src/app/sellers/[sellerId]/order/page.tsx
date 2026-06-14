@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, use, useEffect, useMemo } from 'react';
@@ -351,11 +350,9 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
   const selectedMenuType = menuTypeFromUrl || '';
   const [locationValue, setLocationValue] = useState<string>('');
 
-  // 1. Fetch Global Platform Config for Mode Authorization
   const configRef = useMemoFirebase(() => (firestore ? doc(firestore, 'platform', 'config') : null), [firestore]);
   const { data: platformConfig } = useDoc<PlatformConfig>(configRef);
 
-  // 2. Fetch Venue Data for Mode Configuration & Staff Activity
   const sellerRef = useMemoFirebase(() => (firestore ? doc(firestore, 'sellers', sellerId) : null), [firestore, sellerId]);
   const { data: seller, isLoading: isSellerLoading } = useDoc<Seller>(sellerRef);
 
@@ -365,31 +362,18 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
   }, [firestore, sellerId]);
   const { data: menuItems, isLoading: areItemsLoading } = useCollection<MenuItem>(menuItemsQuery);
 
-  // Helper to update menu type in URL
   const updateMenuType = (type: string) => {
     const params = new URLSearchParams(searchParams.toString());
     params.set('menuType', type);
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
   };
 
-  /**
-   * isModeAvailable - The 3-Tier Availability Logic
-   * 1. Koop Admin must enable the mode globally.
-   * 2. Venue Admin must enable the mode for their venue.
-   * 3. Staff must be active for that mode.
-   */
   const isModeAvailable = (type: string) => {
     if (!seller || !platformConfig) return false;
-
-    // Tier 1: Koop Admin Global Authorization
     const isGloballyAuthorized = platformConfig.enabledModes?.includes(type) ?? true;
     if (!isGloballyAuthorized) return false;
-
-    // Tier 2: Venue Admin Offering (Offer only if in menuTypes)
     const isVenueAuthorized = seller.menuTypes.includes(type);
     if (!isVenueAuthorized) return false;
-
-    // Tier 3: Staff Active/On-Duty
     switch(type) {
       case 'Beverage Cart': return !!seller.bevcartActive;
       case 'Clubhouse': return !!seller.clubhouseActive;
@@ -399,7 +383,6 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
     }
   };
 
-  // Set default service mode based on venue type if none selected
   useEffect(() => {
     if (!menuTypeFromUrl && seller && platformConfig && !isSellerLoading) {
       let defaultType = '';
@@ -408,12 +391,9 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
       } else {
         defaultType = 'Beverage Cart';
       }
-
-      // Check if suggested default is available
       if (isModeAvailable(defaultType)) {
         updateMenuType(defaultType);
       } else {
-        // Fallback to first available authorized mode
         const firstAvailable = seller.menuTypes.find(t => isModeAvailable(t));
         if (firstAvailable) updateMenuType(firstAvailable);
       }
@@ -487,16 +467,20 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
-      <header className="relative w-full min-h-[25vh] flex flex-col bg-[#213147] overflow-hidden shrink-0 pt-8 pb-8 px-6">
+      <header className="relative w-full min-h-[22vh] flex flex-col bg-[#213147] overflow-hidden shrink-0 pt-8 pb-8 px-6">
         <div className="absolute inset-0 z-0 opacity-10 pointer-events-none">
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full border-[30px] border-white" />
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] rounded-full border-[20px] border-white" />
         </div>
         
-        <div className="relative z-10 flex flex-col items-center text-center space-y-6 max-w-lg w-full mx-auto">
-          <div className="space-y-3 w-full">
-            <p className="text-[9px] font-bold uppercase tracking-widest text-white/40">Select Service Mode</p>
-            <div className="flex flex-wrap justify-center gap-2">
+        <div className="relative z-10 flex flex-col items-start text-left space-y-6 max-w-2xl w-full mx-auto">
+          <div className="space-y-4 w-full">
+            <div className="flex flex-col">
+              <h1 className="font-headline text-2xl font-black text-white uppercase tracking-tight leading-none mb-1">
+                {seller?.courseName}
+              </h1>
+              <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-white/40">Select Service Mode</p>
+            </div>
+            <div className="flex flex-wrap gap-2">
               {seller?.menuTypes?.map((type) => {
                 const Icon = serviceTypeIcons[type] || Store;
                 const available = isModeAvailable(type);
@@ -523,7 +507,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
             </div>
           </div>
 
-          <p className="text-[9px] font-bold uppercase tracking-[0.1em] text-white/50 flex items-center justify-center gap-1.5 px-4 max-w-xs mx-auto">
+          <p className="text-[9px] font-bold uppercase tracking-[0.1em] text-white/50 flex items-center gap-1.5">
             <Info className="h-2.5 w-2.5 shrink-0" />
             {topMenuNotice}
           </p>
