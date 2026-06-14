@@ -22,6 +22,7 @@ export interface PlatformConfig {
   logoUrl?: string;
   defaultThresholds?: Record<string, { warning: number; max: number }>;
   mapUpdateSettings?: Record<string, MapUpdateSettings>;
+  enabledModes?: string[]; // Globally authorized modes by Koop Admin
   updatedAt: Timestamp;
 }
 

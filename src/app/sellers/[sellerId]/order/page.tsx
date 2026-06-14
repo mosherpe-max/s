@@ -5,7 +5,7 @@ import { useState, use, useEffect, useMemo } from 'react';
 import { collection, doc, addDoc, serverTimestamp } from 'firebase/firestore';
 import { signInAnonymously } from 'firebase/auth';
 import { useFirestore, useCollection, useMemoFirebase, useDoc, useAuth, useUser, useFirebase } from '@/firebase';
-import type { Seller, MenuItem, OrderItem } from '@/lib/types';
+import type { Seller, MenuItem, OrderItem, PlatformConfig } from '@/lib/types';
 import { categories } from '@/lib/types';
 import { BuyerMenu } from '@/components/buyer-menu';
 import { OrderSummary } from '@/components/order-summary';
@@ -34,7 +34,8 @@ import {
   Info,
   ShoppingCart,
   Satellite,
-  ChevronLeft
+  ChevronLeft,
+  Clock
 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useCart } from '@/lib/cart-context';
@@ -350,6 +351,11 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
   const selectedMenuType = menuTypeFromUrl || '';
   const [locationValue, setLocationValue] = useState<string>('');
 
+  // 1. Fetch Global Platform Config for Mode Authorization
+  const configRef = useMemoFirebase(() => (firestore ? doc(firestore, 'platform', 'config') : null), [firestore]);
+  const { data: platformConfig } = useDoc<PlatformConfig>(configRef);
+
+  // 2. Fetch Venue Data for Mode Configuration & Staff Activity
   const sellerRef = useMemoFirebase(() => (firestore ? doc(firestore, 'sellers', sellerId) : null), [firestore, sellerId]);
   const { data: seller, isLoading: isSellerLoading } = useDoc<Seller>(sellerRef);
 
@@ -366,26 +372,53 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
   };
 
+  /**
+   * isModeAvailable - The 3-Tier Availability Logic
+   * 1. Koop Admin must enable the mode globally.
+   * 2. Venue Admin must enable the mode for their venue.
+   * 3. Staff must be active for that mode.
+   */
+  const isModeAvailable = (type: string) => {
+    if (!seller || !platformConfig) return false;
+
+    // Tier 1: Koop Admin Global Authorization
+    const isGloballyAuthorized = platformConfig.enabledModes?.includes(type) ?? true;
+    if (!isGloballyAuthorized) return false;
+
+    // Tier 2: Venue Admin Offering (Offer only if in menuTypes)
+    const isVenueAuthorized = seller.menuTypes.includes(type);
+    if (!isVenueAuthorized) return false;
+
+    // Tier 3: Staff Active/On-Duty
+    switch(type) {
+      case 'Beverage Cart': return !!seller.bevcartActive;
+      case 'Clubhouse': return !!seller.clubhouseActive;
+      case 'Lane Delivery': return !!seller.lanedeliveryActive;
+      case 'Take Out': return !!seller.takeoutActive;
+      default: return true;
+    }
+  };
+
   // Set default service mode based on venue type if none selected
   useEffect(() => {
-    if (!menuTypeFromUrl && seller && !isSellerLoading) {
+    if (!menuTypeFromUrl && seller && platformConfig && !isSellerLoading) {
       let defaultType = '';
       if (seller.type.toLowerCase().includes('bowling')) {
         defaultType = 'Lane Delivery';
       } else {
-        // Default for Golf or others
         defaultType = 'Beverage Cart';
       }
 
-      // Check if suggested default is available for this seller
-      if (seller.menuTypes.includes(defaultType)) {
+      // Check if suggested default is available
+      if (isModeAvailable(defaultType)) {
         updateMenuType(defaultType);
-      } else if (seller.menuTypes.length > 0) {
-        // Fallback to first available
-        updateMenuType(seller.menuTypes[0]);
+      } else {
+        // Fallback to first available authorized mode
+        const firstAvailable = seller.menuTypes.find(t => isModeAvailable(t));
+        if (firstAvailable) updateMenuType(firstAvailable);
       }
     }
-  }, [seller, menuTypeFromUrl, isSellerLoading]);
+  }, [seller, platformConfig, menuTypeFromUrl, isSellerLoading]);
 
   const activeOrderItems = useMemo(() => orderItems.filter((item) => item.quantity > 0), [orderItems]);
   const subtotal = useMemo(() => activeOrderItems.reduce((acc, item) => {
@@ -395,14 +428,11 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
   
   const taxRate = seller?.taxRate ?? 6.0;
   
-  // Logical selector for platform fee: Per-mode override OR master venue fee
   const platformFee = useMemo(() => {
     if (!seller) return 0;
-    // Check for service-specific override in Seller profile
     if (selectedMenuType && seller.serviceFees?.[selectedMenuType]) {
       return seller.serviceFees[selectedMenuType];
     }
-    // Fallback to master service fee
     return seller.serviceFee || 0;
   }, [seller, selectedMenuType]);
 
@@ -434,17 +464,6 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
     }
   };
 
-  const isServiceActive = (type: string) => {
-    if (!seller) return false;
-    switch(type) {
-      case 'Beverage Cart': return seller.bevcartActive;
-      case 'Clubhouse': return seller.clubhouseActive;
-      case 'Lane Delivery': return seller.lanedeliveryActive;
-      case 'Take Out': return seller.takeoutActive;
-      default: return true;
-    }
-  };
-
   const isGolf = seller?.type?.toLowerCase().includes('golf');
   const isBowling = seller?.type?.toLowerCase().includes('bowling');
 
@@ -454,6 +473,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
     ? "Order from your lane and stay in the game — a small convenience fee applies at checkout."
     : "Select items to begin your order — a small convenience fee applies at checkout.";
 
+  const hasAnyAvailableMode = seller?.menuTypes?.some(t => isModeAvailable(t));
   const isLoading = isSellerLoading || areItemsLoading;
 
   if (isLoading) {
@@ -479,24 +499,24 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
             <div className="flex flex-wrap justify-center gap-2">
               {seller?.menuTypes?.map((type) => {
                 const Icon = serviceTypeIcons[type] || Store;
-                const active = isServiceActive(type);
+                const available = isModeAvailable(type);
                 const isSelected = selectedMenuType === type;
                 
                 return (
                   <button
                     key={type}
-                    disabled={!active}
+                    disabled={!available}
                     onClick={() => updateMenuType(type)}
                     className={cn(
                       "flex items-center gap-2 px-4 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all shadow-lg",
                       isSelected 
                         ? "bg-primary text-white scale-105" 
-                        : (active ? "bg-white/10 text-white hover:bg-white/20" : "bg-white/5 text-white/30 grayscale cursor-not-allowed")
+                        : (available ? "bg-white/10 text-white hover:bg-white/20" : "bg-white/5 text-white/20 grayscale cursor-not-allowed border border-white/5")
                     )}
                   >
                     <Icon className="h-3.5 w-3.5" />
                     {type}
-                    {!active && <span className="ml-1 opacity-50">(OFF)</span>}
+                    {!available && <span className="ml-1 opacity-40 text-[8px]">(OFF)</span>}
                   </button>
                 );
               })}
@@ -510,44 +530,66 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
         </div>
       </header>
 
-      <div className="sticky top-16 z-30 bg-white/95 backdrop-blur-md border-b-2 shadow-sm">
-        <div className="max-w-2xl mx-auto px-4 py-3">
-          <div className="flex gap-2 overflow-x-auto no-scrollbar py-1">
-            {currentCategories.map((cat) => (
-              <button
-                key={cat}
-                onClick={() => scrollToCategory(cat)}
-                className="whitespace-nowrap px-4 py-1.5 rounded-full bg-slate-50 border-2 border-slate-100 text-[9px] font-black uppercase tracking-widest text-slate-500 hover:border-primary/30 hover:text-primary transition-all active:scale-95"
-              >
-                {cat}
-              </button>
-            ))}
+      {hasAnyAvailableMode ? (
+        <>
+          <div className="sticky top-16 z-30 bg-white/95 backdrop-blur-md border-b-2 shadow-sm">
+            <div className="max-w-2xl mx-auto px-4 py-3">
+              <div className="flex gap-2 overflow-x-auto no-scrollbar py-1">
+                {currentCategories.map((cat) => (
+                  <button
+                    key={cat}
+                    onClick={() => scrollToCategory(cat)}
+                    className="whitespace-nowrap px-4 py-1.5 rounded-full bg-slate-50 border-2 border-slate-100 text-[9px] font-black uppercase tracking-widest text-slate-500 hover:border-primary/30 hover:text-primary transition-all active:scale-95"
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
 
-      <main className="flex-1 px-4 pt-8 pb-32 max-w-2xl mx-auto w-full">
-        {selectedMenuType ? (
-          <BuyerMenu 
-            orderItems={orderItems} 
-            onUpdateItem={updateItem} 
-            onOpenModifiers={() => {}}
-            currentCategories={currentCategories} 
-            menuItems={filteredMenuItems} 
-            selectedMenuType={selectedMenuType}
-          />
-        ) : (
-          <div className="flex flex-col items-center justify-center py-20 text-center space-y-4 opacity-40">
-            <div className="p-6 bg-slate-100 rounded-full">
-              <Utensils className="h-12 w-12 text-[#213147]" />
-            </div>
-            <div className="space-y-1">
-              <p className="font-headline font-black uppercase tracking-widest text-[#213147]">Awaiting Selection</p>
-              <p className="text-[10px] font-bold uppercase tracking-widest">Please choose a service mode above to view the menu</p>
-            </div>
+          <main className="flex-1 px-4 pt-8 pb-32 max-w-2xl mx-auto w-full">
+            {selectedMenuType ? (
+              <BuyerMenu 
+                orderItems={orderItems} 
+                onUpdateItem={updateItem} 
+                onOpenModifiers={() => {}}
+                currentCategories={currentCategories} 
+                menuItems={filteredMenuItems} 
+                selectedMenuType={selectedMenuType}
+              />
+            ) : (
+              <div className="flex flex-col items-center justify-center py-20 text-center space-y-4 opacity-40">
+                <div className="p-6 bg-slate-100 rounded-full">
+                  <Utensils className="h-12 w-12 text-[#213147]" />
+                </div>
+                <div className="space-y-1">
+                  <p className="font-headline font-black uppercase tracking-widest text-[#213147]">Awaiting Selection</p>
+                  <p className="text-[10px] font-bold uppercase tracking-widest">Please choose a service mode above to view the menu</p>
+                </div>
+              </div>
+            )}
+          </main>
+        </>
+      ) : (
+        <main className="flex-1 flex flex-col items-center justify-center p-8 text-center max-w-md mx-auto">
+          <div className="bg-amber-50 p-10 rounded-[3rem] border-2 border-amber-100 shadow-xl space-y-6 animate-in zoom-in-95 duration-500">
+             <div className="bg-amber-500/10 p-4 rounded-3xl inline-block">
+                <Clock className="h-12 w-12 text-amber-600" />
+             </div>
+             <div className="space-y-3">
+                <h2 className="font-headline text-2xl font-black uppercase tracking-tight text-[#213147]">Service Paused</h2>
+                <p className="text-sm text-slate-600 font-medium leading-relaxed">
+                  We apologize, but there are no active service modes currently available at {seller?.courseName}. 
+                </p>
+             </div>
+             <div className="pt-4 border-t border-amber-100">
+                <p className="text-[10px] font-black uppercase tracking-widest text-amber-700">Please check back again soon!</p>
+             </div>
           </div>
-        )}
-      </main>
+          <Button variant="ghost" onClick={() => router.push('/')} className="mt-8 text-muted-foreground uppercase text-[10px] font-black tracking-widest">Return to Home</Button>
+        </main>
+      )}
 
       <Sheet open={isCartOpen} onOpenChange={setIsCartOpen}>
         {activeOrderItems.length > 0 && (

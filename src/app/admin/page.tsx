@@ -68,7 +68,8 @@ import {
   PlayCircle,
   Lock,
   Timer,
-  Satellite
+  Satellite,
+  ShieldAlert
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -142,6 +143,8 @@ const SYSTEM_DEFAULT_MAP_SETTINGS: Record<string, MapUpdateSettings> = {
   'Clubhouse': { frequencySeconds: 15, activeStages: ['Placed', 'Preparing', 'Out for Delivery'] }
 };
 
+const SERVICE_MODES = ['Beverage Cart', 'Clubhouse', 'Lane Delivery', 'Take Out'];
+
 function NavButton({ id, label, icon: Icon, active, onClick, sidebarOpen }: { 
   id: string, label: string, icon: any, active: boolean, onClick: (id: string) => void, sidebarOpen: boolean 
 }) {
@@ -208,6 +211,7 @@ export default function PlatformAdminPage() {
   // --- PLATFORM CONFIG STATE ---
   const [systemThresholds, setSystemThresholds] = useState<Record<string, { warning: number; max: number }>>(SYSTEM_DEFAULT_THRESHOLDS);
   const [mapSettings, setMapSettings] = useState<Record<string, MapUpdateSettings>>(SYSTEM_DEFAULT_MAP_SETTINGS);
+  const [globalEnabledModes, setGlobalEnabledModes] = useState<string[]>(SERVICE_MODES);
   const [isSavingSystemConfig, setIsSavingSystemConfig] = useState(false);
 
   // Logo Upload State
@@ -240,6 +244,9 @@ export default function PlatformAdminPage() {
         ...SYSTEM_DEFAULT_MAP_SETTINGS,
         ...config.mapUpdateSettings
       });
+    }
+    if (config?.enabledModes) {
+      setGlobalEnabledModes(config.enabledModes);
     }
   }, [config]);
 
@@ -311,9 +318,10 @@ export default function PlatformAdminPage() {
       await setDoc(doc(firestore, 'platform', 'config'), {
         defaultThresholds: systemThresholds,
         mapUpdateSettings: mapSettings,
+        enabledModes: globalEnabledModes,
         updatedAt: serverTimestamp()
       }, { merge: true });
-      toast({ title: "System Defaults Updated", description: "Standard operational protocols defined for all establishments." });
+      toast({ title: "System Defaults Updated", description: "Global operational protocols and service authorizations synchronized." });
     } catch (e: any) {
       toast({ variant: "destructive", title: "Sync Failed", description: e.message });
     } finally {
@@ -348,6 +356,12 @@ export default function PlatformAdminPage() {
       ? current.filter(s => s !== stage)
       : [...current, stage];
     handleMapSettingChange(mode, 'activeStages', next);
+  };
+
+  const toggleGlobalMode = (mode: string) => {
+    setGlobalEnabledModes(prev => 
+      prev.includes(mode) ? prev.filter(m => m !== mode) : [...prev, mode]
+    );
   };
 
   if (!isMounted) return null;
@@ -611,6 +625,43 @@ export default function PlatformAdminPage() {
               {activeNav === 'system' && (
                 <div className="space-y-8 animate-in fade-in duration-500">
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    
+                    {/* GLOBAL SERVICE AUTHORIZATION */}
+                    <Card className="border-2 shadow-sm overflow-hidden lg:col-span-2">
+                      <CardHeader className="border-b bg-[#213147] text-white flex flex-row items-center gap-3">
+                        <ShieldAlert className="h-5 w-5 text-primary" />
+                        <div>
+                          <CardTitle className="font-black uppercase tracking-tight text-sm">Global Service Authorization</CardTitle>
+                          <CardDescription className="text-[10px] font-bold uppercase text-white/50">Restrict specific channels across the entire platform</CardDescription>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="p-6">
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                          {SERVICE_MODES.map(mode => {
+                            const isEnabled = globalEnabledModes.includes(mode);
+                            return (
+                              <div 
+                                key={mode} 
+                                onClick={() => toggleGlobalMode(mode)}
+                                className={cn(
+                                  "flex flex-col items-center gap-3 p-4 rounded-2xl border-2 cursor-pointer transition-all",
+                                  isEnabled 
+                                    ? "border-primary bg-primary/5 shadow-md" 
+                                    : "border-slate-100 opacity-50 grayscale"
+                                )}
+                              >
+                                <div className={cn("p-2 rounded-xl", isEnabled ? "bg-primary text-white" : "bg-slate-200 text-slate-400")}>
+                                  <Zap className="h-5 w-5" />
+                                </div>
+                                <span className="text-[10px] font-black uppercase text-[#213147] text-center">{mode}</span>
+                                <Switch checked={isEnabled} className="data-[state=checked]:bg-primary" />
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </CardContent>
+                    </Card>
+
                     <Card className="border-2 shadow-sm overflow-hidden">
                       <CardHeader className="border-b bg-primary/5">
                         <CardTitle className="font-black uppercase tracking-tight text-sm">Platform Branding</CardTitle>
@@ -650,7 +701,7 @@ export default function PlatformAdminPage() {
                       </CardHeader>
                       <CardContent className="p-6 space-y-6">
                         <div className="space-y-6">
-                          {['Beverage Cart', 'Clubhouse', 'Lane Delivery', 'Take Out'].map(mode => {
+                          {SERVICE_MODES.map(mode => {
                             const thresholds = systemThresholds[mode] || { warning: 15, max: 20 };
                             return (
                               <div key={mode} className="space-y-3 p-4 bg-slate-50 rounded-2xl border-2">
