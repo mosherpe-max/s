@@ -44,27 +44,32 @@ function MapElements({ buyerLocation, sellerLocation, sellers, buyers, drivers, 
   const initialFitDone = useRef(false);
 
   useEffect(() => {
-    // 🌟 CRITICAL: Ensure window.google exists before attempting bounds logic
     if (!map || !apiIsLoaded || typeof window === 'undefined' || !window.google) return;
 
-    // Only auto-fit bounds on initial load OR when the user explicitly triggers it via fitTrigger
-    // This prevents frequent GPS updates from fighting the user's manual pan/zoom.
     const isExplicitTrigger = fitTrigger !== undefined && fitTrigger > 0;
     
     // Check if we have meaningful data to fit
-    const hasData = (buyerLocation && sellerLocation) || sellers?.length || buyers?.length || drivers?.length || sellerLocation;
+    const hasData = (buyerLocation && (sellerLocation || zoomMode === 'radius')) || sellers?.length || buyers?.length || drivers?.length || sellerLocation;
     
     if (!hasData) return;
     if (initialFitDone.current && !isExplicitTrigger) return;
 
     const bounds = new window.google.maps.LatLngBounds();
-    const hasBuyers = buyers && buyers.length > 0;
-    const hasSellers = sellers && sellers.length > 0;
-    const hasDrivers = drivers && drivers.length > 0;
-
     let hasPoints = false;
 
-    if (buyerLocation && sellerLocation) {
+    // PATRON FOCUS MODE: 0.5 Mile Radius Zoom
+    if (zoomMode === 'radius' && buyerLocation && radius) {
+       const center = new window.google.maps.LatLng(buyerLocation.latitude, buyerLocation.longitude);
+       // Rough approximation of bounding box for the radius
+       const latOffset = radius / 111320; // 1 degree lat is approx 111.32km
+       const lngOffset = radius / (111320 * Math.cos(buyerLocation.latitude * (Math.PI / 180)));
+       
+       bounds.extend(new window.google.maps.LatLng(buyerLocation.latitude + latOffset, buyerLocation.longitude + lngOffset));
+       bounds.extend(new window.google.maps.LatLng(buyerLocation.latitude - latOffset, buyerLocation.longitude - lngOffset));
+       hasPoints = true;
+    } 
+    // BILATERAL MODE: Fit both Driver and Patron
+    else if (buyerLocation && sellerLocation) {
       bounds.extend(new window.google.maps.LatLng(sellerLocation.latitude, sellerLocation.longitude));
       bounds.extend(new window.google.maps.LatLng(buyerLocation.latitude, buyerLocation.longitude));
       hasPoints = true;
@@ -102,10 +107,10 @@ function MapElements({ buyerLocation, sellerLocation, sellers, buyers, drivers, 
       initialFitDone.current = true;
     }
 
-  }, [map, apiIsLoaded, zoomMode, fitTrigger]);
+  }, [map, apiIsLoaded, zoomMode, fitTrigger, buyerLocation, sellerLocation, radius]);
 
   useEffect(() => {
-    if (!map || !apiIsLoaded || !radius || !sellerLocation || !window.google) return;
+    if (!map || !apiIsLoaded || !radius || !buyerLocation || !window.google) return;
 
     const circle = new window.google.maps.Circle({
       strokeColor: "#E50000",
@@ -114,21 +119,20 @@ function MapElements({ buyerLocation, sellerLocation, sellers, buyers, drivers, 
       fillColor: "#E50000",
       fillOpacity: 0.1,
       map,
-      center: { lat: sellerLocation.latitude, lng: sellerLocation.longitude },
+      center: { lat: buyerLocation.latitude, lng: buyerLocation.longitude },
       radius: radius,
     });
 
     return () => {
       circle.setMap(null);
     };
-  }, [map, apiIsLoaded, sellerLocation?.latitude, sellerLocation?.longitude, radius]);
+  }, [map, apiIsLoaded, buyerLocation?.latitude, buyerLocation?.longitude, radius]);
 
   return null;
 }
 
 /**
  * The core map rendering logic. 
- * This is separated so it can safely use the useApiIsLoaded hook inside APIProvider.
  */
 function MapInternal({ buyerLocation, sellerLocation, showPrimaryMarker, primaryDriverId, sellers, buyers, drivers, radius, zoomMode, interactive, fitTrigger }: MapViewProps) {
   const apiIsLoaded = useApiIsLoaded();
@@ -180,7 +184,7 @@ function MapInternal({ buyerLocation, sellerLocation, showPrimaryMarker, primary
             position={{ lat: driver.location.latitude, lng: driver.location.longitude }}
             title={`${driver.name} (${driver.type})`}
             icon={{
-              path: "M 0,-15 L 13,-7.5 L 13,7.5 L 0,15 L -13,7.5 L -13,-7.5 Z", // Pointy top Hexagon
+              path: "M 0,-15 L 13,-7.5 L 13,7.5 L 0,15 L -13,7.5 L -13,-7.5 Z",
               fillColor: driver.type === 'Beverage Cart' ? '#E50000' : '#4F46E5',
               fillOpacity: 1,
               strokeWeight: 2,
@@ -190,17 +194,26 @@ function MapInternal({ buyerLocation, sellerLocation, showPrimaryMarker, primary
           />
         ))}
 
-        {showPrimaryMarker && sellerLocation && (!sellers || !sellers.some(s => s.location.latitude === sellerLocation.latitude && s.location.longitude === sellerLocation.longitude)) && (
+        {/* Seller/Driver Marker in Tracking View */}
+        {sellerLocation && (
           <Marker 
             position={{ lat: sellerLocation.latitude, lng: sellerLocation.longitude }}
-            title="Venue/Cart Hub"
+            title="Delivery Driver"
+            icon={{
+              path: "M 0,-15 L 13,-7.5 L 13,7.5 L 0,15 L -13,7.5 L -13,-7.5 Z",
+              fillColor: '#E50000',
+              fillOpacity: 1,
+              strokeWeight: 2,
+              strokeColor: '#FFFFFF',
+              scale: 0.8,
+            }}
           />
         )}
 
         {buyerLocation && (
           <Marker 
             position={{ lat: buyerLocation.latitude, lng: buyerLocation.longitude }}
-            title="Patron Destination"
+            title="Your Location"
           />
         )}
 

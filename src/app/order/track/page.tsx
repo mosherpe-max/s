@@ -101,16 +101,24 @@ function OrderTrackingContent() {
   if (isLoading) return <div className="flex-1 flex items-center justify-center p-8"><Loader2 className="animate-spin h-10 w-10 text-primary" /></div>;
   if (!order) return <div className="p-8 text-center"><p>Order not found.</p><Button asChild className="mt-4"><Link href="/">Back Home</Link></Button></div>;
 
+  const isOrderActive = order.status === 'Preparing' || order.status === 'Out for Delivery';
+
   return (
     <div className="flex flex-col min-h-screen bg-muted/10">
-      {/* Map View - Only shown for non-bowling venues (e.g., Golf Courses) */}
+      {/* Map View - Logic based on status: 1/3 height (33vh) as requested */}
       {!isBowling && (
-        <div className="h-[40vh] relative border-b-2">
-          <MapView sellerLocation={seller ? { latitude: seller.latitude, longitude: seller.longitude } : undefined} buyerLocation={order.deliveryLocation} interactive={true} />
+        <div className="h-[33vh] relative border-b-2 shadow-sm shrink-0">
+          <MapView 
+            sellerLocation={isOrderActive && seller ? { latitude: seller.latitude, longitude: seller.longitude } : undefined} 
+            buyerLocation={order.deliveryLocation} 
+            radius={order.status === 'Placed' ? 804.672 : undefined} // 0.5 miles in meters
+            zoomMode={order.status === 'Placed' ? 'radius' : 'all'}
+            interactive={true} 
+          />
         </div>
       )}
 
-      <div className="p-4 space-y-4 max-w-2xl mx-auto w-full pb-24">
+      <div className="p-4 space-y-4 max-w-2xl mx-auto w-full pb-24 flex-1">
         
         {/* WAKE LOCK & LIVE SYNC NOTIFICATION - ONLY FOR GOLF COURSES */}
         {order.status !== 'Delivered' && isGolf && (
