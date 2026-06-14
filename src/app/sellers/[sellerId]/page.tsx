@@ -174,7 +174,7 @@ function SortableMenuItem({ item, isSelected, onToggle }: { item: MenuItem, isSe
       style={style}
       className={cn(
         "flex items-center gap-3 p-3 bg-white border-2 rounded-xl transition-all",
-        isSelected ? "border-primary/20 shadow-sm" : "border-slate-100 opacity-50 grayscale"
+        isSelected ? "border-primary/40 bg-primary/5 shadow-md ring-2 ring-primary/5" : "border-slate-100 opacity-50 grayscale"
       )}
     >
       <div 
@@ -220,6 +220,7 @@ const itemSchema = z.object({
   category: z.enum(categories as any),
   imageUrl: z.string().optional(),
   availableOn: z.array(z.string()).default([]),
+  isAvailable: z.boolean().default(true),
 });
 
 type ItemFormData = z.infer<typeof itemSchema>;
@@ -377,7 +378,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
 
   const itemForm = useForm<ItemFormData>({
     resolver: zodResolver(itemSchema),
-    defaultValues: { name: '', description: '', price: 0, category: 'Beer', availableOn: [] }
+    defaultValues: { name: '', description: '', price: 0, category: 'Beer', availableOn: [], isAvailable: true }
   });
 
   const onSaveStaff = async (data: StaffFormData) => {
@@ -414,9 +415,9 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   const toggleItemAvailability = (item: MenuItem) => {
     if (!firestore) return;
     updateDoc(doc(firestore, 'sellers', sellerId, 'menuItems', item.id), {
-      isAvailable: !item.isAvailable
+      isAvailable: item.isAvailable === false
     }).then(() => {
-      toast({ title: item.isAvailable ? "Item 86'd" : "Item Restored", description: `${item.name} availability updated.` });
+      toast({ title: item.isAvailable === false ? "Item Restored" : "Item 86'd", description: `${item.name} availability updated.` });
     });
   };
 
@@ -875,7 +876,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                 <div className="space-y-8 animate-in fade-in duration-500">
                   <div className="flex justify-between items-center">
                     <h3 className="font-headline font-black text-lg text-[#213147] uppercase">Master Inventory</h3>
-                    <Button onClick={() => { setEditingItem(null); itemForm.reset(); setIsItemFormOpen(true); }} className="bg-primary hover:bg-primary/90 font-black uppercase text-[10px] h-10 gap-2"><Plus className="h-4 w-4" /> Add Item</Button>
+                    <Button onClick={() => { setEditingItem(null); itemForm.reset({ name: '', description: '', price: 0, category: 'Beer', availableOn: [], isAvailable: true }); setIsItemFormOpen(true); }} className="bg-primary hover:bg-primary/90 font-black uppercase text-[10px] h-10 gap-2"><Plus className="h-4 w-4" /> Add Item</Button>
                   </div>
                   <div className="space-y-10">
                     {categories.map(cat => {
@@ -888,7 +889,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                            </div>
                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                               {items.map(item => (
-                                <Card key={item.id} className={cn("border-2 overflow-hidden group transition-all", !item.isAvailable && "opacity-60 bg-slate-50 border-dashed")}>
+                                <Card key={item.id} className={cn("border-2 overflow-hidden group transition-all", item.isAvailable === false && "opacity-60 bg-slate-50 border-dashed")}>
                                    <div className="flex h-24">
                                       <div className="w-24 bg-slate-100 border-r-2 flex items-center justify-center relative">
                                          {item.imageUrl ? <img src={item.imageUrl} alt="" className="w-full h-full object-cover" /> : <LucideImage className="h-8 w-8 text-slate-300" />}
@@ -1394,3 +1395,4 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     </div>
   );
 }
+
