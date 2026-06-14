@@ -180,6 +180,8 @@ const MODE_COLORS: Record<string, string> = {
   'Take Out': '#F59E0B'
 };
 
+const PIE_COLORS = ['#E50000', '#213147', '#4F46E5', '#F59E0B', '#10B981'];
+
 // --- DND COMPONENTS ---
 
 function SortableMenuItem({ item, isSelected, onToggle }: { item: MenuItem, isSelected: boolean, onToggle: () => void }) {
@@ -233,29 +235,6 @@ function SortableMenuItem({ item, isSelected, onToggle }: { item: MenuItem, isSe
   );
 }
 
-// --- SCHEMAS ---
-
-const staffSchema = z.object({
-  name: z.string().min(2, 'Name required'),
-  role: z.enum(['Driver', 'Server', 'Manager']),
-  pin: z.string().length(4, 'PIN must be 4 digits').regex(/^\d+$/, 'Numbers only'),
-  isActive: z.boolean().default(true),
-});
-
-type StaffFormData = z.infer<typeof staffSchema>;
-
-const itemSchema = z.object({
-  name: z.string().min(2, 'Name required'),
-  description: z.string().optional(),
-  price: z.coerce.number().min(0),
-  category: z.enum(categories as any),
-  imageUrl: z.string().optional(),
-  availableOn: z.array(z.string()).default([]),
-  isAvailable: z.boolean().default(true),
-});
-
-type ItemFormData = z.infer<typeof itemSchema>;
-
 // --- UI COMPONENTS ---
 
 function NavButton({ id, label, icon: Icon, active, onClick, sidebarOpen }: { 
@@ -302,6 +281,29 @@ function KPICard({ label, value, sub, icon: Icon, colorClass, highlight = false 
   );
 }
 
+// --- SCHEMAS ---
+
+const staffSchema = z.object({
+  name: z.string().min(2, 'Name required'),
+  role: z.enum(['Driver', 'Server', 'Manager']),
+  pin: z.string().length(4, 'PIN must be 4 digits').regex(/^\d+$/, 'Numbers only'),
+  isActive: z.boolean().default(true),
+});
+
+type StaffFormData = z.infer<typeof staffSchema>;
+
+const itemSchema = z.object({
+  name: z.string().min(2, 'Name required'),
+  description: z.string().optional(),
+  price: z.coerce.number().min(0),
+  category: z.enum(categories as any),
+  imageUrl: z.string().optional(),
+  availableOn: z.array(z.string()).default([]),
+  isAvailable: z.boolean().default(true),
+});
+
+type ItemFormData = z.infer<typeof itemSchema>;
+
 // --- MAIN PAGE ---
 
 export default function SellerAdminPage({ params }: { params: Promise<{ sellerId: string }> }) {
@@ -320,6 +322,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   const [isMounted, setIsMounted] = useState(false);
   const [dashboardFilter, setDashboardFilter] = useState('All');
   const [analyticsRange, setAnalyticsRange] = useState<'Today' | 'MTD' | 'YTD'>('Today');
+  const [pieMonthFilter, setPieMonthFilter] = useState('All');
   const [now, setNow] = useState<number>(Date.now());
 
   // Operational State
@@ -667,6 +670,17 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     };
   }, [orders, dashboardFilter, seller]);
 
+  const availableMonths = useMemo(() => {
+    if (!orders) return [];
+    const months = new Set<string>();
+    orders.forEach(o => {
+      if (o.createdAt) {
+        months.add(format(o.createdAt.toDate(), 'MMMM yyyy'));
+      }
+    });
+    return Array.from(months).sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
+  }, [orders]);
+
   const analyticsData = useMemo(() => {
     if (!orders || !seller) return { chartData: [], revenueByMode: [] };
 
@@ -730,14 +744,25 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
       });
     }
 
-    const pieTotals: Record<string, number> = {};
-    orders.forEach(o => {
-      pieTotals[o.menuType] = (pieTotals[o.menuType] || 0) + o.total;
-    });
-    const revenueByMode = Object.entries(pieTotals).map(([name, value]) => ({ name, value }));
-
-    return { chartData, revenueByMode };
+    return { chartData };
   }, [orders, seller, analyticsRange]);
+
+  const pieChartData = useMemo(() => {
+    if (!orders || !seller) return [];
+    const modes = seller.menuTypes || [];
+    
+    const filteredOrders = pieMonthFilter === 'All' 
+      ? orders 
+      : orders.filter(o => o.createdAt && format(o.createdAt.toDate(), 'MMMM yyyy') === pieMonthFilter);
+
+    return modes.map(mode => {
+      const modeOrders = filteredOrders.filter(o => o.menuType === mode);
+      const revenue = modeOrders.reduce((sum, o) => sum + o.total, 0);
+      const count = modeOrders.length;
+      const avg = count > 0 ? (revenue / count) : 0;
+      return { name: mode, value: revenue, count, avg };
+    }).filter(d => d.count > 0);
+  }, [orders, seller, pieMonthFilter]);
 
   const detailedReportOrders = useMemo(() => {
     if (!orders) return [];
@@ -802,8 +827,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     }
     return drivers;
   }, [seller]);
-
-  const PIE_COLORS = ['#E50000', '#213147', '#4F46E5', '#F59E0B', '#10B981'];
 
   const NAV_ITEMS = [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -969,7 +992,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
 
                   <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     <Card className="lg:col-span-2 border-2 shadow-sm overflow-hidden">
-                      <CardHeader className="bg-slate-50 border-b flex flex-row items-center justify-between py-4">
+                      <CardHeader className="bg-slate-50/50 border-b flex flex-row items-center justify-between py-4">
                          <div className="space-y-0.5">
                             <CardTitle className="text-xs font-black uppercase tracking-widest">Today's Pulse</CardTitle>
                             <CardDescription className="text-[9px] font-bold uppercase">Hourly Sales & Deliveries</CardDescription>
@@ -994,7 +1017,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
 
                     <div className="lg:col-span-1 space-y-6">
                       <Card className="border-2 shadow-sm">
-                        <CardHeader className="bg-slate-50 border-b">
+                        <CardHeader className="bg-slate-50/50 border-b">
                           <CardTitle className="text-xs font-black uppercase tracking-widest">Active Channels</CardTitle>
                         </CardHeader>
                         <CardContent className="p-4 space-y-3">
@@ -1351,20 +1374,63 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                             </ResponsiveContainer>
                          </CardContent>
                       </Card>
-                      <Card className="border-2 shadow-sm">
-                         <CardHeader className="bg-slate-50/50 border-b"><CardTitle className="text-xs font-black uppercase tracking-widest text-[#213147]">Revenue Share by Mode</CardTitle></CardHeader>
-                         <CardContent className="h-[300px] flex items-center justify-center">
-                            <ResponsiveContainer width="100%" height="100%">
-                               <PieChart>
-                                  <Pie data={analyticsData.revenueByMode} innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
-                                     {analyticsData.revenueByMode.map((entry, index) => (
-                                       <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
-                                     ))}
-                                  </Pie>
-                                  <ChartTooltip />
-                                  <Legend verticalAlign="bottom" align="center" iconType="circle" wrapperStyle={{ fontSize: '10px', textTransform: 'uppercase', fontWeight: 'bold' }} />
-                               </PieChart>
-                            </ResponsiveContainer>
+                      
+                      <Card className="border-2 shadow-sm lg:col-span-1">
+                         <CardHeader className="bg-slate-50/50 border-b flex flex-row items-center justify-between py-4">
+                            <div className="space-y-0.5">
+                              <CardTitle className="text-xs font-black uppercase tracking-widest text-[#213147]">Revenue Share</CardTitle>
+                              <CardDescription className="text-[8px] font-bold uppercase">Channel Mix & Efficiency</CardDescription>
+                            </div>
+                            <Select value={pieMonthFilter} onValueChange={setPieMonthFilter}>
+                              <SelectTrigger className="w-[140px] h-8 text-[9px] font-black uppercase tracking-widest border-2 bg-white">
+                                <SelectValue placeholder="All Time" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="All">All Time</SelectItem>
+                                {availableMonths.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+                              </SelectContent>
+                            </Select>
+                         </CardHeader>
+                         <CardContent className="p-0">
+                            <div className="h-[240px] pt-4">
+                              <ResponsiveContainer width="100%" height="100%">
+                                 <PieChart>
+                                    <Pie 
+                                      data={pieChartData} 
+                                      innerRadius={50} 
+                                      outerRadius={70} 
+                                      paddingAngle={5} 
+                                      dataKey="value"
+                                      animationDuration={1000}
+                                    >
+                                       {pieChartData.map((entry, index) => (
+                                         <Cell key={`cell-${index}`} fill={MODE_COLORS[entry.name] || PIE_COLORS[index % PIE_COLORS.length]} />
+                                       ))}
+                                    </Pie>
+                                    <ChartTooltip formatter={(value: number) => `$${value.toFixed(2)}`} />
+                                 </PieChart>
+                              </ResponsiveContainer>
+                            </div>
+                            <div className="px-4 pb-6 space-y-2">
+                               {pieChartData.map((data, idx) => (
+                                 <div key={data.name} className="flex items-center justify-between p-2.5 rounded-xl border-2 bg-slate-50/30">
+                                    <div className="flex items-center gap-2">
+                                       <div className="w-2 h-2 rounded-full" style={{ backgroundColor: MODE_COLORS[data.name] || PIE_COLORS[idx % PIE_COLORS.length] }} />
+                                       <span className="text-[10px] font-black uppercase text-[#213147]">{data.name}</span>
+                                    </div>
+                                    <div className="flex items-center gap-6">
+                                       <div className="text-right">
+                                          <p className="text-[8px] font-bold text-muted-foreground uppercase leading-none mb-1">Rev / Orders</p>
+                                          <p className="text-[10px] font-black text-[#213147] font-mono">${data.value.toFixed(2)} <span className="text-slate-400">({data.count})</span></p>
+                                       </div>
+                                       <div className="text-right border-l pl-4">
+                                          <p className="text-[8px] font-bold text-muted-foreground uppercase leading-none mb-1">Avg Ticket</p>
+                                          <p className="text-[10px] font-black text-primary font-mono">${data.avg.toFixed(2)}</p>
+                                       </div>
+                                    </div>
+                                 </div>
+                               ))}
+                            </div>
                          </CardContent>
                       </Card>
                    </div>
