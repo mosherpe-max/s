@@ -680,10 +680,15 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
       chartData = intervals.map(hour => {
         const entry: any = { time: format(hour, 'ha') };
         activeModes.forEach(mode => {
-          const total = orders
-            .filter(o => o.menuType === mode && o.createdAt && isSameHour(o.createdAt.toDate(), hour) && isSameDay(o.createdAt.toDate(), now))
-            .reduce((sum, o) => sum + o.total, 0);
+          const matchingOrders = orders.filter(o => 
+            o.menuType === mode && 
+            o.createdAt && 
+            isSameHour(o.createdAt.toDate(), hour) && 
+            isSameDay(o.createdAt.toDate(), now)
+          );
+          const total = matchingOrders.reduce((sum, o) => sum + o.total, 0);
           entry[mode] = Math.round(total);
+          entry[`${mode}_count`] = matchingOrders.length;
         });
         return entry;
       });
@@ -693,10 +698,14 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
       chartData = intervals.map(day => {
         const entry: any = { time: format(day, 'MMM d') };
         activeModes.forEach(mode => {
-          const total = orders
-            .filter(o => o.menuType === mode && o.createdAt && isSameDay(o.createdAt.toDate(), day))
-            .reduce((sum, o) => sum + o.total, 0);
+          const matchingOrders = orders.filter(o => 
+            o.menuType === mode && 
+            o.createdAt && 
+            isSameDay(o.createdAt.toDate(), day)
+          );
+          const total = matchingOrders.reduce((sum, o) => sum + o.total, 0);
           entry[mode] = Math.round(total);
+          entry[`${mode}_count`] = matchingOrders.length;
         });
         return entry;
       });
@@ -707,10 +716,15 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
       chartData = intervals.map(month => {
         const entry: any = { time: format(month, 'MMM') };
         activeModes.forEach(mode => {
-          const total = orders
-            .filter(o => o.menuType === mode && o.createdAt && isSameMonth(o.createdAt.toDate(), month) && isSameYear(o.createdAt.toDate(), now))
-            .reduce((sum, o) => sum + o.total, 0);
+          const matchingOrders = orders.filter(o => 
+            o.menuType === mode && 
+            o.createdAt && 
+            isSameMonth(o.createdAt.toDate(), month) && 
+            isSameYear(o.createdAt.toDate(), now)
+          );
+          const total = matchingOrders.reduce((sum, o) => sum + o.total, 0);
           entry[mode] = Math.round(total);
+          entry[`${mode}_count`] = matchingOrders.length;
         });
         return entry;
       });
@@ -1296,7 +1310,42 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                                   <ChartTooltip cursor={{ fill: 'transparent' }} contentStyle={{ fontSize: '10px', borderRadius: '12px', border: '2px solid #E2E8F0' }} />
                                   <Legend verticalAlign="top" align="right" iconType="circle" wrapperStyle={{ fontSize: '9px', fontWeight: 'bold', textTransform: 'uppercase' }} />
                                   {seller?.menuTypes?.map(mode => (
-                                    <Bar key={mode} dataKey={mode} stackId="a" fill={MODE_COLORS[mode] || '#64748B'} radius={[0, 0, 0, 0]} />
+                                    <Bar 
+                                      key={mode} 
+                                      dataKey={mode} 
+                                      stackId="a" 
+                                      fill={MODE_COLORS[mode] || '#64748B'} 
+                                      radius={[0, 0, 0, 0]}
+                                      label={(props: any) => {
+                                        const { x, y, width, height, value, index } = props;
+                                        if (value <= 0 || height < 15) return null;
+                                        
+                                        const entry = analyticsData.chartData[index];
+                                        let labelText = "";
+                                        if (analyticsRange === 'YTD') {
+                                          const count = entry[`${mode}_count`] || 0;
+                                          const avg = count > 0 ? (value / count).toFixed(0) : '0';
+                                          labelText = `$${avg}`;
+                                        } else {
+                                          labelText = (entry[`${mode}_count`] || 0).toString();
+                                        }
+
+                                        return (
+                                          <text
+                                            x={x + width / 2}
+                                            y={y + height / 2}
+                                            fill="#FFFFFF"
+                                            textAnchor="middle"
+                                            dominantBaseline="middle"
+                                            fontSize={height < 20 ? 7 : 8}
+                                            fontWeight="900"
+                                            className="pointer-events-none drop-shadow-sm"
+                                          >
+                                            {labelText}
+                                          </text>
+                                        );
+                                      }}
+                                    />
                                   ))}
                                </BarChart>
                             </ResponsiveContainer>
@@ -1669,4 +1718,3 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     </div>
   );
 }
-
