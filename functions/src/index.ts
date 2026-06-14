@@ -309,6 +309,98 @@ export const createPaymentIntent = onCall({
 });
 
 /**
+ * createCheckoutSession
+ * Securely creates a hosted Stripe Checkout session with phone number collection enabled.
+ */
+export const createCheckoutSession = onCall({
+  secrets: ["STRIPE_SECRET_KEY"],
+  region: 'us-central1',
+  cors: true,
+  maxInstances: 10,
+}, async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Authentication required.");
+  }
+
+  const { amount, sellerId, successUrl, cancelUrl } = request.data;
+  if (amount === undefined || !sellerId || !successUrl || !cancelUrl) {
+    throw new HttpsError("invalid-argument", "Missing required parameters (amount, sellerId, urls).");
+  }
+
+  const apiKey = process.env.STRIPE_SECRET_KEY;
+  if (!apiKey) {
+    throw new HttpsError("internal", "STRIPE_SECRET_KEY missing in environment.");
+  }
+  const stripe = new Stripe(apiKey);
+
+  try {
+    // 1. Fetch Venue Registry for routing and multi-tenant fee policy
+    const venueRef = db.collection('venues').doc(sellerId);
+    const venueDoc = await venueRef.get();
+    if (!venueDoc.exists) {
+      throw new HttpsError("not-found", "Venue registry not found.");
+    }
+    
+    const venueData = venueDoc.data();
+    const stripeConnectId = venueData?.stripeConnectId || venueData?.stripeAccountId;
+    if (!stripeConnectId) {
+      throw new HttpsError("failed-precondition", "Venue has not completed Stripe onboarding.");
+    }
+
+    const patronConvenienceFee = venueData?.patronConvenienceFee ?? 150;
+    const platformFeeFixed = venueData?.platformFeeFixed ?? 20;
+    const baseAmountInCents = Math.round(amount * 100);
+    const totalChargeAmount = baseAmountInCents + patronConvenienceFee;
+    const applicationFeeAmount = Math.max(0, patronConvenienceFee - platformFeeFixed);
+
+    // 2. Create the hosted Checkout Session
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      line_items: [
+        {
+          price_data: {
+            currency: 'usd',
+            product_data: {
+              name: `Order from ${venueData?.name || 'Koop'}`,
+            },
+            unit_amount: totalChargeAmount,
+          },
+          quantity: 1,
+        },
+      ],
+      mode: 'payment',
+      // CRITICAL: Enable phone number collection for SMS triggers
+      phone_number_collection: {
+        enabled: true,
+      },
+      payment_intent_data: {
+        application_fee_amount: applicationFeeAmount,
+        transfer_data: {
+          destination: stripeConnectId,
+        },
+        metadata: {
+          sellerId,
+          buyerUid: request.auth.uid,
+          patronFeeCents: patronConvenienceFee.toString(),
+          baseAmountCents: baseAmountInCents.toString()
+        }
+      },
+      success_url: successUrl,
+      cancel_url: cancelUrl,
+      metadata: {
+        sellerId,
+        buyerUid: request.auth.uid,
+      }
+    });
+
+    return { url: session.url };
+  } catch (error: any) {
+    logger.error("createCheckoutSession Error:", error);
+    throw new HttpsError("internal", error.message || "Failed to initialize checkout session.");
+  }
+});
+
+/**
  * verifyVenueConnection
  * Diagnostic utility to verify Stripe account status.
  */
