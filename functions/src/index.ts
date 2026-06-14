@@ -1,4 +1,5 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { onDocumentUpdated } from "firebase-functions/v2/firestore";
 import * as logger from "firebase-functions/logger";
 import { initializeApp } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
@@ -10,6 +11,97 @@ import twilio from 'twilio';
  */
 initializeApp();
 const db = getFirestore();
+
+/**
+ * CONFIGURATION TOGGLE
+ * Set to true to suppress notifications for the 'received' transition 
+ * and only notify when the order is 'ready' for delivery.
+ */
+const NOTIFY_ONLY_ON_READY = false;
+
+/**
+ * onOrderStatusUpdate
+ * Firestore trigger that monitors order status transitions.
+ * Dispatches SMS alerts to iOS users to ensure GPS accuracy during delivery.
+ */
+export const onOrderStatusUpdate = onDocumentUpdated({
+  document: "orders/{orderId}",
+  secrets: ["TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN", "TWILIO_FROM_NUMBER"],
+  region: 'us-central1',
+}, async (event) => {
+  const orderId = event.params.orderId;
+  const beforeData = event.data?.before.data();
+  const afterData = event.data?.after.data();
+
+  if (!beforeData || !afterData) {
+    logger.warn(`[onOrderStatusUpdate] Event data missing for order: ${orderId}`);
+    return;
+  }
+
+  const oldStatus = beforeData.status;
+  const newStatus = afterData.status;
+
+  // 1. Identify valid status transitions
+  // Mapping: 'received' -> Staff acknowledged; 'ready' -> Out for delivery
+  const isTransitionToReceived = newStatus === 'received' && oldStatus !== 'received';
+  const isTransitionToReady = newStatus === 'ready' && oldStatus !== 'ready';
+
+  if (!isTransitionToReceived && !isTransitionToReady) {
+    return; // No relevant status change
+  }
+
+  // 2. Apply "Notify Only on Ready" constraint if toggled
+  if (NOTIFY_ONLY_ON_READY && isTransitionToReceived) {
+    logger.info(`[onOrderStatusUpdate] Notification suppressed for 'received' transition per configuration.`);
+    return;
+  }
+
+  // 3. iPhone / iOS Verification
+  // Gracefully terminate if the user is not on iOS, as background GPS 
+  // restrictions primarily impact the iOS tracking experience.
+  const isIosUser = afterData.deviceOS === 'iOS' || afterData.isIOS === true;
+  if (!isIosUser) {
+    logger.info(`[onOrderStatusUpdate] Skipping SMS: User is not on iOS (${orderId})`);
+    return;
+  }
+
+  const customerPhone = afterData.customerPhone;
+  if (!customerPhone) {
+    logger.error(`[onOrderStatusUpdate] Missing customerPhone for order: ${orderId}`);
+    return;
+  }
+
+  // 4. Initialize Twilio Client
+  const accountSid = process.env.TWILIO_ACCOUNT_SID;
+  const authToken = process.env.TWILIO_AUTH_TOKEN;
+  const fromNumber = process.env.TWILIO_FROM_NUMBER;
+
+  if (!accountSid || !authToken || !fromNumber) {
+    logger.error("[onOrderStatusUpdate] Twilio credentials missing from Secret Manager.");
+    return;
+  }
+
+  const client = twilio(accountSid, authToken);
+
+  try {
+    // 5. Dispatch SMS
+    const message = `Your Koop order status has been updated! View live details here: https://koop.app/orders/${orderId}`;
+    
+    const result = await client.messages.create({
+      body: message,
+      from: fromNumber,
+      to: customerPhone
+    });
+
+    logger.info(`[onOrderStatusUpdate] SMS sent to ${customerPhone}. Status: ${newStatus}. SID: ${result.sid}`);
+    return;
+
+  } catch (error: any) {
+    logger.error(`[onOrderStatusUpdate] Twilio dispatch failed for ${orderId}:`, error);
+    // Function terminates but the error is logged for auditing
+    return;
+  }
+});
 
 /**
  * sendSmsNotification
