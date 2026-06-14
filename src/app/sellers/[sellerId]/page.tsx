@@ -184,7 +184,17 @@ const PIE_COLORS = ['#E50000', '#213147', '#4F46E5', '#F59E0B', '#10B981'];
 
 // --- DND COMPONENTS ---
 
-function SortableMenuItem({ item, isSelected, onToggle }: { item: MenuItem, isSelected: boolean, onToggle: () => void }) {
+function SortableMenuItem({ 
+  item, 
+  isSelected, 
+  onToggleChannel, 
+  onToggleAvailability 
+}: { 
+  item: MenuItem, 
+  isSelected: boolean, 
+  onToggleChannel: () => void,
+  onToggleAvailability: () => void 
+}) {
   const {
     attributes,
     listeners,
@@ -201,36 +211,64 @@ function SortableMenuItem({ item, isSelected, onToggle }: { item: MenuItem, isSe
     opacity: isDragging ? 0.5 : 1,
   };
 
+  const isGloballyAvailable = item.isAvailable !== false;
+
   return (
     <div
       ref={setNodeRef}
       style={style}
       className={cn(
         "flex items-center gap-3 p-3 bg-white border-2 rounded-xl transition-all",
-        isSelected ? "border-primary/40 bg-primary/5 shadow-md ring-2 ring-primary/5" : "border-slate-100 opacity-50 grayscale"
+        isSelected 
+          ? "border-primary/40 bg-primary/5 shadow-md ring-2 ring-primary/5" 
+          : "border-slate-100 opacity-50 grayscale",
+        !isGloballyAvailable && "border-red-100 bg-red-50/30 grayscale-0"
       )}
     >
       <div 
         {...attributes} 
         {...listeners} 
         className={cn(
-          "cursor-grab active:cursor-grabbing p-2 hover:bg-slate-100 rounded-lg",
-          !isSelected && "pointer-events-none opacity-20"
+          "cursor-grab active:cursor-grabbing p-2 hover:bg-slate-100 rounded-lg shrink-0",
+          (!isSelected || !isGloballyAvailable) && "pointer-events-none opacity-20"
         )}
       >
         <GripVertical className="h-4 w-4 text-slate-400" />
       </div>
       
       <div className="flex-1 min-w-0">
-        <p className="font-black text-[11px] uppercase text-[#213147] truncate leading-tight">{item.name}</p>
+        <div className="flex items-center gap-2">
+          <p className="font-black text-[11px] uppercase text-[#213147] truncate leading-tight">{item.name}</p>
+          {!isGloballyAvailable && (
+            <Badge variant="destructive" className="h-4 px-1 text-[7px] font-black uppercase border-0">86'D</Badge>
+          )}
+        </div>
         <p className="text-[10px] text-primary font-bold font-mono mt-0.5">${item.price.toFixed(2)}</p>
       </div>
 
-      <Switch 
-        checked={isSelected} 
-        onCheckedChange={onToggle}
-        className="data-[state=checked]:bg-primary"
-      />
+      <div className="flex items-center gap-4 shrink-0">
+        {/* Global 86 Toggle */}
+        <div className="flex flex-col items-center gap-0.5">
+          <span className="text-[7px] font-black text-slate-400 uppercase">In Stock</span>
+          <Switch 
+            checked={isGloballyAvailable} 
+            onCheckedChange={onToggleAvailability}
+            onPointerDown={(e) => e.stopPropagation()}
+            className="data-[state=checked]:bg-green-600 scale-75"
+          />
+        </div>
+
+        {/* Channel Toggle */}
+        <div className="flex flex-col items-center gap-0.5">
+          <span className="text-[7px] font-black text-slate-400 uppercase">Live</span>
+          <Switch 
+            checked={isSelected} 
+            onCheckedChange={onToggleChannel}
+            onPointerDown={(e) => e.stopPropagation()}
+            className="data-[state=checked]:bg-primary scale-75"
+          />
+        </div>
+      </div>
     </div>
   );
 }
@@ -1027,7 +1065,12 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                             return (
                               <div key={mode} className={cn("flex items-center justify-between p-3 rounded-xl border-2 transition-all", isActive ? "bg-white border-primary/20 shadow-sm" : "bg-slate-50 border-slate-100 opacity-60")}>
                                 <div className="flex items-center gap-2"><div className={cn("w-1.5 h-1.5 rounded-full animate-pulse", isActive ? "bg-green-500" : "bg-slate-300")} /><span className="text-[10px] font-black uppercase text-[#213147]">{mode}</span></div>
-                                <Switch checked={isActive} onCheckedChange={() => handleToggleMode(mode, !!isActive)} className="data-[state=checked]:bg-primary" />
+                                <Switch 
+                                  checked={isActive} 
+                                  onCheckedChange={() => handleToggleMode(mode, !!isActive)} 
+                                  onPointerDown={(e) => e.stopPropagation()}
+                                  className="data-[state=checked]:bg-primary" 
+                                />
                               </div>
                             );
                           })}
@@ -1094,7 +1137,12 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                                             <p className="font-mono text-primary text-[10px] font-bold">${item.price.toFixed(2)}</p>
                                          </div>
                                          <div className="flex items-center justify-between gap-1">
-                                            <Switch checked={item.isAvailable !== false} onCheckedChange={() => toggleItemAvailability(item)} className="data-[state=checked]:bg-green-600 h-4 w-7" />
+                                            <Switch 
+                                              checked={item.isAvailable !== false} 
+                                              onCheckedChange={() => toggleItemAvailability(item)} 
+                                              onPointerDown={(e) => e.stopPropagation()}
+                                              className="data-[state=checked]:bg-green-600 h-4 w-7" 
+                                            />
                                             <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                                <Button size="icon" variant="ghost" className="h-7 w-7 text-primary" onClick={() => { setEditingItem(item); itemForm.reset(item); setIsItemFormOpen(true); }}><Edit className="h-3.5 w-3.5" /></Button>
                                                <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => deleteDoc(doc(firestore!, 'sellers', sellerId, 'menuItems', item.id))}><Trash2 className="h-3.5 w-3.5" /></Button>
@@ -1194,7 +1242,8 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                                       key={item.id} 
                                       item={item} 
                                       isSelected={true} 
-                                      onToggle={() => handleToggleItemInMode(item.id, item.availableOn || [])}
+                                      onToggleChannel={() => handleToggleItemInMode(item.id, item.availableOn || [])}
+                                      onToggleAvailability={() => toggleItemAvailability(item)}
                                     />
                                   ))}
                                   {inactiveItems.map(item => (
@@ -1202,7 +1251,8 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                                       key={item.id} 
                                       item={item} 
                                       isSelected={false} 
-                                      onToggle={() => handleToggleItemInMode(item.id, item.availableOn || [])}
+                                      onToggleChannel={() => handleToggleItemInMode(item.id, item.availableOn || [])}
+                                      onToggleAvailability={() => toggleItemAvailability(item)}
                                     />
                                   ))}
                                 </div>
