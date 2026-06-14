@@ -1,8 +1,8 @@
-import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { onCall, HttpsError, onRequest } from "firebase-functions/v2/https";
 import { onDocumentUpdated } from "firebase-functions/v2/firestore";
 import * as logger from "firebase-functions/logger";
 import { initializeApp } from "firebase-admin/app";
-import { getFirestore } from "firebase-admin/firestore";
+import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import Stripe from 'stripe';
 import twilio from 'twilio';
 
@@ -18,6 +18,75 @@ const db = getFirestore();
  * and only notify when the order is 'Out for Delivery'.
  */
 const NOTIFY_ONLY_ON_DISPATCH = false;
+
+/**
+ * handleStripeWebhook
+ * Secure HTTP endpoint for Stripe event ingestion.
+ * Verifies signatures and creates order documents in Firestore.
+ */
+export const handleStripeWebhook = onRequest({
+  secrets: ["STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET"],
+  region: 'us-central1',
+}, async (req, res) => {
+  const signature = req.headers['stripe-signature'];
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  const apiKey = process.env.STRIPE_SECRET_KEY;
+
+  if (!signature || !webhookSecret || !apiKey) {
+    logger.error("[handleStripeWebhook] Missing signature or secret configuration.");
+    res.status(400).send("Webhook Error: Missing configuration");
+    return;
+  }
+
+  const stripe = new Stripe(apiKey);
+  let event: Stripe.Event;
+
+  try {
+    // CRITICAL: Verify the event came from Stripe using the raw request body
+    event = stripe.webhooks.constructEvent(req.rawBody, signature, webhookSecret);
+  } catch (err: any) {
+    logger.error(`[handleStripeWebhook] Signature verification failed: ${err.message}`);
+    res.status(400).send(`Webhook Error: ${err.message}`);
+    return;
+  }
+
+  // Handle the checkout.session.completed event
+  if (event.type === 'checkout.session.completed') {
+    const session = event.data.object as Stripe.Checkout.Session;
+    
+    // Extract customer data and metadata
+    const customerPhone = session.customer_details?.phone;
+    const metadata = session.metadata || {};
+
+    logger.info(`[handleStripeWebhook] Processing completed session: ${session.id}`);
+
+    try {
+      const orderData = {
+        customerPhone: customerPhone || null,
+        status: "received",
+        deviceOS: metadata.deviceOS || "iOS", // Default to iOS as requested if not provided
+        sellerId: metadata.sellerId || null,
+        buyerProfileId: metadata.buyerUid || null,
+        stripeSessionId: session.id,
+        subtotal: (session.amount_subtotal || 0) / 100,
+        total: (session.amount_total || 0) / 100,
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      };
+
+      const orderRef = await db.collection('orders').add(orderData);
+      logger.info(`[handleStripeWebhook] Successfully created order ${orderRef.id} for phone ${customerPhone}`);
+      
+    } catch (err: any) {
+      logger.error(`[handleStripeWebhook] Firestore ingestion failed: ${err.message}`);
+      res.status(500).send("Internal Server Error during Firestore write");
+      return;
+    }
+  }
+
+  // Return 200 to Stripe to acknowledge receipt
+  res.status(200).send({ received: true });
+});
 
 /**
  * onOrderStatusUpdate
