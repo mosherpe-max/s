@@ -16,7 +16,8 @@
   "dependencies": {
     "firebase-admin": "^13.0.2",
     "firebase-functions": "^6.1.1",
-    "stripe": "^17.0.0"
+    "stripe": "^17.0.0",
+    "twilio": "^4.23.0"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",

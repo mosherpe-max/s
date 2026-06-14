@@ -3,12 +3,59 @@ import * as logger from "firebase-functions/logger";
 import { initializeApp } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
 import Stripe from 'stripe';
+import twilio from 'twilio';
 
 /**
  * Initialize the Firebase Admin SDK.
  */
 initializeApp();
 const db = getFirestore();
+
+/**
+ * sendSmsNotification
+ * Dispatches an automated SMS via Twilio using Secret Manager for credentials.
+ */
+export const sendSmsNotification = onCall({
+  secrets: ["TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN", "TWILIO_FROM_NUMBER"],
+  region: 'us-central1',
+  cors: true,
+  maxInstances: 10,
+}, async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "User must be logged in.");
+  }
+
+  const { to, message } = request.data;
+
+  if (!to || !message) {
+    throw new HttpsError("invalid-argument", "Recipient number and message body are required.");
+  }
+
+  const accountSid = process.env.TWILIO_ACCOUNT_SID;
+  const authToken = process.env.TWILIO_AUTH_TOKEN;
+  const fromNumber = process.env.TWILIO_FROM_NUMBER;
+
+  if (!accountSid || !authToken || !fromNumber) {
+    throw new HttpsError("internal", "Twilio configuration is missing from Secret Manager.");
+  }
+
+  const client = twilio(accountSid, authToken);
+
+  try {
+    const result = await client.messages.create({
+      body: message,
+      from: fromNumber,
+      to: to
+    });
+
+    logger.info(`SMS sent successfully to ${to}. SID: ${result.sid}`);
+    return { success: true, sid: result.sid };
+
+  } catch (error: any) {
+    logger.error("Twilio SMS Error:", error);
+    throw new HttpsError("internal", error.message || "Failed to dispatch SMS notification.");
+  }
+});
 
 /**
  * createStripeConnectAccount
