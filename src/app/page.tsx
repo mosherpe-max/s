@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useEffect } from 'react';
@@ -56,7 +55,7 @@ export default function HomePage() {
           </h1>
           <p className="text-lg md:text-xl text-[#b0bfcf] max-w-[560px] leading-relaxed mb-12 animate-in fade-in slide-in-from-bottom-8 duration-700 delay-200">
             Koop puts a mobile ordering experience in every patron's hand — 
-            on the course, at the lane, poolside. <strong className="text-[#F0F0F0] font-semibold">No POS integration. No hardware. No headaches.</strong>
+            on the course and at the lane. <strong className="text-[#F0F0F0] font-semibold">No POS integration. No hardware. No headaches.</strong>
             You just get more orders.
           </p>
           
