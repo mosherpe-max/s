@@ -105,7 +105,7 @@ function OrderTrackingContent() {
 
   return (
     <div className="flex flex-col min-h-screen bg-muted/10">
-      {/* Map View - Logic based on status: 1/3 height (33vh) as requested */}
+      {/* Map View - Logic based on status: 1/3 height (33vh) */}
       {!isBowling && (
         <div className="h-[33vh] relative border-b-2 shadow-sm shrink-0">
           <MapView 
@@ -113,7 +113,7 @@ function OrderTrackingContent() {
             buyerLocation={order.deliveryLocation} 
             radius={order.status === 'Placed' ? 804.672 : undefined} // 0.5 miles in meters
             zoomMode={order.status === 'Placed' ? 'radius' : 'all'}
-            interactive={true} 
+            interactive={false} 
           />
         </div>
       )}
