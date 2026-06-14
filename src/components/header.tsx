@@ -207,7 +207,11 @@ export function AppHeader() {
   if (!isMounted || isAdminRoute) return null;
 
   const isHomePage = pathname === '/';
-  const isOrderPage = pathname?.includes('/order');
+  
+  // Only show cart on the actual ordering/menu page
+  // The Tracking page (/order/track) already has a placed order, so cart should be hidden
+  const isMenuPage = pathname?.includes('/order') && !pathname?.includes('/track');
+  
   const activeMenuType = menuTypeParam || order?.menuType;
 
   if (isHomePage) {
@@ -249,7 +253,7 @@ export function AppHeader() {
           </div>
 
           <div className="flex justify-end">
-            {isOrderPage && (
+            {isMenuPage && (
               <Button 
                 variant="ghost" 
                 className="flex items-center gap-2 h-11 px-3 text-white hover:bg-white/10 relative group"
