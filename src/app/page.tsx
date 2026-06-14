@@ -74,7 +74,7 @@ export default function HomePage() {
               <div className="text-[13px] text-[#8a9ab0] uppercase tracking-widest font-medium">No App Download Ever</div>
             </div>
             <div className="space-y-1">
-              <div className="font-headline text-4xl font-black text-white leading-none">2<span className="text-[#E50000]">-day</span></div>
+              <div className="font-headline text-4xl font-black text-white leading-none">3<span className="text-[#E50000]">-day</span></div>
               <div className="text-[13px] text-[#8a9ab0] uppercase tracking-widest font-medium">Setup & Launch</div>
             </div>
             <div className="space-y-1">
@@ -160,7 +160,7 @@ export default function HomePage() {
           <div className="absolute top-9 left-[12%] right-[12%] h-0.5 bg-gradient-to-r from-[#E50000] to-transparent hidden lg:block" />
           
           {[
-            { n: '01', t: 'We Set You Up', d: 'We build your menu, generate your QR codes, and handle staff training. You\'re ready to go in 48 hours.' },
+            { n: '01', t: 'We Set You Up', d: 'We build your menu, generate your QR codes, and handle staff training. You\'re ready to go in 72 hours.' },
             { n: '02', nClass: 'delay-100', t: 'Patron Scans & Orders', d: 'A QR code at any location — cart, lane, chair — opens your menu in any mobile browser. No app required.' },
             { n: '03', nClass: 'delay-200', t: 'Staff Gets Notified', d: 'Your team sees the order and delivery location on their device. They fulfill it exactly as they do today.' },
             { n: '04', nClass: 'delay-300', t: 'Revenue Hits Account', d: 'Payments flow directly into your merchant account via Stripe Express. Koop never touches your money.' }
@@ -185,7 +185,7 @@ export default function HomePage() {
           {[
             { i: '🚫', t: 'No POS Integration', d: 'Koop doesn\'t touch your existing point-of-sale system. Zero IT work, zero configuration risk.' },
             { i: '💳', t: 'Patrons Pay the Fee', d: 'A small convenience fee is charged to the patron at checkout — not to you. Your venue keeps 100%.' },
-            { i: '⚡', t: 'Live in 48 Hours', d: 'We handle setup — menus, QR codes, staff walkthrough. Approved and launched in 2 business days.' },
+            { i: '⚡', t: 'Live in 72 Hours', d: 'We handle setup — menus, QR codes, staff walkthrough. Approved and launched in 3 business days.' },
             { i: '📍', t: 'Order From Anywhere', d: 'Every QR code is location-aware. Staff knows exactly where to deliver without explanation.' },
             { i: '📱', t: 'No App to Download', d: 'Patrons scan, order, and pay right in their mobile browser. No friction, higher completion.' },
             { i: '💰', t: 'Money Goes Direct', d: 'Payments flow directly into your existing merchant account via Stripe Express. Koop never holds or routes your funds.' }
