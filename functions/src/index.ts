@@ -14,15 +14,15 @@ const db = getFirestore();
 
 /**
  * CONFIGURATION TOGGLE
- * Set to true to suppress notifications for the 'received' transition 
- * and only notify when the order is 'ready' for delivery.
+ * Set to true to suppress notifications for the initial 'Preparing' transition 
+ * and only notify when the order is 'Out for Delivery'.
  */
-const NOTIFY_ONLY_ON_READY = false;
+const NOTIFY_ONLY_ON_DISPATCH = false;
 
 /**
  * onOrderStatusUpdate
  * Firestore trigger that monitors order status transitions.
- * Dispatches SMS alerts to iOS users to ensure GPS accuracy during delivery.
+ * Dispatches SMS alerts to all patrons to ensure real-time coordination.
  */
 export const onOrderStatusUpdate = onDocumentUpdated({
   document: "orders/{orderId}",
@@ -41,37 +41,30 @@ export const onOrderStatusUpdate = onDocumentUpdated({
   const oldStatus = beforeData.status;
   const newStatus = afterData.status;
 
-  // 1. Identify valid status transitions
-  // Mapping: 'received' -> Staff acknowledged; 'ready' -> Out for delivery
-  const isTransitionToReceived = newStatus === 'received' && oldStatus !== 'received';
-  const isTransitionToReady = newStatus === 'ready' && oldStatus !== 'ready';
+  // 1. Identify valid status transitions based on platform lifecycle
+  // Transition A: Staff acknowledged (Placed -> Preparing)
+  const isTransitionToReceived = newStatus === 'Preparing' && oldStatus !== 'Preparing';
+  // Transition B: Out for delivery (Preparing -> Out for Delivery)
+  const isTransitionToReady = newStatus === 'Out for Delivery' && oldStatus !== 'Out for Delivery';
 
   if (!isTransitionToReceived && !isTransitionToReady) {
     return; // No relevant status change
   }
 
-  // 2. Apply "Notify Only on Ready" constraint if toggled
-  if (NOTIFY_ONLY_ON_READY && isTransitionToReceived) {
-    logger.info(`[onOrderStatusUpdate] Notification suppressed for 'received' transition per configuration.`);
+  // 2. Apply "Notify Only on Dispatch" constraint if toggled
+  if (NOTIFY_ONLY_ON_DISPATCH && isTransitionToReceived) {
+    logger.info(`[onOrderStatusUpdate] Notification suppressed for 'Preparing' transition.`);
     return;
   }
 
-  // 3. iPhone / iOS Verification
-  // Gracefully terminate if the user is not on iOS, as background GPS 
-  // restrictions primarily impact the iOS tracking experience.
-  const isIosUser = afterData.deviceOS === 'iOS' || afterData.isIOS === true;
-  if (!isIosUser) {
-    logger.info(`[onOrderStatusUpdate] Skipping SMS: User is not on iOS (${orderId})`);
-    return;
-  }
-
+  // 3. Extract Customer Contact Information
   const customerPhone = afterData.customerPhone;
   if (!customerPhone) {
     logger.error(`[onOrderStatusUpdate] Missing customerPhone for order: ${orderId}`);
     return;
   }
 
-  // 4. Initialize Twilio Client
+  // 4. Initialize Twilio Client using Secret Manager
   const accountSid = process.env.TWILIO_ACCOUNT_SID;
   const authToken = process.env.TWILIO_AUTH_TOKEN;
   const fromNumber = process.env.TWILIO_FROM_NUMBER;
@@ -84,28 +77,29 @@ export const onOrderStatusUpdate = onDocumentUpdated({
   const client = twilio(accountSid, authToken);
 
   try {
-    // 5. Dispatch SMS
-    const message = `Your Koop order status has been updated! View live details here: https://koop.app/orders/${orderId}`;
+    // 5. Build Dynamic Message
+    const statusLabel = newStatus === 'Preparing' ? 'is being prepared' : 'is out for delivery';
+    const message = `Your Koop order ${statusLabel}! View live tracking details here: https://koop.app/orders/${orderId}`;
     
+    // 6. Dispatch SMS
     const result = await client.messages.create({
       body: message,
       from: fromNumber,
       to: customerPhone
     });
 
-    logger.info(`[onOrderStatusUpdate] SMS sent to ${customerPhone}. Status: ${newStatus}. SID: ${result.sid}`);
+    logger.info(`[onOrderStatusUpdate] Universal SMS sent to ${customerPhone}. Status: ${newStatus}. SID: ${result.sid}`);
     return;
 
   } catch (error: any) {
     logger.error(`[onOrderStatusUpdate] Twilio dispatch failed for ${orderId}:`, error);
-    // Function terminates but the error is logged for auditing
     return;
   }
 });
 
 /**
  * sendSmsNotification
- * Dispatches an automated SMS via Twilio using Secret Manager for credentials.
+ * Dispatches a manual SMS via Twilio for custom staff alerts.
  */
 export const sendSmsNotification = onCall({
   secrets: ["TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN", "TWILIO_FROM_NUMBER"],
