@@ -60,7 +60,9 @@ import {
   MousePointer2,
   Map as MapIcon,
   Timer,
-  Save
+  Save,
+  Calendar,
+  FileText
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -84,7 +86,7 @@ import {
 } from "@/components/ui/tabs";
 import { Label } from '@/components/ui/label';
 import { cn, getNumericOrderId, SUPER_ADMIN_ID } from '@/lib/utils';
-import { isThisMonth, isToday, format, startOfHour, eachHourOfInterval, subHours, differenceInMinutes } from 'date-fns';
+import { isThisMonth, isToday, format, startOfHour, eachHourOfInterval, subHours, differenceInMinutes, startOfMonth, endOfDay, isWithinInterval, startOfDay } from 'date-fns';
 import * as XLSX from 'xlsx';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -301,6 +303,11 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   const [verificationResult, setVerificationResult] = useState<any>(null);
   const [isProcessingSave, setIsProcessingSave] = useState(false);
   const [configMode, setConfigMode] = useState<string>('Beverage Cart');
+
+  // Analytics Detailed Filter State
+  const [reportStartDate, setReportStartDate] = useState<string>(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
+  const [reportEndDate, setReportEndDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
+  const [reportModeFilter, setReportModeFilter] = useState<string>('All');
 
   // Settings State
   const [venueThresholds, setVenueThresholds] = useState<Record<string, { warning: number; max: number }>>({});
@@ -669,6 +676,36 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
 
     return { hourly, revenueByMode };
   }, [orders, dashboardFilter]);
+
+  const detailedReportOrders = useMemo(() => {
+    if (!orders) return [];
+    
+    let filtered = orders;
+
+    // Filter by Service Mode
+    if (reportModeFilter !== 'All') {
+      filtered = filtered.filter(o => o.menuType === reportModeFilter);
+    }
+
+    // Filter by Date Range
+    const start = startOfDay(new Date(reportStartDate));
+    const end = endOfDay(new Date(reportEndDate));
+
+    filtered = filtered.filter(o => {
+      if (!o.createdAt) return false;
+      const orderDate = o.createdAt.toDate();
+      return isWithinInterval(orderDate, { start, end });
+    });
+
+    // Sort by Date Descending
+    return [...filtered].sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
+  }, [orders, reportStartDate, reportEndDate, reportModeFilter]);
+
+  const detailedReportStats = useMemo(() => {
+    const revenue = detailedReportOrders.reduce((acc, o) => acc + o.total, 0);
+    const volume = detailedReportOrders.length;
+    return { revenue, volume };
+  }, [detailedReportOrders]);
 
   const mappedBuyers = useMemo(() => {
     if (!orders) return [];
@@ -1179,9 +1216,9 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
               )}
 
               {activeNav === 'analytics' && (
-                <div className="space-y-10 animate-in fade-in duration-500">
+                <div className="space-y-12 animate-in fade-in duration-500">
                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                      <Card className="border-2">
+                      <Card className="border-2 shadow-sm">
                          <CardHeader className="bg-slate-50/50 border-b"><CardTitle className="text-xs font-black uppercase tracking-widest text-[#213147]">Order Density (Last 12h)</CardTitle></CardHeader>
                          <CardContent className="pt-10 h-[300px]">
                             <ResponsiveContainer width="100%" height="100%">
@@ -1195,7 +1232,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                             </ResponsiveContainer>
                          </CardContent>
                       </Card>
-                      <Card className="border-2">
+                      <Card className="border-2 shadow-sm">
                          <CardHeader className="bg-slate-50/50 border-b"><CardTitle className="text-xs font-black uppercase tracking-widest text-[#213147]">Revenue Share by Mode</CardTitle></CardHeader>
                          <CardContent className="h-[300px] flex items-center justify-center">
                             <ResponsiveContainer width="100%" height="100%">
@@ -1210,6 +1247,101 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                                </PieChart>
                             </ResponsiveContainer>
                          </CardContent>
+                      </Card>
+                   </div>
+
+                   {/* DETAILED SALES SECTION */}
+                   <div className="space-y-6">
+                      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b-2 pb-4">
+                        <div className="flex items-center gap-3">
+                          <div className="bg-primary/10 p-2 rounded-xl text-primary"><FileText className="h-5 w-5" /></div>
+                          <div>
+                            <h3 className="font-headline font-black text-xl text-[#213147] uppercase leading-tight">Detailed Sales Audit</h3>
+                            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Transaction level reporting</p>
+                          </div>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <div className="flex items-center bg-white border-2 rounded-xl px-3 h-10 gap-2">
+                             <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+                             <input 
+                               type="date" 
+                               value={reportStartDate} 
+                               onChange={(e) => setReportStartDate(e.target.value)}
+                               className="text-[10px] font-black uppercase bg-transparent outline-none"
+                             />
+                             <span className="text-[10px] text-muted-foreground font-bold">TO</span>
+                             <input 
+                               type="date" 
+                               value={reportEndDate} 
+                               onChange={(e) => setReportEndDate(e.target.value)}
+                               className="text-[10px] font-black uppercase bg-transparent outline-none"
+                             />
+                          </div>
+                          <Select value={reportModeFilter} onValueChange={setReportModeFilter}>
+                            <SelectTrigger className="w-[140px] h-10 border-2 font-black uppercase tracking-widest text-[9px] bg-white">
+                              <SelectValue placeholder="All Modes" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="All">All Modes</SelectItem>
+                              {seller?.menuTypes?.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                         <div className="bg-white p-4 rounded-2xl border-2 shadow-sm flex flex-col justify-center">
+                            <p className="text-[8px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-1">Audit Volume</p>
+                            <p className="text-xl font-black font-headline text-[#213147]">{detailedReportStats.volume} <span className="text-[10px] text-muted-foreground uppercase font-bold">Tickets</span></p>
+                         </div>
+                         <div className="bg-white p-4 rounded-2xl border-2 shadow-sm flex flex-col justify-center">
+                            <p className="text-[8px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-1">Audit Revenue</p>
+                            <p className="text-xl font-black font-headline text-green-600">${detailedReportStats.revenue.toFixed(2)}</p>
+                         </div>
+                         <Button variant="outline" className="h-full border-2 rounded-2xl gap-2 font-black uppercase text-[10px] tracking-widest">
+                            <Download className="h-4 w-4" /> Export Audit Log
+                         </Button>
+                      </div>
+
+                      <Card className="border-2 shadow-sm overflow-hidden">
+                         <div className="overflow-x-auto">
+                            <Table>
+                               <TableHeader className="bg-slate-50 border-b">
+                                  <TableRow>
+                                     <TableHead className="text-[9px] font-black uppercase tracking-widest">Order ID</TableHead>
+                                     <TableHead className="text-[9px] font-black uppercase tracking-widest">Timestamp</TableHead>
+                                     <TableHead className="text-[9px] font-black uppercase tracking-widest">Patron</TableHead>
+                                     <TableHead className="text-[9px] font-black uppercase tracking-widest">Mode</TableHead>
+                                     <TableHead className="text-[9px] font-black uppercase tracking-widest">Total</TableHead>
+                                     <TableHead className="text-[9px] font-black uppercase tracking-widest text-right">Status</TableHead>
+                                  </TableRow>
+                               </TableHeader>
+                               <TableBody>
+                                  {detailedReportOrders.length === 0 ? (
+                                    <TableRow>
+                                      <TableCell colSpan={6} className="h-32 text-center text-[10px] font-bold text-muted-foreground uppercase">
+                                        No transactions found for this audit window.
+                                      </TableCell>
+                                    </TableRow>
+                                  ) : (
+                                    detailedReportOrders.map((o) => (
+                                      <TableRow key={o.id}>
+                                         <TableCell className="font-mono text-[10px] font-black">#{getNumericOrderId(o.id)}</TableCell>
+                                         <TableCell className="text-[10px] font-bold text-slate-500 uppercase">{o.createdAt ? format(o.createdAt.toDate(), 'MMM d, h:mm a') : 'N/A'}</TableCell>
+                                         <TableCell className="text-[10px] font-black text-[#213147] uppercase truncate max-w-[120px]">{o.customerName}</TableCell>
+                                         <TableCell>
+                                            <Badge variant="secondary" className="text-[8px] font-black uppercase">{o.menuType}</Badge>
+                                         </TableCell>
+                                         <TableCell className="font-mono text-[10px] font-black text-primary">${o.total.toFixed(2)}</TableCell>
+                                         <TableCell className="text-right">
+                                            <Badge className={cn("text-[8px] font-black uppercase border-0", o.status === 'Delivered' ? 'bg-green-600' : 'bg-slate-400')}>{o.status}</Badge>
+                                         </TableCell>
+                                      </TableRow>
+                                    ))
+                                  )}
+                               </TableBody>
+                            </Table>
+                         </div>
                       </Card>
                    </div>
                 </div>
