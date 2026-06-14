@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -5,7 +6,7 @@ import type { Order } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from './ui/card';
 import { Separator } from './ui/separator';
 import { Button } from './ui/button';
-import { Clock, AlertTriangle, ChevronRight, CheckCircle2, Truck, Timer } from 'lucide-react';
+import { Clock, AlertTriangle, ChevronRight, CheckCircle2, Truck, Timer, Satellite } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { cn, getNumericOrderId } from '@/lib/utils';
 
@@ -26,7 +27,6 @@ const getStatusConfig = (status: Order['status']) => {
     'Cancelled': { label: 'VOID', icon: AlertTriangle, variant: 'outline' },
   };
   
-  // Return config or a safe fallback to prevent "cannot read properties of undefined"
   return config[status] || { label: '???', icon: Clock, variant: 'outline' };
 };
 
@@ -40,9 +40,13 @@ const DEFAULT_THRESHOLDS: Record<string, { warning: number; max: number }> = {
 export function OrderCard({ order, orderNumber, onUpdateStatus, thresholds, now }: OrderCardProps) {
   const statusInfo = getStatusConfig(order.status);
   
-  // Defensive calculation for minutes elapsed
+  // Calculate Order Duration
   const orderTime = order.createdAt?.toDate?.()?.getTime() || now;
   const minutesElapsed = Math.floor((now - orderTime) / 60000);
+  
+  // Calculate GPS Freshness
+  const lastGpsTime = order.lastGpsUpdate?.toDate?.()?.getTime() || null;
+  const gpsMinutesElapsed = lastGpsTime ? Math.floor((now - lastGpsTime) / 60000) : null;
   
   const modeDefaults = DEFAULT_THRESHOLDS[order.menuType] || { warning: 15, max: 20 };
   const warningThreshold = thresholds?.warning || modeDefaults.warning;
@@ -50,6 +54,17 @@ export function OrderCard({ order, orderNumber, onUpdateStatus, thresholds, now 
   
   const isOverdue = minutesElapsed >= maxThreshold;
   const isWarning = minutesElapsed >= warningThreshold && !isOverdue;
+
+  // GPS Freshness UI Config
+  const getGpsStatus = () => {
+    if (gpsMinutesElapsed === null) return { label: 'NO GPS', color: 'text-slate-300' };
+    if (gpsMinutesElapsed < 1) return { label: 'LIVE', color: 'text-green-500' };
+    if (gpsMinutesElapsed < 3) return { label: `${gpsMinutesElapsed}m ago`, color: 'text-green-500' };
+    if (gpsMinutesElapsed < 6) return { label: `${gpsMinutesElapsed}m ago`, color: 'text-amber-500' };
+    return { label: `${gpsMinutesElapsed}m ago`, color: 'text-red-500' };
+  };
+
+  const gpsStatus = getGpsStatus();
 
   return (
     <Card className={cn(
@@ -101,11 +116,20 @@ export function OrderCard({ order, orderNumber, onUpdateStatus, thresholds, now 
           ))}
         </div>
         
-        {order.menuTypeLocation && (
-          <div className="flex items-center gap-1 text-[8px] font-black text-primary uppercase border-t pt-1.5">
-            <Clock className="h-2 w-2" /> {order.menuTypeLocation}
+        <div className="flex flex-col gap-1 border-t pt-1.5">
+          {order.menuTypeLocation && (
+            <div className="flex items-center gap-1 text-[8px] font-black text-primary uppercase">
+              <Clock className="h-2 w-2" /> {order.menuTypeLocation}
+            </div>
+          )}
+          
+          {/* GPS FRESHNESS INDICATOR */}
+          <div className="flex items-center gap-1 text-[8px] font-black uppercase">
+            <Satellite className={cn("h-2 w-2", gpsStatus.color)} />
+            <span className="text-muted-foreground">GPS:</span>
+            <span className={cn(gpsStatus.color)}>{gpsStatus.label}</span>
           </div>
-        )}
+        </div>
       </CardContent>
 
       {/* COMPACT FOOTER */}

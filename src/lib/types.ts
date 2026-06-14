@@ -127,6 +127,7 @@ export interface Order {
     latitude: number;
     longitude: number;
   };
+  lastGpsUpdate?: Timestamp;
   items: OrderItem[];
   subtotal: number;
   serviceFee: number;
