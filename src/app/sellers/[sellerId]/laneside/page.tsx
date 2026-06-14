@@ -1,3 +1,4 @@
+
 'use client';
 
 import { collection, query, where, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
@@ -21,7 +22,14 @@ export default function LaneSideServerDashboardPage({ params }: { params: Promis
   const router = useRouter();
 
   const [now, setNow] = useState<number>(Date.now());
+  const [currentStaffId, setCurrentStaffId] = useState<string | undefined>();
   const lastOrderIdsRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setCurrentStaffId(localStorage.getItem('koop_staff_id') || undefined);
+    }
+  }, []);
 
   const primarySellerRef = useMemoFirebase(() => {
     if (!firestore || !sellerId) return null;
@@ -75,13 +83,40 @@ export default function LaneSideServerDashboardPage({ params }: { params: Promis
     
     if (nextIdx < stages.length) {
       const nextStatus = stages[nextIdx];
-      updateDoc(doc(firestore, 'orders', orderId), { 
+      
+      const updateData: any = { 
         status: nextStatus, 
         deliveredAt: nextStatus === 'Delivered' ? serverTimestamp() : null 
-      }).catch((err) => {
+      };
+
+      if (nextStatus === 'Preparing') {
+        const staffId = localStorage.getItem('koop_staff_id');
+        const staffName = localStorage.getItem('koop_staff_name');
+        if (staffId && staffName) {
+          updateData.assignedStaffId = staffId;
+          updateData.assignedStaffName = staffName;
+        }
+      }
+
+      updateDoc(doc(firestore, 'orders', orderId), updateData).catch((err) => {
         console.error("Status update failed:", err);
       });
     }
+  };
+
+  const handleAttachOrder = (orderId: string) => {
+    if (!firestore) return;
+    const staffId = localStorage.getItem('koop_staff_id');
+    const staffName = localStorage.getItem('koop_staff_name');
+    if (!staffId || !staffName) return;
+
+    updateDoc(doc(firestore, 'orders', orderId), {
+      assignedStaffId: staffId,
+      assignedStaffName: staffName,
+      updatedAt: serverTimestamp()
+    }).then(() => {
+      toast({ title: "Order Attached", description: `You are now assigned to this ticket.` });
+    });
   };
 
   const isLoading = areActiveOrdersLoading || isPrimaryLoading;
@@ -130,6 +165,8 @@ export default function LaneSideServerDashboardPage({ params }: { params: Promis
                     orderNumber={index + 1} 
                     now={now} 
                     onUpdateStatus={handleUpdateOrderStatus}
+                    onAttach={handleAttachOrder}
+                    currentStaffId={currentStaffId}
                     thresholds={primarySeller?.orderThresholds?.[order.menuType]}
                   />
                 ))

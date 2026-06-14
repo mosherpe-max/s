@@ -6,7 +6,7 @@ import type { Order } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from './ui/card';
 import { Separator } from './ui/separator';
 import { Button } from './ui/button';
-import { Clock, AlertTriangle, ChevronRight, CheckCircle2, Truck, Timer, Satellite } from 'lucide-react';
+import { Clock, AlertTriangle, ChevronRight, CheckCircle2, Truck, Timer, Satellite, User, UserPlus } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { cn, getNumericOrderId } from '@/lib/utils';
 
@@ -14,6 +14,8 @@ interface OrderCardProps {
   order: Order;
   orderNumber: number;
   onUpdateStatus: (id: string, currentStatus: string) => void;
+  onAttach?: (id: string) => void;
+  currentStaffId?: string;
   thresholds?: { warning: number; max: number };
   now: number;
 }
@@ -37,7 +39,7 @@ const DEFAULT_THRESHOLDS: Record<string, { warning: number; max: number }> = {
   'Take Out': { warning: 15, max: 25 }
 };
 
-export function OrderCard({ order, orderNumber, onUpdateStatus, thresholds, now }: OrderCardProps) {
+export function OrderCard({ order, orderNumber, onUpdateStatus, onAttach, currentStaffId, thresholds, now }: OrderCardProps) {
   const statusInfo = getStatusConfig(order.status);
   
   // Calculate Order Duration
@@ -54,6 +56,9 @@ export function OrderCard({ order, orderNumber, onUpdateStatus, thresholds, now 
   
   const isOverdue = minutesElapsed >= maxThreshold;
   const isWarning = minutesElapsed >= warningThreshold && !isOverdue;
+
+  const isAssignedToMe = currentStaffId && order.assignedStaffId === currentStaffId;
+  const isAssignedToOther = order.assignedStaffId && order.assignedStaffId !== currentStaffId;
 
   // GPS Freshness UI Config
   const getGpsStatus = () => {
@@ -117,17 +122,35 @@ export function OrderCard({ order, orderNumber, onUpdateStatus, thresholds, now 
         </div>
         
         <div className="flex flex-col gap-1 border-t pt-1.5">
-          {order.menuTypeLocation && (
+          <div className="flex items-center justify-between">
             <div className="flex items-center gap-1 text-[8px] font-black text-primary uppercase">
-              <Clock className="h-2 w-2" /> {order.menuTypeLocation}
+              <Clock className="h-2 w-2" /> {order.menuTypeLocation || 'Standard'}
             </div>
-          )}
-          
-          {/* GPS FRESHNESS INDICATOR */}
-          <div className="flex items-center gap-1 text-[8px] font-black uppercase">
-            <Satellite className={cn("h-2 w-2", gpsStatus.color)} />
-            <span className="text-muted-foreground">GPS:</span>
-            <span className={cn(gpsStatus.color)}>{gpsStatus.label}</span>
+            
+            {/* GPS FRESHNESS INDICATOR */}
+            <div className="flex items-center gap-1 text-[8px] font-black uppercase">
+              <Satellite className={cn("h-2 w-2", gpsStatus.color)} />
+              <span className={cn(gpsStatus.color)}>{gpsStatus.label}</span>
+            </div>
+          </div>
+
+          {/* STAFF ASSIGNMENT INFO */}
+          <div className="flex items-center justify-between bg-muted/30 rounded px-1.5 py-1">
+            <div className="flex items-center gap-1">
+              <User className="h-2.5 w-2.5 text-muted-foreground" />
+              <span className="text-[7px] font-black uppercase text-muted-foreground">Staff:</span>
+              <span className="text-[8px] font-black uppercase text-[#213147] truncate max-w-[80px]">
+                {isAssignedToMe ? 'YOU' : (order.assignedStaffName || 'Unassigned')}
+              </span>
+            </div>
+            {onAttach && (!order.assignedStaffId || isAssignedToOther) && order.status !== 'Delivered' && (
+              <button 
+                onClick={() => onAttach(order.id)}
+                className="text-[7px] font-black uppercase text-primary hover:underline flex items-center gap-0.5"
+              >
+                <UserPlus className="h-2 w-2" /> {order.assignedStaffId ? 'Reattach' : 'Attach'}
+              </button>
+            )}
           </div>
         </div>
       </CardContent>

@@ -137,6 +137,8 @@ export interface Order {
   status: 'Placed' | 'Preparing' | 'Out for Delivery' | 'Delivered' | 'Cancelled';
   createdAt: Timestamp;
   deliveredAt?: Timestamp;
+  assignedStaffId?: string;
+  assignedStaffName?: string;
 }
 
 export interface Prospect {

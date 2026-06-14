@@ -1,3 +1,4 @@
+
 'use client';
 
 import { collection, query, where, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
@@ -30,7 +31,14 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
   const [now, setNow] = useState<number>(Date.now());
   const [sellerLocation, setSellerLocation] = useState<LatLng | null>(null);
   const [fitTrigger, setFitTrigger] = useState<number>(0);
+  const [currentStaffId, setCurrentStaffId] = useState<string | undefined>();
   const lastOrderIdsRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setCurrentStaffId(localStorage.getItem('koop_staff_id') || undefined);
+    }
+  }, []);
 
   const primarySellerRef = useMemoFirebase(() => {
     if (!firestore || !sellerId) return null;
@@ -50,7 +58,6 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
           const lng = p.coords.longitude;
           setSellerLocation({ latitude: lat, longitude: lng });
           
-          // BROADCAST LIVE GPS TO FIRESTORE
           updateDoc(doc(firestore, 'sellers', sellerId), {
             latitude: lat,
             longitude: lng,
@@ -108,13 +115,40 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
     
     if (nextIdx < stages.length) {
       const nextStatus = stages[nextIdx];
-      updateDoc(doc(firestore, 'orders', orderId), { 
+      
+      const updateData: any = { 
         status: nextStatus, 
         deliveredAt: nextStatus === 'Delivered' ? serverTimestamp() : null 
-      }).catch((err) => {
+      };
+
+      if (nextStatus === 'Preparing') {
+        const staffId = localStorage.getItem('koop_staff_id');
+        const staffName = localStorage.getItem('koop_staff_name');
+        if (staffId && staffName) {
+          updateData.assignedStaffId = staffId;
+          updateData.assignedStaffName = staffName;
+        }
+      }
+
+      updateDoc(doc(firestore, 'orders', orderId), updateData).catch((err) => {
         console.error("Status update failed:", err);
       });
     }
+  };
+
+  const handleAttachOrder = (orderId: string) => {
+    if (!firestore) return;
+    const staffId = localStorage.getItem('koop_staff_id');
+    const staffName = localStorage.getItem('koop_staff_name');
+    if (!staffId || !staffName) return;
+
+    updateDoc(doc(firestore, 'orders', orderId), {
+      assignedStaffId: staffId,
+      assignedStaffName: staffName,
+      updatedAt: serverTimestamp()
+    }).then(() => {
+      toast({ title: "Order Attached", description: `You are now assigned to this ticket.` });
+    });
   };
 
   const mappedBuyers = useMemo(() => {
@@ -197,6 +231,8 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
                     orderNumber={index + 1} 
                     now={now} 
                     onUpdateStatus={handleUpdateOrderStatus}
+                    onAttach={handleAttachOrder}
+                    currentStaffId={currentStaffId}
                     thresholds={primarySeller?.orderThresholds?.[order.menuType]}
                   />
                 ))
