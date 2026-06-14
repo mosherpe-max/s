@@ -122,7 +122,7 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* Bowling Card */}
+        {/* Bowling Alley Card */}
         <div className="reveal opacity-0 translate-y-8 transition-all duration-700 delay-100 ease-out bg-[#213147] px-8 md:px-16 py-24 relative overflow-hidden group">
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_70%_30%,rgba(229,0,0,0.08),transparent_60%)] opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
           
@@ -228,7 +228,7 @@ export default function HomePage() {
             </h3>
             <p className="text-lg text-[#8a9ab0] mb-8 leading-relaxed">Every time a patron orders through Koop, they pay a small convenience fee. You keep 100% of your menu price.</p>
             <ul className="space-y-4">
-              {['No CC processing fees billed to you', 'No percentage of sales taken by Koop', '100% of F&B revenue goes to you', 'Direct deposit via Stripe Express', 'Simple monthly invoicing'].map(item => (
+              {['No additional CC processing fees billed to you', 'No percentage of sales taken by Koop', '100% of F&B revenue goes to you', 'Direct deposit via Stripe Express', 'Simple monthly invoicing'].map(item => (
                 <li key={item} className="flex items-center gap-3 text-base font-bold text-[#F0F0F0]">
                   <span className="text-[#E50000] font-black text-xl leading-none">✓</span> {item}
                 </li>
