@@ -229,16 +229,12 @@ export function AppHeader() {
   return (
     <header className="sticky top-0 z-40 bg-[#213147] border-b-2 border-[#E50000] shadow-md h-16 shrink-0">
       <div className="container mx-auto h-full flex items-center px-4">
-        <div className="grid grid-cols-3 items-center w-full">
-          <div className="flex justify-start">
-            <div className="w-10" />
-          </div>
-
-          <div className="flex flex-col items-center text-center min-w-0">
+        <div className="flex items-center justify-between w-full gap-4">
+          <div className="flex flex-col items-start text-left min-w-0 flex-1">
             {isSellerLoading ? (
               <div className="h-4 w-32 bg-white/10 animate-pulse rounded-full" />
             ) : (
-              <h1 className="font-headline text-sm font-black text-white uppercase tracking-tight truncate leading-tight w-full max-w-[180px] sm:max-w-[280px]">
+              <h1 className="font-headline text-sm font-black text-white uppercase tracking-tight truncate leading-tight w-full">
                 {seller?.courseName || 'KOOP Platform'}
               </h1>
             )}
@@ -252,7 +248,7 @@ export function AppHeader() {
             )}
           </div>
 
-          <div className="flex justify-end">
+          <div className="flex justify-end shrink-0">
             {isMenuPage && (
               <Button 
                 variant="ghost" 
