@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { ShoppingBag, MapPin, Loader2, Store, ClipboardList, Satellite, Info, Smartphone, Zap, Edit2 } from 'lucide-react';
+import { ShoppingBag, MapPin, Loader2, Store, ClipboardList, Satellite, Info, Smartphone, Zap, Edit2, CheckCircle2, ArrowRight, PartyPopper } from 'lucide-react';
 import { getNumericOrderId } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
@@ -37,12 +37,12 @@ function OrderTrackingContent() {
 
   const isGolf = seller?.type?.toLowerCase().includes('golf');
   const isBowling = seller?.type?.toLowerCase().includes('bowling');
+  const isDelivered = order?.status === 'Delivered';
 
-  // Implement Screen Wake Lock - ONLY FOR GOLF COURSES
+  // Implement Screen Wake Lock - ONLY FOR GOLF COURSES (Release when delivered)
   useEffect(() => {
     const requestWakeLock = async () => {
-      // Only request wake lock for golf courses where tracking is active
-      if ('wakeLock' in navigator && order && order.status !== 'Delivered' && isGolf) {
+      if ('wakeLock' in navigator && order && !isDelivered && isGolf) {
         try {
           wakeLockRef.current = await (navigator as any).wakeLock.request('screen');
         } catch (err) {
@@ -59,10 +59,10 @@ function OrderTrackingContent() {
         wakeLockRef.current = null;
       }
     };
-  }, [order?.status, isGolf]);
+  }, [order?.status, isGolf, isDelivered]);
 
   useEffect(() => {
-    if (!order || !firestore || order.status === 'Delivered') return;
+    if (!order || !firestore || isDelivered) return;
 
     if (navigator.geolocation) {
       watchIdRef.current = navigator.geolocation.watchPosition(
@@ -77,7 +77,7 @@ function OrderTrackingContent() {
       );
     }
     return () => { if (watchIdRef.current) navigator.geolocation.clearWatch(watchIdRef.current); };
-  }, [order?.status, order?.id, firestore]);
+  }, [order?.status, order?.id, firestore, isDelivered]);
 
   const handleUpdateLane = (lane: string) => {
     if (!firestore || !order) return;
@@ -101,31 +101,50 @@ function OrderTrackingContent() {
   if (isLoading) return <div className="flex-1 flex items-center justify-center p-8"><Loader2 className="animate-spin h-10 w-10 text-primary" /></div>;
   if (!order) return <div className="p-8 text-center"><p>Order not found.</p><Button asChild className="mt-4"><Link href="/">Back Home</Link></Button></div>;
 
-  // MAP LOGIC:
-  // 1. If status is 'Placed', only show patron with 0.5 mile radius.
-  // 2. Once driver acknowledges (Preparing/Delivery/Done), show both driver and patron.
   const isDriverAttached = order.status !== 'Placed' && order.status !== 'Cancelled';
   const showBilateral = isDriverAttached && seller;
 
   return (
     <div className="flex flex-col min-h-screen bg-muted/10">
-      {/* Map View - Logic based on status: 1/3 height (33vh) */}
+      {/* Top Section: Map or Completion Message */}
       {!isBowling && (
-        <div className="h-[33vh] relative border-b-2 shadow-sm shrink-0">
-          <MapView 
-            sellerLocation={showBilateral ? { latitude: seller.latitude, longitude: seller.longitude } : undefined} 
-            buyerLocation={order.deliveryLocation} 
-            radius={order.status === 'Placed' ? 804.672 : undefined} // 0.5 miles in meters
-            zoomMode={order.status === 'Placed' ? 'radius' : 'all'}
-            interactive={false} 
-          />
+        <div className="h-[33vh] relative border-b-2 shadow-sm shrink-0 overflow-hidden">
+          {isDelivered ? (
+            <div className="absolute inset-0 bg-[#213147] flex flex-col items-center justify-center text-center p-6 space-y-4 animate-in fade-in duration-700">
+               <div className="absolute inset-0 z-0 opacity-10 pointer-events-none">
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full border-[30px] border-white" />
+              </div>
+              <div className="relative z-10 space-y-4 flex flex-col items-center">
+                <div className="bg-primary/20 p-4 rounded-[2rem] border-2 border-primary/30">
+                  <PartyPopper className="h-10 w-10 text-primary" />
+                </div>
+                <div>
+                  <h2 className="font-headline text-2xl font-black uppercase text-white tracking-tight">Order Complete</h2>
+                  <p className="text-white/60 text-xs font-bold uppercase tracking-widest mt-1">Thank you for ordering at {seller?.courseName}</p>
+                </div>
+                <Button asChild className="h-12 px-8 bg-primary hover:bg-primary/90 text-white font-black uppercase tracking-widest gap-2 shadow-2xl rounded-full">
+                  <Link href={`/sellers/${order.sellerId}/order`}>
+                    Order Again <ArrowRight className="h-4 w-4" />
+                  </Link>
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <MapView 
+              sellerLocation={showBilateral ? { latitude: seller.latitude, longitude: seller.longitude } : undefined} 
+              buyerLocation={order.deliveryLocation} 
+              radius={order.status === 'Placed' ? 804.672 : undefined} // 0.5 miles in meters
+              zoomMode={order.status === 'Placed' ? 'radius' : 'all'}
+              interactive={false} 
+            />
+          )}
         </div>
       )}
 
       <div className="p-4 space-y-4 max-w-2xl mx-auto w-full pb-24 flex-1">
         
         {/* WAKE LOCK & LIVE SYNC NOTIFICATION - ONLY FOR GOLF COURSES */}
-        {order.status !== 'Delivered' && isGolf && (
+        {!isDelivered && isGolf && (
           <div className="bg-[#213147] rounded-2xl p-4 shadow-xl border-t-2 border-primary/30 flex items-center gap-4 animate-in slide-in-from-top-4 duration-700">
             <div className="bg-primary/20 p-2.5 rounded-xl shrink-0">
               <Zap className="h-5 w-5 text-primary animate-pulse" />
@@ -146,6 +165,25 @@ function OrderTrackingContent() {
           </div>
         )}
 
+        {isBowling && isDelivered && (
+          <Card className="bg-[#213147] border-0 shadow-xl overflow-hidden rounded-[2.5rem]">
+            <CardContent className="p-8 flex flex-col items-center text-center space-y-6">
+              <div className="bg-primary/20 p-4 rounded-3xl">
+                <CheckCircle2 className="h-10 w-10 text-primary" />
+              </div>
+              <div>
+                <h2 className="font-headline text-2xl font-black uppercase text-white tracking-tight leading-none">Enjoy Your Delivery!</h2>
+                <p className="text-white/40 text-[10px] font-bold uppercase tracking-[0.2em] mt-3">Thanks for ordering from your lane</p>
+              </div>
+              <Button asChild size="lg" className="w-full h-14 bg-primary hover:bg-primary/90 text-white font-black uppercase tracking-widest gap-2 shadow-2xl rounded-2xl">
+                <Link href={`/sellers/${order.sellerId}/order`}>
+                  New Order <ShoppingBag className="h-5 w-5" />
+                </Link>
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
         <Card className="shadow-lg overflow-hidden">
           <CardHeader className="py-4 px-6 flex flex-row items-center justify-between border-b bg-muted/20">
             <div className="flex flex-col">
@@ -155,7 +193,7 @@ function OrderTrackingContent() {
                   <Badge className="bg-primary text-white font-black uppercase tracking-tight text-[11px] px-3">
                     {order.menuTypeLocation}
                   </Badge>
-                  {order.status !== 'Delivered' && (
+                  {!isDelivered && (
                     <Popover>
                       <PopoverTrigger asChild>
                         <button className="flex items-center gap-1 text-[9px] font-black uppercase text-primary hover:text-primary/80 transition-colors">
