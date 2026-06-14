@@ -64,7 +64,8 @@ import {
   Calendar,
   FileText,
   Eye,
-  EyeOff
+  EyeOff,
+  Globe
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -244,6 +245,9 @@ function SortableMenuItem({
           {!isGloballyAvailable && (
             <Badge variant="destructive" className="h-4 px-1 text-[7px] font-black uppercase border-0">86'D</Badge>
           )}
+          {!isSelected && isGloballyAvailable && (
+            <Badge variant="secondary" className="h-4 px-1 text-[7px] font-black uppercase border-0">In Master</Badge>
+          )}
         </div>
         <p className="text-[10px] text-primary font-bold font-mono mt-0.5">${item.price.toFixed(2)}</p>
       </div>
@@ -251,7 +255,7 @@ function SortableMenuItem({
       <div className="flex items-center gap-4 shrink-0">
         {/* Global 86 Toggle */}
         <div className="flex flex-col items-center gap-0.5">
-          <span className="text-[7px] font-black text-slate-400 uppercase">In Stock</span>
+          <span className="text-[7px] font-black text-slate-400 uppercase">Stock</span>
           <Switch 
             checked={isGloballyAvailable} 
             onCheckedChange={onToggleAvailability}
@@ -587,7 +591,11 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
 
     const activeItems = menuItems
       ?.filter(i => i.category === category && i.availableOn?.includes(configMode))
-      .sort((a, b) => (a.menuRanks?.[configMode] ?? 999) - (b.menuRanks?.[configMode] ?? 999)) || [];
+      .sort((a, b) => {
+        const rankA = a.menuRanks?.[configMode] ?? 999;
+        const rankB = b.menuRanks?.[configMode] ?? 999;
+        return rankA - rankB;
+      }) || [];
 
     const oldIndex = activeItems.findIndex(i => i.id === active.id);
     const newIndex = activeItems.findIndex(i => i.id === over.id);
@@ -1151,8 +1159,14 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
               {activeNav === 'menu' && (
                 <div className="space-y-8 animate-in fade-in duration-500">
                   <div className="flex justify-between items-center">
-                    <h3 className="font-headline font-black text-lg text-[#213147] uppercase">Master Inventory</h3>
-                    <Button onClick={() => { setEditingItem(null); itemForm.reset({ name: '', description: '', price: 0, category: 'Beer', availableOn: [], isAvailable: true }); setIsItemFormOpen(true); }} className="bg-primary hover:bg-primary/90 font-black uppercase text-[10px] h-10 gap-2"><Plus className="h-4 w-4" /> Add Item</Button>
+                    <div className="flex items-center gap-3">
+                      <div className="bg-primary/10 p-2 rounded-xl text-primary"><Database className="h-5 w-5" /></div>
+                      <div>
+                        <h3 className="font-headline font-black text-lg text-[#213147] uppercase leading-tight">Master Inventory</h3>
+                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Global Item Registry</p>
+                      </div>
+                    </div>
+                    <Button onClick={() => { setEditingItem(null); itemForm.reset({ name: '', description: '', price: 0, category: 'Beer', availableOn: [], isAvailable: true }); setIsItemFormOpen(true); }} className="bg-primary hover:bg-primary/90 font-black uppercase text-[10px] h-10 gap-2 shadow-lg"><Plus className="h-4 w-4" /> New Master Item</Button>
                   </div>
                   <div className="space-y-10">
                     {categories.map(cat => {
@@ -1162,12 +1176,13 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                         <div key={cat} className="space-y-4">
                            <div className="flex items-center gap-3 border-b-2 pb-2">
                               <h4 className="font-headline font-black text-sm uppercase tracking-widest text-[#213147]">{cat}</h4>
+                              <Badge variant="secondary" className="text-[9px] font-black uppercase h-5">{items.length} Items</Badge>
                            </div>
                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                               {items.map(item => (
                                 <Card key={item.id} className={cn("border-2 overflow-hidden group transition-all", item.isAvailable === false && "opacity-60 bg-slate-50 border-dashed")}>
                                    <div className="flex h-24">
-                                      <div className="w-24 bg-slate-100 border-r-2 flex items-center justify-center relative">
+                                      <div className="w-24 bg-slate-100 border-r-2 flex items-center justify-center relative shrink-0">
                                          {item.imageUrl ? <img src={item.imageUrl} alt="" className="w-full h-full object-cover" /> : <LucideImage className="h-8 w-8 text-slate-300" />}
                                       </div>
                                       <div className="flex-1 p-3 flex flex-col justify-between min-w-0">
@@ -1176,12 +1191,15 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                                             <p className="font-mono text-primary text-[10px] font-bold">${item.price.toFixed(2)}</p>
                                          </div>
                                          <div className="flex items-center justify-between gap-1">
-                                            <Switch 
-                                              checked={item.isAvailable !== false} 
-                                              onCheckedChange={() => toggleItemAvailability(item)} 
-                                              onPointerDown={(e) => e.stopPropagation()}
-                                              className="data-[state=checked]:bg-green-600 h-4 w-7" 
-                                            />
+                                            <div className="flex flex-col">
+                                              <span className="text-[7px] font-black uppercase text-muted-foreground mb-0.5">86 Stock</span>
+                                              <Switch 
+                                                checked={item.isAvailable !== false} 
+                                                onCheckedChange={() => toggleItemAvailability(item)} 
+                                                onPointerDown={(e) => e.stopPropagation()}
+                                                className="data-[state=checked]:bg-green-600 h-4 w-7" 
+                                              />
+                                            </div>
                                             <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                                <Button size="icon" variant="ghost" className="h-7 w-7 text-primary" onClick={() => { setEditingItem(item); itemForm.reset(item); setIsItemFormOpen(true); }}><Edit className="h-3.5 w-3.5" /></Button>
                                                <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => deleteDoc(doc(firestore!, 'sellers', sellerId, 'menuItems', item.id))}><Trash2 className="h-3.5 w-3.5" /></Button>
@@ -1231,11 +1249,11 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                         <div className="bg-indigo-50 p-2 rounded-xl text-indigo-600"><Layers className="h-5 w-5" /></div>
                         <div>
                           <h3 className="text-sm font-black uppercase tracking-widest text-[#213147]">Menu Composition</h3>
-                          <p className="text-[10px] font-bold text-muted-foreground uppercase">Configure visibility per channel</p>
+                          <p className="text-[10px] font-bold text-muted-foreground uppercase">Populate channel menus from master inventory</p>
                         </div>
                       </div>
                       <Select value={configMode} onValueChange={setConfigMode}>
-                        <SelectTrigger className="w-full sm:w-[240px] h-12 border-2 font-black uppercase tracking-widest text-[10px]">
+                        <SelectTrigger className="w-full sm:w-[240px] h-12 border-2 font-black uppercase tracking-widest text-[10px] bg-slate-50">
                           <SelectValue placeholder="Select Channel" />
                         </SelectTrigger>
                         <SelectContent>
@@ -1251,7 +1269,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                             <CardTitle className="text-xs font-black uppercase tracking-widest text-[#213147]">Category Visibility</CardTitle>
                             <CardDescription className="text-[9px] font-bold uppercase">Toggle sub-menus for {configMode}</CardDescription>
                           </div>
-                          <Badge variant="outline" className="text-[8px] font-black uppercase">Channel Logic</Badge>
+                          <Badge variant="outline" className="text-[8px] font-black uppercase">Channel Config</Badge>
                        </CardHeader>
                        <CardContent className="p-4">
                           <div className="flex flex-wrap gap-2">
@@ -1284,29 +1302,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                     </Card>
 
                     <div className="space-y-12">
-                      <div className="flex justify-between items-center border-b-2 pb-2">
-                        <h4 className="font-headline font-black text-sm uppercase tracking-widest text-[#213147]">Items in {configMode}</h4>
-                        <Button 
-                          size="sm" 
-                          variant="outline" 
-                          onClick={() => {
-                            setEditingItem(null);
-                            itemForm.reset({ 
-                              name: '', 
-                              description: '', 
-                              price: 0, 
-                              category: 'Beer', 
-                              availableOn: [configMode], // Pre-select current mode
-                              isAvailable: true 
-                            });
-                            setIsItemFormOpen(true);
-                          }}
-                          className="h-8 border-2 font-black uppercase text-[9px] gap-1.5"
-                        >
-                          <Plus className="h-3 w-3" /> Add Item to {configMode}
-                        </Button>
-                      </div>
-
                       {compositionCategories.map(cat => {
                         const isFeatured = cat === 'Featured';
                         const isCatEnabled = isFeatured || (seller?.categoryVisibility?.[configMode]?.includes(cat) ?? true);
@@ -1314,8 +1309,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                         if (!isCatEnabled) return null;
 
                         const allItemsInCategory = menuItems?.filter(i => i.category === cat) || [];
-                        if (allItemsInCategory.length === 0) return null;
-
+                        
                         const activeItems = allItemsInCategory
                           .filter(i => i.availableOn?.includes(configMode))
                           .sort((a, b) => {
@@ -1328,42 +1322,83 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
 
                         return (
                           <div key={cat} className="space-y-6">
-                            <div className="flex items-center gap-3">
-                              <h5 className="font-headline font-black text-xs uppercase tracking-widest text-slate-400">{cat}</h5>
-                              <Badge variant="secondary" className="text-[9px] font-black uppercase">{activeItems.length} Live</Badge>
+                            <div className="flex items-center justify-between border-b-2 pb-2">
+                              <div className="flex items-center gap-3">
+                                <h5 className="font-headline font-black text-sm uppercase tracking-widest text-[#213147]">{cat}</h5>
+                                <Badge variant="secondary" className="text-[9px] font-black uppercase">{activeItems.length} Live</Badge>
+                                {inactiveItems.length > 0 && (
+                                  <Badge variant="outline" className="text-[9px] font-black uppercase border-dashed text-slate-400">{inactiveItems.length} Master Only</Badge>
+                                )}
+                              </div>
+                              <Button 
+                                size="sm" 
+                                variant="outline" 
+                                onClick={() => {
+                                  setEditingItem(null);
+                                  itemForm.reset({ 
+                                    name: '', 
+                                    description: '', 
+                                    price: 0, 
+                                    category: cat, 
+                                    availableOn: [configMode], 
+                                    isAvailable: true 
+                                  });
+                                  setIsItemFormOpen(true);
+                                }}
+                                className="h-8 border-2 font-black uppercase text-[8px] tracking-widest gap-1.5 px-3"
+                              >
+                                <Plus className="h-3 w-3" /> New Item to {cat}
+                              </Button>
                             </div>
                             
-                            <DndContext 
-                              sensors={sensors}
-                              collisionDetection={closestCenter}
-                              onDragEnd={(e) => handleDragEnd(e, cat)}
-                            >
-                              <SortableContext 
-                                items={activeItems.map(i => i.id)}
-                                strategy={verticalListSortingStrategy}
+                            {allItemsInCategory.length === 0 ? (
+                              <div className="py-12 text-center border-2 border-dashed rounded-2xl bg-slate-50/50">
+                                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">No items in Master Inventory for {cat}</p>
+                                <Button 
+                                  variant="link" 
+                                  onClick={() => {
+                                    setEditingItem(null);
+                                    itemForm.reset({ name: '', description: '', price: 0, category: cat, availableOn: [configMode], isAvailable: true });
+                                    setIsItemFormOpen(true);
+                                  }}
+                                  className="text-primary text-[10px] font-black uppercase"
+                                >
+                                  Create first item
+                                </Button>
+                              </div>
+                            ) : (
+                              <DndContext 
+                                sensors={sensors}
+                                collisionDetection={closestCenter}
+                                onDragEnd={(e) => handleDragEnd(e, cat)}
                               >
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                                  {activeItems.map(item => (
-                                    <SortableMenuItem 
-                                      key={item.id} 
-                                      item={item} 
-                                      isSelected={true} 
-                                      onToggleChannel={() => handleToggleItemInMode(item.id, item.availableOn || [])}
-                                      onToggleAvailability={() => toggleItemAvailability(item)}
-                                    />
-                                  ))}
-                                  {inactiveItems.map(item => (
-                                    <SortableMenuItem 
-                                      key={item.id} 
-                                      item={item} 
-                                      isSelected={false} 
-                                      onToggleChannel={() => handleToggleItemInMode(item.id, item.availableOn || [])}
-                                      onToggleAvailability={() => toggleItemAvailability(item)}
-                                    />
-                                  ))}
-                                </div>
-                              </SortableContext>
-                            </DndContext>
+                                <SortableContext 
+                                  items={activeItems.map(i => i.id)}
+                                  strategy={verticalListSortingStrategy}
+                                >
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                                    {activeItems.map(item => (
+                                      <SortableMenuItem 
+                                        key={item.id} 
+                                        item={item} 
+                                        isSelected={true} 
+                                        onToggleChannel={() => handleToggleItemInMode(item.id, item.availableOn || [])}
+                                        onToggleAvailability={() => toggleItemAvailability(item)}
+                                      />
+                                    ))}
+                                    {inactiveItems.map(item => (
+                                      <SortableMenuItem 
+                                        key={item.id} 
+                                        item={item} 
+                                        isSelected={false} 
+                                        onToggleChannel={() => handleToggleItemInMode(item.id, item.availableOn || [])}
+                                        onToggleAvailability={() => toggleItemAvailability(item)}
+                                      />
+                                    ))}
+                                  </div>
+                                </SortableContext>
+                              </DndContext>
+                            )}
                           </div>
                         );
                       })}
@@ -1376,7 +1411,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                 <div className="space-y-6 animate-in fade-in duration-500">
                    <div className="flex justify-between items-center">
                       <h3 className="font-headline font-black text-lg text-[#213147] uppercase">Personnel Registry</h3>
-                      <Button onClick={() => { setEditingStaff(null); staffForm.reset(); setIsStaffFormOpen(true); }} className="bg-[#213147] font-black uppercase text-[10px] h-10 tracking-widest px-4 sm:px-6">Add Staff</Button>
+                      <Button onClick={() => { setEditingStaff(null); staffForm.reset(); setIsStaffFormOpen(true); }} className="bg-[#213147] font-black uppercase text-[10px] h-10 tracking-widest px-4 sm:px-6 shadow-lg">Add New Personnel</Button>
                    </div>
                    <Card className="border-2 shadow-sm overflow-hidden">
                       <div className="overflow-x-auto">
@@ -1932,7 +1967,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                       )} 
                     />
                  </div>
-                 <Button type="submit" className="w-full h-14 bg-[#213147] font-black uppercase tracking-widest text-xs">Save Registry</Button>
+                 <Button type="submit" className="w-full h-14 bg-[#213147] font-black uppercase tracking-widest text-xs shadow-xl">Save Registry</Button>
               </form>
            </Form>
         </DialogContent>
