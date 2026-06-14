@@ -160,6 +160,7 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
                 fitTrigger={fitTrigger}
                 showPrimaryMarker={isClubhouseActive} 
                 primaryDriverId={sellerId} 
+                interactive={true}
               />
             ) : <Skeleton className="w-full h-full" />}
           </div>

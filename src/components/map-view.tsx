@@ -3,7 +3,7 @@
 import { Truck, User, AlertCircle, Loader2 } from 'lucide-react';
 import { cn, getDriverColor } from '@/lib/utils';
 import { Map, Marker, useMap, useApiIsLoaded, APIProvider } from '@vis.gl/react-google-maps';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 
 interface MapViewProps {
   buyerLocation?: { latitude: number; longitude: number };
@@ -41,10 +41,21 @@ interface MapViewProps {
 function MapElements({ buyerLocation, sellerLocation, sellers, buyers, drivers, radius, zoomMode = 'all', fitTrigger }: Omit<MapViewProps, 'interactive'>) {
   const map = useMap();
   const apiIsLoaded = useApiIsLoaded();
+  const initialFitDone = useRef(false);
 
   useEffect(() => {
     // 🌟 CRITICAL: Ensure window.google exists before attempting bounds logic
     if (!map || !apiIsLoaded || typeof window === 'undefined' || !window.google) return;
+
+    // Only auto-fit bounds on initial load OR when the user explicitly triggers it via fitTrigger
+    // This prevents frequent GPS updates from fighting the user's manual pan/zoom.
+    const isExplicitTrigger = fitTrigger !== undefined && fitTrigger > 0;
+    
+    // Check if we have meaningful data to fit
+    const hasData = (buyerLocation && sellerLocation) || sellers?.length || buyers?.length || drivers?.length || sellerLocation;
+    
+    if (!hasData) return;
+    if (initialFitDone.current && !isExplicitTrigger) return;
 
     const bounds = new window.google.maps.LatLngBounds();
     const hasBuyers = buyers && buyers.length > 0;
@@ -57,7 +68,7 @@ function MapElements({ buyerLocation, sellerLocation, sellers, buyers, drivers, 
       bounds.extend(new window.google.maps.LatLng(sellerLocation.latitude, sellerLocation.longitude));
       bounds.extend(new window.google.maps.LatLng(buyerLocation.latitude, buyerLocation.longitude));
       hasPoints = true;
-    } else if (zoomMode === 'all' && (hasBuyers || hasSellers || hasDrivers || sellerLocation)) {
+    } else if (zoomMode === 'all') {
       if (sellerLocation) {
         bounds.extend(new window.google.maps.LatLng(sellerLocation.latitude, sellerLocation.longitude));
         hasPoints = true;
@@ -84,12 +95,14 @@ function MapElements({ buyerLocation, sellerLocation, sellers, buyers, drivers, 
 
     if (hasPoints) {
       map.fitBounds(bounds, { top: 50, bottom: 50, left: 50, right: 50 });
+      initialFitDone.current = true;
     } else if (sellerLocation) {
       map.setCenter({ lat: sellerLocation.latitude, lng: sellerLocation.longitude });
       map.setZoom(15);
+      initialFitDone.current = true;
     }
 
-  }, [map, apiIsLoaded, zoomMode, fitTrigger, buyerLocation?.latitude, buyerLocation?.longitude, sellerLocation?.latitude, sellerLocation?.longitude, buyers?.length, drivers?.length]);
+  }, [map, apiIsLoaded, zoomMode, fitTrigger]);
 
   useEffect(() => {
     if (!map || !apiIsLoaded || !radius || !sellerLocation || !window.google) return;

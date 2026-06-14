@@ -194,6 +194,7 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
               fitTrigger={fitTrigger}
               showPrimaryMarker={isBevCartActive} 
               primaryDriverId={sellerId} 
+              interactive={true}
             />
           ) : <Skeleton className="w-full h-full" />}
         </div>
