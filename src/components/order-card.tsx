@@ -116,9 +116,9 @@ export function OrderCard({ order, orderNumber, onUpdateStatus, thresholds, now 
           onClick={() => onUpdateStatus(order.id, order.status)}
           disabled={order.status === 'Delivered' || order.status === 'Cancelled'}
         >
-          {order.status === 'Placed' && "Prepare"}
-          {order.status === 'Preparing' && "Dispatch"}
-          {order.status === 'Out for Delivery' && "Deliver"}
+          {order.status === 'Placed' && "Receive Order"}
+          {order.status === 'Preparing' && "Deliver Order"}
+          {order.status === 'Out for Delivery' && "Order Complete"}
           {order.status === 'Delivered' && "Complete"}
           <ChevronRight className="h-2.5 w-2.5" />
         </Button>
