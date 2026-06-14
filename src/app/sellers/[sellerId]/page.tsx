@@ -355,7 +355,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   const { firebaseApp } = useFirebase();
   const firestore = useFirestore();
   const auth = useAuth();
-  const { user } = useUser();
+  const { user, isUserLoading } = useUser();
   const router = useRouter();
   const { toast } = useToast();
   const isMobile = useIsMobile();
@@ -413,7 +413,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   const { data: staff } = useCollection<StaffMember>(staffQuery);
 
   const venueDocRef = useMemoFirebase(() => (firestore ? doc(firestore, 'venues', sellerId) : null), [firestore, sellerId]);
-  const { data: venueData } = useDoc<Venue>(venueDocRef);
+  const { data: venueData, isLoading: isVenueLoading } = useDoc<Venue>(venueDocRef);
 
   // Security Verification for Venue Admin
   const sellerRoleRef = useMemoFirebase(() => {
@@ -731,7 +731,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     
     const nowLocal = new Date();
     const overdueCount = filteredOrders.filter(o => {
-      if (o.status === 'Delivered' || o.status === 'Cancelled') return false;
+      if (o.status === 'Delivered' || o.status === 'Cancelled' || !o.createdAt || typeof o.createdAt.toDate !== 'function') return false;
       const threshold = seller?.orderThresholds?.[o.menuType]?.max || DEFAULT_THRESHOLDS[o.menuType]?.max || 20;
       const minutes = differenceInMinutes(nowLocal, o.createdAt.toDate());
       return minutes >= threshold;
@@ -751,7 +751,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     if (!orders) return [];
     const months = new Set<string>();
     orders.forEach(o => {
-      if (o.createdAt) {
+      if (o.createdAt && typeof o.createdAt.toDate === 'function') {
         months.add(format(o.createdAt.toDate(), 'MMMM yyyy'));
       }
     });
@@ -774,6 +774,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
           const matchingOrders = orders.filter(o => 
             o.menuType === mode && 
             o.createdAt && 
+            typeof o.createdAt.toDate === 'function' &&
             isSameHour(o.createdAt.toDate(), hour) && 
             isSameDay(o.createdAt.toDate(), now)
           );
@@ -792,6 +793,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
           const matchingOrders = orders.filter(o => 
             o.menuType === mode && 
             o.createdAt && 
+            typeof o.createdAt.toDate === 'function' &&
             isSameDay(o.createdAt.toDate(), day)
           );
           const total = matchingOrders.reduce((sum, o) => sum + o.total, 0);
@@ -810,6 +812,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
           const matchingOrders = orders.filter(o => 
             o.menuType === mode && 
             o.createdAt && 
+            typeof o.createdAt.toDate === 'function' &&
             isSameMonth(o.createdAt.toDate(), month) && 
             isSameYear(o.createdAt.toDate(), now)
           );
@@ -830,7 +833,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     
     const filteredOrders = pieMonthFilter === 'All' 
       ? orders 
-      : orders.filter(o => o.createdAt && format(o.createdAt.toDate(), 'MMMM yyyy') === pieMonthFilter);
+      : orders.filter(o => o.createdAt && typeof o.createdAt.toDate === 'function' && format(o.createdAt.toDate(), 'MMMM yyyy') === pieMonthFilter);
 
     return modes.map(mode => {
       const modeOrders = filteredOrders.filter(o => o.menuType === mode);
@@ -856,7 +859,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     const end = endOfDay(new Date(reportEndDate));
 
     filtered = filtered.filter(o => {
-      if (!o.createdAt) return false;
+      if (!o.createdAt || typeof o.createdAt.toDate !== 'function') return false;
       const orderDate = o.createdAt.toDate();
       return isWithinInterval(orderDate, { start, end });
     });
@@ -959,7 +962,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
 
   if (!isMounted) return null;
 
-  const isDataLoading = isSellerLoading || isRoleLoading;
+  const isDataLoading = isSellerLoading || isRoleLoading || isUserLoading || isVenueLoading;
 
   if (isDataLoading) {
     return (
@@ -1703,7 +1706,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                                     detailedReportOrders.map((o) => (
                                       <TableRow key={o.id}>
                                          <TableCell className="font-mono text-[10px] font-black">#{getNumericOrderId(o.id)}</TableCell>
-                                         <TableCell className="text-[10px] font-bold text-slate-500 uppercase">{o.createdAt ? format(o.createdAt.toDate(), 'MMM d, h:mm a') : 'N/A'}</TableCell>
+                                         <TableCell className="text-[10px] font-bold text-slate-500 uppercase">{o.createdAt && typeof o.createdAt.toDate === 'function' ? format(o.createdAt.toDate(), 'MMM d, h:mm a') : 'N/A'}</TableCell>
                                          <TableCell className="text-[10px] font-black text-[#213147] uppercase truncate max-w-[120px]">{o.customerName}</TableCell>
                                          <TableCell>
                                             <Badge variant="secondary" className="text-[8px] font-black uppercase">{o.menuType}</Badge>
