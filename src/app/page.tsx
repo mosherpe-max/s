@@ -161,7 +161,7 @@ export default function HomePage() {
           
           {[
             { n: '01', t: 'We Set You Up', d: 'We build your menu, generate your QR codes, and handle staff training. You\'re ready to go in 72 hours.' },
-            { n: '02', nClass: 'delay-100', t: 'Patron Scans & Orders', d: 'A QR code at any location — cart, lane, chair — opens your menu in any mobile browser. No app required.' },
+            { n: '02', nClass: 'delay-100', t: 'Patron Scans & Orders', d: 'A QR code at any location — cart, lane, or station — opens your menu in any mobile browser. No app required.' },
             { n: '03', nClass: 'delay-200', t: 'Staff Gets Notified', d: 'Your team sees the order and delivery location on their device. They fulfill it exactly as they do today.' },
             { n: '04', nClass: 'delay-300', t: 'Revenue Hits Account', d: 'Payments flow directly into your merchant account via Stripe Express. Koop never touches your money.' }
           ].map((step, i) => (
