@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
@@ -66,7 +67,8 @@ import {
   Truck,
   PlayCircle,
   Lock,
-  Timer
+  Timer,
+  Satellite
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -107,7 +109,7 @@ import { useFirestore, useCollection, useMemoFirebase, useFirebase, useAuth, use
 import { signOut } from 'firebase/auth';
 import { collection, query, limit, doc, setDoc, serverTimestamp, where, orderBy, updateDoc, getDoc, getDocs, writeBatch, Timestamp } from 'firebase/firestore';
 import { httpsCallable, getFunctions } from 'firebase/functions';
-import type { Seller, PlatformConfig, Order, Venue, SellerType } from '@/lib/types';
+import type { Seller, PlatformConfig, Order, Venue, SellerType, MapUpdateSettings } from '@/lib/types';
 import { sellerTypes } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -124,7 +126,7 @@ import {
   SheetDescription,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { Checkbox } from '@/components/checkbox';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import Link from 'next/link';
 
@@ -133,6 +135,11 @@ const SYSTEM_DEFAULT_THRESHOLDS = {
   'Clubhouse': { warning: 15, max: 20 },
   'Lane Delivery': { warning: 10, max: 15 },
   'Take Out': { warning: 15, max: 25 }
+};
+
+const SYSTEM_DEFAULT_MAP_SETTINGS: Record<string, MapUpdateSettings> = {
+  'Beverage Cart': { frequencySeconds: 15, activeStages: ['Placed', 'Preparing', 'Out for Delivery'] },
+  'Clubhouse': { frequencySeconds: 15, activeStages: ['Placed', 'Preparing', 'Out for Delivery'] }
 };
 
 function NavButton({ id, label, icon: Icon, active, onClick, sidebarOpen }: { 
@@ -200,6 +207,7 @@ export default function PlatformAdminPage() {
 
   // --- PLATFORM CONFIG STATE ---
   const [systemThresholds, setSystemThresholds] = useState<Record<string, { warning: number; max: number }>>(SYSTEM_DEFAULT_THRESHOLDS);
+  const [mapSettings, setMapSettings] = useState<Record<string, MapUpdateSettings>>(SYSTEM_DEFAULT_MAP_SETTINGS);
   const [isSavingSystemConfig, setIsSavingSystemConfig] = useState(false);
 
   // Logo Upload State
@@ -225,6 +233,12 @@ export default function PlatformAdminPage() {
       setSystemThresholds({
         ...SYSTEM_DEFAULT_THRESHOLDS,
         ...config.defaultThresholds
+      });
+    }
+    if (config?.mapUpdateSettings) {
+      setMapSettings({
+        ...SYSTEM_DEFAULT_MAP_SETTINGS,
+        ...config.mapUpdateSettings
       });
     }
   }, [config]);
@@ -296,9 +310,10 @@ export default function PlatformAdminPage() {
     try {
       await setDoc(doc(firestore, 'platform', 'config'), {
         defaultThresholds: systemThresholds,
+        mapUpdateSettings: mapSettings,
         updatedAt: serverTimestamp()
       }, { merge: true });
-      toast({ title: "System Defaults Updated", description: "Standard windows defined for new establishment creation." });
+      toast({ title: "System Defaults Updated", description: "Standard operational protocols defined for all establishments." });
     } catch (e: any) {
       toast({ variant: "destructive", title: "Sync Failed", description: e.message });
     } finally {
@@ -315,6 +330,24 @@ export default function PlatformAdminPage() {
         [type]: isNaN(numValue) ? 0 : numValue
       }
     }));
+  };
+
+  const handleMapSettingChange = (mode: string, field: keyof MapUpdateSettings, value: any) => {
+    setMapSettings(prev => ({
+      ...prev,
+      [mode]: {
+        ...prev[mode],
+        [field]: value
+      }
+    }));
+  };
+
+  const toggleMapStage = (mode: string, stage: string) => {
+    const current = mapSettings[mode].activeStages;
+    const next = current.includes(stage) 
+      ? current.filter(s => s !== stage)
+      : [...current, stage];
+    handleMapSettingChange(mode, 'activeStages', next);
   };
 
   if (!isMounted) return null;
@@ -577,7 +610,7 @@ export default function PlatformAdminPage() {
 
               {activeNav === 'system' && (
                 <div className="space-y-8 animate-in fade-in duration-500">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                     <Card className="border-2 shadow-sm overflow-hidden">
                       <CardHeader className="border-b bg-primary/5">
                         <CardTitle className="font-black uppercase tracking-tight text-sm">Platform Branding</CardTitle>
@@ -653,15 +686,77 @@ export default function PlatformAdminPage() {
                             );
                           })}
                         </div>
+                      </CardContent>
+                    </Card>
+
+                    <Card className="border-2 shadow-sm overflow-hidden lg:col-span-2">
+                      <CardHeader className="border-b bg-[#213147] text-white flex flex-row items-center gap-3">
+                        <Satellite className="h-5 w-5 text-primary" />
+                        <div>
+                          <CardTitle className="font-black uppercase tracking-tight text-sm">Operational Sync Protocols</CardTitle>
+                          <CardDescription className="text-[10px] font-bold uppercase text-white/50">Map behavior and interface refresh logic</CardDescription>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="p-6 grid grid-cols-1 md:grid-cols-2 gap-8">
+                        {['Beverage Cart', 'Clubhouse'].map(mode => {
+                          const settings = mapSettings[mode] || SYSTEM_DEFAULT_MAP_SETTINGS[mode];
+                          return (
+                            <div key={mode} className="space-y-6">
+                              <div className="flex items-center gap-2 border-b-2 pb-2">
+                                <h4 className="font-headline font-black text-xs uppercase text-[#213147]">{mode} Logic</h4>
+                              </div>
+                              
+                              <div className="space-y-4">
+                                <div className="space-y-2">
+                                  <Label className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">Sync Frequency (Seconds)</Label>
+                                  <div className="flex items-center gap-3">
+                                    <Input 
+                                      type="number"
+                                      min="5"
+                                      max="300"
+                                      value={settings.frequencySeconds}
+                                      onChange={e => handleMapSettingChange(mode, 'frequencySeconds', parseInt(e.target.value, 10) || 15)}
+                                      className="h-11 border-2 font-bold"
+                                    />
+                                    <Badge variant="secondary" className="text-[8px] font-black h-5 uppercase">UI Cycle</Badge>
+                                  </div>
+                                </div>
+
+                                <div className="space-y-3">
+                                  <Label className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">Tracking Stage Protocol</Label>
+                                  <div className="grid grid-cols-2 gap-2">
+                                    {['Placed', 'Preparing', 'Out for Delivery', 'Delivered'].map(stage => (
+                                      <div 
+                                        key={stage} 
+                                        onClick={() => toggleMapStage(mode, stage)}
+                                        className={cn(
+                                          "flex items-center gap-2 p-2.5 rounded-xl border-2 cursor-pointer transition-all",
+                                          settings.activeStages.includes(stage) 
+                                            ? "border-primary bg-primary/5" 
+                                            : "border-slate-100 opacity-60"
+                                        )}
+                                      >
+                                        <Checkbox checked={settings.activeStages.includes(stage)} />
+                                        <span className="text-[9px] font-black uppercase text-[#213147]">{stage}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </CardContent>
+                      <CardFooter className="bg-slate-50 border-t p-6">
                         <Button 
                           onClick={handleUpdateSystemDefaults} 
                           disabled={isSavingSystemConfig} 
-                          className="w-full h-12 bg-[#213147] hover:bg-black font-black uppercase tracking-widest text-[10px] gap-2 shadow-lg"
+                          className="w-full h-14 bg-[#213147] hover:bg-black font-black uppercase tracking-widest text-[11px] gap-3 shadow-xl"
                         >
-                          {isSavingSystemConfig ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                          Synchronize Platform Defaults
+                          {isSavingSystemConfig ? <Loader2 className="h-5 w-5 animate-spin" /> : <Save className="h-5 w-5" />}
+                          Commit Platform Operational Protocols
                         </Button>
-                      </CardContent>
+                      </CardFooter>
                     </Card>
                   </div>
                 </div>

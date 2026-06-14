@@ -51,6 +51,10 @@
           "type": "object", 
           "description": "System-wide default timing thresholds for service modes."
         },
+        "mapUpdateSettings": {
+          "type": "object",
+          "description": "Operational settings for map refresh frequency and active tracking stages per service mode."
+        },
         "updatedAt": { "type": "string", "format": "date-time" }
       }
     },

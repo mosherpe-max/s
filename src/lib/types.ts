@@ -12,10 +12,16 @@ export const sellerTypes: readonly SellerType[] = [
   'Restaurant'
 ];
 
+export interface MapUpdateSettings {
+  frequencySeconds: number;
+  activeStages: string[];
+}
+
 export interface PlatformConfig {
   supportEmail: string;
   logoUrl?: string;
   defaultThresholds?: Record<string, { warning: number; max: number }>;
+  mapUpdateSettings?: Record<string, MapUpdateSettings>;
   updatedAt: Timestamp;
 }
 
