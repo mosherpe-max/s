@@ -86,7 +86,27 @@ import {
 } from "@/components/ui/tabs";
 import { Label } from '@/components/ui/label';
 import { cn, getNumericOrderId, SUPER_ADMIN_ID } from '@/lib/utils';
-import { isThisMonth, isToday, format, startOfHour, eachHourOfInterval, subHours, differenceInMinutes, startOfMonth, endOfDay, isWithinInterval, startOfDay } from 'date-fns';
+import { 
+  isThisMonth, 
+  isToday, 
+  format, 
+  startOfHour, 
+  eachHourOfInterval, 
+  subHours, 
+  differenceInMinutes, 
+  startOfMonth, 
+  endOfDay, 
+  isWithinInterval, 
+  startOfDay, 
+  addHours, 
+  isSameHour, 
+  isSameDay, 
+  eachDayOfInterval, 
+  startOfYear, 
+  addMonths, 
+  isSameMonth, 
+  isSameYear 
+} from 'date-fns';
 import * as XLSX from 'xlsx';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -151,6 +171,13 @@ const DEFAULT_THRESHOLDS: Record<string, { warning: number; max: number }> = {
   'Clubhouse': { warning: 15, max: 20 },
   'Lane Delivery': { warning: 10, max: 15 },
   'Take Out': { warning: 15, max: 25 }
+};
+
+const MODE_COLORS: Record<string, string> = {
+  'Beverage Cart': '#E50000',
+  'Clubhouse': '#213147',
+  'Lane Delivery': '#EC4899',
+  'Take Out': '#F59E0B'
 };
 
 // --- DND COMPONENTS ---
@@ -292,6 +319,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isMounted, setIsMounted] = useState(false);
   const [dashboardFilter, setDashboardFilter] = useState('All');
+  const [analyticsRange, setAnalyticsRange] = useState<'Today' | 'MTD' | 'YTD'>('Today');
   const [now, setNow] = useState<number>(Date.now());
 
   // Operational State
@@ -640,42 +668,62 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   }, [orders, dashboardFilter, seller]);
 
   const analyticsData = useMemo(() => {
-    if (!orders) return { hourly: [], revenueByMode: [] };
+    if (!orders || !seller) return { chartData: [], revenueByMode: [] };
 
-    const filteredOrders = dashboardFilter === 'All' 
-      ? orders 
-      : orders.filter(o => o.menuType === dashboardFilter);
+    const activeModes = seller.menuTypes || [];
+    const now = new Date();
+    let chartData: any[] = [];
 
-    const last12Hours = eachHourOfInterval({
-      start: subHours(startOfHour(new Date()), 11),
-      end: startOfHour(new Date()),
-    });
+    if (analyticsRange === 'Today') {
+      const start = startOfDay(now);
+      const intervals = Array.from({ length: 24 }, (_, i) => addHours(start, i));
+      chartData = intervals.map(hour => {
+        const entry: any = { time: format(hour, 'ha') };
+        activeModes.forEach(mode => {
+          const total = orders
+            .filter(o => o.menuType === mode && o.createdAt && isSameHour(o.createdAt.toDate(), hour) && isSameDay(o.createdAt.toDate(), now))
+            .reduce((sum, o) => sum + o.total, 0);
+          entry[mode] = Math.round(total);
+        });
+        return entry;
+      });
+    } else if (analyticsRange === 'MTD') {
+      const start = startOfMonth(now);
+      const intervals = eachDayOfInterval({ start, end: now });
+      chartData = intervals.map(day => {
+        const entry: any = { time: format(day, 'MMM d') };
+        activeModes.forEach(mode => {
+          const total = orders
+            .filter(o => o.menuType === mode && o.createdAt && isSameDay(o.createdAt.toDate(), day))
+            .reduce((sum, o) => sum + o.total, 0);
+          entry[mode] = Math.round(total);
+        });
+        return entry;
+      });
+    } else {
+      const start = startOfYear(now);
+      const currentMonthIndex = now.getMonth();
+      const intervals = Array.from({ length: currentMonthIndex + 1 }, (_, i) => addMonths(start, i));
+      chartData = intervals.map(month => {
+        const entry: any = { time: format(month, 'MMM') };
+        activeModes.forEach(mode => {
+          const total = orders
+            .filter(o => o.menuType === mode && o.createdAt && isSameMonth(o.createdAt.toDate(), month) && isSameYear(o.createdAt.toDate(), now))
+            .reduce((sum, o) => sum + o.total, 0);
+          entry[mode] = Math.round(total);
+        });
+        return entry;
+      });
+    }
 
-    const hourly = last12Hours.map(hour => {
-      const hourStr = format(hour, 'yyyy-MM-dd HH');
-      const ordersInHour = filteredOrders.filter(o => 
-        o.createdAt && 
-        format(o.createdAt.toDate(), 'yyyy-MM-dd HH') === hourStr
-      );
-      
-      const sales = ordersInHour.reduce((acc, o) => acc + o.total, 0);
-      const delivered = ordersInHour.filter(o => o.status === 'Delivered').length;
-      
-      return { 
-        time: format(hour, 'ha'), 
-        sales: Math.round(sales), 
-        deliveries: delivered 
-      };
-    });
-
-    const modes: Record<string, number> = {};
+    const pieTotals: Record<string, number> = {};
     orders.forEach(o => {
-      modes[o.menuType] = (modes[o.menuType] || 0) + o.total;
+      pieTotals[o.menuType] = (pieTotals[o.menuType] || 0) + o.total;
     });
-    const revenueByMode = Object.entries(modes).map(([name, value]) => ({ name, value }));
+    const revenueByMode = Object.entries(pieTotals).map(([name, value]) => ({ name, value }));
 
-    return { hourly, revenueByMode };
-  }, [orders, dashboardFilter]);
+    return { chartData, revenueByMode };
+  }, [orders, seller, analyticsRange]);
 
   const detailedReportOrders = useMemo(() => {
     if (!orders) return [];
@@ -741,7 +789,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     return drivers;
   }, [seller]);
 
-  const COLORS = ['#E50000', '#213147', '#4F46E5', '#F59E0B', '#10B981'];
+  const PIE_COLORS = ['#E50000', '#213147', '#4F46E5', '#F59E0B', '#10B981'];
 
   const NAV_ITEMS = [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -916,15 +964,15 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                       </CardHeader>
                       <CardContent className="pt-8 h-[300px] sm:h-[350px]">
                         <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={analyticsData.hourly}>
+                          <BarChart data={analyticsData.chartData}>
                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
                             <XAxis dataKey="time" axisLine={false} tickLine={false} fontSize={10} fontWeight="bold" tick={{ fill: '#64748B' }} />
-                            <YAxis yId="left" axisLine={false} tickLine={false} fontSize={10} fontWeight="bold" tick={{ fill: '#64748B' }} />
-                            <YAxis yId="right" orientation="right" axisLine={false} tickLine={false} fontSize={10} fontWeight="bold" tick={{ fill: '#64748B' }} />
+                            <YAxis axisLine={false} tickLine={false} fontSize={10} fontWeight="bold" tick={{ fill: '#64748B' }} />
                             <ChartTooltip cursor={{ fill: 'transparent' }} contentStyle={{ borderRadius: '16px', border: '2px solid #E2E8F0', padding: '12px' }} />
                             <Legend verticalAlign="top" align="right" iconType="circle" wrapperStyle={{ fontSize: '10px', textTransform: 'uppercase', fontWeight: 'bold' }} />
-                            <Bar yId="left" name="Hourly Sales" dataKey="sales" fill="#E50000" radius={[4, 4, 0, 0]} barSize={20} />
-                            <Bar yId="right" name="Deliveries" dataKey="deliveries" fill="#213147" radius={[4, 4, 0, 0]} barSize={20} />
+                            {seller?.menuTypes?.map(mode => (
+                              <Bar key={mode} stackId="a" dataKey={mode} fill={MODE_COLORS[mode] || '#64748B'} radius={[0, 0, 0, 0]} barSize={20} />
+                            ))}
                           </BarChart>
                         </ResponsiveContainer>
                       </CardContent>
@@ -1219,15 +1267,37 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                 <div className="space-y-12 animate-in fade-in duration-500">
                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                       <Card className="border-2 shadow-sm">
-                         <CardHeader className="bg-slate-50/50 border-b"><CardTitle className="text-xs font-black uppercase tracking-widest text-[#213147]">Order Density (Last 12h)</CardTitle></CardHeader>
+                         <CardHeader className="bg-slate-50/50 border-b flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                            <div className="space-y-0.5">
+                              <CardTitle className="text-xs font-black uppercase tracking-widest text-[#213147]">Revenue Distribution</CardTitle>
+                              <CardDescription className="text-[8px] font-bold uppercase">Stacked performance by mode</CardDescription>
+                            </div>
+                            <div className="flex bg-slate-100 p-0.5 rounded-lg border-2">
+                               {['Today', 'MTD', 'YTD'].map((r) => (
+                                 <button
+                                   key={r}
+                                   onClick={() => setAnalyticsRange(r as any)}
+                                   className={cn(
+                                     "px-3 py-1 text-[8px] font-black uppercase tracking-tighter rounded-md transition-all",
+                                     analyticsRange === r ? "bg-white text-[#213147] shadow-sm" : "text-slate-400 hover:text-slate-600"
+                                   )}
+                                 >
+                                   {r}
+                                 </button>
+                               ))}
+                            </div>
+                         </CardHeader>
                          <CardContent className="pt-10 h-[300px]">
                             <ResponsiveContainer width="100%" height="100%">
-                               <BarChart data={analyticsData.hourly}>
+                               <BarChart data={analyticsData.chartData}>
                                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
                                   <XAxis dataKey="time" axisLine={false} tickLine={false} fontSize={10} fontWeight="bold" />
                                   <YAxis axisLine={false} tickLine={false} fontSize={10} fontWeight="bold" />
-                                  <ChartTooltip contentStyle={{ fontSize: '10px', borderRadius: '12px' }} />
-                                  <Bar dataKey="sales" fill="#E50000" radius={[4, 4, 0, 0]} />
+                                  <ChartTooltip cursor={{ fill: 'transparent' }} contentStyle={{ fontSize: '10px', borderRadius: '12px', border: '2px solid #E2E8F0' }} />
+                                  <Legend verticalAlign="top" align="right" iconType="circle" wrapperStyle={{ fontSize: '9px', fontWeight: 'bold', textTransform: 'uppercase' }} />
+                                  {seller?.menuTypes?.map(mode => (
+                                    <Bar key={mode} dataKey={mode} stackId="a" fill={MODE_COLORS[mode] || '#64748B'} radius={[0, 0, 0, 0]} />
+                                  ))}
                                </BarChart>
                             </ResponsiveContainer>
                          </CardContent>
@@ -1239,7 +1309,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                                <PieChart>
                                   <Pie data={analyticsData.revenueByMode} innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
                                      {analyticsData.revenueByMode.map((entry, index) => (
-                                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                       <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
                                      ))}
                                   </Pie>
                                   <ChartTooltip />
@@ -1599,3 +1669,4 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     </div>
   );
 }
+
