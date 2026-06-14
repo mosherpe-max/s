@@ -96,6 +96,8 @@ import { getFunctions, httpsCallable } from 'firebase/functions';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { MapView } from '@/components/map-view';
 import { OrderCard } from '@/components/order-card';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
 import {
   Sheet,
   SheetContent,
@@ -384,41 +386,74 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   const onSaveStaff = async (data: StaffFormData) => {
     if (!firestore) return;
     const id = editingStaff ? editingStaff.id : Math.random().toString(36).substr(2, 9);
-    setDoc(doc(firestore, 'sellers', sellerId, 'staff', id), { 
+    const staffRef = doc(firestore, 'sellers', sellerId, 'staff', id);
+    const payload = { 
       ...data, 
       id, 
       createdAt: editingStaff?.createdAt || serverTimestamp() 
-    }, { merge: true }).then(() => {
-      setIsStaffFormOpen(false); 
-      setEditingStaff(null); 
-      staffForm.reset();
-      toast({ title: "Staff member saved" });
-    });
+    };
+
+    setDoc(staffRef, payload, { merge: true })
+      .then(() => {
+        setIsStaffFormOpen(false); 
+        setEditingStaff(null); 
+        staffForm.reset();
+        toast({ title: "Staff member saved" });
+      })
+      .catch(async (serverError) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+          path: staffRef.path,
+          operation: 'write',
+          requestResourceData: payload,
+        }));
+      });
   };
 
   const onSaveItem = async (data: ItemFormData) => {
     if (!firestore) return;
     const id = editingItem ? editingItem.id : Math.random().toString(36).substr(2, 9);
-    setDoc(doc(firestore, 'sellers', sellerId, 'menuItems', id), {
+    const itemRef = doc(firestore, 'sellers', sellerId, 'menuItems', id);
+    const payload = {
       ...data,
       id,
       rank: editingItem?.rank || 0,
       createdAt: editingItem?.createdAt || serverTimestamp()
-    }, { merge: true }).then(() => {
-      setIsItemFormOpen(false);
-      setEditingItem(null);
-      itemForm.reset();
-      toast({ title: editingItem ? "Item Updated" : "Item Added" });
-    });
+    };
+
+    setDoc(itemRef, payload, { merge: true })
+      .then(() => {
+        setIsItemFormOpen(false);
+        setEditingItem(null);
+        itemForm.reset();
+        toast({ title: editingItem ? "Item Updated" : "Item Added" });
+      })
+      .catch(async (serverError) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+          path: itemRef.path,
+          operation: 'write',
+          requestResourceData: payload,
+        }));
+      });
   };
 
   const toggleItemAvailability = (item: MenuItem) => {
     if (!firestore) return;
-    updateDoc(doc(firestore, 'sellers', sellerId, 'menuItems', item.id), {
-      isAvailable: item.isAvailable === false
-    }).then(() => {
-      toast({ title: item.isAvailable === false ? "Item Restored" : "Item 86'd", description: `${item.name} availability updated.` });
-    });
+    const isCurrentlyAvailable = item.isAvailable !== false;
+    const nextAvailable = !isCurrentlyAvailable;
+    const itemRef = doc(firestore, 'sellers', sellerId, 'menuItems', item.id);
+    const updateData = { isAvailable: nextAvailable };
+
+    updateDoc(itemRef, updateData)
+      .then(() => {
+        toast({ title: nextAvailable ? "Item Restored" : "Item 86'd", description: `${item.name} availability updated.` });
+      })
+      .catch(async (serverError) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+          path: itemRef.path,
+          operation: 'update',
+          requestResourceData: updateData,
+        }));
+      });
   };
 
   const handleUpdateStatus = (orderId: string, current: string) => {
@@ -426,10 +461,20 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     const stages: Order['status'][] = ['Placed', 'Preparing', 'Out for Delivery', 'Delivered'];
     const nextIdx = stages.indexOf(current as any) + 1;
     if (nextIdx < stages.length) {
-      updateDoc(doc(firestore, 'orders', orderId), { 
+      const orderRef = doc(firestore, 'orders', orderId);
+      const updateData = { 
         status: stages[nextIdx],
         deliveredAt: stages[nextIdx] === 'Delivered' ? serverTimestamp() : null 
-      });
+      };
+
+      updateDoc(orderRef, updateData)
+        .catch(async (serverError) => {
+          errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: orderRef.path,
+            operation: 'update',
+            requestResourceData: updateData,
+          }));
+        });
     }
   };
 
@@ -443,8 +488,18 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     };
     const field = fieldMap[mode];
     if (field) {
-      updateDoc(doc(firestore, 'sellers', sellerId), { [field]: !current });
-      toast({ title: `${mode} status updated` });
+      const updateData = { [field]: !current };
+      updateDoc(doc(firestore, 'sellers', sellerId), updateData)
+        .then(() => {
+          toast({ title: `${mode} status updated` });
+        })
+        .catch(async (serverError) => {
+          errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: `sellers/${sellerId}`,
+            operation: 'update',
+            requestResourceData: updateData,
+          }));
+        });
     }
   };
 
@@ -479,11 +534,20 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
       ? currentAvailable.filter(m => m !== configMode)
       : [...currentAvailable, configMode];
     
-    updateDoc(doc(firestore, 'sellers', sellerId, 'menuItems', itemId), {
-      availableOn: nextAvailable
-    }).then(() => {
-      toast({ title: "Menu Composition Updated" });
-    });
+    const itemRef = doc(firestore, 'sellers', sellerId, 'menuItems', itemId);
+    const updateData = { availableOn: nextAvailable };
+
+    updateDoc(itemRef, updateData)
+      .then(() => {
+        toast({ title: "Menu Composition Updated" });
+      })
+      .catch(async (serverError) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+          path: itemRef.path,
+          operation: 'update',
+          requestResourceData: updateData,
+        }));
+      });
   };
 
   const handleVerifyStripe = async () => {
@@ -505,19 +569,27 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   const handleUpdateVenueRegistry = async () => {
     if (!firestore || !sellerId) return;
     setIsProcessingSave(true);
-    try {
-      await updateDoc(doc(firestore, 'sellers', sellerId), {
-        courseName: venueName,
-        taxRate: venueTaxRate,
-        orderThresholds: venueThresholds,
-        updatedAt: serverTimestamp()
+    const updateData = {
+      courseName: venueName,
+      taxRate: venueTaxRate,
+      orderThresholds: venueThresholds,
+      updatedAt: serverTimestamp()
+    };
+    
+    updateDoc(doc(firestore, 'sellers', sellerId), updateData)
+      .then(() => {
+        toast({ title: "Venue Registry Updated", description: "All profile and timing settings have been synchronized." });
+      })
+      .catch(async (serverError) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+          path: `sellers/${sellerId}`,
+          operation: 'update',
+          requestResourceData: updateData,
+        }));
+      })
+      .finally(() => {
+        setIsProcessingSave(false);
       });
-      toast({ title: "Venue Registry Updated", description: "All profile and timing settings have been synchronized." });
-    } catch (e: any) {
-      toast({ variant: "destructive", title: "Update Failed", description: e.message });
-    } finally {
-      setIsProcessingSave(false);
-    }
   };
 
   const handleThresholdChange = (mode: string, type: 'warning' | 'max', value: string) => {
@@ -1395,4 +1467,3 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     </div>
   );
 }
-
