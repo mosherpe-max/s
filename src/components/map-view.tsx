@@ -41,27 +41,29 @@ interface MapViewProps {
 function MapElements({ buyerLocation, sellerLocation, sellers, buyers, drivers, radius, zoomMode = 'all', fitTrigger }: Omit<MapViewProps, 'interactive'>) {
   const map = useMap();
   const apiIsLoaded = useApiIsLoaded();
-  const initialFitDone = useRef(false);
+  const lastZoomMode = useRef<string | undefined>(undefined);
 
   useEffect(() => {
     if (!map || !apiIsLoaded || typeof window === 'undefined' || !window.google) return;
 
+    const isModeChange = lastZoomMode.current !== zoomMode;
     const isExplicitTrigger = fitTrigger !== undefined && fitTrigger > 0;
     
     // Check if we have meaningful data to fit
     const hasData = (buyerLocation && (sellerLocation || zoomMode === 'radius')) || sellers?.length || buyers?.length || drivers?.length || sellerLocation;
     
     if (!hasData) return;
-    if (initialFitDone.current && !isExplicitTrigger) return;
+    
+    // Always fit on mode change or explicit trigger
+    if (!isModeChange && !isExplicitTrigger && lastZoomMode.current !== undefined) return;
 
     const bounds = new window.google.maps.LatLngBounds();
     let hasPoints = false;
 
     // PATRON FOCUS MODE: 0.5 Mile Radius Zoom
     if (zoomMode === 'radius' && buyerLocation && radius) {
-       const center = new window.google.maps.LatLng(buyerLocation.latitude, buyerLocation.longitude);
-       // Rough approximation of bounding box for the radius
-       const latOffset = radius / 111320; // 1 degree lat is approx 111.32km
+       // Rough approximation of bounding box for the radius to ensure circle is visible
+       const latOffset = radius / 111320; 
        const lngOffset = radius / (111320 * Math.cos(buyerLocation.latitude * (Math.PI / 180)));
        
        bounds.extend(new window.google.maps.LatLng(buyerLocation.latitude + latOffset, buyerLocation.longitude + lngOffset));
@@ -99,12 +101,12 @@ function MapElements({ buyerLocation, sellerLocation, sellers, buyers, drivers, 
     }
 
     if (hasPoints) {
-      map.fitBounds(bounds, { top: 50, bottom: 50, left: 50, right: 50 });
-      initialFitDone.current = true;
+      map.fitBounds(bounds, { top: 60, bottom: 60, left: 60, right: 60 });
+      lastZoomMode.current = zoomMode;
     } else if (sellerLocation) {
       map.setCenter({ lat: sellerLocation.latitude, lng: sellerLocation.longitude });
       map.setZoom(15);
-      initialFitDone.current = true;
+      lastZoomMode.current = zoomMode;
     }
 
   }, [map, apiIsLoaded, zoomMode, fitTrigger, buyerLocation, sellerLocation, radius]);

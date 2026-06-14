@@ -101,7 +101,11 @@ function OrderTrackingContent() {
   if (isLoading) return <div className="flex-1 flex items-center justify-center p-8"><Loader2 className="animate-spin h-10 w-10 text-primary" /></div>;
   if (!order) return <div className="p-8 text-center"><p>Order not found.</p><Button asChild className="mt-4"><Link href="/">Back Home</Link></Button></div>;
 
-  const isOrderActive = order.status === 'Preparing' || order.status === 'Out for Delivery';
+  // MAP LOGIC:
+  // 1. If status is 'Placed', only show patron with 0.5 mile radius.
+  // 2. Once driver acknowledges (Preparing/Delivery/Done), show both driver and patron.
+  const isDriverAttached = order.status !== 'Placed' && order.status !== 'Cancelled';
+  const showBilateral = isDriverAttached && seller;
 
   return (
     <div className="flex flex-col min-h-screen bg-muted/10">
@@ -109,7 +113,7 @@ function OrderTrackingContent() {
       {!isBowling && (
         <div className="h-[33vh] relative border-b-2 shadow-sm shrink-0">
           <MapView 
-            sellerLocation={isOrderActive && seller ? { latitude: seller.latitude, longitude: seller.longitude } : undefined} 
+            sellerLocation={showBilateral ? { latitude: seller.latitude, longitude: seller.longitude } : undefined} 
             buyerLocation={order.deliveryLocation} 
             radius={order.status === 'Placed' ? 804.672 : undefined} // 0.5 miles in meters
             zoomMode={order.status === 'Placed' ? 'radius' : 'all'}
