@@ -62,7 +62,9 @@ import {
   Timer,
   Save,
   Calendar,
-  FileText
+  FileText,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -160,7 +162,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
-import type { MenuItem, Seller, Order, StaffMember, Venue, PlatformConfig, SellerAdminRole } from '@/lib/types';
+import type { MenuItem, Seller, Order, StaffMember, Venue, PlatformConfig, SellerAdminRole, Category } from '@/lib/types';
 import { categories } from '@/lib/types';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
@@ -626,6 +628,35 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
       });
   };
 
+  const handleToggleCategoryVisibility = (category: string) => {
+    if (!firestore || !seller || !configMode) return;
+    
+    const currentEnabled = seller.categoryVisibility?.[configMode] || categories.filter(c => c !== 'Featured'); // Default to all if missing
+    const isEnabled = currentEnabled.includes(category);
+    
+    let nextEnabled: string[];
+    if (isEnabled) {
+      nextEnabled = currentEnabled.filter(c => c !== category);
+    } else {
+      nextEnabled = [...currentEnabled, category];
+    }
+
+    const sellerRef = doc(firestore, 'sellers', sellerId);
+    const updateData = { [`categoryVisibility.${configMode}`]: nextEnabled };
+    
+    updateDoc(sellerRef, updateData)
+      .then(() => {
+        toast({ title: `${category} visibility updated for ${configMode}` });
+      })
+      .catch(async (serverError) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+          path: sellerRef.path,
+          operation: 'update',
+          requestResourceData: updateData,
+        }));
+      });
+  };
+
   const handleVerifyStripe = async () => {
     if (!firebaseApp || !sellerId) return;
     setIsVerifyingStripe(true);
@@ -948,6 +979,14 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     );
   }
 
+  // Determine categories to show under composition
+  // Featured is always first.
+  const compositionCategories = [...categories].sort((a, b) => {
+    if (a === 'Featured') return -1;
+    if (b === 'Featured') return 1;
+    return 0;
+  });
+
   return (
     <div className="flex flex-col h-screen bg-[#F8FAFC] overflow-hidden">
       <header className="h-16 bg-white border-b-2 flex items-center justify-between px-4 sm:px-8 shrink-0 z-30 shadow-sm relative">
@@ -1192,7 +1231,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                         <div className="bg-indigo-50 p-2 rounded-xl text-indigo-600"><Layers className="h-5 w-5" /></div>
                         <div>
                           <h3 className="text-sm font-black uppercase tracking-widest text-[#213147]">Menu Composition</h3>
-                          <p className="text-[10px] font-bold text-muted-foreground uppercase">Configure items per channel</p>
+                          <p className="text-[10px] font-bold text-muted-foreground uppercase">Configure visibility per channel</p>
                         </div>
                       </div>
                       <Select value={configMode} onValueChange={setConfigMode}>
@@ -1205,8 +1244,75 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                       </Select>
                     </div>
 
+                    {/* CATEGORY VISIBILITY CONTROLS */}
+                    <Card className="border-2 shadow-sm overflow-hidden">
+                       <CardHeader className="bg-slate-50/50 border-b flex flex-row items-center justify-between py-4">
+                          <div className="space-y-0.5">
+                            <CardTitle className="text-xs font-black uppercase tracking-widest text-[#213147]">Category Visibility</CardTitle>
+                            <CardDescription className="text-[9px] font-bold uppercase">Toggle sub-menus for {configMode}</CardDescription>
+                          </div>
+                          <Badge variant="outline" className="text-[8px] font-black uppercase">Channel Logic</Badge>
+                       </CardHeader>
+                       <CardContent className="p-4">
+                          <div className="flex flex-wrap gap-2">
+                             {compositionCategories.map(cat => {
+                               const isFeatured = cat === 'Featured';
+                               // Featured is always first and forced on.
+                               const isEnabled = isFeatured || (seller?.categoryVisibility?.[configMode]?.includes(cat) ?? true);
+                               
+                               return (
+                                 <button
+                                   key={cat}
+                                   disabled={isFeatured}
+                                   onClick={() => handleToggleCategoryVisibility(cat)}
+                                   className={cn(
+                                     "flex items-center gap-2 px-3 py-2 rounded-xl border-2 transition-all text-[10px] font-black uppercase tracking-tight",
+                                     isEnabled 
+                                       ? "border-primary bg-primary/5 text-primary shadow-sm" 
+                                       : "border-slate-100 bg-slate-50/50 text-slate-400 opacity-60",
+                                     isFeatured && "border-amber-400 bg-amber-50 text-amber-600 opacity-100 cursor-default"
+                                   )}
+                                 >
+                                   {isEnabled ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
+                                   {cat}
+                                   {isFeatured && <Badge variant="secondary" className="h-3 px-1 text-[7px] bg-amber-200 text-amber-800 border-0">PRIMARY</Badge>}
+                                 </button>
+                               );
+                             })}
+                          </div>
+                       </CardContent>
+                    </Card>
+
                     <div className="space-y-12">
-                      {categories.map(cat => {
+                      <div className="flex justify-between items-center border-b-2 pb-2">
+                        <h4 className="font-headline font-black text-sm uppercase tracking-widest text-[#213147]">Items in {configMode}</h4>
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          onClick={() => {
+                            setEditingItem(null);
+                            itemForm.reset({ 
+                              name: '', 
+                              description: '', 
+                              price: 0, 
+                              category: 'Beer', 
+                              availableOn: [configMode], // Pre-select current mode
+                              isAvailable: true 
+                            });
+                            setIsItemFormOpen(true);
+                          }}
+                          className="h-8 border-2 font-black uppercase text-[9px] gap-1.5"
+                        >
+                          <Plus className="h-3 w-3" /> Add Item to {configMode}
+                        </Button>
+                      </div>
+
+                      {compositionCategories.map(cat => {
+                        const isFeatured = cat === 'Featured';
+                        const isCatEnabled = isFeatured || (seller?.categoryVisibility?.[configMode]?.includes(cat) ?? true);
+                        
+                        if (!isCatEnabled) return null;
+
                         const allItemsInCategory = menuItems?.filter(i => i.category === cat) || [];
                         if (allItemsInCategory.length === 0) return null;
 
@@ -1222,9 +1328,9 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
 
                         return (
                           <div key={cat} className="space-y-6">
-                            <div className="flex items-center gap-3 border-b-2 pb-3">
-                              <h4 className="font-headline font-black text-sm uppercase tracking-widest text-[#213147]">{cat}</h4>
-                              <Badge variant="secondary" className="text-[9px] font-black uppercase">{activeItems.length} Active</Badge>
+                            <div className="flex items-center gap-3">
+                              <h5 className="font-headline font-black text-xs uppercase tracking-widest text-slate-400">{cat}</h5>
+                              <Badge variant="secondary" className="text-[9px] font-black uppercase">{activeItems.length} Live</Badge>
                             </div>
                             
                             <DndContext 

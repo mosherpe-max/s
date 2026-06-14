@@ -1,10 +1,11 @@
+
 'use client';
 
 import { useState, use, useEffect, useMemo } from 'react';
 import { collection, doc, addDoc, serverTimestamp } from 'firebase/firestore';
 import { signInAnonymously } from 'firebase/auth';
 import { useFirestore, useCollection, useMemoFirebase, useDoc, useAuth, useUser, useFirebase } from '@/firebase';
-import type { Seller, MenuItem, OrderItem, PlatformConfig } from '@/lib/types';
+import type { Seller, MenuItem, OrderItem, PlatformConfig, Category } from '@/lib/types';
 import { categories } from '@/lib/types';
 import { BuyerMenu } from '@/components/buyer-menu';
 import { OrderSummary } from '@/components/order-summary';
@@ -423,9 +424,25 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
 
   const currentCategories = useMemo(() => {
     if (!seller || !filteredMenuItems.length) return [];
-    const available = new Set(filteredMenuItems.map(i => i.category));
-    return categories.filter(c => available.has(c));
-  }, [seller, filteredMenuItems]);
+    
+    const itemCategories = new Set(filteredMenuItems.map(i => i.category));
+    const enabledCategories = seller.categoryVisibility?.[selectedMenuType] || categories.filter(c => c !== 'Featured');
+    
+    // "Featured" is always first and always implicitly enabled if it has items.
+    const visibleCategories = categories.filter(c => {
+      const isFeatured = c === 'Featured';
+      const hasItems = itemCategories.has(c);
+      const isEnabled = isFeatured || enabledCategories.includes(c);
+      return hasItems && isEnabled;
+    });
+
+    // Ensure Featured is first
+    return visibleCategories.sort((a, b) => {
+      if (a === 'Featured') return -1;
+      if (b === 'Featured') return 1;
+      return 0;
+    });
+  }, [seller, filteredMenuItems, selectedMenuType]);
 
   const handleOrderComplete = (orderId: string) => {
     router.push(`/order/track?id=${orderId}&sellerId=${sellerId}`);
@@ -523,7 +540,12 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
                   <button
                     key={cat}
                     onClick={() => scrollToCategory(cat)}
-                    className="whitespace-nowrap px-4 py-1.5 rounded-full bg-slate-50 border-2 border-slate-100 text-[9px] font-black uppercase tracking-widest text-slate-500 hover:border-primary/30 hover:text-primary transition-all active:scale-95"
+                    className={cn(
+                      "whitespace-nowrap px-4 py-1.5 rounded-full border-2 text-[9px] font-black uppercase tracking-widest transition-all active:scale-95",
+                      cat === 'Featured' 
+                        ? "bg-amber-50 border-amber-400 text-amber-600" 
+                        : "bg-slate-50 border-slate-100 text-slate-500 hover:border-primary/30 hover:text-primary"
+                    )}
                   >
                     {cat}
                   </button>

@@ -85,6 +85,7 @@ export interface Seller {
   orderThresholds?: Record<string, { warning: number; max: number }>;
   stripeAccountId?: string;
   stripeOnboardingComplete?: boolean;
+  categoryVisibility?: Record<string, string[]>; // Map of Mode -> Array of Enabled Category Names
 }
 
 export type Category = 'Featured' | 'Beer' | 'Spirits' | 'Soft Drinks' | 'Snacks' | 'Other' | 'Handhelds' | 'Appetizers' | 'Entrees' | 'Pizza' | 'Salad' | 'Dessert' | 'Kids';
