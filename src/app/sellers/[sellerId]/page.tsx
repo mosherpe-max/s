@@ -564,7 +564,10 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   const stats = useMemo(() => {
     if (!orders) return null;
     const filteredOrders = dashboardFilter === 'All' ? orders : orders.filter(o => o.menuType === dashboardFilter);
-    const today = filteredOrders.filter(o => o.createdAt && typeof o.createdAt.toDate === 'function' && isToday(o.createdAt.toDate()));
+    const today = filteredOrders.filter(o => {
+      if (!o.createdAt || typeof o.createdAt.toDate !== 'function') return false;
+      return isToday(o.createdAt.toDate());
+    });
     const revenue = today.reduce((acc, o) => acc + (o.total || 0), 0);
     const fees = today.reduce((acc, o) => acc + (o.serviceFee || 0), 0);
     const nowLocal = new Date();
