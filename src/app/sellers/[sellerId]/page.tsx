@@ -66,7 +66,8 @@ import {
   Eye,
   EyeOff,
   Globe,
-  Database
+  Database,
+  SearchCode
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -246,9 +247,6 @@ function SortableMenuItem({
           {!isGloballyAvailable && (
             <Badge variant="destructive" className="h-4 px-1 text-[7px] font-black uppercase border-0">86'D</Badge>
           )}
-          {!isSelected && isGloballyAvailable && (
-            <Badge variant="secondary" className="h-4 px-1 text-[7px] font-black uppercase border-0">In Master</Badge>
-          )}
         </div>
         <p className="text-[10px] text-primary font-bold font-mono mt-0.5">${item.price.toFixed(2)}</p>
       </div>
@@ -377,6 +375,8 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   const [verificationResult, setVerificationResult] = useState<any>(null);
   const [isProcessingSave, setIsProcessingSave] = useState(false);
   const [configMode, setConfigMode] = useState<string>('Beverage Cart');
+  const [isMasterPickerOpen, setIsMasterPickerOpen] = useState(false);
+  const [pickerCategory, setPickerCategory] = useState<Category | null>(null);
 
   // Analytics Detailed Filter State
   const [reportStartDate, setReportStartDate] = useState<string>(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
@@ -663,7 +663,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   }, [orders, reportStartDate, reportEndDate, reportModeFilter]);
 
   const detailedReportStats = useMemo(() => {
-    const revenue = detailedReportOrders.reduce((acc, o) => acc + o.total, 0);
+    const revenue = detailedReportOrders.reduce((acc, o) => acc + (o.total || 0), 0);
     const volume = detailedReportOrders.length;
     return { revenue, volume };
   }, [detailedReportOrders]);
@@ -838,7 +838,47 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                       const allItems = menuItems?.filter(i => i.category === cat) || [];
                       const activeItems = allItems.filter(i => i.availableOn?.includes(configMode)).sort((a, b) => (a.menuRanks?.[configMode] ?? 999) - (b.menuRanks?.[configMode] ?? 999));
                       const inactiveItems = allItems.filter(i => !i.availableOn?.includes(configMode));
-                      return (<div key={cat} className="space-y-6"><div className="flex items-center justify-between border-b-2 pb-2"><div className="flex items-center gap-3"><h5 className="font-headline font-black text-sm uppercase tracking-widest text-[#213147]">{cat}</h5><Badge variant="secondary" className="text-[9px] font-black uppercase">{activeItems.length} Live</Badge></div><Button size="sm" variant="outline" onClick={() => { setEditingItem(null); itemForm.reset({ name: '', description: '', price: 0, category: cat, availableOn: [configMode], isAvailable: true }); setIsItemFormOpen(true); }} className="h-8 border-2 font-black uppercase text-[8px] tracking-widest gap-1.5 px-3"><Plus className="h-3 w-3" /> New Item to {cat}</Button></div><DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(e) => handleDragEnd(e, cat)}><SortableContext items={activeItems.map(i => i.id)} strategy={verticalListSortingStrategy}><div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">{activeItems.map(item => (<SortableMenuItem key={item.id} item={item} isSelected={true} onToggleChannel={() => handleToggleItemInMode(item.id, item.availableOn || [])} onToggleAvailability={() => toggleItemAvailability(item)} />))}{inactiveItems.map(item => (<SortableMenuItem key={item.id} item={item} isSelected={false} onToggleChannel={() => handleToggleItemInMode(item.id, item.availableOn || [])} onToggleAvailability={() => toggleItemAvailability(item)} />))}</div></SortableContext></DndContext></div>);
+                      return (
+                        <div key={cat} className="space-y-6">
+                          <div className="flex items-center justify-between border-b-2 pb-2">
+                            <div className="flex items-center gap-3">
+                              <h5 className="font-headline font-black text-sm uppercase tracking-widest text-[#213147]">{cat}</h5>
+                              <Badge variant="secondary" className="text-[9px] font-black uppercase">{activeItems.length} Live</Badge>
+                            </div>
+                            {inactiveItems.length > 0 && (
+                              <Button 
+                                size="sm" 
+                                variant="outline" 
+                                onClick={() => { setPickerCategory(cat); setIsMasterPickerOpen(true); }} 
+                                className="h-8 border-2 font-black uppercase text-[8px] tracking-widest gap-1.5 px-3"
+                              >
+                                <Plus className="h-3 w-3" /> Add from Master
+                              </Button>
+                            )}
+                          </div>
+                          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(e) => handleDragEnd(e, cat)}>
+                            <SortableContext items={activeItems.map(i => i.id)} strategy={verticalListSortingStrategy}>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                                {activeItems.length > 0 ? (
+                                  activeItems.map(item => (
+                                    <SortableMenuItem 
+                                      key={item.id} 
+                                      item={item} 
+                                      isSelected={true} 
+                                      onToggleChannel={() => handleToggleItemInMode(item.id, item.availableOn || [])} 
+                                      onToggleAvailability={() => toggleItemAvailability(item)} 
+                                    />
+                                  ))
+                                ) : (
+                                  <div className="col-span-full py-8 text-center border-2 border-dashed rounded-2xl bg-slate-50/50">
+                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">No items assigned to this channel</p>
+                                  </div>
+                                )}
+                              </div>
+                            </SortableContext>
+                          </DndContext>
+                        </div>
+                      );
                     })}</div>
                   </div>
                 </div>
@@ -875,6 +915,55 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
         </main>
         <aside className={cn("bg-[#213147] hidden md:flex flex-col transition-all duration-300 relative border-l-4 border-primary/20 shrink-0 shadow-2xl z-20", sidebarOpen ? "w-64" : "w-20")}><SideBarContent /></aside>
       </div>
+
+      {/* MASTER PICKER DIALOG */}
+      <Dialog open={isMasterPickerOpen} onOpenChange={setIsMasterPickerOpen}>
+        <DialogContent className="rounded-[2rem] border-2 max-w-xl p-0 overflow-hidden">
+          <DialogHeader className="p-6 bg-[#213147] text-white">
+            <div className="flex items-center gap-3">
+              <div className="bg-primary/20 p-2 rounded-xl"><Database className="h-5 w-5 text-primary" /></div>
+              <div>
+                <DialogTitle className="font-headline font-black uppercase tracking-tight text-white leading-none mb-1">Add {pickerCategory} from Master</DialogTitle>
+                <DialogDescription className="text-white/40 text-[9px] font-bold uppercase tracking-widest">Select items to make them live on {configMode}</DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+          <ScrollArea className="max-h-[60vh]">
+            <div className="p-6 space-y-3">
+              {menuItems?.filter(i => i.category === pickerCategory && !i.availableOn?.includes(configMode)).length === 0 ? (
+                <div className="py-12 text-center space-y-4">
+                  <SearchCode className="h-12 w-12 text-slate-200 mx-auto" />
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">No more items available in this category master list</p>
+                </div>
+              ) : (
+                menuItems?.filter(i => i.category === pickerCategory && !i.availableOn?.includes(configMode)).map(item => (
+                  <div key={item.id} className="flex items-center justify-between p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl transition-all hover:border-primary/20">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 bg-white rounded-xl border-2 flex items-center justify-center overflow-hidden shrink-0">
+                        {item.imageUrl ? <img src={item.imageUrl} className="w-full h-full object-cover" /> : <LucideImage className="h-4 w-4 text-slate-200" />}
+                      </div>
+                      <div>
+                        <p className="font-black text-xs uppercase text-[#213147]">{item.name}</p>
+                        <p className="font-mono text-[10px] font-bold text-primary">${item.price.toFixed(2)}</p>
+                      </div>
+                    </div>
+                    <Button 
+                      size="sm" 
+                      onClick={() => handleToggleItemInMode(item.id, item.availableOn || [])}
+                      className="h-9 font-black uppercase text-[10px] tracking-widest gap-2 bg-[#213147]"
+                    >
+                      <Plus className="h-3 w-3" /> Add
+                    </Button>
+                  </div>
+                ))
+              )}
+            </div>
+          </ScrollArea>
+          <DialogFooter className="p-6 bg-slate-50 border-t">
+            <Button onClick={() => setIsMasterPickerOpen(false)} className="w-full h-12 bg-[#213147] font-black uppercase text-xs tracking-widest">Done Picking</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={isItemFormOpen} onOpenChange={setIsItemFormOpen}><DialogContent className="rounded-3xl border-2 max-w-xl"><DialogHeader><DialogTitle className="font-headline font-black uppercase text-[#213147]">{editingItem ? 'Edit Master Record' : 'New Inventory Item'}</DialogTitle></DialogHeader><Form {...itemForm}><form onSubmit={itemForm.handleSubmit(onSaveItem)} className="space-y-6 pt-4"><div className="grid grid-cols-1 sm:grid-cols-2 gap-4"><FormField control={itemForm.control} name="name" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase">Display Name</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl><FormMessage /></FormItem>)} /><FormField control={itemForm.control} name="category" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase">Category</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger className="h-11 border-2 font-bold"><SelectValue /></SelectTrigger></FormControl><SelectContent>{categories.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent></Select></FormItem>)} /></div><div className="grid grid-cols-1 sm:grid-cols-2 gap-4"><FormField control={itemForm.control} name="price" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase">Price ($)</FormLabel><FormControl><Input type="number" step="0.01" {...field} className="h-12 border-2 font-bold" /></FormControl><FormMessage /></FormItem>)} /><FormField control={itemForm.control} name="imageUrl" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase">Image URL</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>)} /></div><Button type="submit" className="w-full h-14 bg-[#213147] font-black uppercase tracking-widest text-xs shadow-xl">{editingItem ? 'Update Registry' : 'Add to Inventory'}</Button></form></Form></DialogContent></Dialog>
       <Dialog open={isStaffFormOpen} onOpenChange={setIsStaffFormOpen}><DialogContent className="rounded-3xl border-2 max-w-md"><DialogHeader><DialogTitle className="font-headline font-black uppercase text-[#213147]">{editingStaff ? 'Edit Credentials' : 'New Personnel'}</DialogTitle></DialogHeader><Form {...staffForm}><form onSubmit={staffForm.handleSubmit(onSaveStaff)} className="space-y-6 pt-4"><FormField control={staffForm.control} name="name" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase">Full Name</FormLabel><FormControl><Input {...field} className="h-12 border-2 font-bold uppercase" /></FormControl></FormItem>)} /><div className="grid grid-cols-1 sm:grid-cols-2 gap-4"><FormField control={staffForm.control} name="role" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase">Role</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger className="h-12 border-2 font-bold"><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="Driver">Driver (BevCart)</SelectItem><SelectItem value="Server">Server (Clubhouse)</SelectItem><SelectItem value="Manager">Manager</SelectItem></SelectContent></Select></FormItem>)} /><FormField control={staffForm.control} name="pin" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase">4-Digit PIN</FormLabel><FormControl><Input {...field} maxLength={4} className="h-12 border-2 font-mono text-xl font-black text-center tracking-[0.5em] text-primary" /></FormControl></FormItem>)} /></div><Button type="submit" className="w-full h-14 bg-[#213147] font-black uppercase tracking-widest text-xs shadow-xl">Save Registry</Button></form></Form></DialogContent></Dialog>
