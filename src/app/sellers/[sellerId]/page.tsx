@@ -340,6 +340,7 @@ const itemSchema = z.object({
   category: z.enum(categories as any),
   imageUrl: z.string().optional(),
   availableOn: z.array(z.string()).default([]),
+  featuredOn: z.array(z.string()).default([]),
   isAvailable: z.boolean().default(true),
 });
 
@@ -455,7 +456,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
 
   const itemForm = useForm<ItemFormData>({
     resolver: zodResolver(itemSchema),
-    defaultValues: { name: '', description: '', price: 0, category: 'Beer', availableOn: [], isAvailable: true }
+    defaultValues: { name: '', description: '', price: 0, category: 'Beer', availableOn: [], featuredOn: [], isAvailable: true }
   });
 
   const onSaveStaff = async (data: StaffFormData) => {
@@ -508,9 +509,16 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   const handleDragEnd = (event: DragEndEvent, category: string) => {
     const { active, over } = event;
     if (!over || active.id === over.id || !firestore) return;
-    const activeItems = menuItems?.filter(i => i.category === category && i.availableOn?.includes(configMode)).sort((a, b) => (a.menuRanks?.[configMode] ?? 999) - (b.menuRanks?.[configMode] ?? 999)) || [];
+
+    // Special logic for Featured category: it can contain items from any native category
+    const activeItems = (category === 'Featured' 
+      ? menuItems?.filter(i => i.featuredOn?.includes(configMode))
+      : menuItems?.filter(i => i.category === category && i.availableOn?.includes(configMode))
+    )?.sort((a, b) => (a.menuRanks?.[configMode] ?? 999) - (b.menuRanks?.[configMode] ?? 999)) || [];
+
     const oldIndex = activeItems.findIndex(i => i.id === active.id);
     const newIndex = activeItems.findIndex(i => i.id === over.id);
+    
     if (oldIndex !== -1 && newIndex !== -1) {
       const newItems = arrayMove(activeItems, oldIndex, newIndex);
       const batch = writeBatch(firestore);
@@ -519,10 +527,32 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     }
   };
 
-  const handleToggleItemInMode = (itemId: string, currentAvailable: string[]) => {
+  const handleToggleItemInMode = (itemId: string, item: MenuItem, isFeaturedMode: boolean) => {
     if (!firestore) return;
-    const nextAvailable = currentAvailable.includes(configMode) ? currentAvailable.filter(m => m !== configMode) : [...currentAvailable, configMode];
-    updateDoc(doc(firestore, 'sellers', sellerId, 'menuItems', itemId), { availableOn: nextAvailable });
+    
+    if (isFeaturedMode) {
+      // Toggle "Featured" status for this mode
+      const currentFeatured = item.featuredOn || [];
+      const nextFeatured = currentFeatured.includes(configMode) 
+        ? currentFeatured.filter(m => m !== configMode) 
+        : [...currentFeatured, configMode];
+      
+      // Items that are featured should also be implicitly "available" for that mode if not already
+      const currentAvailable = item.availableOn || [];
+      const nextAvailable = nextFeatured.includes(configMode) && !currentAvailable.includes(configMode)
+        ? [...currentAvailable, configMode]
+        : currentAvailable;
+
+      updateDoc(doc(firestore, 'sellers', sellerId, 'menuItems', itemId), { 
+        featuredOn: nextFeatured,
+        availableOn: nextAvailable
+      });
+    } else {
+      // Toggle standard mode availability
+      const currentAvailable = item.availableOn || [];
+      const nextAvailable = currentAvailable.includes(configMode) ? currentAvailable.filter(m => m !== configMode) : [...currentAvailable, configMode];
+      updateDoc(doc(firestore, 'sellers', sellerId, 'menuItems', itemId), { availableOn: nextAvailable });
+    }
   };
 
   const handleToggleCategoryVisibility = (category: string) => {
@@ -815,7 +845,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
 
               {activeNav === 'menu' && (
                 <div className="space-y-8 animate-in fade-in duration-500">
-                  <div className="flex justify-between items-center"><div className="flex items-center gap-3"><div className="bg-primary/10 p-2 rounded-xl text-primary"><Database className="h-5 w-5" /></div><div><h3 className="font-headline font-black text-lg text-[#213147] uppercase leading-tight">Master Inventory</h3><p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Global Item Registry</p></div></div><Button onClick={() => { setEditingItem(null); itemForm.reset({ name: '', description: '', price: 0, category: 'Beer', availableOn: [], isAvailable: true }); setIsItemFormOpen(true); }} className="bg-primary hover:bg-primary/90 font-black uppercase text-[10px] h-10 gap-2 shadow-lg"><Plus className="h-4 w-4" /> New Master Item</Button></div>
+                  <div className="flex justify-between items-center"><div className="flex items-center gap-3"><div className="bg-primary/10 p-2 rounded-xl text-primary"><Database className="h-5 w-5" /></div><div><h3 className="font-headline font-black text-lg text-[#213147] uppercase leading-tight">Master Inventory</h3><p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Global Item Registry</p></div></div><Button onClick={() => { setEditingItem(null); itemForm.reset({ name: '', description: '', price: 0, category: 'Beer', availableOn: [], featuredOn: [], isAvailable: true }); setIsItemFormOpen(true); }} className="bg-primary hover:bg-primary/90 font-black uppercase text-[10px] h-10 gap-2 shadow-lg"><Plus className="h-4 w-4" /> New Master Item</Button></div>
                   <div className="space-y-10">{categories.map(cat => {
                     const items = menuItems?.filter(i => i.category === cat) || [];
                     if (!items.length) return null;
@@ -837,10 +867,25 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-5 rounded-2xl border-2 shadow-sm"><div className="flex items-center gap-3"><div className="bg-indigo-50 p-2 rounded-xl text-indigo-600"><Layers className="h-5 w-5" /></div><div><h3 className="text-sm font-black uppercase tracking-widest text-[#213147]">Menu Composition</h3><p className="text-[10px] font-bold text-muted-foreground uppercase">Populate channel menus from master inventory</p></div></div><Select value={configMode} onValueChange={setConfigMode}><SelectTrigger className="w-full sm:w-[240px] h-12 border-2 font-black uppercase tracking-widest text-[10px] bg-slate-50"><SelectValue /></SelectTrigger><SelectContent>{seller?.menuTypes?.map(mode => <SelectItem key={mode} value={mode}>{mode}</SelectItem>)}</SelectContent></Select></div>
                     <Card className="border-2 shadow-sm overflow-hidden"><CardHeader className="bg-slate-50/50 border-b flex flex-row items-center justify-between py-4"><div className="space-y-0.5"><CardTitle className="text-xs font-black uppercase tracking-widest text-[#213147]">Category Visibility</CardTitle><CardDescription className="text-[9px] font-bold uppercase">Toggle sub-menus for {configMode}</CardDescription></div><Badge variant="outline" className="text-[8px] font-black uppercase">Channel Config</Badge></CardHeader><CardContent className="p-4"><div className="flex flex-wrap gap-2">{compositionCategories.map(cat => { const isFeatured = cat === 'Featured'; const isEnabled = isFeatured || (seller?.categoryVisibility?.[configMode]?.includes(cat) ?? true); return (<button key={cat} disabled={isFeatured} onClick={() => handleToggleCategoryVisibility(cat)} className={cn("flex items-center gap-2 px-3 py-2 rounded-xl border-2 transition-all text-[10px] font-black uppercase tracking-tight", isEnabled ? "border-primary bg-primary/5 text-primary shadow-sm" : "border-slate-100 bg-slate-50/50 text-slate-400 opacity-60", isFeatured && "border-amber-400 bg-amber-50 text-amber-600 cursor-default")}>{isEnabled ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}{cat}{isFeatured && <Badge variant="secondary" className="h-3 px-1 text-[7px] bg-amber-200 text-amber-800 border-0">PRIMARY</Badge>}</button>); })}</div></CardContent></Card>
                     <div className="space-y-12">{compositionCategories.map(cat => {
-                      const isFeatured = cat === 'Featured'; if (!(isFeatured || (seller?.categoryVisibility?.[configMode]?.includes(cat) ?? true))) return null;
-                      const allItems = menuItems?.filter(i => i.category === cat) || [];
-                      const activeItems = allItems.filter(i => i.availableOn?.includes(configMode)).sort((a, b) => (a.menuRanks?.[configMode] ?? 999) - (b.menuRanks?.[configMode] ?? 999));
-                      const inactiveItems = allItems.filter(i => !i.availableOn?.includes(configMode));
+                      const isFeatured = cat === 'Featured'; 
+                      if (!(isFeatured || (seller?.categoryVisibility?.[configMode]?.includes(cat) ?? true))) return null;
+                      
+                      const allItems = menuItems || [];
+                      
+                      // For "Featured", show items that are explicitly featured for this mode
+                      // For other categories, show items that are naturally in the category and available for the mode
+                      const activeItems = (isFeatured 
+                        ? allItems.filter(i => i.featuredOn?.includes(configMode))
+                        : allItems.filter(i => i.category === cat && i.availableOn?.includes(configMode))
+                      ).sort((a, b) => (a.menuRanks?.[configMode] ?? 999) - (b.menuRanks?.[configMode] ?? 999));
+                      
+                      // For picker:
+                      // If Featured: any item not currently featured
+                      // If Standard: items in this category not currently live
+                      const hasPickerItems = isFeatured 
+                        ? allItems.some(i => !i.featuredOn?.includes(configMode))
+                        : allItems.some(i => i.category === cat && !i.availableOn?.includes(configMode));
+
                       return (
                         <div key={cat} className="space-y-6">
                           <div className="flex items-center justify-between border-b-2 pb-2">
@@ -848,7 +893,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                               <h5 className="font-headline font-black text-sm uppercase tracking-widest text-[#213147]">{cat}</h5>
                               <Badge variant="secondary" className="text-[9px] font-black uppercase">{activeItems.length} Live</Badge>
                             </div>
-                            {inactiveItems.length > 0 && (
+                            {hasPickerItems && (
                               <Button 
                                 size="sm" 
                                 variant="outline" 
@@ -868,7 +913,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                                       key={item.id} 
                                       item={item} 
                                       isSelected={true} 
-                                      onToggleChannel={() => handleToggleItemInMode(item.id, item.availableOn || [])} 
+                                      onToggleChannel={() => handleToggleItemInMode(item.id, item, isFeatured)} 
                                       onToggleAvailability={() => toggleItemAvailability(item)} 
                                     />
                                   ))
@@ -926,33 +971,48 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
             <div className="flex items-center gap-3">
               <div className="bg-primary/20 p-2 rounded-xl"><Database className="h-5 w-5 text-primary" /></div>
               <div>
-                <DialogTitle className="font-headline font-black uppercase tracking-tight text-white leading-none mb-1">Add {pickerCategory} from Master</DialogTitle>
-                <DialogDescription className="text-white/40 text-[9px] font-bold uppercase tracking-widest">Select items to make them live on {configMode}</DialogDescription>
+                <DialogTitle className="font-headline font-black uppercase tracking-tight text-white leading-none mb-1">
+                  Add to {pickerCategory}
+                </DialogTitle>
+                <DialogDescription className="text-white/40 text-[9px] font-bold uppercase tracking-widest">
+                  {pickerCategory === 'Featured' 
+                    ? "Pick any item from inventory to promote in this mode" 
+                    : `Pick ${pickerCategory} items to make live on ${configMode}`}
+                </DialogDescription>
               </div>
             </div>
           </DialogHeader>
           <ScrollArea className="max-h-[60vh]">
             <div className="p-6 space-y-3">
-              {menuItems?.filter(i => i.category === pickerCategory && !i.availableOn?.includes(configMode)).length === 0 ? (
+              {(pickerCategory === 'Featured' 
+                ? menuItems?.filter(i => !i.featuredOn?.includes(configMode))
+                : menuItems?.filter(i => i.category === pickerCategory && !i.availableOn?.includes(configMode))
+              )?.length === 0 ? (
                 <div className="py-12 text-center space-y-4">
                   <SearchCode className="h-12 w-12 text-slate-200 mx-auto" />
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">No more items available in this category master list</p>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">No more items available to add</p>
                 </div>
               ) : (
-                menuItems?.filter(i => i.category === pickerCategory && !i.availableOn?.includes(configMode)).map(item => (
+                (pickerCategory === 'Featured' 
+                  ? menuItems?.filter(i => !i.featuredOn?.includes(configMode))
+                  : menuItems?.filter(i => i.category === pickerCategory && !i.availableOn?.includes(configMode))
+                )?.map(item => (
                   <div key={item.id} className="flex items-center justify-between p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl transition-all hover:border-primary/20">
                     <div className="flex items-center gap-4">
                       <div className="w-12 h-12 bg-white rounded-xl border-2 flex items-center justify-center overflow-hidden shrink-0">
                         {item.imageUrl ? <img src={item.imageUrl} className="w-full h-full object-cover" /> : <LucideImage className="h-4 w-4 text-slate-200" />}
                       </div>
                       <div>
-                        <p className="font-black text-xs uppercase text-[#213147]">{item.name}</p>
+                        <div className="flex items-center gap-2">
+                          <p className="font-black text-xs uppercase text-[#213147]">{item.name}</p>
+                          <Badge variant="secondary" className="text-[7px] h-3 px-1 border-0">{item.category}</Badge>
+                        </div>
                         <p className="font-mono text-[10px] font-bold text-primary">${item.price.toFixed(2)}</p>
                       </div>
                     </div>
                     <Button 
                       size="sm" 
-                      onClick={() => handleToggleItemInMode(item.id, item.availableOn || [])}
+                      onClick={() => handleToggleItemInMode(item.id, item, pickerCategory === 'Featured')}
                       className="h-9 font-black uppercase text-[10px] tracking-widest gap-2 bg-[#213147]"
                     >
                       <Plus className="h-3 w-3" /> Add

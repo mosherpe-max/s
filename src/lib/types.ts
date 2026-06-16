@@ -115,6 +115,7 @@ export interface MenuItem {
     rank: number;
     imageUrl?: string;
     availableOn?: string[];
+    featuredOn?: string[]; // Mode-specific featured flag
     menuRanks?: Record<string, number>;
     isAvailable?: boolean; // 86'd feature
 }

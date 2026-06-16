@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Button } from '@/components/ui/button';
@@ -55,8 +56,15 @@ export function BuyerMenu({
         const CategoryIcon = categoryIcons[category];
         const isModifierEnabled = categoryModifierEnabled.includes(category);
         
+        // Filter items for this category/mode
+        // Special logic for "Featured": show items with Featured category OR explicitly featured for this mode
         const itemsInCategory = menuItems
-          .filter((item) => item.category === category)
+          .filter((item) => {
+            if (category === 'Featured') {
+              return (item.category === 'Featured' || (selectedMenuType && item.featuredOn?.includes(selectedMenuType)));
+            }
+            return item.category === category;
+          })
           .sort((a, b) => {
             if (selectedMenuType) {
               const rankA = a.menuRanks?.[selectedMenuType] ?? a.rank ?? 0;

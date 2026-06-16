@@ -419,16 +419,24 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
 
   const filteredMenuItems = useMemo(() => {
     if (!menuItems || !selectedMenuType) return [];
-    return menuItems.filter(item => item.availableOn?.includes(selectedMenuType));
+    // Include items that are either naturally in standard availability OR explicitly featured for this mode
+    return menuItems.filter(item => 
+      item.availableOn?.includes(selectedMenuType) || 
+      item.featuredOn?.includes(selectedMenuType)
+    );
   }, [menuItems, selectedMenuType]);
 
   const currentCategories = useMemo(() => {
     if (!seller || !filteredMenuItems.length) return [];
     
     const itemCategories = new Set(filteredMenuItems.map(i => i.category));
+    
+    // Check if any items are explicitly featured for this mode, even if no items have "Featured" as primary category
+    const hasExplicitFeatured = filteredMenuItems.some(i => i.featuredOn?.includes(selectedMenuType));
+    if (hasExplicitFeatured) itemCategories.add('Featured');
+
     const enabledCategories = seller.categoryVisibility?.[selectedMenuType] || categories.filter(c => c !== 'Featured');
     
-    // "Featured" is always first and always implicitly enabled if it has items.
     const visibleCategories = categories.filter(c => {
       const isFeatured = c === 'Featured';
       const hasItems = itemCategories.has(c);
@@ -436,7 +444,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
       return hasItems && isEnabled;
     });
 
-    // Ensure Featured is first
+    // Ensure Featured is always first
     return visibleCategories.sort((a, b) => {
       if (a === 'Featured') return -1;
       if (b === 'Featured') return 1;
