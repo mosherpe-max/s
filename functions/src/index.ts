@@ -1,5 +1,5 @@
 import { onCall, HttpsError, onRequest } from "firebase-functions/v2/https";
-import { onDocumentUpdated } from "firebase-functions/v2/firestore";
+import { onDocumentWritten } from "firebase-functions/v2/firestore";
 import * as logger from "firebase-functions/logger";
 import { initializeApp } from "firebase-admin/app";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
@@ -11,13 +11,6 @@ import twilio from 'twilio';
  */
 initializeApp();
 const db = getFirestore();
-
-/**
- * CONFIGURATION TOGGLE
- * Set to true to suppress notifications for the initial 'Preparing' transition 
- * and only notify when the order is 'Out for Delivery'.
- */
-const NOTIFY_ONLY_ON_DISPATCH = false;
 
 /**
  * handleStripeWebhook
@@ -42,7 +35,6 @@ export const handleStripeWebhook = onRequest({
   let event: Stripe.Event;
 
   try {
-    // CRITICAL: Verify the event came from Stripe using the raw request body
     event = stripe.webhooks.constructEvent(req.rawBody, signature, webhookSecret);
   } catch (err: any) {
     logger.error(`[handleStripeWebhook] Signature verification failed: ${err.message}`);
@@ -50,11 +42,8 @@ export const handleStripeWebhook = onRequest({
     return;
   }
 
-  // Handle the checkout.session.completed event
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object as Stripe.Checkout.Session;
-    
-    // Extract customer data and metadata
     const customerPhone = session.customer_details?.phone;
     const metadata = session.metadata || {};
 
@@ -64,7 +53,7 @@ export const handleStripeWebhook = onRequest({
       const orderData = {
         customerPhone: customerPhone || null,
         status: "received",
-        deviceOS: metadata.deviceOS || "iOS", // Default to iOS as requested if not provided
+        deviceOS: metadata.deviceOS || "iOS",
         sellerId: metadata.sellerId || null,
         buyerProfileId: metadata.buyerUid || null,
         stripeSessionId: session.id,
@@ -84,56 +73,40 @@ export const handleStripeWebhook = onRequest({
     }
   }
 
-  // Return 200 to Stripe to acknowledge receipt
   res.status(200).send({ received: true });
 });
 
 /**
  * onOrderStatusUpdate
- * Firestore trigger that monitors order status transitions.
- * Dispatches SMS alerts to all patrons to ensure real-time coordination.
+ * Triggers on any creation or update to an order.
+ * Manages patron SMS notifications via Twilio.
  */
-export const onOrderStatusUpdate = onDocumentUpdated({
+export const onOrderStatusUpdate = onDocumentWritten({
   document: "orders/{orderId}",
   secrets: ["TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN", "TWILIO_FROM_NUMBER"],
   region: 'us-central1',
 }, async (event) => {
   const orderId = event.params.orderId;
-  const beforeData = event.data?.before.data();
-  const afterData = event.data?.after.data();
+  const before = event.data?.before;
+  const after = event.data?.after;
 
-  if (!beforeData || !afterData) {
-    logger.warn(`[onOrderStatusUpdate] Event data missing for order: ${orderId}`);
+  // 1. Handle Deletions (Ignore)
+  if (!after || !after.exists) {
     return;
   }
 
-  const oldStatus = beforeData.status;
-  const newStatus = afterData.status;
+  const afterData = after.data();
+  const customerPhone = afterData?.customerPhone;
+  const status = afterData?.status;
+  const sellerId = afterData?.sellerId; // Extracted as per schema
 
-  // 1. Identify valid status transitions based on platform lifecycle
-  // Transition A: Staff acknowledged (Placed -> Preparing)
-  const isTransitionToReceived = newStatus === 'Preparing' && oldStatus !== 'Preparing';
-  // Transition B: Out for delivery (Preparing -> Out for Delivery)
-  const isTransitionToReady = newStatus === 'Out for Delivery' && oldStatus !== 'Out for Delivery';
-
-  if (!isTransitionToReceived && !isTransitionToReady) {
-    return; // No relevant status change
-  }
-
-  // 2. Apply "Notify Only on Dispatch" constraint if toggled
-  if (NOTIFY_ONLY_ON_DISPATCH && isTransitionToReceived) {
-    logger.info(`[onOrderStatusUpdate] Notification suppressed for 'Preparing' transition.`);
-    return;
-  }
-
-  // 3. Extract Customer Contact Information
-  const customerPhone = afterData.customerPhone;
+  // 2. Validation
   if (!customerPhone) {
-    logger.error(`[onOrderStatusUpdate] Missing customerPhone for order: ${orderId}`);
+    logger.warn(`[onOrderStatusUpdate] Missing customerPhone for order: ${orderId}`);
     return;
   }
 
-  // 4. Initialize Twilio Client using Secret Manager
+  // 3. Initialize Twilio from Secrets
   const accountSid = process.env.TWILIO_ACCOUNT_SID;
   const authToken = process.env.TWILIO_AUTH_TOKEN;
   const fromNumber = process.env.TWILIO_FROM_NUMBER;
@@ -144,71 +117,37 @@ export const onOrderStatusUpdate = onDocumentUpdated({
   }
 
   const client = twilio(accountSid, authToken);
+  let messageBody = "";
 
-  try {
-    // 5. Build Dynamic Message
-    const statusLabel = newStatus === 'Preparing' ? 'is being prepared' : 'is out for delivery';
-    const message = `Your Koop order ${statusLabel}! View live tracking details here: https://koop.app/orders/${orderId}`;
-    
-    // 6. Dispatch SMS
-    const result = await client.messages.create({
-      body: message,
-      from: fromNumber,
-      to: customerPhone
-    });
+  // 4. Logic for New Orders (Creation)
+  if (!before || !before.exists) {
+    if (status === 'received') {
+      messageBody = "Thanks for your order at Koop! Your order has been received and is being prepared.";
+    }
+  } 
+  // 5. Logic for Status Updates
+  else {
+    const beforeData = before.data();
+    const oldStatus = beforeData?.status;
 
-    logger.info(`[onOrderStatusUpdate] Universal SMS sent to ${customerPhone}. Status: ${newStatus}. SID: ${result.sid}`);
-    return;
-
-  } catch (error: any) {
-    logger.error(`[onOrderStatusUpdate] Twilio dispatch failed for ${orderId}:`, error);
-    return;
-  }
-});
-
-/**
- * sendSmsNotification
- * Dispatches a manual SMS via Twilio for custom staff alerts.
- */
-export const sendSmsNotification = onCall({
-  secrets: ["TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN", "TWILIO_FROM_NUMBER"],
-  region: 'us-central1',
-  cors: true,
-  maxInstances: 10,
-}, async (request) => {
-  if (!request.auth) {
-    throw new HttpsError("unauthenticated", "User must be logged in.");
+    // Check for transition to delivery
+    if (status === 'delivery' && oldStatus !== 'delivery') {
+      messageBody = "Your Koop order is out for delivery! See you shortly.";
+    }
   }
 
-  const { to, message } = request.data;
-
-  if (!to || !message) {
-    throw new HttpsError("invalid-argument", "Recipient number and message body are required.");
-  }
-
-  const accountSid = process.env.TWILIO_ACCOUNT_SID;
-  const authToken = process.env.TWILIO_AUTH_TOKEN;
-  const fromNumber = process.env.TWILIO_FROM_NUMBER;
-
-  if (!accountSid || !authToken || !fromNumber) {
-    throw new HttpsError("internal", "Twilio configuration is missing from Secret Manager.");
-  }
-
-  const client = twilio(accountSid, authToken);
-
-  try {
-    const result = await client.messages.create({
-      body: message,
-      from: fromNumber,
-      to: to
-    });
-
-    logger.info(`SMS sent successfully to ${to}. SID: ${result.sid}`);
-    return { success: true, sid: result.sid };
-
-  } catch (error: any) {
-    logger.error("Twilio SMS Error:", error);
-    throw new HttpsError("internal", error.message || "Failed to dispatch SMS notification.");
+  // 6. Dispatch SMS
+  if (messageBody) {
+    try {
+      const result = await client.messages.create({
+        body: messageBody,
+        from: fromNumber,
+        to: customerPhone
+      });
+      logger.info(`[onOrderStatusUpdate] SMS sent to ${customerPhone} (Order: ${orderId}, SID: ${result.sid})`);
+    } catch (error: any) {
+      logger.error(`[onOrderStatusUpdate] Twilio dispatch failed for ${orderId}:`, error);
+    }
   }
 });
 
@@ -323,7 +262,6 @@ export const createPaymentIntent = onCall({
   const stripe = new Stripe(apiKey);
 
   try {
-    // 1. Fetch Venue Registry for routing and fee policy
     const venueRef = db.collection('venues').doc(sellerId);
     const venueDoc = await venueRef.get();
     
@@ -338,17 +276,14 @@ export const createPaymentIntent = onCall({
       throw new HttpsError("failed-precondition", `Stripe Account ID is missing for venue: ${sellerId}.`, { sellerId });
     }
 
-    // 2. Fetch Fee Configuration from Registry
     const patronConvenienceFee = venueData?.patronConvenienceFee ?? 150; 
     const platformFeeFixed = venueData?.platformFeeFixed ?? 20;
 
-    // 3. Calculate Final Stripe Values
     const baseAmountInCents = Math.round(amount * 100);
     const totalChargeAmount = baseAmountInCents + patronConvenienceFee;
     
     const applicationFeeAmount = Math.max(0, patronConvenienceFee - platformFeeFixed);
 
-    // 4. Create the PaymentIntent with restricted payment methods
     const paymentIntent = await stripe.paymentIntents.create({
       amount: totalChargeAmount,
       currency: 'usd',
@@ -374,98 +309,6 @@ export const createPaymentIntent = onCall({
       stripeError: error.message,
       stripeCode: error.code 
     });
-  }
-});
-
-/**
- * createCheckoutSession
- * Securely creates a hosted Stripe Checkout session with phone number collection enabled.
- */
-export const createCheckoutSession = onCall({
-  secrets: ["STRIPE_SECRET_KEY"],
-  region: 'us-central1',
-  cors: true,
-  maxInstances: 10,
-}, async (request) => {
-  if (!request.auth) {
-    throw new HttpsError("unauthenticated", "Authentication required.");
-  }
-
-  const { amount, sellerId, successUrl, cancelUrl } = request.data;
-  if (amount === undefined || !sellerId || !successUrl || !cancelUrl) {
-    throw new HttpsError("invalid-argument", "Missing required parameters (amount, sellerId, urls).");
-  }
-
-  const apiKey = process.env.STRIPE_SECRET_KEY;
-  if (!apiKey) {
-    throw new HttpsError("internal", "STRIPE_SECRET_KEY missing in environment.");
-  }
-  const stripe = new Stripe(apiKey);
-
-  try {
-    // 1. Fetch Venue Registry for routing and multi-tenant fee policy
-    const venueRef = db.collection('venues').doc(sellerId);
-    const venueDoc = await venueRef.get();
-    if (!venueDoc.exists) {
-      throw new HttpsError("not-found", "Venue registry not found.");
-    }
-    
-    const venueData = venueDoc.data();
-    const stripeConnectId = venueData?.stripeConnectId || venueData?.stripeAccountId;
-    if (!stripeConnectId) {
-      throw new HttpsError("failed-precondition", "Venue has not completed Stripe onboarding.");
-    }
-
-    const patronConvenienceFee = venueData?.patronConvenienceFee ?? 150;
-    const platformFeeFixed = venueData?.platformFeeFixed ?? 20;
-    const baseAmountInCents = Math.round(amount * 100);
-    const totalChargeAmount = baseAmountInCents + patronConvenienceFee;
-    const applicationFeeAmount = Math.max(0, patronConvenienceFee - platformFeeFixed);
-
-    // 2. Create the hosted Checkout Session
-    const session = await stripe.checkout.sessions.create({
-      payment_method_types: ['card'],
-      line_items: [
-        {
-          price_data: {
-            currency: 'usd',
-            product_data: {
-              name: `Order from ${venueData?.name || 'Koop'}`,
-            },
-            unit_amount: totalChargeAmount,
-          },
-          quantity: 1,
-        },
-      ],
-      mode: 'payment',
-      // CRITICAL: Enable phone number collection for SMS triggers
-      phone_number_collection: {
-        enabled: true,
-      },
-      payment_intent_data: {
-        application_fee_amount: applicationFeeAmount,
-        transfer_data: {
-          destination: stripeConnectId,
-        },
-        metadata: {
-          sellerId,
-          buyerUid: request.auth.uid,
-          patronFeeCents: patronConvenienceFee.toString(),
-          baseAmountCents: baseAmountInCents.toString()
-        }
-      },
-      success_url: successUrl,
-      cancel_url: cancelUrl,
-      metadata: {
-        sellerId,
-        buyerUid: request.auth.uid,
-      }
-    });
-
-    return { url: session.url };
-  } catch (error: any) {
-    logger.error("createCheckoutSession Error:", error);
-    throw new HttpsError("internal", error.message || "Failed to initialize checkout session.");
   }
 });
 
