@@ -41,12 +41,21 @@ function OrderTrackingContent() {
 
   // Implement Screen Wake Lock - ONLY FOR GOLF COURSES (Release when delivered)
   useEffect(() => {
+    // Check if we are embedded (like in the Studio preview), where Feature-Policy often blocks Wake Lock
+    const isEmbedded = typeof window !== 'undefined' && window.self !== window.top;
+
     const requestWakeLock = async () => {
+      if (isEmbedded) return; // Skip if inside an iframe to avoid policy errors
+
       if ('wakeLock' in navigator && order && !isDelivered && isGolf) {
         try {
-          wakeLockRef.current = await (navigator as any).wakeLock.request('screen');
+          const nav = navigator as any;
+          if (nav.wakeLock) {
+            wakeLockRef.current = await nav.wakeLock.request('screen');
+          }
         } catch (err) {
-          console.error('Wake Lock failed:', err);
+          // Log as warning to avoid triggering Next.js error overlays in development
+          console.warn('Wake Lock request denied or unsupported by policy:', err);
         }
       }
     };
@@ -55,7 +64,7 @@ function OrderTrackingContent() {
 
     return () => {
       if (wakeLockRef.current) {
-        wakeLockRef.current.release();
+        wakeLockRef.current.release().catch(() => {});
         wakeLockRef.current = null;
       }
     };
