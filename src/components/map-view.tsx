@@ -48,14 +48,21 @@ function MapElements({ buyerLocation, sellerLocation, sellers, buyers, drivers, 
 
     const isModeChange = lastZoomMode.current !== zoomMode;
     const isExplicitTrigger = fitTrigger !== undefined && fitTrigger > 0;
+    const isAutoFitMode = fitTrigger === undefined; // If no fitTrigger, we want auto-refit on point updates (Tracking mode)
     
     // Check if we have meaningful data to fit
     const hasData = (buyerLocation && (sellerLocation || zoomMode === 'radius')) || sellers?.length || buyers?.length || drivers?.length || sellerLocation;
     
     if (!hasData) return;
     
-    // Always fit on mode change or explicit trigger
-    if (!isModeChange && !isExplicitTrigger && lastZoomMode.current !== undefined) return;
+    // Logic: 
+    // 1. Always fit on initial mount (lastZoomMode === undefined)
+    // 2. Always fit if the mode changed (e.g., Placed -> Preparing)
+    // 3. Always fit if the driver clicked the Focus button (fitTrigger)
+    // 4. In "Auto-Fit" mode (Patron tracking), always re-fit when locations change.
+    const shouldFit = lastZoomMode.current === undefined || isModeChange || isExplicitTrigger || isAutoFitMode;
+    
+    if (!shouldFit) return;
 
     const bounds = new window.google.maps.LatLngBounds();
     let hasPoints = false;
@@ -71,45 +78,52 @@ function MapElements({ buyerLocation, sellerLocation, sellers, buyers, drivers, 
        hasPoints = true;
     } 
     // BILATERAL MODE: Fit both Driver and Patron
-    else if (buyerLocation && sellerLocation) {
+    else if (buyerLocation && sellerLocation && sellerLocation.latitude !== 0) {
       bounds.extend(new window.google.maps.LatLng(sellerLocation.latitude, sellerLocation.longitude));
       bounds.extend(new window.google.maps.LatLng(buyerLocation.latitude, buyerLocation.longitude));
       hasPoints = true;
     } else if (zoomMode === 'all') {
-      if (sellerLocation) {
+      if (sellerLocation && sellerLocation.latitude !== 0) {
         bounds.extend(new window.google.maps.LatLng(sellerLocation.latitude, sellerLocation.longitude));
         hasPoints = true;
       }
       if (sellers) {
         sellers.forEach(s => {
-          bounds.extend(new window.google.maps.LatLng(s.location.latitude, s.location.longitude));
-          hasPoints = true;
+          if (s.location.latitude !== 0) {
+            bounds.extend(new window.google.maps.LatLng(s.location.latitude, s.location.longitude));
+            hasPoints = true;
+          }
         });
       }
       if (drivers) {
         drivers.forEach(d => {
-          bounds.extend(new window.google.maps.LatLng(d.location.latitude, d.location.longitude));
-          hasPoints = true;
+          if (d.location.latitude !== 0) {
+            bounds.extend(new window.google.maps.LatLng(d.location.latitude, d.location.longitude));
+            hasPoints = true;
+          }
         });
       }
       if (buyers) {
         buyers.forEach(buyer => {
-          bounds.extend(new window.google.maps.LatLng(buyer.location.latitude, buyer.location.longitude));
-          hasPoints = true;
+          if (buyer.location.latitude !== 0) {
+            bounds.extend(new window.google.maps.LatLng(buyer.location.latitude, buyer.location.longitude));
+            hasPoints = true;
+          }
         });
       }
     }
 
     if (hasPoints) {
-      map.fitBounds(bounds, { top: 60, bottom: 60, left: 60, right: 60 });
+      // Fit with comfortable padding (40px)
+      map.fitBounds(bounds, { top: 40, bottom: 40, left: 40, right: 40 });
       lastZoomMode.current = zoomMode;
-    } else if (sellerLocation) {
+    } else if (sellerLocation && sellerLocation.latitude !== 0) {
       map.setCenter({ lat: sellerLocation.latitude, lng: sellerLocation.longitude });
       map.setZoom(15);
       lastZoomMode.current = zoomMode;
     }
 
-  }, [map, apiIsLoaded, zoomMode, fitTrigger, buyerLocation, sellerLocation, radius]);
+  }, [map, apiIsLoaded, zoomMode, fitTrigger, buyerLocation, sellerLocation, radius, sellers, buyers, drivers]);
 
   useEffect(() => {
     if (!map || !apiIsLoaded || !radius || !buyerLocation || !window.google) return;
@@ -196,14 +210,14 @@ function MapInternal({ buyerLocation, sellerLocation, showPrimaryMarker, primary
           />
         ))}
 
-        {/* Seller/Driver Marker in Tracking View */}
-        {sellerLocation && (
+        {/* Seller/Driver Marker in Tracking View - Indigo for clarity */}
+        {sellerLocation && sellerLocation.latitude !== 0 && (
           <Marker 
             position={{ lat: sellerLocation.latitude, lng: sellerLocation.longitude }}
             title="Delivery Driver"
             icon={{
               path: "M 0,-15 L 13,-7.5 L 13,7.5 L 0,15 L -13,7.5 L -13,-7.5 Z",
-              fillColor: '#E50000',
+              fillColor: '#4F46E5', 
               fillOpacity: 1,
               strokeWeight: 2,
               strokeColor: '#FFFFFF',

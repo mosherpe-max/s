@@ -111,7 +111,8 @@ function OrderTrackingContent() {
   if (!order) return <div className="p-8 text-center"><p>Order not found.</p><Button asChild className="mt-4"><Link href="/">Back Home</Link></Button></div>;
 
   const isDriverAttached = order.status !== 'Placed' && order.status !== 'Cancelled';
-  const showBilateral = isDriverAttached && seller;
+  const hasValidDriverLocation = seller?.latitude && seller?.longitude && seller.latitude !== 0;
+  const showBilateral = isDriverAttached && seller && hasValidDriverLocation;
 
   return (
     <div className="flex flex-col min-h-screen bg-muted/10">
@@ -140,7 +141,7 @@ function OrderTrackingContent() {
             </div>
           ) : (
             <MapView 
-              sellerLocation={showBilateral ? { latitude: seller.latitude, longitude: seller.longitude } : undefined} 
+              sellerLocation={showBilateral ? { latitude: seller!.latitude, longitude: seller!.longitude } : undefined} 
               buyerLocation={order.deliveryLocation} 
               radius={order.status === 'Placed' ? 804.672 : undefined} // 0.5 miles in meters
               zoomMode={order.status === 'Placed' ? 'radius' : 'all'}
