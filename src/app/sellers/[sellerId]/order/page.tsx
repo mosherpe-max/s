@@ -469,15 +469,17 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
     }
   };
 
-  const isGolf = seller?.type?.toLowerCase().includes('golf');
-  const isBowling = seller?.type?.toLowerCase().includes('bowling');
+  const getModeDescription = (type: string) => {
+    switch (type) {
+      case 'Beverage Cart': return "Drinks and snacks delivered to you on the course.";
+      case 'Clubhouse': return "Food and drinks delivered to you on the course.";
+      case 'Take Out': return "Food and drinks picked up at the venue.";
+      case 'Lane Delivery': return "Food and drinks delivered to your lane.";
+      default: return "Select items to begin your order — a small convenience fee applies at checkout.";
+    }
+  };
 
-  const topMenuNotice = isGolf 
-    ? "Order from anywhere on the course — a small convenience fee applies at checkout."
-    : isBowling 
-    ? "Order from your lane and stay in the game — a small convenience fee applies at checkout."
-    : "Select items to begin your order — a small convenience fee applies at checkout.";
-
+  const currentDescription = getModeDescription(selectedMenuType);
   const hasAnyAvailableMode = seller?.menuTypes?.some(t => isModeAvailable(t));
   const isLoading = isSellerLoading || areItemsLoading;
 
@@ -532,10 +534,15 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
             </div>
           </div>
 
-          <p className="text-[9px] font-bold uppercase tracking-[0.1em] text-white/50 flex items-center gap-1.5">
-            <Info className="h-2.5 w-2.5 shrink-0" />
-            {topMenuNotice}
-          </p>
+          <div className="space-y-1">
+            <p className="text-[10px] font-black uppercase tracking-[0.1em] text-primary flex items-center gap-1.5">
+              <Info className="h-2.5 w-2.5 shrink-0" />
+              {currentDescription}
+            </p>
+            <p className="text-[8px] font-bold uppercase tracking-widest text-white/30 ml-4">
+              A small convenience fee applies at checkout
+            </p>
+          </div>
         </div>
       </header>
 
