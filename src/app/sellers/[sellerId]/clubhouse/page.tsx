@@ -1,4 +1,3 @@
-
 'use client';
 
 import { collection, query, where, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
@@ -105,7 +104,9 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
 
   const clubhouseOrders = useMemo(() => {
     if (!activeOrders) return [];
-    return activeOrders.filter(o => o.menuType === 'Clubhouse' || o.menuType === 'Take Out');
+    return activeOrders
+      .filter(o => o.menuType === 'Clubhouse' || o.menuType === 'Take Out')
+      .sort((a, b) => (a.createdAt?.toMillis?.() || 0) - (b.createdAt?.toMillis?.() || 0));
   }, [activeOrders]);
 
   useEffect(() => {

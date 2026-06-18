@@ -1,4 +1,3 @@
-
 'use client';
 
 import { collection, query, where, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
@@ -84,7 +83,9 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
 
   const driverOrders = useMemo(() => {
     if (!activeOrders) return [];
-    return activeOrders.filter(o => o.menuType === 'Beverage Cart');
+    return activeOrders
+      .filter(o => o.menuType === 'Beverage Cart')
+      .sort((a, b) => (a.createdAt?.toMillis?.() || 0) - (b.createdAt?.toMillis?.() || 0));
   }, [activeOrders]);
 
   const metrics = useMemo(() => {

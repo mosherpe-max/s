@@ -1,4 +1,3 @@
-
 'use client';
 
 import { collection, query, where, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
@@ -57,7 +56,9 @@ export default function LaneSideServerDashboardPage({ params }: { params: Promis
 
   const lanesideOrders = useMemo(() => {
     if (!activeOrders) return [];
-    return activeOrders.filter(o => o.menuType === 'Lane Delivery');
+    return activeOrders
+      .filter(o => o.menuType === 'Lane Delivery')
+      .sort((a, b) => (a.createdAt?.toMillis?.() || 0) - (b.createdAt?.toMillis?.() || 0));
   }, [activeOrders]);
 
   useEffect(() => {
