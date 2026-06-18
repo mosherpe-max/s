@@ -21,10 +21,10 @@ import {
   Share2,
   Briefcase,
   PlayCircle,
-  Truck,
   Users,
   QrCode,
-  ShieldCheck
+  ShieldCheck,
+  ShoppingBag
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
@@ -55,6 +55,7 @@ export default function SalesDashboardPage() {
       gradient: 'from-indigo-500 to-blue-600',
       icon: <Globe className="text-white/20 h-16 w-16 absolute -right-2 -top-2" />,
       buyerUrl: '/sellers/demo-course/order?menuType=Beverage Cart',
+      staffEntryUrl: '/sellers/demo-course/staff-login',
       staffViews: [
         { label: 'Staff Entry', url: '/sellers/demo-course/staff-login', icon: <ShieldCheck className="h-3.5 w-3.5" /> }
       ]
@@ -67,6 +68,7 @@ export default function SalesDashboardPage() {
       gradient: 'from-[#213147] to-slate-700',
       icon: <Lock className="text-white/20 h-16 w-16 absolute -right-2 -top-2" />,
       buyerUrl: '/sellers/demo-private-course/order?menuType=Clubhouse',
+      staffEntryUrl: '/sellers/demo-private-course/staff-login',
       staffViews: [
         { label: 'Staff Entry', url: '/sellers/demo-private-course/staff-login', icon: <ShieldCheck className="h-3.5 w-3.5" /> }
       ]
@@ -79,6 +81,7 @@ export default function SalesDashboardPage() {
       gradient: 'from-pink-600 to-rose-500',
       icon: <Smartphone className="text-white/20 h-16 w-16 absolute -right-2 -top-2" />,
       buyerUrl: '/sellers/demo-bowling-alley/order?menuType=Lane Delivery',
+      staffEntryUrl: '/sellers/demo-bowling-alley/staff-login',
       staffViews: [
         { label: 'Staff Entry', url: '/sellers/demo-bowling-alley/staff-login', icon: <ShieldCheck className="h-3.5 w-3.5" /> }
       ]
@@ -128,21 +131,35 @@ export default function SalesDashboardPage() {
                   <CardDescription className="text-xs">{venue.sub}</CardDescription>
                 </CardHeader>
                 <CardContent className="flex-1 space-y-6">
-                  <div className="flex items-center gap-4 bg-muted/30 p-4 rounded-[2rem] border-2 border-dashed">
-                    <div className="bg-white p-2 rounded-2xl border-2 shadow-lg hover:scale-105 transition-transform cursor-pointer">
-                      <Image 
-                        src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${baseUrl}${venue.buyerUrl}`}
-                        alt="Menu QR"
-                        width={128}
-                        height={128}
-                        className="rounded-xl w-32 h-32"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
-                        <QrCode className="h-2.5 w-2.5" /> Scan to Preview
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="flex flex-col items-center gap-3 bg-muted/30 p-3 rounded-2xl border-2 border-dashed">
+                      <div className="bg-white p-1.5 rounded-xl border-2 shadow-sm hover:scale-105 transition-transform cursor-pointer">
+                        <img 
+                          src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${baseUrl}${venue.buyerUrl}`}
+                          alt="Patron QR"
+                          width={100}
+                          height={100}
+                          className="rounded-lg w-24 h-24"
+                        />
+                      </div>
+                      <p className="text-[8px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-1">
+                        <ShoppingBag className="h-2 w-2" /> Patron Menu
                       </p>
-                      <p className="text-[10px] font-bold text-slate-600 leading-tight">Live Mobile Order Interface</p>
+                    </div>
+
+                    <div className="flex flex-col items-center gap-3 bg-indigo-50/50 p-3 rounded-2xl border-2 border-indigo-100/50 border-dashed">
+                      <div className="bg-white p-1.5 rounded-xl border-2 shadow-sm hover:scale-105 transition-transform cursor-pointer">
+                        <img 
+                          src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${baseUrl}${venue.staffEntryUrl}`}
+                          alt="Staff QR"
+                          width={100}
+                          height={100}
+                          className="rounded-lg w-24 h-24"
+                        />
+                      </div>
+                      <p className="text-[8px] font-black uppercase tracking-widest text-indigo-600 flex items-center gap-1">
+                        <ShieldCheck className="h-2 w-2" /> Staff Entry
+                      </p>
                     </div>
                   </div>
 
