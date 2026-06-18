@@ -224,9 +224,6 @@ export default function PlatformAdminPage() {
     setIsMounted(true);
     if (typeof window !== 'undefined') {
       setBaseUrl(window.location.origin);
-      if (window.innerWidth < 1024) {
-        setSidebarOpen(false);
-      }
     }
   }, []);
 
