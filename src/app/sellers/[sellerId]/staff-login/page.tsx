@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect, use } from 'react';
@@ -115,6 +116,18 @@ export default function StaffLoginPage({ params }: { params: Promise<{ sellerId:
     }, 800);
   };
 
+  // Determine which roles/modes are currently ACTIVE at the venue
+  const activeServiceModes = React.useMemo(() => {
+    if (!seller) return [];
+    const modes = [];
+    if (seller.bevcartActive) modes.push('Beverage Cart');
+    if (seller.clubhouseActive) modes.push('Clubhouse');
+    if (seller.lanedeliveryActive) modes.push('Lane Delivery');
+    // Take Out is typically handled in the Clubhouse interface
+    if (seller.takeoutActive && !modes.includes('Clubhouse')) modes.push('Take Out');
+    return modes;
+  }, [seller]);
+
   return (
     <div className="min-h-screen bg-muted/30 flex flex-col items-center justify-center p-4">
       <Card className="w-full max-w-md shadow-2xl border-2 rounded-[2.5rem] overflow-hidden">
@@ -202,26 +215,34 @@ export default function StaffLoginPage({ params }: { params: Promise<{ sellerId:
               </div>
 
               <div className="grid grid-cols-1 gap-3">
-                {seller?.menuTypes?.filter(t => t !== 'Take Out').map((type) => {
-                  const Icon = roleIcons[type] || Building;
-                  return (
-                    <Button
-                      key={type}
-                      variant="outline"
-                      onClick={() => handleRoleSelect(type)}
-                      className="h-16 justify-start px-6 gap-4 border-2 rounded-2xl hover:border-primary hover:bg-primary/5 transition-all group"
-                    >
-                      <div className="bg-muted group-hover:bg-primary/10 p-2 rounded-xl transition-colors">
-                        <Icon className="h-5 w-5 text-[#213147] group-hover:text-primary" />
-                      </div>
-                      <div className="text-left">
-                        <p className="text-xs font-black uppercase tracking-widest">{type}</p>
-                        <p className="text-[9px] font-bold text-muted-foreground uppercase">Enter Live Dashboard</p>
-                      </div>
-                      <ChevronRight className="ml-auto h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
-                    </Button>
-                  );
-                })}
+                {activeServiceModes.length > 0 ? (
+                  activeServiceModes.map((type) => {
+                    const Icon = roleIcons[type] || Building;
+                    return (
+                      <Button
+                        key={type}
+                        variant="outline"
+                        onClick={() => handleRoleSelect(type)}
+                        className="h-16 justify-start px-6 gap-4 border-2 rounded-2xl hover:border-primary hover:bg-primary/5 transition-all group"
+                      >
+                        <div className="bg-muted group-hover:bg-primary/10 p-2 rounded-xl transition-colors">
+                          <Icon className="h-5 w-5 text-[#213147] group-hover:text-primary" />
+                        </div>
+                        <div className="text-left">
+                          <p className="text-xs font-black uppercase tracking-widest">{type}</p>
+                          <p className="text-[9px] font-bold text-muted-foreground uppercase">Enter Live Dashboard</p>
+                        </div>
+                        <ChevronRight className="ml-auto h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                      </Button>
+                    );
+                  })
+                ) : (
+                  <div className="p-8 text-center border-2 border-dashed rounded-2xl bg-slate-50 space-y-3">
+                    <AlertTriangle className="h-8 w-8 text-amber-500 mx-auto" />
+                    <p className="text-[10px] font-black uppercase tracking-widest text-amber-700">No Service Modes Active</p>
+                    <p className="text-[10px] text-muted-foreground uppercase leading-relaxed">Please ask a manager to enable service channels in the Admin Terminal.</p>
+                  </div>
+                )}
               </div>
 
               <Button

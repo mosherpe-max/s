@@ -47,7 +47,7 @@ export interface Venue {
 export interface StaffMember {
   id: string;
   name: string;
-  role: 'Driver' | 'Server' | 'Manager';
+  role: 'Staff' | 'Manager';
   pin: string;
   isActive: boolean;
   createdAt: Timestamp;

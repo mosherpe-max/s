@@ -327,7 +327,7 @@ function KPICard({ label, value, sub, icon: Icon, colorClass, highlight = false 
 
 const staffSchema = z.object({
   name: z.string().min(2, 'Name required'),
-  role: z.enum(['Driver', 'Server', 'Manager']),
+  role: z.enum(['Staff', 'Manager']),
   pin: z.string().length(4, 'PIN must be 4 digits').regex(/^\d+$/, 'Numbers only'),
   isActive: z.boolean().default(true),
 });
@@ -381,7 +381,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   const [pickerCategory, setPickerCategory] = useState<Category | null>(null);
 
   // Analytics Detailed Filter State
-  const [reportStartDate, setReportStartDate] = useState<string>(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
+  const [reportStartDate, setReportStartDate] = useState<string>(format(subHours(new Date(), 24), 'yyyy-MM-dd'));
   const [reportEndDate, setReportEndDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
   const [reportModeFilter, setReportModeFilter] = useState<string>('All');
 
@@ -452,7 +452,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   // Form Logic
   const staffForm = useForm<StaffFormData>({ 
     resolver: zodResolver(staffSchema), 
-    defaultValues: { name: '', role: 'Driver', pin: '', isActive: true } 
+    defaultValues: { name: '', role: 'Staff', pin: '', isActive: true } 
   });
 
   const itemForm = useForm<ItemFormData>({
@@ -552,7 +552,11 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     const activeItems = (category === 'Featured' 
       ? menuItems?.filter(i => i.featuredOn?.includes(configMode))
       : menuItems?.filter(i => i.category === category && i.availableOn?.includes(configMode))
-    )?.sort((a, b) => (a.menuRanks?.[configMode] ?? 999) - (b.menuRanks?.[configMode] ?? 999)) || [];
+    )?.sort((a, b) => {
+      const rankA = a.menuRanks?.[configMode] ?? 999;
+      const rankB = b.menuRanks?.[configMode] ?? 999;
+      return rankA - rankB;
+    }) || [];
 
     const oldIndex = activeItems.findIndex(i => i.id === active.id);
     const newIndex = activeItems.findIndex(i => i.id === over.id);
@@ -562,8 +566,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
       const batch = writeBatch(firestore);
       newItems.forEach((item, index) => batch.update(doc(firestore, 'sellers', sellerId, 'menuItems', item.id), { [`menuRanks.${configMode}`]: index }));
       batch.commit().then(() => toast({ title: "Rankings Synchronized" })).catch(async (error) => {
-        // Since batch errors are harder to attribute to a single path in the emitter, 
-        // we attribute to the collection root for permission debugging.
         errorEmitter.emit('permission-error', new FirestorePermissionError({
           path: `sellers/${sellerId}/menuItems`,
           operation: 'update',
@@ -826,7 +828,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
         id: s.id, 
         name: s.name, 
         location: { latitude: s.latitude!, longitude: s.longitude! }, 
-        type: s.role === 'Driver' ? 'Beverage Cart' : 'Clubhouse' 
+        type: s.role === 'Manager' ? 'Clubhouse' : 'Beverage Cart' 
       }));
   }, [staff]);
 
@@ -840,7 +842,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
       default: return;
     }
 
-    // Set impersonation identity for session consistency
     localStorage.setItem('koop_staff_id', 'admin-impersonate');
     localStorage.setItem('koop_staff_name', `Admin: ${seller?.courseName}`);
     localStorage.setItem('koop_staff_role', mode);
@@ -1224,7 +1225,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
       </Dialog>
 
       <Dialog open={isItemFormOpen} onOpenChange={setIsItemFormOpen}><DialogContent className="rounded-3xl border-2 max-w-xl"><DialogHeader><DialogTitle className="font-headline font-black uppercase text-[#213147]">{editingItem ? 'Edit Master Record' : 'New Inventory Item'}</DialogTitle></DialogHeader><Form {...itemForm}><form onSubmit={itemForm.handleSubmit(onSaveItem)} className="space-y-6 pt-4"><div className="grid grid-cols-1 sm:grid-cols-2 gap-4"><FormField control={itemForm.control} name="name" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase">Display Name</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl><FormMessage /></FormItem>)} /><FormField control={itemForm.control} name="category" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase">Category</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger className="h-11 border-2 font-bold"><SelectValue /></SelectTrigger></FormControl><SelectContent>{categories.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent></Select></FormItem>)} /></div><div className="grid grid-cols-1 sm:grid-cols-2 gap-4"><FormField control={itemForm.control} name="price" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase">Price ($)</FormLabel><FormControl><Input type="number" step="0.01" {...field} className="h-12 border-2 font-bold" /></FormControl><FormMessage /></FormItem>)} /><FormField control={itemForm.control} name="imageUrl" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase">Image URL</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>)} /></div><Button type="submit" className="w-full h-14 bg-[#213147] font-black uppercase tracking-widest text-xs shadow-xl">{editingItem ? 'Update Registry' : 'Add to Inventory'}</Button></form></Form></DialogContent></Dialog>
-      <Dialog open={isStaffFormOpen} onOpenChange={setIsStaffFormOpen}><DialogContent className="rounded-3xl border-2 max-w-md"><DialogHeader><DialogTitle className="font-headline font-black uppercase text-[#213147]">{editingStaff ? 'Edit Credentials' : 'New Personnel'}</DialogTitle></DialogHeader><Form {...staffForm}><form onSubmit={staffForm.handleSubmit(onSaveStaff)} className="space-y-6 pt-4"><FormField control={staffForm.control} name="name" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase">Full Name</FormLabel><FormControl><Input {...field} className="h-12 border-2 font-bold uppercase" /></FormControl></FormItem>)} /><div className="grid grid-cols-1 sm:grid-cols-2 gap-4"><FormField control={staffForm.control} name="role" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase">Role</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger className="h-12 border-2 font-bold"><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="Driver">Driver (BevCart)</SelectItem><SelectItem value="Server">Server (Clubhouse)</SelectItem><SelectItem value="Manager">Manager</SelectItem></SelectContent></Select></FormItem>)} /><FormField control={staffForm.control} name="pin" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase">4-Digit PIN</FormLabel><FormControl><Input {...field} maxLength={4} className="h-12 border-2 font-mono text-xl font-black text-center tracking-[0.5em] text-primary" /></FormControl></FormItem>)} /></div><Button type="submit" className="w-full h-14 bg-[#213147] font-black uppercase tracking-widest text-xs shadow-xl">Save Registry</Button></form></Form></DialogContent></Dialog>
+      <Dialog open={isStaffFormOpen} onOpenChange={setIsStaffFormOpen}><DialogContent className="rounded-3xl border-2 max-w-md"><DialogHeader><DialogTitle className="font-headline font-black uppercase text-[#213147]">{editingStaff ? 'Edit Credentials' : 'New Personnel'}</DialogTitle></DialogHeader><Form {...staffForm}><form onSubmit={staffForm.handleSubmit(onSaveStaff)} className="space-y-6 pt-4"><FormField control={staffForm.control} name="name" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase">Full Name</FormLabel><FormControl><Input {...field} className="h-12 border-2 font-bold uppercase" /></FormControl></FormItem>)} /><div className="grid grid-cols-1 sm:grid-cols-2 gap-4"><FormField control={staffForm.control} name="role" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase">Role</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger className="h-12 border-2 font-bold"><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="Staff">Staff</SelectItem><SelectItem value="Manager">Manager</SelectItem></SelectContent></Select></FormItem>)} /><FormField control={staffForm.control} name="pin" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase">4-Digit PIN</FormLabel><FormControl><Input {...field} maxLength={4} className="h-12 border-2 font-mono text-xl font-black text-center tracking-[0.5em] text-primary" /></FormControl></FormItem>)} /></div><Button type="submit" className="w-full h-14 bg-[#213147] font-black uppercase tracking-widest text-xs shadow-xl">Save Registry</Button></form></Form></DialogContent></Dialog>
     </div>
   );
 }
