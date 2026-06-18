@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, use, useEffect, useMemo } from 'react';
@@ -162,6 +161,7 @@ function CheckoutDrawerContent({
   const auth = useAuth();
   const { user } = useUser();
   const { toast } = useToast();
+  const { updateItem, removeItem } = useCart();
   
   const [tip, setTip] = useState(0);
   const [paymentMethod, setPaymentMethod] = useState<'Pay at Delivery' | 'Stripe'>('Pay at Delivery');
@@ -285,7 +285,11 @@ function CheckoutDrawerContent({
           </SheetClose>
         </div>
 
-        <OrderSummary items={activeOrderItems} />
+        <OrderSummary 
+          items={activeOrderItems} 
+          onUpdateItem={updateItem}
+          onRemoveItem={removeItem}
+        />
         
         {selectedMenuType === 'Lane Delivery' && seller?.laneCount && (
           <div className="space-y-3">

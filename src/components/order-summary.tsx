@@ -1,7 +1,7 @@
 'use client';
 
 import type { OrderItem } from '@/lib/types';
-import { MinusCircle } from 'lucide-react';
+import { MinusCircle, PlusCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -13,6 +13,7 @@ interface OrderSummaryProps {
 
 /**
  * Redesigned to match the reference image: Rounded white card with sub-items.
+ * Now includes both plus and minus controls for real-time checkout adjustments.
  */
 export function OrderSummary({ 
   items, 
@@ -61,19 +62,29 @@ export function OrderSummary({
                 )}
               </div>
 
-              {/* Price and Action */}
-              <div className="flex items-center gap-3 shrink-0">
-                <span className="font-bold text-[#213147] text-sm">
+              {/* Price and Actions */}
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="font-mono font-bold text-[#213147] text-sm mr-2">
                   ${(unitPriceWithMods * item.quantity).toFixed(2)}
                 </span>
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  className="h-8 w-8 rounded-full text-destructive hover:bg-destructive/10 border border-destructive/20"
-                  onClick={() => handleQuantityChange(item, -1)}
-                >
-                  <MinusCircle className="h-4 w-4" />
-                </Button>
+                <div className="flex items-center gap-1">
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="h-8 w-8 rounded-full text-destructive hover:bg-destructive/10 border border-destructive/10"
+                    onClick={() => handleQuantityChange(item, -1)}
+                  >
+                    <MinusCircle className="h-4 w-4" />
+                  </Button>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="h-8 w-8 rounded-full text-primary hover:bg-primary/10 border border-primary/10"
+                    onClick={() => handleQuantityChange(item, 1)}
+                  >
+                    <PlusCircle className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             </div>
           );
