@@ -1,4 +1,3 @@
-
 'use client';
 
 import { collection, query, where, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
@@ -29,6 +28,7 @@ type LatLng = {
 export default function BevCartDriverDashboardPage({ params }: { params: Promise<{ sellerId: string }> }) {
   const { sellerId } = use(params);
   const firestore = useFirestore();
+  const { user } = useUser();
   const { toast } = useToast();
   const router = useRouter();
   
@@ -62,7 +62,7 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
   const isBevCartActive = primarySeller?.bevcartActive === true;
 
   const handleToggleActive = (checked: boolean) => {
-    if (!firestore || !sellerId) return;
+    if (!firestore || !sellerId || !user) return;
     const sellerDocRef = doc(firestore, 'sellers', sellerId);
     const updateData = { bevcartActive: checked };
     updateDoc(sellerDocRef, updateData).catch(async (error) => {
@@ -127,7 +127,7 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
 
   // BROADCAST CURRENT LOCATION ON MOUNT
   useEffect(() => {
-    if (navigator.geolocation && firestore && sellerId) {
+    if (navigator.geolocation && firestore && sellerId && user) {
       navigator.geolocation.getCurrentPosition((p) => {
         const lat = p.coords.latitude;
         const lng = p.coords.longitude;
@@ -147,10 +147,10 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
         });
       });
     }
-  }, [firestore, sellerId]);
+  }, [firestore, sellerId, user]);
 
   useEffect(() => {
-    if (navigator.geolocation && firestore && sellerId) {
+    if (navigator.geolocation && firestore && sellerId && user) {
       const watchId = navigator.geolocation.watchPosition(
         (p) => {
           const lat = p.coords.latitude;
@@ -165,7 +165,6 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
           };
           updateDoc(sellerDocRef, updateData).catch(async (error) => {
             // Silence silent background GPS broadcast failures to avoid UI clutter
-            // But log locally for debugging during development
             console.warn("GPS Broadcast Blocked by Security Rules");
           });
         },
@@ -174,7 +173,7 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
       );
       return () => navigator.geolocation.clearWatch(watchId);
     }
-  }, [firestore, sellerId]);
+  }, [firestore, sellerId, user]);
 
   const handleUpdateOrderStatus = (orderId: string, currentStatus: string) => {
     if (!firestore) return;

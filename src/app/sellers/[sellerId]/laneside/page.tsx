@@ -1,7 +1,7 @@
 'use client';
 
 import { collection, query, where, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
-import { useCollection, useFirestore, useMemoFirebase, useDoc } from '@/firebase';
+import { useCollection, useFirestore, useMemoFirebase, useDoc, useUser } from '@/firebase';
 import { useEffect, useState, useMemo, useRef, use } from 'react';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
@@ -17,6 +17,7 @@ import { useRouter } from 'next/navigation';
 export default function LaneSideServerDashboardPage({ params }: { params: Promise<{ sellerId: string }> }) {
   const { sellerId } = use(params);
   const firestore = useFirestore();
+  const { user } = useUser();
   const { toast } = useToast();
   const router = useRouter();
 
@@ -39,7 +40,7 @@ export default function LaneSideServerDashboardPage({ params }: { params: Promis
   const isServerActive = primarySeller?.lanedeliveryActive === true;
 
   const handleToggleActive = (checked: boolean) => {
-    if (!firestore || !sellerId) return;
+    if (!firestore || !sellerId || !user) return;
     updateDoc(doc(firestore, 'sellers', sellerId), { lanedeliveryActive: checked }).catch(() => {});
   };
 

@@ -1,9 +1,9 @@
-
 'use client';
 
 import React, { useState, useEffect, use } from 'react';
 import { collection, query, where, getDocs, doc } from 'firebase/firestore';
-import { useFirestore, useDoc, useMemoFirebase } from '@/firebase';
+import { signInAnonymously } from 'firebase/auth';
+import { useFirestore, useDoc, useMemoFirebase, useAuth } from '@/firebase';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -24,6 +24,7 @@ const roleIcons: Record<string, any> = {
 export default function StaffLoginPage({ params }: { params: Promise<{ sellerId: string }> }) {
   const { sellerId } = use(params);
   const firestore = useFirestore();
+  const auth = useAuth();
   const router = useRouter();
   const { toast } = useToast();
 
@@ -54,7 +55,7 @@ export default function StaffLoginPage({ params }: { params: Promise<{ sellerId:
   const handleClear = () => setPin('');
 
   const verifyPin = async (code: string) => {
-    if (!firestore) return;
+    if (!firestore || !auth) return;
     setIsVerifying(true);
     try {
       const staffQuery = query(
@@ -73,6 +74,9 @@ export default function StaffLoginPage({ params }: { params: Promise<{ sellerId:
         });
         setPin('');
       } else {
+        // Establish an authenticated session for Security Rules
+        await signInAnonymously(auth);
+        
         const staffData = snapshot.docs[0].data() as StaffMember;
         setAuthenticatedStaff(staffData);
         toast({ title: `Identity Verified`, description: `Hello, ${staffData.name}. Please select your shift role.` });

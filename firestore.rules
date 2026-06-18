@@ -54,6 +54,11 @@ service cloud.firestore {
     match /sellers/{sellerId} {
       allow read: if true;
       allow write: if isSuperAdmin() || isVenueOwner(sellerId);
+      
+      // Allow location and status updates for authenticated staff
+      allow update: if isSignedIn() && 
+                    request.resource.data.diff(resource.data).affectedKeys()
+                    .hasOnly(['latitude', 'longitude', 'lastActive', 'bevcartActive', 'clubhouseActive', 'lanedeliveryActive', 'takeoutActive']);
 
       match /staff/{staffId} {
         allow read, write: if true;

@@ -1,7 +1,7 @@
 'use client';
 
 import { collection, query, where, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
-import { useCollection, useFirestore, useMemoFirebase, useDoc } from '@/firebase';
+import { useCollection, useFirestore, useMemoFirebase, useDoc, useUser } from '@/firebase';
 import { useEffect, useState, useMemo, useRef, use } from 'react';
 import { Switch } from '@/components/ui/switch';
 import { OrderCard } from '@/components/order-card';
@@ -24,6 +24,7 @@ type LatLng = {
 export default function ClubhouseDriverDashboardPage({ params }: { params: Promise<{ sellerId: string }> }) {
   const { sellerId } = use(params);
   const firestore = useFirestore();
+  const { user } = useUser();
   const { toast } = useToast();
   const router = useRouter();
   
@@ -50,7 +51,7 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
 
   // BROADCAST CURRENT LOCATION ON MOUNT
   useEffect(() => {
-    if (isGolf && navigator.geolocation && firestore && sellerId) {
+    if (isGolf && navigator.geolocation && firestore && sellerId && user) {
       navigator.geolocation.getCurrentPosition((p) => {
         const lat = p.coords.latitude;
         const lng = p.coords.longitude;
@@ -62,11 +63,11 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
         });
       });
     }
-  }, [isGolf, firestore, sellerId]);
+  }, [isGolf, firestore, sellerId, user]);
 
   // Track Server Location for Golf Courses
   useEffect(() => {
-    if (isGolf && navigator.geolocation && firestore && sellerId) {
+    if (isGolf && navigator.geolocation && firestore && sellerId && user) {
       const watchId = navigator.geolocation.watchPosition(
         (p) => {
           const lat = p.coords.latitude;
@@ -84,10 +85,10 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
       );
       return () => navigator.geolocation.clearWatch(watchId);
     }
-  }, [isGolf, firestore, sellerId]);
+  }, [isGolf, firestore, sellerId, user]);
 
   const handleToggleActive = (checked: boolean) => {
-    if (!firestore || !sellerId) return;
+    if (!firestore || !sellerId || !user) return;
     updateDoc(doc(firestore, 'sellers', sellerId), { clubhouseActive: checked }).catch(() => {});
   };
 
