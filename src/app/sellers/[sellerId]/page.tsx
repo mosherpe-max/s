@@ -267,7 +267,7 @@ function SortableMenuItem({
           <span className="text-[7px] font-black text-slate-400 uppercase">Live</span>
           <Switch 
             checked={isSelected} 
-            onCheckedChange={onToggleChannel}
+            onToggleChannel={onToggleChannel}
             onPointerDown={(e) => e.stopPropagation()}
             className="data-[state=checked]:bg-primary scale-75"
           />
@@ -818,12 +818,17 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   }, [orders]);
 
   const mappedDrivers = useMemo(() => {
-    if (!seller) return [];
-    const drivers = [];
-    if (seller.bevcartActive && seller.latitude) drivers.push({ id: 'primary-bevcart', name: 'Beverage Cart', location: { latitude: seller.latitude, longitude: seller.longitude }, type: 'Beverage Cart' });
-    if (seller.clubhouseActive) drivers.push({ id: 'clubhouse-server', name: 'Clubhouse Dispatch', location: { latitude: (seller.latitude || 0) + 0.0002, longitude: (seller.longitude || 0) + 0.0002 }, type: 'Clubhouse' });
-    return drivers;
-  }, [seller]);
+    if (!staff) return [];
+    const recentThreshold = Date.now() - 300000; // 5 mins
+    return staff
+      .filter(s => s.latitude && s.longitude && s.lastActive && s.lastActive.toMillis() > recentThreshold)
+      .map(s => ({ 
+        id: s.id, 
+        name: s.name, 
+        location: { latitude: s.latitude!, longitude: s.longitude! }, 
+        type: s.role === 'Driver' ? 'Beverage Cart' : 'Clubhouse' 
+      }));
+  }, [staff]);
 
   const handleImpersonate = (mode: string) => {
     let path = '';

@@ -1,11 +1,12 @@
+
 'use client';
 
-import { collection, query, where, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, where, doc, updateDoc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { useCollection, useFirestore, useMemoFirebase, useDoc, useUser } from '@/firebase';
 import { useEffect, useState, useMemo, useRef, use } from 'react';
 import { Switch } from '@/components/ui/switch';
 import { OrderCard } from '@/components/order-card';
-import type { Order, Seller } from '@/lib/types';
+import type { Order, Seller, StaffMember } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
@@ -46,8 +47,35 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
   }, [firestore, sellerId]);
   const { data: primarySeller, isLoading: isPrimaryLoading } = useDoc<Seller>(primarySellerRef);
 
+  const staffQuery = useMemoFirebase(() => {
+    if (!firestore || !sellerId) return null;
+    return collection(firestore, 'sellers', sellerId, 'staff');
+  }, [firestore, sellerId]);
+  const { data: allStaff } = useCollection<StaffMember>(staffQuery);
+
   const isGolf = primarySeller?.type?.toLowerCase().includes('golf');
   const isClubhouseActive = primarySeller?.clubhouseActive === true;
+
+  const broadcastLocation = (lat: number, lng: number) => {
+    if (!firestore || !sellerId || !user) return;
+    
+    // 1. Staff document update
+    if (currentStaffId) {
+      const staffRef = doc(firestore, 'sellers', sellerId, 'staff', currentStaffId);
+      setDoc(staffRef, {
+        latitude: lat,
+        longitude: lng,
+        lastActive: serverTimestamp()
+      }, { merge: true }).catch(() => {});
+    }
+
+    // 2. Venue document update
+    updateDoc(doc(firestore, 'sellers', sellerId), {
+      latitude: lat,
+      longitude: lng,
+      lastActive: serverTimestamp()
+    }).catch(() => {});
+  };
 
   // BROADCAST CURRENT LOCATION ON MOUNT
   useEffect(() => {
@@ -56,14 +84,10 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
         const lat = p.coords.latitude;
         const lng = p.coords.longitude;
         setSellerLocation({ latitude: lat, longitude: lng });
-        updateDoc(doc(firestore, 'sellers', sellerId), {
-          latitude: lat,
-          longitude: lng,
-          lastActive: serverTimestamp()
-        });
+        broadcastLocation(lat, lng);
       });
     }
-  }, [isGolf, firestore, sellerId, user]);
+  }, [isGolf, firestore, sellerId, user, currentStaffId]);
 
   // Track Server Location for Golf Courses
   useEffect(() => {
@@ -73,19 +97,14 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
           const lat = p.coords.latitude;
           const lng = p.coords.longitude;
           setSellerLocation({ latitude: lat, longitude: lng });
-          
-          updateDoc(doc(firestore, 'sellers', sellerId), {
-            latitude: lat,
-            longitude: lng,
-            lastActive: serverTimestamp()
-          }).catch(err => console.error("GPS Broadcast Failed", err));
+          broadcastLocation(lat, lng);
         },
         null,
         { enableHighAccuracy: true, timeout: 10000 }
       );
       return () => navigator.geolocation.clearWatch(watchId);
     }
-  }, [isGolf, firestore, sellerId, user]);
+  }, [isGolf, firestore, sellerId, user, currentStaffId]);
 
   const handleToggleActive = (checked: boolean) => {
     if (!firestore || !sellerId || !user) return;
@@ -171,7 +190,6 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
 
   const mappedBuyers = useMemo(() => {
     if (!now || !clubhouseOrders) return [];
-    // Only map delivery orders (not Take Out) for the satellite view
     return clubhouseOrders
       .filter(o => o.menuType === 'Clubhouse')
       .map(o => ({ 
@@ -181,6 +199,18 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
         colorClass: o.status === 'Out for Delivery' ? "bg-blue-600" : "bg-indigo-600" 
       }));
   }, [clubhouseOrders, now]);
+
+  const mappedDrivers = useMemo(() => {
+    if (!allStaff) return [];
+    return allStaff
+      .filter(s => s.id !== currentStaffId && s.latitude && s.longitude && s.lastActive && (Date.now() - s.lastActive.toMillis()) < 300000)
+      .map(s => ({
+        id: s.id,
+        name: s.name,
+        location: { latitude: s.latitude!, longitude: s.longitude! },
+        type: s.role === 'Driver' ? 'Beverage Cart' : 'Clubhouse'
+      }));
+  }, [allStaff, currentStaffId]);
 
   const isLoading = areActiveOrdersLoading || isPrimaryLoading;
 
@@ -208,6 +238,7 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
               <MapView 
                 sellerLocation={sellerLocation || { latitude: primarySeller.latitude, longitude: primarySeller.longitude }} 
                 buyers={mappedBuyers} 
+                drivers={mappedDrivers}
                 radius={1609.34} 
                 fitTrigger={fitTrigger}
                 showPrimaryMarker={isClubhouseActive} 

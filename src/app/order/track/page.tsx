@@ -4,7 +4,7 @@
 import { Suspense, useEffect, useRef, useState, use } from 'react';
 import { collection, query, orderBy, limit, doc, updateDoc, serverTimestamp, where } from 'firebase/firestore';
 import { useCollection, useDoc, useFirestore, useMemoFirebase, useUser } from '@/firebase';
-import type { Order, Seller } from '@/lib/types';
+import type { Order, Seller, StaffMember } from '@/lib/types';
 import { MapView } from '@/components/map-view';
 import { OrderStatus } from '@/components/order-status';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -37,6 +37,9 @@ function OrderTrackingContent() {
 
   const sellerRef = useMemoFirebase(() => (firestore && order?.sellerId ? doc(firestore, 'sellers', order.sellerId) : null), [firestore, order?.sellerId]);
   const { data: seller, isLoading: isSellerLoading } = useDoc<Seller>(sellerRef);
+
+  const staffRef = useMemoFirebase(() => (firestore && order?.sellerId && order?.assignedStaffId ? doc(firestore, 'sellers', order.sellerId, 'staff', order.assignedStaffId) : null), [firestore, order?.sellerId, order?.assignedStaffId]);
+  const { data: assignedStaff } = useDoc<StaffMember>(staffRef);
 
   const isGolf = seller?.type?.toLowerCase().includes('golf');
   const isBowling = seller?.type?.toLowerCase().includes('bowling');
@@ -118,11 +121,13 @@ function OrderTrackingContent() {
   if (!order) return <div className="p-8 text-center"><p>Order not found.</p><Button asChild className="mt-4"><Link href="/">Back Home</Link></Button></div>;
 
   const isDriverAttached = order.status !== 'Placed' && order.status !== 'Cancelled';
-  const hasValidDriverLocation = seller?.latitude && seller?.longitude && seller.latitude !== 0;
-  const showBilateral = isDriverAttached && seller && hasValidDriverLocation;
+  
+  // DRIVER GPS LOGIC: Prefer assigned staff document, fallback to venue root coordinates
+  const driverLocation = assignedStaff?.latitude ? { latitude: assignedStaff.latitude, longitude: assignedStaff.longitude } : (seller?.latitude ? { latitude: seller.latitude, longitude: seller.longitude } : null);
+  const showBilateral = isDriverAttached && !!driverLocation;
 
   // Signal Freshness Check
-  const lastActiveDate = seller?.lastActive?.toDate();
+  const lastActiveDate = assignedStaff?.lastActive?.toDate() || seller?.lastActive?.toDate();
   const secondsSinceActive = lastActiveDate ? differenceInSeconds(now, lastActiveDate) : 999;
   const isSignalLive = secondsSinceActive < 60;
 
@@ -154,7 +159,7 @@ function OrderTrackingContent() {
           ) : (
             <>
               <MapView 
-                sellerLocation={showBilateral ? { latitude: seller!.latitude, longitude: seller!.longitude } : undefined} 
+                sellerLocation={showBilateral ? driverLocation! : undefined} 
                 buyerLocation={order.deliveryLocation} 
                 radius={order.status === 'Placed' ? 804.672 : undefined}
                 zoomMode={order.status === 'Placed' ? 'radius' : 'all'}
@@ -169,7 +174,7 @@ function OrderTrackingContent() {
                   )}>
                     <div className={cn("h-1.5 w-1.5 rounded-full", isSignalLive ? "bg-white animate-pulse" : "bg-white/40")} />
                     <span className="text-[8px] font-black uppercase tracking-widest">
-                      {isSignalLive ? "Live Driver Feed" : "Awaiting Driver Signal"}
+                      {isSignalLive ? (assignedStaff ? `Live Feed: ${assignedStaff.name}` : "Live Driver Feed") : "Awaiting Driver Signal"}
                     </span>
                   </Badge>
                 </div>

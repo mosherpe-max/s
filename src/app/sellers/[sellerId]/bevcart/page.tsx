@@ -1,13 +1,14 @@
+
 'use client';
 
-import { collection, query, where, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, where, doc, updateDoc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { useCollection, useFirestore, useMemoFirebase, useDoc, useUser } from '@/firebase';
 import { MapView } from '@/components/map-view';
 import { useEffect, useState, useMemo, useRef, use } from 'react';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { OrderCard } from '@/components/order-card';
-import type { Order, Seller } from '@/lib/types';
+import type { Order, Seller, StaffMember } from '@/lib/types';
 import { mockSellerLocation } from '@/lib/data';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -51,6 +52,12 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
     return doc(firestore, 'sellers', sellerId);
   }, [firestore, sellerId]);
   const { data: primarySeller, isLoading: isPrimaryLoading } = useDoc<Seller>(primarySellerRef);
+
+  const staffQuery = useMemoFirebase(() => {
+    if (!firestore || !sellerId) return null;
+    return collection(firestore, 'sellers', sellerId, 'staff');
+  }, [firestore, sellerId]);
+  const { data: allStaff } = useCollection<StaffMember>(staffQuery);
 
   // Initialize seller location from venue coordinates immediately
   useEffect(() => {
@@ -125,6 +132,30 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
     return () => clearInterval(interval);
   }, []);
 
+  const broadcastLocation = (lat: number, lng: number) => {
+    if (!firestore || !sellerId || !user) return;
+    
+    // 1. Update individual staff doc (for multi-driver visualization)
+    if (currentStaffId) {
+      const staffRef = doc(firestore, 'sellers', sellerId, 'staff', currentStaffId);
+      const staffData = {
+        latitude: lat,
+        longitude: lng,
+        lastActive: serverTimestamp()
+      };
+      setDoc(staffRef, staffData, { merge: true }).catch(() => {});
+    }
+
+    // 2. Update venue primary doc (for bilateral patron tracking)
+    const sellerDocRef = doc(firestore, 'sellers', sellerId);
+    const venueData = {
+      latitude: lat,
+      longitude: lng,
+      lastActive: serverTimestamp()
+    };
+    updateDoc(sellerDocRef, venueData).catch(() => {});
+  };
+
   // BROADCAST CURRENT LOCATION ON MOUNT
   useEffect(() => {
     if (navigator.geolocation && firestore && sellerId && user) {
@@ -132,22 +163,10 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
         const lat = p.coords.latitude;
         const lng = p.coords.longitude;
         setSellerLocation({ latitude: lat, longitude: lng });
-        const sellerDocRef = doc(firestore, 'sellers', sellerId);
-        const updateData = {
-          latitude: lat,
-          longitude: lng,
-          lastActive: serverTimestamp()
-        };
-        updateDoc(sellerDocRef, updateData).catch(async (error) => {
-          errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: sellerDocRef.path,
-            operation: 'update',
-            requestResourceData: updateData,
-          } satisfies SecurityRuleContext));
-        });
+        broadcastLocation(lat, lng);
       });
     }
-  }, [firestore, sellerId, user]);
+  }, [firestore, sellerId, user, currentStaffId]);
 
   useEffect(() => {
     if (navigator.geolocation && firestore && sellerId && user) {
@@ -156,24 +175,14 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
           const lat = p.coords.latitude;
           const lng = p.coords.longitude;
           setSellerLocation({ latitude: lat, longitude: lng });
-          
-          const sellerDocRef = doc(firestore, 'sellers', sellerId);
-          const updateData = {
-            latitude: lat,
-            longitude: lng,
-            lastActive: serverTimestamp()
-          };
-          updateDoc(sellerDocRef, updateData).catch(async (error) => {
-            // Silence silent background GPS broadcast failures to avoid UI clutter
-            console.warn("GPS Broadcast Blocked by Security Rules");
-          });
+          broadcastLocation(lat, lng);
         },
         null,
         { enableHighAccuracy: true, timeout: 10000 }
       );
       return () => navigator.geolocation.clearWatch(watchId);
     }
-  }, [firestore, sellerId, user]);
+  }, [firestore, sellerId, user, currentStaffId]);
 
   const handleUpdateOrderStatus = (orderId: string, currentStatus: string) => {
     if (!firestore) return;
@@ -242,6 +251,18 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
     }));
   }, [driverOrders, now]);
 
+  const mappedDrivers = useMemo(() => {
+    if (!allStaff) return [];
+    return allStaff
+      .filter(s => s.id !== currentStaffId && s.latitude && s.longitude && s.lastActive && (Date.now() - s.lastActive.toMillis()) < 300000)
+      .map(s => ({
+        id: s.id,
+        name: s.name,
+        location: { latitude: s.latitude!, longitude: s.longitude! },
+        type: s.role === 'Driver' ? 'Beverage Cart' : 'Clubhouse'
+      }));
+  }, [allStaff, currentStaffId]);
+
   const isLoading = areActiveOrdersLoading || isPrimaryLoading;
 
   return (
@@ -278,6 +299,7 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
             <MapView 
               sellerLocation={sellerLocation} 
               buyers={mappedBuyers} 
+              drivers={mappedDrivers}
               radius={1609.34} 
               fitTrigger={fitTrigger}
               showPrimaryMarker={isBevCartActive} 

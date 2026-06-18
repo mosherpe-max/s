@@ -51,6 +51,9 @@ export interface StaffMember {
   pin: string;
   isActive: boolean;
   createdAt: Timestamp;
+  latitude?: number;
+  longitude?: number;
+  lastActive?: Timestamp;
 }
 
 export interface Seller {
