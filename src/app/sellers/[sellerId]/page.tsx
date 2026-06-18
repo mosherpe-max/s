@@ -922,7 +922,12 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
         <div className="flex items-center gap-4">
           <div className="bg-primary/10 p-2 rounded-xl"><Target className="h-5 w-5 text-primary" /></div>
           <div className="flex flex-col">
-            <h2 className="text-lg font-black font-headline uppercase tracking-tight text-[#213147]">{NAV_ITEMS.find(n => n.id === activeNav)?.label}</h2>
+            <div className="flex items-center gap-2">
+              <h2 className="text-lg font-black font-headline uppercase tracking-tight text-[#213147]">{NAV_ITEMS.find(n => n.id === activeNav)?.label}</h2>
+              <Badge variant="outline" className="hidden sm:inline-flex text-[10px] font-black border-indigo-100 bg-indigo-50 text-indigo-700 uppercase h-5 px-2">
+                {seller?.courseName}
+              </Badge>
+            </div>
             <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">Koop Venue Terminal</p>
           </div>
         </div>
