@@ -466,6 +466,12 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     const payload = { ...data, id, createdAt: editingStaff?.createdAt || serverTimestamp() };
     setDoc(staffRef, payload, { merge: true }).then(() => {
       setIsStaffFormOpen(false); setEditingStaff(null); staffForm.reset(); toast({ title: "Staff member saved" });
+    }).catch(async (error) => {
+      errorEmitter.emit('permission-error', new FirestorePermissionError({
+        path: staffRef.path,
+        operation: editingStaff ? 'update' : 'create',
+        requestResourceData: payload,
+      } satisfies SecurityRuleContext));
     });
   };
 
@@ -476,14 +482,28 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     const payload = { ...data, id, rank: editingItem?.rank || 0, createdAt: editingItem?.createdAt || serverTimestamp() };
     setDoc(itemRef, payload, { merge: true }).then(() => {
       setIsItemFormOpen(false); setEditingItem(null); itemForm.reset(); toast({ title: editingItem ? "Item Updated" : "Item Added" });
+    }).catch(async (error) => {
+      errorEmitter.emit('permission-error', new FirestorePermissionError({
+        path: itemRef.path,
+        operation: editingItem ? 'update' : 'create',
+        requestResourceData: payload,
+      } satisfies SecurityRuleContext));
     });
   };
 
   const toggleItemAvailability = (item: MenuItem) => {
     if (!firestore) return;
     const nextAvailable = !(item.isAvailable !== false);
-    updateDoc(doc(firestore, 'sellers', sellerId, 'menuItems', item.id), { isAvailable: nextAvailable }).then(() => {
+    const itemRef = doc(firestore, 'sellers', sellerId, 'menuItems', item.id);
+    const updateData = { isAvailable: nextAvailable };
+    updateDoc(itemRef, updateData).then(() => {
       toast({ title: nextAvailable ? "Item Restored" : "Item 86'd" });
+    }).catch(async (error) => {
+      errorEmitter.emit('permission-error', new FirestorePermissionError({
+        path: itemRef.path,
+        operation: 'update',
+        requestResourceData: updateData,
+      } satisfies SecurityRuleContext));
     });
   };
 
@@ -492,9 +512,17 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     const stages: Order['status'][] = ['Placed', 'Preparing', 'Out for Delivery', 'Delivered'];
     const nextIdx = stages.indexOf(current as any) + 1;
     if (nextIdx < stages.length) {
-      updateDoc(doc(firestore, 'orders', orderId), { 
+      const orderRef = doc(firestore, 'orders', orderId);
+      const updateData = { 
         status: stages[nextIdx],
         deliveredAt: stages[nextIdx] === 'Delivered' ? serverTimestamp() : null 
+      };
+      updateDoc(orderRef, updateData).catch(async (error) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+          path: orderRef.path,
+          operation: 'update',
+          requestResourceData: updateData,
+        } satisfies SecurityRuleContext));
       });
     }
   };
@@ -503,14 +531,23 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     if (!firestore || !sellerId) return;
     const fieldMap: Record<string, string> = { 'Beverage Cart': 'bevcartActive', 'Clubhouse': 'clubhouseActive', 'Lane Delivery': 'lanedeliveryActive', 'Take Out': 'takeoutActive' };
     const field = fieldMap[mode];
-    if (field) updateDoc(doc(firestore, 'sellers', sellerId), { [field]: !current });
+    if (field) {
+      const sellerDocRef = doc(firestore, 'sellers', sellerId);
+      const updateData = { [field]: !current };
+      updateDoc(sellerDocRef, updateData).catch(async (error) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+          path: sellerDocRef.path,
+          operation: 'update',
+          requestResourceData: updateData,
+        } satisfies SecurityRuleContext));
+      });
+    }
   };
 
   const handleDragEnd = (event: DragEndEvent, category: string) => {
     const { active, over } = event;
     if (!over || active.id === over.id || !firestore) return;
 
-    // Special logic for Featured category: it can contain items from any native category
     const activeItems = (category === 'Featured' 
       ? menuItems?.filter(i => i.featuredOn?.includes(configMode))
       : menuItems?.filter(i => i.category === category && i.availableOn?.includes(configMode))
@@ -523,43 +560,66 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
       const newItems = arrayMove(activeItems, oldIndex, newIndex);
       const batch = writeBatch(firestore);
       newItems.forEach((item, index) => batch.update(doc(firestore, 'sellers', sellerId, 'menuItems', item.id), { [`menuRanks.${configMode}`]: index }));
-      batch.commit().then(() => toast({ title: "Rankings Synchronized" }));
+      batch.commit().then(() => toast({ title: "Rankings Synchronized" })).catch(async (error) => {
+        // Since batch errors are harder to attribute to a single path in the emitter, 
+        // we attribute to the collection root for permission debugging.
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+          path: `sellers/${sellerId}/menuItems`,
+          operation: 'update',
+        } satisfies SecurityRuleContext));
+      });
     }
   };
 
   const handleToggleItemInMode = (itemId: string, item: MenuItem, isFeaturedMode: boolean) => {
     if (!firestore) return;
     
+    const itemRef = doc(firestore, 'sellers', sellerId, 'menuItems', itemId);
+    let updateData = {};
+
     if (isFeaturedMode) {
-      // Toggle "Featured" status for this mode
       const currentFeatured = item.featuredOn || [];
       const nextFeatured = currentFeatured.includes(configMode) 
         ? currentFeatured.filter(m => m !== configMode) 
         : [...currentFeatured, configMode];
       
-      // Items that are featured should also be implicitly "available" for that mode if not already
       const currentAvailable = item.availableOn || [];
       const nextAvailable = nextFeatured.includes(configMode) && !currentAvailable.includes(configMode)
         ? [...currentAvailable, configMode]
         : currentAvailable;
 
-      updateDoc(doc(firestore, 'sellers', sellerId, 'menuItems', itemId), { 
+      updateData = { 
         featuredOn: nextFeatured,
         availableOn: nextAvailable
-      });
+      };
     } else {
-      // Toggle standard mode availability
       const currentAvailable = item.availableOn || [];
       const nextAvailable = currentAvailable.includes(configMode) ? currentAvailable.filter(m => m !== configMode) : [...currentAvailable, configMode];
-      updateDoc(doc(firestore, 'sellers', sellerId, 'menuItems', itemId), { availableOn: nextAvailable });
+      updateData = { availableOn: nextAvailable };
     }
+
+    updateDoc(itemRef, updateData).catch(async (error) => {
+      errorEmitter.emit('permission-error', new FirestorePermissionError({
+        path: itemRef.path,
+        operation: 'update',
+        requestResourceData: updateData,
+      } satisfies SecurityRuleContext));
+    });
   };
 
   const handleToggleCategoryVisibility = (category: string) => {
     if (!firestore || !seller) return;
     const currentEnabled = seller.categoryVisibility?.[configMode] || categories.filter(c => c !== 'Featured');
     const nextEnabled = currentEnabled.includes(category) ? currentEnabled.filter(c => c !== category) : [...currentEnabled, category];
-    updateDoc(doc(firestore, 'sellers', sellerId), { [`categoryVisibility.${configMode}`]: nextEnabled });
+    const sellerDocRef = doc(firestore, 'sellers', sellerId);
+    const updateData = { [`categoryVisibility.${configMode}`]: nextEnabled };
+    updateDoc(sellerDocRef, updateData).catch(async (error) => {
+      errorEmitter.emit('permission-error', new FirestorePermissionError({
+        path: sellerDocRef.path,
+        operation: 'update',
+        requestResourceData: updateData,
+      } satisfies SecurityRuleContext));
+    });
   };
 
   const handleVerifyStripe = async () => {
@@ -581,8 +641,22 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   const handleUpdateVenueRegistry = async () => {
     if (!firestore || !sellerId) return;
     setIsProcessingSave(true);
-    updateDoc(doc(firestore, 'sellers', sellerId), { courseName: venueName, taxRate: venueTaxRate, orderThresholds: venueThresholds, updatedAt: serverTimestamp() })
+    const sellerDocRef = doc(firestore, 'sellers', sellerId);
+    const updateData = { 
+      courseName: venueName, 
+      taxRate: venueTaxRate, 
+      orderThresholds: venueThresholds, 
+      updatedAt: serverTimestamp() 
+    };
+    updateDoc(sellerDocRef, updateData)
       .then(() => toast({ title: "Venue Registry Updated" }))
+      .catch(async (error) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+          path: sellerDocRef.path,
+          operation: 'update',
+          requestResourceData: updateData,
+        } satisfies SecurityRuleContext));
+      })
       .finally(() => setIsProcessingSave(false));
   };
 
@@ -596,7 +670,9 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     const filteredOrders = dashboardFilter === 'All' ? orders : orders.filter(o => o.menuType === dashboardFilter);
     const today = filteredOrders.filter(o => {
       if (!o.createdAt || typeof o.createdAt.toDate !== 'function') return false;
-      return isToday(o.createdAt.toDate());
+      try {
+        return isToday(o.createdAt.toDate());
+      } catch { return false; }
     });
     const revenue = today.reduce((acc, o) => acc + (o.total || 0), 0);
     const fees = today.reduce((acc, o) => acc + (o.serviceFee || 0), 0);
@@ -604,7 +680,9 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     const overdueCount = filteredOrders.filter(o => {
       if (o.status === 'Delivered' || o.status === 'Cancelled' || !o.createdAt || typeof o.createdAt.toDate !== 'function') return false;
       const threshold = seller?.orderThresholds?.[o.menuType]?.max || DEFAULT_THRESHOLDS[o.menuType]?.max || 20;
-      return differenceInMinutes(nowLocal, o.createdAt.toDate()) >= threshold;
+      try {
+        return differenceInMinutes(nowLocal, o.createdAt.toDate()) >= threshold;
+      } catch { return false; }
     }).length;
     return {
       revenue: revenue.toFixed(2),
@@ -619,7 +697,13 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   const availableMonths = useMemo(() => {
     if (!orders) return [];
     const months = new Set<string>();
-    orders.forEach(o => { if (o.createdAt && typeof o.createdAt.toDate === 'function') months.add(format(o.createdAt.toDate(), 'MMMM yyyy')); });
+    orders.forEach(o => { 
+      if (o.createdAt && typeof o.createdAt.toDate === 'function') {
+        try {
+          months.add(format(o.createdAt.toDate(), 'MMMM yyyy')); 
+        } catch {}
+      }
+    });
     return Array.from(months).sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
   }, [orders]);
 
@@ -635,7 +719,13 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
       chartData = intervals.map(hour => {
         const entry: any = { time: format(hour, 'ha') };
         activeModes.forEach(mode => {
-          const matching = orders.filter(o => o.menuType === mode && o.createdAt && typeof o.createdAt.toDate === 'function' && isSameHour(o.createdAt.toDate(), hour) && isSameDay(o.createdAt.toDate(), now));
+          const matching = orders.filter(o => {
+            if (o.menuType !== mode || !o.createdAt || typeof o.createdAt.toDate !== 'function') return false;
+            try {
+              const d = o.createdAt.toDate();
+              return isSameHour(d, hour) && isSameDay(d, now);
+            } catch { return false; }
+          });
           entry[mode] = Math.round(matching.reduce((sum, o) => sum + o.total, 0));
           entry[`${mode}_count`] = matching.length;
         });
@@ -647,7 +737,12 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
       chartData = intervals.map(day => {
         const entry: any = { time: format(day, 'MMM d') };
         activeModes.forEach(mode => {
-          const matching = orders.filter(o => o.menuType === mode && o.createdAt && typeof o.createdAt.toDate === 'function' && isSameDay(o.createdAt.toDate(), day));
+          const matching = orders.filter(o => {
+            if (o.menuType !== mode || !o.createdAt || typeof o.createdAt.toDate !== 'function') return false;
+            try {
+              return isSameDay(o.createdAt.toDate(), day);
+            } catch { return false; }
+          });
           entry[mode] = Math.round(matching.reduce((sum, o) => sum + o.total, 0));
           entry[`${mode}_count`] = matching.length;
         });
@@ -659,7 +754,13 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
       chartData = intervals.map(month => {
         const entry: any = { time: format(month, 'MMM') };
         activeModes.forEach(mode => {
-          const matching = orders.filter(o => o.menuType === mode && o.createdAt && typeof o.createdAt.toDate === 'function' && isSameMonth(o.createdAt.toDate(), month) && isSameYear(o.createdAt.toDate(), now));
+          const matching = orders.filter(o => {
+            if (o.menuType !== mode || !o.createdAt || typeof o.createdAt.toDate !== 'function') return false;
+            try {
+              const d = o.createdAt.toDate();
+              return isSameMonth(d, month) && isSameYear(d, now);
+            } catch { return false; }
+          });
           entry[mode] = Math.round(matching.reduce((sum, o) => sum + o.total, 0));
           entry[`${mode}_count`] = matching.length;
         });
@@ -672,7 +773,12 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   const pieChartData = useMemo(() => {
     if (!orders || !seller) return [];
     const modes = seller.menuTypes || [];
-    const filteredOrders = pieMonthFilter === 'All' ? orders : orders.filter(o => o.createdAt && typeof o.createdAt.toDate === 'function' && format(o.createdAt.toDate(), 'MMMM yyyy') === pieMonthFilter);
+    const filteredOrders = pieMonthFilter === 'All' ? orders : orders.filter(o => {
+      if (!o.createdAt || typeof o.createdAt.toDate !== 'function') return false;
+      try {
+        return format(o.createdAt.toDate(), 'MMMM yyyy') === pieMonthFilter;
+      } catch { return false; }
+    });
     return modes.map(mode => {
       const modeOrders = filteredOrders.filter(o => o.menuType === mode);
       const revenue = modeOrders.reduce((sum, o) => sum + o.total, 0);
@@ -690,7 +796,9 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     const end = endOfDay(new Date(reportEndDate));
     filtered = filtered.filter(o => {
       if (!o.createdAt || typeof o.createdAt.toDate !== 'function') return false;
-      return isWithinInterval(o.createdAt.toDate(), { start, end });
+      try {
+        return isWithinInterval(o.createdAt.toDate(), { start, end });
+      } catch { return false; }
     });
     return [...filtered].sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
   }, [orders, reportStartDate, reportEndDate, reportModeFilter]);
@@ -849,7 +957,15 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                   <div className="space-y-10">{categories.map(cat => {
                     const items = menuItems?.filter(i => i.category === cat) || [];
                     if (!items.length) return null;
-                    return (<div key={cat} className="space-y-4"><div className="flex items-center gap-3 border-b-2 pb-2"><h4 className="font-headline font-black text-sm uppercase tracking-widest text-[#213147]">{cat}</h4><Badge variant="secondary" className="text-[9px] font-black uppercase h-5">{items.length} Items</Badge></div><div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">{items.map(item => (<Card key={item.id} className={cn("border-2 overflow-hidden group transition-all", item.isAvailable === false && "opacity-60 bg-slate-50 border-dashed")}><div className="flex h-24"><div className="w-24 bg-slate-100 border-r-2 flex items-center justify-center relative shrink-0">{item.imageUrl ? <img src={item.imageUrl} alt="" className="w-full h-full object-cover" /> : <LucideImage className="h-8 w-8 text-slate-300" />}</div><div className="flex-1 p-3 flex flex-col justify-between min-w-0"><div><p className="font-black text-xs uppercase text-[#213147] truncate">{item.name}</p><p className="font-mono text-primary text-[10px] font-bold">${item.price.toFixed(2)}</p></div><div className="flex items-center justify-between gap-1"><div className="flex flex-col"><span className="text-[7px] font-black uppercase text-muted-foreground mb-0.5">86 Stock</span><Switch checked={item.isAvailable !== false} onCheckedChange={() => toggleItemAvailability(item)} onPointerDown={(e) => e.stopPropagation()} className="data-[state=checked]:bg-green-600 h-4 w-7" /></div><div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity"><Button size="icon" variant="ghost" className="h-7 w-7 text-primary" onClick={() => { setEditingItem(item); itemForm.reset(item); setIsItemFormOpen(true); }}><Edit className="h-3.5 w-3.5" /></Button><Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => deleteDoc(doc(firestore!, 'sellers', sellerId, 'menuItems', item.id))}><Trash2 className="h-3.5 w-3.5" /></Button></div></div></div></div></Card>))}</div></div>);
+                    return (<div key={cat} className="space-y-4"><div className="flex items-center gap-3 border-b-2 pb-2"><h4 className="font-headline font-black text-sm uppercase tracking-widest text-[#213147]">{cat}</h4><Badge variant="secondary" className="text-[9px] font-black uppercase h-5">{items.length} Items</Badge></div><div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">{items.map(item => (<Card key={item.id} className={cn("border-2 overflow-hidden group transition-all", item.isAvailable === false && "opacity-60 bg-slate-50 border-dashed")}><div className="flex h-24"><div className="w-24 bg-slate-100 border-r-2 flex items-center justify-center relative shrink-0">{item.imageUrl ? <img src={item.imageUrl} alt="" className="w-full h-full object-cover" /> : <LucideImage className="h-8 w-8 text-slate-300" />}</div><div className="flex-1 p-3 flex flex-col justify-between min-w-0"><div><p className="font-black text-xs uppercase text-[#213147] truncate">{item.name}</p><p className="font-mono text-primary text-[10px] font-bold">${item.price.toFixed(2)}</p></div><div className="flex items-center justify-between gap-1"><div className="flex flex-col"><span className="text-[7px] font-black uppercase text-muted-foreground mb-0.5">86 Stock</span><Switch checked={item.isAvailable !== false} onCheckedChange={() => toggleItemAvailability(item)} onPointerDown={(e) => e.stopPropagation()} className="data-[state=checked]:bg-green-600 h-4 w-7" /></div><div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity"><Button size="icon" variant="ghost" className="h-7 w-7 text-primary" onClick={() => { setEditingItem(item); itemForm.reset(item); setIsItemFormOpen(true); }}><Edit className="h-3.5 w-3.5" /></Button><Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => {
+                      const itemRef = doc(firestore!, 'sellers', sellerId, 'menuItems', item.id);
+                      deleteDoc(itemRef).catch(async (error) => {
+                        errorEmitter.emit('permission-error', new FirestorePermissionError({
+                          path: itemRef.path,
+                          operation: 'delete',
+                        } satisfies SecurityRuleContext));
+                      });
+                    }}><Trash2 className="h-3.5 w-3.5" /></Button></div></div></div></div></Card>))}</div></div>);
                   })}</div>
                 </div>
               )}
@@ -872,16 +988,15 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                       
                       const allItems = menuItems || [];
                       
-                      // For "Featured", show items that are explicitly featured for this mode
-                      // For other categories, show items that are naturally in the category and available for the mode
                       const activeItems = (isFeatured 
                         ? allItems.filter(i => i.featuredOn?.includes(configMode))
                         : allItems.filter(i => i.category === cat && i.availableOn?.includes(configMode))
-                      ).sort((a, b) => (a.menuRanks?.[configMode] ?? 999) - (b.menuRanks?.[configMode] ?? 999));
+                      ).sort((a, b) => {
+                        const rankA = a.menuRanks?.[configMode] ?? 999;
+                        const rankB = b.menuRanks?.[configMode] ?? 999;
+                        return rankA - rankB;
+                      });
                       
-                      // For picker:
-                      // If Featured: any item not currently featured
-                      // If Standard: items in this category not currently live
                       const hasPickerItems = isFeatured 
                         ? allItems.some(i => !i.featuredOn?.includes(configMode))
                         : allItems.some(i => i.category === cat && !i.availableOn?.includes(configMode));
@@ -933,7 +1048,15 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
               )}
 
               {activeNav === 'staff' && (
-                <div className="space-y-6 animate-in fade-in duration-500"><div className="flex justify-between items-center"><h3 className="font-headline font-black text-lg text-[#213147] uppercase">Personnel Registry</h3><Button onClick={() => { setEditingStaff(null); staffForm.reset(); setIsStaffFormOpen(true); }} className="bg-[#213147] font-black uppercase text-[10px] h-10 tracking-widest px-4 sm:px-6 shadow-lg">Add New Personnel</Button></div><Card className="border-2 shadow-sm overflow-hidden"><div className="overflow-x-auto"><Table><TableHeader className="bg-slate-50 border-b"><TableRow><TableHead className="text-[10px] font-black uppercase">Name</TableHead><TableHead className="text-[10px] font-black uppercase">Role</TableHead><TableHead className="text-[10px] font-black uppercase">PIN</TableHead><TableHead className="text-right text-[10px] font-black uppercase">Actions</TableHead></TableRow></TableHeader><TableBody>{staff?.map(s => (<TableRow key={s.id}><TableCell className="font-bold text-xs uppercase text-[#213147]">{s.name}</TableCell><TableCell><Badge variant="secondary" className="text-[9px] font-black uppercase">{s.role}</Badge></TableCell><TableCell><code className="text-xs font-mono font-black text-primary">{s.pin}</code></TableCell><TableCell className="text-right"><Button variant="ghost" size="icon" className="h-8 w-8 text-primary" onClick={() => { setEditingStaff(s); staffForm.reset(s); setIsStaffFormOpen(true); }}><Edit className="h-4 w-4" /></Button><Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => deleteDoc(doc(firestore!, 'sellers', sellerId, 'staff', s.id))}><Trash2 className="h-4 w-4" /></Button></TableCell></TableRow>))}</TableBody></Table></div></Card></div>
+                <div className="space-y-6 animate-in fade-in duration-500"><div className="flex justify-between items-center"><h3 className="font-headline font-black text-lg text-[#213147] uppercase">Personnel Registry</h3><Button onClick={() => { setEditingStaff(null); staffForm.reset(); setIsStaffFormOpen(true); }} className="bg-[#213147] font-black uppercase text-[10px] h-10 tracking-widest px-4 sm:px-6 shadow-lg">Add New Personnel</Button></div><Card className="border-2 shadow-sm overflow-hidden"><div className="overflow-x-auto"><Table><TableHeader className="bg-slate-50 border-b"><TableRow><TableHead className="text-[10px] font-black uppercase">Name</TableHead><TableHead className="text-[10px] font-black uppercase">Role</TableHead><TableHead className="text-[10px] font-black uppercase">PIN</TableHead><TableHead className="text-right text-[10px] font-black uppercase">Actions</TableHead></TableRow></TableHeader><TableBody>{staff?.map(s => (<TableRow key={s.id}><TableCell className="font-bold text-xs uppercase text-[#213147]">{s.name}</TableCell><TableCell><Badge variant="secondary" className="text-[9px] font-black uppercase">{s.role}</Badge></TableCell><TableCell><code className="text-xs font-mono font-black text-primary">{s.pin}</code></TableCell><TableCell className="text-right"><Button variant="ghost" size="icon" className="h-8 w-8 text-primary" onClick={() => { setEditingStaff(s); staffForm.reset(s); setIsStaffFormOpen(true); }}><Edit className="h-4 w-4" /></Button><Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => {
+                      const staffRef = doc(firestore!, 'sellers', sellerId, 'staff', s.id);
+                      deleteDoc(staffRef).catch(async (error) => {
+                        errorEmitter.emit('permission-error', new FirestorePermissionError({
+                          path: staffRef.path,
+                          operation: 'delete',
+                        } satisfies SecurityRuleContext));
+                      });
+                    }}><Trash2 className="h-4 w-4" /></Button></TableCell></TableRow>))}</TableBody></Table></div></Card></div>
               )}
 
               {activeNav === 'payments' && (

@@ -1,3 +1,4 @@
+
 'use client';
 
 import { collection, query, where, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
@@ -17,6 +18,8 @@ import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { isToday } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
 
 type LatLng = {
   latitude: number;
@@ -60,7 +63,15 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
 
   const handleToggleActive = (checked: boolean) => {
     if (!firestore || !sellerId) return;
-    updateDoc(doc(firestore, 'sellers', sellerId), { bevcartActive: checked }).catch(() => {});
+    const sellerDocRef = doc(firestore, 'sellers', sellerId);
+    const updateData = { bevcartActive: checked };
+    updateDoc(sellerDocRef, updateData).catch(async (error) => {
+      errorEmitter.emit('permission-error', new FirestorePermissionError({
+        path: sellerDocRef.path,
+        operation: 'update',
+        requestResourceData: updateData,
+      } satisfies SecurityRuleContext));
+    });
   };
 
   const activeOrdersQuery = useMemoFirebase(() => {
@@ -121,10 +132,18 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
         const lat = p.coords.latitude;
         const lng = p.coords.longitude;
         setSellerLocation({ latitude: lat, longitude: lng });
-        updateDoc(doc(firestore, 'sellers', sellerId), {
+        const sellerDocRef = doc(firestore, 'sellers', sellerId);
+        const updateData = {
           latitude: lat,
           longitude: lng,
           lastActive: serverTimestamp()
+        };
+        updateDoc(sellerDocRef, updateData).catch(async (error) => {
+          errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: sellerDocRef.path,
+            operation: 'update',
+            requestResourceData: updateData,
+          } satisfies SecurityRuleContext));
         });
       });
     }
@@ -138,11 +157,17 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
           const lng = p.coords.longitude;
           setSellerLocation({ latitude: lat, longitude: lng });
           
-          updateDoc(doc(firestore, 'sellers', sellerId), {
+          const sellerDocRef = doc(firestore, 'sellers', sellerId);
+          const updateData = {
             latitude: lat,
             longitude: lng,
             lastActive: serverTimestamp()
-          }).catch(err => console.error("GPS Broadcast Failed", err));
+          };
+          updateDoc(sellerDocRef, updateData).catch(async (error) => {
+            // Silence silent background GPS broadcast failures to avoid UI clutter
+            // But log locally for debugging during development
+            console.warn("GPS Broadcast Blocked by Security Rules");
+          });
         },
         null,
         { enableHighAccuracy: true, timeout: 10000 }
@@ -173,8 +198,13 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
         }
       }
 
-      updateDoc(doc(firestore, 'orders', orderId), updateData).catch((err) => {
-        console.error("Status update failed:", err);
+      const orderRef = doc(firestore, 'orders', orderId);
+      updateDoc(orderRef, updateData).catch(async (error) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+          path: orderRef.path,
+          operation: 'update',
+          requestResourceData: updateData,
+        } satisfies SecurityRuleContext));
       });
     }
   };
@@ -185,12 +215,21 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
     const staffName = localStorage.getItem('koop_staff_name');
     if (!staffId || !staffName) return;
 
-    updateDoc(doc(firestore, 'orders', orderId), {
+    const orderRef = doc(firestore, 'orders', orderId);
+    const updateData = {
       assignedStaffId: staffId,
       assignedStaffName: staffName,
       updatedAt: serverTimestamp()
-    }).then(() => {
+    };
+
+    updateDoc(orderRef, updateData).then(() => {
       toast({ title: "Order Attached", description: `You are now the active driver for this ticket.` });
+    }).catch(async (error) => {
+      errorEmitter.emit('permission-error', new FirestorePermissionError({
+        path: orderRef.path,
+        operation: 'update',
+        requestResourceData: updateData,
+      } satisfies SecurityRuleContext));
     });
   };
 

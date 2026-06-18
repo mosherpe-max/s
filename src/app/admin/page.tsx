@@ -130,6 +130,8 @@ import {
 import { Checkbox } from '@/components/ui/checkbox';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import Link from 'next/link';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
 
 const SYSTEM_DEFAULT_THRESHOLDS = {
   'Beverage Cart': { warning: 10, max: 15 },
@@ -268,7 +270,12 @@ export default function PlatformAdminPage() {
     const now = new Date();
     const monthStart = startOfMonth(now);
     const activeSellers = sellers.filter(s => s.status === 'Active');
-    const mtdOrders = orders.filter(o => o.createdAt?.toDate() >= monthStart);
+    const mtdOrders = orders.filter(o => {
+      if (!o.createdAt || typeof o.createdAt.toDate !== 'function') return false;
+      try {
+        return o.createdAt.toDate() >= monthStart;
+      } catch { return false; }
+    });
     const mtdGMV = mtdOrders.reduce((acc, o) => acc + o.total, 0);
     const mtdFees = mtdOrders.reduce((acc, o) => acc + (o.serviceFee || 0), 0);
     return {
@@ -300,33 +307,43 @@ export default function PlatformAdminPage() {
   const handleUploadLogo = async () => {
     if (!firestore || !logoPreview) return;
     setIsProcessingLogo(true);
-    try {
-      await setDoc(doc(firestore, 'platform', 'config'), { logoUrl: logoPreview, updatedAt: serverTimestamp() }, { merge: true });
+    const platformDocRef = doc(firestore, 'platform', 'config');
+    const updateData = { logoUrl: logoPreview, updatedAt: serverTimestamp() };
+    setDoc(platformDocRef, updateData, { merge: true }).then(() => {
       toast({ title: "Platform Branding Updated" });
       setLogoPreview(null);
-    } catch (e: any) {
-      toast({ variant: "destructive", title: "Upload Failed", description: e.message });
-    } finally {
+    }).catch(async (error) => {
+      errorEmitter.emit('permission-error', new FirestorePermissionError({
+        path: platformDocRef.path,
+        operation: 'write',
+        requestResourceData: updateData,
+      } satisfies SecurityRuleContext));
+    }).finally(() => {
       setIsProcessingLogo(false);
-    }
+    });
   };
 
   const handleUpdateSystemDefaults = async () => {
     if (!firestore) return;
     setIsSavingSystemConfig(true);
-    try {
-      await setDoc(doc(firestore, 'platform', 'config'), {
-        defaultThresholds: systemThresholds,
-        mapUpdateSettings: mapSettings,
-        enabledModes: globalEnabledModes,
-        updatedAt: serverTimestamp()
-      }, { merge: true });
+    const platformDocRef = doc(firestore, 'platform', 'config');
+    const updateData = {
+      defaultThresholds: systemThresholds,
+      mapUpdateSettings: mapSettings,
+      enabledModes: globalEnabledModes,
+      updatedAt: serverTimestamp()
+    };
+    setDoc(platformDocRef, updateData, { merge: true }).then(() => {
       toast({ title: "System Defaults Updated", description: "Global operational protocols and service authorizations synchronized." });
-    } catch (e: any) {
-      toast({ variant: "destructive", title: "Sync Failed", description: e.message });
-    } finally {
+    }).catch(async (error) => {
+      errorEmitter.emit('permission-error', new FirestorePermissionError({
+        path: platformDocRef.path,
+        operation: 'write',
+        requestResourceData: updateData,
+      } satisfies SecurityRuleContext));
+    }).finally(() => {
       setIsSavingSystemConfig(false);
-    }
+    });
   };
 
   const handleThresholdChange = (mode: string, type: 'warning' | 'max', value: string) => {

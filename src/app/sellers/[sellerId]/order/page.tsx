@@ -49,6 +49,8 @@ import { cn } from '@/lib/utils';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { Badge } from '@/components/ui/badge';
 import { StylizedKoopLogo } from '@/components/header';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || 'pk_test_placeholder');
 
@@ -105,8 +107,16 @@ function StripeActionArea({
           paymentStatus: paymentIntent.status === 'succeeded' ? 'Succeeded' : 'Processing',
           stripePaymentIntentId: paymentIntent.id,
         };
-        const orderRef = await addDoc(collection(firestore, 'orders'), finalOrderData);
-        onOrderComplete(orderRef.id);
+        const ordersCol = collection(firestore, 'orders');
+        addDoc(ordersCol, finalOrderData).then((orderRef) => {
+          onOrderComplete(orderRef.id);
+        }).catch(async (error) => {
+          errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: ordersCol.path,
+            operation: 'create',
+            requestResourceData: finalOrderData,
+          } satisfies SecurityRuleContext));
+        });
       }
     } catch (e: any) {
       toast({ variant: 'destructive', title: 'Payment Denied', description: e.message });
@@ -220,8 +230,17 @@ function CheckoutDrawerContent({
         menuTypeLocation: locationValue || null,
         createdAt: serverTimestamp(),
       };
-      const orderRef = await addDoc(collection(firestore, 'orders'), orderData);
-      onOrderComplete(orderRef.id);
+      const ordersCol = collection(firestore, 'orders');
+      addDoc(ordersCol, orderData).then((orderRef) => {
+        onOrderComplete(orderRef.id);
+      }).catch(async (error) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+          path: ordersCol.path,
+          operation: 'create',
+          requestResourceData: orderData,
+        } satisfies SecurityRuleContext));
+        setIsProcessing(false);
+      });
     } catch (e: any) {
       toast({ variant: 'destructive', title: 'Order Failed', description: e.message });
       setIsProcessing(false);
@@ -419,7 +438,6 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
 
   const filteredMenuItems = useMemo(() => {
     if (!menuItems || !selectedMenuType) return [];
-    // Include items that are either naturally in standard availability OR explicitly featured for this mode
     return menuItems.filter(item => 
       item.availableOn?.includes(selectedMenuType) || 
       item.featuredOn?.includes(selectedMenuType)
@@ -430,8 +448,6 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
     if (!seller || !filteredMenuItems.length) return [];
     
     const itemCategories = new Set(filteredMenuItems.map(i => i.category));
-    
-    // Check if any items are explicitly featured for this mode, even if no items have "Featured" as primary category
     const hasExplicitFeatured = filteredMenuItems.some(i => i.featuredOn?.includes(selectedMenuType));
     if (hasExplicitFeatured) itemCategories.add('Featured');
 
@@ -444,7 +460,6 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
       return hasItems && isEnabled;
     });
 
-    // Ensure Featured is always first
     return visibleCategories.sort((a, b) => {
       if (a === 'Featured') return -1;
       if (b === 'Featured') return 1;
