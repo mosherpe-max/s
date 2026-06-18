@@ -1,3 +1,4 @@
+
 'use client'
 
 import { Truck, User, AlertCircle, Loader2 } from 'lucide-react';
@@ -42,25 +43,32 @@ function MapElements({ buyerLocation, sellerLocation, sellers, buyers, drivers, 
   const map = useMap();
   const apiIsLoaded = useApiIsLoaded();
   const lastZoomMode = useRef<string | undefined>(undefined);
+  const lastFitTime = useRef<number>(0);
+  const lastBuyerPos = useRef<string>("");
+  const lastSellerPos = useRef<string>("");
 
   useEffect(() => {
     if (!map || !apiIsLoaded || typeof window === 'undefined' || !window.google) return;
 
     const isModeChange = lastZoomMode.current !== zoomMode;
     const isExplicitTrigger = fitTrigger !== undefined && fitTrigger > 0;
-    const isAutoFitMode = fitTrigger === undefined; // If no fitTrigger, we want auto-refit on point updates (Tracking mode)
+    const isAutoFitMode = fitTrigger === undefined; 
     
+    // Stringify positions for simple diff check
+    const currentBuyerPos = buyerLocation ? `${buyerLocation.latitude},${buyerLocation.longitude}` : "";
+    const currentSellerPos = sellerLocation ? `${sellerLocation.latitude},${sellerLocation.longitude}` : "";
+    const posChanged = currentBuyerPos !== lastBuyerPos.current || currentSellerPos !== lastSellerPos.current;
+
     // Check if we have meaningful data to fit
-    const hasData = (buyerLocation && (sellerLocation || zoomMode === 'radius')) || sellers?.length || buyers?.length || drivers?.length || sellerLocation;
+    const hasData = (buyerLocation && (sellerLocation || zoomMode === 'radius')) || sellers?.length || buyers?.length || drivers?.length || (sellerLocation && sellerLocation.latitude);
     
     if (!hasData) return;
     
-    // Logic: 
-    // 1. Always fit on initial mount (lastZoomMode === undefined)
-    // 2. Always fit if the mode changed (e.g., Placed -> Preparing)
-    // 3. Always fit if the driver clicked the Focus button (fitTrigger)
-    // 4. In "Auto-Fit" mode (Patron tracking), always re-fit when locations change.
-    const shouldFit = lastZoomMode.current === undefined || isModeChange || isExplicitTrigger || isAutoFitMode;
+    // Throttle automated fits (max once every 3 seconds) unless explicit or mode change
+    const now = Date.now();
+    const isThrottled = isAutoFitMode && (now - lastFitTime.current < 3000);
+    
+    const shouldFit = lastZoomMode.current === undefined || isModeChange || isExplicitTrigger || (isAutoFitMode && posChanged && !isThrottled);
     
     if (!shouldFit) return;
 
@@ -69,27 +77,27 @@ function MapElements({ buyerLocation, sellerLocation, sellers, buyers, drivers, 
 
     // PATRON FOCUS MODE: 0.5 Mile Radius Zoom
     if (zoomMode === 'radius' && buyerLocation && radius) {
-       // Rough approximation of bounding box for the radius to ensure circle is visible
        const latOffset = radius / 111320; 
        const lngOffset = radius / (111320 * Math.cos(buyerLocation.latitude * (Math.PI / 180)));
        
        bounds.extend(new window.google.maps.LatLng(buyerLocation.latitude + latOffset, buyerLocation.longitude + lngOffset));
        bounds.extend(new window.google.maps.LatLng(buyerLocation.latitude - latOffset, buyerLocation.longitude - lngOffset));
+       bounds.extend(new window.google.maps.LatLng(buyerLocation.latitude, buyerLocation.longitude));
        hasPoints = true;
     } 
     // BILATERAL MODE: Fit both Driver and Patron
-    else if (buyerLocation && sellerLocation && sellerLocation.latitude !== 0) {
+    else if (buyerLocation && sellerLocation && sellerLocation.latitude && sellerLocation.latitude !== 0) {
       bounds.extend(new window.google.maps.LatLng(sellerLocation.latitude, sellerLocation.longitude));
       bounds.extend(new window.google.maps.LatLng(buyerLocation.latitude, buyerLocation.longitude));
       hasPoints = true;
     } else if (zoomMode === 'all') {
-      if (sellerLocation && sellerLocation.latitude !== 0) {
+      if (sellerLocation && sellerLocation.latitude && sellerLocation.latitude !== 0) {
         bounds.extend(new window.google.maps.LatLng(sellerLocation.latitude, sellerLocation.longitude));
         hasPoints = true;
       }
       if (sellers) {
         sellers.forEach(s => {
-          if (s.location.latitude !== 0) {
+          if (s.location.latitude) {
             bounds.extend(new window.google.maps.LatLng(s.location.latitude, s.location.longitude));
             hasPoints = true;
           }
@@ -97,7 +105,7 @@ function MapElements({ buyerLocation, sellerLocation, sellers, buyers, drivers, 
       }
       if (drivers) {
         drivers.forEach(d => {
-          if (d.location.latitude !== 0) {
+          if (d.location.latitude) {
             bounds.extend(new window.google.maps.LatLng(d.location.latitude, d.location.longitude));
             hasPoints = true;
           }
@@ -105,7 +113,7 @@ function MapElements({ buyerLocation, sellerLocation, sellers, buyers, drivers, 
       }
       if (buyers) {
         buyers.forEach(buyer => {
-          if (buyer.location.latitude !== 0) {
+          if (buyer.location.latitude) {
             bounds.extend(new window.google.maps.LatLng(buyer.location.latitude, buyer.location.longitude));
             hasPoints = true;
           }
@@ -114,13 +122,16 @@ function MapElements({ buyerLocation, sellerLocation, sellers, buyers, drivers, 
     }
 
     if (hasPoints) {
-      // Fit with comfortable padding (40px)
-      map.fitBounds(bounds, { top: 40, bottom: 40, left: 40, right: 40 });
+      map.fitBounds(bounds, { top: 60, bottom: 60, left: 60, right: 60 });
       lastZoomMode.current = zoomMode;
-    } else if (sellerLocation && sellerLocation.latitude !== 0) {
+      lastFitTime.current = now;
+      lastBuyerPos.current = currentBuyerPos;
+      lastSellerPos.current = currentSellerPos;
+    } else if (sellerLocation && sellerLocation.latitude && sellerLocation.latitude !== 0) {
       map.setCenter({ lat: sellerLocation.latitude, lng: sellerLocation.longitude });
       map.setZoom(15);
       lastZoomMode.current = zoomMode;
+      lastFitTime.current = now;
     }
 
   }, [map, apiIsLoaded, zoomMode, fitTrigger, buyerLocation, sellerLocation, radius, sellers, buyers, drivers]);
@@ -187,7 +198,7 @@ function MapInternal({ buyerLocation, sellerLocation, showPrimaryMarker, primary
 
         {sellers && sellers.map(s => (
           <Marker 
-            key={s.id} 
+            key={`seller-${s.id}-${s.location.latitude}-${s.location.longitude}`} 
             position={{ lat: s.location.latitude, lng: s.location.longitude }}
             title={s.name}
           />
@@ -196,7 +207,7 @@ function MapInternal({ buyerLocation, sellerLocation, showPrimaryMarker, primary
         {/* Driver Pins - Unique Hexagonal Shape */}
         {drivers && drivers.map(driver => (
           <Marker 
-            key={driver.id} 
+            key={`driver-item-${driver.id}-${driver.location.latitude}-${driver.location.longitude}`} 
             position={{ lat: driver.location.latitude, lng: driver.location.longitude }}
             title={`${driver.name} (${driver.type})`}
             icon={{
@@ -211,8 +222,9 @@ function MapInternal({ buyerLocation, sellerLocation, showPrimaryMarker, primary
         ))}
 
         {/* Seller/Driver Marker in Tracking View - Indigo for clarity */}
-        {sellerLocation && sellerLocation.latitude !== 0 && (
+        {sellerLocation && sellerLocation.latitude && sellerLocation.latitude !== 0 && (
           <Marker 
+            key={`seller-main-${sellerLocation.latitude}-${sellerLocation.longitude}`}
             position={{ lat: sellerLocation.latitude, lng: sellerLocation.longitude }}
             title="Delivery Driver"
             icon={{
@@ -228,6 +240,7 @@ function MapInternal({ buyerLocation, sellerLocation, showPrimaryMarker, primary
 
         {buyerLocation && (
           <Marker 
+            key={`buyer-main-${buyerLocation.latitude}-${buyerLocation.longitude}`}
             position={{ lat: buyerLocation.latitude, lng: buyerLocation.longitude }}
             title="Your Location"
           />
@@ -235,7 +248,7 @@ function MapInternal({ buyerLocation, sellerLocation, showPrimaryMarker, primary
 
         {buyers && buyers.map((buyer, index) => (
           <Marker 
-            key={buyer.id} 
+            key={`buyer-list-${buyer.id}-${buyer.location.latitude}-${buyer.location.longitude}`} 
             position={{ lat: buyer.location.latitude, lng: buyer.location.longitude }}
             label={{
               text: (index + 1).toString(),

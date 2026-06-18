@@ -1,3 +1,4 @@
+
 'use client';
 
 import { collection, query, where, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
@@ -47,6 +48,22 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
 
   const isGolf = primarySeller?.type?.toLowerCase().includes('golf');
   const isClubhouseActive = primarySeller?.clubhouseActive === true;
+
+  // BROADCAST CURRENT LOCATION ON MOUNT
+  useEffect(() => {
+    if (isGolf && navigator.geolocation && firestore && sellerId) {
+      navigator.geolocation.getCurrentPosition((p) => {
+        const lat = p.coords.latitude;
+        const lng = p.coords.longitude;
+        setSellerLocation({ latitude: lat, longitude: lng });
+        updateDoc(doc(firestore, 'sellers', sellerId), {
+          latitude: lat,
+          longitude: lng,
+          lastActive: serverTimestamp()
+        });
+      });
+    }
+  }, [isGolf, firestore, sellerId]);
 
   // Track Server Location for Golf Courses
   useEffect(() => {

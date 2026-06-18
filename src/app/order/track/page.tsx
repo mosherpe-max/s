@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Suspense, useEffect, useRef, useState, use } from 'react';
@@ -18,6 +19,7 @@ import { getNumericOrderId } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import { differenceInSeconds } from 'date-fns';
 
 function OrderTrackingContent() {
   const firestore = useFirestore();
@@ -28,6 +30,7 @@ function OrderTrackingContent() {
   
   const watchIdRef = useRef<number | null>(null);
   const wakeLockRef = useRef<any>(null);
+  const [now, setNow] = useState<Date>(new Date());
 
   const orderRef = useMemoFirebase(() => (firestore && orderId ? doc(firestore, 'orders', orderId) : null), [firestore, orderId]);
   const { data: order, isLoading: isOrderLoading } = useDoc<Order>(orderRef);
@@ -39,13 +42,18 @@ function OrderTrackingContent() {
   const isBowling = seller?.type?.toLowerCase().includes('bowling');
   const isDelivered = order?.status === 'Delivered';
 
+  // Heartbeat for signal staleness
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 10000);
+    return () => clearInterval(timer);
+  }, []);
+
   // Implement Screen Wake Lock - ONLY FOR GOLF COURSES (Release when delivered)
   useEffect(() => {
-    // Check if we are embedded (like in the Studio preview), where Feature-Policy often blocks Wake Lock
     const isEmbedded = typeof window !== 'undefined' && window.self !== window.top;
 
     const requestWakeLock = async () => {
-      if (isEmbedded) return; // Skip if inside an iframe to avoid policy errors
+      if (isEmbedded) return;
 
       if ('wakeLock' in navigator && order && !isDelivered && isGolf) {
         try {
@@ -54,7 +62,6 @@ function OrderTrackingContent() {
             wakeLockRef.current = await nav.wakeLock.request('screen');
           }
         } catch (err) {
-          // Log as warning to avoid triggering Next.js error overlays in development
           console.warn('Wake Lock request denied or unsupported by policy:', err);
         }
       }
@@ -114,6 +121,11 @@ function OrderTrackingContent() {
   const hasValidDriverLocation = seller?.latitude && seller?.longitude && seller.latitude !== 0;
   const showBilateral = isDriverAttached && seller && hasValidDriverLocation;
 
+  // Signal Freshness Check
+  const lastActiveDate = seller?.lastActive?.toDate();
+  const secondsSinceActive = lastActiveDate ? differenceInSeconds(now, lastActiveDate) : 999;
+  const isSignalLive = secondsSinceActive < 60;
+
   return (
     <div className="flex flex-col min-h-screen bg-muted/10">
       {/* Top Section: Map or Completion Message */}
@@ -140,13 +152,29 @@ function OrderTrackingContent() {
               </div>
             </div>
           ) : (
-            <MapView 
-              sellerLocation={showBilateral ? { latitude: seller!.latitude, longitude: seller!.longitude } : undefined} 
-              buyerLocation={order.deliveryLocation} 
-              radius={order.status === 'Placed' ? 804.672 : undefined} // 0.5 miles in meters
-              zoomMode={order.status === 'Placed' ? 'radius' : 'all'}
-              interactive={false} 
-            />
+            <>
+              <MapView 
+                sellerLocation={showBilateral ? { latitude: seller!.latitude, longitude: seller!.longitude } : undefined} 
+                buyerLocation={order.deliveryLocation} 
+                radius={order.status === 'Placed' ? 804.672 : undefined}
+                zoomMode={order.status === 'Placed' ? 'radius' : 'all'}
+                interactive={false} 
+              />
+              {/* DRIVER SIGNAL INDICATOR */}
+              {isDriverAttached && (
+                <div className="absolute top-3 left-3 z-10">
+                  <Badge className={cn(
+                    "flex items-center gap-1.5 px-2 py-1 border-0 shadow-lg transition-colors",
+                    isSignalLive ? "bg-green-600/90 text-white" : "bg-amber-600/90 text-white"
+                  )}>
+                    <div className={cn("h-1.5 w-1.5 rounded-full", isSignalLive ? "bg-white animate-pulse" : "bg-white/40")} />
+                    <span className="text-[8px] font-black uppercase tracking-widest">
+                      {isSignalLive ? "Live Driver Feed" : "Awaiting Driver Signal"}
+                    </span>
+                  </Badge>
+                </div>
+              )}
+            </>
           )}
         </div>
       )}

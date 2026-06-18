@@ -1,3 +1,4 @@
+
 'use client';
 
 import { collection, query, where, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
@@ -112,6 +113,22 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
     return () => clearInterval(interval);
   }, []);
 
+  // BROADCAST CURRENT LOCATION ON MOUNT
+  useEffect(() => {
+    if (navigator.geolocation && firestore && sellerId) {
+      navigator.geolocation.getCurrentPosition((p) => {
+        const lat = p.coords.latitude;
+        const lng = p.coords.longitude;
+        setSellerLocation({ latitude: lat, longitude: lng });
+        updateDoc(doc(firestore, 'sellers', sellerId), {
+          latitude: lat,
+          longitude: lng,
+          lastActive: serverTimestamp()
+        });
+      });
+    }
+  }, [firestore, sellerId]);
+
   useEffect(() => {
     if (navigator.geolocation && firestore && sellerId) {
       const watchId = navigator.geolocation.watchPosition(
@@ -141,7 +158,6 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
     if (nextIdx < stages.length) {
       const nextStatus = stages[nextIdx];
       
-      // Auto-attach if receiving order
       const updateData: any = { 
         status: nextStatus, 
         deliveredAt: nextStatus === 'Delivered' ? serverTimestamp() : null 
