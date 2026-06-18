@@ -263,11 +263,11 @@ function SortableMenuItem({
           />
         </div>
 
-        <div className="flex flex-col items-center gap-0.5">
-          <span className="text-[7px] font-black text-slate-400 uppercase">Live</span>
-          <Switch 
+        <div className="flex items-center gap-2">
+           <span className="text-[7px] font-black text-slate-400 uppercase">Live</span>
+           <Switch 
             checked={isSelected} 
-            onToggleChannel={onToggleChannel}
+            onCheckedChange={onToggleChannel}
             onPointerDown={(e) => e.stopPropagation()}
             className="data-[state=checked]:bg-primary scale-75"
           />
@@ -929,7 +929,20 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
         <div className="flex items-center gap-4">
           <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-green-50 text-green-600 border border-green-100 rounded-full"><div className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" /><span className="text-[9px] font-black uppercase tracking-widest">Live Sync Online</span></div>
           {isMobile && (
-            <Sheet><SheetTrigger asChild><Button variant="ghost" size="icon" className="text-[#213147]"><LucideMenu className="h-6 w-6" /></Button></SheetTrigger><SheetContent side="right" className="p-0 bg-[#213147] border-l-4 border-primary/20"><SideBarContent forceLabels={true} /></SheetContent></Sheet>
+            <Sheet>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="icon" className="text-[#213147]">
+                  <LucideMenu className="h-6 w-6" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="right" className="p-0 bg-[#213147] border-l-4 border-primary/20">
+                <SheetHeader className="sr-only">
+                  <SheetTitle>Venue Navigation</SheetTitle>
+                  <SheetDescription>Access administrative features for this establishment.</SheetDescription>
+                </SheetHeader>
+                <SideBarContent forceLabels={true} />
+              </SheetContent>
+            </Sheet>
           )}
           <button onClick={() => router.push('/')} className="p-2 text-muted-foreground hover:text-destructive transition-colors"><LogOut className="h-5 w-5" /></button>
         </div>
@@ -1196,7 +1209,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                   <div key={item.id} className="flex items-center justify-between p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl transition-all hover:border-primary/20">
                     <div className="flex items-center gap-4">
                       <div className="w-12 h-12 bg-white rounded-xl border-2 flex items-center justify-center overflow-hidden shrink-0">
-                        {item.imageUrl ? <img src={item.imageUrl} className="w-full h-full object-cover" /> : <LucideImage className="h-4 w-4 text-slate-200" />}
+                        {item.imageUrl ? <img src={item.imageUrl} className="w-full h-full object-cover" alt="" /> : <LucideImage className="h-4 w-4 text-slate-200" />}
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
@@ -1224,8 +1237,8 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
         </DialogContent>
       </Dialog>
 
-      <Dialog open={isItemFormOpen} onOpenChange={setIsItemFormOpen}><DialogContent className="rounded-3xl border-2 max-w-xl"><DialogHeader><DialogTitle className="font-headline font-black uppercase text-[#213147]">{editingItem ? 'Edit Master Record' : 'New Inventory Item'}</DialogTitle></DialogHeader><Form {...itemForm}><form onSubmit={itemForm.handleSubmit(onSaveItem)} className="space-y-6 pt-4"><div className="grid grid-cols-1 sm:grid-cols-2 gap-4"><FormField control={itemForm.control} name="name" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase">Display Name</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl><FormMessage /></FormItem>)} /><FormField control={itemForm.control} name="category" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase">Category</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger className="h-11 border-2 font-bold"><SelectValue /></SelectTrigger></FormControl><SelectContent>{categories.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent></Select></FormItem>)} /></div><div className="grid grid-cols-1 sm:grid-cols-2 gap-4"><FormField control={itemForm.control} name="price" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase">Price ($)</FormLabel><FormControl><Input type="number" step="0.01" {...field} className="h-12 border-2 font-bold" /></FormControl><FormMessage /></FormItem>)} /><FormField control={itemForm.control} name="imageUrl" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase">Image URL</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>)} /></div><Button type="submit" className="w-full h-14 bg-[#213147] font-black uppercase tracking-widest text-xs shadow-xl">{editingItem ? 'Update Registry' : 'Add to Inventory'}</Button></form></Form></DialogContent></Dialog>
-      <Dialog open={isStaffFormOpen} onOpenChange={setIsStaffFormOpen}><DialogContent className="rounded-3xl border-2 max-w-md"><DialogHeader><DialogTitle className="font-headline font-black uppercase text-[#213147]">{editingStaff ? 'Edit Credentials' : 'New Personnel'}</DialogTitle></DialogHeader><Form {...staffForm}><form onSubmit={staffForm.handleSubmit(onSaveStaff)} className="space-y-6 pt-4"><FormField control={staffForm.control} name="name" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase">Full Name</FormLabel><FormControl><Input {...field} className="h-12 border-2 font-bold uppercase" /></FormControl></FormItem>)} /><div className="grid grid-cols-1 sm:grid-cols-2 gap-4"><FormField control={staffForm.control} name="role" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase">Role</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger className="h-12 border-2 font-bold"><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="Staff">Staff</SelectItem><SelectItem value="Manager">Manager</SelectItem></SelectContent></Select></FormItem>)} /><FormField control={staffForm.control} name="pin" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase">4-Digit PIN</FormLabel><FormControl><Input {...field} maxLength={4} className="h-12 border-2 font-mono text-xl font-black text-center tracking-[0.5em] text-primary" /></FormControl></FormItem>)} /></div><Button type="submit" className="w-full h-14 bg-[#213147] font-black uppercase tracking-widest text-xs shadow-xl">Save Registry</Button></form></Form></DialogContent></Dialog>
+      <Dialog open={isItemFormOpen} onOpenChange={setIsItemFormOpen}><DialogContent className="rounded-3xl border-2 max-w-xl"><DialogHeader><DialogTitle className="font-headline font-black uppercase text-[#213147]">{editingItem ? 'Edit Master Record' : 'New Inventory Item'}</DialogTitle><DialogDescription className="text-[10px] font-bold uppercase text-muted-foreground">Manage global item definition and availability</DialogDescription></DialogHeader><Form {...itemForm}><form onSubmit={itemForm.handleSubmit(onSaveItem)} className="space-y-6 pt-4"><div className="grid grid-cols-1 sm:grid-cols-2 gap-4"><FormField control={itemForm.control} name="name" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase">Display Name</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl><FormMessage /></FormItem>)} /><FormField control={itemForm.control} name="category" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase">Category</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger className="h-11 border-2 font-bold"><SelectValue /></SelectTrigger></FormControl><SelectContent>{categories.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent></Select></FormItem>)} /></div><div className="grid grid-cols-1 sm:grid-cols-2 gap-4"><FormField control={itemForm.control} name="price" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase">Price ($)</FormLabel><FormControl><Input type="number" step="0.01" {...field} className="h-12 border-2 font-bold" /></FormControl><FormMessage /></FormItem>)} /><FormField control={itemForm.control} name="imageUrl" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase">Image URL</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>)} /></div><Button type="submit" className="w-full h-14 bg-[#213147] font-black uppercase tracking-widest text-xs shadow-xl">{editingItem ? 'Update Registry' : 'Add to Inventory'}</Button></form></Form></DialogContent></Dialog>
+      <Dialog open={isStaffFormOpen} onOpenChange={setIsStaffFormOpen}><DialogContent className="rounded-3xl border-2 max-w-md"><DialogHeader><DialogTitle className="font-headline font-black uppercase text-[#213147]">{editingStaff ? 'Edit Credentials' : 'New Personnel'}</DialogTitle><DialogDescription className="text-[10px] font-bold uppercase text-muted-foreground">Manage staff identities and security PINs</DialogDescription></DialogHeader><Form {...staffForm}><form onSubmit={staffForm.handleSubmit(onSaveStaff)} className="space-y-6 pt-4"><FormField control={staffForm.control} name="name" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase">Full Name</FormLabel><FormControl><Input {...field} className="h-12 border-2 font-bold uppercase" /></FormControl></FormItem>)} /><div className="grid grid-cols-1 sm:grid-cols-2 gap-4"><FormField control={staffForm.control} name="role" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase">Role</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger className="h-12 border-2 font-bold"><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="Staff">Staff</SelectItem><SelectItem value="Manager">Manager</SelectItem></SelectContent></Select></FormItem>)} /><FormField control={staffForm.control} name="pin" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase">4-Digit PIN</FormLabel><FormControl><Input {...field} maxLength={4} className="h-12 border-2 font-mono text-xl font-black text-center tracking-[0.5em] text-primary" /></FormControl></FormItem>)} /></div><Button type="submit" className="w-full h-14 bg-[#213147] font-black uppercase tracking-widest text-xs shadow-xl">Save Registry</Button></form></Form></DialogContent></Dialog>
     </div>
   );
 }

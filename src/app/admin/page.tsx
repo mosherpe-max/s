@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
@@ -396,7 +397,7 @@ export default function PlatformAdminPage() {
         <div className="p-6 border-b border-white/5 flex items-center justify-between shrink-0">
           <StylizedKoopLogo size={showLabels ? "md" : "sm"} />
         </div>
-        <nav className="flex-1 p-3 space-y-1 overflow-y-auto no-scrollbar">
+        <nav className="flex-1 p-3 space-y-1 overflow-y-auto no-scrollbar text-left">
           {NAV_ITEMS.map((item) => (
             <NavButton 
               key={item.id}
@@ -763,7 +764,7 @@ export default function PlatformAdminPage() {
                           <CardDescription className="text-[10px] font-bold uppercase text-white/50">Map behavior and interface refresh logic</CardDescription>
                         </div>
                       </CardHeader>
-                      <CardContent className="p-6 grid grid-cols-1 md:grid-cols-2 gap-8">
+                      <CardContent className="p-6 grid grid-cols-1 md:grid-cols-2 gap-8 text-left">
                         {['Beverage Cart', 'Clubhouse'].map(mode => {
                           const settings = mapSettings[mode] || SYSTEM_DEFAULT_MAP_SETTINGS[mode];
                           return (
@@ -850,12 +851,13 @@ export default function PlatformAdminPage() {
                   </div>
                   <div>
                     <DialogTitle className="font-headline font-black uppercase text-[#213147] text-2xl leading-none">{selectedVenue?.courseName}</DialogTitle>
+                    <DialogDescription className="sr-only">Establishment registry management tools</DialogDescription>
                     <Badge variant="outline" className="text-[9px] font-black uppercase tracking-widest mt-1">{selectedVenue?.type}</Badge>
                   </div>
                 </div>
               </DialogHeader>
               
-              <div className="bg-slate-50 border-2 rounded-2xl p-6">
+              <div className="bg-slate-50 border-2 rounded-2xl p-6 text-left">
                 <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-4">Venue Registry Management is under development.</p>
                 <div className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
