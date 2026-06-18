@@ -23,7 +23,8 @@ import {
   PlayCircle,
   Truck,
   Users,
-  QrCode
+  QrCode,
+  ShieldCheck
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
@@ -55,8 +56,7 @@ export default function SalesDashboardPage() {
       icon: <Globe className="text-white/20 h-16 w-16 absolute -right-2 -top-2" />,
       buyerUrl: '/sellers/demo-course/order?menuType=Beverage Cart',
       staffViews: [
-        { label: 'BevCart Driver', url: '/sellers/demo-course/bevcart', icon: <Truck className="h-3.5 w-3.5" /> },
-        { label: 'Clubhouse Staff', url: '/sellers/demo-course/clubhouse', icon: <LayoutDashboard className="h-3.5 w-3.5" /> }
+        { label: 'Staff Entry', url: '/sellers/demo-course/staff-login', icon: <ShieldCheck className="h-3.5 w-3.5" /> }
       ]
     },
     {
@@ -68,7 +68,7 @@ export default function SalesDashboardPage() {
       icon: <Lock className="text-white/20 h-16 w-16 absolute -right-2 -top-2" />,
       buyerUrl: '/sellers/demo-private-course/order?menuType=Clubhouse',
       staffViews: [
-        { label: 'Clubhouse Staff', url: '/sellers/demo-private-course/clubhouse', icon: <LayoutDashboard className="h-3.5 w-3.5" /> }
+        { label: 'Staff Entry', url: '/sellers/demo-private-course/staff-login', icon: <ShieldCheck className="h-3.5 w-3.5" /> }
       ]
     },
     {
@@ -80,7 +80,7 @@ export default function SalesDashboardPage() {
       icon: <Smartphone className="text-white/20 h-16 w-16 absolute -right-2 -top-2" />,
       buyerUrl: '/sellers/demo-bowling-alley/order?menuType=Lane Delivery',
       staffViews: [
-        { label: 'Laneside Server', url: '/sellers/demo-bowling-alley/laneside', icon: <Users className="h-3.5 w-3.5" /> }
+        { label: 'Staff Entry', url: '/sellers/demo-bowling-alley/staff-login', icon: <ShieldCheck className="h-3.5 w-3.5" /> }
       ]
     }
   ];

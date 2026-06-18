@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
@@ -412,7 +411,7 @@ export default function PlatformAdminPage() {
         </nav>
         <div className="mt-auto border-t border-white/5 p-4 shrink-0">
           {!isMobile && (
-            <button onClick={() => setSidebarOpen(!sidebarOpen)} className="w-full flex items-center justify-center p-3 text-slate-400 hover:text-white hover:bg-white/5 rounded-xl transition-all">
+            <button onClick={() => sidebarOpen ? setSidebarOpen(false) : setSidebarOpen(true)} className="w-full flex items-center justify-center p-3 text-slate-400 hover:text-white hover:bg-white/5 rounded-xl transition-all">
               {sidebarOpen ? <ChevronLeft /> : <ChevronRight />}
             </button>
           )}
@@ -432,8 +431,7 @@ export default function PlatformAdminPage() {
       buyerUrl: '/sellers/demo-course/order?menuType=Beverage Cart',
       adminUrl: '/sellers/demo-course',
       staffViews: [
-        { label: 'BevCart Driver', url: '/sellers/demo-course/bevcart', icon: <Truck className="h-3.5 w-3.5" /> },
-        { label: 'Clubhouse Staff', url: '/sellers/demo-course/clubhouse', icon: <LayoutDashboard className="h-3.5 w-3.5" /> }
+        { label: 'Staff Entry', url: '/sellers/demo-course/staff-login', icon: <ShieldCheck className="h-3.5 w-3.5" /> }
       ]
     },
     {
@@ -446,7 +444,7 @@ export default function PlatformAdminPage() {
       buyerUrl: '/sellers/demo-private-course/order?menuType=Clubhouse',
       adminUrl: '/sellers/demo-private-course',
       staffViews: [
-        { label: 'Clubhouse Staff', url: '/sellers/demo-private-course/clubhouse', icon: <LayoutDashboard className="h-3.5 w-3.5" /> }
+        { label: 'Staff Entry', url: '/sellers/demo-private-course/staff-login', icon: <ShieldCheck className="h-3.5 w-3.5" /> }
       ]
     },
     {
@@ -459,7 +457,7 @@ export default function PlatformAdminPage() {
       buyerUrl: '/sellers/demo-bowling-alley/order?menuType=Lane Delivery',
       adminUrl: '/sellers/demo-bowling-alley',
       staffViews: [
-        { label: 'Laneside Server', url: '/sellers/demo-bowling-alley/laneside', icon: <Users className="h-3.5 w-3.5" /> }
+        { label: 'Staff Entry', url: '/sellers/demo-bowling-alley/staff-login', icon: <ShieldCheck className="h-3.5 w-3.5" /> }
       ]
     }
   ];
@@ -594,7 +592,7 @@ export default function PlatformAdminPage() {
                           </div>
 
                           <div className="space-y-3">
-                            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground px-1">Staff Interfaces</p>
+                            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground px-1">Staff Access Point</p>
                             <div className="grid grid-cols-1 gap-2">
                               {venue.staffViews.map((view) => (
                                 <Button 

@@ -19,7 +19,8 @@ import {
   ExternalLink,
   Store,
   LayoutDashboard,
-  ShoppingCart
+  ShoppingCart,
+  ShieldCheck
 } from 'lucide-react';
 import {
   Sheet,
@@ -115,8 +116,7 @@ function HomeNavigationMenu() {
               </div>
               <div className="grid gap-2">
                 <MenuLink href="/sellers/demo-course" label="Venue Admin" icon={LayoutDashboard} />
-                <MenuLink href="/sellers/demo-course/bevcart" label="BevCart Driver" icon={Truck} />
-                <MenuLink href="/sellers/demo-course/clubhouse" label="Clubhouse Staff" icon={Building} />
+                <MenuLink href="/sellers/demo-course/staff-login" label="Staff Entry" icon={ShieldCheck} />
               </div>
             </div>
 
@@ -127,7 +127,7 @@ function HomeNavigationMenu() {
               </div>
               <div className="grid gap-2">
                 <MenuLink href="/sellers/demo-private-course" label="Venue Admin" icon={LayoutDashboard} />
-                <MenuLink href="/sellers/demo-private-course/clubhouse" label="Clubhouse Staff" icon={Building} />
+                <MenuLink href="/sellers/demo-private-course/staff-login" label="Staff Entry" icon={ShieldCheck} />
               </div>
             </div>
 
@@ -138,7 +138,7 @@ function HomeNavigationMenu() {
               </div>
               <div className="grid gap-2">
                 <MenuLink href="/sellers/demo-bowling-alley" label="Venue Admin" icon={LayoutDashboard} />
-                <MenuLink href="/sellers/demo-bowling-alley/laneside" label="Laneside Server" icon={Users} />
+                <MenuLink href="/sellers/demo-bowling-alley/staff-login" label="Staff Entry" icon={ShieldCheck} />
               </div>
             </div>
           </div>
