@@ -1145,8 +1145,181 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
 
               {activeNav === 'analytics' && (
                 <div className="space-y-12 animate-in fade-in duration-500">
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8"><Card className="border-2 shadow-sm"><CardHeader className="bg-slate-50/50 border-b flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4"><div className="space-y-0.5"><CardTitle className="text-xs font-black uppercase tracking-widest text-[#213147]">Revenue Distribution</CardTitle><CardDescription className="text-[8px] font-bold uppercase">Stacked performance by mode</CardDescription></div><div className="flex bg-slate-100 p-0.5 rounded-lg border-2">{['Today', 'MTD', 'YTD'].map((r) => (<button key={r} onClick={() => setAnalyticsRange(r as any)} className={cn("px-3 py-1 text-[8px] font-black uppercase tracking-tighter rounded-md transition-all", analyticsRange === r ? "bg-white text-[#213147] shadow-sm" : "text-slate-400 hover:text-slate-600")}>{r}</button>))}</div></CardHeader><CardContent className="pt-10 h-[300px]"><ResponsiveContainer width="100%" height="100%"><BarChart data={analyticsData.chartData}><CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" /><XAxis dataKey="time" axisLine={false} tickLine={false} fontSize={10} fontWeight="bold" /><YAxis axisLine={false} tickLine={false} fontSize={10} fontWeight="bold" /><ChartTooltip cursor={{ fill: 'transparent' }} contentStyle={{ fontSize: '10px', borderRadius: '12px', border: '2px solid #E2E8F0' }} /><Legend verticalAlign="top" align="right" iconType="circle" wrapperStyle={{ fontSize: '9px', fontWeight: 'bold', textTransform: 'uppercase' }} />{seller?.menuTypes?.map(mode => (<Bar key={mode} dataKey={mode} stackId="a" fill={MODE_COLORS[mode] || '#64748B'} radius={[0, 0, 0, 0]} label={(props: any) => { const { x, y, width, height, value, index } = props; if (value <= 0 || height < 15) return null; const entry = analyticsData.chartData[index]; let labelText = analyticsRange === 'YTD' ? `$${(entry[`${mode}_count`] > 0 ? (value / entry[`${mode}_count`]).toFixed(0) : '0')}` : (entry[`${mode}_count`] || 0).toString(); return (<text x={x + width / 2} y={y + height / 2} fill="#FFFFFF" textAnchor="middle" dominantBaseline="middle" fontSize={height < 20 ? 7 : 8} fontWeight="900" className="pointer-events-none drop-shadow-sm">{labelText}</text>); }} />))}</BarChart></ResponsiveContainer></CardContent></Card><Card className="border-2 shadow-sm"><CardHeader className="bg-slate-50/50 border-b flex flex-row items-center justify-between py-4"><div className="space-y-0.5"><CardTitle className="text-xs font-black uppercase tracking-widest text-[#213147]">Revenue Share</CardTitle><CardDescription className="text-[8px] font-bold uppercase">Channel Mix & Efficiency</CardDescription></div><Select value={pieMonthFilter} onValueChange={setPieMonthFilter}><SelectTrigger className="w-[140px] h-8 text-[9px] font-black uppercase tracking-widest border-2 bg-white"><SelectValue placeholder="All Time" /></SelectTrigger><SelectContent><SelectItem value="All">All Time</SelectItem>{availableMonths.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}</Select></CardHeader><CardContent className="p-0"><div className="h-[240px] pt-4"><ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={pieChartData} innerRadius={50} outerRadius={70} paddingAngle={5} dataKey="value" animationDuration={1000}>{pieChartData.map((entry, index) => (<Cell key={`cell-${index}`} fill={MODE_COLORS[entry.name] || PIE_COLORS[index % PIE_COLORS.length]} />))}</Pie><ChartTooltip formatter={(value: number) => `$${value.toFixed(2)}`} /></PieChart></ResponsiveContainer></div><div className="px-4 pb-6 space-y-2">{pieChartData.map((data, idx) => (<div key={data.name} className="flex items-center justify-between p-2.5 rounded-xl border-2 bg-slate-50/30"><div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full" style={{ backgroundColor: MODE_COLORS[data.name] || PIE_COLORS[idx % PIE_COLORS.length] }} /><span className="text-[10px] font-black uppercase text-[#213147]">{data.name}</span></div><div className="flex items-center gap-6"><div className="text-right"><p className="text-[8px] font-bold text-muted-foreground uppercase leading-none mb-1">Rev / Orders</p><p className="text-[10px] font-black text-[#213147] font-mono">${data.value.toFixed(2)} <span className="text-slate-400">({data.count})</span></p></div><div className="text-right border-l pl-4"><p className="text-[8px] font-bold text-muted-foreground uppercase leading-none mb-1">Avg Ticket</p><p className="text-[10px] font-black text-primary font-mono">${data.avg.toFixed(2)}</p></div></div></div>))}</div></CardContent></Card></div>
-                  <div className="space-y-6"><div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b-2 pb-4"><div className="flex items-center gap-3"><div className="bg-primary/10 p-2 rounded-xl text-primary"><FileText className="h-5 w-5" /></div><div><h3 className="font-headline font-black text-xl text-[#213147] uppercase leading-tight">Detailed Sales Audit</h3><p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Transaction level reporting</p></div></div><div className="flex wrap items-center gap-2"><div className="flex items-center bg-white border-2 rounded-xl px-3 h-10 gap-2"><Calendar className="h-3.5 w-3.5 text-muted-foreground" /><input type="date" value={reportStartDate} onChange={(e) => setReportStartDate(e.target.value)} className="text-[10px] font-black uppercase bg-transparent outline-none" /><span className="text-[10px] text-muted-foreground font-bold">TO</span><input type="date" value={reportEndDate} onChange={(e) => setReportEndDate(e.target.value)} className="text-[10px] font-black uppercase bg-transparent outline-none" /></div><Select value={reportModeFilter} onValueChange={setReportModeFilter}><SelectTrigger className="w-[140px] h-10 border-2 font-black uppercase tracking-widest text-[9px] bg-white"><SelectValue placeholder="All Modes" /></SelectTrigger><SelectContent><SelectItem value="All">All Modes</SelectItem>{seller?.menuTypes?.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}</Select></div></div><div className="grid grid-cols-1 sm:grid-cols-3 gap-4"><div className="bg-white p-4 rounded-2xl border-2 shadow-sm flex flex-col justify-center"><p className="text-[8px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-1">Audit Volume</p><p className="text-xl font-black font-headline text-[#213147]">{detailedReportStats.volume} <span className="text-[10px] text-muted-foreground uppercase font-bold">Tickets</span></p></div><div className="bg-white p-4 rounded-2xl border-2 shadow-sm flex flex-col justify-center"><p className="text-[8px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-1">Audit Revenue</p><p className="text-xl font-black font-headline text-green-600">${detailedReportStats.revenue.toFixed(2)}</p></div><Button variant="outline" className="h-full border-2 rounded-2xl gap-2 font-black uppercase text-[10px] tracking-widest"><Download className="h-4 w-4" /> Export Audit Log</Button></div><Card className="border-2 shadow-sm overflow-hidden"><div className="overflow-x-auto"><Table><TableHeader className="bg-slate-50 border-b"><TableRow><TableHead className="text-[9px] font-black uppercase tracking-widest">Order ID</TableHead><TableHead className="text-[9px] font-black uppercase tracking-widest">Timestamp</TableHead><TableHead className="text-[9px] font-black uppercase tracking-widest">Patron</TableHead><TableHead className="text-[9px] font-black uppercase tracking-widest">Mode</TableHead><TableHead className="text-[9px] font-black uppercase tracking-widest">Total</TableHead><TableHead className="text-[9px] font-black uppercase tracking-widest text-right">Status</TableHead></TableRow></TableHeader><TableBody>{detailedReportOrders.length === 0 ? (<TableRow><TableCell colSpan={6} className="h-32 text-center text-[10px] font-bold text-muted-foreground uppercase">No transactions found for this audit window.</TableCell></TableRow>) : (detailedReportOrders.map((o) => (<TableRow key={o.id}><TableCell className="font-mono text-[10px] font-black">#{getNumericOrderId(o.id)}</TableCell><TableCell className="text-[10px] font-bold text-slate-500 uppercase">{o.createdAt && typeof o.createdAt.toDate === 'function' ? format(o.createdAt.toDate(), 'MMM d, h:mm a') : 'N/A'}</TableCell><TableCell className="text-[10px] font-black text-[#213147] uppercase truncate max-w-[120px]">{o.customerName}</TableCell><TableCell><Badge variant="secondary" className="text-[8px] font-black uppercase">{o.menuType}</Badge></TableCell><TableCell className="font-mono text-[10px] font-black text-primary">${(o.total || 0).toFixed(2)}</TableCell><TableCell className="text-right"><Badge className={cn("text-[8px] font-black uppercase border-0", o.status === 'Delivered' ? 'bg-green-600' : 'bg-slate-400')}>{o.status}</Badge></TableCell></TableRow>)))}</TableBody></Table></div></Card></div>
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <Card className="border-2 shadow-sm">
+                      <CardHeader className="bg-slate-50/50 border-b flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                        <div className="space-y-0.5">
+                          <CardTitle className="text-xs font-black uppercase tracking-widest text-[#213147]">Revenue Distribution</CardTitle>
+                          <CardDescription className="text-[8px] font-bold uppercase">Stacked performance by mode</CardDescription>
+                        </div>
+                        <div className="flex bg-slate-100 p-0.5 rounded-lg border-2">
+                          {['Today', 'MTD', 'YTD'].map((r) => (
+                            <button key={r} onClick={() => setAnalyticsRange(r as any)} className={cn("px-3 py-1 text-[8px] font-black uppercase tracking-tighter rounded-md transition-all", analyticsRange === r ? "bg-white text-[#213147] shadow-sm" : "text-slate-400 hover:text-slate-600")}>{r}</button>
+                          ))}
+                        </div>
+                      </CardHeader>
+                      <CardContent className="pt-10 h-[300px]">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={analyticsData.chartData}>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
+                            <XAxis dataKey="time" axisLine={false} tickLine={false} fontSize={10} fontWeight="bold" />
+                            <YAxis axisLine={false} tickLine={false} fontSize={10} fontWeight="bold" />
+                            <ChartTooltip cursor={{ fill: 'transparent' }} contentStyle={{ fontSize: '10px', borderRadius: '12px', border: '2px solid #E2E8F0' }} />
+                            <Legend verticalAlign="top" align="right" iconType="circle" wrapperStyle={{ fontSize: '9px', fontWeight: 'bold', textTransform: 'uppercase' }} />
+                            {seller?.menuTypes?.map(mode => (
+                              <Bar 
+                                key={mode} 
+                                dataKey={mode} 
+                                stackId="a" 
+                                fill={MODE_COLORS[mode] || '#64748B'} 
+                                radius={[0, 0, 0, 0]} 
+                                label={(props: any) => { 
+                                  const { x, y, width, height, value, index } = props; 
+                                  if (value <= 0 || height < 15) return null; 
+                                  const entry = analyticsData.chartData[index]; 
+                                  const count = entry[`${mode}_count`] || 0;
+                                  let labelText = analyticsRange === 'YTD' ? `$${(count > 0 ? (value / count).toFixed(0) : '0')}` : count.toString(); 
+                                  return (
+                                    <text x={x + width / 2} y={y + height / 2} fill="#FFFFFF" textAnchor="middle" dominantBaseline="middle" fontSize={height < 20 ? 7 : 8} fontWeight="900" className="pointer-events-none drop-shadow-sm">
+                                      {labelText}
+                                    </text>
+                                  ); 
+                                }} 
+                              />
+                            ))}
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </CardContent>
+                    </Card>
+
+                    <Card className="border-2 shadow-sm">
+                      <CardHeader className="bg-slate-50/50 border-b flex flex-row items-center justify-between py-4">
+                        <div className="space-y-0.5">
+                          <CardTitle className="text-xs font-black uppercase tracking-widest text-[#213147]">Revenue Share</CardTitle>
+                          <CardDescription className="text-[8px] font-bold uppercase">Channel Mix & Efficiency</CardDescription>
+                        </div>
+                        <Select value={pieMonthFilter} onValueChange={setPieMonthFilter}>
+                          <SelectTrigger className="w-[140px] h-8 text-[9px] font-black uppercase tracking-widest border-2 bg-white">
+                            <SelectValue placeholder="All Time" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="All">All Time</SelectItem>
+                            {availableMonths.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </CardHeader>
+                      <CardContent className="p-0">
+                        <div className="h-[240px] pt-4">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <PieChart>
+                              <Pie data={pieChartData} innerRadius={50} outerRadius={70} paddingAngle={5} dataKey="value" animationDuration={1000}>
+                                {pieChartData.map((entry, index) => (
+                                  <Cell key={`cell-${index}`} fill={MODE_COLORS[entry.name] || PIE_COLORS[index % PIE_COLORS.length]} />
+                                ))}
+                              </Pie>
+                              <ChartTooltip formatter={(value: number) => `$${value.toFixed(2)}`} />
+                            </PieChart>
+                          </ResponsiveContainer>
+                        </div>
+                        <div className="px-4 pb-6 space-y-2">
+                          {pieChartData.map((data, idx) => (
+                            <div key={data.name} className="flex items-center justify-between p-2.5 rounded-xl border-2 bg-slate-50/30">
+                              <div className="flex items-center gap-2">
+                                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: MODE_COLORS[data.name] || PIE_COLORS[idx % PIE_COLORS.length] }} />
+                                <span className="text-[10px] font-black uppercase text-[#213147]">{data.name}</span>
+                              </div>
+                              <div className="flex items-center gap-6">
+                                <div className="text-right">
+                                  <p className="text-[8px] font-bold text-muted-foreground uppercase leading-none mb-1">Rev / Orders</p>
+                                  <p className="text-[10px] font-black text-[#213147] font-mono">${data.value.toFixed(2)} <span className="text-slate-400">({data.count})</span></p>
+                                </div>
+                                <div className="text-right border-l pl-4">
+                                  <p className="text-[8px] font-bold text-muted-foreground uppercase leading-none mb-1">Avg Ticket</p>
+                                  <p className="text-[10px] font-black text-primary font-mono">${data.avg.toFixed(2)}</p>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  <div className="space-y-6">
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b-2 pb-4">
+                      <div className="flex items-center gap-3">
+                        <div className="bg-primary/10 p-2 rounded-xl text-primary"><FileText className="h-5 w-5" /></div>
+                        <div>
+                          <h3 className="font-headline font-black text-xl text-[#213147] uppercase leading-tight">Detailed Sales Audit</h3>
+                          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Transaction level reporting</p>
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <div className="flex items-center bg-white border-2 rounded-xl px-3 h-10 gap-2">
+                          <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+                          <input type="date" value={reportStartDate} onChange={(e) => setReportStartDate(e.target.value)} className="text-[10px] font-black uppercase bg-transparent outline-none" />
+                          <span className="text-[10px] text-muted-foreground font-bold">TO</span>
+                          <input type="date" value={reportEndDate} onChange={(e) => setReportEndDate(e.target.value)} className="text-[10px] font-black uppercase bg-transparent outline-none" />
+                        </div>
+                        <Select value={reportModeFilter} onValueChange={setReportModeFilter}>
+                          <SelectTrigger className="w-[140px] h-10 border-2 font-black uppercase tracking-widest text-[9px] bg-white">
+                            <SelectValue placeholder="All Modes" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="All">All Modes</SelectItem>
+                            {seller?.menuTypes?.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      <div className="bg-white p-4 rounded-2xl border-2 shadow-sm flex flex-col justify-center">
+                        <p className="text-[8px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-1">Audit Volume</p>
+                        <p className="text-xl font-black font-headline text-[#213147]">{detailedReportStats.volume} <span className="text-[10px] text-muted-foreground uppercase font-bold">Tickets</span></p>
+                      </div>
+                      <div className="bg-white p-4 rounded-2xl border-2 shadow-sm flex flex-col justify-center">
+                        <p className="text-[8px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-1">Audit Revenue</p>
+                        <p className="text-xl font-black font-headline text-green-600">${detailedReportStats.revenue.toFixed(2)}</p>
+                      </div>
+                      <Button variant="outline" className="h-full border-2 rounded-2xl gap-2 font-black uppercase text-[10px] tracking-widest">
+                        <Download className="h-4 w-4" /> Export Audit Log
+                      </Button>
+                    </div>
+                    <Card className="border-2 shadow-sm overflow-hidden">
+                      <div className="overflow-x-auto">
+                        <Table>
+                          <TableHeader className="bg-slate-50 border-b">
+                            <TableRow>
+                              <TableHead className="text-[9px] font-black uppercase tracking-widest">Order ID</TableHead>
+                              <TableHead className="text-[9px] font-black uppercase tracking-widest">Timestamp</TableHead>
+                              <TableHead className="text-[9px] font-black uppercase tracking-widest">Patron</TableHead>
+                              <TableHead className="text-[9px] font-black uppercase tracking-widest">Mode</TableHead>
+                              <TableHead className="text-[9px] font-black uppercase tracking-widest">Total</TableHead>
+                              <TableHead className="text-[9px] font-black uppercase tracking-widest text-right">Status</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {detailedReportOrders.length === 0 ? (
+                              <TableRow>
+                                <TableCell colSpan={6} className="h-32 text-center text-[10px] font-bold text-muted-foreground uppercase">No transactions found for this audit window.</TableCell>
+                              </TableRow>
+                            ) : (
+                              detailedReportOrders.map((o) => (
+                                <TableRow key={o.id}>
+                                  <TableCell className="font-mono text-[10px] font-black">#{getNumericOrderId(o.id)}</TableCell>
+                                  <TableCell className="text-[10px] font-bold text-slate-500 uppercase">{o.createdAt && typeof o.createdAt.toDate === 'function' ? format(o.createdAt.toDate(), 'MMM d, h:mm a') : 'N/A'}</TableCell>
+                                  <TableCell className="text-[10px] font-black text-[#213147] uppercase truncate max-w-[120px]">{o.customerName}</TableCell>
+                                  <TableCell><Badge variant="secondary" className="text-[8px] font-black uppercase">{o.menuType}</Badge></TableCell>
+                                  <TableCell className="font-mono text-[10px] font-black text-primary">${(o.total || 0).toFixed(2)}</TableCell>
+                                  <TableCell className="text-right"><Badge className={cn("text-[8px] font-black uppercase border-0", o.status === 'Delivered' ? 'bg-green-600' : 'bg-slate-400')}>{o.status}</Badge></TableCell>
+                                </TableRow>
+                              ))
+                            )}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </Card>
+                  </div>
                 </div>
               )}
 
@@ -1163,7 +1336,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
         <aside className={cn("bg-[#213147] hidden md:flex flex-col transition-all duration-300 relative border-l-4 border-primary/20 shrink-0 shadow-2xl z-20", sidebarOpen ? "w-64" : "w-20")}><SideBarContent /></aside>
       </div>
 
-      {/* MASTER PICKER DIALOG */}
       <Dialog open={isMasterPickerOpen} onOpenChange={setIsMasterPickerOpen}>
         <DialogContent className="rounded-[2rem] border-2 max-w-xl p-0 overflow-hidden">
           <DialogHeader className="p-6 bg-[#213147] text-white">
@@ -1227,8 +1399,8 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
         </DialogContent>
       </Dialog>
 
-      <Dialog open={isItemFormOpen} onOpenChange={setIsItemFormOpen}><DialogContent className="rounded-3xl border-2 max-w-xl"><DialogHeader><DialogTitle className="font-headline font-black uppercase text-[#213147]">{editingItem ? 'Edit Master Record' : 'New Inventory Item'}</DialogTitle><DialogDescription className="text-[10px] font-bold uppercase text-muted-foreground">Manage global item definition and availability</DialogDescription></DialogHeader><Form {...itemForm}><form onSubmit={itemForm.handleSubmit(onSaveItem)} className="space-y-6 pt-4"><div className="grid grid-cols-1 sm:grid-cols-2 gap-4"><FormField control={itemForm.control} name="name" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase">Display Name</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl><FormMessage /></FormItem>)} /><FormField control={itemForm.control} name="category" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase">Category</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger className="h-11 border-2 font-bold"><SelectValue /></SelectTrigger></FormControl><SelectContent>{categories.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent></Select></FormItem>)} /></div><div className="grid grid-cols-1 sm:grid-cols-2 gap-4"><FormField control={itemForm.control} name="price" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase">Price ($)</FormLabel><FormControl><Input type="number" step="0.01" {...field} className="h-12 border-2 font-bold" /></FormControl><FormMessage /></FormItem>)} /><FormField control={itemForm.control} name="imageUrl" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase">Image URL</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>)} /></div><Button type="submit" className="w-full h-14 bg-[#213147] font-black uppercase tracking-widest text-xs shadow-xl">{editingItem ? 'Update Registry' : 'Add to Inventory'}</Button></form></Form></DialogContent></Dialog>
-      <Dialog open={isStaffFormOpen} onOpenChange={setIsStaffFormOpen}><DialogContent className="rounded-3xl border-2 max-w-md"><DialogHeader><DialogTitle className="font-headline font-black uppercase text-[#213147]">{editingStaff ? 'Edit Credentials' : 'New Personnel'}</DialogTitle><DialogDescription className="text-[10px] font-bold uppercase text-muted-foreground">Manage staff identities and security PINs</DialogDescription></DialogHeader><Form {...staffForm}><form onSubmit={staffForm.handleSubmit(onSaveStaff)} className="space-y-6 pt-4"><FormField control={staffForm.control} name="name" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase">Full Name</FormLabel><FormControl><Input {...field} className="h-12 border-2 font-bold uppercase" /></FormControl></FormItem>)} /><div className="grid grid-cols-1 sm:grid-cols-2 gap-4"><FormField control={staffForm.control} name="role" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase">Role</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger className="h-12 border-2 font-bold"><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="Staff">Staff</SelectItem><SelectItem value="Manager">Manager</SelectItem></SelectContent></Select></FormItem>)} /><FormField control={staffForm.control} name="pin" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase">4-Digit PIN</FormLabel><FormControl><Input {...field} maxLength={4} className="h-12 border-2 font-mono text-xl font-black text-center tracking-[0.5em] text-primary" /></FormControl></FormItem>)} /></div><Button type="submit" className="w-full h-14 bg-[#213147] font-black uppercase tracking-widest text-xs shadow-xl">Save Registry</Button></form></Form></DialogContent></Dialog>
+      <Dialog open={isItemFormOpen} onOpenChange={setIsItemFormOpen}><DialogContent className="rounded-3xl border-2 max-w-xl"><DialogHeader><DialogTitle className="font-headline font-black uppercase text-[#213147]">{editingItem ? 'Edit Master Record' : 'New Inventory Item'}</DialogTitle><DialogDescription className="text-[10px] font-bold uppercase text-muted-foreground">Manage global item definition and availability</DialogDescription></DialogHeader><Form {...itemForm}><form onSubmit={itemForm.handleSubmit(onSaveItem)} className="space-y-6 pt-4"><div className="grid grid-cols-1 sm:grid-cols-2 gap-4"><FormField control={itemForm.control} name="name" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase">Display Name</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl><FormMessage /></FormItem>)} /><FormField control={itemForm.control} name="category" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase">Category</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger className="h-11 border-2 font-bold"><SelectValue /></SelectTrigger></FormControl><SelectContent>{categories.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</Select></FormControl></FormItem>)} /></div><div className="grid grid-cols-1 sm:grid-cols-2 gap-4"><FormField control={itemForm.control} name="price" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase">Price ($)</FormLabel><FormControl><Input type="number" step="0.01" {...field} className="h-12 border-2 font-bold" /></FormControl><FormMessage /></FormItem>)} /><FormField control={itemForm.control} name="imageUrl" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase">Image URL</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>)} /></div><Button type="submit" className="w-full h-14 bg-[#213147] font-black uppercase tracking-widest text-xs shadow-xl">{editingItem ? 'Update Registry' : 'Add to Inventory'}</Button></form></Form></DialogContent></Dialog>
+      <Dialog open={isStaffFormOpen} onOpenChange={setIsStaffFormOpen}><DialogContent className="rounded-3xl border-2 max-w-md"><DialogHeader><DialogTitle className="font-headline font-black uppercase text-[#213147]">{editingStaff ? 'Edit Credentials' : 'New Personnel'}</DialogTitle><DialogDescription className="text-[10px] font-bold uppercase text-muted-foreground">Manage staff identities and security PINs</DialogDescription></DialogHeader><Form {...staffForm}><form onSubmit={staffForm.handleSubmit(onSaveStaff)} className="space-y-6 pt-4"><FormField control={staffForm.control} name="name" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase">Full Name</FormLabel><FormControl><Input {...field} className="h-12 border-2 font-bold uppercase" /></FormControl></FormItem>)} /><div className="grid grid-cols-1 sm:grid-cols-2 gap-4"><FormField control={staffForm.control} name="role" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase">Role</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger className="h-12 border-2 font-bold"><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="Staff">Staff</SelectItem><SelectItem value="Manager">Manager</SelectItem></Select></FormControl></FormItem>)} /><FormField control={staffForm.control} name="pin" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase">4-Digit PIN</FormLabel><FormControl><Input {...field} maxLength={4} className="h-12 border-2 font-mono text-xl font-black text-center tracking-[0.5em] text-primary" /></FormControl></FormItem>)} /></div><Button type="submit" className="w-full h-14 bg-[#213147] font-black uppercase tracking-widest text-xs shadow-xl">Save Registry</Button></form></Form></DialogContent></Dialog>
     </div>
   );
 }
