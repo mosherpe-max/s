@@ -916,7 +916,16 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                 <div className="space-y-6 sm:space-y-8 animate-in fade-in duration-500">
                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-4 rounded-2xl border-2 shadow-sm">
                     <div className="flex items-center gap-3"><div className="p-2 bg-indigo-50 rounded-xl text-indigo-600"><Filter className="h-4 w-4" /></div><h3 className="text-[10px] font-black uppercase tracking-widest text-[#213147]">Dashboard Filter</h3></div>
-                    <Tabs value={dashboardFilter} onValueChange={setDashboardFilter} className="w-full sm:w-auto"><TabsList className="bg-slate-100 p-1 rounded-xl h-10 w-fit sm:w-full"><TabsTrigger value="All" className="text-[10px] font-black uppercase tracking-widest px-4 h-8 whitespace-nowrap">All Modes</TabsTrigger>{seller?.menuTypes?.map(mode => (<TabsTrigger key={mode} value={mode} className="text-[10px] font-black uppercase tracking-widest px-4 h-8 whitespace-nowrap">{mode}</TabsTrigger>))}</TabsList></Tabs>
+                    <Tabs value={dashboardFilter} onValueChange={setDashboardFilter} className="w-full sm:w-auto">
+                      <div className="overflow-x-auto no-scrollbar -mx-1 px-1">
+                        <TabsList className="bg-slate-100 p-1 rounded-xl h-10 w-max min-w-full inline-flex">
+                          <TabsTrigger value="All" className="text-[10px] font-black uppercase tracking-widest px-4 h-8 whitespace-nowrap">All Modes</TabsTrigger>
+                          {seller?.menuTypes?.map(mode => (
+                            <TabsTrigger key={mode} value={mode} className="text-[10px] font-black uppercase tracking-widest px-4 h-8 whitespace-nowrap">{mode}</TabsTrigger>
+                          ))}
+                        </TabsList>
+                      </div>
+                    </Tabs>
                   </div>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
                     <KPICard label="Filtered Sales" value={`$${stats?.revenue}`} sub="Today" icon={DollarSign} colorClass="bg-green-500" />
