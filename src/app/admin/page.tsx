@@ -1204,7 +1204,7 @@ export default function PlatformAdminPage() {
           
           <Tabs defaultValue="profile" className="flex-1 flex flex-col min-h-0">
             <div className="px-8 bg-slate-50 border-b overflow-x-auto no-scrollbar">
-              <TabsList className="bg-transparent h-12 gap-6 p-0">
+              <TabsList className="bg-transparent h-12 gap-6 p-0 w-max min-w-full">
                 <TabsTrigger value="profile" className="data-[state=active]:bg-transparent data-[state=active]:border-b-4 data-[state=active]:border-primary data-[state=active]:shadow-none rounded-none font-black uppercase text-[10px] tracking-widest px-0">Profile</TabsTrigger>
                 <TabsTrigger value="users" className="data-[state=active]:bg-transparent data-[state=active]:border-b-4 data-[state=active]:border-primary data-[state=active]:shadow-none rounded-none font-black uppercase text-[10px] tracking-widest px-0">Users</TabsTrigger>
                 <TabsTrigger value="menu" className="data-[state=active]:bg-transparent data-[state=active]:border-b-4 data-[state=active]:border-primary data-[state=active]:shadow-none rounded-none font-black uppercase text-[10px] tracking-widest px-0">Menu</TabsTrigger>
