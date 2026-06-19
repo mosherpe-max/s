@@ -49,6 +49,14 @@
         "logoUrl": { "type": "string" },
         "defaultThresholds": { "type": "object" },
         "mapUpdateSettings": { "type": "object" },
+        "gpsFreshnessThresholds": {
+          "type": "object",
+          "properties": {
+            "hot": { "type": "number" },
+            "warm": { "type": "number" },
+            "cold": { "type": "number" }
+          }
+        },
         "updatedAt": { "type": "string", "format": "date-time" }
       }
     },

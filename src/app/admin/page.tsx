@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
@@ -72,7 +73,10 @@ import {
   Wand2,
   Settings,
   MailPlus,
-  Key
+  Key,
+  ThermometerSnowflake,
+  Flame,
+  CloudSun
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -150,6 +154,12 @@ const SYSTEM_DEFAULT_THRESHOLDS = {
 const SYSTEM_DEFAULT_MAP_SETTINGS: Record<string, MapUpdateSettings> = {
   'Beverage Cart': { frequencySeconds: 15, activeStages: ['Placed', 'Preparing', 'Out for Delivery'] },
   'Clubhouse': { frequencySeconds: 15, activeStages: ['Placed', 'Preparing', 'Out for Delivery'] }
+};
+
+const SYSTEM_DEFAULT_GPS_THRESHOLDS = {
+  hot: 60,   // 1 minute
+  warm: 300,  // 5 minutes
+  cold: 600   // 10 minutes
 };
 
 const SERVICE_MODES = ['Beverage Cart', 'Clubhouse', 'Lane Delivery', 'Take Out'];
@@ -239,6 +249,7 @@ export default function PlatformAdminPage() {
   // --- PLATFORM CONFIG STATE ---
   const [systemThresholds, setSystemThresholds] = useState<Record<string, { warning: number; max: number }>>(SYSTEM_DEFAULT_THRESHOLDS);
   const [mapSettings, setMapSettings] = useState<Record<string, MapUpdateSettings>>(SYSTEM_DEFAULT_MAP_SETTINGS);
+  const [gpsFreshness, setGpsFreshness] = useState(SYSTEM_DEFAULT_GPS_THRESHOLDS);
   const [globalEnabledModes, setGlobalEnabledModes] = useState<string[]>(SERVICE_MODES);
   const [isSavingSystemConfig, setIsSavingSystemConfig] = useState(false);
 
@@ -268,6 +279,12 @@ export default function PlatformAdminPage() {
       setMapSettings({
         ...SYSTEM_DEFAULT_MAP_SETTINGS,
         ...config.mapUpdateSettings
+      });
+    }
+    if (config?.gpsFreshnessThresholds) {
+      setGpsFreshness({
+        ...SYSTEM_DEFAULT_GPS_THRESHOLDS,
+        ...config.gpsFreshnessThresholds
       });
     }
     if (config?.enabledModes) {
@@ -557,6 +574,7 @@ export default function PlatformAdminPage() {
     const updateData = {
       defaultThresholds: systemThresholds,
       mapUpdateSettings: mapSettings,
+      gpsFreshnessThresholds: gpsFreshness,
       enabledModes: globalEnabledModes,
       updatedAt: serverTimestamp()
     };
@@ -591,6 +609,14 @@ export default function PlatformAdminPage() {
         ...prev[mode],
         [field]: value
       }
+    }));
+  };
+
+  const handleGpsFreshnessChange = (field: 'hot' | 'warm' | 'cold', value: string) => {
+    const numValue = parseInt(value, 10);
+    setGpsFreshness(prev => ({
+      ...prev,
+      [field]: isNaN(numValue) ? 0 : numValue
     }));
   };
 
@@ -997,6 +1023,60 @@ export default function PlatformAdminPage() {
                             <Button variant="outline" onClick={() => setLogoPreview(null)} className="font-black uppercase tracking-widest text-[10px]">Discard</Button>
                           </div>
                         )}
+                      </CardContent>
+                    </Card>
+
+                    {/* GPS FRESHNESS SETTINGS */}
+                    <Card className="border-2 shadow-sm overflow-hidden">
+                      <CardHeader className="border-b bg-primary/5 flex flex-row items-center gap-3">
+                        <ThermometerSnowflake className="h-5 w-5 text-primary" />
+                        <div>
+                          <CardTitle className="font-black uppercase tracking-tight text-sm">GPS Freshness Settings</CardTitle>
+                          <CardDescription className="text-[10px] font-bold uppercase">Signal age thresholds (Seconds)</CardDescription>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="p-6 space-y-6">
+                        <div className="grid grid-cols-3 gap-4">
+                          <div className="space-y-1.5">
+                            <Label className="text-[8px] font-black uppercase text-red-600 tracking-widest flex items-center gap-1">
+                              <Flame className="h-2 w-2" /> Hot
+                            </Label>
+                            <Input 
+                              type="number" 
+                              min="1"
+                              value={gpsFreshness.hot} 
+                              onChange={e => handleGpsFreshnessChange('hot', e.target.value)} 
+                              className="h-10 border-2 font-bold focus-visible:ring-red-500"
+                            />
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label className="text-[8px] font-black uppercase text-amber-600 tracking-widest flex items-center gap-1">
+                              <CloudSun className="h-2 w-2" /> Warm
+                            </Label>
+                            <Input 
+                              type="number" 
+                              min="1"
+                              value={gpsFreshness.warm} 
+                              onChange={e => handleGpsFreshnessChange('warm', e.target.value)} 
+                              className="h-10 border-2 font-bold focus-visible:ring-amber-500"
+                            />
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label className="text-[8px] font-black uppercase text-blue-600 tracking-widest flex items-center gap-1">
+                              <ThermometerSnowflake className="h-2 w-2" /> Cold
+                            </Label>
+                            <Input 
+                              type="number" 
+                              min="1"
+                              value={gpsFreshness.cold} 
+                              onChange={e => handleGpsFreshnessChange('cold', e.target.value)} 
+                              className="h-10 border-2 font-bold focus-visible:ring-blue-500"
+                            />
+                          </div>
+                        </div>
+                        <p className="text-[8px] font-bold text-muted-foreground uppercase leading-relaxed italic">
+                          Defines when a driver's GPS marker changes color on maps to indicate signal staleness.
+                        </p>
                       </CardContent>
                     </Card>
 
@@ -1600,3 +1680,4 @@ export default function PlatformAdminPage() {
     </div>
   );
 }
+
