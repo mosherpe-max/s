@@ -373,6 +373,10 @@ export default function PlatformAdminPage() {
     // 2. Create Operational Profile (Sellers)
     const sellerRef = doc(firestore, 'sellers', venueId);
     const isGolf = data.type.toLowerCase().includes('golf');
+    
+    // Inherit Global Timing Defaults
+    const initialThresholds = config?.defaultThresholds || SYSTEM_DEFAULT_THRESHOLDS;
+
     const sellerPayload = {
       id: venueId,
       courseName: data.name,
@@ -394,6 +398,7 @@ export default function PlatformAdminPage() {
       zip: '',
       latitude: 0,
       longitude: 0,
+      orderThresholds: initialThresholds,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     };

@@ -596,6 +596,22 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     router.push(path);
   };
 
+  const handleUpdateThresholds = async () => {
+    if (!firestore || !sellerId) return;
+    setIsProcessingSave(true);
+    const sellerDocRef = doc(firestore, 'sellers', sellerId);
+    const updateData = { orderThresholds: venueThresholds, updatedAt: serverTimestamp() };
+    updateDoc(sellerDocRef, updateData).then(() => {
+      toast({ title: "Timing Thresholds Updated" });
+    }).catch(async (error) => {
+      errorEmitter.emit('permission-error', new FirestorePermissionError({
+        path: sellerDocRef.path,
+        operation: 'update',
+        requestResourceData: updateData,
+      } satisfies SecurityRuleContext));
+    }).finally(() => setIsProcessingSave(false));
+  };
+
   const NAV_ITEMS = [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
     { id: "orders", label: "Orders", icon: ClipboardList },
@@ -920,7 +936,79 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                  </div>
               )}
 
-              {/* OTHER NAVIGATION SECTIONS WOULD FOLLOW SIMILAR PATTERNS */}
+              {activeNav === 'settings' && (
+                <div className="space-y-10 animate-in fade-in duration-500">
+                  <div className="space-y-6">
+                    <div className="flex items-center gap-3 border-b-2 pb-4">
+                      <div className="p-2 bg-primary/10 rounded-xl text-primary"><Timer className="h-5 w-5" /></div>
+                      <div className="space-y-0.5">
+                        <h3 className="font-headline font-black text-2xl text-[#213147] uppercase leading-tight">Operational Thresholds</h3>
+                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Timing protocols for order fulfillment</p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {(seller?.menuTypes || []).map(mode => {
+                        const thresholds = venueThresholds[mode] || DEFAULT_THRESHOLDS[mode] || { warning: 15, max: 20 };
+                        return (
+                          <Card key={mode} className="border-2 shadow-sm overflow-hidden group">
+                            <CardHeader className="bg-slate-50/50 border-b flex flex-row items-center justify-between py-3">
+                              <div className="flex items-center gap-2">
+                                <div className="w-1.5 h-1.5 rounded-full bg-primary" />
+                                <span className="text-[11px] font-black uppercase text-[#213147]">{mode}</span>
+                              </div>
+                              <Badge variant="outline" className="text-[8px] font-bold uppercase h-4 px-1.5">Live Logic</Badge>
+                            </CardHeader>
+                            <CardContent className="p-6 space-y-6">
+                              <div className="grid grid-cols-2 gap-6">
+                                <div className="space-y-2">
+                                  <Label className="text-[10px] font-black uppercase text-amber-600 tracking-widest">Warning (Min)</Label>
+                                  <Input 
+                                    type="number"
+                                    min="1"
+                                    value={thresholds.warning}
+                                    onChange={(e) => setVenueThresholds(prev => ({
+                                      ...prev,
+                                      [mode]: { ...thresholds, warning: parseInt(e.target.value, 10) || 0 }
+                                    }))}
+                                    className="h-11 border-2 font-bold focus-visible:ring-amber-500"
+                                  />
+                                  <p className="text-[8px] font-medium text-muted-foreground italic uppercase">Card turns amber</p>
+                                </div>
+                                <div className="space-y-2">
+                                  <Label className="text-[10px] font-black uppercase text-red-600 tracking-widest">Max Window (Min)</Label>
+                                  <Input 
+                                    type="number"
+                                    min="1"
+                                    value={thresholds.max}
+                                    onChange={(e) => setVenueThresholds(prev => ({
+                                      ...prev,
+                                      [mode]: { ...thresholds, max: parseInt(e.target.value, 10) || 0 }
+                                    }))}
+                                    className="h-11 border-2 font-bold focus-visible:ring-red-500"
+                                  />
+                                  <p className="text-[8px] font-medium text-muted-foreground italic uppercase">Card turns red</p>
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        );
+                      })}
+                    </div>
+
+                    <div className="flex justify-end pt-4">
+                       <Button 
+                        onClick={handleUpdateThresholds} 
+                        disabled={isProcessingSave} 
+                        className="h-14 px-10 bg-[#213147] hover:bg-black font-black uppercase tracking-widest text-xs gap-3 shadow-xl"
+                       >
+                        {isProcessingSave ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                        Commit Local Protocols
+                       </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
 
             </div>
             <ScrollBar orientation="horizontal" />
