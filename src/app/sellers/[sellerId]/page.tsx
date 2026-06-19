@@ -75,7 +75,7 @@ import { Switch } from '@/components/ui/switch';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/form';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import {
   Select,
   SelectContent,
@@ -1075,7 +1075,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                       
                       const hasPickerItems = isFeatured 
                         ? allItems.some(i => !i.featuredOn?.includes(configMode))
-                        : allItems.some(i => i.category === cat && !i.availableOn?.includes(configMode));
+                        : allItems.some(i => i.category === pickerCategory && !i.availableOn?.includes(configMode));
 
                       return (
                         <div key={cat} className="space-y-6">
@@ -1162,10 +1162,10 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                         <ResponsiveContainer width="100%" height="100%">
                           <BarChart data={analyticsData.chartData}>
                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
-                            <XAxis dataKey="time" axisLine={false} tickLine={false} fontSize={10} fontWeights="bold" />
-                            <YAxis axisLine={false} tickLine={false} fontSize={10} fontWeights="bold" />
+                            <XAxis dataKey="time" axisLine={false} tickLine={false} fontSize={10} fontWeight="bold" />
+                            <YAxis axisLine={false} tickLine={false} fontSize={10} fontWeight="bold" />
                             <ChartTooltip cursor={{ fill: 'transparent' }} contentStyle={{ fontSize: '10px', borderRadius: '12px', border: '2px solid #E2E8F0' }} />
-                            <Legend verticalAlign="top" align="right" iconType="circle" wrapperStyle={{ fontSize: '9px', fontWeights: 'bold', textTransform: 'uppercase' }} />
+                            <Legend verticalAlign="top" align="right" iconType="circle" wrapperStyle={{ fontSize: '9px', fontWeight: 'bold', textTransform: 'uppercase' }} />
                             {seller?.menuTypes?.map(mode => (
                               <Bar 
                                 key={mode} 
@@ -1180,7 +1180,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                                   const count = entry[`${mode}_count`] || 0;
                                   let labelText = analyticsRange === 'YTD' ? `$${(count > 0 ? (value / count).toFixed(0) : '0')}` : count.toString(); 
                                   return (
-                                    <text x={x + width / 2} y={y + height / 2} fill="#FFFFFF" textAnchor="middle" dominantBaseline="middle" fontSize={height < 20 ? 7 : 8} fontWeights="900" className="pointer-events-none drop-shadow-sm">
+                                    <text x={x + width / 2} y={y + height / 2} fill="#FFFFFF" textAnchor="middle" dominantBaseline="middle" fontSize={height < 20 ? 7 : 8} fontWeight="900" className="pointer-events-none drop-shadow-sm">
                                       {labelText}
                                     </text>
                                   ); 

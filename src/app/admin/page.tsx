@@ -137,7 +137,7 @@ import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/e
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/form';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 
 const SYSTEM_DEFAULT_THRESHOLDS = {
   'Beverage Cart': { warning: 10, max: 15 },
@@ -634,7 +634,14 @@ export default function PlatformAdminPage() {
         </div>
       </header>
 
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
+        <aside className={cn(
+          "bg-[#213147] hidden md:flex flex-col transition-all duration-300 relative border-r-4 border-primary/20 shrink-0 shadow-2xl z-20",
+          sidebarOpen ? "w-64" : "w-20"
+        )}>
+          <SideBarContent />
+        </aside>
+
         <main className="flex-1 flex flex-col overflow-hidden relative">
           <ScrollArea className="flex-1 p-4 sm:p-8">
             <div className="max-w-7xl mx-auto space-y-8 sm:space-y-10 pb-20">
@@ -1007,13 +1014,6 @@ export default function PlatformAdminPage() {
             <ScrollBar orientation="horizontal" />
           </ScrollArea>
         </main>
-
-        <aside className={cn(
-          "bg-[#213147] hidden md:flex flex-col transition-all duration-300 relative border-l-4 border-primary/20 shrink-0 shadow-2xl z-20",
-          sidebarOpen ? "w-64" : "w-20"
-        )}>
-          <SideBarContent />
-        </aside>
       </div>
 
       {/* DIALOG: ADD NEW VENUE */}
