@@ -145,7 +145,7 @@ export default function LaneSideServerDashboardPage({ params }: { params: Promis
               <LayoutList className="h-4 w-4 text-primary" />
               <span>Pending Deliveries</span>
             </div>
-            <Badge className="bg-primary text-white font-black">{lanesideOrders.length}</Badge>
+            <Badge className="bg-[#213147] text-white font-black border-0">{lanesideOrders.length}</Badge>
           </h2>
           <ScrollArea className="flex-1">
             <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-4">

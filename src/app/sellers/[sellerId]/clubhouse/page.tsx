@@ -305,7 +305,7 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
               <Building className="h-4 w-4 text-primary" />
               <span>Orders Queue</span>
             </div>
-            <Badge variant="secondary" className="font-black">{clubhouseOrders.length}</Badge>
+            <Badge className="bg-[#213147] text-white font-black border-0">{clubhouseOrders.length}</Badge>
           </h2>
           <ScrollArea className="flex-1 px-2">
             <div className={cn(

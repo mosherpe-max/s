@@ -361,7 +361,7 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
         <div className="w-full md:w-1/3 flex flex-col bg-background border-2 rounded-xl overflow-hidden min-h-0">
           <h2 className="font-headline text-xs font-black px-4 py-3 shrink-0 border-b flex items-center justify-between uppercase bg-muted/10 tracking-widest">
             <span>Active Orders</span>
-            <span className="bg-[#E50000] text-white text-[10px] font-black rounded-full px-2 py-0.5">{driverOrders.length}</span>
+            <span className="bg-[#213147] text-white text-[10px] font-black rounded-full px-2 py-0.5">{driverOrders.length}</span>
           </h2>
           <ScrollArea className="flex-1 px-2">
             <div className="py-2.5 space-y-3">
