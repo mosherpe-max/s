@@ -1185,7 +1185,7 @@ export default function PlatformAdminPage() {
 
       {/* DIALOG: MANAGE VENUE DETAILS */}
       <Dialog open={isVenueDetailOpen} onOpenChange={setIsVenueDetailOpen}>
-        <DialogContent className="sm:max-w-[800px] max-w-[95vw] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl flex flex-col">
+        <DialogContent className="sm:max-w-[800px] max-w-[95vw] h-[85vh] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl flex flex-col">
           <DialogHeader className="p-8 bg-slate-50 border-b relative shrink-0">
             <div className="flex items-center gap-4 text-left">
               <div className="bg-primary/10 p-3 rounded-2xl shrink-0">
