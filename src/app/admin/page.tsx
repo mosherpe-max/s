@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
@@ -76,7 +75,8 @@ import {
   Key,
   ThermometerSnowflake,
   Flame,
-  CloudSun
+  CloudSun,
+  AlertTriangle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -1029,53 +1029,53 @@ export default function PlatformAdminPage() {
                     {/* GPS FRESHNESS SETTINGS */}
                     <Card className="border-2 shadow-sm overflow-hidden">
                       <CardHeader className="border-b bg-primary/5 flex flex-row items-center gap-3">
-                        <ThermometerSnowflake className="h-5 w-5 text-primary" />
+                        <Satellite className="h-5 w-5 text-primary" />
                         <div>
-                          <CardTitle className="font-black uppercase tracking-tight text-sm">GPS Freshness Settings</CardTitle>
-                          <CardDescription className="text-[10px] font-bold uppercase">Signal age thresholds (Seconds)</CardDescription>
+                          <CardTitle className="font-black uppercase tracking-tight text-sm">GPS Freshness Protocol</CardTitle>
+                          <CardDescription className="text-[10px] font-bold uppercase">Signal Health Thresholds (Seconds)</CardDescription>
                         </div>
                       </CardHeader>
                       <CardContent className="p-6 space-y-6">
                         <div className="grid grid-cols-3 gap-4">
                           <div className="space-y-1.5">
-                            <Label className="text-[8px] font-black uppercase text-red-600 tracking-widest flex items-center gap-1">
-                              <Flame className="h-2 w-2" /> Hot
+                            <Label className="text-[8px] font-black uppercase text-green-600 tracking-widest flex items-center gap-1">
+                              <CheckCircle2 className="h-2 w-2" /> Hot (Good)
                             </Label>
                             <Input 
                               type="number" 
                               min="1"
                               value={gpsFreshness.hot} 
                               onChange={e => handleGpsFreshnessChange('hot', e.target.value)} 
-                              className="h-10 border-2 font-bold focus-visible:ring-red-500"
+                              className="h-10 border-2 font-bold focus-visible:ring-green-500 border-green-100"
                             />
                           </div>
                           <div className="space-y-1.5">
                             <Label className="text-[8px] font-black uppercase text-amber-600 tracking-widest flex items-center gap-1">
-                              <CloudSun className="h-2 w-2" /> Warm
+                              <AlertTriangle className="h-2 w-2" /> Warm (Concern)
                             </Label>
                             <Input 
                               type="number" 
                               min="1"
                               value={gpsFreshness.warm} 
                               onChange={e => handleGpsFreshnessChange('warm', e.target.value)} 
-                              className="h-10 border-2 font-bold focus-visible:ring-amber-500"
+                              className="h-10 border-2 font-bold focus-visible:ring-amber-500 border-amber-100"
                             />
                           </div>
                           <div className="space-y-1.5">
-                            <Label className="text-[8px] font-black uppercase text-blue-600 tracking-widest flex items-center gap-1">
-                              <ThermometerSnowflake className="h-2 w-2" /> Cold
+                            <Label className="text-[8px] font-black uppercase text-red-600 tracking-widest flex items-center gap-1">
+                              <Flame className="h-2 w-2" /> Cold (Bad)
                             </Label>
                             <Input 
                               type="number" 
                               min="1"
                               value={gpsFreshness.cold} 
                               onChange={e => handleGpsFreshnessChange('cold', e.target.value)} 
-                              className="h-10 border-2 font-bold focus-visible:ring-blue-500"
+                              className="h-10 border-2 font-bold focus-visible:ring-red-500 border-red-100"
                             />
                           </div>
                         </div>
                         <p className="text-[8px] font-bold text-muted-foreground uppercase leading-relaxed italic">
-                          Defines when a driver's GPS marker changes color on maps to indicate signal staleness.
+                          Defines when location markers shift from Green to Amber to Red to indicate signal age.
                         </p>
                       </CardContent>
                     </Card>
@@ -1680,4 +1680,3 @@ export default function PlatformAdminPage() {
     </div>
   );
 }
-

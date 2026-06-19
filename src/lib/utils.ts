@@ -30,6 +30,28 @@ export function getDriverColor(id: string): string {
   return colors[index];
 }
 
+/**
+ * Returns a hex color code based on signal age and platform thresholds.
+ * GREEN = Hot (Good)
+ * AMBER = Warm (Concern)
+ * RED = Cold (Bad)
+ */
+export function getSignalColor(
+  lastActive: Date | null | undefined, 
+  thresholds?: { hot: number; warm: number; cold: number }
+): string {
+  if (!lastActive) return '#94a3b8'; // slate-400 (Inactive)
+  
+  const now = Date.now();
+  const secondsElapsed = (now - lastActive.getTime()) / 1000;
+  
+  const t = thresholds || { hot: 60, warm: 300, cold: 600 };
+
+  if (secondsElapsed <= t.hot) return '#22c55e'; // green-500
+  if (secondsElapsed <= t.warm) return '#f59e0b'; // amber-500
+  return '#ef4444'; // red-500
+}
+
 export function getNumericOrderId(id: string) {
   if (!id) return '0000';
   let hash = 0;

@@ -20,6 +20,7 @@ interface MapViewProps {
     name: string;
     location: { latitude: number; longitude: number };
     type: string;
+    colorOverride?: string;
   }[];
   buyers?: {
     id: string;
@@ -166,15 +167,6 @@ function MapInternal({ buyerLocation, sellerLocation, showPrimaryMarker, primary
     buyerLocation ? { lat: buyerLocation.latitude, lng: buyerLocation.longitude } : (sellerLocation ? { lat: sellerLocation.latitude, lng: sellerLocation.longitude } : { lat: 0, lng: 0 }),
   [buyerLocation, sellerLocation]);
 
-  const driverIcon = useMemo(() => ({
-    path: "M 0,-15 L 13,-7.5 L 13,7.5 L 0,15 L -13,7.5 L -13,-7.5 Z",
-    fillColor: '#4F46E5', 
-    fillOpacity: 1,
-    strokeWeight: 2,
-    strokeColor: '#FFFFFF',
-    scale: 0.8,
-  }), []);
-
   return (
     <div className="relative w-full h-full bg-[#1a2d44]">
       {!apiIsLoaded && (
@@ -214,7 +206,7 @@ function MapInternal({ buyerLocation, sellerLocation, showPrimaryMarker, primary
           />
         ))}
 
-        {/* Driver Pins - Unique Hexagonal Shape */}
+        {/* Driver Pins - Unique Hexagonal Shape with Dynamic Color-Coding */}
         {drivers && drivers.map(driver => (
           <Marker 
             key={`driver-item-${driver.id}`} 
@@ -222,7 +214,7 @@ function MapInternal({ buyerLocation, sellerLocation, showPrimaryMarker, primary
             title={`${driver.name} (${driver.type})`}
             icon={{
               path: "M 0,-15 L 13,-7.5 L 13,7.5 L 0,15 L -13,7.5 L -13,-7.5 Z",
-              fillColor: driver.type === 'Beverage Cart' ? '#E50000' : '#4F46E5',
+              fillColor: driver.colorOverride || (driver.type === 'Beverage Cart' ? '#E50000' : '#4F46E5'),
               fillOpacity: 1,
               strokeWeight: 2,
               strokeColor: '#FFFFFF',
@@ -231,13 +223,20 @@ function MapInternal({ buyerLocation, sellerLocation, showPrimaryMarker, primary
           />
         ))}
 
-        {/* Seller/Driver Marker in Tracking View - Indigo for clarity */}
+        {/* Local Primary Driver Marker */}
         {sellerLocation && sellerLocation.latitude && sellerLocation.latitude !== 0 && (
           <Marker 
             key="primary-seller-marker"
             position={{ lat: sellerLocation.latitude, lng: sellerLocation.longitude }}
             title="Delivery Driver"
-            icon={driverIcon}
+            icon={{
+              path: "M 0,-15 L 13,-7.5 L 13,7.5 L 0,15 L -13,7.5 L -13,-7.5 Z",
+              fillColor: '#4F46E5', 
+              fillOpacity: 1,
+              strokeWeight: 2,
+              strokeColor: '#FFFFFF',
+              scale: 0.8,
+            }}
           />
         )}
 

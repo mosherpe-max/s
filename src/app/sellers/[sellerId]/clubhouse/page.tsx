@@ -14,7 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { useRouter } from 'next/navigation';
 import { MapView } from '@/components/map-view';
-import { cn, calculateDistance } from '@/lib/utils';
+import { cn, calculateDistance, getSignalColor } from '@/lib/utils';
 
 type LatLng = {
   latitude: number;
@@ -228,16 +228,26 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
   const mappedDrivers = useMemo(() => {
     if (!allStaff) return [];
     return allStaff
-      .filter(s => s.id !== currentStaffId && s.latitude && s.longitude && s.lastActive && (Date.now() - s.lastActive.toMillis()) < 300000)
-      .map(s => ({
-        id: s.id,
-        name: s.name,
-        location: { latitude: s.latitude!, longitude: s.longitude! },
-        type: s.role === 'Driver' ? 'Beverage Cart' : 'Clubhouse'
-      }));
-  }, [allStaff, currentStaffId]);
+      .filter(s => s.id !== currentStaffId && s.latitude && s.longitude && s.lastActive)
+      .map(s => {
+        const color = getSignalColor(s.lastActive?.toDate(), platformConfig?.gpsFreshnessThresholds);
+        return {
+          id: s.id,
+          name: s.name,
+          location: { latitude: s.latitude!, longitude: s.longitude! },
+          type: s.role === 'Driver' ? 'Beverage Cart' : 'Clubhouse',
+          colorOverride: color
+        };
+      });
+  }, [allStaff, currentStaffId, platformConfig]);
 
   const isLoading = areActiveOrdersLoading || isPrimaryLoading;
+
+  // Driver Signal Strength Indicator
+  const signalColor = useMemo(() => {
+    const lastActive = primarySeller?.lastActive?.toDate();
+    return getSignalColor(lastActive, platformConfig?.gpsFreshnessThresholds);
+  }, [primarySeller?.lastActive, platformConfig]);
 
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-muted/20">
@@ -249,6 +259,12 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
           </Badge>
         </div>
         <div className="flex items-center space-x-3">
+          {isGolf && (
+            <Badge className="h-6 px-2 gap-1.5 border-0 shadow-inner transition-colors" style={{ backgroundColor: `${signalColor}20`, color: signalColor }}>
+              <div className="h-1.5 w-1.5 rounded-full animate-pulse" style={{ backgroundColor: signalColor }} />
+              <span className="text-[8px] font-black uppercase tracking-widest">Live Signal</span>
+            </Badge>
+          )}
           <Switch checked={isClubhouseActive} onCheckedChange={handleToggleActive} className="data-[state=checked]:bg-green-600" />
           <Button variant="ghost" size="icon" onClick={() => router.push('/')} className="text-white/40 hover:text-white"><LogOut className="h-4 w-4" /></Button>
         </div>
