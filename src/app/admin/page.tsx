@@ -115,7 +115,7 @@ import { httpsCallable, getFunctions } from 'firebase/functions';
 import type { Seller, PlatformConfig, Order, Venue, SellerType, MapUpdateSettings } from '@/lib/types';
 import { sellerTypes } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
-import { cn } from '@/lib/utils';
+import { cn, getNumericOrderId } from '@/lib/utils';
 import { StylizedKoopLogo } from '@/components/header';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { format, isToday, startOfMonth, subDays } from 'date-fns';
