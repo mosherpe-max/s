@@ -147,7 +147,7 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
       const distance = calculateDistance(lat, lng, lastBroadcastRef.current.lat, lastBroadcastRef.current.lng);
       const timeElapsed = nowTime - lastBroadcastRef.current.time;
       
-      // Ignore movements < 5 meters unless 1 minute has passed (forced heartbeat)
+      // AGGRESSIVE JITTER FILTER: Ignore movements < 5 meters unless 1 minute has passed (forced heartbeat)
       if (distance < 5 && timeElapsed < 60000) return;
       
       // Throttle broadcast frequency based on system config (default 15s)
@@ -185,7 +185,7 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
         const lng = p.coords.longitude;
         setSellerLocation({ latitude: lat, longitude: lng });
         broadcastLocation(lat, lng);
-      });
+      }, null, { enableHighAccuracy: true });
     }
   }, [firestore, sellerId, user, currentStaffId, platformConfig]);
 
@@ -196,18 +196,19 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
           const lat = p.coords.latitude;
           const lng = p.coords.longitude;
           
-          // ALWAYS update local state immediately for snappy UI feel, but FILTER JITTER
+          // ALWAYS update local state immediately for snappy UI feel, but FILTER NOISE
           setSellerLocation(prev => {
             if (!prev) return { latitude: lat, longitude: lng };
             const dist = calculateDistance(lat, lng, prev.latitude, prev.longitude);
-            // Don't update local marker for movements < 1 meter (prevents micro-jitter)
-            return dist > 1 ? { latitude: lat, longitude: lng } : prev;
+            // Don't update local marker for movements < 5 meters (prevents stationary dancing)
+            return dist > 5 ? { latitude: lat, longitude: lng } : prev;
           });
           
           broadcastLocation(lat, lng);
         },
         null,
-        { enableHighAccuracy: true, timeout: 10000 }
+        // Configured maximumAge to reduce jitter from hyper-active device hardware
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 5000 }
       );
       return () => navigator.geolocation.clearWatch(watchId);
     }

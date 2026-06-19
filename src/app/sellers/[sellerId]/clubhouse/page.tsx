@@ -1,4 +1,3 @@
-
 'use client';
 
 import { collection, query, where, doc, updateDoc, serverTimestamp, setDoc } from 'firebase/firestore';
@@ -6,7 +5,7 @@ import { useCollection, useFirestore, useMemoFirebase, useDoc, useUser } from '@
 import { useEffect, useState, useMemo, useRef, use } from 'react';
 import { Switch } from '@/components/ui/switch';
 import { OrderCard } from '@/components/order-card';
-import type { Order, Seller, StaffMember } from '@/lib/types';
+import type { Order, Seller, StaffMember, PlatformConfig } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
@@ -15,7 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { useRouter } from 'next/navigation';
 import { MapView } from '@/components/map-view';
-import { cn } from '@/lib/utils';
+import { cn, calculateDistance } from '@/lib/utils';
 
 type LatLng = {
   latitude: number;
@@ -34,6 +33,7 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
   const [fitTrigger, setFitTrigger] = useState<number>(0);
   const [currentStaffId, setCurrentStaffId] = useState<string | undefined>();
   const lastOrderIdsRef = useRef<Set<string>>(new Set());
+  const lastBroadcastRef = useRef<{ lat: number; lng: number; time: number } | null>(null);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -47,6 +47,9 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
   }, [firestore, sellerId]);
   const { data: primarySeller, isLoading: isPrimaryLoading } = useDoc<Seller>(primarySellerRef);
 
+  const configRef = useMemoFirebase(() => (firestore ? doc(firestore, 'platform', 'config') : null), [firestore]);
+  const { data: platformConfig } = useDoc<PlatformConfig>(configRef);
+
   const staffQuery = useMemoFirebase(() => {
     if (!firestore || !sellerId) return null;
     return collection(firestore, 'sellers', sellerId, 'staff');
@@ -59,6 +62,20 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
   const broadcastLocation = (lat: number, lng: number) => {
     if (!firestore || !sellerId || !user) return;
     
+    const nowTime = Date.now();
+    const syncInterval = (platformConfig?.mapUpdateSettings?.['Clubhouse']?.frequencySeconds || 15) * 1000;
+    
+    if (lastBroadcastRef.current) {
+      const distance = calculateDistance(lat, lng, lastBroadcastRef.current.lat, lastBroadcastRef.current.lng);
+      const timeElapsed = nowTime - lastBroadcastRef.current.time;
+      
+      // Filter out small jitter movements (< 5 meters)
+      if (distance < 5 && timeElapsed < 60000) return;
+      if (timeElapsed < syncInterval) return;
+    }
+
+    lastBroadcastRef.current = { lat, lng, time: nowTime };
+
     // 1. Staff document update
     if (currentStaffId) {
       const staffRef = doc(firestore, 'sellers', sellerId, 'staff', currentStaffId);
@@ -85,9 +102,9 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
         const lng = p.coords.longitude;
         setSellerLocation({ latitude: lat, longitude: lng });
         broadcastLocation(lat, lng);
-      });
+      }, null, { enableHighAccuracy: true });
     }
-  }, [isGolf, firestore, sellerId, user, currentStaffId]);
+  }, [isGolf, firestore, sellerId, user, currentStaffId, platformConfig]);
 
   // Track Server Location for Golf Courses
   useEffect(() => {
@@ -96,15 +113,23 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
         (p) => {
           const lat = p.coords.latitude;
           const lng = p.coords.longitude;
-          setSellerLocation({ latitude: lat, longitude: lng });
+          
+          setSellerLocation(prev => {
+            if (!prev) return { latitude: lat, longitude: lng };
+            const dist = calculateDistance(lat, lng, prev.latitude, prev.longitude);
+            // Only update local marker if movement is > 5 meters to prevent "stationary dancing"
+            return dist > 5 ? { latitude: lat, longitude: lng } : prev;
+          });
+          
           broadcastLocation(lat, lng);
         },
         null,
-        { enableHighAccuracy: true, timeout: 10000 }
+        // Added maximumAge to instruct device to throttle sensor activity
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 5000 }
       );
       return () => navigator.geolocation.clearWatch(watchId);
     }
-  }, [isGolf, firestore, sellerId, user, currentStaffId]);
+  }, [isGolf, firestore, sellerId, user, currentStaffId, platformConfig]);
 
   const handleToggleActive = (checked: boolean) => {
     if (!firestore || !sellerId || !user) return;
