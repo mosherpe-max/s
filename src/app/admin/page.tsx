@@ -285,6 +285,11 @@ export default function PlatformAdminPage() {
   }, [firestore, selectedSeller?.id]);
   const { data: selectedVenueData } = useDoc<Venue>(selectedVenueRef);
 
+  const selectedVenueOrders = useMemo(() => {
+    if (!orders || !selectedSeller?.id) return [];
+    return orders.filter(o => o.sellerId === selectedSeller.id);
+  }, [orders, selectedSeller?.id]);
+
   const metrics = useMemo(() => {
     if (!sellers || !orders) return null;
     const now = new Date();
@@ -1097,8 +1102,8 @@ export default function PlatformAdminPage() {
 
       {/* DIALOG: MANAGE VENUE DETAILS */}
       <Dialog open={isVenueDetailOpen} onOpenChange={setIsVenueDetailOpen}>
-        <DialogContent className="sm:max-w-[800px] max-w-[95vw] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl">
-          <DialogHeader className="p-8 bg-slate-50 border-b relative">
+        <DialogContent className="sm:max-w-[800px] max-w-[95vw] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl flex flex-col">
+          <DialogHeader className="p-8 bg-slate-50 border-b relative shrink-0">
             <div className="flex items-center gap-4 text-left">
               <div className="bg-primary/10 p-3 rounded-2xl shrink-0">
                 <Building className="h-6 w-6 text-primary" />
@@ -1114,187 +1119,297 @@ export default function PlatformAdminPage() {
             <DialogDescription className="sr-only">Comprehensive venue business management tools</DialogDescription>
           </DialogHeader>
           
-          <ScrollArea className="max-h-[75vh]">
-            <div className="p-8 space-y-10">
-              {/* SECTION: OPERATIONAL PROFILE */}
-              <div className="space-y-6">
-                <div className="flex items-center gap-3 border-b-2 pb-2">
-                  <ClipboardList className="h-4 w-4 text-primary" />
-                  <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-[#213147]">Operational Profile</h4>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-1.5">
-                    <Label className="text-[10px] font-black uppercase text-muted-foreground">Display Name</Label>
-                    <Input 
-                      value={selectedSeller?.courseName || ''} 
-                      onChange={(e) => handleUpdateSellerProfile(selectedSeller!.id, { courseName: e.target.value })}
-                      className="h-11 border-2 font-bold" 
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-[10px] font-black uppercase text-muted-foreground">Primary Contact Email</Label>
-                    <Input 
-                      value={selectedSeller?.contactEmail || ''} 
-                      onChange={(e) => handleUpdateSellerProfile(selectedSeller!.id, { contactEmail: e.target.value })}
-                      className="h-11 border-2 font-bold" 
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* SECTION: BUSINESS & PERMISSIONS */}
-              <div className="space-y-6">
-                <div className="flex items-center gap-3 border-b-2 pb-2">
-                  <ShieldCheck className="h-4 w-4 text-indigo-600" />
-                  <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-[#213147]">Business Registry & Permissions</h4>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  <div className="space-y-4">
-                    <div className="space-y-1.5">
-                      <Label className="text-[10px] font-black uppercase text-muted-foreground">Owner Manager UID</Label>
-                      <div className="flex gap-2">
-                        <Input 
-                          value={selectedVenueData?.ownerUid || ''} 
-                          onChange={(e) => handleUpdateVenueBusiness(selectedSeller!.id, { ownerUid: e.target.value })}
-                          className="h-11 border-2 font-mono text-[10px]" 
-                        />
-                        <Button variant="outline" size="icon" className="h-11 w-11 border-2 text-muted-foreground"><Copy className="h-3.5 w-3.5" /></Button>
-                      </div>
-                      <p className="text-[8px] text-muted-foreground uppercase font-bold">The primary identity authorized for the Venue Admin Terminal.</p>
-                    </div>
-
-                    <div className="flex items-center justify-between p-4 bg-amber-50 border-2 border-amber-100 rounded-2xl">
-                      <div className="flex items-center gap-3">
-                        <Star className="h-5 w-5 text-amber-600 fill-amber-600" />
-                        <div>
-                          <p className="text-[10px] font-black uppercase text-amber-800 leading-none mb-1">Founding Partner</p>
-                          <p className="text-[8px] font-bold text-amber-600 uppercase">Special Platform Status</p>
-                        </div>
-                      </div>
-                      <Switch 
-                        checked={selectedVenueData?.isFoundingPartner} 
-                        onCheckedChange={(v) => handleUpdateVenueBusiness(selectedSeller!.id, { isFoundingPartner: v })}
-                        className="data-[state=checked]:bg-amber-600"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-4">
-                    <div className="space-y-1.5">
-                      <Label className="text-[10px] font-black uppercase text-muted-foreground">Settlement Status</Label>
-                      <div className={cn(
-                        "p-4 rounded-2xl border-2 flex items-center justify-between",
-                        selectedVenueData?.payoutsEnabled ? "bg-green-50 border-green-100" : "bg-slate-50 border-slate-100"
-                      )}>
-                        <div className="flex items-center gap-3">
-                          <Coins className={cn("h-5 w-5", selectedVenueData?.payoutsEnabled ? "text-green-600" : "text-slate-400")} />
-                          <div>
-                            <p className={cn("text-[10px] font-black uppercase leading-none mb-1", selectedVenueData?.payoutsEnabled ? "text-green-800" : "text-slate-500")}>
-                              {selectedVenueData?.payoutsEnabled ? 'Payouts Enabled' : 'Payouts Restricted'}
-                            </p>
-                            <p className="text-[8px] font-bold text-muted-foreground uppercase">Manual Admin Override</p>
-                          </div>
-                        </div>
-                        <Switch 
-                          checked={selectedVenueData?.payoutsEnabled} 
-                          onCheckedChange={(v) => handleUpdateVenueBusiness(selectedSeller!.id, { payoutsEnabled: v })}
-                          className="data-[state=checked]:bg-green-600"
-                        />
-                      </div>
-                    </div>
-                    <div className="p-4 bg-indigo-50 border-2 border-indigo-100 rounded-2xl space-y-2">
-                       <p className="text-[9px] font-black uppercase text-indigo-700 tracking-widest">Stripe Connect ID</p>
-                       <code className="block text-[10px] font-mono text-indigo-600 bg-white p-2 rounded-lg border border-indigo-100 truncate">
-                        {selectedVenueData?.stripeConnectId || selectedVenueData?.stripeAccountId || 'NOT CONNECTED'}
-                       </code>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* SECTION: FEE STRUCTURE */}
-              <div className="space-y-6">
-                <div className="flex items-center gap-3 border-b-2 pb-2">
-                  <DollarSign className="h-4 w-4 text-green-600" />
-                  <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-[#213147]">Revenue & Fee Protocol</h4>
-                </div>
-                
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                  <div className="space-y-1.5">
-                    <Label className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">Patron Conv. Fee (Cents)</Label>
-                    <Input 
-                      type="number" 
-                      value={selectedVenueData?.patronConvenienceFee} 
-                      onChange={(e) => handleUpdateVenueBusiness(selectedSeller!.id, { patronConvenienceFee: parseInt(e.target.value, 10) || 0 })}
-                      className="h-11 border-2 font-bold" 
-                    />
-                    <p className="text-[8px] font-bold text-primary uppercase">Current: ${((selectedVenueData?.patronConvenienceFee || 0) / 100).toFixed(2)}</p>
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">Koop Fixed Fee (Cents)</Label>
-                    <Input 
-                      type="number" 
-                      value={selectedVenueData?.platformFeeFixed} 
-                      onChange={(e) => handleUpdateVenueBusiness(selectedSeller!.id, { platformFeeFixed: parseInt(e.target.value, 10) || 0 })}
-                      className="h-11 border-2 font-bold" 
-                    />
-                    <p className="text-[8px] font-bold text-indigo-600 uppercase">Fixed platform cut</p>
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">Koop variable (%)</Label>
-                    <Input 
-                      type="number" 
-                      value={selectedVenueData?.platformFeePercent} 
-                      onChange={(e) => handleUpdateVenueBusiness(selectedSeller!.id, { platformFeePercent: parseFloat(e.target.value) || 0 })}
-                      className="h-11 border-2 font-bold" 
-                    />
-                    <p className="text-[8px] font-bold text-indigo-600 uppercase">Optional percentage</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* SECTION: TERMINAL ACCESS */}
-              <div className="space-y-6 pt-4">
-                <div className="flex items-center gap-3 border-b-2 pb-2">
-                  <QrCode className="h-4 w-4 text-primary" />
-                  <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-[#213147]">Terminal Provisioning (Staff Access)</h4>
-                </div>
-                <div className="flex flex-col sm:flex-row items-center gap-8 bg-slate-50 p-8 rounded-3xl border-2 border-dashed">
-                  <div className="bg-white p-4 rounded-3xl border-2 shadow-xl shrink-0">
-                    <img 
-                      src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`${baseUrl}/sellers/${selectedSeller?.id}/staff-login`)}`}
-                      alt="Staff QR"
-                      width={160}
-                      height={160}
-                      className="rounded-xl w-32 h-32"
-                    />
-                  </div>
-                  <div className="flex-1 space-y-4 text-center sm:text-left">
-                    <div className="space-y-1">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-[#213147]">Secure Staff Entry URL</p>
-                      <code className="block p-2 bg-white border rounded-lg text-[10px] break-all border-slate-200">
-                        {baseUrl}/sellers/{selectedSeller?.id}/staff-login
-                      </code>
-                    </div>
-                    <p className="text-[10px] text-muted-foreground font-bold uppercase leading-relaxed">
-                      Print this code for backend staging areas. This provides a direct path to the 4-digit PIN entry system for on-shift personnel.
-                    </p>
-                    <div className="flex flex-wrap gap-2 justify-center sm:justify-start">
-                      <Button size="sm" className="bg-[#213147] font-black uppercase text-[9px] tracking-widest h-9 gap-2">
-                        <Download className="h-3.5 w-3.5" /> Download Asset
-                      </Button>
-                      <Button variant="outline" size="sm" className="border-2 bg-white font-black uppercase text-[9px] tracking-widest h-9 gap-2">
-                        <Printer className="h-3.5 w-3.5" /> Print placard
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              </div>
+          <Tabs defaultValue="profile" className="flex-1 flex flex-col min-h-0">
+            <div className="px-8 bg-slate-50 border-b overflow-x-auto no-scrollbar">
+              <TabsList className="bg-transparent h-12 gap-6 p-0">
+                <TabsTrigger value="profile" className="data-[state=active]:bg-transparent data-[state=active]:border-b-4 data-[state=active]:border-primary data-[state=active]:shadow-none rounded-none font-black uppercase text-[10px] tracking-widest px-0">Profile</TabsTrigger>
+                <TabsTrigger value="users" className="data-[state=active]:bg-transparent data-[state=active]:border-b-4 data-[state=active]:border-primary data-[state=active]:shadow-none rounded-none font-black uppercase text-[10px] tracking-widest px-0">Users</TabsTrigger>
+                <TabsTrigger value="menu" className="data-[state=active]:bg-transparent data-[state=active]:border-b-4 data-[state=active]:border-primary data-[state=active]:shadow-none rounded-none font-black uppercase text-[10px] tracking-widest px-0">Menu</TabsTrigger>
+                <TabsTrigger value="billing" className="data-[state=active]:bg-transparent data-[state=active]:border-b-4 data-[state=active]:border-primary data-[state=active]:shadow-none rounded-none font-black uppercase text-[10px] tracking-widest px-0">Billing</TabsTrigger>
+                <TabsTrigger value="activity" className="data-[state=active]:bg-transparent data-[state=active]:border-b-4 data-[state=active]:border-primary data-[state=active]:shadow-none rounded-none font-black uppercase text-[10px] tracking-widest px-0">Activity</TabsTrigger>
+              </TabsList>
             </div>
-          </ScrollArea>
 
-          <DialogFooter className="p-8 bg-slate-50 border-t">
+            <ScrollArea className="flex-1">
+              <div className="p-8">
+                {/* TAB: PROFILE */}
+                <TabsContent value="profile" className="mt-0 space-y-8 animate-in fade-in duration-300">
+                  <div className="space-y-6">
+                    <div className="flex items-center gap-3 border-b-2 pb-2">
+                      <ClipboardList className="h-4 w-4 text-primary" />
+                      <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-[#213147]">Operational Profile</h4>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-1.5">
+                        <Label className="text-[10px] font-black uppercase text-muted-foreground">Display Name</Label>
+                        <Input 
+                          value={selectedSeller?.courseName || ''} 
+                          onChange={(e) => handleUpdateSellerProfile(selectedSeller!.id, { courseName: e.target.value })}
+                          className="h-11 border-2 font-bold" 
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-[10px] font-black uppercase text-muted-foreground">Primary Contact Email</Label>
+                        <Input 
+                          value={selectedSeller?.contactEmail || ''} 
+                          onChange={(e) => handleUpdateSellerProfile(selectedSeller!.id, { contactEmail: e.target.value })}
+                          className="h-11 border-2 font-bold" 
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                       <div className="space-y-1.5">
+                        <Label className="text-[10px] font-black uppercase text-muted-foreground">Venue Type</Label>
+                        <Select value={selectedSeller?.type} onValueChange={(v: SellerType) => handleUpdateSellerProfile(selectedSeller!.id, { type: v })}>
+                          <SelectTrigger className="h-11 border-2 font-bold">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {sellerTypes.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-[10px] font-black uppercase text-muted-foreground">Operational Status</Label>
+                        <Select value={selectedSeller?.status} onValueChange={(v: 'Active'|'Inactive') => handleUpdateSellerProfile(selectedSeller!.id, { status: v })}>
+                          <SelectTrigger className="h-11 border-2 font-bold">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Active">Active</SelectItem>
+                            <SelectItem value="Inactive">Inactive</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  </div>
+                </TabsContent>
+
+                {/* TAB: USERS */}
+                <TabsContent value="users" className="mt-0 space-y-8 animate-in fade-in duration-300">
+                  <div className="space-y-6">
+                    <div className="flex items-center gap-3 border-b-2 pb-2">
+                      <ShieldCheck className="h-4 w-4 text-indigo-600" />
+                      <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-[#213147]">Access & Permissions</h4>
+                    </div>
+                    
+                    <div className="space-y-4 max-w-md">
+                      <div className="space-y-1.5">
+                        <Label className="text-[10px] font-black uppercase text-muted-foreground">Owner Manager UID</Label>
+                        <div className="flex gap-2">
+                          <Input 
+                            value={selectedVenueData?.ownerUid || ''} 
+                            onChange={(e) => handleUpdateVenueBusiness(selectedSeller!.id, { ownerUid: e.target.value })}
+                            className="h-11 border-2 font-mono text-[10px]" 
+                          />
+                          <Button variant="outline" size="icon" className="h-11 w-11 border-2 text-muted-foreground" onClick={() => {
+                            if (selectedVenueData?.ownerUid) {
+                              navigator.clipboard.writeText(selectedVenueData.ownerUid);
+                              toast({ title: "UID Copied" });
+                            }
+                          }}><Copy className="h-3.5 w-3.5" /></Button>
+                        </div>
+                        <p className="text-[8px] text-muted-foreground uppercase font-bold">The primary identity authorized for the Venue Admin Terminal.</p>
+                      </div>
+
+                      <div className="p-4 bg-indigo-50 border-2 border-indigo-100 rounded-2xl flex items-center gap-4">
+                        <UserPlus className="h-8 w-8 text-indigo-400" />
+                        <div>
+                          <p className="text-[10px] font-black uppercase text-indigo-700">Team Management</p>
+                          <p className="text-[8px] font-bold text-indigo-500 uppercase">Manage staff in the Venue Terminal</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </TabsContent>
+
+                {/* TAB: MENU */}
+                <TabsContent value="menu" className="mt-0 space-y-8 animate-in fade-in duration-300">
+                  <div className="space-y-6">
+                    <div className="flex items-center gap-3 border-b-2 pb-2">
+                      <QrCode className="h-4 w-4 text-primary" />
+                      <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-[#213147]">Terminal Provisioning (Staff Access)</h4>
+                    </div>
+                    
+                    <div className="flex flex-col sm:flex-row items-center gap-8 bg-slate-50 p-6 rounded-3xl border-2 border-dashed">
+                      <div className="bg-white p-3 rounded-3xl border-2 shadow-xl shrink-0">
+                        <img 
+                          src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`${baseUrl}/sellers/${selectedSeller?.id}/staff-login`)}`}
+                          alt="Staff QR"
+                          width={140}
+                          height={140}
+                          className="rounded-xl w-32 h-32"
+                        />
+                      </div>
+                      <div className="flex-1 space-y-4 text-center sm:text-left">
+                        <div className="space-y-1">
+                          <p className="text-[10px] font-black uppercase tracking-widest text-[#213147]">Secure Staff Entry URL</p>
+                          <code className="block p-2 bg-white border rounded-lg text-[10px] break-all border-slate-200">
+                            {baseUrl}/sellers/{selectedSeller?.id}/staff-login
+                          </code>
+                        </div>
+                        <div className="flex flex-wrap gap-2 justify-center sm:justify-start">
+                          <Button size="sm" className="bg-[#213147] font-black uppercase text-[9px] tracking-widest h-9 gap-2">
+                            <Download className="h-3.5 w-3.5" /> Download Asset
+                          </Button>
+                          <Button variant="ghost" size="sm" asChild className="text-[10px] font-black uppercase h-9 gap-1.5">
+                            <Link href={`/sellers/${selectedSeller?.id}`}>
+                              <ExternalLink className="h-3.5 w-3.5" /> Launch Venue Terminal
+                            </Link>
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </TabsContent>
+
+                {/* TAB: BILLING */}
+                <TabsContent value="billing" className="mt-0 space-y-8 animate-in fade-in duration-300">
+                  <div className="space-y-8">
+                    <div className="space-y-6">
+                      <div className="flex items-center gap-3 border-b-2 pb-2">
+                        <DollarSign className="h-4 w-4 text-green-600" />
+                        <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-[#213147]">Revenue & Fee Protocol</h4>
+                      </div>
+                      
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                        <div className="space-y-1.5">
+                          <Label className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">Patron Conv. Fee (Cents)</Label>
+                          <Input 
+                            type="number" 
+                            value={selectedVenueData?.patronConvenienceFee} 
+                            onChange={(e) => handleUpdateVenueBusiness(selectedSeller!.id, { patronConvenienceFee: parseInt(e.target.value, 10) || 0 })}
+                            className="h-11 border-2 font-bold" 
+                          />
+                          <p className="text-[8px] font-bold text-primary uppercase">Current: ${((selectedVenueData?.patronConvenienceFee || 0) / 100).toFixed(2)}</p>
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">Koop Fixed Fee (Cents)</Label>
+                          <Input 
+                            type="number" 
+                            value={selectedVenueData?.platformFeeFixed} 
+                            onChange={(e) => handleUpdateVenueBusiness(selectedSeller!.id, { platformFeeFixed: parseInt(e.target.value, 10) || 0 })}
+                            className="h-11 border-2 font-bold" 
+                          />
+                          <p className="text-[8px] font-bold text-indigo-600 uppercase">Fixed platform cut</p>
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">Koop variable (%)</Label>
+                          <Input 
+                            type="number" 
+                            value={selectedVenueData?.platformFeePercent} 
+                            onChange={(e) => handleUpdateVenueBusiness(selectedSeller!.id, { platformFeePercent: parseFloat(e.target.value) || 0 })}
+                            className="h-11 border-2 font-bold" 
+                          />
+                          <p className="text-[8px] font-bold text-indigo-600 uppercase">Optional percentage</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between p-4 bg-amber-50 border-2 border-amber-100 rounded-2xl">
+                          <div className="flex items-center gap-3">
+                            <Star className="h-5 w-5 text-amber-600 fill-amber-600" />
+                            <div>
+                              <p className="text-[10px] font-black uppercase text-amber-800 leading-none mb-1">Founding Partner</p>
+                              <p className="text-[8px] font-bold text-amber-600 uppercase">Special Platform Status</p>
+                            </div>
+                          </div>
+                          <Switch 
+                            checked={selectedVenueData?.isFoundingPartner} 
+                            onCheckedChange={(v) => handleUpdateVenueBusiness(selectedSeller!.id, { isFoundingPartner: v })}
+                            className="data-[state=checked]:bg-amber-600"
+                          />
+                        </div>
+                        <div className="p-4 bg-indigo-50 border-2 border-indigo-100 rounded-2xl space-y-2">
+                          <p className="text-[9px] font-black uppercase text-indigo-700 tracking-widest">Stripe Connect ID</p>
+                          <code className="block text-[10px] font-mono text-indigo-600 bg-white p-2 rounded-lg border border-indigo-100 truncate">
+                            {selectedVenueData?.stripeConnectId || selectedVenueData?.stripeAccountId || 'NOT CONNECTED'}
+                          </code>
+                        </div>
+                      </div>
+
+                      <div className="space-y-4">
+                        <div className={cn(
+                          "p-4 rounded-2xl border-2 flex items-center justify-between",
+                          selectedVenueData?.payoutsEnabled ? "bg-green-50 border-green-100" : "bg-slate-50 border-slate-100"
+                        )}>
+                          <div className="flex items-center gap-3">
+                            <Coins className={cn("h-5 w-5", selectedVenueData?.payoutsEnabled ? "text-green-600" : "text-slate-400")} />
+                            <div>
+                              <p className={cn("text-[10px] font-black uppercase leading-none mb-1", selectedVenueData?.payoutsEnabled ? "text-green-800" : "text-slate-500")}>
+                                {selectedVenueData?.payoutsEnabled ? 'Payouts Enabled' : 'Payouts Restricted'}
+                              </p>
+                              <p className="text-[8px] font-bold text-muted-foreground uppercase">Manual Admin Override</p>
+                            </div>
+                          </div>
+                          <Switch 
+                            checked={selectedVenueData?.payoutsEnabled} 
+                            onCheckedChange={(v) => handleUpdateVenueBusiness(selectedSeller!.id, { payoutsEnabled: v })}
+                            className="data-[state=checked]:bg-green-600"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </TabsContent>
+
+                {/* TAB: ACTIVITY */}
+                <TabsContent value="activity" className="mt-0 space-y-8 animate-in fade-in duration-300">
+                  <div className="space-y-6">
+                    <div className="flex items-center gap-3 border-b-2 pb-2">
+                      <Activity className="h-4 w-4 text-red-500" />
+                      <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-[#213147]">Venue Activity Log</h4>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="p-4 bg-slate-50 rounded-2xl border-2 border-slate-100">
+                        <p className="text-[8px] font-black text-muted-foreground uppercase tracking-widest mb-1">Total Lifetime Orders</p>
+                        <p className="text-2xl font-black font-headline text-[#213147]">{selectedVenueOrders.length}</p>
+                      </div>
+                      <div className="p-4 bg-slate-50 rounded-2xl border-2 border-slate-100">
+                        <p className="text-[8px] font-black text-muted-foreground uppercase tracking-widest mb-1">Gross Revenue</p>
+                        <p className="text-2xl font-black font-headline text-green-600">${selectedVenueOrders.reduce((acc, o) => acc + (o.total || 0), 0).toFixed(2)}</p>
+                      </div>
+                    </div>
+
+                    <div className="border-2 rounded-2xl overflow-hidden bg-white shadow-sm">
+                      <div className="overflow-x-auto no-scrollbar">
+                        <Table className="min-w-[600px]">
+                          <TableHeader className="bg-slate-50 border-b">
+                            <TableRow>
+                              <TableHead className="text-[9px] font-black uppercase">Order ID</TableHead>
+                              <TableHead className="text-[9px] font-black uppercase">Date</TableHead>
+                              <TableHead className="text-[9px] font-black uppercase">Customer</TableHead>
+                              <TableHead className="text-[9px] font-black uppercase text-right">Total</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {selectedVenueOrders.slice(0, 5).map((o) => (
+                              <TableRow key={o.id}>
+                                <TableCell className="font-mono text-[10px] font-black">#{getNumericOrderId(o.id)}</TableCell>
+                                <TableCell className="text-[10px] font-bold text-muted-foreground uppercase">{o.createdAt && typeof o.createdAt.toDate === 'function' ? format(o.createdAt.toDate(), 'MMM d') : 'N/A'}</TableCell>
+                                <TableCell className="text-[10px] font-black text-[#213147] uppercase truncate max-w-[100px]">{o.customerName}</TableCell>
+                                <TableCell className="text-right font-mono text-[10px] font-black text-primary">${o.total.toFixed(2)}</TableCell>
+                              </TableRow>
+                            ))}
+                            {selectedVenueOrders.length === 0 && (
+                              <TableRow>
+                                <TableCell colSpan={4} className="h-20 text-center text-[10px] font-bold text-muted-foreground uppercase">No order activity recorded.</TableCell>
+                              </TableRow>
+                            )}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </div>
+                  </div>
+                </TabsContent>
+              </div>
+            </ScrollArea>
+          </Tabs>
+
+          <DialogFooter className="p-8 bg-slate-50 border-t shrink-0">
             <Button onClick={() => setIsVenueDetailOpen(false)} className="w-full h-14 bg-[#213147] hover:bg-black font-black uppercase tracking-widest shadow-xl text-xs">
               Commit Changes & Exit Maintenance
             </Button>
