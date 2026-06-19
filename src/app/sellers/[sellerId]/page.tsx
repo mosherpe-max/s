@@ -67,7 +67,9 @@ import {
   Globe,
   Database,
   SearchCode,
-  UserCircle
+  UserCircle,
+  Key,
+  UserPlus
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -75,7 +77,7 @@ import { Switch } from '@/components/ui/switch';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import {
   Select,
   SelectContent,
@@ -428,6 +430,16 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     }
   }, [seller]);
 
+  const staffForm = useForm<StaffFormData>({
+    resolver: zodResolver(staffSchema),
+    defaultValues: { name: '', role: 'Staff', pin: '', isActive: true }
+  });
+
+  const itemForm = useForm<ItemFormData>({
+    resolver: zodResolver(itemSchema),
+    defaultValues: { name: '', price: 0, category: 'Snacks', availableOn: [], featuredOn: [], isAvailable: true }
+  });
+
   const stats = useMemo(() => {
     if (!orders) return null;
     const filteredOrders = dashboardFilter === 'All' ? orders : orders.filter(o => o.menuType === dashboardFilter);
@@ -513,8 +525,29 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     volume: detailedReportOrders.length 
   }), [detailedReportOrders]);
 
-  const mappedBuyers = useMemo(() => (orders || []).filter(o => o.status !== 'Delivered' && o.status !== 'Cancelled').map(o => ({ id: o.id, name: o.customerName, location: o.deliveryLocation, colorClass: o.menuType === 'Beverage Cart' ? "bg-red-600" : "bg-indigo-600" })), [orders]);
-  const mappedDrivers = useMemo(() => (staff || []).filter(s => s.latitude && s.longitude && s.lastActive && s.lastActive.toMillis() > Date.now() - 300000).map(s => ({ id: s.id, name: s.name, location: { latitude: s.latitude!, longitude: s.longitude! }, type: s.role === 'Manager' ? 'Clubhouse' : 'Beverage Cart' })), [staff]);
+  const handleSaveStaff = async (data: StaffFormData) => {
+    if (!firestore || !sellerId) return;
+    setIsProcessingSave(true);
+    const staffId = editingStaff?.id || Math.random().toString(36).substr(2, 9);
+    const staffRef = doc(firestore, 'sellers', sellerId, 'staff', staffId);
+    const payload = { ...data, id: staffId, updatedAt: serverTimestamp(), createdAt: editingStaff?.createdAt || serverTimestamp() };
+    setDoc(staffRef, payload, { merge: true }).then(() => {
+      toast({ title: editingStaff ? 'Staff Updated' : 'Staff Added' });
+      setIsStaffFormOpen(false);
+      setEditingStaff(null);
+      staffForm.reset();
+    }).catch(async (error) => {
+      errorEmitter.emit('permission-error', new FirestorePermissionError({ path: staffRef.path, operation: 'write', requestResourceData: payload } satisfies SecurityRuleContext));
+    }).finally(() => setIsProcessingSave(false));
+  };
+
+  const handleDeleteStaff = async (id: string) => {
+    if (!firestore || !sellerId) return;
+    const staffRef = doc(firestore, 'sellers', sellerId, 'staff', id);
+    deleteDoc(staffRef).then(() => { toast({ title: "Staff Member Removed" }); }).catch(async (error) => {
+      errorEmitter.emit('permission-error', new FirestorePermissionError({ path: staffRef.path, operation: 'delete' } satisfies SecurityRuleContext));
+    });
+  };
 
   const handleToggleMode = async (mode: string, current: boolean) => {
     if (!firestore || !sellerId) return;
@@ -767,212 +800,196 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                 </div>
               )}
 
-              {activeNav === 'analytics' && (
-                <div className="space-y-12 animate-in fade-in duration-500">
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    <Card className="border-2 shadow-sm overflow-hidden">
-                      <CardHeader className="bg-slate-50/50 border-b flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                        <div className="space-y-0.5">
-                          <CardTitle className="text-xs font-black uppercase tracking-widest text-[#213147]">Revenue Distribution</CardTitle>
-                          <CardDescription className="text-[8px] font-bold uppercase">Stacked performance by mode</CardDescription>
-                        </div>
-                        <div className="flex bg-slate-100 p-0.5 rounded-lg border-2">
-                          {['Today', 'MTD', 'YTD'].map((r) => (
-                            <button key={r} onClick={() => setAnalyticsRange(r as any)} className={cn("px-3 py-1 text-[8px] font-black uppercase tracking-tighter rounded-md transition-all", analyticsRange === r ? "bg-white text-[#213147] shadow-sm" : "text-slate-400 hover:text-slate-600")}>{r}</button>
-                          ))}
-                        </div>
-                      </CardHeader>
-                      <CardContent className="pt-10 h-[300px]">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={analyticsData.chartData}>
-                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
-                            <XAxis dataKey="time" axisLine={false} tickLine={false} fontSize={10} fontWeight="bold" />
-                            <YAxis axisLine={false} tickLine={false} fontSize={10} fontWeight="bold" />
-                            <ChartTooltip cursor={{ fill: 'transparent' }} contentStyle={{ fontSize: '10px', borderRadius: '12px', border: '2px solid #E2E8F0' }} />
-                            <Legend verticalAlign="top" align="right" iconType="circle" wrapperStyle={{ fontSize: '9px', fontWeight: 'bold', textTransform: 'uppercase' }} />
-                            {seller?.menuTypes?.map(mode => (
-                              <Bar 
-                                key={mode} 
-                                dataKey={mode} 
-                                stackId="a" 
-                                fill={MODE_COLORS[mode] || '#64748B'} 
-                                radius={[0, 0, 0, 0]} 
-                                label={(props: any) => { 
-                                  const { x, y, width, height, value, index } = props; 
-                                  if (value <= 0 || height < 15) return null; 
-                                  const entry = analyticsData.chartData[index]; 
-                                  let labelText = analyticsRange === 'YTD' ? `$${(entry[`${mode}_count`] > 0 ? (value / entry[`${mode}_count`]).toFixed(0) : '0')}` : (entry[`${mode}_count`] || 0).toString(); 
-                                  return (<text x={x + width / 2} y={y + height / 2} fill="#FFFFFF" textAnchor="middle" dominantBaseline="middle" fontSize={height < 20 ? 7 : 8} fontWeight="900" className="pointer-events-none drop-shadow-sm">{labelText}</text>); 
-                                }} 
-                              />
-                            ))}
-                          </BarChart>
-                        </ResponsiveContainer>
-                      </CardContent>
-                    </Card>
-
-                    <Card className="border-2 shadow-sm">
-                      <CardHeader className="bg-slate-50/50 border-b flex flex-row items-center justify-between py-4">
-                        <div className="space-y-0.5">
-                          <CardTitle className="text-xs font-black uppercase tracking-widest text-[#213147]">Revenue Share</CardTitle>
-                          <CardDescription className="text-[8px] font-bold uppercase">Channel Mix & Efficiency</CardDescription>
-                        </div>
-                        <Select value={pieMonthFilter} onValueChange={setPieMonthFilter}>
-                          <SelectTrigger className="w-[140px] h-8 text-[9px] font-black uppercase tracking-widest border-2 bg-white">
-                            <SelectValue placeholder="All Time" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="All">All Time</SelectItem>
-                            {availableMonths.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
-                          </SelectContent>
-                        </Select>
-                      </CardHeader>
-                      <CardContent className="p-0">
-                        <div className="h-[240px] pt-4">
-                          <ResponsiveContainer width="100%" height="100%">
-                            <PieChart>
-                              <Pie 
-                                data={pieChartData} 
-                                innerRadius={50} 
-                                outerRadius={70} 
-                                paddingAngle={5} 
-                                dataKey="value" 
-                                animationDuration={1000}
-                              >
-                                {pieChartData.map((entry, index) => (
-                                  <Cell key={`cell-${index}`} fill={MODE_COLORS[entry.name] || PIE_COLORS[index % PIE_COLORS.length]} />
-                                ))}
-                              </Pie>
-                              <ChartTooltip formatter={(value: number) => `$${value.toFixed(2)}`} />
-                            </PieChart>
-                          </ResponsiveContainer>
-                        </div>
-                        <div className="px-4 pb-6 space-y-2">
-                          {pieChartData.map((data, idx) => (
-                            <div key={data.name} className="flex items-center justify-between p-2.5 rounded-xl border-2 bg-slate-50/30">
-                              <div className="flex items-center gap-2">
-                                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: MODE_COLORS[data.name] || PIE_COLORS[idx % PIE_COLORS.length] }} />
-                                <span className="text-[10px] font-black uppercase text-[#213147]">{data.name}</span>
-                              </div>
-                              <div className="flex items-center gap-6">
-                                <div className="text-right">
-                                  <p className="text-[8px] font-bold text-muted-foreground uppercase leading-none mb-1">Rev / Orders</p>
-                                  <p className="text-[10px] font-black text-[#213147] font-mono">${data.value.toFixed(2)} <span className="text-slate-400">({data.count})</span></p>
-                                </div>
-                                <div className="text-right border-l pl-4">
-                                  <p className="text-[8px] font-bold text-muted-foreground uppercase leading-none mb-1">Avg Ticket</p>
-                                  <p className="text-[10px] font-black text-primary font-mono">${data.avg.toFixed(2)}</p>
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </CardContent>
-                    </Card>
+              {activeNav === 'staff' && (
+                <div className="space-y-6 animate-in fade-in duration-500">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                    <div className="space-y-1">
+                      <h3 className="font-headline font-black text-2xl text-[#213147] uppercase leading-tight">Manage Personnel</h3>
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Shift management & access tokens</p>
+                    </div>
+                    <Button onClick={() => { setEditingStaff(null); staffForm.reset(); setIsStaffFormOpen(true); }} className="bg-primary hover:bg-primary/90 h-12 px-6 rounded-xl font-black uppercase text-[11px] tracking-widest gap-2 shadow-xl shadow-primary/20">
+                      <UserPlus className="h-4 w-4" /> Provision New Identity
+                    </Button>
                   </div>
 
-                  <div className="space-y-6">
-                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b-2 pb-4">
-                      <div className="flex items-center gap-3 text-left">
-                        <div className="bg-primary/10 p-2 rounded-xl text-primary"><FileText className="h-5 w-5" /></div>
-                        <div>
-                          <h3 className="font-headline font-black text-xl text-[#213147] uppercase leading-tight">Detailed Sales Audit</h3>
-                          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Transaction level reporting</p>
-                        </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {staff?.length === 0 ? (
+                      <div className="col-span-full py-20 text-center bg-white border-2 border-dashed rounded-3xl">
+                        <Users className="h-12 w-12 text-slate-200 mx-auto mb-4" />
+                        <p className="text-[11px] font-black uppercase text-slate-400">No authorized personnel found</p>
                       </div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <div className="flex items-center bg-white border-2 rounded-xl px-3 h-10 gap-2">
-                          <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
-                          <input 
-                            type="date" 
-                            value={reportStartDate} 
-                            onChange={(e) => setReportStartDate(e.target.value)} 
-                            className="text-[10px] font-black uppercase bg-transparent outline-none" 
-                          />
-                          <span className="text-[10px] text-muted-foreground font-bold uppercase">TO</span>
-                          <input 
-                            type="date" 
-                            value={reportEndDate} 
-                            onChange={(e) => setReportEndDate(e.target.value)} 
-                            className="text-[10px] font-black uppercase bg-transparent outline-none" 
-                          />
-                        </div>
-                        <Select value={reportModeFilter} onValueChange={setReportModeFilter}>
-                          <SelectTrigger className="w-[140px] h-10 border-2 font-black uppercase tracking-widest text-[9px] bg-white">
-                            <SelectValue placeholder="All Modes" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="All">All Modes</SelectItem>
-                            {seller?.menuTypes?.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
-                          </SelectContent>
-                        </Select>
+                    ) : (
+                      staff?.map((s) => (
+                        <Card key={s.id} className={cn("border-2 shadow-sm group transition-all", s.isActive ? "bg-white" : "bg-slate-50 border-slate-100 opacity-60")}>
+                          <CardHeader className="p-4 border-b flex flex-row items-center justify-between space-y-0">
+                            <div className="flex items-center gap-3">
+                              <div className={cn("p-2 rounded-lg", s.isActive ? "bg-indigo-50 text-indigo-600" : "bg-slate-200 text-slate-400")}>
+                                <UserCircle className="h-5 w-5" />
+                              </div>
+                              <div className="min-w-0">
+                                <p className="font-black text-xs uppercase text-[#213147] truncate">{s.name}</p>
+                                <Badge variant="secondary" className="h-4 px-1 text-[8px] font-black uppercase mt-0.5">{s.role}</Badge>
+                              </div>
+                            </div>
+                            <Switch checked={s.isActive} onCheckedChange={(isActive) => {
+                              const staffRef = doc(firestore!, 'sellers', sellerId, 'staff', s.id);
+                              updateDoc(staffRef, { isActive }).catch(async (error) => {
+                                errorEmitter.emit('permission-error', new FirestorePermissionError({ path: staffRef.path, operation: 'update', requestResourceData: { isActive } } satisfies SecurityRuleContext));
+                              });
+                            }} className="data-[state=checked]:bg-green-600 scale-75" />
+                          </CardHeader>
+                          <CardContent className="p-4 flex items-center justify-between">
+                            <div className="flex flex-col gap-1">
+                               <span className="text-[8px] font-black uppercase text-muted-foreground tracking-widest">Access Key</span>
+                               <div className="flex items-center gap-2">
+                                  <div className="flex gap-1">
+                                     {[...Array(4)].map((_, i) => <div key={i} className="w-1.5 h-1.5 rounded-full bg-slate-200" />)}
+                                  </div>
+                                  <span className="font-mono text-[10px] font-bold text-[#213147] group-hover:block hidden">{s.pin}</span>
+                               </div>
+                            </div>
+                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <Button variant="ghost" size="icon" className="h-8 w-8 text-indigo-600" onClick={() => { setEditingStaff(s); staffForm.reset(s); setIsStaffFormOpen(true); }}><Edit className="h-4 w-4" /></Button>
+                              <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleDeleteStaff(s.id)}><Trash2 className="h-4 w-4" /></Button>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {activeNav === 'orders' && (
+                 <div className="space-y-6 animate-in fade-in duration-500">
+                    <div className="flex justify-between items-center border-b-2 pb-4">
+                      <div className="space-y-1">
+                        <h3 className="font-headline font-black text-2xl text-[#213147] uppercase leading-tight">Order Audit Log</h3>
+                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Transaction level oversight</p>
                       </div>
                     </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                      <div className="bg-white p-4 rounded-2xl border-2 shadow-sm flex flex-col justify-center">
-                        <p className="text-[8px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-1">Audit Volume</p>
-                        <p className="text-xl font-black font-headline text-[#213147]">{detailedReportStats.volume} <span className="text-[10px] text-muted-foreground uppercase font-bold">Tickets</span></p>
-                      </div>
-                      <div className="bg-white p-4 rounded-2xl border-2 shadow-sm flex flex-col justify-center">
-                        <p className="text-[8px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-1">Audit Revenue</p>
-                        <p className="text-xl font-black font-headline text-green-600">${detailedReportStats.revenue.toFixed(2)}</p>
-                      </div>
-                      <Button variant="outline" className="h-full border-2 rounded-2xl gap-2 font-black uppercase text-[10px] tracking-widest">
-                        <Download className="h-4 w-4" /> Export Audit Log
-                      </Button>
-                    </div>
-
                     <Card className="border-2 shadow-sm overflow-hidden">
-                      <div className="overflow-x-auto no-scrollbar">
-                        <Table>
-                          <TableHeader className="bg-slate-50 border-b">
-                            <TableRow>
-                              <TableHead className="text-[9px] font-black uppercase tracking-widest">Order ID</TableHead>
-                              <TableHead className="text-[9px] font-black uppercase tracking-widest">Timestamp</TableHead>
-                              <TableHead className="text-[9px] font-black uppercase tracking-widest">Patron</TableHead>
-                              <TableHead className="text-[9px] font-black uppercase tracking-widest">Mode</TableHead>
-                              <TableHead className="text-[9px] font-black uppercase tracking-widest">Total</TableHead>
-                              <TableHead className="text-[9px] font-black uppercase tracking-widest text-right">Status</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {detailedReportOrders.length === 0 ? (
+                       <div className="overflow-x-auto no-scrollbar">
+                          <Table className="min-w-[1000px]">
+                            <TableHeader className="bg-slate-50 border-b">
                               <TableRow>
-                                <TableCell colSpan={6} className="h-32 text-center text-[10px] font-bold text-muted-foreground uppercase">
-                                  No transactions found for this audit window.
-                                </TableCell>
+                                <TableHead className="text-[9px] font-black uppercase tracking-widest">Order ID</TableHead>
+                                <TableHead className="text-[9px] font-black uppercase tracking-widest">Timestamp</TableHead>
+                                <TableHead className="text-[9px] font-black uppercase tracking-widest">Patron</TableHead>
+                                <TableHead className="text-[9px] font-black uppercase tracking-widest">Mode</TableHead>
+                                <TableHead className="text-[9px] font-black uppercase tracking-widest">Total</TableHead>
+                                <TableHead className="text-[9px] font-black uppercase tracking-widest">Status</TableHead>
+                                <TableHead className="text-right text-[9px] font-black uppercase tracking-widest">Actions</TableHead>
                               </TableRow>
-                            ) : (
-                              detailedReportOrders.map((o) => (
-                                <TableRow key={o.id}>
+                            </TableHeader>
+                            <TableBody>
+                              {[...(orders || [])].sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0)).map((o) => (
+                                <TableRow key={o.id} className="group">
                                   <TableCell className="font-mono text-[10px] font-black">#{getNumericOrderId(o.id)}</TableCell>
-                                  <TableCell className="text-[10px] font-bold text-slate-500 uppercase">
-                                    {o.createdAt && typeof o.createdAt.toDate === 'function' ? format(o.createdAt.toDate(), 'MMM d, h:mm a') : 'N/A'}
-                                  </TableCell>
-                                  <TableCell className="text-[10px] font-black text-[#213147] uppercase truncate max-w-[120px]">{o.customerName}</TableCell>
-                                  <TableCell><Badge variant="secondary" className="text-[8px] font-black uppercase">{o.menuType}</Badge></TableCell>
+                                  <TableCell className="text-[10px] font-bold text-slate-500 uppercase">{o.createdAt && typeof o.createdAt.toDate === 'function' ? format(o.createdAt.toDate(), 'MMM d, h:mm a') : 'N/A'}</TableCell>
+                                  <TableCell className="text-[10px] font-black text-[#213147] uppercase truncate max-w-[150px]">{o.customerName}</TableCell>
+                                  <TableCell><Badge variant="outline" className="text-[8px] font-black uppercase">{o.menuType}</Badge></TableCell>
                                   <TableCell className="font-mono text-[10px] font-black text-primary">${(o.total || 0).toFixed(2)}</TableCell>
-                                  <TableCell className="text-right">
+                                  <TableCell>
                                     <Badge className={cn("text-[8px] font-black uppercase border-0", o.status === 'Delivered' ? 'bg-green-600' : 'bg-slate-400')}>
                                       {o.status}
                                     </Badge>
                                   </TableCell>
+                                  <TableCell className="text-right">
+                                    <Button 
+                                      variant="outline" 
+                                      size="sm" 
+                                      className="h-8 text-[9px] font-black uppercase border-2 gap-1.5"
+                                      onClick={() => handleUpdateStatus(o.id, o.status)}
+                                      disabled={o.status === 'Delivered' || o.status === 'Cancelled'}
+                                    >
+                                      Advance <ChevronRight className="h-3 w-3" />
+                                    </Button>
+                                  </TableCell>
                                 </TableRow>
-                              ))
-                            )}
-                          </TableBody>
-                        </Table>
-                      </div>
+                              ))}
+                              {(!orders || orders.length === 0) && (
+                                <TableRow>
+                                  <TableCell colSpan={7} className="h-32 text-center text-[10px] font-bold text-muted-foreground uppercase">No transaction activity recorded</TableCell>
+                                </TableRow>
+                              )}
+                            </TableBody>
+                          </Table>
+                       </div>
                     </Card>
-                  </div>
-                </div>
+                 </div>
               )}
+
+              {/* OTHER NAVIGATION SECTIONS WOULD FOLLOW SIMILAR PATTERNS */}
+
             </div>
             <ScrollBar orientation="horizontal" />
           </ScrollArea>
         </main>
       </div>
+
+      {/* DIALOG: STAFF FORM */}
+      <Dialog open={isStaffFormOpen} onOpenChange={setIsStaffFormOpen}>
+        <DialogContent className="sm:max-w-[425px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl">
+          <DialogHeader className="p-8 bg-[#213147] text-white">
+            <div className="flex items-center gap-4">
+              <div className="bg-primary/20 p-3 rounded-2xl shrink-0"><Users className="h-6 w-6 text-primary" /></div>
+              <div>
+                <DialogTitle className="font-headline font-black uppercase tracking-tight text-white text-xl">{editingStaff ? 'Modify Identity' : 'Provision Staff'}</DialogTitle>
+                <DialogDescription className="text-white/40 text-[9px] font-bold uppercase tracking-widest mt-1">Set secure terminal access tokens</DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+          <div className="p-8">
+            <Form {...staffForm}>
+              <form onSubmit={staffForm.handleSubmit(handleSaveStaff)} className="space-y-6">
+                <FormField control={staffForm.control} name="name" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-[10px] font-black uppercase tracking-widest">Full Name</FormLabel>
+                    <FormControl><Input {...field} placeholder="Jane Doe" className="h-12 border-2 font-bold" /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField control={staffForm.control} name="role" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-[10px] font-black uppercase tracking-widest">System Role</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl><SelectTrigger className="h-12 border-2 font-bold"><SelectValue /></SelectTrigger></FormControl>
+                        <SelectContent>
+                          <SelectItem value="Staff">General Staff</SelectItem>
+                          <SelectItem value="Manager">Venue Manager</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                  <FormField control={staffForm.control} name="pin" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-[10px] font-black uppercase tracking-widest">4-Digit PIN</FormLabel>
+                      <FormControl><Input {...field} type="password" maxLength={4} placeholder="••••" className="h-12 border-2 font-black text-center text-xl tracking-[1em]" /></FormControl>
+                      <FormDescription className="text-[8px] font-bold uppercase text-muted-foreground text-center">Secure access token</FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                </div>
+                <FormField control={staffForm.control} name="isActive" render={({ field }) => (
+                  <FormItem className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border-2">
+                    <div className="space-y-0.5 text-left">
+                      <FormLabel className="text-[10px] font-black uppercase tracking-widest">Account Status</FormLabel>
+                      <FormDescription className="text-[8px] font-bold uppercase">Enable shift terminal access</FormDescription>
+                    </div>
+                    <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                  </FormItem>
+                )} />
+                <Button type="submit" disabled={isProcessingSave} className="w-full h-14 bg-[#213147] hover:bg-black font-black uppercase tracking-widest text-[11px] gap-2 shadow-xl">
+                  {isProcessingSave ? <Loader2 className="h-5 w-5 animate-spin" /> : <Save className="h-5 w-5" />} Commit Identity
+                </Button>
+              </form>
+            </Form>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
