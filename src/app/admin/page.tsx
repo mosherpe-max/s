@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
@@ -24,7 +25,6 @@ import {
   DollarSign,
   ShoppingBag,
   Activity,
-  AlertTriangle,
   Briefcase,
   ArrowUpRight,
   Globe,
@@ -71,7 +71,9 @@ import {
   ShieldAlert,
   Coins,
   Wand2,
-  Settings
+  Settings,
+  MailPlus,
+  Key
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -109,10 +111,10 @@ import {
 import { Switch } from '@/components/ui/switch';
 import { useRouter } from 'next/navigation';
 import { useFirestore, useCollection, useMemoFirebase, useFirebase, useAuth, useDoc } from '@/firebase';
-import { signOut } from 'firebase/auth';
-import { collection, query, limit, doc, setDoc, serverTimestamp, where, orderBy, updateDoc, getDoc, getDocs, writeBatch, Timestamp } from 'firebase/firestore';
+import { signOut, sendPasswordResetEmail } from 'firebase/auth';
+import { collection, query, limit, doc, setDoc, serverTimestamp, where, orderBy, updateDoc, getDoc, getDocs, writeBatch, Timestamp, deleteDoc } from 'firebase/firestore';
 import { httpsCallable, getFunctions } from 'firebase/functions';
-import type { Seller, PlatformConfig, Order, Venue, SellerType, MapUpdateSettings } from '@/lib/types';
+import type { Seller, PlatformConfig, Order, Venue, SellerType, MapUpdateSettings, SellerAdminRole } from '@/lib/types';
 import { sellerTypes } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { cn, getNumericOrderId } from '@/lib/utils';
@@ -162,6 +164,13 @@ const venueRegistrationSchema = z.object({
 });
 
 type VenueRegistrationData = z.infer<typeof venueRegistrationSchema>;
+
+const inviteUserSchema = z.object({
+  userName: z.string().min(2, 'Name required'),
+  email: z.string().email('Valid email required'),
+});
+
+type InviteUserData = z.infer<typeof inviteUserSchema>;
 
 function NavButton({ id, label, icon: Icon, active, onClick, sidebarOpen }: { 
   id: string, label: string, icon: any, active: boolean, onClick: (id: string) => void, sidebarOpen: boolean 
@@ -285,6 +294,12 @@ export default function PlatformAdminPage() {
   }, [firestore, selectedSeller?.id]);
   const { data: selectedVenueData } = useDoc<Venue>(selectedVenueRef);
 
+  const venueAdminsQuery = useMemoFirebase(() => {
+    if (!firestore || !selectedSeller?.id) return null;
+    return query(collection(firestore, 'roles_seller_admin'), where('sellerId', '==', selectedSeller.id));
+  }, [firestore, selectedSeller?.id]);
+  const { data: venueAdmins } = useCollection<SellerAdminRole>(venueAdminsQuery);
+
   const selectedVenueOrders = useMemo(() => {
     if (!orders || !selectedSeller?.id) return [];
     return orders.filter(o => o.sellerId === selectedSeller.id);
@@ -319,6 +334,14 @@ export default function PlatformAdminPage() {
       contactName: '',
       contactEmail: '',
       ownerUid: '',
+    }
+  });
+
+  const inviteForm = useForm<InviteUserData>({
+    resolver: zodResolver(inviteUserSchema),
+    defaultValues: {
+      userName: '',
+      email: '',
     }
   });
 
@@ -375,6 +398,16 @@ export default function PlatformAdminPage() {
     };
     batch.set(sellerRef, sellerPayload);
 
+    // 3. Add initial Admin Role
+    const roleRef = doc(firestore, 'roles_seller_admin', data.contactEmail.toLowerCase());
+    batch.set(roleRef, {
+      userName: data.contactName,
+      email: data.contactEmail.toLowerCase(),
+      sellerId: venueId,
+      courseName: data.name,
+      assignedAt: serverTimestamp(),
+    });
+
     batch.commit().then(() => {
       toast({ title: "Venue Created", description: `${data.name} has been added to the Koop platform.` });
       setIsAddVenueOpen(false);
@@ -387,6 +420,56 @@ export default function PlatformAdminPage() {
       } satisfies SecurityRuleContext));
     }).finally(() => {
       setIsProcessingSave(false);
+    });
+  };
+
+  const handleInviteUser = async (data: InviteUserData) => {
+    if (!firestore || !selectedSeller) return;
+    setIsProcessingSave(true);
+    
+    const roleRef = doc(firestore, 'roles_seller_admin', data.email.toLowerCase());
+    const payload = {
+      userName: data.userName,
+      email: data.email.toLowerCase(),
+      sellerId: selectedSeller.id,
+      courseName: selectedSeller.courseName,
+      assignedAt: serverTimestamp(),
+    };
+
+    setDoc(roleRef, payload).then(async () => {
+      toast({ title: "Admin Authorized", description: `${data.userName} now has management access.` });
+      
+      // Attempt to send invitation email (via Firebase reset flow)
+      try {
+        await sendPasswordResetEmail(auth!, data.email.toLowerCase());
+        toast({ title: "Invitation Sent", description: "Password setup link dispatched via email." });
+      } catch (err) {
+        console.warn("Could not send setup email directly. User likely doesn't exist yet or config restriction.", err);
+        toast({ variant: "destructive", title: "Email Pending", description: "User added to registry, but setup email requires manual trigger or existing account." });
+      }
+      
+      inviteForm.reset();
+    }).catch(async (error) => {
+      errorEmitter.emit('permission-error', new FirestorePermissionError({
+        path: roleRef.path,
+        operation: 'create',
+        requestResourceData: payload,
+      } satisfies SecurityRuleContext));
+    }).finally(() => {
+      setIsProcessingSave(false);
+    });
+  };
+
+  const handleRevokeAdmin = async (email: string) => {
+    if (!firestore) return;
+    const roleRef = doc(firestore, 'roles_seller_admin', email.toLowerCase());
+    deleteDoc(roleRef).then(() => {
+      toast({ title: "Access Revoked" });
+    }).catch(async (error) => {
+      errorEmitter.emit('permission-error', new FirestorePermissionError({
+        path: roleRef.path,
+        operation: 'delete',
+      } satisfies SecurityRuleContext));
     });
   };
 
@@ -669,7 +752,7 @@ export default function PlatformAdminPage() {
                       <Input placeholder="Search registry by venue name..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="border-0 shadow-none focus-visible:ring-0 text-sm font-medium" />
                     </div>
                     <Button onClick={() => setIsAddVenueOpen(true)} className="bg-primary hover:bg-primary/90 h-14 px-8 rounded-2xl font-black uppercase text-xs tracking-widest gap-2 shadow-xl shadow-primary/20 w-full sm:w-auto">
-                      <Store className="h-4 w-4" /> Register New Establishment
+                      <Plus className="h-4 w-4" /> Register New Establishment
                     </Button>
                   </div>
                   
@@ -1187,38 +1270,113 @@ export default function PlatformAdminPage() {
 
                 {/* TAB: USERS */}
                 <TabsContent value="users" className="mt-0 space-y-8 animate-in fade-in duration-300">
-                  <div className="space-y-6">
-                    <div className="flex items-center gap-3 border-b-2 pb-2">
-                      <ShieldCheck className="h-4 w-4 text-indigo-600" />
-                      <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-[#213147]">Access & Permissions</h4>
-                    </div>
-                    
-                    <div className="space-y-4 max-w-md">
-                      <div className="space-y-1.5">
-                        <Label className="text-[10px] font-black uppercase text-muted-foreground">Owner Manager UID</Label>
-                        <div className="flex gap-2">
-                          <Input 
-                            value={selectedVenueData?.ownerUid || ''} 
-                            onChange={(e) => handleUpdateVenueBusiness(selectedSeller!.id, { ownerUid: e.target.value })}
-                            className="h-11 border-2 font-mono text-[10px]" 
-                          />
-                          <Button variant="outline" size="icon" className="h-11 w-11 border-2 text-muted-foreground" onClick={() => {
-                            if (selectedVenueData?.ownerUid) {
-                              navigator.clipboard.writeText(selectedVenueData.ownerUid);
-                              toast({ title: "UID Copied" });
-                            }
-                          }}><Copy className="h-3.5 w-3.5" /></Button>
-                        </div>
-                        <p className="text-[8px] text-muted-foreground uppercase font-bold">The primary identity authorized for the Venue Admin Terminal.</p>
+                  <div className="space-y-10">
+                    <div className="space-y-6">
+                      <div className="flex items-center gap-3 border-b-2 pb-2">
+                        <ShieldCheck className="h-4 w-4 text-indigo-600" />
+                        <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-[#213147]">Authorized Administrators</h4>
                       </div>
 
-                      <div className="p-4 bg-indigo-50 border-2 border-indigo-100 rounded-2xl flex items-center gap-4">
-                        <UserPlus className="h-8 w-8 text-indigo-400" />
-                        <div>
-                          <p className="text-[10px] font-black uppercase text-indigo-700">Team Management</p>
-                          <p className="text-[8px] font-bold text-indigo-500 uppercase">Manage staff in the Venue Terminal</p>
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                        {/* Invitation Form */}
+                        <Card className="border-2 border-dashed bg-slate-50/50 p-6 rounded-3xl">
+                           <div className="flex items-center gap-3 mb-6">
+                              <MailPlus className="h-5 w-5 text-indigo-600" />
+                              <h5 className="font-headline font-black text-xs uppercase text-[#213147]">Authorize New User</h5>
+                           </div>
+                           <Form {...inviteForm}>
+                             <form onSubmit={inviteForm.handleSubmit(handleInviteUser)} className="space-y-4">
+                                <FormField control={inviteForm.control} name="userName" render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel className="text-[10px] font-black uppercase text-muted-foreground">Full Name</FormLabel>
+                                    <FormControl><Input {...field} placeholder="Jane Doe" className="h-11 border-2 font-bold" /></FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )} />
+                                <FormField control={inviteForm.control} name="email" render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel className="text-[10px] font-black uppercase text-muted-foreground">Work Email</FormLabel>
+                                    <FormControl><Input {...field} type="email" placeholder="jane@venue.com" className="h-11 border-2 font-bold" /></FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )} />
+                                <Button type="submit" disabled={isProcessingSave} className="w-full h-12 bg-indigo-600 hover:bg-indigo-700 font-black uppercase text-[10px] tracking-widest gap-2">
+                                  {isProcessingSave ? <Loader2 className="animate-spin h-4 w-4" /> : <Plus className="h-4 w-4" />}
+                                  Authorize & Invite
+                                </Button>
+                             </form>
+                           </Form>
+                        </Card>
+
+                        {/* List of Admins */}
+                        <div className="space-y-4">
+                           <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground px-1">Venue Personnel Registry</p>
+                           <div className="space-y-3">
+                              {venueAdmins?.map(admin => (
+                                <div key={admin.email} className="bg-white p-4 rounded-2xl border-2 flex items-center justify-between group">
+                                   <div className="flex items-center gap-4">
+                                      <div className="bg-indigo-50 p-2 rounded-xl">
+                                         <UserCircle className="h-6 w-6 text-indigo-600" />
+                                      </div>
+                                      <div className="min-w-0">
+                                         <p className="text-xs font-black uppercase text-[#213147] truncate">{admin.userName}</p>
+                                         <p className="text-[10px] font-bold text-muted-foreground truncate">{admin.email}</p>
+                                      </div>
+                                   </div>
+                                   <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                      <Button variant="ghost" size="icon" className="h-8 w-8 text-indigo-600" title="Resend Invite" onClick={async () => {
+                                        try {
+                                          await sendPasswordResetEmail(auth!, admin.email);
+                                          toast({ title: "Setup Link Sent" });
+                                        } catch (e) {
+                                          toast({ variant: "destructive", title: "Invite Failed" });
+                                        }
+                                      }}>
+                                        <Key className="h-4 w-4" />
+                                      </Button>
+                                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" title="Revoke Access" onClick={() => handleRevokeAdmin(admin.email)}>
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                   </div>
+                                </div>
+                              ))}
+                              {venueAdmins?.length === 0 && (
+                                <div className="py-12 text-center bg-slate-50 border-2 border-dashed rounded-3xl">
+                                   <Users className="h-8 w-8 text-slate-200 mx-auto mb-2" />
+                                   <p className="text-[10px] font-bold text-slate-400 uppercase">No authorized users yet</p>
+                                </div>
+                              )}
+                           </div>
                         </div>
                       </div>
+                    </div>
+
+                    <div className="bg-amber-50 border-2 border-amber-100 p-6 rounded-[2rem] space-y-4">
+                       <div className="flex items-center gap-3">
+                          <ShieldAlert className="h-5 w-5 text-amber-600" />
+                          <h5 className="font-headline font-black text-xs uppercase text-amber-800">Master Identity Policy</h5>
+                       </div>
+                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-end">
+                          <div className="space-y-2">
+                             <Label className="text-[10px] font-black uppercase text-amber-800/60">Primary Owner manager UID</Label>
+                             <div className="flex gap-2">
+                                <Input 
+                                  value={selectedVenueData?.ownerUid || ''} 
+                                  onChange={(e) => handleUpdateVenueBusiness(selectedSeller!.id, { ownerUid: e.target.value })}
+                                  className="h-11 border-2 border-amber-200 font-mono text-[10px] bg-white" 
+                                />
+                                <Button variant="outline" size="icon" className="h-11 w-11 border-2 border-amber-200 bg-white" onClick={() => {
+                                  if (selectedVenueData?.ownerUid) {
+                                    navigator.clipboard.writeText(selectedVenueData.ownerUid);
+                                    toast({ title: "UID Copied" });
+                                  }
+                                }}><Copy className="h-3.5 w-3.5" /></Button>
+                             </div>
+                          </div>
+                          <p className="text-[10px] font-bold text-amber-700/60 uppercase leading-relaxed italic">
+                             The Master Identity has bypass permissions for setup tools. Daily operations should use individual email accounts.
+                          </p>
+                       </div>
                     </div>
                   </div>
                 </TabsContent>

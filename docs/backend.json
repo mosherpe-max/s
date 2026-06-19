@@ -8,15 +8,15 @@
       "properties": {
         "venueId": { "type": "string" },
         "name": { "type": "string" },
-        "ownerUid": { "type": "string", "description": "The Firebase Auth UID of the venue manager." },
-        "stripeAccountId": { "type": "string", "description": "The legacy unique ID from Stripe Connect." },
-        "stripeConnectId": { "type": "string", "description": "The verified connected venue account ID." },
-        "platformFeeFixed": { "type": "number", "description": "Koop's flat cut per transaction in cents." },
-        "platformFeePercent": { "type": "number", "description": "Koop's optional percentage cut." },
-        "patronConvenienceFee": { "type": "number", "description": "The fee charged to the patron in cents." },
-        "stripeOnboardingComplete": { "type": "boolean", "description": "Whether the user has completed the Stripe onboarding flow." },
-        "payoutsEnabled": { "type": "boolean", "description": "Manual override to enable payouts for a venue." },
-        "isFoundingPartner": { "type": "boolean", "description": "Identifies early-adopter venues with special platform status." },
+        "ownerUid": { "type": "string", "description": "The Firebase Auth UID of the primary venue manager." },
+        "stripeAccountId": { "type": "string" },
+        "stripeConnectId": { "type": "string" },
+        "platformFeeFixed": { "type": "number" },
+        "platformFeePercent": { "type": "number" },
+        "patronConvenienceFee": { "type": "number" },
+        "stripeOnboardingComplete": { "type": "boolean" },
+        "payoutsEnabled": { "type": "boolean" },
+        "isFoundingPartner": { "type": "boolean" },
         "createdAt": { "type": "string", "format": "date-time" },
         "updatedAt": { "type": "string", "format": "date-time" }
       },
@@ -46,15 +46,9 @@
       "description": "Global configuration settings for the KOOP platform.",
       "properties": {
         "supportEmail": { "type": "string", "format": "email" },
-        "logoUrl": { "type": "string", "description": "The URL or Base64 data of the platform logo." },
-        "defaultThresholds": { 
-          "type": "object", 
-          "description": "System-wide default timing thresholds for service modes."
-        },
-        "mapUpdateSettings": {
-          "type": "object",
-          "description": "Operational settings for map refresh frequency and active tracking stages per service mode."
-        },
+        "logoUrl": { "type": "string" },
+        "defaultThresholds": { "type": "object" },
+        "mapUpdateSettings": { "type": "object" },
         "updatedAt": { "type": "string", "format": "date-time" }
       }
     },
@@ -70,13 +64,15 @@
     "SellerAdminRole": {
       "title": "Seller Admin Role",
       "type": "object",
-      "description": "The specific users table mapping authorized emails to establishment IDs.",
+      "description": "authorized emails mapped to establishment IDs for venue management.",
       "properties": {
+        "userName": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
         "sellerId": { "type": "string" },
         "courseName": { "type": "string" },
         "assignedAt": { "type": "string", "format": "date-time" }
       },
-      "required": ["sellerId"]
+      "required": ["sellerId", "email"]
     },
     "SalesRepRole": {
       "title": "Sales Rep Role",

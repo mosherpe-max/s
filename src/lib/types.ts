@@ -183,3 +183,11 @@ export interface SalesActivity {
 }
 
 export type ProspectStage = Prospect['stage'];
+
+export interface SellerAdminRole {
+  userName: string;
+  email: string;
+  sellerId: string;
+  courseName: string;
+  assignedAt: Timestamp;
+}
