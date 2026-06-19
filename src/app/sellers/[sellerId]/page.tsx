@@ -69,7 +69,8 @@ import {
   SearchCode,
   UserCircle,
   Key,
-  UserPlus
+  UserPlus,
+  Building
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -596,13 +597,18 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     router.push(path);
   };
 
-  const handleUpdateThresholds = async () => {
+  const handleUpdateVenueSettings = async () => {
     if (!firestore || !sellerId) return;
     setIsProcessingSave(true);
     const sellerDocRef = doc(firestore, 'sellers', sellerId);
-    const updateData = { orderThresholds: venueThresholds, updatedAt: serverTimestamp() };
+    const updateData = { 
+      courseName: venueName,
+      taxRate: venueTaxRate,
+      orderThresholds: venueThresholds, 
+      updatedAt: serverTimestamp() 
+    };
     updateDoc(sellerDocRef, updateData).then(() => {
-      toast({ title: "Timing Thresholds Updated" });
+      toast({ title: "Venue Settings Synchronized" });
     }).catch(async (error) => {
       errorEmitter.emit('permission-error', new FirestorePermissionError({
         path: sellerDocRef.path,
@@ -938,6 +944,44 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
 
               {activeNav === 'settings' && (
                 <div className="space-y-10 animate-in fade-in duration-500">
+                  {/* GENERAL IDENTITY SECTION */}
+                  <div className="space-y-6">
+                    <div className="flex items-center gap-3 border-b-2 pb-4">
+                      <div className="p-2 bg-indigo-50 rounded-xl text-indigo-600"><Building className="h-5 w-5" /></div>
+                      <div className="space-y-0.5">
+                        <h3 className="font-headline font-black text-2xl text-[#213147] uppercase leading-tight">General Identity</h3>
+                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Branding and menu presentation</p>
+                      </div>
+                    </div>
+                    
+                    <Card className="border-2 shadow-sm overflow-hidden">
+                      <CardContent className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-2">
+                          <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Public Venue Name</Label>
+                          <Input 
+                            value={venueName}
+                            onChange={(e) => setVenueName(e.target.value)}
+                            placeholder="Oak Ridge Country Club"
+                            className="h-12 border-2 font-bold focus-visible:ring-primary"
+                          />
+                          <p className="text-[8px] font-medium text-muted-foreground italic uppercase">This name will be displayed at the top of all customer menus.</p>
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Tax Rate (%)</Label>
+                          <Input 
+                            type="number"
+                            step="0.01"
+                            value={venueTaxRate}
+                            onChange={(e) => setVenueTaxRate(parseFloat(e.target.value) || 0)}
+                            className="h-12 border-2 font-bold focus-visible:ring-primary"
+                          />
+                          <p className="text-[8px] font-medium text-muted-foreground italic uppercase">Standard sales tax applied at checkout.</p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  {/* OPERATIONAL THRESHOLDS SECTION */}
                   <div className="space-y-6">
                     <div className="flex items-center gap-3 border-b-2 pb-4">
                       <div className="p-2 bg-primary/10 rounded-xl text-primary"><Timer className="h-5 w-5" /></div>
@@ -998,12 +1042,12 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
 
                     <div className="flex justify-end pt-4">
                        <Button 
-                        onClick={handleUpdateThresholds} 
+                        onClick={handleUpdateVenueSettings} 
                         disabled={isProcessingSave} 
                         className="h-14 px-10 bg-[#213147] hover:bg-black font-black uppercase tracking-widest text-xs gap-3 shadow-xl"
                        >
                         {isProcessingSave ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                        Commit Local Protocols
+                        Commit Venue Settings
                        </Button>
                     </div>
                   </div>
