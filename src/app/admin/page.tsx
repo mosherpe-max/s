@@ -70,7 +70,8 @@ import {
   Satellite,
   ShieldAlert,
   Coins,
-  Wand2
+  Wand2,
+  Settings
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -136,7 +137,7 @@ import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/e
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 
 const SYSTEM_DEFAULT_THRESHOLDS = {
   'Beverage Cart': { warning: 10, max: 15 },
@@ -400,6 +401,21 @@ export default function PlatformAdminPage() {
       } satisfies SecurityRuleContext));
     }).finally(() => {
       setIsProcessingSave(false);
+    });
+  };
+
+  const handleUpdateSellerProfile = async (id: string, updates: Partial<Seller>) => {
+    if (!firestore) return;
+    const sellerRef = doc(firestore, 'sellers', id);
+    const updateData = { ...updates, updatedAt: serverTimestamp() };
+    updateDoc(sellerRef, updateData).then(() => {
+      toast({ title: "Operational Profile Updated" });
+    }).catch(async (error) => {
+      errorEmitter.emit('permission-error', new FirestorePermissionError({
+        path: sellerRef.path,
+        operation: 'update',
+        requestResourceData: updateData,
+      } satisfies SecurityRuleContext));
     });
   };
 
@@ -675,7 +691,26 @@ export default function PlatformAdminPage() {
                               <TableCell className="text-[10px] font-medium">{venue.contactName}</TableCell>
                               <TableCell><Badge className={cn(venue.status === 'Active' ? 'bg-green-600' : 'bg-slate-300')}>{venue.status}</Badge></TableCell>
                               <TableCell className="text-right">
-                                <Button variant="outline" size="sm" onClick={() => { setSelectedSeller(venue); setIsVenueDetailOpen(true); }} className="text-[10px] font-black uppercase">Manage</Button>
+                                <div className="flex justify-end gap-2">
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm" 
+                                    onClick={() => { setSelectedSeller(venue); setIsVenueDetailOpen(true); }} 
+                                    className="text-[10px] font-black uppercase gap-1.5 h-8 border-2"
+                                  >
+                                    <Settings className="h-3 w-3" /> Maintain
+                                  </Button>
+                                  <Button 
+                                    variant="ghost" 
+                                    size="sm" 
+                                    asChild
+                                    className="text-[10px] font-black uppercase gap-1.5 h-8"
+                                  >
+                                    <Link href={`/sellers/${venue.id}`}>
+                                      <ExternalLink className="h-3 w-3" /> Launch Terminal
+                                    </Link>
+                                  </Button>
+                                </div>
                               </TableCell>
                             </TableRow>
                           ))}
@@ -956,7 +991,7 @@ export default function PlatformAdminPage() {
                       </CardContent>
                       <CardFooter className="bg-slate-50 border-t p-6">
                         <Button 
-                          onClick={handleUpdateSystemDefaults} 
+                          onClick={SystemDefaults} 
                           disabled={isSavingSystemConfig} 
                           className="w-full h-14 bg-[#213147] hover:bg-black font-black uppercase tracking-widest text-[11px] gap-3 shadow-xl"
                         >
@@ -1080,6 +1115,32 @@ export default function PlatformAdminPage() {
           
           <ScrollArea className="max-h-[75vh]">
             <div className="p-8 space-y-10">
+              {/* SECTION: OPERATIONAL PROFILE */}
+              <div className="space-y-6">
+                <div className="flex items-center gap-3 border-b-2 pb-2">
+                  <ClipboardList className="h-4 w-4 text-primary" />
+                  <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-[#213147]">Operational Profile</h4>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-1.5">
+                    <Label className="text-[10px] font-black uppercase text-muted-foreground">Display Name</Label>
+                    <Input 
+                      value={selectedSeller?.courseName || ''} 
+                      onChange={(e) => handleUpdateSellerProfile(selectedSeller!.id, { courseName: e.target.value })}
+                      className="h-11 border-2 font-bold" 
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-[10px] font-black uppercase text-muted-foreground">Primary Contact Email</Label>
+                    <Input 
+                      value={selectedSeller?.contactEmail || ''} 
+                      onChange={(e) => handleUpdateSellerProfile(selectedSeller!.id, { contactEmail: e.target.value })}
+                      className="h-11 border-2 font-bold" 
+                    />
+                  </div>
+                </div>
+              </div>
+
               {/* SECTION: BUSINESS & PERMISSIONS */}
               <div className="space-y-6">
                 <div className="flex items-center gap-3 border-b-2 pb-2">
