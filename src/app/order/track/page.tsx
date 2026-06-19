@@ -1,4 +1,3 @@
-
 'use client';
 
 import { Suspense, useEffect, useRef, useState, use } from 'react';
@@ -14,7 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { ShoppingBag, MapPin, Loader2, Store, ClipboardList, Satellite, Info, Smartphone, Zap, Edit2, CheckCircle2, ArrowRight, PartyPopper } from 'lucide-react';
+import { ShoppingBag, MapPin, Loader2, Store, ClipboardList, Satellite, Info, Smartphone, Zap, Edit2, CheckCircle2, ArrowRight, PartyPopper, Heart } from 'lucide-react';
 import { getNumericOrderId } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
@@ -208,6 +207,23 @@ function OrderTrackingContent() {
           </div>
         )}
 
+        {/* THANK YOU MESSAGE FROM VENUE */}
+        {!isDelivered && (
+          <div className="bg-white rounded-2xl p-5 border-2 border-slate-100 shadow-sm flex items-center gap-4 animate-in fade-in duration-500">
+            <div className="bg-primary/10 p-2 rounded-xl shrink-0">
+              <Heart className="h-5 w-5 text-primary fill-primary/20" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-headline font-black text-sm uppercase tracking-tight text-[#213147]">
+                Thank you from {seller?.courseName}!
+              </p>
+              <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mt-0.5">
+                We appreciate your order. Our staff is working to fulfill it now.
+              </p>
+            </div>
+          </div>
+        )}
+
         {isBowling && isDelivered && (
           <Card className="bg-[#213147] border-0 shadow-xl overflow-hidden rounded-[2.5rem]">
             <CardContent className="p-8 flex flex-col items-center text-center space-y-6">
@@ -228,7 +244,7 @@ function OrderTrackingContent() {
         )}
 
         <Card className="shadow-lg overflow-hidden">
-          <CardHeader className="py-4 px-6 flex flex-row items-center justify-between border-b bg-muted/20">
+          <CardHeader className="py-3 px-6 flex flex-row items-center justify-between border-b bg-muted/20">
             <div className="flex flex-col">
               <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Order Status</span>
               {isBowling && order.menuTypeLocation && (
@@ -268,7 +284,7 @@ function OrderTrackingContent() {
             </div>
             <Badge variant="outline" className="font-mono text-[9px]">#{getNumericOrderId(order.id)}</Badge>
           </CardHeader>
-          <CardContent className="px-6 py-8">
+          <CardContent className="px-6 py-5">
             <OrderStatus currentStatus={order.status} />
           </CardContent>
         </Card>
