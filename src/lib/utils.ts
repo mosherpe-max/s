@@ -35,6 +35,7 @@ export function getDriverColor(id: string): string {
  * GREEN = Hot (Good)
  * AMBER = Warm (Concern)
  * RED = Cold (Bad)
+ * GRAY = Stale (Lost)
  */
 export function getSignalColor(
   lastActive: Date | null | undefined, 
@@ -49,7 +50,8 @@ export function getSignalColor(
 
   if (secondsElapsed <= t.hot) return '#22c55e'; // green-500
   if (secondsElapsed <= t.warm) return '#f59e0b'; // amber-500
-  return '#ef4444'; // red-500
+  if (secondsElapsed <= t.cold) return '#ef4444'; // red-500
+  return '#94a3b8'; // slate-400 (Stale/Lost)
 }
 
 export function getNumericOrderId(id: string) {

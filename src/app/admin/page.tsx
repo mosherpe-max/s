@@ -136,7 +136,7 @@ import {
 } from "@/components/ui/sheet";
 import { Checkbox } from '@/components/ui/checkbox';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import Link from 'next/link';
+import Link from 'link';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
 import { useForm } from 'react-hook-form';
@@ -1059,6 +1059,7 @@ export default function PlatformAdminPage() {
                               onChange={e => handleGpsFreshnessChange('hot', e.target.value)} 
                               className="h-10 border-2 font-bold focus-visible:ring-green-500 border-green-100"
                             />
+                            <p className="text-[10px] font-bold text-green-600/60 text-center">{"<"} {gpsFreshness.hot}s</p>
                           </div>
                           <div className="space-y-1.5">
                             <Label className="text-[8px] font-black uppercase text-amber-600 tracking-widest flex items-center gap-1">
@@ -1071,6 +1072,7 @@ export default function PlatformAdminPage() {
                               onChange={e => handleGpsFreshnessChange('warm', e.target.value)} 
                               className="h-10 border-2 font-bold focus-visible:ring-amber-500 border-amber-100"
                             />
+                            <p className="text-[10px] font-bold text-amber-600/60 text-center">{"<"} {gpsFreshness.warm}s</p>
                           </div>
                           <div className="space-y-1.5">
                             <Label className="text-[8px] font-black uppercase text-red-600 tracking-widest flex items-center gap-1">
@@ -1083,10 +1085,11 @@ export default function PlatformAdminPage() {
                               onChange={e => handleGpsFreshnessChange('cold', e.target.value)} 
                               className="h-10 border-2 font-bold focus-visible:ring-red-500 border-red-100"
                             />
+                            <p className="text-[10px] font-bold text-red-600/60 text-center">{"<"} {gpsFreshness.cold}s</p>
                           </div>
                         </div>
                         <p className="text-[8px] font-bold text-muted-foreground uppercase leading-relaxed italic">
-                          Defines when location markers shift from Green to Amber to Red to indicate signal age.
+                          Defines when location markers shift from Green to Amber to Red to Gray (Lost) to indicate signal age.
                         </p>
                       </CardContent>
                     </Card>
