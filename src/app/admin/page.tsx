@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
@@ -110,14 +109,14 @@ import {
 } from "@/components/ui/select";
 import { Switch } from '@/components/ui/switch';
 import { useRouter } from 'next/navigation';
-import { useFirestore, useCollection, useMemoFirebase, useFirebase, useAuth, useDoc } from '@/firebase';
+import { useFirestore, useCollection, useMemoFirebase, useFirebase, useAuth, useDoc, useUser } from '@/firebase';
 import { signOut, sendPasswordResetEmail } from 'firebase/auth';
 import { collection, query, limit, doc, setDoc, serverTimestamp, where, orderBy, updateDoc, getDoc, getDocs, writeBatch, Timestamp, deleteDoc } from 'firebase/firestore';
 import { httpsCallable, getFunctions } from 'firebase/functions';
 import type { Seller, PlatformConfig, Order, Venue, SellerType, MapUpdateSettings, SellerAdminRole } from '@/lib/types';
 import { sellerTypes } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
-import { cn, getNumericOrderId } from '@/lib/utils';
+import { cn, getNumericOrderId, SUPER_ADMIN_ID } from '@/lib/utils';
 import { StylizedKoopLogo } from '@/components/header';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { format, isToday, startOfMonth, subDays } from 'date-fns';
@@ -221,6 +220,7 @@ export default function PlatformAdminPage() {
   const { firebaseApp } = useFirebase();
   const firestore = useFirestore();
   const auth = useAuth();
+  const { user, isUserLoading } = useUser();
   const router = useRouter();
   const { toast } = useToast();
   const isMobile = useIsMobile();
@@ -275,29 +275,30 @@ export default function PlatformAdminPage() {
     }
   }, [config]);
 
+  // Ensure queries only execute when a user is authenticated
   const sellersQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
+    if (!firestore || !user) return null;
     return query(collection(firestore, 'sellers'), limit(100));
-  }, [firestore]);
+  }, [firestore, user]);
 
   const ordersQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
+    if (!firestore || !user) return null;
     return query(collection(firestore, 'orders'), limit(500), orderBy('createdAt', 'desc'));
-  }, [firestore]);
+  }, [firestore, user]);
 
   const { data: sellers } = useCollection<Seller>(sellersQuery);
   const { data: orders } = useCollection<Order>(ordersQuery);
 
   const selectedVenueRef = useMemoFirebase(() => {
-    if (!firestore || !selectedSeller?.id) return null;
+    if (!firestore || !selectedSeller?.id || !user) return null;
     return doc(firestore, 'venues', selectedSeller.id);
-  }, [firestore, selectedSeller?.id]);
+  }, [firestore, selectedSeller?.id, user]);
   const { data: selectedVenueData } = useDoc<Venue>(selectedVenueRef);
 
   const venueAdminsQuery = useMemoFirebase(() => {
-    if (!firestore || !selectedSeller?.id) return null;
+    if (!firestore || !selectedSeller?.id || !user) return null;
     return query(collection(firestore, 'roles_seller_admin'), where('sellerId', '==', selectedSeller.id));
-  }, [firestore, selectedSeller?.id]);
+  }, [firestore, selectedSeller?.id, user]);
   const { data: venueAdmins } = useCollection<SellerAdminRole>(venueAdminsQuery);
 
   const selectedVenueOrders = useMemo(() => {
@@ -602,7 +603,24 @@ export default function PlatformAdminPage() {
     );
   };
 
-  if (!isMounted) return null;
+  const isSuperAdmin = user?.uid === SUPER_ADMIN_ID || user?.email === 'mosherpe@gmail.com';
+
+  useEffect(() => {
+    if (!isUserLoading && !user) {
+      router.push('/login');
+    }
+  }, [user, isUserLoading, router]);
+
+  if (isUserLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-[#213147] text-white">
+        <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
+        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40">Securing Session...</p>
+      </div>
+    );
+  }
+
+  if (!user || !isSuperAdmin) return null;
 
   const NAV_ITEMS = [
     { id: "dashboard", label: "Global Overview", icon: LayoutDashboard },
@@ -1433,31 +1451,31 @@ export default function PlatformAdminPage() {
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
                         <div className="space-y-1.5">
                           <Label className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">Patron Conv. Fee (Cents)</Label>
-                          <Input 
+                          <input 
                             type="number" 
                             value={selectedVenueData?.patronConvenienceFee} 
                             onChange={(e) => handleUpdateVenueBusiness(selectedSeller!.id, { patronConvenienceFee: parseInt(e.target.value, 10) || 0 })}
-                            className="h-11 border-2 font-bold" 
+                            className="flex h-11 w-full rounded-md border-2 border-input bg-background px-3 py-2 text-sm font-bold ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50" 
                           />
                           <p className="text-[8px] font-bold text-primary uppercase">Current: ${((selectedVenueData?.patronConvenienceFee || 0) / 100).toFixed(2)}</p>
                         </div>
                         <div className="space-y-1.5">
                           <Label className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">Koop Fixed Fee (Cents)</Label>
-                          <Input 
+                          <input 
                             type="number" 
                             value={selectedVenueData?.platformFeeFixed} 
                             onChange={(e) => handleUpdateVenueBusiness(selectedSeller!.id, { platformFeeFixed: parseInt(e.target.value, 10) || 0 })}
-                            className="h-11 border-2 font-bold" 
+                            className="flex h-11 w-full rounded-md border-2 border-input bg-background px-3 py-2 text-sm font-bold ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50" 
                           />
                           <p className="text-[8px] font-bold text-indigo-600 uppercase">Fixed platform cut</p>
                         </div>
                         <div className="space-y-1.5">
                           <Label className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">Koop variable (%)</Label>
-                          <Input 
+                          <input 
                             type="number" 
                             value={selectedVenueData?.platformFeePercent} 
                             onChange={(e) => handleUpdateVenueBusiness(selectedSeller!.id, { platformFeePercent: parseFloat(e.target.value) || 0 })}
-                            className="h-11 border-2 font-bold" 
+                            className="flex h-11 w-full rounded-md border-2 border-input bg-background px-3 py-2 text-sm font-bold ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50" 
                           />
                           <p className="text-[8px] font-bold text-indigo-600 uppercase">Optional percentage</p>
                         </div>
