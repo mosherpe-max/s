@@ -37,11 +37,12 @@ import { useCart } from '@/lib/cart-context';
 
 /**
  * High-fidelity logo component used across the platform.
+ * Optimized for instant rendering by defaulting to SVG while Firestore data loads.
  */
 export function StylizedKoopLogo({ size = 'md', colorClass = 'text-white' }: { size?: 'sm' | 'md' | 'lg', colorClass?: string }) {
   const firestore = useFirestore();
   const configRef = useMemoFirebase(() => (firestore ? doc(firestore, 'platform', 'config') : null), [firestore]);
-  const { data: config, isLoading } = useDoc<PlatformConfig>(configRef);
+  const { data: config } = useDoc<PlatformConfig>(configRef);
 
   const sizes = {
     sm: { text: 'text-[13px]', svg: 'w-[18px] h-[18px]', img: 'h-5 w-auto', gap: 'gap-0.5' },
@@ -50,10 +51,7 @@ export function StylizedKoopLogo({ size = 'md', colorClass = 'text-white' }: { s
   };
   const s = sizes[size];
 
-  if (isLoading) {
-    return <div className={cn("animate-pulse bg-white/5 rounded-lg", s.img)} style={{ width: size === 'lg' ? '180px' : '80px' }} />;
-  }
-
+  // If a custom platform logo exists in config, render that image
   if (config?.logoUrl) {
     return (
       <div className={cn("flex items-center justify-center select-none", s.img)}>
@@ -66,6 +64,8 @@ export function StylizedKoopLogo({ size = 'md', colorClass = 'text-white' }: { s
     );
   }
 
+  // DEFAULT STATE: Render the signature KOOP SVG instantly (no loading pulse)
+  // This removes the perceived lag during Firestore initialization.
   return (
     <div className={cn("flex items-center font-headline font-black tracking-tighter leading-none select-none uppercase", colorClass, s.text, s.gap)}>
       <span>K</span>
