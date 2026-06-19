@@ -1,10 +1,9 @@
-
 'use client'
 
 import { Truck, User, AlertCircle, Loader2 } from 'lucide-react';
 import { cn, getDriverColor } from '@/lib/utils';
 import { Map, Marker, useMap, useApiIsLoaded, APIProvider } from '@vis.gl/react-google-maps';
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useMemo } from 'react';
 
 interface MapViewProps {
   buyerLocation?: { latitude: number; longitude: number };
@@ -64,9 +63,9 @@ function MapElements({ buyerLocation, sellerLocation, sellers, buyers, drivers, 
     
     if (!hasData) return;
     
-    // Throttle automated fits (max once every 3 seconds) unless explicit or mode change
+    // Throttle automated fits (max once every 5 seconds) to prevent visual bounce
     const now = Date.now();
-    const isThrottled = isAutoFitMode && (now - lastFitTime.current < 3000);
+    const isThrottled = isAutoFitMode && (now - lastFitTime.current < 5000);
     
     const shouldFit = lastZoomMode.current === undefined || isModeChange || isExplicitTrigger || (isAutoFitMode && posChanged && !isThrottled);
     
@@ -163,7 +162,18 @@ function MapElements({ buyerLocation, sellerLocation, sellers, buyers, drivers, 
  */
 function MapInternal({ buyerLocation, sellerLocation, showPrimaryMarker, primaryDriverId, sellers, buyers, drivers, radius, zoomMode, interactive, fitTrigger }: MapViewProps) {
   const apiIsLoaded = useApiIsLoaded();
-  const center = buyerLocation ? { lat: buyerLocation.latitude, lng: buyerLocation.longitude } : (sellerLocation ? { lat: sellerLocation.latitude, lng: sellerLocation.longitude } : { lat: 0, lng: 0 });
+  const center = useMemo(() => 
+    buyerLocation ? { lat: buyerLocation.latitude, lng: buyerLocation.longitude } : (sellerLocation ? { lat: sellerLocation.latitude, lng: sellerLocation.longitude } : { lat: 0, lng: 0 }),
+  [buyerLocation, sellerLocation]);
+
+  const driverIcon = useMemo(() => ({
+    path: "M 0,-15 L 13,-7.5 L 13,7.5 L 0,15 L -13,7.5 L -13,-7.5 Z",
+    fillColor: '#4F46E5', 
+    fillOpacity: 1,
+    strokeWeight: 2,
+    strokeColor: '#FFFFFF',
+    scale: 0.8,
+  }), []);
 
   return (
     <div className="relative w-full h-full bg-[#1a2d44]">
@@ -198,7 +208,7 @@ function MapInternal({ buyerLocation, sellerLocation, showPrimaryMarker, primary
 
         {sellers && sellers.map(s => (
           <Marker 
-            key={`seller-${s.id}-${s.location.latitude}-${s.location.longitude}`} 
+            key={`seller-${s.id}`} 
             position={{ lat: s.location.latitude, lng: s.location.longitude }}
             title={s.name}
           />
@@ -207,7 +217,7 @@ function MapInternal({ buyerLocation, sellerLocation, showPrimaryMarker, primary
         {/* Driver Pins - Unique Hexagonal Shape */}
         {drivers && drivers.map(driver => (
           <Marker 
-            key={`driver-item-${driver.id}-${driver.location.latitude}-${driver.location.longitude}`} 
+            key={`driver-item-${driver.id}`} 
             position={{ lat: driver.location.latitude, lng: driver.location.longitude }}
             title={`${driver.name} (${driver.type})`}
             icon={{
@@ -224,23 +234,16 @@ function MapInternal({ buyerLocation, sellerLocation, showPrimaryMarker, primary
         {/* Seller/Driver Marker in Tracking View - Indigo for clarity */}
         {sellerLocation && sellerLocation.latitude && sellerLocation.latitude !== 0 && (
           <Marker 
-            key={`seller-main-${sellerLocation.latitude}-${sellerLocation.longitude}`}
+            key="primary-seller-marker"
             position={{ lat: sellerLocation.latitude, lng: sellerLocation.longitude }}
             title="Delivery Driver"
-            icon={{
-              path: "M 0,-15 L 13,-7.5 L 13,7.5 L 0,15 L -13,7.5 L -13,-7.5 Z",
-              fillColor: '#4F46E5', 
-              fillOpacity: 1,
-              strokeWeight: 2,
-              strokeColor: '#FFFFFF',
-              scale: 0.8,
-            }}
+            icon={driverIcon}
           />
         )}
 
         {buyerLocation && (
           <Marker 
-            key={`buyer-main-${buyerLocation.latitude}-${buyerLocation.longitude}`}
+            key="primary-buyer-marker"
             position={{ lat: buyerLocation.latitude, lng: buyerLocation.longitude }}
             title="Your Location"
           />
@@ -248,7 +251,7 @@ function MapInternal({ buyerLocation, sellerLocation, showPrimaryMarker, primary
 
         {buyers && buyers.map((buyer, index) => (
           <Marker 
-            key={`buyer-list-${buyer.id}-${buyer.location.latitude}-${buyer.location.longitude}`} 
+            key={`buyer-list-${buyer.id}`} 
             position={{ lat: buyer.location.latitude, lng: buyer.location.longitude }}
             label={{
               text: (index + 1).toString(),

@@ -1,4 +1,3 @@
-
 'use client';
 
 import { collection, query, where, doc, updateDoc, serverTimestamp, setDoc } from 'firebase/firestore';
@@ -8,7 +7,7 @@ import { useEffect, useState, useMemo, useRef, use } from 'react';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { OrderCard } from '@/components/order-card';
-import type { Order, Seller, StaffMember } from '@/lib/types';
+import type { Order, Seller, StaffMember, PlatformConfig } from '@/lib/types';
 import { mockSellerLocation } from '@/lib/data';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -20,6 +19,7 @@ import { isToday } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
+import { calculateDistance } from '@/lib/utils';
 
 type LatLng = {
   latitude: number;
@@ -40,6 +40,7 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
   
   const lastOrderIdsRef = useRef<Set<string>>(new Set());
   const initialLoadRef = useRef(true);
+  const lastBroadcastRef = useRef<{ lat: number; lng: number; time: number } | null>(null);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -52,6 +53,9 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
     return doc(firestore, 'sellers', sellerId);
   }, [firestore, sellerId]);
   const { data: primarySeller, isLoading: isPrimaryLoading } = useDoc<Seller>(primarySellerRef);
+
+  const configRef = useMemoFirebase(() => (firestore ? doc(firestore, 'platform', 'config') : null), [firestore]);
+  const { data: platformConfig } = useDoc<PlatformConfig>(configRef);
 
   const staffQuery = useMemoFirebase(() => {
     if (!firestore || !sellerId) return null;
@@ -135,6 +139,23 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
   const broadcastLocation = (lat: number, lng: number) => {
     if (!firestore || !sellerId || !user) return;
     
+    // THROTTLE & JITTER FILTER: Check distance from last broadcast and time elapsed
+    const nowTime = Date.now();
+    const syncInterval = (platformConfig?.mapUpdateSettings?.['Beverage Cart']?.frequencySeconds || 15) * 1000;
+    
+    if (lastBroadcastRef.current) {
+      const distance = calculateDistance(lat, lng, lastBroadcastRef.current.lat, lastBroadcastRef.current.lng);
+      const timeElapsed = nowTime - lastBroadcastRef.current.time;
+      
+      // Ignore movements < 5 meters unless 1 minute has passed (forced heartbeat)
+      if (distance < 5 && timeElapsed < 60000) return;
+      
+      // Throttle broadcast frequency based on system config (default 15s)
+      if (timeElapsed < syncInterval) return;
+    }
+
+    lastBroadcastRef.current = { lat, lng, time: nowTime };
+    
     // 1. Update individual staff doc (for multi-driver visualization)
     if (currentStaffId) {
       const staffRef = doc(firestore, 'sellers', sellerId, 'staff', currentStaffId);
@@ -166,7 +187,7 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
         broadcastLocation(lat, lng);
       });
     }
-  }, [firestore, sellerId, user, currentStaffId]);
+  }, [firestore, sellerId, user, currentStaffId, platformConfig]);
 
   useEffect(() => {
     if (navigator.geolocation && firestore && sellerId && user) {
@@ -174,7 +195,15 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
         (p) => {
           const lat = p.coords.latitude;
           const lng = p.coords.longitude;
-          setSellerLocation({ latitude: lat, longitude: lng });
+          
+          // ALWAYS update local state immediately for snappy UI feel, but FILTER JITTER
+          setSellerLocation(prev => {
+            if (!prev) return { latitude: lat, longitude: lng };
+            const dist = calculateDistance(lat, lng, prev.latitude, prev.longitude);
+            // Don't update local marker for movements < 1 meter (prevents micro-jitter)
+            return dist > 1 ? { latitude: lat, longitude: lng } : prev;
+          });
+          
           broadcastLocation(lat, lng);
         },
         null,
@@ -182,7 +211,7 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
       );
       return () => navigator.geolocation.clearWatch(watchId);
     }
-  }, [firestore, sellerId, user, currentStaffId]);
+  }, [firestore, sellerId, user, currentStaffId, platformConfig]);
 
   const handleUpdateOrderStatus = (orderId: string, currentStatus: string) => {
     if (!firestore) return;
