@@ -75,7 +75,7 @@ import { Switch } from '@/components/ui/switch';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/form';
 import {
   Select,
   SelectContent,
@@ -118,7 +118,7 @@ import { useRouter } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { StylizedKoopLogo } from '@/components/header';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { MapView } from '@/components/map-view';
@@ -1124,7 +1124,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
               )}
 
               {activeNav === 'staff' && (
-                <div className="space-y-6 animate-in fade-in duration-500"><div className="flex justify-between items-center"><h3 className="font-headline font-black text-lg text-[#213147] uppercase">Personnel Registry</h3><Button onClick={() => { setEditingStaff(null); staffForm.reset(); setIsStaffFormOpen(true); }} className="bg-[#213147] font-black uppercase text-[10px] h-10 tracking-widest px-4 sm:px-6 shadow-lg">Add New Personnel</Button></div><Card className="border-2 shadow-sm overflow-hidden"><div className="overflow-x-auto"><Table><TableHeader className="bg-slate-50 border-b"><TableRow><TableHead className="text-[10px] font-black uppercase">Name</TableHead><TableHead className="text-[10px] font-black uppercase">Role</TableHead><TableHead className="text-[10px] font-black uppercase">PIN</TableHead><TableHead className="text-right text-[10px] font-black uppercase">Actions</TableHead></TableRow></TableHeader><TableBody>{staff?.map(s => (<TableRow key={s.id}><TableCell className="font-bold text-xs uppercase text-[#213147]">{s.name}</TableCell><TableCell><Badge variant="secondary" className="text-[9px] font-black uppercase">{s.role}</Badge></TableCell><TableCell><code className="text-xs font-mono font-black text-primary">{s.pin}</code></TableCell><TableCell className="text-right"><Button variant="ghost" size="icon" className="h-8 w-8 text-primary" onClick={() => { setEditingStaff(s); staffForm.reset(s); setIsStaffFormOpen(true); }}><Edit className="h-4 w-4" /></Button><Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => {
+                <div className="space-y-6 animate-in fade-in duration-500"><div className="flex justify-between items-center"><h3 className="font-headline font-black text-lg text-[#213147] uppercase">Personnel Registry</h3><Button onClick={() => { setEditingStaff(null); staffForm.reset(); setIsStaffFormOpen(true); }} className="bg-[#213147] font-black uppercase text-[10px] h-10 tracking-widest px-4 sm:px-6 shadow-lg">Add New Personnel</Button></div><Card className="border-2 shadow-sm overflow-hidden"><div className="overflow-x-auto no-scrollbar"><Table className="min-w-[600px]"><TableHeader className="bg-slate-50 border-b"><TableRow><TableHead className="text-[10px] font-black uppercase">Name</TableHead><TableHead className="text-[10px] font-black uppercase">Role</TableHead><TableHead className="text-[10px] font-black uppercase">PIN</TableHead><TableHead className="text-right text-[10px] font-black uppercase">Actions</TableHead></TableRow></TableHeader><TableBody>{staff?.map(s => (<TableRow key={s.id}><TableCell className="font-bold text-xs uppercase text-[#213147]">{s.name}</TableCell><TableCell><Badge variant="secondary" className="text-[9px] font-black uppercase">{s.role}</Badge></TableCell><TableCell><code className="text-xs font-mono font-black text-primary">{s.pin}</code></TableCell><TableCell className="text-right"><Button variant="ghost" size="icon" className="h-8 w-8 text-primary" onClick={() => { setEditingStaff(s); staffForm.reset(s); setIsStaffFormOpen(true); }}><Edit className="h-4 w-4" /></Button><Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => {
                       const staffRef = doc(firestore!, 'sellers', sellerId, 'staff', s.id);
                       deleteDoc(staffRef).catch(async (error) => {
                         errorEmitter.emit('permission-error', new FirestorePermissionError({
@@ -1146,15 +1146,15 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
               {activeNav === 'analytics' && (
                 <div className="space-y-12 animate-in fade-in duration-500">
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    <Card className="border-2 shadow-sm">
+                    <Card className="border-2 shadow-sm overflow-hidden">
                       <CardHeader className="bg-slate-50/50 border-b flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                         <div className="space-y-0.5">
                           <CardTitle className="text-xs font-black uppercase tracking-widest text-[#213147]">Revenue Distribution</CardTitle>
                           <CardDescription className="text-[8px] font-bold uppercase">Stacked performance by mode</CardDescription>
                         </div>
-                        <div className="flex bg-slate-100 p-0.5 rounded-lg border-2">
+                        <div className="flex bg-slate-100 p-0.5 rounded-lg border-2 overflow-x-auto no-scrollbar">
                           {['Today', 'MTD', 'YTD'].map((r) => (
-                            <button key={r} onClick={() => setAnalyticsRange(r as any)} className={cn("px-3 py-1 text-[8px] font-black uppercase tracking-tighter rounded-md transition-all", analyticsRange === r ? "bg-white text-[#213147] shadow-sm" : "text-slate-400 hover:text-slate-600")}>{r}</button>
+                            <button key={r} onClick={() => setAnalyticsRange(r as any)} className={cn("px-3 py-1 text-[8px] font-black uppercase tracking-tighter rounded-md transition-all whitespace-nowrap", analyticsRange === r ? "bg-white text-[#213147] shadow-sm" : "text-slate-400 hover:text-slate-600")}>{r}</button>
                           ))}
                         </div>
                       </CardHeader>
@@ -1162,10 +1162,10 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                         <ResponsiveContainer width="100%" height="100%">
                           <BarChart data={analyticsData.chartData}>
                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
-                            <XAxis dataKey="time" axisLine={false} tickLine={false} fontSize={10} fontWeight="bold" />
-                            <YAxis axisLine={false} tickLine={false} fontSize={10} fontWeight="bold" />
+                            <XAxis dataKey="time" axisLine={false} tickLine={false} fontSize={10} fontWeights="bold" />
+                            <YAxis axisLine={false} tickLine={false} fontSize={10} fontWeights="bold" />
                             <ChartTooltip cursor={{ fill: 'transparent' }} contentStyle={{ fontSize: '10px', borderRadius: '12px', border: '2px solid #E2E8F0' }} />
-                            <Legend verticalAlign="top" align="right" iconType="circle" wrapperStyle={{ fontSize: '9px', fontWeight: 'bold', textTransform: 'uppercase' }} />
+                            <Legend verticalAlign="top" align="right" iconType="circle" wrapperStyle={{ fontSize: '9px', fontWeights: 'bold', textTransform: 'uppercase' }} />
                             {seller?.menuTypes?.map(mode => (
                               <Bar 
                                 key={mode} 
@@ -1180,7 +1180,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                                   const count = entry[`${mode}_count`] || 0;
                                   let labelText = analyticsRange === 'YTD' ? `$${(count > 0 ? (value / count).toFixed(0) : '0')}` : count.toString(); 
                                   return (
-                                    <text x={x + width / 2} y={y + height / 2} fill="#FFFFFF" textAnchor="middle" dominantBaseline="middle" fontSize={height < 20 ? 7 : 8} fontWeight="900" className="pointer-events-none drop-shadow-sm">
+                                    <text x={x + width / 2} y={y + height / 2} fill="#FFFFFF" textAnchor="middle" dominantBaseline="middle" fontSize={height < 20 ? 7 : 8} fontWeights="900" className="pointer-events-none drop-shadow-sm">
                                       {labelText}
                                     </text>
                                   ); 
@@ -1286,8 +1286,8 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                       </Button>
                     </div>
                     <Card className="border-2 shadow-sm overflow-hidden">
-                      <div className="overflow-x-auto">
-                        <Table>
+                      <div className="overflow-x-auto no-scrollbar">
+                        <Table className="min-w-[900px]">
                           <TableHeader className="bg-slate-50 border-b">
                             <TableRow>
                               <TableHead className="text-[9px] font-black uppercase tracking-widest">Order ID</TableHead>
@@ -1331,6 +1331,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                 <div className="space-y-10 animate-in fade-in duration-500"><h3 className="font-headline font-black text-lg text-[#213147] uppercase">Marketing</h3><Card className="max-w-md border-2 text-center p-6 sm:p-8 bg-slate-50 relative overflow-hidden"><div className="absolute top-0 left-0 w-full h-1 bg-primary" /><div className="bg-white p-4 rounded-[2rem] shadow-2xl border-4 border-white mb-6 inline-block"><img src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(`${window.location.origin}/sellers/${sellerId}/order`)}`} className="w-40 h-40" alt="" /></div><h3 className="font-headline font-black text-sm uppercase tracking-tight mb-4">Master Order QR</h3><div className="grid gap-2"><Button variant="outline" className="h-11 text-[9px] font-black uppercase tracking-widest border-2 gap-2"><Download className="h-4 w-4" /> Download PNG</Button><Button variant="ghost" className="h-11 text-[9px] font-black uppercase tracking-widest gap-2"><Smartphone className="h-4 w-4" /> View Sample Signs</Button></div></Card></div>
               )}
             </div>
+            <ScrollBar orientation="horizontal" />
           </ScrollArea>
         </main>
         <aside className={cn("bg-[#213147] hidden md:flex flex-col transition-all duration-300 relative border-l-4 border-primary/20 shrink-0 shadow-2xl z-20", sidebarOpen ? "w-64" : "w-20")}><SideBarContent /></aside>

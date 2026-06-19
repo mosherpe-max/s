@@ -117,7 +117,7 @@ import { sellerTypes } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { StylizedKoopLogo } from '@/components/header';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { format, isToday, startOfMonth, subDays } from 'date-fns';
 import Image from 'next/image';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -137,7 +137,7 @@ import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/e
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/form';
 
 const SYSTEM_DEFAULT_THRESHOLDS = {
   'Beverage Cart': { warning: 10, max: 15 },
@@ -662,8 +662,8 @@ export default function PlatformAdminPage() {
                   </div>
                   
                   <div className="border-2 rounded-2xl overflow-hidden bg-white shadow-sm">
-                    <div className="overflow-x-auto">
-                      <Table>
+                    <div className="overflow-x-auto no-scrollbar">
+                      <Table className="min-w-[800px]">
                         <TableHeader className="bg-slate-50 border-b">
                           <TableRow>
                             <TableHead className="text-[10px] font-black uppercase">Establishment</TableHead>
@@ -991,7 +991,7 @@ export default function PlatformAdminPage() {
                       </CardContent>
                       <CardFooter className="bg-slate-50 border-t p-6">
                         <Button 
-                          onClick={SystemDefaults} 
+                          onClick={handleUpdateSystemDefaults} 
                           disabled={isSavingSystemConfig} 
                           className="w-full h-14 bg-[#213147] hover:bg-black font-black uppercase tracking-widest text-[11px] gap-3 shadow-xl"
                         >
@@ -1004,6 +1004,7 @@ export default function PlatformAdminPage() {
                 </div>
               )}
             </div>
+            <ScrollBar orientation="horizontal" />
           </ScrollArea>
         </main>
 
