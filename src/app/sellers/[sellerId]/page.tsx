@@ -70,7 +70,8 @@ import {
   UserCircle,
   Key,
   UserPlus,
-  Building
+  Building,
+  Printer
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -325,6 +326,25 @@ function KPICard({ label, value, sub, icon: Icon, colorClass, highlight = false 
   );
 }
 
+function CollateralCard({ title, description, icon: Icon }: { title: string, description: string, icon: any }) {
+  return (
+    <Card className="border-2 shadow-sm group hover:border-primary/30 transition-all cursor-pointer bg-white">
+      <CardContent className="p-4 flex items-center gap-4">
+        <div className="bg-slate-50 group-hover:bg-primary/10 p-3 rounded-xl transition-colors">
+          <Icon className="h-6 w-6 text-slate-300 group-hover:text-primary transition-colors" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="font-black text-xs uppercase text-[#213147] truncate leading-tight">{title}</p>
+          <p className="text-[9px] font-bold text-muted-foreground uppercase leading-tight mt-1">{description}</p>
+        </div>
+        <div className="opacity-40 group-hover:opacity-100 transition-opacity shrink-0">
+          <Badge variant="outline" className="text-[7px] font-black uppercase tracking-tighter h-4 border-slate-200">Soon</Badge>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 // --- SCHEMAS ---
 
 const staffSchema = z.object({
@@ -375,15 +395,8 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   const [editingStaff, setEditingStaff] = useState<StaffMember | null>(null);
   const [isItemFormOpen, setIsItemFormOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
-  const [isVerifyingStripe, setIsVerifyingStripe] = useState(false);
-  const [verificationResult, setVerificationResult] = useState<any>(null);
   const [isProcessingSave, setIsProcessingSave] = useState(false);
   const [configMode, setConfigMode] = useState<string>('Beverage Cart');
-
-  // Analytics Detailed Filter State
-  const [reportStartDate, setReportStartDate] = useState<string>(format(subHours(new Date(), 24), 'yyyy-MM-dd'));
-  const [reportEndDate, setReportEndDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
-  const [reportModeFilter, setReportModeFilter] = useState<string>('All');
 
   // Settings State
   const [venueThresholds, setVenueThresholds] = useState<Record<string, { warning: number; max: number }>>({});
@@ -431,24 +444,14 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     }
   }, [seller]);
 
-  const staffForm = useForm<StaffFormData>({
-    resolver: zodResolver(staffSchema),
-    defaultValues: { name: '', role: 'Staff', pin: '', isActive: true }
-  });
-
-  const itemForm = useForm<ItemFormData>({
-    resolver: zodResolver(itemSchema),
-    defaultValues: { name: '', price: 0, category: 'Snacks', availableOn: [], featuredOn: [], isAvailable: true }
-  });
-
   const stats = useMemo(() => {
     if (!orders) return null;
     const filteredOrders = dashboardFilter === 'All' ? orders : orders.filter(o => o.menuType === dashboardFilter);
     const today = filteredOrders.filter(o => o.createdAt && typeof o.createdAt.toDate === 'function' && isToday(o.createdAt.toDate()));
     const revenue = today.reduce((acc, o) => acc + (o.total || 0), 0);
-    const fees = today.reduce((acc, o) => acc + (o.serviceFee || 0), 0);
+    const avg = today.length > 0 ? (revenue / today.length).toFixed(2) : '0.00';
     const overdueCount = filteredOrders.filter(o => o.status !== 'Delivered' && o.status !== 'Cancelled' && o.createdAt && typeof o.createdAt.toDate === 'function' && differenceInMinutes(new Date(), o.createdAt.toDate()) >= (seller?.orderThresholds?.[o.menuType]?.max || DEFAULT_THRESHOLDS[o.menuType]?.max || 20)).length;
-    return { revenue: revenue.toFixed(2), fees: fees.toFixed(2), active: filteredOrders.filter(o => o.status !== 'Delivered' && o.status !== 'Cancelled').length, volume: today.length, avg: today.length > 0 ? (revenue / today.length).toFixed(2) : '0.00', overdue: overdueCount };
+    return { revenue: revenue.toFixed(2), active: filteredOrders.filter(o => o.status !== 'Delivered' && o.status !== 'Cancelled').length, volume: today.length, avg, overdue: overdueCount };
   }, [orders, dashboardFilter, seller]);
 
   const analyticsData = useMemo(() => {
@@ -464,7 +467,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
         modes.forEach(mode => {
           const matching = orders.filter(o => o.menuType === mode && o.createdAt && typeof o.createdAt.toDate === 'function' && isSameHour(o.createdAt.toDate(), hour) && isSameDay(o.createdAt.toDate(), now));
           entry[mode] = Math.round(matching.reduce((sum, o) => sum + o.total, 0));
-          entry[`${mode}_count`] = matching.length;
         });
         return entry;
       });
@@ -475,7 +477,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
         modes.forEach(mode => {
           const matching = orders.filter(o => o.menuType === mode && o.createdAt && typeof o.createdAt.toDate === 'function' && isSameDay(o.createdAt.toDate(), day));
           entry[mode] = Math.round(matching.reduce((sum, o) => sum + o.total, 0));
-          entry[`${mode}_count`] = matching.length;
         });
         return entry;
       });
@@ -487,7 +488,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
         modes.forEach(mode => {
           const matching = orders.filter(o => o.menuType === mode && o.createdAt && typeof o.createdAt.toDate === 'function' && isSameMonth(o.createdAt.toDate(), month) && isSameYear(o.createdAt.toDate(), now));
           entry[mode] = Math.round(matching.reduce((sum, o) => sum + o.total, 0));
-          entry[`${mode}_count`] = matching.length;
         });
         return entry;
       });
@@ -495,36 +495,10 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     return { chartData };
   }, [orders, seller, analyticsRange]);
 
-  const pieChartData = useMemo(() => {
-    if (!orders || !seller) return [];
-    const filteredOrders = pieMonthFilter === 'All' ? orders : orders.filter(o => o.createdAt && typeof o.createdAt.toDate === 'function' && format(o.createdAt.toDate(), 'MMMM yyyy') === pieMonthFilter);
-    return (seller.menuTypes || []).map(mode => {
-      const modeOrders = filteredOrders.filter(o => o.menuType === mode);
-      const revenue = modeOrders.reduce((sum, o) => sum + o.total, 0);
-      return { name: mode, value: revenue, count: modeOrders.length, avg: modeOrders.length > 0 ? (revenue / modeOrders.length) : 0 };
-    }).filter(d => d.count > 0);
-  }, [orders, seller, pieMonthFilter]);
-
-  const availableMonths = useMemo(() => {
-    if (!orders) return [];
-    const months = new Set<string>();
-    orders.forEach(o => { if (o.createdAt && typeof o.createdAt.toDate === 'function') months.add(format(o.createdAt.toDate(), 'MMMM yyyy')); });
-    return Array.from(months).sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
-  }, [orders]);
-
-  const detailedReportOrders = useMemo(() => {
-    if (!orders) return [];
-    let filtered = orders;
-    if (reportModeFilter !== 'All') filtered = filtered.filter(o => o.menuType === reportModeFilter);
-    const start = startOfDay(new Date(reportStartDate)), end = endOfDay(new Date(reportEndDate));
-    filtered = filtered.filter(o => o.createdAt && typeof o.createdAt.toDate === 'function' && isWithinInterval(o.createdAt.toDate(), { start, end }));
-    return [...filtered].sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
-  }, [orders, reportStartDate, reportEndDate, reportModeFilter]);
-
-  const detailedReportStats = useMemo(() => ({ 
-    revenue: detailedReportOrders.reduce((acc, o) => acc + (o.total || 0), 0), 
-    volume: detailedReportOrders.length 
-  }), [detailedReportOrders]);
+  const staffForm = useForm<StaffFormData>({
+    resolver: zodResolver(staffSchema),
+    defaultValues: { name: '', role: 'Staff', pin: '', isActive: true }
+  });
 
   const handleSaveStaff = async (data: StaffFormData) => {
     if (!firestore || !sellerId) return;
@@ -558,11 +532,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
       const sellerDocRef = doc(firestore, 'sellers', sellerId);
       const updateData = { [field]: !current };
       updateDoc(sellerDocRef, updateData).catch(async (error) => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-          path: sellerDocRef.path,
-          operation: 'update',
-          requestResourceData: updateData,
-        } satisfies SecurityRuleContext));
+        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: sellerDocRef.path, operation: 'update', requestResourceData: updateData } satisfies SecurityRuleContext));
       });
     }
   };
@@ -580,23 +550,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     }
   };
 
-  const handleImpersonate = (mode: string) => {
-    let path = '';
-    switch (mode) {
-      case 'Beverage Cart': path = `/sellers/${sellerId}/bevcart`; break;
-      case 'Clubhouse': path = `/sellers/${sellerId}/clubhouse`; break;
-      case 'Lane Delivery': path = `/sellers/${sellerId}/laneside`; break;
-      case 'Take Out': path = `/sellers/${sellerId}/clubhouse`; break;
-      default: return;
-    }
-    localStorage.setItem('koop_staff_id', 'admin-impersonate');
-    localStorage.setItem('koop_staff_name', `Admin: ${seller?.courseName}`);
-    localStorage.setItem('koop_staff_role', mode);
-    localStorage.setItem('koop_venue_id', sellerId);
-    toast({ title: `Entering ${mode} View` });
-    router.push(path);
-  };
-
   const handleUpdateVenueSettings = async () => {
     if (!firestore || !sellerId) return;
     setIsProcessingSave(true);
@@ -610,11 +563,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     updateDoc(sellerDocRef, updateData).then(() => {
       toast({ title: "Venue Settings Synchronized" });
     }).catch(async (error) => {
-      errorEmitter.emit('permission-error', new FirestorePermissionError({
-        path: sellerDocRef.path,
-        operation: 'update',
-        requestResourceData: updateData,
-      } satisfies SecurityRuleContext));
+      errorEmitter.emit('permission-error', new FirestorePermissionError({ path: sellerDocRef.path, operation: 'update', requestResourceData: updateData } satisfies SecurityRuleContext));
     }).finally(() => setIsProcessingSave(false));
   };
 
@@ -624,8 +573,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     { id: "menu", label: "Menu Items", icon: UtensilsCrossed },
     { id: "service", label: "Service Modes", icon: Zap },
     { id: "staff", label: "Staff", icon: Users },
-    { id: "payments", label: "Payments", icon: DollarSign },
-    { id: "stripe", label: "Stripe Settings", icon: ShieldCheck },
     { id: "analytics", label: "Analytics", icon: BarChart3 },
     { id: "settings", label: "Settings", icon: SettingsIcon },
     { id: "marketing", label: "Marketing", icon: Smartphone },
@@ -635,7 +582,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     const showLabels = forceLabels || sidebarOpen;
     return (
       <div className="flex flex-col h-full bg-[#213147] overflow-hidden">
-        <div className="p-6 border-b border-white/5 space-y-4 shrink-0">
+        <div className="p-6 border-b border-white/5 flex items-center justify-between shrink-0">
           <StylizedKoopLogo size={showLabels ? "md" : "sm"} />
         </div>
         <nav className="flex-1 p-3 space-y-1 overflow-y-auto no-scrollbar min-h-0">
@@ -773,20 +720,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                             <ChartTooltip cursor={{ fill: 'transparent' }} contentStyle={{ fontSize: '10px', borderRadius: '12px', border: '2px solid #E2E8F0' }} />
                             <Legend verticalAlign="top" align="right" iconType="circle" wrapperStyle={{ fontSize: '9px', fontWeight: 'bold', textTransform: 'uppercase' }} />
                             {seller?.menuTypes?.map(mode => (
-                              <Bar 
-                                key={mode} 
-                                dataKey={mode} 
-                                stackId="a" 
-                                fill={MODE_COLORS[mode] || '#64748B'} 
-                                radius={[0, 0, 0, 0]} 
-                                label={(props: any) => { 
-                                  const { x, y, width, height, value, index } = props; 
-                                  if (value <= 0 || height < 15) return null; 
-                                  const entry = analyticsData.chartData[index]; 
-                                  let labelText = analyticsRange === 'YTD' ? `$${(entry[`${mode}_count`] > 0 ? (value / entry[`${mode}_count`]).toFixed(0) : '0')}` : (entry[`${mode}_count`] || 0).toString(); 
-                                  return (<text x={x + width / 2} y={y + height / 2} fill="#FFFFFF" textAnchor="middle" dominantBaseline="middle" fontSize={height < 20 ? 7 : 8} fontWeight="900" className="pointer-events-none drop-shadow-sm">{labelText}</text>); 
-                                }} 
-                              />
+                              <Bar key={mode} dataKey={mode} stackId="a" fill={MODE_COLORS[mode] || '#64748B'} />
                             ))}
                           </BarChart>
                         </ResponsiveContainer>
@@ -807,77 +741,12 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                                 <div className={cn("w-1.5 h-1.5 rounded-full animate-pulse", isActive ? "bg-green-500" : "bg-slate-300")} />
                                 <span className="text-[10px] font-black uppercase text-[#213147]">{mode}</span>
                               </div>
-                              <div className="flex items-center gap-3">
-                                {isActive && (
-                                  <button onClick={() => handleImpersonate(mode)} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-primary transition-all"><UserCircle className="h-4 w-4" /></button>
-                                )}
-                                <Switch checked={isActive} onCheckedChange={() => handleToggleMode(mode, !!isActive)} className="data-[state=checked]:bg-primary" />
-                              </div>
+                              <Switch checked={isActive} onCheckedChange={() => handleToggleMode(mode, !!isActive)} className="data-[state=checked]:bg-primary" />
                             </div>
                           );
                         })}
                       </CardContent>
                     </Card>
-                  </div>
-                </div>
-              )}
-
-              {activeNav === 'staff' && (
-                <div className="space-y-6 animate-in fade-in duration-500">
-                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                    <div className="space-y-1">
-                      <h3 className="font-headline font-black text-2xl text-[#213147] uppercase leading-tight">Manage Personnel</h3>
-                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Shift management & access tokens</p>
-                    </div>
-                    <Button onClick={() => { setEditingStaff(null); staffForm.reset(); setIsStaffFormOpen(true); }} className="bg-primary hover:bg-primary/90 h-12 px-6 rounded-xl font-black uppercase text-[11px] tracking-widest gap-2 shadow-xl shadow-primary/20">
-                      <UserPlus className="h-4 w-4" /> Provision New Identity
-                    </Button>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {staff?.length === 0 ? (
-                      <div className="col-span-full py-20 text-center bg-white border-2 border-dashed rounded-3xl">
-                        <Users className="h-12 w-12 text-slate-200 mx-auto mb-4" />
-                        <p className="text-[11px] font-black uppercase text-slate-400">No authorized personnel found</p>
-                      </div>
-                    ) : (
-                      staff?.map((s) => (
-                        <Card key={s.id} className={cn("border-2 shadow-sm group transition-all", s.isActive ? "bg-white" : "bg-slate-50 border-slate-100 opacity-60")}>
-                          <CardHeader className="p-4 border-b flex flex-row items-center justify-between space-y-0">
-                            <div className="flex items-center gap-3">
-                              <div className={cn("p-2 rounded-lg", s.isActive ? "bg-indigo-50 text-indigo-600" : "bg-slate-200 text-slate-400")}>
-                                <UserCircle className="h-5 w-5" />
-                              </div>
-                              <div className="min-w-0">
-                                <p className="font-black text-xs uppercase text-[#213147] truncate">{s.name}</p>
-                                <Badge variant="secondary" className="h-4 px-1 text-[8px] font-black uppercase mt-0.5">{s.role}</Badge>
-                              </div>
-                            </div>
-                            <Switch checked={s.isActive} onCheckedChange={(isActive) => {
-                              const staffRef = doc(firestore!, 'sellers', sellerId, 'staff', s.id);
-                              updateDoc(staffRef, { isActive }).catch(async (error) => {
-                                errorEmitter.emit('permission-error', new FirestorePermissionError({ path: staffRef.path, operation: 'update', requestResourceData: { isActive } } satisfies SecurityRuleContext));
-                              });
-                            }} className="data-[state=checked]:bg-green-600 scale-75" />
-                          </CardHeader>
-                          <CardContent className="p-4 flex items-center justify-between">
-                            <div className="flex flex-col gap-1">
-                               <span className="text-[8px] font-black uppercase text-muted-foreground tracking-widest">Access Key</span>
-                               <div className="flex items-center gap-2">
-                                  <div className="flex gap-1">
-                                     {[...Array(4)].map((_, i) => <div key={i} className="w-1.5 h-1.5 rounded-full bg-slate-200" />)}
-                                  </div>
-                                  <span className="font-mono text-[10px] font-bold text-[#213147] group-hover:block hidden">{s.pin}</span>
-                               </div>
-                            </div>
-                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <Button variant="ghost" size="icon" className="h-8 w-8 text-indigo-600" onClick={() => { setEditingStaff(s); staffForm.reset(s); setIsStaffFormOpen(true); }}><Edit className="h-4 w-4" /></Button>
-                              <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleDeleteStaff(s.id)}><Trash2 className="h-4 w-4" /></Button>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      ))
-                    )}
                   </div>
                 </div>
               )}
@@ -918,23 +787,12 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                                     </Badge>
                                   </TableCell>
                                   <TableCell className="text-right">
-                                    <Button 
-                                      variant="outline" 
-                                      size="sm" 
-                                      className="h-8 text-[9px] font-black uppercase border-2 gap-1.5"
-                                      onClick={() => handleUpdateStatus(o.id, o.status)}
-                                      disabled={o.status === 'Delivered' || o.status === 'Cancelled'}
-                                    >
+                                    <Button variant="outline" size="sm" className="h-8 text-[9px] font-black uppercase border-2 gap-1.5" onClick={() => handleUpdateStatus(o.id, o.status)} disabled={o.status === 'Delivered' || o.status === 'Cancelled'}>
                                       Advance <ChevronRight className="h-3 w-3" />
                                     </Button>
                                   </TableCell>
                                 </TableRow>
                               ))}
-                              {(!orders || orders.length === 0) && (
-                                <TableRow>
-                                  <TableCell colSpan={7} className="h-32 text-center text-[10px] font-bold text-muted-foreground uppercase">No transaction activity recorded</TableCell>
-                                </TableRow>
-                              )}
                             </TableBody>
                           </Table>
                        </div>
@@ -942,9 +800,126 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                  </div>
               )}
 
+              {activeNav === 'staff' && (
+                <div className="space-y-6 animate-in fade-in duration-500">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                    <div className="space-y-1">
+                      <h3 className="font-headline font-black text-2xl text-[#213147] uppercase leading-tight">Manage Personnel</h3>
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Shift management & access tokens</p>
+                    </div>
+                    <Button onClick={() => { setEditingStaff(null); staffForm.reset(); setIsStaffFormOpen(true); }} className="bg-primary hover:bg-primary/90 h-12 px-6 rounded-xl font-black uppercase text-[11px] tracking-widest gap-2 shadow-xl shadow-primary/20">
+                      <UserPlus className="h-4 w-4" /> Provision New Identity
+                    </Button>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {staff?.map((s) => (
+                      <Card key={s.id} className={cn("border-2 shadow-sm group transition-all", s.isActive ? "bg-white" : "bg-slate-50 border-slate-100 opacity-60")}>
+                        <CardHeader className="p-4 border-b flex flex-row items-center justify-between space-y-0">
+                          <div className="flex items-center gap-3">
+                            <div className={cn("p-2 rounded-lg", s.isActive ? "bg-indigo-50 text-indigo-600" : "bg-slate-200 text-slate-400")}>
+                              <UserCircle className="h-5 w-5" />
+                            </div>
+                            <div className="min-w-0">
+                              <p className="font-black text-xs uppercase text-[#213147] truncate">{s.name}</p>
+                              <Badge variant="secondary" className="h-4 px-1 text-[8px] font-black uppercase mt-0.5">{s.role}</Badge>
+                            </div>
+                          </div>
+                        </CardHeader>
+                        <CardContent className="p-4 flex items-center justify-between">
+                          <div className="flex flex-col gap-1">
+                             <span className="text-[8px] font-black uppercase text-muted-foreground tracking-widest">Access Key</span>
+                             <span className="font-mono text-[10px] font-bold text-[#213147]">{s.pin}</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-indigo-600" onClick={() => { setEditingStaff(s); staffForm.reset(s); setIsStaffFormOpen(true); }}><Edit className="h-4 w-4" /></Button>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleDeleteStaff(s.id)}><Trash2 className="h-4 w-4" /></Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {activeNav === 'marketing' && (
+                <div className="space-y-10 animate-in fade-in duration-500">
+                  <div className="space-y-1">
+                    <h3 className="font-headline font-black text-2xl text-[#213147] uppercase leading-tight">Branding & Collateral</h3>
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Promotion assets for your establishment</p>
+                  </div>
+
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    {/* SECTION 1: MASTER QR CODE */}
+                    <Card className="lg:col-span-1 border-2 shadow-sm overflow-hidden h-fit">
+                      <CardHeader className="bg-slate-50/50 border-b">
+                        <CardTitle className="text-xs font-black uppercase tracking-widest text-[#213147]">Venue QR Code</CardTitle>
+                        <CardDescription className="text-[8px] font-bold uppercase">Direct link to your digital menu</CardDescription>
+                      </CardHeader>
+                      <CardContent className="p-8 flex flex-col items-center justify-center space-y-6">
+                        <div className="bg-white p-4 rounded-[2rem] shadow-xl border-2">
+                          <img
+                            src={`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(`${typeof window !== 'undefined' ? window.location.origin : ''}/sellers/${sellerId}/order`)}`}
+                            alt="Venue QR"
+                            width={200}
+                            height={200}
+                            className="rounded-xl w-48 h-48"
+                          />
+                        </div>
+                        <div className="text-center space-y-3 w-full">
+                          <code className="text-[9px] font-mono bg-muted p-2 rounded block truncate border-2 border-dashed">
+                            {typeof window !== 'undefined' ? `${window.location.origin}/sellers/${sellerId}/order` : 'Loading...'}
+                          </code>
+                          <Button
+                            onClick={() => {
+                              const url = `https://api.qrserver.com/v1/create-qr-code/?size=1000x1000&data=${encodeURIComponent(`${window.location.origin}/sellers/${sellerId}/order`)}`;
+                              window.open(url, '_blank');
+                            }}
+                            className="w-full h-11 bg-[#213147] hover:bg-black font-black uppercase text-[10px] tracking-widest gap-2 shadow-lg"
+                          >
+                            <Download className="h-4 w-4" /> Download Digital Copy
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    {/* SECTION 2: COLLATERAL TEMPLATES */}
+                    <div className="lg:col-span-2 space-y-8">
+                      <div className="flex items-center gap-3 border-b-2 pb-4">
+                        <div className="p-2 bg-primary/10 rounded-xl text-primary"><Printer className="h-5 w-5" /></div>
+                        <div className="space-y-0.5">
+                           <h4 className="font-headline font-black text-lg text-[#213147] uppercase leading-tight">Print Collateral</h4>
+                           <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Establishment-specific signage templates</p>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {seller?.type?.toLowerCase().includes('golf') ? (
+                          <>
+                            <CollateralCard title="Golf Cart Card" description="4x6 double-sided card for cart steering wheels" icon={Smartphone} />
+                            <CollateralCard title="Cart Sticker" description="3x3 vinyl decal for dash or windshield mounting" icon={LucideImage} />
+                            <CollateralCard title="Golf Course Sign" description="18x24 coroplast for tee boxes and practice range" icon={MapIcon} />
+                            <CollateralCard title="Clubhouse Poster" description="11x17 high-impact poster for pro-shop entrance" icon={FileText} />
+                          </>
+                        ) : seller?.type?.toLowerCase().includes('bowling') ? (
+                          <>
+                            <CollateralCard title="Lane Side Table Card" description="5x7 folded card for bowling lane scoring tables" icon={Smartphone} />
+                            <CollateralCard title="Proshop Poster" description="11x17 high-impact poster for main facility lobby" icon={FileText} />
+                          </>
+                        ) : (
+                          <div className="col-span-full py-20 text-center bg-white border-2 border-dashed rounded-[2rem] opacity-40">
+                             <Database className="h-10 w-10 mx-auto mb-4 text-slate-300" />
+                             <p className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Marketing Assets for your venue type arriving soon</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {activeNav === 'settings' && (
                 <div className="space-y-10 animate-in fade-in duration-500">
-                  {/* GENERAL IDENTITY SECTION */}
                   <div className="space-y-6">
                     <div className="flex items-center gap-3 border-b-2 pb-4">
                       <div className="p-2 bg-indigo-50 rounded-xl text-indigo-600"><Building className="h-5 w-5" /></div>
@@ -981,7 +956,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                     </Card>
                   </div>
 
-                  {/* OPERATIONAL THRESHOLDS SECTION */}
                   <div className="space-y-6">
                     <div className="flex items-center gap-3 border-b-2 pb-4">
                       <div className="p-2 bg-primary/10 rounded-xl text-primary"><Timer className="h-5 w-5" /></div>
@@ -1001,7 +975,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                                 <div className="w-1.5 h-1.5 rounded-full bg-primary" />
                                 <span className="text-[11px] font-black uppercase text-[#213147]">{mode}</span>
                               </div>
-                              <Badge variant="outline" className="text-[8px] font-bold uppercase h-4 px-1.5">Live Logic</Badge>
                             </CardHeader>
                             <CardContent className="p-6 space-y-6">
                               <div className="grid grid-cols-2 gap-6">
@@ -1017,7 +990,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                                     }))}
                                     className="h-11 border-2 font-bold focus-visible:ring-amber-500"
                                   />
-                                  <p className="text-[8px] font-medium text-muted-foreground italic uppercase">Card turns amber</p>
                                 </div>
                                 <div className="space-y-2">
                                   <Label className="text-[10px] font-black uppercase text-red-600 tracking-widest">Max Window (Min)</Label>
@@ -1031,7 +1003,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                                     }))}
                                     className="h-11 border-2 font-bold focus-visible:ring-red-500"
                                   />
-                                  <p className="text-[8px] font-medium text-muted-foreground italic uppercase">Card turns red</p>
                                 </div>
                               </div>
                             </CardContent>
@@ -1041,11 +1012,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                     </div>
 
                     <div className="flex justify-end pt-4">
-                       <Button 
-                        onClick={handleUpdateVenueSettings} 
-                        disabled={isProcessingSave} 
-                        className="h-14 px-10 bg-[#213147] hover:bg-black font-black uppercase tracking-widest text-xs gap-3 shadow-xl"
-                       >
+                       <Button onClick={handleUpdateVenueSettings} disabled={isProcessingSave} className="h-14 px-10 bg-[#213147] hover:bg-black font-black uppercase tracking-widest text-xs gap-3 shadow-xl">
                         {isProcessingSave ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                         Commit Venue Settings
                        </Button>
@@ -1100,20 +1067,10 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                     <FormItem>
                       <FormLabel className="text-[10px] font-black uppercase tracking-widest">4-Digit PIN</FormLabel>
                       <FormControl><Input {...field} type="password" maxLength={4} placeholder="••••" className="h-12 border-2 font-black text-center text-xl tracking-[1em]" /></FormControl>
-                      <FormDescription className="text-[8px] font-bold uppercase text-muted-foreground text-center">Secure access token</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )} />
                 </div>
-                <FormField control={staffForm.control} name="isActive" render={({ field }) => (
-                  <FormItem className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border-2">
-                    <div className="space-y-0.5 text-left">
-                      <FormLabel className="text-[10px] font-black uppercase tracking-widest">Account Status</FormLabel>
-                      <FormDescription className="text-[8px] font-bold uppercase">Enable shift terminal access</FormDescription>
-                    </div>
-                    <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
-                  </FormItem>
-                )} />
                 <Button type="submit" disabled={isProcessingSave} className="w-full h-14 bg-[#213147] hover:bg-black font-black uppercase tracking-widest text-[11px] gap-2 shadow-xl">
                   {isProcessingSave ? <Loader2 className="h-5 w-5 animate-spin" /> : <Save className="h-5 w-5" />} Commit Identity
                 </Button>
