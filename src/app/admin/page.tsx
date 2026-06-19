@@ -592,6 +592,13 @@ export default function PlatformAdminPage() {
   };
 
   const handleThresholdChange = (mode: string, type: 'warning' | 'max', value: string) => {
+    if (value === '') {
+      setSystemThresholds(prev => ({
+        ...prev,
+        [mode]: { ...prev[mode], [type]: 0 }
+      }));
+      return;
+    }
     const numValue = parseInt(value, 10);
     setSystemThresholds(prev => ({
       ...prev,
@@ -613,6 +620,10 @@ export default function PlatformAdminPage() {
   };
 
   const handleGpsFreshnessChange = (field: 'hot' | 'warm' | 'cold', value: string) => {
+    if (value === '') {
+      setGpsFreshness(prev => ({ ...prev, [field]: 0 }));
+      return;
+    }
     const numValue = parseInt(value, 10);
     setGpsFreshness(prev => ({
       ...prev,
@@ -1044,7 +1055,7 @@ export default function PlatformAdminPage() {
                             <Input 
                               type="number" 
                               min="1"
-                              value={gpsFreshness.hot} 
+                              value={gpsFreshness.hot || ''} 
                               onChange={e => handleGpsFreshnessChange('hot', e.target.value)} 
                               className="h-10 border-2 font-bold focus-visible:ring-green-500 border-green-100"
                             />
@@ -1056,7 +1067,7 @@ export default function PlatformAdminPage() {
                             <Input 
                               type="number" 
                               min="1"
-                              value={gpsFreshness.warm} 
+                              value={gpsFreshness.warm || ''} 
                               onChange={e => handleGpsFreshnessChange('warm', e.target.value)} 
                               className="h-10 border-2 font-bold focus-visible:ring-amber-500 border-amber-100"
                             />
@@ -1068,7 +1079,7 @@ export default function PlatformAdminPage() {
                             <Input 
                               type="number" 
                               min="1"
-                              value={gpsFreshness.cold} 
+                              value={gpsFreshness.cold || ''} 
                               onChange={e => handleGpsFreshnessChange('cold', e.target.value)} 
                               className="h-10 border-2 font-bold focus-visible:ring-red-500 border-red-100"
                             />
@@ -1105,7 +1116,7 @@ export default function PlatformAdminPage() {
                                         type="number" 
                                         min="0"
                                         step="1"
-                                        value={thresholds.warning} 
+                                        value={thresholds.warning || ''} 
                                         onChange={e => handleThresholdChange(mode, 'warning', e.target.value)} 
                                         className="h-10 border-2 font-bold focus-visible:ring-amber-400"
                                       />
@@ -1116,7 +1127,7 @@ export default function PlatformAdminPage() {
                                         type="number" 
                                         min="0"
                                         step="1"
-                                        value={thresholds.max} 
+                                        value={thresholds.max || ''} 
                                         onChange={e => handleThresholdChange(mode, 'max', e.target.value)} 
                                         className="h-10 border-2 font-bold focus-visible:ring-red-600"
                                       />
@@ -1154,7 +1165,7 @@ export default function PlatformAdminPage() {
                                       type="number"
                                       min="5"
                                       max="300"
-                                      value={settings.frequencySeconds}
+                                      value={settings.frequencySeconds || ''}
                                       onChange={e => handleMapSettingChange(mode, 'frequencySeconds', parseInt(e.target.value, 10) || 15)}
                                       className="h-11 border-2 font-bold"
                                     />
@@ -1538,7 +1549,7 @@ export default function PlatformAdminPage() {
                           <Label className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">Patron Conv. Fee (Cents)</Label>
                           <input 
                             type="number" 
-                            value={selectedVenueData?.patronConvenienceFee} 
+                            value={selectedVenueData?.patronConvenienceFee || ''} 
                             onChange={(e) => handleUpdateVenueBusiness(selectedSeller!.id, { patronConvenienceFee: parseInt(e.target.value, 10) || 0 })}
                             className="flex h-11 w-full rounded-md border-2 border-input bg-background px-3 py-2 text-sm font-bold ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50" 
                           />
@@ -1548,7 +1559,7 @@ export default function PlatformAdminPage() {
                           <Label className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">Koop Fixed Fee (Cents)</Label>
                           <input 
                             type="number" 
-                            value={selectedVenueData?.platformFeeFixed} 
+                            value={selectedVenueData?.platformFeeFixed || ''} 
                             onChange={(e) => handleUpdateVenueBusiness(selectedSeller!.id, { platformFeeFixed: parseInt(e.target.value, 10) || 0 })}
                             className="flex h-11 w-full rounded-md border-2 border-input bg-background px-3 py-2 text-sm font-bold ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50" 
                           />
@@ -1558,7 +1569,7 @@ export default function PlatformAdminPage() {
                           <Label className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">Koop variable (%)</Label>
                           <input 
                             type="number" 
-                            value={selectedVenueData?.platformFeePercent} 
+                            value={selectedVenueData?.platformFeePercent || ''} 
                             onChange={(e) => handleUpdateVenueBusiness(selectedSeller!.id, { platformFeePercent: parseFloat(e.target.value) || 0 })}
                             className="flex h-11 w-full rounded-md border-2 border-input bg-background px-3 py-2 text-sm font-bold ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50" 
                           />

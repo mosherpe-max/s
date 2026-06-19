@@ -270,7 +270,7 @@ function SortableMenuItem({
            <span className="text-[7px] font-black text-slate-400 uppercase">Live</span>
            <Switch 
             checked={isSelected} 
-            onCheckedChange={onToggleChannel}
+            onToggleChannel={onToggleChannel}
             onPointerDown={(e) => e.stopPropagation()}
             className="data-[state=checked]:bg-primary scale-75"
           />
@@ -946,7 +946,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                           <Input 
                             type="number"
                             step="0.01"
-                            value={venueTaxRate}
+                            value={venueTaxRate || ''}
                             onChange={(e) => setVenueTaxRate(parseFloat(e.target.value) || 0)}
                             className="h-12 border-2 font-bold focus-visible:ring-primary"
                           />
@@ -983,7 +983,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                                   <Input 
                                     type="number"
                                     min="1"
-                                    value={thresholds.warning}
+                                    value={thresholds.warning || ''}
                                     onChange={(e) => setVenueThresholds(prev => ({
                                       ...prev,
                                       [mode]: { ...thresholds, warning: parseInt(e.target.value, 10) || 0 }
@@ -996,7 +996,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                                   <Input 
                                     type="number"
                                     min="1"
-                                    value={thresholds.max}
+                                    value={thresholds.max || ''}
                                     onChange={(e) => setVenueThresholds(prev => ({
                                       ...prev,
                                       [mode]: { ...thresholds, max: parseInt(e.target.value, 10) || 0 }
