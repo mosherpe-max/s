@@ -113,7 +113,7 @@ export function OrderCard({ order, orderNumber, onUpdateStatus, onAttach, curren
       <CardContent className="p-2.5 flex-1 space-y-2">
         <div className="space-y-1">
           {order.items.map(item => (
-            <div key={item.cartId} className="flex justify-between text-[13px] leading-tight py-1">
+            <div key={item.cartId} className="flex justify-between text-sm leading-tight py-1">
               <span className="font-black text-[#213147] truncate flex-1 uppercase">
                 {item.quantity}x {item.name}
               </span>
@@ -124,8 +124,8 @@ export function OrderCard({ order, orderNumber, onUpdateStatus, onAttach, curren
           ))}
 
           <div className="flex justify-between items-center pt-2 border-t border-dashed mt-2">
-            <span className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Total Order</span>
-            <span className="text-sm font-black text-primary font-mono">${(order.total || 0).toFixed(2)}</span>
+            <span className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Total Value</span>
+            <span className="text-base font-black text-primary font-mono">${(order.total || 0).toFixed(2)}</span>
           </div>
         </div>
         
