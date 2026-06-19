@@ -273,13 +273,19 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
 
   const mappedBuyers = useMemo(() => {
     if (!now || !driverOrders) return [];
-    return driverOrders.map(o => ({ 
-      id: o.id, 
-      name: o.customerName, 
-      location: o.deliveryLocation, 
-      colorClass: o.status === 'Out for Delivery' ? "bg-blue-600" : "bg-green-600" 
-    }));
-  }, [driverOrders, now]);
+    return driverOrders.map(o => {
+      const lastGps = o.lastGpsUpdate?.toDate();
+      const color = getSignalColor(lastGps, platformConfig?.gpsFreshnessThresholds);
+      
+      return { 
+        id: o.id, 
+        name: o.customerName, 
+        location: o.deliveryLocation, 
+        colorOverride: color,
+        colorClass: o.status === 'Out for Delivery' ? "bg-blue-600" : "bg-green-600" 
+      };
+    });
+  }, [driverOrders, now, platformConfig]);
 
   const mappedDrivers = useMemo(() => {
     if (!allStaff) return [];

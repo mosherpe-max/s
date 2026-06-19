@@ -27,6 +27,7 @@ interface MapViewProps {
     name: string;
     location: { latitude: number; longitude: number };
     colorClass?: string;
+    colorOverride?: string; // HEX code based on signal freshness
     assignedDriverId?: string;
   }[];
   radius?: number; // in meters
@@ -60,7 +61,7 @@ function MapElements({ buyerLocation, sellerLocation, sellers, buyers, drivers, 
     const posChanged = currentBuyerPos !== lastBuyerPos.current || currentSellerPos !== lastSellerPos.current;
 
     // Check if we have meaningful data to fit
-    const hasData = (buyerLocation && (sellerLocation || zoomMode === 'radius')) || sellers?.length || buyers?.length || drivers?.length || (sellerLocation && sellerLocation.latitude);
+    const hasData = (buyerLocation && (sellerLocation || zoomMode === 'radius')) || (sellers && sellers.length > 0) || (buyers && buyers.length > 0) || (drivers && drivers.length > 0) || (sellerLocation && sellerLocation.latitude);
     
     if (!hasData) return;
     
@@ -207,21 +208,24 @@ function MapInternal({ buyerLocation, sellerLocation, showPrimaryMarker, primary
         ))}
 
         {/* Driver Pins - Unique Hexagonal Shape with Dynamic Color-Coding */}
-        {drivers && drivers.map(driver => (
-          <Marker 
-            key={`driver-item-${driver.id}`} 
-            position={{ lat: driver.location.latitude, lng: driver.location.longitude }}
-            title={`${driver.name} (${driver.type})`}
-            icon={{
-              path: "M 0,-15 L 13,-7.5 L 13,7.5 L 0,15 L -13,7.5 L -13,-7.5 Z",
-              fillColor: driver.colorOverride || (driver.type === 'Beverage Cart' ? '#E50000' : '#4F46E5'),
-              fillOpacity: 1,
-              strokeWeight: 2,
-              strokeColor: '#FFFFFF',
-              scale: 1,
-            }}
-          />
-        ))}
+        {drivers && drivers.map(driver => {
+          const hexPath = "M 0,-15 L 13,-7.5 L 13,7.5 L 0,15 L -13,7.5 L -13,-7.5 Z";
+          return (
+            <Marker 
+              key={`driver-item-${driver.id}`} 
+              position={{ lat: driver.location.latitude, lng: driver.location.longitude }}
+              title={`${driver.name} (${driver.type})`}
+              icon={{
+                path: hexPath,
+                fillColor: driver.colorOverride || (driver.type === 'Beverage Cart' ? '#E50000' : '#4F46E5'),
+                fillOpacity: 1,
+                strokeWeight: 2,
+                strokeColor: '#FFFFFF',
+                scale: 1,
+              }}
+            />
+          );
+        })}
 
         {/* Local Primary Driver Marker */}
         {sellerLocation && sellerLocation.latitude && sellerLocation.latitude !== 0 && (
@@ -248,19 +252,33 @@ function MapInternal({ buyerLocation, sellerLocation, showPrimaryMarker, primary
           />
         )}
 
-        {buyers && buyers.map((buyer, index) => (
-          <Marker 
-            key={`buyer-list-${buyer.id}`} 
-            position={{ lat: buyer.location.latitude, lng: buyer.location.longitude }}
-            label={{
-              text: (index + 1).toString(),
-              color: 'white',
-              fontSize: '10px',
-              fontWeight: '900'
-            }}
-            title={buyer.name}
-          />
-        ))}
+        {/* Patron Markers - Circular symbols with freshness-aware coloring and order index */}
+        {buyers && buyers.map((buyer, index) => {
+          if (!apiIsLoaded || typeof window === 'undefined' || !window.google) return null;
+          
+          return (
+            <Marker 
+              key={`buyer-list-${buyer.id}`} 
+              position={{ lat: buyer.location.latitude, lng: buyer.location.longitude }}
+              label={{
+                text: (index + 1).toString(),
+                color: 'white',
+                fontSize: '10px',
+                fontWeight: '900'
+              }}
+              icon={{
+                path: window.google.maps.SymbolPath.CIRCLE,
+                fillColor: buyer.colorOverride || '#E50000',
+                fillOpacity: 1,
+                strokeWeight: 2,
+                strokeColor: '#FFFFFF',
+                scale: 11,
+                labelOrigin: new window.google.maps.Point(0, 0)
+              }}
+              title={buyer.name}
+            />
+          );
+        })}
       </Map>
     </div>
   );
