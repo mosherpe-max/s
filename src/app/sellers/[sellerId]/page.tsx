@@ -376,8 +376,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   const [verificationResult, setVerificationResult] = useState<any>(null);
   const [isProcessingSave, setIsProcessingSave] = useState(false);
   const [configMode, setConfigMode] = useState<string>('Beverage Cart');
-  const [isMasterPickerOpen, setIsMasterPickerOpen] = useState(false);
-  const [pickerCategory, setPickerCategory] = useState<Category | null>(null);
 
   // Analytics Detailed Filter State
   const [reportStartDate, setReportStartDate] = useState<string>(format(subHours(new Date(), 24), 'yyyy-MM-dd'));
@@ -395,7 +393,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     return () => clearInterval(interval);
   }, []);
 
-  // Ensure queries only execute when a user is authenticated
   const sellerRef = useMemoFirebase(() => (firestore && user ? doc(firestore, 'sellers', sellerId) : null), [firestore, sellerId, user]);
   const { data: seller, isLoading: isSellerLoading } = useDoc<Seller>(sellerRef);
 
@@ -431,161 +428,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     }
   }, [seller]);
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
-  );
-
-  const staffForm = useForm<StaffFormData>({ resolver: zodResolver(staffSchema), defaultValues: { name: '', role: 'Staff', pin: '', isActive: true } });
-  const itemForm = useForm<ItemFormData>({ resolver: zodResolver(itemSchema), defaultValues: { name: '', description: '', price: 0, category: 'Beer', availableOn: [], featuredOn: [], isAvailable: true } });
-
-  const onSaveStaff = async (data: StaffFormData) => {
-    if (!firestore) return;
-    const id = editingStaff ? editingStaff.id : Math.random().toString(36).substr(2, 9);
-    const staffRef = doc(firestore, 'sellers', sellerId, 'staff', id);
-    const payload = { ...data, id, createdAt: editingStaff?.createdAt || serverTimestamp() };
-    setDoc(staffRef, payload, { merge: true }).then(() => {
-      setIsStaffFormOpen(false); setEditingStaff(null); staffForm.reset(); toast({ title: "Staff member saved" });
-    }).catch(async (error) => {
-      errorEmitter.emit('permission-error', new FirestorePermissionError({
-        path: staffRef.path,
-        operation: editingStaff ? 'update' : 'create',
-        requestResourceData: payload,
-      } satisfies SecurityRuleContext));
-    });
-  };
-
-  const onSaveItem = async (data: ItemFormData) => {
-    if (!firestore) return;
-    const id = editingItem ? editingItem.id : Math.random().toString(36).substr(2, 9);
-    const itemRef = doc(firestore, 'sellers', sellerId, 'menuItems', id);
-    const payload = { ...data, id, rank: editingItem?.rank || 0, createdAt: editingItem?.createdAt || serverTimestamp() };
-    setDoc(itemRef, payload, { merge: true }).then(() => {
-      setIsItemFormOpen(false); setEditingItem(null); itemForm.reset(); toast({ title: editingItem ? "Item Updated" : "Item Added" });
-    }).catch(async (error) => {
-      errorEmitter.emit('permission-error', new FirestorePermissionError({
-        path: itemRef.path,
-        operation: editingItem ? 'update' : 'create',
-        requestResourceData: payload,
-      } satisfies SecurityRuleContext));
-    });
-  };
-
-  const toggleItemAvailability = (item: MenuItem) => {
-    if (!firestore) return;
-    const nextAvailable = !(item.isAvailable !== false);
-    const itemRef = doc(firestore, 'sellers', sellerId, 'menuItems', item.id);
-    const updateData = { isAvailable: nextAvailable };
-    updateDoc(itemRef, updateData).then(() => {
-      toast({ title: nextAvailable ? "Item Restored" : "Item 86'd" });
-    }).catch(async (error) => {
-      errorEmitter.emit('permission-error', new FirestorePermissionError({
-        path: itemRef.path,
-        operation: 'update',
-        requestResourceData: updateData,
-      } satisfies SecurityRuleContext));
-    });
-  };
-
-  const handleUpdateStatus = (orderId: string, current: string) => {
-    if (!firestore) return;
-    const stages: Order['status'][] = ['Placed', 'Preparing', 'Out for Delivery', 'Delivered'];
-    const nextIdx = stages.indexOf(current as any) + 1;
-    if (nextIdx < stages.length) {
-      const orderRef = doc(firestore, 'orders', orderId);
-      const updateData = { status: stages[nextIdx], deliveredAt: stages[nextIdx] === 'Delivered' ? serverTimestamp() : null };
-      updateDoc(orderRef, updateData).catch(async (error) => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: orderRef.path, operation: 'update', requestResourceData: updateData } satisfies SecurityRuleContext));
-      });
-    }
-  };
-
-  const handleToggleMode = async (mode: string, current: boolean) => {
-    if (!firestore || !sellerId) return;
-    const fieldMap: Record<string, string> = { 'Beverage Cart': 'bevcartActive', 'Clubhouse': 'clubhouseActive', 'Lane Delivery': 'lanedeliveryActive', 'Take Out': 'takeoutActive' };
-    const field = fieldMap[mode];
-    if (field) {
-      const sellerDocRef = doc(firestore, 'sellers', sellerId);
-      const updateData = { [field]: !current };
-      updateDoc(sellerDocRef, updateData).catch(async (error) => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: sellerDocRef.path, operation: 'update', requestResourceData: updateData } satisfies SecurityRuleContext));
-      });
-    }
-  };
-
-  const handleDragEnd = (event: DragEndEvent, category: string) => {
-    const { active, over } = event;
-    if (!over || active.id === over.id || !firestore) return;
-    const activeItems = (category === 'Featured' ? menuItems?.filter(i => i.featuredOn?.includes(configMode)) : menuItems?.filter(i => i.category === category && i.availableOn?.includes(configMode)))?.sort((a, b) => (a.menuRanks?.[configMode] ?? 999) - (b.menuRanks?.[configMode] ?? 999)) || [];
-    const oldIndex = activeItems.findIndex(i => i.id === active.id);
-    const newIndex = activeItems.findIndex(i => i.id === over.id);
-    if (oldIndex !== -1 && newIndex !== -1) {
-      const newItems = arrayMove(activeItems, oldIndex, newIndex);
-      const batch = writeBatch(firestore);
-      newItems.forEach((item, index) => batch.update(doc(firestore, 'sellers', sellerId, 'menuItems', item.id), { [`menuRanks.${configMode}`]: index }));
-      batch.commit().then(() => toast({ title: "Rankings Synchronized" })).catch(async (error) => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: `sellers/${sellerId}/menuItems`, operation: 'update' } satisfies SecurityRuleContext));
-      });
-    }
-  };
-
-  const handleToggleItemInMode = (itemId: string, item: MenuItem, isFeaturedMode: boolean) => {
-    if (!firestore) return;
-    const itemRef = doc(firestore, 'sellers', sellerId, 'menuItems', itemId);
-    let updateData = {};
-    if (isFeaturedMode) {
-      const nextFeatured = (item.featuredOn || []).includes(configMode) ? item.featuredOn!.filter(m => m !== configMode) : [...(item.featuredOn || []), configMode];
-      updateData = { featuredOn: nextFeatured, availableOn: nextFeatured.includes(configMode) && !(item.availableOn || []).includes(configMode) ? [...(item.availableOn || []), configMode] : (item.availableOn || []) };
-    } else {
-      const nextAvailable = (item.availableOn || []).includes(configMode) ? item.availableOn!.filter(m => m !== configMode) : [...(item.availableOn || []), configMode];
-      updateData = { availableOn: nextAvailable };
-    }
-    updateDoc(itemRef, updateData).catch(async (error) => {
-      errorEmitter.emit('permission-error', new FirestorePermissionError({ path: itemRef.path, operation: 'update', requestResourceData: updateData } satisfies SecurityRuleContext));
-    });
-  };
-
-  const handleToggleCategoryVisibility = (category: string) => {
-    if (!firestore || !seller) return;
-    const currentEnabled = seller.categoryVisibility?.[configMode] || categories.filter(c => c !== 'Featured');
-    const nextEnabled = currentEnabled.includes(category) ? currentEnabled.filter(c => c !== category) : [...currentEnabled, category];
-    const sellerDocRef = doc(firestore, 'sellers', sellerId);
-    const updateData = { [`categoryVisibility.${configMode}`]: nextEnabled };
-    updateDoc(sellerDocRef, updateData).catch(async (error) => {
-      errorEmitter.emit('permission-error', new FirestorePermissionError({ path: sellerDocRef.path, operation: 'update', requestResourceData: updateData } satisfies SecurityRuleContext));
-    });
-  };
-
-  const handleVerifyStripe = async () => {
-    if (!firebaseApp || !sellerId) return;
-    setIsVerifyingStripe(true); setVerificationResult(null);
-    try {
-      const functions = getFunctions(firebaseApp, 'us-central1');
-      const verify = httpsCallable(functions, 'verifyVenueConnection');
-      const result = await verify({ venueId: sellerId });
-      setVerificationResult(result.data);
-    } catch (e: any) {
-      toast({ variant: "destructive", title: "Check Failed", description: e.message });
-    } finally {
-      setIsVerifyingStripe(false);
-    }
-  };
-
-  const handleUpdateVenueRegistry = async () => {
-    if (!firestore || !sellerId) return;
-    setIsProcessingSave(true);
-    const sellerDocRef = doc(firestore, 'sellers', sellerId);
-    const updateData = { courseName: venueName, taxRate: venueTaxRate, orderThresholds: venueThresholds, updatedAt: serverTimestamp() };
-    updateDoc(sellerDocRef, updateData).then(() => toast({ title: "Venue Registry Updated" })).catch(async (error) => {
-      errorEmitter.emit('permission-error', new FirestorePermissionError({ path: sellerDocRef.path, operation: 'update', requestResourceData: updateData } satisfies SecurityRuleContext));
-    }).finally(() => setIsProcessingSave(false));
-  };
-
-  const handleThresholdChange = (mode: string, type: 'warning' | 'max', value: string) => {
-    const numValue = parseInt(value, 10);
-    setVenueThresholds(prev => ({ ...prev, [mode]: { ...prev[mode], [type]: isNaN(numValue) ? 0 : numValue } }));
-  };
-
   const stats = useMemo(() => {
     if (!orders) return null;
     const filteredOrders = dashboardFilter === 'All' ? orders : orders.filter(o => o.menuType === dashboardFilter);
@@ -595,13 +437,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     const overdueCount = filteredOrders.filter(o => o.status !== 'Delivered' && o.status !== 'Cancelled' && o.createdAt && typeof o.createdAt.toDate === 'function' && differenceInMinutes(new Date(), o.createdAt.toDate()) >= (seller?.orderThresholds?.[o.menuType]?.max || DEFAULT_THRESHOLDS[o.menuType]?.max || 20)).length;
     return { revenue: revenue.toFixed(2), fees: fees.toFixed(2), active: filteredOrders.filter(o => o.status !== 'Delivered' && o.status !== 'Cancelled').length, volume: today.length, avg: today.length > 0 ? (revenue / today.length).toFixed(2) : '0.00', overdue: overdueCount };
   }, [orders, dashboardFilter, seller]);
-
-  const availableMonths = useMemo(() => {
-    if (!orders) return [];
-    const months = new Set<string>();
-    orders.forEach(o => { if (o.createdAt && typeof o.createdAt.toDate === 'function') months.add(format(o.createdAt.toDate(), 'MMMM yyyy')); });
-    return Array.from(months).sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
-  }, [orders]);
 
   const analyticsData = useMemo(() => {
     if (!orders || !seller) return { chartData: [] };
@@ -657,6 +492,13 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     }).filter(d => d.count > 0);
   }, [orders, seller, pieMonthFilter]);
 
+  const availableMonths = useMemo(() => {
+    if (!orders) return [];
+    const months = new Set<string>();
+    orders.forEach(o => { if (o.createdAt && typeof o.createdAt.toDate === 'function') months.add(format(o.createdAt.toDate(), 'MMMM yyyy')); });
+    return Array.from(months).sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
+  }, [orders]);
+
   const detailedReportOrders = useMemo(() => {
     if (!orders) return [];
     let filtered = orders;
@@ -666,10 +508,43 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     return [...filtered].sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
   }, [orders, reportStartDate, reportEndDate, reportModeFilter]);
 
-  const detailedReportStats = useMemo(() => ({ revenue: detailedReportOrders.reduce((acc, o) => acc + (o.total || 0), 0), volume: detailedReportOrders.length }), [detailedReportOrders]);
+  const detailedReportStats = useMemo(() => ({ 
+    revenue: detailedReportOrders.reduce((acc, o) => acc + (o.total || 0), 0), 
+    volume: detailedReportOrders.length 
+  }), [detailedReportOrders]);
 
   const mappedBuyers = useMemo(() => (orders || []).filter(o => o.status !== 'Delivered' && o.status !== 'Cancelled').map(o => ({ id: o.id, name: o.customerName, location: o.deliveryLocation, colorClass: o.menuType === 'Beverage Cart' ? "bg-red-600" : "bg-indigo-600" })), [orders]);
   const mappedDrivers = useMemo(() => (staff || []).filter(s => s.latitude && s.longitude && s.lastActive && s.lastActive.toMillis() > Date.now() - 300000).map(s => ({ id: s.id, name: s.name, location: { latitude: s.latitude!, longitude: s.longitude! }, type: s.role === 'Manager' ? 'Clubhouse' : 'Beverage Cart' })), [staff]);
+
+  const handleToggleMode = async (mode: string, current: boolean) => {
+    if (!firestore || !sellerId) return;
+    const fieldMap: Record<string, string> = { 'Beverage Cart': 'bevcartActive', 'Clubhouse': 'clubhouseActive', 'Lane Delivery': 'lanedeliveryActive', 'Take Out': 'takeoutActive' };
+    const field = fieldMap[mode];
+    if (field) {
+      const sellerDocRef = doc(firestore, 'sellers', sellerId);
+      const updateData = { [field]: !current };
+      updateDoc(sellerDocRef, updateData).catch(async (error) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+          path: sellerDocRef.path,
+          operation: 'update',
+          requestResourceData: updateData,
+        } satisfies SecurityRuleContext));
+      });
+    }
+  };
+
+  const handleUpdateStatus = (orderId: string, current: string) => {
+    if (!firestore) return;
+    const stages: Order['status'][] = ['Placed', 'Preparing', 'Out for Delivery', 'Delivered'];
+    const nextIdx = stages.indexOf(current as any) + 1;
+    if (nextIdx < stages.length) {
+      const orderRef = doc(firestore, 'orders', orderId);
+      const updateData = { status: stages[nextIdx], deliveredAt: stages[nextIdx] === 'Delivered' ? serverTimestamp() : null };
+      updateDoc(orderRef, updateData).catch(async (error) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: orderRef.path, operation: 'update', requestResourceData: updateData } satisfies SecurityRuleContext));
+      });
+    }
+  };
 
   const handleImpersonate = (mode: string) => {
     let path = '';
@@ -688,24 +563,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     router.push(path);
   };
 
-  const SideBarContent = ({ forceLabels = false }: { forceLabels?: boolean }) => {
-    const showLabels = forceLabels || sidebarOpen;
-    return (
-      <div className="flex flex-col h-full bg-[#213147] overflow-hidden">
-        <div className="p-6 border-b border-white/5 space-y-4 shrink-0">
-          <StylizedKoopLogo size={showLabels ? "md" : "sm"} />
-          {showLabels && (<div className="bg-white/5 rounded-xl p-3 border border-white/10 animate-in fade-in duration-500"><p className="text-[8px] font-black text-primary uppercase tracking-[0.2em] mb-1">Administrative Port</p><p className="text-xs font-black text-white uppercase tracking-tight truncate leading-tight">{seller?.courseName || 'Establishing...'}</p></div>)}
-        </div>
-        <nav className="flex-1 p-3 space-y-1 overflow-y-auto no-scrollbar min-h-0">
-          {NAV_ITEMS.map((item) => (<NavButton key={item.id} id={item.id} label={item.label} icon={item.icon} active={activeNav === item.id} onClick={(id) => { setActiveNav(id); if (isMobile) setSidebarOpen(false); }} sidebarOpen={showLabels} />))}
-        </nav>
-        <div className="mt-auto border-t border-white/5 p-4 shrink-0">
-          {!isMobile && (<button onClick={() => setSidebarOpen(!sidebarOpen)} className="w-full flex items-center justify-center p-3 text-slate-400 hover:text-white hover:bg-white/5 rounded-xl transition-all">{sidebarOpen ? <ChevronLeft /> : <ChevronRight />}</button>)}
-        </div>
-      </div>
-    );
-  };
-
   const NAV_ITEMS = [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
     { id: "orders", label: "Orders", icon: ClipboardList },
@@ -718,6 +575,37 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     { id: "settings", label: "Settings", icon: SettingsIcon },
     { id: "marketing", label: "Marketing", icon: Smartphone },
   ];
+
+  const SideBarContent = ({ forceLabels = false }: { forceLabels?: boolean }) => {
+    const showLabels = forceLabels || sidebarOpen;
+    return (
+      <div className="flex flex-col h-full bg-[#213147] overflow-hidden">
+        <div className="p-6 border-b border-white/5 space-y-4 shrink-0">
+          <StylizedKoopLogo size={showLabels ? "md" : "sm"} />
+        </div>
+        <nav className="flex-1 p-3 space-y-1 overflow-y-auto no-scrollbar min-h-0">
+          {NAV_ITEMS.map((item) => (
+            <NavButton 
+              key={item.id} 
+              id={item.id} 
+              label={item.label} 
+              icon={item.icon} 
+              active={activeNav === item.id} 
+              onClick={(id) => { setActiveNav(id); if (isMobile) setSidebarOpen(false); }} 
+              sidebarOpen={showLabels} 
+            />
+          ))}
+        </nav>
+        <div className="mt-auto border-t border-white/5 p-4 shrink-0">
+          {!isMobile && (
+            <button onClick={() => setSidebarOpen(!sidebarOpen)} className="w-full flex items-center justify-center p-3 text-slate-400 hover:text-white hover:bg-white/5 rounded-xl transition-all">
+              {sidebarOpen ? <ChevronLeft /> : <ChevronRight />}
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  };
 
   if (isUserLoading || isSellerLoading || isVenueLoading || isRoleLoading) {
     return (
@@ -742,7 +630,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   return (
     <div className="flex flex-col h-screen bg-[#F8FAFC] overflow-hidden">
       <header className="h-16 bg-white border-b-2 flex items-center justify-between px-4 sm:px-8 shrink-0 z-30 shadow-sm relative">
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-4 text-left">
           <div className="bg-primary/10 p-2 rounded-xl"><Target className="h-5 w-5 text-primary" /></div>
           <div className="flex flex-col">
             <div className="flex items-center gap-2">
@@ -755,7 +643,10 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
           </div>
         </div>
         <div className="flex items-center gap-4">
-          <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-green-50 text-green-600 border border-green-100 rounded-full"><div className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" /><span className="text-[9px] font-black uppercase tracking-widest">Live Sync Online</span></div>
+          <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-green-50 text-green-600 border border-green-100 rounded-full">
+            <div className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
+            <span className="text-[9px] font-black uppercase tracking-widest">Live Sync Online</span>
+          </div>
           {isMobile && (
             <Sheet>
               <SheetTrigger asChild>
@@ -771,28 +662,40 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
       </header>
 
       <div className="flex-1 flex overflow-hidden">
+        <aside className={cn("bg-[#213147] hidden md:flex flex-col transition-all duration-300 relative border-r-4 border-primary/20 shrink-0 shadow-2xl z-20", sidebarOpen ? "w-64" : "w-20")}>
+          <SideBarContent />
+        </aside>
+
         <main className="flex-1 flex flex-col overflow-hidden relative">
           <ScrollArea className="flex-1 p-4 sm:p-8">
-            <div className="max-w-6xl mx-auto space-y-10 pb-24">
+            <div className="max-w-6xl mx-auto space-y-10 pb-24 text-left">
+              
               {activeNav === 'dashboard' && (
                 <div className="space-y-6 sm:space-y-8 animate-in fade-in duration-500">
                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-4 rounded-2xl border-2 shadow-sm">
-                    <div className="flex items-center gap-3"><div className="p-2 bg-indigo-50 rounded-xl text-indigo-600"><Filter className="h-4 w-4" /></div><h3 className="text-[10px] font-black uppercase tracking-widest text-[#213147]">Dashboard Filter</h3></div>
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-indigo-50 rounded-xl text-indigo-600"><Filter className="h-4 w-4" /></div>
+                      <h3 className="text-[10px] font-black uppercase tracking-widest text-[#213147]">Dashboard Filter</h3>
+                    </div>
                     <Tabs value={dashboardFilter} onValueChange={setDashboardFilter} className="w-full sm:w-auto">
                       <div className="overflow-x-auto no-scrollbar -mx-1 px-1">
                         <TabsList className="bg-slate-100 p-1 rounded-xl h-10 w-max min-w-full inline-flex">
                           <TabsTrigger value="All" className="text-[10px] font-black uppercase tracking-widest px-4 h-8 whitespace-nowrap">All Modes</TabsTrigger>
-                          {seller?.menuTypes?.map(mode => (<TabsTrigger key={mode} value={mode} className="text-[10px] font-black uppercase tracking-widest px-4 h-8 whitespace-nowrap">{mode}</TabsTrigger>))}
+                          {seller?.menuTypes?.map(mode => (
+                            <TabsTrigger key={mode} value={mode} className="text-[10px] font-black uppercase tracking-widest px-4 h-8 whitespace-nowrap">{mode}</TabsTrigger>
+                          ))}
                         </TabsList>
                       </div>
                     </Tabs>
                   </div>
+
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
                     <KPICard label="Filtered Sales" value={`$${stats?.revenue}`} sub="Today" icon={DollarSign} colorClass="bg-green-500" />
                     <KPICard label="Avg. Order" value={`$${stats?.avg}`} sub="Mean Revenue" icon={TrendingUp} colorClass="bg-indigo-600" />
                     <KPICard label="Active Tickets" value={stats?.active || 0} sub="In Pipeline" icon={ShoppingBag} colorClass="bg-primary" />
                     <KPICard label="Overdue Orders" value={stats?.overdue || 0} sub="Beyond Threshold" icon={Clock} colorClass="bg-red-600" highlight={!!(stats?.overdue && stats.overdue > 0)} />
                   </div>
+
                   <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     <Card className="lg:col-span-2 border-2 shadow-sm overflow-hidden">
                       <CardHeader className="bg-slate-50/50 border-b flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -801,7 +704,9 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                           <CardDescription className="text-[8px] font-bold uppercase">Stacked performance by mode</CardDescription>
                         </div>
                         <div className="flex bg-slate-100 p-0.5 rounded-lg border-2">
-                          {['Today', 'MTD', 'YTD'].map((r) => (<button key={r} onClick={() => setAnalyticsRange(r as any)} className={cn("px-3 py-1 text-[8px] font-black uppercase tracking-tighter rounded-md transition-all", analyticsRange === r ? "bg-white text-[#213147] shadow-sm" : "text-slate-400 hover:text-slate-600")}>{r}</button>))}
+                          {['Today', 'MTD', 'YTD'].map((r) => (
+                            <button key={r} onClick={() => setAnalyticsRange(r as any)} className={cn("px-3 py-1 text-[8px] font-black uppercase tracking-tighter rounded-md transition-all", analyticsRange === r ? "bg-white text-[#213147] shadow-sm" : "text-slate-400 hover:text-slate-600")}>{r}</button>
+                          ))}
                         </div>
                       </CardHeader>
                       <CardContent className="pt-10 h-[300px]">
@@ -812,26 +717,53 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                             <YAxis axisLine={false} tickLine={false} fontSize={10} fontWeight="bold" />
                             <ChartTooltip cursor={{ fill: 'transparent' }} contentStyle={{ fontSize: '10px', borderRadius: '12px', border: '2px solid #E2E8F0' }} />
                             <Legend verticalAlign="top" align="right" iconType="circle" wrapperStyle={{ fontSize: '9px', fontWeight: 'bold', textTransform: 'uppercase' }} />
-                            {seller?.menuTypes?.map(mode => (<Bar key={mode} dataKey={mode} stackId="a" fill={MODE_COLORS[mode] || '#64748B'} radius={[0, 0, 0, 0]} label={(props: any) => { const { x, y, width, height, value, index } = props; if (value <= 0 || height < 15) return null; const entry = analyticsData.chartData[index]; let labelText = analyticsRange === 'YTD' ? `$${(entry[`${mode}_count`] > 0 ? (value / entry[`${mode}_count`]).toFixed(0) : '0')}` : (entry[`${mode}_count`] || 0).toString(); return (<text x={x + width / 2} y={y + height / 2} fill="#FFFFFF" textAnchor="middle" dominantBaseline="middle" fontSize={height < 20 ? 7 : 8} fontWeight="900" className="pointer-events-none drop-shadow-sm">{labelText}</text>); }} />))}
+                            {seller?.menuTypes?.map(mode => (
+                              <Bar 
+                                key={mode} 
+                                dataKey={mode} 
+                                stackId="a" 
+                                fill={MODE_COLORS[mode] || '#64748B'} 
+                                radius={[0, 0, 0, 0]} 
+                                label={(props: any) => { 
+                                  const { x, y, width, height, value, index } = props; 
+                                  if (value <= 0 || height < 15) return null; 
+                                  const entry = analyticsData.chartData[index]; 
+                                  let labelText = analyticsRange === 'YTD' ? `$${(entry[`${mode}_count`] > 0 ? (value / entry[`${mode}_count`]).toFixed(0) : '0')}` : (entry[`${mode}_count`] || 0).toString(); 
+                                  return (<text x={x + width / 2} y={y + height / 2} fill="#FFFFFF" textAnchor="middle" dominantBaseline="middle" fontSize={height < 20 ? 7 : 8} fontWeight="900" className="pointer-events-none drop-shadow-sm">{labelText}</text>); 
+                                }} 
+                              />
+                            ))}
                           </BarChart>
                         </ResponsiveContainer>
                       </CardContent>
                     </Card>
-                    <Card className="border-2 shadow-sm"><CardHeader className="bg-slate-50/50 border-b"><CardTitle className="text-xs font-black uppercase tracking-widest text-[#213147]">Active Channels</CardTitle></CardHeader><CardContent className="p-4 space-y-3">
-                      {['Beverage Cart', 'Clubhouse', 'Lane Delivery', 'Take Out'].map(mode => {
-                        const isActive = (mode === 'Beverage Cart' && seller?.bevcartActive) || (mode === 'Clubhouse' && seller?.clubhouseActive) || (mode === 'Lane Delivery' && seller?.lanedeliveryActive) || (mode === 'Take Out' && seller?.takeoutActive);
-                        if (!seller?.menuTypes?.includes(mode)) return null;
-                        return (<div key={mode} className={cn("flex items-center justify-between p-3 rounded-xl border-2 transition-all", isActive ? "bg-white border-primary/20 shadow-sm" : "bg-slate-50 border-slate-100 opacity-60")}><div className="flex items-center gap-2"><div className={cn("w-1.5 h-1.5 rounded-full animate-pulse", isActive ? "bg-green-500" : "bg-slate-300")} /><span className="text-[10px] font-black uppercase text-[#213147]">{mode}</span></div><div className="flex items-center gap-3">{isActive && (<button onClick={() => handleImpersonate(mode)} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-primary transition-all"><UserCircle className="h-4 w-4" /></button>)}<Switch checked={isActive} onCheckedChange={() => handleToggleMode(mode, !!isActive)} className="data-[state=checked]:bg-primary" /></div></div>);
-                      })}
-                    </CardContent></Card>
-                  </div>
-                </div>
-              )}
 
-              {activeNav === 'orders' && (
-                <div className="space-y-6 animate-in fade-in duration-500">
-                  {seller?.type?.toLowerCase().includes('golf') && (<Card className="border-2 shadow-sm overflow-hidden h-[300px] relative"><MapView sellerLocation={seller ? { latitude: seller.latitude, longitude: seller.longitude } : undefined} buyers={mappedBuyers} drivers={mappedDrivers} interactive={true} showPrimaryMarker={true} /></Card>)}
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">{orders?.filter(o => o.status !== 'Delivered' && o.status !== 'Cancelled').sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0)).map((order, idx) => (<OrderCard key={order.id} order={order} orderNumber={idx + 1} now={now} onUpdateStatus={handleUpdateStatus} thresholds={seller?.orderThresholds?.[order.menuType]} />))}</div>
+                    <Card className="border-2 shadow-sm">
+                      <CardHeader className="bg-slate-50/50 border-b">
+                        <CardTitle className="text-xs font-black uppercase tracking-widest text-[#213147]">Active Channels</CardTitle>
+                      </CardHeader>
+                      <CardContent className="p-4 space-y-3">
+                        {['Beverage Cart', 'Clubhouse', 'Lane Delivery', 'Take Out'].map(mode => {
+                          const isActive = (mode === 'Beverage Cart' && seller?.bevcartActive) || (mode === 'Clubhouse' && seller?.clubhouseActive) || (mode === 'Lane Delivery' && seller?.lanedeliveryActive) || (mode === 'Take Out' && seller?.takeoutActive);
+                          if (!seller?.menuTypes?.includes(mode)) return null;
+                          return (
+                            <div key={mode} className={cn("flex items-center justify-between p-3 rounded-xl border-2 transition-all", isActive ? "bg-white border-primary/20 shadow-sm" : "bg-slate-50 border-slate-100 opacity-60")}>
+                              <div className="flex items-center gap-2">
+                                <div className={cn("w-1.5 h-1.5 rounded-full animate-pulse", isActive ? "bg-green-500" : "bg-slate-300")} />
+                                <span className="text-[10px] font-black uppercase text-[#213147]">{mode}</span>
+                              </div>
+                              <div className="flex items-center gap-3">
+                                {isActive && (
+                                  <button onClick={() => handleImpersonate(mode)} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-primary transition-all"><UserCircle className="h-4 w-4" /></button>
+                                )}
+                                <Switch checked={isActive} onCheckedChange={() => handleToggleMode(mode, !!isActive)} className="data-[state=checked]:bg-primary" />
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </CardContent>
+                    </Card>
+                  </div>
                 </div>
               )}
 
@@ -840,56 +772,207 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                     <Card className="border-2 shadow-sm overflow-hidden">
                       <CardHeader className="bg-slate-50/50 border-b flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                        <div className="space-y-0.5"><CardTitle className="text-xs font-black uppercase tracking-widest text-[#213147]">Revenue Distribution</CardTitle><CardDescription className="text-[8px] font-bold uppercase">Stacked performance by mode</CardDescription></div>
+                        <div className="space-y-0.5">
+                          <CardTitle className="text-xs font-black uppercase tracking-widest text-[#213147]">Revenue Distribution</CardTitle>
+                          <CardDescription className="text-[8px] font-bold uppercase">Stacked performance by mode</CardDescription>
+                        </div>
                         <div className="flex bg-slate-100 p-0.5 rounded-lg border-2">
-                          {['Today', 'MTD', 'YTD'].map((r) => (<button key={r} onClick={() => setAnalyticsRange(r as any)} className={cn("px-3 py-1 text-[8px] font-black uppercase tracking-tighter rounded-md transition-all", analyticsRange === r ? "bg-white text-[#213147] shadow-sm" : "text-slate-400 hover:text-slate-600")}>{r}</button>))}
+                          {['Today', 'MTD', 'YTD'].map((r) => (
+                            <button key={r} onClick={() => setAnalyticsRange(r as any)} className={cn("px-3 py-1 text-[8px] font-black uppercase tracking-tighter rounded-md transition-all", analyticsRange === r ? "bg-white text-[#213147] shadow-sm" : "text-slate-400 hover:text-slate-600")}>{r}</button>
+                          ))}
                         </div>
                       </CardHeader>
                       <CardContent className="pt-10 h-[300px]">
                         <ResponsiveContainer width="100%" height="100%">
                           <BarChart data={analyticsData.chartData}>
-                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" /><XAxis dataKey="time" axisLine={false} tickLine={false} fontSize={10} fontWeight="bold" /><YAxis axisLine={false} tickLine={false} fontSize={10} fontWeight="bold" /><ChartTooltip cursor={{ fill: 'transparent' }} contentStyle={{ fontSize: '10px', borderRadius: '12px', border: '2px solid #E2E8F0' }} /><Legend verticalAlign="top" align="right" iconType="circle" wrapperStyle={{ fontSize: '9px', fontWeight: 'bold', textTransform: 'uppercase' }} />
-                            {seller?.menuTypes?.map(mode => (<Bar key={mode} dataKey={mode} stackId="a" fill={MODE_COLORS[mode] || '#64748B'} radius={[0, 0, 0, 0]} label={(props: any) => { const { x, y, width, height, value, index } = props; if (value <= 0 || height < 15) return null; const entry = analyticsData.chartData[index]; let labelText = analyticsRange === 'YTD' ? `$${(entry[`${mode}_count`] > 0 ? (value / entry[`${mode}_count`]).toFixed(0) : '0')}` : (entry[`${mode}_count`] || 0).toString(); return (<text x={x + width / 2} y={y + height / 2} fill="#FFFFFF" textAnchor="middle" dominantBaseline="middle" fontSize={height < 20 ? 7 : 8} fontWeight="900" className="pointer-events-none drop-shadow-sm">{labelText}</text>); }} />))}
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
+                            <XAxis dataKey="time" axisLine={false} tickLine={false} fontSize={10} fontWeight="bold" />
+                            <YAxis axisLine={false} tickLine={false} fontSize={10} fontWeight="bold" />
+                            <ChartTooltip cursor={{ fill: 'transparent' }} contentStyle={{ fontSize: '10px', borderRadius: '12px', border: '2px solid #E2E8F0' }} />
+                            <Legend verticalAlign="top" align="right" iconType="circle" wrapperStyle={{ fontSize: '9px', fontWeight: 'bold', textTransform: 'uppercase' }} />
+                            {seller?.menuTypes?.map(mode => (
+                              <Bar 
+                                key={mode} 
+                                dataKey={mode} 
+                                stackId="a" 
+                                fill={MODE_COLORS[mode] || '#64748B'} 
+                                radius={[0, 0, 0, 0]} 
+                                label={(props: any) => { 
+                                  const { x, y, width, height, value, index } = props; 
+                                  if (value <= 0 || height < 15) return null; 
+                                  const entry = analyticsData.chartData[index]; 
+                                  let labelText = analyticsRange === 'YTD' ? `$${(entry[`${mode}_count`] > 0 ? (value / entry[`${mode}_count`]).toFixed(0) : '0')}` : (entry[`${mode}_count`] || 0).toString(); 
+                                  return (<text x={x + width / 2} y={y + height / 2} fill="#FFFFFF" textAnchor="middle" dominantBaseline="middle" fontSize={height < 20 ? 7 : 8} fontWeight="900" className="pointer-events-none drop-shadow-sm">{labelText}</text>); 
+                                }} 
+                              />
+                            ))}
                           </BarChart>
                         </ResponsiveContainer>
                       </CardContent>
                     </Card>
 
                     <Card className="border-2 shadow-sm">
-                      <CardHeader className="bg-slate-50/50 border-b flex flex-row items-center justify-between py-4"><div className="space-y-0.5"><CardTitle className="text-xs font-black uppercase tracking-widest text-[#213147]">Revenue Share</CardTitle><CardDescription className="text-[8px] font-bold uppercase">Channel Mix & Efficiency</CardDescription></div><Select value={pieMonthFilter} onValueChange={setPieMonthFilter}><SelectTrigger className="w-[140px] h-8 text-[9px] font-black uppercase tracking-widest border-2 bg-white"><SelectValue placeholder="All Time" /></SelectTrigger><SelectContent><SelectItem value="All">All Time</SelectItem>{availableMonths.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}</Select></CardHeader>
+                      <CardHeader className="bg-slate-50/50 border-b flex flex-row items-center justify-between py-4">
+                        <div className="space-y-0.5">
+                          <CardTitle className="text-xs font-black uppercase tracking-widest text-[#213147]">Revenue Share</CardTitle>
+                          <CardDescription className="text-[8px] font-bold uppercase">Channel Mix & Efficiency</CardDescription>
+                        </div>
+                        <Select value={pieMonthFilter} onValueChange={setPieMonthFilter}>
+                          <SelectTrigger className="w-[140px] h-8 text-[9px] font-black uppercase tracking-widest border-2 bg-white">
+                            <SelectValue placeholder="All Time" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="All">All Time</SelectItem>
+                            {availableMonths.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </CardHeader>
                       <CardContent className="p-0">
-                        <div className="h-[240px] pt-4"><ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={pieChartData} innerRadius={50} outerRadius={70} paddingAngle={5} dataKey="value" animationDuration={1000}>{pieChartData.map((entry, index) => (<Cell key={`cell-${index}`} fill={MODE_COLORS[entry.name] || PIE_COLORS[index % PIE_COLORS.length]} />))}</Pie><ChartTooltip formatter={(value: number) => `$${value.toFixed(2)}`} /></PieChart></ResponsiveContainer></div>
-                        <div className="px-4 pb-6 space-y-2">{pieChartData.map((data, idx) => (<div key={data.name} className="flex items-center justify-between p-2.5 rounded-xl border-2 bg-slate-50/30"><div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full" style={{ backgroundColor: MODE_COLORS[data.name] || PIE_COLORS[idx % PIE_COLORS.length] }} /><span className="text-[10px] font-black uppercase text-[#213147]">{data.name}</span></div><div className="flex items-center gap-6"><div className="text-right"><p className="text-[8px] font-bold text-muted-foreground uppercase leading-none mb-1">Rev / Orders</p><p className="text-[10px] font-black text-[#213147] font-mono">${data.value.toFixed(2)} <span className="text-slate-400">({data.count})</span></p></div><div className="text-right border-l pl-4"><p className="text-[8px] font-bold text-muted-foreground uppercase leading-none mb-1">Avg Ticket</p><p className="text-[10px] font-black text-primary font-mono">${data.avg.toFixed(2)}</p></div></div></div>))}</div>
+                        <div className="h-[240px] pt-4">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <PieChart>
+                              <Pie 
+                                data={pieChartData} 
+                                innerRadius={50} 
+                                outerRadius={70} 
+                                paddingAngle={5} 
+                                dataKey="value" 
+                                animationDuration={1000}
+                              >
+                                {pieChartData.map((entry, index) => (
+                                  <Cell key={`cell-${index}`} fill={MODE_COLORS[entry.name] || PIE_COLORS[index % PIE_COLORS.length]} />
+                                ))}
+                              </Pie>
+                              <ChartTooltip formatter={(value: number) => `$${value.toFixed(2)}`} />
+                            </PieChart>
+                          </ResponsiveContainer>
+                        </div>
+                        <div className="px-4 pb-6 space-y-2">
+                          {pieChartData.map((data, idx) => (
+                            <div key={data.name} className="flex items-center justify-between p-2.5 rounded-xl border-2 bg-slate-50/30">
+                              <div className="flex items-center gap-2">
+                                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: MODE_COLORS[data.name] || PIE_COLORS[idx % PIE_COLORS.length] }} />
+                                <span className="text-[10px] font-black uppercase text-[#213147]">{data.name}</span>
+                              </div>
+                              <div className="flex items-center gap-6">
+                                <div className="text-right">
+                                  <p className="text-[8px] font-bold text-muted-foreground uppercase leading-none mb-1">Rev / Orders</p>
+                                  <p className="text-[10px] font-black text-[#213147] font-mono">${data.value.toFixed(2)} <span className="text-slate-400">({data.count})</span></p>
+                                </div>
+                                <div className="text-right border-l pl-4">
+                                  <p className="text-[8px] font-bold text-muted-foreground uppercase leading-none mb-1">Avg Ticket</p>
+                                  <p className="text-[10px] font-black text-primary font-mono">${data.avg.toFixed(2)}</p>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
                       </CardContent>
                     </Card>
                   </div>
 
                   <div className="space-y-6">
                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b-2 pb-4">
-                      <div className="flex items-center gap-3"><div className="bg-primary/10 p-2 rounded-xl text-primary"><FileText className="h-5 w-5" /></div><div><h3 className="font-headline font-black text-xl text-[#213147] uppercase leading-tight">Detailed Sales Audit</h3><p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Transaction level reporting</p></div></div>
+                      <div className="flex items-center gap-3 text-left">
+                        <div className="bg-primary/10 p-2 rounded-xl text-primary"><FileText className="h-5 w-5" /></div>
+                        <div>
+                          <h3 className="font-headline font-black text-xl text-[#213147] uppercase leading-tight">Detailed Sales Audit</h3>
+                          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Transaction level reporting</p>
+                        </div>
+                      </div>
                       <div className="flex flex-wrap items-center gap-2">
-                        <div className="flex items-center bg-white border-2 rounded-xl px-3 h-10 gap-2"><Calendar className="h-3.5 w-3.5 text-muted-foreground" /><input type="date" value={reportStartDate} onChange={(e) => setReportStartDate(e.target.value)} className="text-[10px] font-black uppercase bg-transparent outline-none" /><span className="text-[10px] text-muted-foreground font-bold">TO</span><input type="date" value={reportEndDate} onChange={(e) => setReportEndDate(e.target.value)} className="text-[10px] font-black uppercase bg-transparent outline-none" /></div>
-                        <Select value={reportModeFilter} onValueChange={setReportModeFilter}><SelectTrigger className="w-[140px] h-10 border-2 font-black uppercase tracking-widest text-[9px] bg-white"><SelectValue placeholder="All Modes" /></SelectTrigger><SelectContent><SelectItem value="All">All Modes</SelectItem>{seller?.menuTypes?.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}</Select>
+                        <div className="flex items-center bg-white border-2 rounded-xl px-3 h-10 gap-2">
+                          <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+                          <input 
+                            type="date" 
+                            value={reportStartDate} 
+                            onChange={(e) => setReportStartDate(e.target.value)} 
+                            className="text-[10px] font-black uppercase bg-transparent outline-none" 
+                          />
+                          <span className="text-[10px] text-muted-foreground font-bold uppercase">TO</span>
+                          <input 
+                            type="date" 
+                            value={reportEndDate} 
+                            onChange={(e) => setReportEndDate(e.target.value)} 
+                            className="text-[10px] font-black uppercase bg-transparent outline-none" 
+                          />
+                        </div>
+                        <Select value={reportModeFilter} onValueChange={setReportModeFilter}>
+                          <SelectTrigger className="w-[140px] h-10 border-2 font-black uppercase tracking-widest text-[9px] bg-white">
+                            <SelectValue placeholder="All Modes" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="All">All Modes</SelectItem>
+                            {seller?.menuTypes?.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
                       </div>
                     </div>
+
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                      <div className="bg-white p-4 rounded-2xl border-2 shadow-sm flex flex-col justify-center"><p className="text-[8px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-1">Audit Volume</p><p className="text-xl font-black font-headline text-[#213147]">{detailedReportStats.volume} <span className="text-[10px] text-muted-foreground uppercase font-bold">Tickets</span></p></div>
-                      <div className="bg-white p-4 rounded-2xl border-2 shadow-sm flex flex-col justify-center"><p className="text-[8px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-1">Audit Revenue</p><p className="text-xl font-black font-headline text-green-600">${detailedReportStats.revenue.toFixed(2)}</p></div>
-                      <Button variant="outline" className="h-full border-2 rounded-2xl gap-2 font-black uppercase text-[10px] tracking-widest"><Download className="h-4 w-4" /> Export Audit Log</Button>
+                      <div className="bg-white p-4 rounded-2xl border-2 shadow-sm flex flex-col justify-center">
+                        <p className="text-[8px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-1">Audit Volume</p>
+                        <p className="text-xl font-black font-headline text-[#213147]">{detailedReportStats.volume} <span className="text-[10px] text-muted-foreground uppercase font-bold">Tickets</span></p>
+                      </div>
+                      <div className="bg-white p-4 rounded-2xl border-2 shadow-sm flex flex-col justify-center">
+                        <p className="text-[8px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-1">Audit Revenue</p>
+                        <p className="text-xl font-black font-headline text-green-600">${detailedReportStats.revenue.toFixed(2)}</p>
+                      </div>
+                      <Button variant="outline" className="h-full border-2 rounded-2xl gap-2 font-black uppercase text-[10px] tracking-widest">
+                        <Download className="h-4 w-4" /> Export Audit Log
+                      </Button>
                     </div>
-                    <Card className="border-2 shadow-sm overflow-hidden"><div className="overflow-x-auto"><Table><TableHeader className="bg-slate-50 border-b"><TableRow><TableHead className="text-[9px] font-black uppercase tracking-widest">Order ID</TableHead><TableHead className="text-[9px] font-black uppercase tracking-widest">Timestamp</TableHead><TableHead className="text-[9px] font-black uppercase tracking-widest">Patron</TableHead><TableHead className="text-[9px] font-black uppercase tracking-widest">Mode</TableHead><TableHead className="text-[9px] font-black uppercase tracking-widest">Total</TableHead><TableHead className="text-[9px] font-black uppercase tracking-widest text-right">Status</TableHead></TableRow></TableHeader><TableBody>{detailedReportOrders.length === 0 ? (<TableRow><TableCell colSpan={6} className="h-32 text-center text-[10px] font-bold text-muted-foreground uppercase">No transactions found for this audit window.</TableCell></TableRow>) : (detailedReportOrders.map((o) => (<TableRow key={o.id}><TableCell className="font-mono text-[10px] font-black">#{getNumericOrderId(o.id)}</TableCell><TableCell className="text-[10px] font-bold text-slate-500 uppercase">{o.createdAt && typeof o.createdAt.toDate === 'function' ? format(o.createdAt.toDate(), 'MMM d, h:mm a') : 'N/A'}</TableCell><TableCell className="text-[10px] font-black text-[#213147] uppercase truncate max-w-[120px]">{o.customerName}</TableCell><TableCell><Badge variant="secondary" className="text-[8px] font-black uppercase">{o.menuType}</Badge></TableCell><TableCell className="font-mono text-[10px] font-black text-primary">${(o.total || 0).toFixed(2)}</TableCell><TableCell className="text-right"><Badge className={cn("text-[8px] font-black uppercase border-0", o.status === 'Delivered' ? 'bg-green-600' : 'bg-slate-400')}>{o.status}</Badge></TableCell></TableRow>)))}</TableBody></Table></div></Card>
+
+                    <Card className="border-2 shadow-sm overflow-hidden">
+                      <div className="overflow-x-auto no-scrollbar">
+                        <Table>
+                          <TableHeader className="bg-slate-50 border-b">
+                            <TableRow>
+                              <TableHead className="text-[9px] font-black uppercase tracking-widest">Order ID</TableHead>
+                              <TableHead className="text-[9px] font-black uppercase tracking-widest">Timestamp</TableHead>
+                              <TableHead className="text-[9px] font-black uppercase tracking-widest">Patron</TableHead>
+                              <TableHead className="text-[9px] font-black uppercase tracking-widest">Mode</TableHead>
+                              <TableHead className="text-[9px] font-black uppercase tracking-widest">Total</TableHead>
+                              <TableHead className="text-[9px] font-black uppercase tracking-widest text-right">Status</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {detailedReportOrders.length === 0 ? (
+                              <TableRow>
+                                <TableCell colSpan={6} className="h-32 text-center text-[10px] font-bold text-muted-foreground uppercase">
+                                  No transactions found for this audit window.
+                                </TableCell>
+                              </TableRow>
+                            ) : (
+                              detailedReportOrders.map((o) => (
+                                <TableRow key={o.id}>
+                                  <TableCell className="font-mono text-[10px] font-black">#{getNumericOrderId(o.id)}</TableCell>
+                                  <TableCell className="text-[10px] font-bold text-slate-500 uppercase">
+                                    {o.createdAt && typeof o.createdAt.toDate === 'function' ? format(o.createdAt.toDate(), 'MMM d, h:mm a') : 'N/A'}
+                                  </TableCell>
+                                  <TableCell className="text-[10px] font-black text-[#213147] uppercase truncate max-w-[120px]">{o.customerName}</TableCell>
+                                  <TableCell><Badge variant="secondary" className="text-[8px] font-black uppercase">{o.menuType}</Badge></TableCell>
+                                  <TableCell className="font-mono text-[10px] font-black text-primary">${(o.total || 0).toFixed(2)}</TableCell>
+                                  <TableCell className="text-right">
+                                    <Badge className={cn("text-[8px] font-black uppercase border-0", o.status === 'Delivered' ? 'bg-green-600' : 'bg-slate-400')}>
+                                      {o.status}
+                                    </Badge>
+                                  </TableCell>
+                                </TableRow>
+                              ))
+                            )}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </Card>
                   </div>
                 </div>
               )}
-
-              {/* ... other nav items ... */}
             </div>
             <ScrollBar orientation="horizontal" />
           </ScrollArea>
         </main>
-        <aside className={cn("bg-[#213147] hidden md:flex flex-col transition-all duration-300 relative border-l-4 border-primary/20 shrink-0 shadow-2xl z-20", sidebarOpen ? "w-64" : "w-20")}><SideBarContent /></aside>
       </div>
-      {/* ... Dialogs ... */}
     </div>
   );
 }
