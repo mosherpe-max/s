@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -6,7 +5,7 @@ import type { Order } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from './ui/card';
 import { Separator } from './ui/separator';
 import { Button } from './ui/button';
-import { Clock, AlertTriangle, ChevronRight, CheckCircle2, Truck, Timer, Satellite, User, UserPlus } from 'lucide-react';
+import { Clock, AlertTriangle, ChevronRight, CheckCircle2, Truck, Timer, Satellite, User, UserPlus, DollarSign } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { cn, getNumericOrderId } from '@/lib/utils';
 
@@ -112,13 +111,22 @@ export function OrderCard({ order, orderNumber, onUpdateStatus, onAttach, curren
 
       {/* COMPACT CONTENT */}
       <CardContent className="p-2.5 flex-1 space-y-2">
-        <div className="space-y-0.5">
+        <div className="space-y-1">
           {order.items.map(item => (
-            <div key={item.cartId} className="flex justify-between text-[9px] leading-tight">
-              <span className="font-bold text-slate-700 truncate max-w-[140px]">{item.quantity}x {item.name}</span>
-              <span className="font-mono text-slate-400 shrink-0">${(item.price * item.quantity).toFixed(2)}</span>
+            <div key={item.cartId} className="flex justify-between text-[13px] leading-tight py-1">
+              <span className="font-black text-[#213147] truncate flex-1 uppercase">
+                {item.quantity}x {item.name}
+              </span>
+              <span className="font-mono text-slate-500 font-bold shrink-0 ml-2">
+                ${(item.price * item.quantity).toFixed(2)}
+              </span>
             </div>
           ))}
+
+          <div className="flex justify-between items-center pt-2 border-t border-dashed mt-2">
+            <span className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Total Order</span>
+            <span className="text-sm font-black text-primary font-mono">${(order.total || 0).toFixed(2)}</span>
+          </div>
         </div>
         
         <div className="flex flex-col gap-1 border-t pt-1.5">
