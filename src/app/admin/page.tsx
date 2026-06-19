@@ -1004,7 +1004,7 @@ export default function PlatformAdminPage() {
                       <CardHeader className="border-b bg-primary/5 flex flex-row items-center gap-3">
                         <Timer className="h-5 w-5 text-primary" />
                         <div>
-                          <CardTitle className="font-black uppercase tracking-tight text-sm">Global Timing Defaults</CardTitle>
+                          <CardTitle className="font-black uppercase tracking-tight text-sm">Global Order Duration Thresholds</CardTitle>
                           <CardDescription className="text-[10px] font-bold uppercase">Initial windows for new establishments</CardDescription>
                         </div>
                       </CardHeader>
