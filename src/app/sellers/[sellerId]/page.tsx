@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useMemo, useEffect, use } from 'react';
@@ -761,32 +762,32 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                     </div>
                     <Card className="border-2 shadow-sm overflow-hidden">
                        <div className="overflow-x-auto no-scrollbar">
-                          <Table className="min-w-[1000px]">
+                          <Table className="min-w-[800px]">
                             <TableHeader className="bg-slate-50 border-b">
                               <TableRow>
-                                <TableHead className="text-[9px] font-black uppercase tracking-widest">Order ID</TableHead>
-                                <TableHead className="text-[9px] font-black uppercase tracking-widest">Timestamp</TableHead>
-                                <TableHead className="text-[9px] font-black uppercase tracking-widest">Patron</TableHead>
-                                <TableHead className="text-[9px] font-black uppercase tracking-widest">Mode</TableHead>
-                                <TableHead className="text-[9px] font-black uppercase tracking-widest">Total</TableHead>
-                                <TableHead className="text-[9px] font-black uppercase tracking-widest">Status</TableHead>
-                                <TableHead className="text-right text-[9px] font-black uppercase tracking-widest">Actions</TableHead>
+                                <TableHead className="text-[9px] font-black uppercase tracking-widest px-3">Order ID</TableHead>
+                                <TableHead className="text-[9px] font-black uppercase tracking-widest px-3">Timestamp</TableHead>
+                                <TableHead className="text-[9px] font-black uppercase tracking-widest px-3">Patron</TableHead>
+                                <TableHead className="text-[9px] font-black uppercase tracking-widest px-3">Mode</TableHead>
+                                <TableHead className="text-[9px] font-black uppercase tracking-widest px-3">Total</TableHead>
+                                <TableHead className="text-[9px] font-black uppercase tracking-widest px-3">Status</TableHead>
+                                <TableHead className="text-right text-[9px] font-black uppercase tracking-widest px-4">Actions</TableHead>
                               </TableRow>
                             </TableHeader>
                             <TableBody>
                               {[...(orders || [])].sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0)).map((o) => (
                                 <TableRow key={o.id} className="group">
-                                  <TableCell className="font-mono text-[10px] font-black">#{getNumericOrderId(o.id)}</TableCell>
-                                  <TableCell className="text-[10px] font-bold text-slate-500 uppercase">{o.createdAt && typeof o.createdAt.toDate === 'function' ? format(o.createdAt.toDate(), 'MMM d, h:mm a') : 'N/A'}</TableCell>
-                                  <TableCell className="text-[10px] font-black text-[#213147] uppercase truncate max-w-[150px]">{o.customerName}</TableCell>
-                                  <TableCell><Badge variant="outline" className="text-[8px] font-black uppercase">{o.menuType}</Badge></TableCell>
-                                  <TableCell className="font-mono text-[10px] font-black text-primary">${(o.total || 0).toFixed(2)}</TableCell>
-                                  <TableCell>
-                                    <Badge className={cn("text-[8px] font-black uppercase border-0", o.status === 'Delivered' ? 'bg-green-600' : 'bg-slate-400')}>
+                                  <TableCell className="font-mono text-[10px] font-black px-3">#{getNumericOrderId(o.id)}</TableCell>
+                                  <TableCell className="text-[10px] font-bold text-slate-500 uppercase px-3">{o.createdAt && typeof o.createdAt.toDate === 'function' ? format(o.createdAt.toDate(), 'MMM d, h:mm a') : 'N/A'}</TableCell>
+                                  <TableCell className="text-[10px] font-black text-[#213147] uppercase truncate max-w-[120px] px-3">{o.customerName}</TableCell>
+                                  <TableCell className="px-3"><Badge variant="outline" className="text-[8px] font-black uppercase whitespace-nowrap">{o.menuType}</Badge></TableCell>
+                                  <TableCell className="font-mono text-[10px] font-black text-primary px-3">${(o.total || 0).toFixed(2)}</TableCell>
+                                  <TableCell className="px-3">
+                                    <Badge className={cn("text-[8px] font-black uppercase border-0 whitespace-nowrap", o.status === 'Delivered' ? 'bg-green-600' : 'bg-slate-400')}>
                                       {o.status}
                                     </Badge>
                                   </TableCell>
-                                  <TableCell className="text-right">
+                                  <TableCell className="text-right px-4">
                                     <Button variant="outline" size="sm" className="h-8 text-[9px] font-black uppercase border-2 gap-1.5" onClick={() => handleUpdateStatus(o.id, o.status)} disabled={o.status === 'Delivered' || o.status === 'Cancelled'}>
                                       Advance <ChevronRight className="h-3 w-3" />
                                     </Button>
