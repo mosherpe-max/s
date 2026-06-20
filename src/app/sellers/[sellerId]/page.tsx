@@ -281,7 +281,7 @@ function CollateralCard({ title, description, icon: Icon }: { title: string, des
   );
 }
 
-function SortableItem({ id, item, activeMode, isFeatured, onToggleFeatured }: { id: string, item: MenuItem, activeMode: string, isFeatured: boolean, onToggleFeatured: (id: string) => void }) {
+function SortableItem({ id, item, activeMode, isFeatured, onToggleFeatured }: { id: string, item: MenuItem, activeMode: string, isFeatured: boolean, onToggleFeatured: (id: string, current: string[]) => void }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
   
   const style = {
@@ -307,7 +307,7 @@ function SortableItem({ id, item, activeMode, isFeatured, onToggleFeatured }: { 
         <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">${item.price.toFixed(2)}</p>
       </div>
       <button 
-        onClick={() => onToggleFeatured(item.id)}
+        onClick={() => onToggleFeatured(item.id, item.featuredOn || [])}
         className={cn(
           "p-2 rounded-lg transition-all active:scale-95",
           isFeatured ? "bg-amber-100 text-amber-600" : "bg-slate-50 text-slate-300 hover:text-slate-400"
@@ -607,8 +607,9 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
 
   const handleToggleItemFeatured = (itemId: string, currentFeatured: string[]) => {
     if (!firestore || !sellerId) return;
-    const isNowFeatured = currentFeatured.includes(configMode);
-    const nextFeatured = isNowFeatured ? currentFeatured.filter(m => m !== configMode) : [...currentFeatured, configMode];
+    const current = currentFeatured || [];
+    const isNowFeatured = current.includes(configMode);
+    const nextFeatured = isNowFeatured ? current.filter(m => m !== configMode) : [...current, configMode];
     const itemRef = doc(firestore, 'sellers', sellerId, 'menuItems', itemId);
     updateDoc(itemRef, { featuredOn: nextFeatured });
   };
