@@ -280,7 +280,7 @@ function CheckoutDrawerContent({
 
   return (
     <ScrollArea className="flex-1">
-      <div className="max-w-xl mx-auto p-6 space-y-8 pb-32">
+      <div className="max-w-xl mx-auto px-4 sm:px-6 py-8 space-y-8 pb-32">
         <div className="flex justify-start -mb-4">
           <SheetClose asChild>
             <Button variant="ghost" className="text-[10px] font-black uppercase tracking-widest text-primary h-8 gap-1.5 p-0 hover:bg-transparent hover:text-primary/80">
@@ -297,10 +297,12 @@ function CheckoutDrawerContent({
         
         {selectedMenuType === 'Lane Delivery' && seller?.laneCount && (
           <div className="space-y-3">
-            <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground px-1">STATION</h3>
-            <div className="grid grid-cols-6 gap-2">
+            <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground px-1">STATION / LANE</h3>
+            <div className="grid grid-cols-5 sm:grid-cols-6 gap-2">
               {Array.from({ length: seller.laneCount }, (_, i) => (i + 1).toString()).map(l => (
-                <Button key={l} variant={locationValue === `Lane ${l}` ? 'default' : 'outline'} size="sm" onClick={() => setLocationValue(`Lane ${l}`)} className="font-bold">{l}</Button>
+                <Button key={l} variant={locationValue === `Lane ${l}` ? 'default' : 'outline'} size="sm" onClick={() => setLocationValue(`Lane ${l}`)} className="font-bold h-10 px-0">
+                  {l}
+                </Button>
               ))}
             </div>
           </div>

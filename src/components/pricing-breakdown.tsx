@@ -18,6 +18,7 @@ interface PricingBreakdownProps {
 /**
  * Renders the financial calculation lines (Subtotal, Fees, Tax, Tip, and Final Total).
  * Standardized typography across all lines while maintaining the "KOOP" convenience fee badge.
+ * Optimized for horizontal mobile visibility.
  */
 export function PricingBreakdown({ 
   subtotal, 
@@ -30,7 +31,7 @@ export function PricingBreakdown({
 
   return (
     <div className="space-y-4">
-      <div className="space-y-3 text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
+      <div className="space-y-3 text-[10px] sm:text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
         {/* SUBTOTAL */}
         <div className="flex justify-between items-center px-1">
           <p>Subtotal</p>
@@ -49,18 +50,18 @@ export function PricingBreakdown({
           <p className="font-mono text-foreground">${tip.toFixed(2)}</p>
         </div>
 
-        {/* CONVENIENCE FEE WITH KOOP BADGE - MOVED TO END */}
+        {/* CONVENIENCE FEE WITH KOOP BADGE */}
         <div className="flex justify-between items-center px-1">
-          <div className="flex items-center gap-2">
-            <p>Convenience Fee</p>
+          <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+            <p className="truncate">Convenience Fee</p>
             <Popover>
               <PopoverTrigger asChild>
                 <button 
                   type="button" 
-                  className="inline-flex items-center justify-center px-1.5 py-0.5 rounded-[4px] bg-slate-100 hover:bg-slate-200 active:scale-95 transition-all focus:outline-none touch-manipulation border border-slate-200/50 shadow-sm"
+                  className="inline-flex items-center justify-center px-1.5 py-0.5 rounded-[4px] bg-slate-100 hover:bg-slate-200 active:scale-95 transition-all focus:outline-none touch-manipulation border border-slate-200/50 shadow-sm shrink-0"
                   aria-label="Convenience fee information"
                 >
-                  <span className="text-[9px] font-black text-slate-400 tracking-tighter">KOOP</span>
+                  <span className="text-[8px] sm:text-[9px] font-black text-slate-400 tracking-tighter">KOOP</span>
                 </button>
               </PopoverTrigger>
               <PopoverContent 
@@ -76,16 +77,16 @@ export function PricingBreakdown({
               </PopoverContent>
             </Popover>
           </div>
-          <p className="font-mono text-foreground">${serviceFee.toFixed(2)}</p>
+          <p className="font-mono text-foreground shrink-0">${serviceFee.toFixed(2)}</p>
         </div>
       </div>
 
       <Separator className="bg-border" />
 
       {/* TOTAL */}
-      <div className="flex justify-between items-center font-black text-lg py-1 px-1">
+      <div className="flex justify-between items-center font-black text-base sm:text-lg py-1 px-1">
         <p className="font-headline tracking-tight text-[#213147]">TOTAL</p>
-        <p className="font-mono text-primary text-xl">${total.toFixed(2)}</p>
+        <p className="font-mono text-primary text-lg sm:text-xl">${total.toFixed(2)}</p>
       </div>
     </div>
   );
