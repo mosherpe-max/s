@@ -591,6 +591,10 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                 <Button variant="ghost" size="icon" className="text-[#213147]"><LucideMenu className="h-6 w-6" /></Button>
               </SheetTrigger>
               <SheetContent side="right" className="p-0 bg-[#213147] border-l-4 border-primary/20">
+                <SheetHeader className="sr-only">
+                  <SheetTitle>Venue Navigator</SheetTitle>
+                  <SheetDescription>Management tools for {seller?.courseName}</SheetDescription>
+                </SheetHeader>
                 <SideBarContent forceLabels={true} />
               </SheetContent>
             </Sheet>

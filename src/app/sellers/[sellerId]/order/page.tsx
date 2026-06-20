@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, use, useEffect, useMemo } from 'react';
@@ -14,7 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetClose } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetClose, SheetDescription } from '@/components/ui/sheet';
 import { 
   Loader2, 
   Store, 
@@ -664,6 +665,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
                   {selectedMenuType}
                 </Badge>
               </div>
+              <SheetDescription className="sr-only">Complete your order from {seller?.courseName}</SheetDescription>
               <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/50">{seller?.courseName}</p>
             </div>
           </SheetHeader>
