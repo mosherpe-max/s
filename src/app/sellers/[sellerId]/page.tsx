@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useMemo, useEffect, use } from 'react';
@@ -1136,7 +1135,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                         <Select onValueChange={field.onChange} defaultValue={field.value}>
                           <FormControl><SelectTrigger className="h-12 border-2 font-bold"><SelectValue /></SelectTrigger></FormControl>
                           <SelectContent>
-                            {categories.map(c => <SelectItem key={cat} value={c}>{c}</SelectItem>)}
+                            {categories.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                           </SelectContent>
                         </Select>
                         <FormMessage />
