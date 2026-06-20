@@ -806,32 +806,40 @@ export default function PlatformAdminPage() {
 
               {activeNav === 'venues' && (
                 <div className="space-y-6 animate-in fade-in duration-500">
-                  <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-                    <div className="flex-1 flex bg-white p-4 rounded-2xl border-2 shadow-sm gap-4 items-center w-full">
-                      <Search className="h-4 w-4 text-muted-foreground ml-2" />
-                      <Input placeholder="Search registry by venue name..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="border-0 shadow-none focus-visible:ring-0 text-sm font-medium" />
+                  <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
+                    <div className="flex-1 flex bg-white p-3 sm:p-4 rounded-2xl border-2 shadow-sm gap-4 items-center w-full min-w-0">
+                      <Search className="h-4 w-4 text-muted-foreground ml-1 sm:ml-2 shrink-0" />
+                      <Input 
+                        placeholder="Search registry by venue name..." 
+                        value={searchTerm} 
+                        onChange={(e) => setSearchTerm(e.target.value)} 
+                        className="border-0 shadow-none focus-visible:ring-0 text-xs sm:text-sm font-medium p-0 h-auto flex-1" 
+                      />
                     </div>
-                    <Button onClick={() => setIsAddVenueOpen(true)} className="bg-primary hover:bg-primary/90 h-14 px-8 rounded-2xl font-black uppercase text-xs tracking-widest gap-2 shadow-xl shadow-primary/20 w-full sm:w-auto">
+                    <Button 
+                      onClick={() => setIsAddVenueOpen(true)} 
+                      className="bg-primary hover:bg-primary/90 h-12 md:h-14 px-6 md:px-8 rounded-2xl font-black uppercase text-[10px] md:text-xs tracking-widest gap-2 shadow-xl shadow-primary/20 w-full md:w-auto shrink-0"
+                    >
                       <Plus className="h-4 w-4" /> Register New Establishment
                     </Button>
                   </div>
                   
                   <div className="border-2 rounded-2xl overflow-hidden bg-white shadow-sm">
                     <div className="overflow-x-auto no-scrollbar">
-                      <Table className="min-w-[800px]">
+                      <Table className="min-w-[700px] md:min-w-full">
                         <TableHeader className="bg-slate-50 border-b">
                           <TableRow>
-                            <TableHead className="text-[10px] font-black uppercase">Establishment</TableHead>
+                            <TableHead className="text-[10px] font-black uppercase py-4">Establishment</TableHead>
                             <TableHead className="text-[10px] font-black uppercase">Type</TableHead>
-                            <TableHead className="text-[10px] font-black uppercase">Contact</TableHead>
+                            <TableHead className="text-[10px] font-black uppercase hidden sm:table-cell">Contact</TableHead>
                             <TableHead className="text-[10px] font-black uppercase">Status</TableHead>
-                            <TableHead className="text-right text-[10px] font-black uppercase">Actions</TableHead>
+                            <TableHead className="text-right text-[10px] font-black uppercase pr-6">Actions</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
                           {sellers?.filter(s => s.courseName.toLowerCase().includes(searchTerm.toLowerCase())).map((venue) => (
-                            <TableRow key={venue.id}>
-                              <TableCell>
+                            <TableRow key={venue.id} className="group hover:bg-slate-50/50">
+                              <TableCell className="py-4">
                                 <div className="flex items-center gap-2">
                                   <span className="font-black text-sm uppercase text-[#213147]">{venue.courseName}</span>
                                   {venue.isFoundingPartner && (
@@ -843,9 +851,9 @@ export default function PlatformAdminPage() {
                                 </div>
                               </TableCell>
                               <TableCell className="text-[10px] font-bold text-muted-foreground uppercase">{venue.type}</TableCell>
-                              <TableCell className="text-[10px] font-medium">{venue.contactName}</TableCell>
+                              <TableCell className="text-[10px] font-medium hidden sm:table-cell">{venue.contactName}</TableCell>
                               <TableCell><Badge className={cn(venue.status === 'Active' ? 'bg-green-600' : 'bg-slate-300')}>{venue.status}</Badge></TableCell>
-                              <TableCell className="text-right">
+                              <TableCell className="text-right pr-6">
                                 <div className="flex justify-end gap-2">
                                   <Button 
                                     variant="outline" 
@@ -859,10 +867,10 @@ export default function PlatformAdminPage() {
                                     variant="ghost" 
                                     size="sm" 
                                     asChild
-                                    className="text-[10px] font-black uppercase gap-1.5 h-8"
+                                    className="text-[10px] font-black uppercase gap-1.5 h-8 hidden md:inline-flex"
                                   >
                                     <Link href={`/sellers/${venue.id}`}>
-                                      <ExternalLink className="h-3 w-3" /> Launch Terminal
+                                      <ExternalLink className="h-3 w-3" /> Terminal
                                     </Link>
                                   </Button>
                                 </div>
@@ -1049,7 +1057,7 @@ export default function PlatformAdminPage() {
                       <CardContent className="p-6 space-y-6">
                         <div className="grid grid-cols-3 gap-4">
                           <div className="space-y-1.5">
-                            <Label className="text-[8px] font-black uppercase text-green-600 tracking-widest flex items-center gap-1">
+                            <Label className="text-[8px] font-black uppercase text-green-600 tracking-widest flex items-center gap-1 text-center justify-center">
                               <CheckCircle2 className="h-2 w-2" /> Hot (Good)
                             </Label>
                             <Input 
@@ -1057,12 +1065,12 @@ export default function PlatformAdminPage() {
                               min="1"
                               value={gpsFreshness.hot || ''} 
                               onChange={e => handleGpsFreshnessChange('hot', e.target.value)} 
-                              className="h-10 border-2 font-bold focus-visible:ring-green-500 border-green-100"
+                              className="h-10 border-2 font-bold focus-visible:ring-green-500 border-green-100 text-center"
                             />
-                            <p className="text-[10px] font-bold text-green-600/60 text-center">{"<"} {gpsFreshness.hot}s</p>
+                            <p className="text-[8px] sm:text-[10px] font-bold text-green-600/60 text-center">{"<"} {gpsFreshness.hot}s</p>
                           </div>
                           <div className="space-y-1.5">
-                            <Label className="text-[8px] font-black uppercase text-amber-600 tracking-widest flex items-center gap-1">
+                            <Label className="text-[8px] font-black uppercase text-amber-600 tracking-widest flex items-center gap-1 text-center justify-center">
                               <AlertTriangle className="h-2 w-2" /> Warm (Concern)
                             </Label>
                             <Input 
@@ -1070,12 +1078,12 @@ export default function PlatformAdminPage() {
                               min="1"
                               value={gpsFreshness.warm || ''} 
                               onChange={e => handleGpsFreshnessChange('warm', e.target.value)} 
-                              className="h-10 border-2 font-bold focus-visible:ring-amber-500 border-amber-100"
+                              className="h-10 border-2 font-bold focus-visible:ring-amber-500 border-amber-100 text-center"
                             />
-                            <p className="text-[10px] font-bold text-amber-600/60 text-center">{"<"} {gpsFreshness.warm}s</p>
+                            <p className="text-[8px] sm:text-[10px] font-bold text-amber-600/60 text-center">{"<"} {gpsFreshness.warm}s</p>
                           </div>
                           <div className="space-y-1.5">
-                            <Label className="text-[8px] font-black uppercase text-red-600 tracking-widest flex items-center gap-1">
+                            <Label className="text-[8px] font-black uppercase text-red-600 tracking-widest flex items-center gap-1 text-center justify-center">
                               <Flame className="h-2 w-2" /> Cold (Bad)
                             </Label>
                             <Input 
@@ -1083,13 +1091,13 @@ export default function PlatformAdminPage() {
                               min="1"
                               value={gpsFreshness.cold || ''} 
                               onChange={e => handleGpsFreshnessChange('cold', e.target.value)} 
-                              className="h-10 border-2 font-bold focus-visible:ring-red-500 border-red-100"
+                              className="h-10 border-2 font-bold focus-visible:ring-red-500 border-red-100 text-center"
                             />
-                            <p className="text-[10px] font-bold text-red-600/60 text-center">{"<"} {gpsFreshness.cold}s</p>
+                            <p className="text-[8px] sm:text-[10px] font-bold text-red-600/60 text-center">{"<"} {gpsFreshness.cold}s</p>
                           </div>
                         </div>
-                        <p className="text-[8px] font-bold text-muted-foreground uppercase leading-relaxed italic">
-                          Defines when location markers shift from Green to Amber to Red to Gray (Lost) to indicate signal age.
+                        <p className="text-[8px] font-bold text-muted-foreground uppercase leading-relaxed italic text-center">
+                          Defines when location markers shift through signal health states.
                         </p>
                       </CardContent>
                     </Card>
@@ -1103,14 +1111,14 @@ export default function PlatformAdminPage() {
                         </div>
                       </CardHeader>
                       <CardContent className="p-6 space-y-6">
-                        <div className="space-y-6">
+                        <div className="space-y-4">
                           {SERVICE_MODES.map(mode => {
                             const thresholds = systemThresholds[mode] || { warning: 15, max: 20 };
                             return (
                               <div key={mode} className="space-y-3 p-4 bg-slate-50 rounded-2xl border-2">
                                 <div className="flex items-center justify-between">
                                   <span className="text-[10px] font-black uppercase text-[#213147] tracking-tight">{mode}</span>
-                                  <Badge variant="outline" className="text-[8px] font-bold uppercase h-4 px-1">Global Standard</Badge>
+                                  <Badge variant="outline" className="text-[8px] font-bold uppercase h-4 px-1">Global Default</Badge>
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
                                    <div className="space-y-1.5">
@@ -1239,7 +1247,7 @@ export default function PlatformAdminPage() {
             <div className="p-8">
               <Form {...registrationForm}>
                 <form onSubmit={registrationForm.handleSubmit(handleCreateVenue)} className="space-y-6">
-                  <div className="grid grid-cols-2 gap-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                     <FormField control={registrationForm.control} name="name" render={({ field }) => (
                       <FormItem>
                         <FormLabel className="text-[10px] font-black uppercase tracking-widest">Establishment Name</FormLabel>
@@ -1260,7 +1268,7 @@ export default function PlatformAdminPage() {
                     )} />
                   </div>
 
-                  <div className="grid grid-cols-2 gap-6 pt-4 border-t">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-4 border-t">
                     <FormField control={registrationForm.control} name="contactName" render={({ field }) => (
                       <FormItem>
                         <FormLabel className="text-[10px] font-black uppercase tracking-widest">Primary Contact</FormLabel>
@@ -1282,7 +1290,7 @@ export default function PlatformAdminPage() {
                       <FormLabel className="text-[10px] font-black uppercase text-primary tracking-widest">Initial Manager Identity (Auth UID)</FormLabel>
                       <div className="flex gap-2">
                         <FormControl><Input {...field} placeholder="Firebase Auth UID" className="h-11 border-2 font-mono text-[10px]" /></FormControl>
-                        <Button type="button" variant="outline" size="icon" className="h-11 w-11 border-2" onClick={() => registrationForm.setValue('ownerUid', 'god-mode-test-uid')} title="Quick Test UID"><Wand2 className="h-4 w-4" /></Button>
+                        <Button type="button" variant="outline" size="icon" className="h-11 w-11 border-2 shrink-0" onClick={() => registrationForm.setValue('ownerUid', 'god-mode-test-uid')} title="Quick Test UID"><Wand2 className="h-4 w-4" /></Button>
                       </div>
                       <FormDescription className="text-[9px] font-bold uppercase text-primary/60">This UID will have master permissions for this specific venue.</FormDescription>
                       <FormMessage />
