@@ -152,27 +152,10 @@ import {
   Legend
 } from 'recharts';
 
-import {
-  DndContext,
-  closestCenter,
-  KeyboardSensor,
-  PointerSensor,
-  useSensors,
-  useSensor,
-  DragEndEvent,
-} from '@dnd-kit/core';
-import {
-  arrayMove,
-  SortableContext,
-  sortableKeyboardCoordinates,
-  verticalListSortingStrategy,
-  useSortable,
-} from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
-
 import type { MenuItem, Seller, Order, StaffMember, Venue, PlatformConfig, SellerAdminRole, Category } from '@/lib/types';
 import { categories } from '@/lib/types';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Checkbox } from '@/components/ui/checkbox';
 
 // --- CONSTANTS ---
 
@@ -190,96 +173,29 @@ const MODE_COLORS: Record<string, string> = {
   'Take Out': '#F59E0B'
 };
 
-const PIE_COLORS = ['#E50000', '#213147', '#4F46E5', '#F59E0B', '#10B981'];
+// --- SCHEMAS ---
 
-// --- DND COMPONENTS ---
+const staffSchema = z.object({
+  name: z.string().min(2, 'Name required'),
+  role: z.enum(['Staff', 'Manager']),
+  pin: z.string().length(4, 'PIN must be 4 digits').regex(/^\d+$/, 'Numbers only'),
+  isActive: z.boolean().default(true),
+});
 
-function SortableMenuItem({ 
-  item, 
-  isSelected, 
-  onToggleChannel, 
-  onToggleAvailability 
-}: { 
-  item: MenuItem, 
-  isSelected: boolean, 
-  onToggleChannel: () => void,
-  onToggleAvailability: () => void 
-}) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging
-  } = useSortable({ id: item.id });
+type StaffFormData = z.infer<typeof staffSchema>;
 
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    zIndex: isDragging ? 10 : 1,
-    opacity: isDragging ? 0.5 : 1,
-  };
+const itemSchema = z.object({
+  name: z.string().min(2, 'Name required'),
+  description: z.string().optional(),
+  price: z.coerce.number().min(0),
+  category: z.enum(categories as any),
+  imageUrl: z.string().optional(),
+  availableOn: z.array(z.string()).default([]),
+  featuredOn: z.array(z.string()).default([]),
+  isAvailable: z.boolean().default(true),
+});
 
-  const isGloballyAvailable = item.isAvailable !== false;
-
-  return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      className={cn(
-        "flex items-center gap-3 p-3 bg-white border-2 rounded-xl transition-all",
-        isSelected 
-          ? "border-primary/40 bg-primary/5 shadow-md ring-2 ring-primary/5" 
-          : "border-slate-100 opacity-50 grayscale",
-        !isGloballyAvailable && "border-red-100 bg-red-50/30 grayscale-0"
-      )}
-    >
-      <div 
-        {...attributes} 
-        {...listeners} 
-        className={cn(
-          "cursor-grab active:cursor-grabbing p-2 hover:bg-slate-100 rounded-lg shrink-0",
-          (!isSelected || !isGloballyAvailable) && "pointer-events-none opacity-20"
-        )}
-      >
-        <GripVertical className="h-4 w-4 text-slate-400" />
-      </div>
-      
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
-          <p className="font-black text-[11px] uppercase text-[#213147] truncate leading-tight">{item.name}</p>
-          {!isGloballyAvailable && (
-            <Badge variant="destructive" className="h-4 px-1 text-[7px] font-black uppercase border-0">86'D</Badge>
-          )}
-        </div>
-        <p className="text-[10px] text-primary font-bold font-mono mt-0.5">${item.price.toFixed(2)}</p>
-      </div>
-
-      <div className="flex items-center gap-4 shrink-0">
-        <div className="flex flex-col items-center gap-0.5">
-          <span className="text-[7px] font-black text-slate-400 uppercase">Stock</span>
-          <Switch 
-            checked={isGloballyAvailable} 
-            onCheckedChange={onToggleAvailability}
-            onPointerDown={(e) => e.stopPropagation()}
-            className="data-[state=checked]:bg-green-600 scale-75"
-          />
-        </div>
-
-        <div className="flex items-center gap-2">
-           <span className="text-[7px] font-black text-slate-400 uppercase">Live</span>
-           <Switch 
-            checked={isSelected} 
-            onToggleChannel={onToggleChannel}
-            onPointerDown={(e) => e.stopPropagation()}
-            className="data-[state=checked]:bg-primary scale-75"
-          />
-        </div>
-      </div>
-    </div>
-  );
-}
+type ItemFormData = z.infer<typeof itemSchema>;
 
 // --- UI COMPONENTS ---
 
@@ -346,30 +262,6 @@ function CollateralCard({ title, description, icon: Icon }: { title: string, des
   );
 }
 
-// --- SCHEMAS ---
-
-const staffSchema = z.object({
-  name: z.string().min(2, 'Name required'),
-  role: z.enum(['Staff', 'Manager']),
-  pin: z.string().length(4, 'PIN must be 4 digits').regex(/^\d+$/, 'Numbers only'),
-  isActive: z.boolean().default(true),
-});
-
-type StaffFormData = z.infer<typeof staffSchema>;
-
-const itemSchema = z.object({
-  name: z.string().min(2, 'Name required'),
-  description: z.string().optional(),
-  price: z.coerce.number().min(0),
-  category: z.enum(categories as any),
-  imageUrl: z.string().optional(),
-  availableOn: z.array(z.string()).default([]),
-  featuredOn: z.array(z.string()).default([]),
-  isAvailable: z.boolean().default(true),
-});
-
-type ItemFormData = z.infer<typeof itemSchema>;
-
 // --- MAIN PAGE ---
 
 export default function SellerAdminPage({ params }: { params: Promise<{ sellerId: string }> }) {
@@ -388,7 +280,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   const [isMounted, setIsMounted] = useState(false);
   const [dashboardFilter, setDashboardFilter] = useState('All');
   const [analyticsRange, setAnalyticsRange] = useState<'Today' | 'MTD' | 'YTD'>('Today');
-  const [pieMonthFilter, setPieMonthFilter] = useState('All');
   const [now, setNow] = useState<number>(Date.now());
 
   // Operational State
@@ -501,6 +392,11 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     defaultValues: { name: '', role: 'Staff', pin: '', isActive: true }
   });
 
+  const itemForm = useForm<ItemFormData>({
+    resolver: zodResolver(itemSchema),
+    defaultValues: { name: '', price: 0, category: 'Other', isAvailable: true, availableOn: [], featuredOn: [] }
+  });
+
   const handleSaveStaff = async (data: StaffFormData) => {
     if (!firestore || !sellerId) return;
     setIsProcessingSave(true);
@@ -517,11 +413,50 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     }).finally(() => setIsProcessingSave(false));
   };
 
+  const handleSaveItem = async (data: ItemFormData) => {
+    if (!firestore || !sellerId) return;
+    setIsProcessingSave(true);
+    const itemId = editingItem?.id || Math.random().toString(36).substr(2, 9);
+    const itemRef = doc(firestore, 'sellers', sellerId, 'menuItems', itemId);
+    const payload = { 
+      ...data, 
+      id: itemId, 
+      rank: editingItem?.rank ?? (menuItems?.length || 0) + 1,
+      updatedAt: serverTimestamp(), 
+      createdAt: editingItem?.createdAt || serverTimestamp() 
+    };
+    setDoc(itemRef, payload, { merge: true }).then(() => {
+      toast({ title: editingItem ? 'Item Updated' : 'Item Added' });
+      setIsItemFormOpen(false);
+      setEditingItem(null);
+      itemForm.reset();
+    }).catch(async (error) => {
+      errorEmitter.emit('permission-error', new FirestorePermissionError({ 
+        path: itemRef.path, 
+        operation: 'write', 
+        requestResourceData: payload 
+      } satisfies SecurityRuleContext));
+    }).finally(() => setIsProcessingSave(false));
+  };
+
   const handleDeleteStaff = async (id: string) => {
     if (!firestore || !sellerId) return;
     const staffRef = doc(firestore, 'sellers', sellerId, 'staff', id);
     deleteDoc(staffRef).then(() => { toast({ title: "Staff Member Removed" }); }).catch(async (error) => {
       errorEmitter.emit('permission-error', new FirestorePermissionError({ path: staffRef.path, operation: 'delete' } satisfies SecurityRuleContext));
+    });
+  };
+
+  const handleDeleteItem = async (id: string) => {
+    if (!firestore || !sellerId) return;
+    const itemRef = doc(firestore, 'sellers', sellerId, 'menuItems', id);
+    deleteDoc(itemRef).then(() => { 
+      toast({ title: "Menu Item Deleted" }); 
+    }).catch(async (error) => {
+      errorEmitter.emit('permission-error', new FirestorePermissionError({ 
+        path: itemRef.path, 
+        operation: 'delete' 
+      } satisfies SecurityRuleContext));
     });
   };
 
@@ -801,6 +736,86 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                  </div>
               )}
 
+              {activeNav === 'menu' && (
+                <div className="space-y-6 animate-in fade-in duration-500">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b-2 pb-4">
+                    <div className="space-y-1">
+                      <h3 className="font-headline font-black text-2xl text-[#213147] uppercase leading-tight">Digital Menu Management</h3>
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Pricing & availability control</p>
+                    </div>
+                    <Button onClick={() => { setEditingItem(null); itemForm.reset(); setIsItemFormOpen(true); }} className="bg-primary hover:bg-primary/90 h-12 px-6 rounded-xl font-black uppercase text-[11px] tracking-widest gap-2 shadow-xl">
+                      <Plus className="h-4 w-4" /> Add New Item
+                    </Button>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {categories.map(cat => {
+                      const items = menuItems?.filter(i => i.category === cat);
+                      if (!items?.length) return null;
+                      return (
+                        <div key={cat} className="space-y-3">
+                          <h4 className="text-[10px] font-black uppercase text-primary tracking-widest px-1">{cat}</h4>
+                          <div className="space-y-3">
+                            {items.map(item => (
+                              <Card key={item.id} className={cn("border-2 shadow-sm group transition-all", item.isAvailable ? "bg-white" : "bg-red-50 border-red-100 opacity-60")}>
+                                <CardContent className="p-4 flex items-center justify-between">
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2">
+                                      <p className="font-black text-xs uppercase text-[#213147] truncate">{item.name}</p>
+                                      {!item.isAvailable && <Badge variant="destructive" className="h-3.5 px-1 text-[7px] font-black uppercase border-0">86'D</Badge>}
+                                    </div>
+                                    <p className="text-[10px] font-bold text-primary font-mono mt-0.5">${item.price.toFixed(2)}</p>
+                                  </div>
+                                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-indigo-600" onClick={() => { setEditingItem(item); itemForm.reset(item); setIsItemFormOpen(true); }}><Edit className="h-4 w-4" /></Button>
+                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleDeleteItem(item.id)}><Trash2 className="h-4 w-4" /></Button>
+                                  </div>
+                                </CardContent>
+                              </Card>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {activeNav === 'service' && (
+                <div className="space-y-8 animate-in fade-in duration-500">
+                  <div className="space-y-1 border-b-2 pb-4">
+                    <h3 className="font-headline font-black text-2xl text-[#213147] uppercase leading-tight">Operational Mode Control</h3>
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Master toggles for delivery channels</p>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    {['Beverage Cart', 'Clubhouse', 'Lane Delivery', 'Take Out'].map(mode => {
+                      const isActive = (mode === 'Beverage Cart' && seller?.bevcartActive) || (mode === 'Clubhouse' && seller?.clubhouseActive) || (mode === 'Lane Delivery' && seller?.lanedeliveryActive) || (mode === 'Take Out' && seller?.takeoutActive);
+                      const isVenueAuthorized = seller?.menuTypes?.includes(mode);
+                      
+                      return (
+                        <Card key={mode} className={cn("border-2 shadow-sm transition-all", isActive ? "border-primary/20 bg-white" : "border-slate-100 bg-slate-50 opacity-60")}>
+                          <CardHeader className="p-4 border-b">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[11px] font-black uppercase text-[#213147]">{mode}</span>
+                              <Switch checked={isActive} onCheckedChange={() => handleToggleMode(mode, !!isActive)} disabled={!isVenueAuthorized} className="data-[state=checked]:bg-primary" />
+                            </div>
+                          </CardHeader>
+                          <CardContent className="p-4">
+                             <div className="flex flex-col gap-1">
+                                <span className="text-[8px] font-black uppercase text-muted-foreground tracking-widest">Authorization Status</span>
+                                <Badge variant="outline" className={cn("h-5 w-fit text-[8px] font-black uppercase", isVenueAuthorized ? "border-green-100 text-green-600" : "border-red-100 text-red-600")}>
+                                  {isVenueAuthorized ? 'AUTHORIZED' : 'RESTRICTED'}
+                                </Badge>
+                             </div>
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               {activeNav === 'staff' && (
                 <div className="space-y-6 animate-in fade-in duration-500">
                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -851,7 +866,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                   </div>
 
                   <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    {/* SECTION 1: MASTER QR CODE */}
                     <Card className="lg:col-span-1 border-2 shadow-sm overflow-hidden h-fit">
                       <CardHeader className="bg-slate-50/50 border-b">
                         <CardTitle className="text-xs font-black uppercase tracking-widest text-[#213147]">Venue QR Code</CardTitle>
@@ -884,7 +898,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                       </CardContent>
                     </Card>
 
-                    {/* SECTION 2: COLLATERAL TEMPLATES */}
                     <div className="lg:col-span-2 space-y-8">
                       <div className="flex items-center gap-3 border-b-2 pb-4">
                         <div className="p-2 bg-primary/10 rounded-xl text-primary"><Printer className="h-5 w-5" /></div>
@@ -1078,6 +1091,89 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
               </form>
             </Form>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* DIALOG: ITEM FORM */}
+      <Dialog open={isItemFormOpen} onOpenChange={setIsItemFormOpen}>
+        <DialogContent className="sm:max-w-[500px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl">
+          <DialogHeader className="p-8 bg-[#213147] text-white">
+            <div className="flex items-center gap-4">
+              <div className="bg-primary/20 p-3 rounded-2xl shrink-0"><UtensilsCrossed className="h-6 w-6 text-primary" /></div>
+              <div>
+                <DialogTitle className="font-headline font-black uppercase tracking-tight text-white text-xl">{editingItem ? 'Modify Item' : 'New Menu Item'}</DialogTitle>
+                <DialogDescription className="text-white/40 text-[9px] font-bold uppercase tracking-widest mt-1">Configure digital menu presence</DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+          <ScrollArea className="max-h-[60vh]">
+            <div className="p-8">
+              <Form {...itemForm}>
+                <form onSubmit={itemForm.handleSubmit(handleSaveItem)} className="space-y-6">
+                  <FormField control={itemForm.control} name="name" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-[10px] font-black uppercase tracking-widest">Item Name</FormLabel>
+                      <FormControl><Input {...field} placeholder="Classic Burger" className="h-12 border-2 font-bold" /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField control={itemForm.control} name="price" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-[10px] font-black uppercase tracking-widest">Price ($)</FormLabel>
+                        <FormControl><Input {...field} type="number" step="0.01" className="h-12 border-2 font-bold" /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                    <FormField control={itemForm.control} name="category" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-[10px] font-black uppercase tracking-widest">Category</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl><SelectTrigger className="h-12 border-2 font-bold"><SelectValue /></SelectTrigger></FormControl>
+                          <SelectContent>
+                            {categories.map(c => <SelectItem key={cat} value={c}>{c}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                  </div>
+
+                  <FormField control={itemForm.control} name="description" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-[10px] font-black uppercase tracking-widest">Description (Optional)</FormLabel>
+                      <FormControl><Input {...field} placeholder="Chilled 12oz can" className="h-12 border-2 font-bold" /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+
+                  <div className="space-y-4 pt-4 border-t">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-primary">Channel Authorization</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      {['Beverage Cart', 'Clubhouse', 'Lane Delivery', 'Take Out'].map(mode => (
+                        <div key={mode} className="flex items-center space-x-2">
+                           <Checkbox 
+                              checked={itemForm.watch('availableOn').includes(mode)}
+                              onCheckedChange={(checked) => {
+                                const current = itemForm.getValues('availableOn');
+                                const next = checked ? [...current, mode] : current.filter(m => m !== mode);
+                                itemForm.setValue('availableOn', next);
+                              }}
+                           />
+                           <label className="text-[10px] font-bold uppercase text-[#213147] leading-none">{mode}</label>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <Button type="submit" disabled={isProcessingSave} className="w-full h-14 bg-[#213147] hover:bg-black font-black uppercase tracking-widest text-[11px] gap-2 shadow-xl">
+                    {isProcessingSave ? <Loader2 className="h-5 w-5 animate-spin" /> : <Save className="h-5 w-5" />} Commit Item
+                  </Button>
+                </form>
+              </Form>
+            </div>
+          </ScrollArea>
         </DialogContent>
       </Dialog>
     </div>
