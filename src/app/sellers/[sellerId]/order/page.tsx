@@ -65,11 +65,13 @@ const serviceTypeIcons: Record<string, any> = {
 
 function CheckoutBrandingBar() {
   return (
-    <div className="fixed bottom-0 left-0 right-0 h-7 bg-[#213147] text-white flex items-center justify-between px-6 z-[60] w-full border-t border-white/5">
-      <span className="text-[10px] font-black uppercase tracking-widest text-white/40">Secure Order</span>
-      <div className="flex items-center gap-0.5">
-        <span className="text-[10px] font-black uppercase tracking-widest text-white/60">Powered by</span>
-        <StylizedKoopLogo size="sm" />
+    <div className="fixed bottom-0 left-0 right-0 h-7 bg-[#213147] text-white flex items-center justify-center z-[60] w-full border-t border-white/5">
+      <div className="max-w-xl mx-auto w-full px-6 flex items-center justify-between">
+        <span className="text-[10px] font-black uppercase tracking-widest text-white/40">Secure Order</span>
+        <div className="flex items-center gap-0.5">
+          <span className="text-[10px] font-black uppercase tracking-widest text-white/60">Powered by</span>
+          <StylizedKoopLogo size="sm" />
+        </div>
       </div>
     </div>
   );
@@ -129,15 +131,17 @@ function StripeActionArea({
         <StripeCheckoutForm onReadyStateChange={setIsStripeReady} />
       </div>
       <div className="fixed bottom-7 left-0 right-0 p-4 bg-white/80 backdrop-blur-md border-t z-50">
-        <Button 
-          size="lg" 
-          className="w-full h-14 font-black uppercase tracking-widest gap-2 shadow-xl" 
-          onClick={handleStripePayment}
-          disabled={isProcessing || !isStripeReady}
-        >
-          {isProcessing ? <Loader2 className="animate-spin" /> : <CreditCard className="h-5 w-5" />} 
-          PAY & PLACE ORDER
-        </Button>
+        <div className="max-w-xl mx-auto">
+          <Button 
+            size="lg" 
+            className="w-full h-14 font-black uppercase tracking-widest gap-2 shadow-xl" 
+            onClick={handleStripePayment}
+            disabled={isProcessing || !isStripeReady}
+          >
+            {isProcessing ? <Loader2 className="animate-spin" /> : <CreditCard className="h-5 w-5" />} 
+            PAY & PLACE ORDER
+          </Button>
+        </div>
       </div>
       <CheckoutBrandingBar />
     </div>
@@ -276,7 +280,7 @@ function CheckoutDrawerContent({
 
   return (
     <ScrollArea className="flex-1">
-      <div className="p-6 space-y-8 pb-32">
+      <div className="max-w-xl mx-auto p-6 space-y-8 pb-32">
         <div className="flex justify-start -mb-4">
           <SheetClose asChild>
             <Button variant="ghost" className="text-[10px] font-black uppercase tracking-widest text-primary h-8 gap-1.5 p-0 hover:bg-transparent hover:text-primary/80">
@@ -349,9 +353,11 @@ function CheckoutDrawerContent({
           {paymentMethod === 'Pay at Delivery' && (
             <>
               <div className="fixed bottom-7 left-0 right-0 p-4 bg-white/80 backdrop-blur-md border-t z-50">
-                <Button size="lg" className="w-full h-14 font-black uppercase tracking-widest gap-2 shadow-xl" onClick={handleManualOrder} disabled={isProcessing}>
-                  {isProcessing ? <Loader2 className="animate-spin" /> : <ShoppingBag className="h-5 w-5" />} PLACE ORDER
-                </Button>
+                <div className="max-w-xl mx-auto">
+                  <Button size="lg" className="w-full h-14 font-black uppercase tracking-widest gap-2 shadow-xl" onClick={handleManualOrder} disabled={isProcessing}>
+                    {isProcessing ? <Loader2 className="animate-spin" /> : <ShoppingBag className="h-5 w-5" />} PLACE ORDER
+                  </Button>
+                </div>
               </div>
               <CheckoutBrandingBar />
             </>
@@ -634,20 +640,22 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
       <Sheet open={isCartOpen} onOpenChange={setIsCartOpen}>
         {activeOrderItems.length > 0 && (
           <div className="fixed bottom-7 left-0 right-0 p-4 bg-white/80 backdrop-blur-md border-t z-40">
-            <SheetTrigger asChild>
-              <Button size="lg" className="w-full h-14 font-black uppercase tracking-widest shadow-xl flex justify-between px-8">
-                <div className="flex items-center gap-3">
-                  <span>REVIEW ORDER</span>
-                  <span className="bg-white/20 text-[10px] px-2 py-0.5 rounded-full">{totalItems} ITEMS</span>
-                </div>
-                <span className="bg-white/20 px-3 py-1 rounded-lg">${subtotal.toFixed(2)}</span>
-              </Button>
-            </SheetTrigger>
+            <div className="max-w-xl mx-auto">
+              <SheetTrigger asChild>
+                <Button size="lg" className="w-full h-14 font-black uppercase tracking-widest shadow-xl flex justify-between px-8">
+                  <div className="flex items-center gap-3">
+                    <span>REVIEW ORDER</span>
+                    <span className="bg-white/20 text-[10px] px-2 py-0.5 rounded-full">{totalItems} ITEMS</span>
+                  </div>
+                  <span className="bg-white/20 px-3 py-1 rounded-lg">${subtotal.toFixed(2)}</span>
+                </Button>
+              </SheetTrigger>
+            </div>
           </div>
         )}
         <SheetContent side="bottom" className="rounded-t-[2rem] h-[90vh] flex flex-col p-0 overflow-hidden">
           <SheetHeader className="px-6 py-5 border-b bg-[#213147] text-white shrink-0">
-            <div className="flex flex-col items-start pr-10">
+            <div className="max-w-xl mx-auto w-full flex flex-col items-start pr-10">
               <div className="flex items-center gap-3 mb-1">
                 <SheetTitle className="font-headline font-black uppercase tracking-tight text-white text-xl">Checkout</SheetTitle>
                 <Badge variant="outline" className="text-[9px] font-black border-primary/40 bg-primary/10 text-primary uppercase h-5">
