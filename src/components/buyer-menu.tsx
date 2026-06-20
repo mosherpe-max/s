@@ -3,7 +3,7 @@
 
 import { Button } from '@/components/ui/button';
 import type { OrderItem, MenuItem, Category } from '@/lib/types';
-import { Image as LucideImage, Plus, Minus } from 'lucide-react';
+import { Image as LucideImage, Plus, Minus, Star } from 'lucide-react';
 import { categoryIcons } from './icons';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
@@ -56,22 +56,23 @@ export function BuyerMenu({
         const CategoryIcon = categoryIcons[category];
         const isModifierEnabled = categoryModifierEnabled.includes(category);
         
-        // Filter items for this category/mode
-        // Special logic for "Featured": show items with Featured category OR explicitly featured for this mode
+        // Filter and sort items for this category/mode
         const itemsInCategory = menuItems
           .filter((item) => {
             if (category === 'Featured') {
-              return (item.category === 'Featured' || (selectedMenuType && item.featuredOn?.includes(selectedMenuType)));
+              return !!(selectedMenuType && item.featuredOn?.includes(selectedMenuType));
             }
-            return item.category === category;
+            // Standard category: only show if explicitly enabled for this mode
+            return item.category === category && !!(selectedMenuType && item.availableOn?.includes(selectedMenuType));
           })
           .sort((a, b) => {
             if (selectedMenuType) {
-              const rankA = a.menuRanks?.[selectedMenuType] ?? a.rank ?? 0;
-              const rankB = b.menuRanks?.[selectedMenuType] ?? b.rank ?? 0;
+              const rankField = category === 'Featured' ? 'featuredRanks' : 'menuRanks';
+              const rankA = a[rankField]?.[selectedMenuType] ?? 999;
+              const rankB = b[rankField]?.[selectedMenuType] ?? 999;
               return rankA - rankB;
             }
-            return (a.rank || 0) - (b.rank || 0);
+            return 0;
           });
         
         if (itemsInCategory.length === 0) return null;
@@ -83,7 +84,11 @@ export function BuyerMenu({
             className="scroll-mt-32 space-y-3"
           >
             <div className="flex items-center gap-2 px-1">
-              <CategoryIcon className="w-4 h-4 text-primary" style={accentColor ? { color: accentColor } : {}} />
+              {category === 'Featured' ? (
+                <Star className="w-4 h-4 text-amber-500 fill-current" />
+              ) : (
+                <CategoryIcon className="w-4 h-4 text-primary" style={accentColor ? { color: accentColor } : {}} />
+              )}
               <h2 className="font-headline text-[13px] font-black uppercase tracking-[0.1em] text-[#213147]">{category}</h2>
             </div>
             

@@ -460,19 +460,19 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
   const currentCategories = useMemo(() => {
     if (!seller || !filteredMenuItems.length) return [];
     
-    const itemCategories = new Set(filteredMenuItems.map(i => i.category));
+    // Core logic: show a "Featured" category if any items are explicitly starred for this mode
     const hasExplicitFeatured = filteredMenuItems.some(i => i.featuredOn?.includes(selectedMenuType));
-    if (hasExplicitFeatured) itemCategories.add('Featured');
-
-    const enabledCategories = seller.categoryVisibility?.[selectedMenuType] || categories.filter(c => c !== 'Featured');
     
     const visibleCategories = categories.filter(c => {
-      const isFeatured = c === 'Featured';
-      const hasItems = itemCategories.has(c);
-      const isEnabled = isFeatured || enabledCategories.includes(c);
-      return hasItems && isEnabled;
+      if (c === 'Featured') return hasExplicitFeatured;
+      
+      // Standard categories only appear if they have active items authorized for this mode
+      const hasItemsInCat = filteredMenuItems.some(i => i.category === c && i.availableOn?.includes(selectedMenuType));
+      const isEnabledByVenue = seller.categoryVisibility?.[selectedMenuType]?.includes(c) ?? true;
+      return hasItemsInCat && isEnabledByVenue;
     });
 
+    // Ensure Featured is always at index 0
     return visibleCategories.sort((a, b) => {
       if (a === 'Featured') return -1;
       if (b === 'Featured') return 1;
@@ -577,7 +577,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
       {hasAnyAvailableMode ? (
         <>
           <div className="sticky top-16 z-30 bg-white/95 backdrop-blur-md border-b-2 shadow-sm">
-            <div className="max-w-2xl mx-auto px-4 py-3">
+            <div className="max-w-2xl auto px-4 py-3">
               <div className="flex gap-2 overflow-x-auto no-scrollbar py-1">
                 {currentCategories.map((cat) => (
                   <button
