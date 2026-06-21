@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useMemo, useEffect, use } from 'react';
@@ -76,7 +77,8 @@ import {
   Settings2,
   ListPlus,
   Tags,
-  LayoutList
+  LayoutList,
+  Wand2
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -178,6 +180,7 @@ import type { MenuItem, Seller, Order, StaffMember, Venue, PlatformConfig, Selle
 import { categories } from '@/lib/types';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
+import { seedVenueModifiers } from '@/lib/seed-data';
 
 // --- CONSTANTS ---
 
@@ -400,6 +403,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   const [isModifierGroupFormOpen, setIsModifierGroupFormOpen] = useState(false);
   const [editingModifierGroup, setEditingModifierGroup] = useState<ModifierGroup | null>(null);
   const [isProcessingSave, setIsProcessingSave] = useState(false);
+  const [isSeeding, setIsSeeding] = useState(false);
   const [configMode, setConfigMode] = useState<string>('Beverage Cart');
 
   // Settings State
@@ -622,6 +626,19 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
         operation: 'delete' 
       } satisfies SecurityRuleContext));
     });
+  };
+
+  const handleSeedPresets = async () => {
+    if (!firestore || !seller || !sellerId) return;
+    setIsSeeding(true);
+    try {
+      await seedVenueModifiers(firestore, sellerId, seller.type);
+      toast({ title: "Industry Presets Applied", description: "Standard modifier groups have been added and linked to items." });
+    } catch (error) {
+      toast({ variant: "destructive", title: "Seeding Failed", description: "Could not provision industry presets." });
+    } finally {
+      setIsSeeding(false);
+    }
   };
 
   const handleToggleMode = async (mode: string, current: boolean) => {
@@ -1059,9 +1076,15 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                       <h3 className="font-headline font-black text-2xl text-[#213147] uppercase leading-tight">Modifier Groups</h3>
                       <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Reusable sets of customizations and add-ons</p>
                     </div>
-                    <Button onClick={() => { setEditingModifierGroup(null); modifierGroupForm.reset({ name: '', minSelection: 0, maxSelection: 1, options: [{ id: Math.random().toString(36).substr(2, 9), name: '', priceAdjustment: 0, isAvailable: true }] }); setIsModifierGroupFormOpen(true); }} className="bg-indigo-600 hover:bg-indigo-700 h-12 px-6 rounded-xl font-black uppercase text-[11px] tracking-widest gap-2 shadow-xl">
-                      <Plus className="h-4 w-4" /> Define New Modifier Set
-                    </Button>
+                    <div className="flex gap-3 w-full sm:w-auto">
+                      <Button onClick={handleSeedPresets} disabled={isSeeding} variant="outline" className="flex-1 sm:flex-initial h-12 border-2 font-black uppercase text-[10px] tracking-widest gap-2">
+                        {isSeeding ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4 text-primary" />}
+                        Seed Industry Presets
+                      </Button>
+                      <Button onClick={() => { setEditingModifierGroup(null); modifierGroupForm.reset({ name: '', minSelection: 0, maxSelection: 1, options: [{ id: Math.random().toString(36).substr(2, 9), name: '', priceAdjustment: 0, isAvailable: true }] }); setIsModifierGroupFormOpen(true); }} className="flex-1 sm:flex-initial bg-indigo-600 hover:bg-indigo-700 h-12 px-6 rounded-xl font-black uppercase text-[10px] tracking-widest gap-2 shadow-xl">
+                        <Plus className="h-4 w-4" /> Define New Set
+                      </Button>
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -1745,3 +1768,4 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     </div>
   );
 }
+
