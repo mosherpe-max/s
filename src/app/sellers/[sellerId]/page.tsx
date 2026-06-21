@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useMemo, useEffect, use } from 'react';
@@ -148,7 +147,7 @@ import {
   XAxis,
   YAxis,
   CartesianGrid,
-  ChartTooltip,
+  Tooltip,
   ResponsiveContainer,
   PieChart,
   Pie,
@@ -171,7 +170,7 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
   useSortable,
-} from '@dnd-kit/sortable';
+} from '@at-dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
 import type { MenuItem, Seller, Order, StaffMember, Venue, PlatformConfig, SellerAdminRole, Category, ModifierGroup, ModifierOption } from '@/lib/types';
@@ -208,10 +207,10 @@ type StaffFormData = z.infer<typeof staffSchema>;
 
 const itemSchema = z.object({
   name: z.string().min(2, 'Name required'),
-  description: z.string().optional(),
+  description: z.string().default(''),
   price: z.coerce.number().min(0),
   category: z.enum(categories as any),
-  imageUrl: z.string().optional(),
+  imageUrl: z.string().default(''),
   availableOn: z.array(z.string()).default([]),
   featuredOn: z.array(z.string()).default([]),
   isAvailable: z.boolean().default(true),
@@ -842,7 +841,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
                             <XAxis dataKey="time" axisLine={false} tickLine={false} fontSize={10} fontWeight="bold" />
                             <YAxis axisLine={false} tickLine={false} fontSize={10} fontWeight="bold" />
-                            <ChartTooltip cursor={{ fill: 'transparent' }} contentStyle={{ fontSize: '10px', borderRadius: '12px', border: '2px solid #E2E8F0' }} />
+                            <Tooltip cursor={{ fill: 'transparent' }} contentStyle={{ fontSize: '10px', borderRadius: '12px', border: '2px solid #E2E8F0' }} />
                             <Legend verticalAlign="top" align="right" iconType="circle" wrapperStyle={{ fontSize: '9px', fontWeight: 'bold', textTransform: 'uppercase' }} />
                             {seller?.menuTypes?.map(mode => (
                               <Bar key={mode} dataKey={mode} stackId="a" fill={MODE_COLORS[mode] || '#64748B'} />
