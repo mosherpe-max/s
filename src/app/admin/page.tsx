@@ -108,9 +108,9 @@ import {
 import { Switch } from '@/components/ui/switch';
 import { useRouter } from 'next/navigation';
 import { useFirestore, useCollection, useMemoFirebase, useAuth, useDoc, useUser } from '@/firebase';
-import { signOut, sendPasswordResetEmail } from 'firebase/auth';
+import { signOut } from 'firebase/auth';
 import { collection, query, limit, doc, setDoc, serverTimestamp, where, orderBy, updateDoc, writeBatch, deleteDoc } from 'firebase/firestore';
-import type { Seller, PlatformConfig, Order, Venue, SellerType, MapUpdateSettings, SellerAdminRole } from '@/lib/types';
+import type { Seller, PlatformConfig, Order, Venue, MapUpdateSettings } from '@/lib/types';
 import { sellerTypes } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { cn, getNumericOrderId, SUPER_ADMIN_ID } from '@/lib/utils';
@@ -135,7 +135,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { seedAllDemoData } from '@/lib/seed-data';
-import { format } from 'date-fns';
 import {
   Select,
   SelectContent,
@@ -174,12 +173,17 @@ const venueRegistrationSchema = z.object({
 
 type VenueRegistrationData = z.infer<typeof venueRegistrationSchema>;
 
-const inviteUserSchema = z.object({
-  userName: z.string().min(2, 'Name required'),
-  email: z.string().email('Valid email required'),
+const venueMaintenanceSchema = z.object({
+  name: z.string().min(2, 'Establishment name required'),
+  ownerUid: z.string().min(1, 'Owner UID required'),
+  stripeConnectId: z.string().optional(),
+  patronConvenienceFee: z.coerce.number().min(0),
+  platformFeeFixed: z.coerce.number().min(0),
+  platformFeePercent: z.coerce.number().min(0).max(100),
+  isFoundingPartner: z.boolean().default(false),
 });
 
-type InviteUserData = z.infer<typeof inviteUserSchema>;
+type VenueMaintenanceData = z.infer<typeof venueMaintenanceSchema>;
 
 function NavButton({ id, label, icon: Icon, active, onClick, sidebarOpen }: { 
   id: string, label: string, icon: any, active: boolean, onClick: (id: string) => void, sidebarOpen: boolean 
@@ -268,6 +272,13 @@ export default function PlatformAdminPage() {
   const configRef = useMemoFirebase(() => (firestore ? doc(firestore, 'platform', 'config') : null), [firestore]);
   const { data: config } = useDoc<PlatformConfig>(configRef);
 
+  // Fetch Venue Data for Maintenance
+  const venueRef = useMemoFirebase(() => {
+    if (!firestore || !selectedSeller?.id) return null;
+    return doc(firestore, 'venues', selectedSeller.id);
+  }, [firestore, selectedSeller?.id]);
+  const { data: selectedVenueData } = useDoc<Venue>(venueRef);
+
   useEffect(() => {
     if (config?.defaultThresholds) {
       setSystemThresholds({
@@ -316,7 +327,7 @@ export default function PlatformAdminPage() {
         return o.createdAt.toDate() >= monthStart;
       } catch { return false; }
     });
-    const mtdGMV = mtdOrders.reduce((acc, o) => acc + o.total, 0);
+    const mtdGMV = mtdOrders.reduce((acc, o) => acc + (o.total || 0), 0);
     const mtdFees = mtdOrders.reduce((acc, o) => acc + (o.serviceFee || 0), 0);
     return {
       venueCounts: { total: activeSellers.length },
@@ -337,13 +348,32 @@ export default function PlatformAdminPage() {
     }
   });
 
-  const inviteForm = useForm<InviteUserData>({
-    resolver: zodResolver(inviteUserSchema),
+  const maintenanceForm = useForm<VenueMaintenanceData>({
+    resolver: zodResolver(venueMaintenanceSchema),
     defaultValues: {
-      userName: '',
-      email: '',
+      name: '',
+      ownerUid: '',
+      stripeConnectId: '',
+      patronConvenienceFee: 150,
+      platformFeeFixed: 20,
+      platformFeePercent: 0,
+      isFoundingPartner: false,
     }
   });
+
+  useEffect(() => {
+    if (selectedVenueData) {
+      maintenanceForm.reset({
+        name: selectedVenueData.name || '',
+        ownerUid: selectedVenueData.ownerUid || '',
+        stripeConnectId: selectedVenueData.stripeConnectId || selectedVenueData.stripeAccountId || '',
+        patronConvenienceFee: selectedVenueData.patronConvenienceFee || 150,
+        platformFeeFixed: selectedVenueData.platformFeeFixed || 20,
+        platformFeePercent: selectedVenueData.platformFeePercent || 0,
+        isFoundingPartner: selectedVenueData.isFoundingPartner || false,
+      });
+    }
+  }, [selectedVenueData, maintenanceForm]);
 
   const handleCreateVenue = async (data: VenueRegistrationData) => {
     if (!firestore) return;
@@ -423,6 +453,46 @@ export default function PlatformAdminPage() {
     });
   };
 
+  const handleSaveVenueMaintenance = async (data: VenueMaintenanceData) => {
+    if (!firestore || !selectedSeller?.id) return;
+    setIsProcessingSave(true);
+
+    const vRef = doc(firestore, 'venues', selectedSeller.id);
+    const sRef = doc(firestore, 'sellers', selectedSeller.id);
+    const batch = writeBatch(firestore);
+
+    batch.update(vRef, {
+      name: data.name,
+      ownerUid: data.ownerUid,
+      stripeConnectId: data.stripeConnectId || null,
+      stripeAccountId: data.stripeConnectId || null,
+      patronConvenienceFee: data.patronConvenienceFee,
+      platformFeeFixed: data.platformFeeFixed,
+      platformFeePercent: data.platformFeePercent,
+      isFoundingPartner: data.isFoundingPartner,
+      updatedAt: serverTimestamp()
+    });
+
+    batch.update(sRef, {
+      courseName: data.name,
+      isFoundingPartner: data.isFoundingPartner,
+      updatedAt: serverTimestamp()
+    });
+
+    batch.commit().then(() => {
+      toast({ title: "Venue Registry Updated" });
+      setIsVenueDetailOpen(false);
+    }).catch(async (error) => {
+      errorEmitter.emit('permission-error', new FirestorePermissionError({
+        path: vRef.path,
+        operation: 'update',
+        requestResourceData: data,
+      } satisfies SecurityRuleContext));
+    }).finally(() => {
+      setIsProcessingSave(false);
+    });
+  };
+
   const handleResetDemos = async () => {
     if (!firestore) return;
     setIsResettingDemos(true);
@@ -487,6 +557,48 @@ export default function PlatformAdminPage() {
     }).finally(() => {
       setIsSavingSystemConfig(false);
     });
+  };
+
+  const handleLogoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setLogoPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleThresholdChange = (mode: string, field: 'warning' | 'max', val: string) => {
+    const num = parseInt(val, 10) || 0;
+    setSystemThresholds(prev => ({
+      ...prev,
+      [mode]: { ...prev[mode], [field]: num }
+    }));
+  };
+
+  const handleGpsFreshnessChange = (field: 'hot' | 'warm' | 'cold', val: string) => {
+    const num = parseInt(val, 10) || 0;
+    setGpsFreshness(prev => ({ ...prev, [field]: num }));
+  };
+
+  const handleMapSettingChange = (mode: string, field: keyof MapUpdateSettings, val: any) => {
+    setMapSettings(prev => ({
+      ...prev,
+      [mode]: { ...prev[mode], [field]: val }
+    }));
+  };
+
+  const toggleMapStage = (mode: string, stage: string) => {
+    const current = mapSettings[mode]?.activeStages || [];
+    const next = current.includes(stage) ? current.filter(s => s !== stage) : [...current, stage];
+    handleMapSettingChange(mode, 'activeStages', next);
+  };
+
+  const toggleGlobalMode = (mode: string) => {
+    const next = globalEnabledModes.includes(mode) ? globalEnabledModes.filter(m => m !== mode) : [...globalEnabledModes, mode];
+    setGlobalEnabledModes(next);
   };
 
   const isSuperAdmin = user?.uid === SUPER_ADMIN_ID || user?.email === 'mosherpe@gmail.com';
@@ -724,7 +836,7 @@ export default function PlatformAdminPage() {
                                     variant="ghost" 
                                     size="sm" 
                                     asChild
-                                    className="text-[10px] font-black uppercase gap-1.5 h-8 hidden md:inline-flex"
+                                    className="text-[10px] font-black uppercase gap-1.5 h-8"
                                   >
                                     <Link href={`/sellers/${venue.id}`}>
                                       <ExternalLink className="h-3 w-3" /> Terminal
@@ -1171,6 +1283,112 @@ export default function PlatformAdminPage() {
                     {isProcessingSave ? <Loader2 className="animate-spin h-5 w-5" /> : <CheckCircle2 className="h-5 w-5" />}
                     Initialize Platform Entry
                   </Button>
+                </form>
+              </Form>
+            </div>
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
+
+      {/* VENUE MAINTENANCE DIALOG */}
+      <Dialog open={isVenueDetailOpen} onOpenChange={setIsVenueDetailOpen}>
+        <DialogContent className="sm:max-w-[600px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
+          <DialogHeader className="p-8 bg-[#213147] text-white">
+            <div className="flex items-center gap-4">
+              <div className="bg-primary/20 p-3 rounded-2xl shrink-0">
+                <Settings2 className="h-6 w-6 text-primary" />
+              </div>
+              <div>
+                <DialogTitle className="font-headline font-black uppercase tracking-tight text-white text-xl leading-none">Venue Maintenance</DialogTitle>
+                <DialogDescription className="text-white/40 text-[9px] font-bold uppercase tracking-widest mt-1">
+                  Adjust platform registry and financial settings for {selectedSeller?.courseName}
+                </DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+          <ScrollArea className="max-h-[70vh]">
+            <div className="p-8">
+              <Form {...maintenanceForm}>
+                <form onSubmit={maintenanceForm.handleSubmit(handleSaveVenueMaintenance)} className="space-y-8">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    <FormField control={maintenanceForm.control} name="name" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-[10px] font-black uppercase tracking-widest">Public Name</FormLabel>
+                        <FormControl><Input {...field} className="h-12 border-2 font-bold" /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                    <FormField control={maintenanceForm.control} name="ownerUid" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-[10px] font-black uppercase tracking-widest">Owner UID</FormLabel>
+                        <FormControl><Input {...field} className="h-12 border-2 font-mono text-[10px]" /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                  </div>
+
+                  <div className="space-y-6">
+                    <div className="flex items-center gap-2 border-b-2 pb-2">
+                       <CreditCard className="h-4 w-4 text-indigo-600" />
+                       <h4 className="text-[10px] font-black uppercase tracking-widest text-indigo-600">Financial Integration</h4>
+                    </div>
+                    <FormField control={maintenanceForm.control} name="stripeConnectId" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-[10px] font-black uppercase tracking-widest">Stripe Connect ID</FormLabel>
+                        <FormControl><Input {...field} placeholder="acct_..." className="h-11 border-2 font-mono text-[10px]" /></FormControl>
+                        <FormDescription className="text-[8px] font-bold uppercase text-muted-foreground">The Express account ID for payouts.</FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+
+                    <div className="grid grid-cols-3 gap-4">
+                      <FormField control={maintenanceForm.control} name="patronConvenienceFee" render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-[9px] font-black uppercase tracking-widest">Patron Fee (Cents)</FormLabel>
+                          <FormControl><Input {...field} type="number" className="h-10 border-2 font-bold" /></FormControl>
+                          <FormDescription className="text-[7px] font-bold">Total added at checkout.</FormDescription>
+                        </FormItem>
+                      )} />
+                      <FormField control={maintenanceForm.control} name="platformFeeFixed" render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-[9px] font-black uppercase tracking-widest">Koop Fixed (Cents)</FormLabel>
+                          <FormControl><Input {...field} type="number" className="h-10 border-2 font-bold" /></FormControl>
+                          <FormDescription className="text-[7px] font-bold">Koop's flat cut per order.</FormDescription>
+                        </FormItem>
+                      )} />
+                      <FormField control={maintenanceForm.control} name="platformFeePercent" render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-[9px] font-black uppercase tracking-widest">Koop Percent (%)</FormLabel>
+                          <FormControl><Input {...field} type="number" step="0.1" className="h-10 border-2 font-bold" /></FormControl>
+                          <FormDescription className="text-[7px] font-bold">Koop's volume cut.</FormDescription>
+                        </FormItem>
+                      )} />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between p-4 bg-amber-50 rounded-2xl border-2 border-amber-100">
+                    <div className="flex items-center gap-3">
+                      <Star className="h-5 w-5 text-amber-500 fill-current" />
+                      <div>
+                        <p className="text-[10px] font-black uppercase text-amber-800">Founding Partner</p>
+                        <p className="text-[8px] font-bold text-amber-600 uppercase">Displays elite badge across patron interface</p>
+                      </div>
+                    </div>
+                    <FormField control={maintenanceForm.control} name="isFoundingPartner" render={({ field }) => (
+                      <FormControl>
+                        <Switch checked={field.value} onCheckedChange={field.onChange} className="data-[state=checked]:bg-amber-500" />
+                      </FormControl>
+                    )} />
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <Button type="submit" disabled={isProcessingSave} className="flex-1 h-14 bg-[#213147] hover:bg-black font-black uppercase tracking-widest text-[11px] gap-2 shadow-xl">
+                      {isProcessingSave ? <Loader2 className="h-5 w-5 animate-spin" /> : <Save className="h-5 w-5" />} Commit Changes
+                    </Button>
+                    <Button type="button" variant="outline" onClick={() => setIsVenueDetailOpen(false)} className="h-14 px-8 border-2 font-black uppercase tracking-widest text-[11px]">
+                      Discard
+                    </Button>
+                  </div>
                 </form>
               </Form>
             </div>
