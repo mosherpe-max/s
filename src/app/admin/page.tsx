@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
@@ -143,6 +144,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
+import { seedAllDemoData } from '@/lib/seed-data';
 
 const SYSTEM_DEFAULT_THRESHOLDS = {
   'Beverage Cart': { warning: 10, max: 15 },
@@ -244,6 +246,7 @@ export default function PlatformAdminPage() {
   const [isVenueDetailOpen, setIsVenueDetailOpen] = useState(false);
   const [isAddVenueOpen, setIsAddVenueOpen] = useState(false);
   const [isProcessingSave, setIsProcessingSave] = useState(false);
+  const [isResettingDemos, setIsResettingDemos] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
   // --- PLATFORM CONFIG STATE ---
@@ -528,6 +531,19 @@ export default function PlatformAdminPage() {
         requestResourceData: updateData,
       } satisfies SecurityRuleContext));
     });
+  };
+
+  const handleResetDemos = async () => {
+    if (!firestore) return;
+    setIsResettingDemos(true);
+    try {
+      await seedAllDemoData(firestore);
+      toast({ title: "Demos Reseeded", description: "All demo venues now feature comprehensive master menus with linked modifier sets." });
+    } catch (e) {
+      toast({ variant: "destructive", title: "Reset Failed", description: "Authorization required to rebuild core demo indices." });
+    } finally {
+      setIsResettingDemos(false);
+    }
   };
 
   const handleLogout = async () => {
@@ -886,6 +902,24 @@ export default function PlatformAdminPage() {
 
               {activeNav === 'demos' && (
                 <div className="space-y-8 animate-in fade-in duration-500">
+                  <div className="flex justify-between items-center bg-white p-6 rounded-[2rem] border-2 shadow-sm">
+                     <div className="flex items-center gap-4">
+                        <div className="bg-amber-50 p-3 rounded-2xl"><Sparkles className="h-6 w-6 text-amber-500" /></div>
+                        <div>
+                           <h3 className="font-headline font-black text-lg uppercase text-[#213147]">Demo System Control</h3>
+                           <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Provision and reset standardized environments</p>
+                        </div>
+                     </div>
+                     <Button 
+                       onClick={handleResetDemos} 
+                       disabled={isResettingDemos}
+                       className="h-12 bg-amber-500 hover:bg-amber-600 font-black uppercase text-[10px] tracking-widest gap-2 shadow-xl shadow-amber-500/20"
+                     >
+                       {isResettingDemos ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                       Reseed & Reset All Demo Environments
+                     </Button>
+                  </div>
+
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {demoVenues.map((venue) => (
                       <Card key={venue.id} className="group hover:border-indigo-500 transition-all border-2 shadow-sm overflow-hidden flex flex-col h-full">

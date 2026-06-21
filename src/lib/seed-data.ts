@@ -7,9 +7,11 @@ import {
   getDocs, 
   query, 
   where,
-  Firestore
+  Firestore,
+  deleteDoc
 } from 'firebase/firestore';
-import type { ModifierGroup, MenuItem, ModifierOption } from './types';
+import type { ModifierGroup, MenuItem, ModifierOption, SellerType } from './types';
+import { publicGolfItems, privateGolfItems, bowlingAlleyItems } from './data';
 
 /**
  * Industry-standard modifier presets for different venue types.
@@ -67,14 +69,15 @@ const MODIFIER_PRESETS: Record<string, Omit<ModifierGroup, 'id' | 'sellerId' | '
     {
       name: "Pizza Toppings",
       minSelection: 0,
-      maxSelection: 5,
+      maxSelection: 6,
       options: [
-        { id: "pepperoni", name: "Pepperoni", priceAdjustment: 1.50, isAvailable: true },
-        { id: "sausage", name: "Italian Sausage", priceAdjustment: 1.50, isAvailable: true },
-        { id: "mushrooms", name: "Mushrooms", priceAdjustment: 1.00, isAvailable: true },
+        { id: "pepperoni", name: "Pepperoni", priceAdjustment: 2.00, isAvailable: true },
+        { id: "sausage", name: "Italian Sausage", priceAdjustment: 2.00, isAvailable: true },
+        { id: "mushrooms", name: "Mushrooms", priceAdjustment: 1.50, isAvailable: true },
         { id: "onions", name: "Onions", priceAdjustment: 1.00, isAvailable: true },
         { id: "peppers", name: "Green Peppers", priceAdjustment: 1.00, isAvailable: true },
-        { id: "extra-cheese", name: "Extra Cheese", priceAdjustment: 2.00, isAvailable: true }
+        { id: "jalapenos", name: "Jalapenos", priceAdjustment: 1.00, isAvailable: true },
+        { id: "extra-cheese", name: "Extra Cheese", priceAdjustment: 2.50, isAvailable: true }
       ]
     },
     {
@@ -85,18 +88,18 @@ const MODIFIER_PRESETS: Record<string, Omit<ModifierGroup, 'id' | 'sellerId' | '
         { id: "buffalo", name: "Classic Buffalo", priceAdjustment: 0, isAvailable: true },
         { id: "bbq", name: "Honey BBQ", priceAdjustment: 0, isAvailable: true },
         { id: "garlic-parm", name: "Garlic Parmesan", priceAdjustment: 0, isAvailable: true },
-        { id: "dry-rub", name: "Lemon Pepper Dry Rub", priceAdjustment: 0, isAvailable: true },
-        { id: "naked", name: "Plain / Naked", priceAdjustment: 0, isAvailable: true }
+        { id: "sweet-chili", name: "Thai Sweet Chili", priceAdjustment: 0.50, isAvailable: true },
+        { id: "dry-rub", name: "Lemon Pepper Dry Rub", priceAdjustment: 0, isAvailable: true }
       ]
     },
     {
-      name: "Draft Size",
+      name: "Draft Selection",
       minSelection: 1,
       maxSelection: 1,
       options: [
         { id: "pint", name: "16oz Pint", priceAdjustment: 0, isAvailable: true },
-        { id: "tall", name: "22oz Tall", priceAdjustment: 2.00, isAvailable: true },
-        { id: "pitcher", name: "64oz Pitcher", priceAdjustment: 12.00, isAvailable: true }
+        { id: "tall", name: "22oz Tall", priceAdjustment: 2.50, isAvailable: true },
+        { id: "pitcher", name: "64oz Pitcher", priceAdjustment: 14.00, isAvailable: true }
       ]
     },
     {
@@ -104,10 +107,10 @@ const MODIFIER_PRESETS: Record<string, Omit<ModifierGroup, 'id' | 'sellerId' | '
       minSelection: 0,
       maxSelection: 4,
       options: [
-        { id: "extra-beef", name: "Seasoned Beef", priceAdjustment: 3.00, isAvailable: true },
-        { id: "guac", name: "Guacamole", priceAdjustment: 2.00, isAvailable: true },
-        { id: "jalapenos", name: "Extra Jalapenos", priceAdjustment: 0.50, isAvailable: true },
-        { id: "sour-cream", name: "Extra Sour Cream", priceAdjustment: 0.50, isAvailable: true }
+        { id: "extra-beef", name: "Seasoned Beef", priceAdjustment: 4.00, isAvailable: true },
+        { id: "guac", name: "Fresh Guacamole", priceAdjustment: 2.50, isAvailable: true },
+        { id: "jalapenos", name: "Extra Jalapenos", priceAdjustment: 0.75, isAvailable: true },
+        { id: "sour-cream", name: "Extra Sour Cream", priceAdjustment: 0.75, isAvailable: true }
       ]
     }
   ]
@@ -151,31 +154,35 @@ export async function seedVenueModifiers(db: Firestore, sellerId: string, venueT
     let updated = false;
 
     // Link logic based on naming conventions
-    if (item.name.toLowerCase().includes('burger')) {
+    const name = item.name.toLowerCase();
+    if (name.includes('burger')) {
       if (groupIdsMap['Burger Temperature']) { currentGroups.push(groupIdsMap['Burger Temperature']); updated = true; }
       if (groupIdsMap['Side Selection']) { currentGroups.push(groupIdsMap['Side Selection']); updated = true; }
     }
-    if (item.name.toLowerCase().includes('dog')) {
+    if (name.includes('dog')) {
       if (groupIdsMap['Hot Dog Toppings']) { currentGroups.push(groupIdsMap['Hot Dog Toppings']); updated = true; }
       if (groupIdsMap['Side Selection']) { currentGroups.push(groupIdsMap['Side Selection']); updated = true; }
     }
-    if (item.name.toLowerCase().includes('sandwich') || item.name.toLowerCase().includes('club')) {
+    if (name.includes('sandwich') || name.includes('club')) {
       if (groupIdsMap['Side Selection']) { currentGroups.push(groupIdsMap['Side Selection']); updated = true; }
     }
-    if (item.name.toLowerCase().includes('transfusion')) {
+    if (name.includes('transfusion')) {
       if (groupIdsMap['Transfusion Style']) { currentGroups.push(groupIdsMap['Transfusion Style']); updated = true; }
     }
-    if (item.name.toLowerCase().includes('pizza')) {
+    if (name.includes('pizza')) {
       if (groupIdsMap['Pizza Toppings']) { currentGroups.push(groupIdsMap['Pizza Toppings']); updated = true; }
     }
-    if (item.name.toLowerCase().includes('wing')) {
+    if (name.includes('wing')) {
       if (groupIdsMap['Wing Sauce']) { currentGroups.push(groupIdsMap['Wing Sauce']); updated = true; }
     }
-    if (item.name.toLowerCase().includes('nacho')) {
+    if (name.includes('nacho')) {
       if (groupIdsMap['Nacho Add-ons']) { currentGroups.push(groupIdsMap['Nacho Add-ons']); updated = true; }
     }
-    if (item.category === 'Beer' && item.name.toLowerCase().includes('draft')) {
-      if (groupIdsMap['Draft Size']) { currentGroups.push(groupIdsMap['Draft Size']); updated = true; }
+    if (name.includes('salmon') || name.includes('entree')) {
+       if (groupIdsMap['Side Selection']) { currentGroups.push(groupIdsMap['Side Selection']); updated = true; }
+    }
+    if (item.category === 'Beer' && name.includes('draft')) {
+      if (groupIdsMap['Draft Selection']) { currentGroups.push(groupIdsMap['Draft Selection']); updated = true; }
     }
 
     if (updated) {
@@ -186,4 +193,43 @@ export async function seedVenueModifiers(db: Firestore, sellerId: string, venueT
   });
 
   await batch.commit();
+}
+
+/**
+ * Seeds base menu items for a specific venue.
+ */
+export async function seedVenueItems(db: Firestore, sellerId: string, items: any[]) {
+  const batch = writeBatch(db);
+  const menuItemsRef = collection(db, 'sellers', sellerId, 'menuItems');
+  
+  items.forEach((item, index) => {
+    const itemId = item.id || `${sellerId}-item-${index}`;
+    const itemRef = doc(menuItemsRef, itemId);
+    batch.set(itemRef, {
+      ...item,
+      id: itemId,
+      rank: index + 1,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
+    });
+  });
+
+  await batch.commit();
+}
+
+/**
+ * Global function to reset all demo venues to their ideal states.
+ */
+export async function seedAllDemoData(db: Firestore) {
+  // 1. PUBLIC GOLF
+  await seedVenueItems(db, 'demo-course', publicGolfItems);
+  await seedVenueModifiers(db, 'demo-course', 'Public Golf Course');
+
+  // 2. PRIVATE CLUB
+  await seedVenueItems(db, 'demo-private-course', privateGolfItems);
+  await seedVenueModifiers(db, 'demo-private-course', 'Private Golf Course');
+
+  // 3. BOWLING ALLEY
+  await seedVenueItems(db, 'demo-bowling-alley', bowlingAlleyItems);
+  await seedVenueModifiers(db, 'demo-bowling-alley', 'Bowling Alley');
 }

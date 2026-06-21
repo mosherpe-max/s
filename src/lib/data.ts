@@ -23,21 +23,24 @@ export const commonMenuItems: (Omit<MenuItem, 'id' | 'rank'> & { id?: string, ra
     description: 'Chilled 12oz can.', 
     price: 3.50, 
     category: 'Soft Drinks', 
-    imageUrl: getImg('cola can') 
+    imageUrl: getImg('cola can'),
+    isAvailable: true
   },
   { 
     name: 'Bottled Water', 
     description: 'Purified spring water.', 
     price: 2.50, 
     category: 'Soft Drinks', 
-    imageUrl: getImg('water bottle') 
+    imageUrl: getImg('water bottle'),
+    isAvailable: true
   },
   { 
     name: 'Potato Chips', 
     description: 'Sea salt kettle cooked.', 
     price: 3.00, 
     category: 'Snacks', 
-    imageUrl: getImg('potato chips') 
+    imageUrl: getImg('potato chips'),
+    isAvailable: true
   },
 ];
 
@@ -47,9 +50,11 @@ export const publicGolfItems: (Omit<MenuItem, 'id' | 'rank'> & { id?: string, ra
     name: 'Transfusion', 
     description: 'Signature Drink! Vodka, grape juice, ginger ale.', 
     price: 11.00, 
-    category: 'Featured', 
+    category: 'Spirits', 
     imageUrl: getImg('vodka bottle'), 
-    availableOn: ['Beverage Cart', 'Clubhouse'] 
+    availableOn: ['Beverage Cart', 'Clubhouse'],
+    featuredOn: ['Beverage Cart'],
+    isAvailable: true
   },
   { 
     name: 'Light Lager', 
@@ -57,23 +62,37 @@ export const publicGolfItems: (Omit<MenuItem, 'id' | 'rank'> & { id?: string, ra
     price: 6.00, 
     category: 'Beer', 
     imageUrl: getImg('lager can'), 
-    availableOn: ['Beverage Cart', 'Clubhouse'] 
+    availableOn: ['Beverage Cart', 'Clubhouse'],
+    isAvailable: true
   },
   { 
-    name: 'Draft IPA', 
-    description: 'Local craft brew.', 
+    name: 'Draft Local IPA', 
+    description: 'Local craft brew selection.', 
     price: 8.00, 
     category: 'Beer', 
     imageUrl: getImg('craft beer'), 
-    availableOn: ['Beverage Cart', 'Clubhouse'] 
+    availableOn: ['Beverage Cart', 'Clubhouse'],
+    isAvailable: true
   },
   { 
     name: 'Quarter Pound Dog', 
-    description: 'All-beef hot dog with chips.', 
+    description: 'All-beef hot dog with side chips.', 
     price: 9.00, 
     category: 'Handhelds', 
     imageUrl: getImg('hot dog'), 
-    availableOn: ['Beverage Cart', 'Clubhouse', 'Take Out'] 
+    availableOn: ['Beverage Cart', 'Clubhouse', 'Take Out'],
+    featuredOn: ['Beverage Cart'],
+    isAvailable: true
+  },
+  { 
+    name: 'Classic Burger', 
+    description: 'Angus beef on brioche.', 
+    price: 13.00, 
+    category: 'Handhelds', 
+    imageUrl: getImg('burger meal'), 
+    availableOn: ['Clubhouse', 'Take Out'],
+    featuredOn: ['Clubhouse'],
+    isAvailable: true
   },
   { 
     name: 'Arnold Palmer', 
@@ -81,7 +100,8 @@ export const publicGolfItems: (Omit<MenuItem, 'id' | 'rank'> & { id?: string, ra
     price: 4.50, 
     category: 'Soft Drinks', 
     imageUrl: getImg('soft-drink-1'), 
-    availableOn: ['Beverage Cart', 'Clubhouse'] 
+    availableOn: ['Beverage Cart', 'Clubhouse'],
+    isAvailable: true
   },
   ...commonMenuItems.map(i => ({ 
     ...i, 
@@ -93,43 +113,50 @@ export const publicGolfItems: (Omit<MenuItem, 'id' | 'rank'> & { id?: string, ra
 export const privateGolfItems: (Omit<MenuItem, 'id' | 'rank'> & { id?: string, rank?: number })[] = [
   { 
     name: 'Grilled Salmon', 
-    description: 'Wild-caught with asparagus.', 
+    description: 'Wild-caught with seasonal asparagus.', 
     price: 26.00, 
-    category: 'Featured', 
+    category: 'Entrees', 
     imageUrl: getImg('grilled salmon'), 
-    availableOn: ['Clubhouse'] 
+    availableOn: ['Clubhouse'],
+    featuredOn: ['Clubhouse'],
+    isAvailable: true
   },
   { 
     name: 'Shrimp Cocktail', 
-    description: 'Chilled jumbo shrimp.', 
+    description: 'Chilled jumbo shrimp with house sauce.', 
     price: 18.00, 
     category: 'Appetizers', 
     imageUrl: getImg('cocktail-blue'), 
-    availableOn: ['Clubhouse', 'Pool'] 
+    availableOn: ['Clubhouse', 'Pool'],
+    isAvailable: true
   },
   { 
-    name: 'Turkey Club', 
-    description: 'Triple-decker classic.', 
+    name: 'Artisan Turkey Club', 
+    description: 'Triple-decker with house-smoked turkey.', 
     price: 15.00, 
     category: 'Handhelds', 
     imageUrl: getImg('burger meal'), 
-    availableOn: ['Clubhouse', 'Pool', 'Take Out'] 
+    availableOn: ['Clubhouse', 'Pool', 'Take Out'],
+    featuredOn: ['Pool'],
+    isAvailable: true
   },
   { 
     name: 'Premium Whiskey', 
-    description: 'Neat or on the rocks.', 
+    description: 'Neat or on the rocks selection.', 
     price: 14.00, 
     category: 'Spirits', 
     imageUrl: getImg('whiskey glass'), 
-    availableOn: ['Clubhouse'] 
+    availableOn: ['Clubhouse'],
+    isAvailable: true
   },
   { 
-    name: 'Caesar Salad', 
-    description: 'Romaine, croutons, parmesan.', 
+    name: 'Classic Caesar Salad', 
+    description: 'Romaine, artisan croutons, parmesan.', 
     price: 12.00, 
     category: 'Salad', 
     imageUrl: getImg('grilled salmon'), 
-    availableOn: ['Clubhouse', 'Pool'] 
+    availableOn: ['Clubhouse', 'Pool'],
+    isAvailable: true
   },
   ...commonMenuItems.map(i => ({ 
     ...i, 
@@ -140,44 +167,51 @@ export const privateGolfItems: (Omit<MenuItem, 'id' | 'rank'> & { id?: string, r
 // --- BOWLING ALLEY (demo-bowling-alley) ---
 export const bowlingAlleyItems: (Omit<MenuItem, 'id' | 'rank'> & { id?: string, rank?: number })[] = [
   { 
-    name: 'Pepperoni Pizza', 
-    description: '12-inch stone fired.', 
+    name: 'Stone Fired Pepperoni Pizza', 
+    description: '12-inch classic stone fired.', 
     price: 18.00, 
-    category: 'Featured', 
+    category: 'Pizza', 
     imageUrl: getImg('pepperoni pizza'), 
-    availableOn: ['Lane Delivery', 'Take Out'] 
+    availableOn: ['Lane Delivery', 'Take Out'], 
+    featuredOn: ['Lane Delivery'],
+    isAvailable: true
   },
   { 
-    name: 'Loaded Nachos', 
-    description: 'Beef, cheese, jalapenos.', 
+    name: 'Ultimate Loaded Nachos', 
+    description: 'Beef, melted cheese, fresh jalapenos.', 
     price: 14.00, 
     category: 'Appetizers', 
     imageUrl: getImg('loaded nachos'), 
-    availableOn: ['Lane Delivery'] 
+    availableOn: ['Lane Delivery'],
+    featuredOn: ['Lane Delivery'],
+    isAvailable: true
   },
   { 
-    name: 'Buffalo Wings', 
-    description: '8 wings with ranch.', 
+    name: 'Jumbo Buffalo Wings', 
+    description: '8 piece with house-made ranch.', 
     price: 15.00, 
     category: 'Appetizers', 
     imageUrl: getImg('chicken wings'), 
-    availableOn: ['Lane Delivery'] 
+    availableOn: ['Lane Delivery'],
+    isAvailable: true
   },
   { 
-    name: 'Pitcher of Lager', 
-    description: '64oz sharing pitcher.', 
+    name: 'Draft Lager Pitcher', 
+    description: '64oz sharing pitcher selection.', 
     price: 22.00, 
     category: 'Beer', 
     imageUrl: getImg('craft beer'), 
-    availableOn: ['Lane Delivery'] 
+    availableOn: ['Lane Delivery'],
+    isAvailable: true
   },
   { 
-    name: 'Classic Burger', 
-    description: 'Angus beef with fries.', 
+    name: 'Angus Classic Burger', 
+    description: 'Premium beef with house fries.', 
     price: 14.50, 
     category: 'Handhelds', 
     imageUrl: getImg('burger meal'), 
-    availableOn: ['Lane Delivery', 'Take Out'] 
+    availableOn: ['Lane Delivery', 'Take Out'],
+    isAvailable: true
   },
   ...commonMenuItems.map(i => ({ 
     ...i, 
