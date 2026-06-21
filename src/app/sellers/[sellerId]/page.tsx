@@ -75,7 +75,8 @@ import {
   Star,
   Settings2,
   ListPlus,
-  Tags
+  Tags,
+  LayoutList
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -123,7 +124,7 @@ import {
 import * as XLSX from 'xlsx';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Badge } from '@/components/ui/badge';
+import { Badge } from '@/badge';
 import { useToast } from '@/hooks/use-toast';
 import { StylizedKoopLogo } from '@/components/header';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
@@ -333,6 +334,40 @@ function SortableItem({ id, item, activeMode, isFeatured, onToggleFeatured }: { 
       >
         <Star className={cn("h-4 w-4", isFeatured && "fill-current")} />
       </button>
+    </div>
+  );
+}
+
+function SortableCategory({ id, category, isVisible, onToggleVisibility }: { id: string, category: string, isVisible: boolean, onToggleVisibility: (cat: string) => void }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 50 : undefined,
+  };
+
+  return (
+    <div 
+      ref={setNodeRef} 
+      style={style} 
+      className={cn(
+        "bg-white border-2 rounded-xl p-3 flex items-center gap-3 transition-all",
+        isDragging ? "shadow-2xl border-primary/50 scale-105" : "hover:border-slate-300 shadow-sm",
+        !isVisible && "opacity-50 grayscale bg-slate-50"
+      )}
+    >
+      <button {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing p-1 text-slate-300 hover:text-slate-600 transition-colors">
+        <GripVertical className="h-4 w-4" />
+      </button>
+      <div className="flex-1 min-w-0">
+        <p className="text-[11px] font-black uppercase text-[#213147] truncate leading-none">{category}</p>
+      </div>
+      <Switch 
+        checked={isVisible} 
+        onCheckedChange={() => onToggleVisibility(category)} 
+        className="data-[state=checked]:bg-primary"
+      />
     </div>
   );
 }
@@ -637,9 +672,22 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
-  const handleDragEnd = async (event: DragEndEvent, listType: 'category' | 'featured', categoryName?: string) => {
+  const handleDragEnd = async (event: DragEndEvent, listType: 'category' | 'featured' | 'layout', categoryName?: string) => {
     const { active, over } = event;
-    if (!active || !over || active.id === over.id || !firestore || !sellerId || !menuItems) return;
+    if (!active || !over || active.id === over.id || !firestore || !sellerId || !menuItems || !seller) return;
+
+    if (listType === 'layout') {
+      const currentOrder = seller.categoryVisibility?.[configMode] || categories.filter(c => c !== 'Featured');
+      const oldIndex = currentOrder.indexOf(active.id as string);
+      const newIndex = currentOrder.indexOf(over.id as string);
+      const nextOrder = arrayMove(currentOrder, oldIndex, newIndex);
+      
+      const sellerDocRef = doc(firestore, 'sellers', sellerId);
+      updateDoc(sellerDocRef, {
+        [`categoryVisibility.${configMode}`]: nextOrder
+      });
+      return;
+    }
 
     const filteredItems = listType === 'featured' 
       ? menuItems.filter(i => i.featuredOn?.includes(configMode))
@@ -683,6 +731,18 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     const nextFeatured = isNowFeatured ? current.filter(m => m !== configMode) : [...current, configMode];
     const itemRef = doc(firestore, 'sellers', sellerId, 'menuItems', itemId);
     updateDoc(itemRef, { featuredOn: nextFeatured });
+  };
+
+  const handleToggleCategoryVisibility = (cat: string) => {
+    if (!firestore || !sellerId || !seller) return;
+    const currentList = seller.categoryVisibility?.[configMode] || categories.filter(c => c !== 'Featured');
+    const isVisible = currentList.includes(cat);
+    const nextList = isVisible ? currentList.filter(c => c !== cat) : [...currentList, cat];
+    
+    const sellerDocRef = doc(firestore, 'sellers', sellerId);
+    updateDoc(sellerDocRef, {
+      [`categoryVisibility.${configMode}`]: nextList
+    });
   };
 
   const NAV_ITEMS = [
@@ -1104,13 +1164,50 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                        </Card>
                     </div>
 
-                    {/* SORTING CANVAS */}
+                    {/* LAYOUT CANVAS */}
                     <div className="lg:col-span-3 space-y-8">
+                       {/* Category Prioritization */}
+                       <div className="space-y-4">
+                          <div className="flex items-center gap-3 border-b-2 pb-2 px-1">
+                             <div className="p-1.5 bg-indigo-50 rounded-lg text-indigo-600"><LayoutList className="h-4 w-4" /></div>
+                             <div className="space-y-0.5">
+                                <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-[#213147]">Category Layout & Priority</h4>
+                                <p className="text-[8px] font-bold text-muted-foreground uppercase">Enable categories and drag to reorder. 'Featured' is always forced first.</p>
+                             </div>
+                          </div>
+
+                          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(e) => handleDragEnd(e, 'layout')}>
+                            <SortableContext 
+                              items={seller?.categoryVisibility?.[configMode] || categories.filter(c => c !== 'Featured')} 
+                              strategy={verticalListSortingStrategy}
+                            >
+                               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                  {(seller?.categoryVisibility?.[configMode] || categories.filter(c => c !== 'Featured')).map(cat => (
+                                    <SortableCategory 
+                                      key={`cat-sort-${cat}`} 
+                                      id={cat} 
+                                      category={cat} 
+                                      isVisible={true} 
+                                      onToggleVisibility={handleToggleCategoryVisibility} 
+                                    />
+                                  ))}
+                                  {/* Also show hidden categories at the end */}
+                                  {categories.filter(c => c !== 'Featured' && !(seller?.categoryVisibility?.[configMode] || []).includes(c)).map(cat => (
+                                    <div key={`cat-hidden-${cat}`} className="bg-slate-50 border-2 border-dashed rounded-xl p-3 flex items-center justify-between opacity-60">
+                                       <span className="text-[10px] font-black uppercase text-slate-400">{cat}</span>
+                                       <Switch checked={false} onCheckedChange={() => handleToggleCategoryVisibility(cat)} className="scale-75" />
+                                    </div>
+                                  ))}
+                               </div>
+                            </SortableContext>
+                          </DndContext>
+                       </div>
+
                        <div className="bg-primary/5 border-2 border-primary/20 p-4 rounded-2xl flex items-center gap-4">
                           <div className="bg-primary text-white p-2 rounded-xl"><MousePointer2 className="h-4 w-4" /></div>
                           <div>
-                             <p className="text-[11px] font-black uppercase text-[#213147]">Menu Priority Builder</p>
-                             <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">Drag items to prioritize. Star items to add them to the Featured section.</p>
+                             <p className="text-[11px] font-black uppercase text-[#213147]">Item Priority Builder</p>
+                             <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">Drag items within categories to prioritize. Star items to add them to the Featured section.</p>
                           </div>
                        </div>
 
@@ -1138,7 +1235,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                           </div>
 
                           {/* STANDARD CATEGORIES */}
-                          {categories.filter(c => c !== 'Featured').map(cat => {
+                          {(seller?.categoryVisibility?.[configMode] || categories.filter(c => c !== 'Featured')).map(cat => {
                             const items = menuItems?.filter(i => i.category === cat && i.availableOn?.includes(configMode))
                               .sort((a, b) => (a.menuRanks?.[configMode] || 0) - (b.menuRanks?.[configMode] || 0));
                             if (!items?.length) return null;
