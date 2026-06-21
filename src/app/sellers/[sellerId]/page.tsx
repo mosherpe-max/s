@@ -1295,9 +1295,14 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                     </FormItem>
                   )} />
                 </div>
-                <Button type="submit" disabled={isProcessingSave} className="w-full h-14 bg-[#213147] hover:bg-black font-black uppercase tracking-widest text-[11px] gap-2 shadow-xl">
-                  {isProcessingSave ? <Loader2 className="h-5 w-5 animate-spin" /> : <Save className="h-5 w-5" />} Commit Identity
-                </Button>
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <Button type="submit" disabled={isProcessingSave} className="flex-1 h-14 bg-[#213147] hover:bg-black font-black uppercase tracking-widest text-[11px] gap-2 shadow-xl">
+                    {isProcessingSave ? <Loader2 className="h-5 w-5 animate-spin" /> : <Save className="h-5 w-5" />} Commit Identity
+                  </Button>
+                  <Button type="button" variant="outline" onClick={() => { setIsStaffFormOpen(false); setEditingStaff(null); staffForm.reset(); }} className="h-14 px-8 border-2 font-black uppercase tracking-widest text-[11px]">
+                    Discard
+                  </Button>
+                </div>
               </form>
             </Form>
           </div>
@@ -1358,9 +1363,14 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                     </FormItem>
                   )} />
 
-                  <Button type="submit" disabled={isProcessingSave} className="w-full h-14 bg-[#213147] hover:bg-black font-black uppercase tracking-widest text-[11px] gap-2 shadow-xl">
-                    {isProcessingSave ? <Loader2 className="h-5 w-5 animate-spin" /> : <Save className="h-5 w-5" />} Commit Item
-                  </Button>
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <Button type="submit" disabled={isProcessingSave} className="flex-1 h-14 bg-[#213147] hover:bg-black font-black uppercase tracking-widest text-[11px] gap-2 shadow-xl">
+                      {isProcessingSave ? <Loader2 className="h-5 w-5 animate-spin" /> : <Save className="h-5 w-5" />} Commit Item
+                    </Button>
+                    <Button type="button" variant="outline" onClick={() => { setIsItemFormOpen(false); setEditingItem(null); itemForm.reset(); }} className="h-14 px-8 border-2 font-black uppercase tracking-widest text-[11px]">
+                      Discard
+                    </Button>
+                  </div>
                 </form>
               </Form>
             </div>
