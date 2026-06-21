@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
@@ -180,6 +181,7 @@ const venueMaintenanceSchema = z.object({
   patronConvenienceFee: z.coerce.number().min(0),
   platformFeeFixed: z.coerce.number().min(0),
   platformFeePercent: z.coerce.number().min(0).max(100),
+  monthlyPlatformFee: z.coerce.number().min(0),
   isFoundingPartner: z.boolean().default(false),
 });
 
@@ -357,6 +359,7 @@ export default function PlatformAdminPage() {
       patronConvenienceFee: 150,
       platformFeeFixed: 20,
       platformFeePercent: 0,
+      monthlyPlatformFee: 0,
       isFoundingPartner: false,
     }
   });
@@ -370,6 +373,7 @@ export default function PlatformAdminPage() {
         patronConvenienceFee: selectedVenueData.patronConvenienceFee || 150,
         platformFeeFixed: selectedVenueData.platformFeeFixed || 20,
         platformFeePercent: selectedVenueData.platformFeePercent || 0,
+        monthlyPlatformFee: selectedVenueData.monthlyPlatformFee || 0,
         isFoundingPartner: selectedVenueData.isFoundingPartner || false,
       });
     }
@@ -390,6 +394,7 @@ export default function PlatformAdminPage() {
       patronConvenienceFee: 150, 
       platformFeeFixed: 20,      
       platformFeePercent: 0,
+      monthlyPlatformFee: 0,
       payoutsEnabled: false,
       stripeOnboardingComplete: false,
       isFoundingPartner: false,
@@ -469,6 +474,7 @@ export default function PlatformAdminPage() {
       patronConvenienceFee: data.patronConvenienceFee,
       platformFeeFixed: data.platformFeeFixed,
       platformFeePercent: data.platformFeePercent,
+      monthlyPlatformFee: data.monthlyPlatformFee,
       isFoundingPartner: data.isFoundingPartner,
       updatedAt: serverTimestamp()
     });
@@ -1332,14 +1338,25 @@ export default function PlatformAdminPage() {
                        <CreditCard className="h-4 w-4 text-indigo-600" />
                        <h4 className="text-[10px] font-black uppercase tracking-widest text-indigo-600">Financial Integration</h4>
                     </div>
-                    <FormField control={maintenanceForm.control} name="stripeConnectId" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-[10px] font-black uppercase tracking-widest">Stripe Connect ID</FormLabel>
-                        <FormControl><Input {...field} placeholder="acct_..." className="h-11 border-2 font-mono text-[10px]" /></FormControl>
-                        <FormDescription className="text-[8px] font-bold uppercase text-muted-foreground">The Express account ID for payouts.</FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )} />
+                    
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                       <FormField control={maintenanceForm.control} name="stripeConnectId" render={({ field }) => (
+                         <FormItem>
+                           <FormLabel className="text-[10px] font-black uppercase tracking-widest">Stripe Connect ID</FormLabel>
+                           <FormControl><Input {...field} placeholder="acct_..." className="h-11 border-2 font-mono text-[10px]" /></FormControl>
+                           <FormDescription className="text-[8px] font-bold uppercase text-muted-foreground">The Express account ID for payouts.</FormDescription>
+                           <FormMessage />
+                         </FormItem>
+                       )} />
+                       <FormField control={maintenanceForm.control} name="monthlyPlatformFee" render={({ field }) => (
+                         <FormItem>
+                           <FormLabel className="text-[10px] font-black uppercase tracking-widest">Monthly Platform Fee ($)</FormLabel>
+                           <FormControl><Input {...field} type="number" step="0.01" className="h-11 border-2 font-bold" /></FormControl>
+                           <FormDescription className="text-[8px] font-bold uppercase text-muted-foreground">The recurring subscription cost for this venue.</FormDescription>
+                           <FormMessage />
+                         </FormItem>
+                       )} />
+                    </div>
 
                     <div className="grid grid-cols-3 gap-4">
                       <FormField control={maintenanceForm.control} name="patronConvenienceFee" render={({ field }) => (
