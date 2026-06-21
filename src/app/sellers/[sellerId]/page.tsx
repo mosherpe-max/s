@@ -170,7 +170,7 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
   useSortable,
-} from '@at-dnd-kit/sortable';
+} from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
 import type { MenuItem, Seller, Order, StaffMember, Venue, PlatformConfig, SellerAdminRole, Category, ModifierGroup, ModifierOption } from '@/lib/types';
@@ -1564,8 +1564,8 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
             <div className="flex items-center gap-4">
               <div className="bg-white/20 p-3 rounded-2xl shrink-0"><Tags className="h-6 w-6 text-white" /></div>
               <div>
-                <DialogTitle className="font-headline font-black uppercase tracking-tight text-white text-xl">{editingModifierGroup ? 'Modify Modifier Set' : 'New Modifier Set'}</DialogTitle>
-                <DialogDescription className="text-white/60 text-[9px] font-bold uppercase tracking-widest mt-1">Configure options and add-ons</DialogDescription>
+                <DialogTitle className="font-headline font-black uppercase tracking-tight text-white text-xl">{editingModifierGroup ? 'Modify Modifier Set' : 'New Modifier Set'}</DialogTitle}
+                <DialogDescription className="text-white/40 text-[9px] font-bold uppercase tracking-widest mt-1">Configure options and add-ons</DialogDescription>
               </div>
             </div>
           </DialogHeader>
@@ -1575,7 +1575,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                 <form onSubmit={modifierGroupForm.handleSubmit(handleSaveModifierGroup)} className="space-y-8">
                   <FormField control={modifierGroupForm.control} name="name" render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-[10px] font-black uppercase tracking-widest">Group Name</FormLabel>
+                      <FormLabel className="text-[10px] font-black uppercase tracking-widest">Group Name</Label>
                       <FormControl><Input {...field} placeholder="Side Options" className="h-12 border-2 font-bold" /></FormControl>
                       <FormDescription className="text-[8px] font-medium uppercase text-muted-foreground">e.g. "Pizza Toppings", "Choice of Dressing"</FormDescription>
                       <FormMessage />
