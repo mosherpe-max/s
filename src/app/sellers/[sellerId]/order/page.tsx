@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, use, useEffect, useMemo } from 'react';
@@ -35,7 +34,8 @@ import {
   ShoppingCart,
   Satellite,
   ChevronLeft,
-  Clock
+  Clock,
+  Zap
 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useCart } from '@/lib/cart-context';
@@ -55,8 +55,8 @@ import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/e
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || 'pk_test_placeholder');
 
 const serviceTypeIcons: Record<string, any> = {
-  'Beverage Cart': Truck,
-  'Clubhouse': Building,
+  'Beverage Cart': Zap,
+  'Clubhouse': Zap,
   'Pool': Waves,
   'Take Out': ShoppingBasket,
   'Halfway House': Home,

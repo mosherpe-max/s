@@ -208,8 +208,11 @@ function MapInternal({ buyerLocation, sellerLocation, showPrimaryMarker, primary
         ))}
 
         {/* Driver Pins - Unique Hexagonal Shape with Dynamic Color-Coding */}
-        {drivers && drivers.map(driver => {
+        {drivers && drivers.map((driver, index) => {
           const hexPath = "M 0,-15 L 13,-7.5 L 13,7.5 L 0,15 L -13,7.5 L -13,-7.5 Z";
+          // Logic: 1st driver is Koop Blue, others Red if no override
+          const defaultColor = index === 0 ? '#213147' : '#E50000';
+          
           return (
             <Marker 
               key={`driver-item-${driver.id}`} 
@@ -217,7 +220,7 @@ function MapInternal({ buyerLocation, sellerLocation, showPrimaryMarker, primary
               title={`${driver.name} (${driver.type})`}
               icon={{
                 path: hexPath,
-                fillColor: driver.colorOverride || (driver.type === 'Beverage Cart' ? '#E50000' : '#4F46E5'),
+                fillColor: driver.colorOverride || defaultColor,
                 fillOpacity: 1,
                 strokeWeight: 2,
                 strokeColor: '#FFFFFF',
@@ -235,7 +238,7 @@ function MapInternal({ buyerLocation, sellerLocation, showPrimaryMarker, primary
             title="Delivery Driver"
             icon={{
               path: "M 0,-15 L 13,-7.5 L 13,7.5 L 0,15 L -13,7.5 L -13,-7.5 Z",
-              fillColor: '#4F46E5', 
+              fillColor: '#213147', // Koop Blue for primary driver
               fillOpacity: 1,
               strokeWeight: 2,
               strokeColor: '#FFFFFF',
