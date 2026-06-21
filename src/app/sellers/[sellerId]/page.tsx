@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useMemo, useEffect, use } from 'react';
@@ -72,12 +73,15 @@ import {
   UserPlus,
   Building,
   Printer,
-  Star
+  Star,
+  Settings2,
+  ListPlus,
+  Tags
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
-import { useForm } from 'react-hook-form';
+import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
@@ -144,7 +148,7 @@ import {
   XAxis,
   YAxis,
   CartesianGrid,
-  Tooltip as ChartTooltip,
+  ChartTooltip,
   ResponsiveContainer,
   PieChart,
   Pie,
@@ -170,7 +174,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
-import type { MenuItem, Seller, Order, StaffMember, Venue, PlatformConfig, SellerAdminRole, Category } from '@/lib/types';
+import type { MenuItem, Seller, Order, StaffMember, Venue, PlatformConfig, SellerAdminRole, Category, ModifierGroup, ModifierOption } from '@/lib/types';
 import { categories } from '@/lib/types';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -211,9 +215,24 @@ const itemSchema = z.object({
   availableOn: z.array(z.string()).default([]),
   featuredOn: z.array(z.string()).default([]),
   isAvailable: z.boolean().default(true),
+  modifierGroupIds: z.array(z.string()).default([]),
 });
 
 type ItemFormData = z.infer<typeof itemSchema>;
+
+const modifierGroupSchema = z.object({
+  name: z.string().min(2, 'Group name required'),
+  minSelection: z.coerce.number().min(0),
+  maxSelection: z.coerce.number().min(1),
+  options: z.array(z.object({
+    id: z.string(),
+    name: z.string().min(1, 'Option name required'),
+    priceAdjustment: z.coerce.number().min(0),
+    isAvailable: z.boolean().default(true),
+  })).min(1, 'At least one option required'),
+});
+
+type ModifierGroupFormData = z.infer<typeof modifierGroupSchema>;
 
 // --- UI COMPONENTS ---
 
@@ -344,6 +363,8 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   const [editingStaff, setEditingStaff] = useState<StaffMember | null>(null);
   const [isItemFormOpen, setIsItemFormOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
+  const [isModifierGroupFormOpen, setIsModifierGroupFormOpen] = useState(false);
+  const [editingModifierGroup, setEditingModifierGroup] = useState<ModifierGroup | null>(null);
   const [isProcessingSave, setIsProcessingSave] = useState(false);
   const [configMode, setConfigMode] = useState<string>('Beverage Cart');
 
@@ -363,6 +384,9 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
 
   const menuItemsQuery = useMemoFirebase(() => (firestore && user ? collection(firestore, 'sellers', sellerId, 'menuItems') : null), [firestore, sellerId, user]);
   const { data: menuItems } = useCollection<MenuItem>(menuItemsQuery);
+
+  const modifierGroupsQuery = useMemoFirebase(() => (firestore && user ? query(collection(firestore, 'modifier_groups'), where('sellerId', '==', sellerId)) : null), [firestore, sellerId, user]);
+  const { data: modifierGroups } = useCollection<ModifierGroup>(modifierGroupsQuery);
 
   const ordersQuery = useMemoFirebase(() => (firestore && user ? query(collection(firestore, 'orders'), where('sellerId', '==', sellerId)) : null), [firestore, sellerId, user]);
   const { data: orders } = useCollection<Order>(ordersQuery);
@@ -451,7 +475,17 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
 
   const itemForm = useForm<ItemFormData>({
     resolver: zodResolver(itemSchema),
-    defaultValues: { name: '', description: '', price: 0, category: 'Other', isAvailable: true, availableOn: [], featuredOn: [] }
+    defaultValues: { name: '', description: '', price: 0, category: 'Other', isAvailable: true, availableOn: [], featuredOn: [], modifierGroupIds: [] }
+  });
+
+  const modifierGroupForm = useForm<ModifierGroupFormData>({
+    resolver: zodResolver(modifierGroupSchema),
+    defaultValues: { name: '', minSelection: 0, maxSelection: 1, options: [{ id: Math.random().toString(36).substr(2, 9), name: '', priceAdjustment: 0, isAvailable: true }] }
+  });
+
+  const { fields: optionFields, append: appendOption, remove: removeOption } = useFieldArray({
+    control: modifierGroupForm.control,
+    name: "options"
   });
 
   const handleSaveStaff = async (data: StaffFormData) => {
@@ -496,6 +530,32 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     }).finally(() => setIsProcessingSave(false));
   };
 
+  const handleSaveModifierGroup = async (data: ModifierGroupFormData) => {
+    if (!firestore || !sellerId) return;
+    setIsProcessingSave(true);
+    const groupId = editingModifierGroup?.id || Math.random().toString(36).substr(2, 9);
+    const groupRef = doc(firestore, 'modifier_groups', groupId);
+    const payload = { 
+      ...data, 
+      id: groupId, 
+      sellerId,
+      updatedAt: serverTimestamp(), 
+      createdAt: editingModifierGroup?.createdAt || serverTimestamp() 
+    };
+    setDoc(groupRef, payload, { merge: true }).then(() => {
+      toast({ title: editingModifierGroup ? 'Modifier Group Updated' : 'Modifier Group Added' });
+      setIsModifierGroupFormOpen(false);
+      setEditingModifierGroup(null);
+      modifierGroupForm.reset();
+    }).catch(async (error) => {
+      errorEmitter.emit('permission-error', new FirestorePermissionError({ 
+        path: groupRef.path, 
+        operation: 'write', 
+        requestResourceData: payload 
+      } satisfies SecurityRuleContext));
+    }).finally(() => setIsProcessingSave(false));
+  };
+
   const handleDeleteStaff = async (id: string) => {
     if (!firestore || !sellerId) return;
     const staffRef = doc(firestore, 'sellers', sellerId, 'staff', id);
@@ -512,6 +572,19 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     }).catch(async (error) => {
       errorEmitter.emit('permission-error', new FirestorePermissionError({ 
         path: itemRef.path, 
+        operation: 'delete' 
+      } satisfies SecurityRuleContext));
+    });
+  };
+
+  const handleDeleteModifierGroup = async (id: string) => {
+    if (!firestore) return;
+    const groupRef = doc(firestore, 'modifier_groups', id);
+    deleteDoc(groupRef).then(() => { 
+      toast({ title: "Modifier Group Deleted" }); 
+    }).catch(async (error) => {
+      errorEmitter.emit('permission-error', new FirestorePermissionError({ 
+        path: groupRef.path, 
         operation: 'delete' 
       } satisfies SecurityRuleContext));
     });
@@ -617,6 +690,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
     { id: "orders", label: "Orders", icon: ClipboardList },
     { id: "menu", label: "Menu Items", icon: UtensilsCrossed },
+    { id: "modifiers", label: "Modifiers", icon: Tags },
     { id: "service", label: "Service Modes", icon: Zap },
     { id: "staff", label: "Staff", icon: Users },
     { id: "analytics", label: "Analytics", icon: BarChart3 },
@@ -858,7 +932,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                       <h3 className="font-headline font-black text-2xl text-[#213147] uppercase leading-tight">Master Menu Library</h3>
                       <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Global items available for all service modes</p>
                     </div>
-                    <Button onClick={() => { setEditingItem(null); itemForm.reset(); setIsItemFormOpen(true); }} className="bg-primary hover:bg-primary/90 h-12 px-6 rounded-xl font-black uppercase text-[11px] tracking-widest gap-2 shadow-xl">
+                    <Button onClick={() => { setEditingItem(null); itemForm.reset({ name: '', description: '', price: 0, category: 'Other', isAvailable: true, availableOn: [], featuredOn: [], modifierGroupIds: [] }); setIsItemFormOpen(true); }} className="bg-primary hover:bg-primary/90 h-12 px-6 rounded-xl font-black uppercase text-[11px] tracking-widest gap-2 shadow-xl">
                       <Plus className="h-4 w-4" /> Create New Master Item
                     </Button>
                   </div>
@@ -880,6 +954,20 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                                       {!item.isAvailable && <Badge variant="destructive" className="h-3.5 px-1 text-[7px] font-black uppercase border-0">86'D</Badge>}
                                     </div>
                                     <p className="text-[10px] font-bold text-primary font-mono mt-0.5">${item.price.toFixed(2)}</p>
+                                    
+                                    {/* Linked Modifiers Display */}
+                                    {item.modifierGroupIds && item.modifierGroupIds.length > 0 && (
+                                      <div className="mt-2 flex flex-wrap gap-1">
+                                        {item.modifierGroupIds.map(gid => {
+                                          const group = modifierGroups?.find(g => g.id === gid);
+                                          return group ? (
+                                            <Badge key={gid} variant="outline" className="text-[7px] font-bold uppercase border-indigo-100 text-indigo-600 bg-indigo-50/30">
+                                              {group.name}
+                                            </Badge>
+                                          ) : null;
+                                        })}
+                                      </div>
+                                    )}
                                   </div>
                                   <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                     <Button variant="ghost" size="icon" className="h-8 w-8 text-indigo-600" onClick={() => { 
@@ -887,7 +975,8 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                                       itemForm.reset({
                                         ...item,
                                         description: item.description || '',
-                                        imageUrl: item.imageUrl || ''
+                                        imageUrl: item.imageUrl || '',
+                                        modifierGroupIds: item.modifierGroupIds || []
                                       }); 
                                       setIsItemFormOpen(true); 
                                     }}><Edit className="h-4 w-4" /></Button>
@@ -900,6 +989,58 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                         </div>
                       );
                     })}
+                  </div>
+                </div>
+              )}
+
+              {activeNav === 'modifiers' && (
+                <div className="space-y-6 animate-in fade-in duration-500">
+                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b-2 pb-4">
+                    <div className="space-y-1">
+                      <h3 className="font-headline font-black text-2xl text-[#213147] uppercase leading-tight">Modifier Groups</h3>
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Reusable sets of customizations and add-ons</p>
+                    </div>
+                    <Button onClick={() => { setEditingModifierGroup(null); modifierGroupForm.reset({ name: '', minSelection: 0, maxSelection: 1, options: [{ id: Math.random().toString(36).substr(2, 9), name: '', priceAdjustment: 0, isAvailable: true }] }); setIsModifierGroupFormOpen(true); }} className="bg-indigo-600 hover:bg-indigo-700 h-12 px-6 rounded-xl font-black uppercase text-[11px] tracking-widest gap-2 shadow-xl">
+                      <Plus className="h-4 w-4" /> Define New Modifier Set
+                    </Button>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {modifierGroups?.map(group => (
+                      <Card key={group.id} className="border-2 shadow-sm group hover:border-indigo-200 transition-all bg-white">
+                        <CardHeader className="p-4 border-b bg-slate-50/50 flex flex-row items-center justify-between space-y-0">
+                           <div className="space-y-0.5">
+                              <p className="font-black text-xs uppercase text-[#213147]">{group.name}</p>
+                              <p className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest">
+                                {group.minSelection > 0 ? `Required (${group.minSelection})` : 'Optional'} · Max {group.maxSelection}
+                              </p>
+                           </div>
+                           <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <Button variant="ghost" size="icon" className="h-8 w-8 text-indigo-600" onClick={() => { 
+                                setEditingModifierGroup(group); 
+                                modifierGroupForm.reset(group); 
+                                setIsModifierGroupFormOpen(true); 
+                              }}><Edit className="h-4 w-4" /></Button>
+                              <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleDeleteModifierGroup(group.id)}><Trash2 className="h-4 w-4" /></Button>
+                           </div>
+                        </CardHeader>
+                        <CardContent className="p-4">
+                           <div className="flex flex-wrap gap-1.5">
+                              {group.options.map((opt, idx) => (
+                                <Badge key={`${group.id}-opt-${idx}`} variant="outline" className={cn("text-[8px] font-bold uppercase px-1.5 py-0.5 h-auto", !opt.isAvailable && "opacity-40 line-through")}>
+                                  {opt.name} {opt.priceAdjustment > 0 && `(+$${opt.priceAdjustment.toFixed(2)})`}
+                                </Badge>
+                              ))}
+                           </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                    {modifierGroups?.length === 0 && (
+                      <div className="col-span-full py-20 text-center bg-white border-2 border-dashed rounded-3xl opacity-40">
+                         <Tags className="h-12 w-12 mx-auto mb-4 text-slate-300" />
+                         <p className="text-xs font-black uppercase tracking-widest">No modifier groups defined yet</p>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -1328,7 +1469,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
               </div>
             </div>
           </DialogHeader>
-          <ScrollArea className="max-h-[60vh]">
+          <ScrollArea className="max-h-[70vh]">
             <div className="p-8">
               <Form {...itemForm}>
                 <form onSubmit={itemForm.handleSubmit(handleSaveItem)} className="space-y-6">
@@ -1370,11 +1511,132 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                     </FormItem>
                   )} />
 
+                  {/* Modifier Linking Selection */}
+                  <FormField control={itemForm.control} name="modifierGroupIds" render={({ field }) => (
+                    <FormItem className="space-y-3">
+                      <FormLabel className="text-[10px] font-black uppercase tracking-widest text-indigo-600">Attached Modifier Sets</FormLabel>
+                      <div className="grid grid-cols-1 gap-2">
+                        {modifierGroups?.map(group => (
+                          <div key={group.id} className="flex items-center space-x-3 p-3 bg-slate-50 rounded-xl border-2 hover:bg-white transition-all">
+                            <Checkbox 
+                              checked={field.value?.includes(group.id)} 
+                              onCheckedChange={(checked) => {
+                                const next = checked 
+                                  ? [...(field.value || []), group.id]
+                                  : field.value?.filter(id => id !== group.id);
+                                field.onChange(next);
+                              }} 
+                            />
+                            <div className="flex-1 min-w-0">
+                               <p className="text-[10px] font-black uppercase text-[#213147]">{group.name}</p>
+                               <p className="text-[8px] font-bold text-muted-foreground uppercase">{group.options.length} options</p>
+                            </div>
+                          </div>
+                        ))}
+                        {(!modifierGroups || modifierGroups.length === 0) && (
+                          <p className="text-[9px] font-bold text-muted-foreground italic p-2 border-2 border-dashed rounded-xl text-center">
+                            No modifier groups defined. Go to "Modifiers" tab first.
+                          </p>
+                        )}
+                      </div>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+
                   <div className="flex flex-col sm:flex-row gap-3">
                     <Button type="submit" disabled={isProcessingSave} className="flex-1 h-14 bg-[#213147] hover:bg-black font-black uppercase tracking-widest text-[11px] gap-2 shadow-xl">
                       {isProcessingSave ? <Loader2 className="h-5 w-5 animate-spin" /> : <Save className="h-5 w-5" />} Commit Item
                     </Button>
                     <Button type="button" variant="outline" onClick={() => { setIsItemFormOpen(false); setEditingItem(null); itemForm.reset(); }} className="h-14 px-8 border-2 font-black uppercase tracking-widest text-[11px]">
+                      Discard
+                    </Button>
+                  </div>
+                </form>
+              </Form>
+            </div>
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
+
+      {/* DIALOG: MODIFIER GROUP FORM */}
+      <Dialog open={isModifierGroupFormOpen} onOpenChange={setIsModifierGroupFormOpen}>
+        <DialogContent className="sm:max-w-[500px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl">
+          <DialogHeader className="p-8 bg-indigo-600 text-white">
+            <div className="flex items-center gap-4">
+              <div className="bg-white/20 p-3 rounded-2xl shrink-0"><Tags className="h-6 w-6 text-white" /></div>
+              <div>
+                <DialogTitle className="font-headline font-black uppercase tracking-tight text-white text-xl">{editingModifierGroup ? 'Modify Modifier Set' : 'New Modifier Set'}</DialogTitle>
+                <DialogDescription className="text-white/60 text-[9px] font-bold uppercase tracking-widest mt-1">Configure options and add-ons</DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+          <ScrollArea className="max-h-[70vh]">
+            <div className="p-8">
+              <Form {...modifierGroupForm}>
+                <form onSubmit={modifierGroupForm.handleSubmit(handleSaveModifierGroup)} className="space-y-8">
+                  <FormField control={modifierGroupForm.control} name="name" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-[10px] font-black uppercase tracking-widest">Group Name</FormLabel>
+                      <FormControl><Input {...field} placeholder="Side Options" className="h-12 border-2 font-bold" /></FormControl>
+                      <FormDescription className="text-[8px] font-medium uppercase text-muted-foreground">e.g. "Pizza Toppings", "Choice of Dressing"</FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+
+                  <div className="grid grid-cols-2 gap-4 p-4 bg-slate-50 rounded-2xl border-2">
+                    <FormField control={modifierGroupForm.control} name="minSelection" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-[10px] font-black uppercase tracking-widest">Min Choice</FormLabel>
+                        <FormControl><Input {...field} type="number" className="h-11 border-2 font-bold" /></FormControl>
+                        <FormDescription className="text-[7px] font-bold uppercase">1 = Required</FormDescription>
+                      </FormItem>
+                    )} />
+                    <FormField control={modifierGroupForm.control} name="maxSelection" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-[10px] font-black uppercase tracking-widest">Max Choice</FormLabel>
+                        <FormControl><Input {...field} type="number" className="h-11 border-2 font-bold" /></FormControl>
+                        <FormDescription className="text-[7px] font-bold uppercase">Limit selections</FormDescription>
+                      </FormItem>
+                    )} />
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between border-b pb-2">
+                      <Label className="text-[10px] font-black uppercase tracking-widest text-indigo-600">Option Variations</Label>
+                      <Button type="button" variant="outline" size="sm" onClick={() => appendOption({ id: Math.random().toString(36).substr(2, 9), name: '', priceAdjustment: 0, isAvailable: true })} className="h-7 text-[8px] font-black uppercase gap-1">
+                        <Plus className="h-3 w-3" /> Add Variation
+                      </Button>
+                    </div>
+                    
+                    <div className="space-y-3">
+                      {optionFields.map((field, index) => (
+                        <div key={field.id} className="grid grid-cols-12 gap-2 items-end bg-white p-3 border-2 rounded-xl group">
+                           <div className="col-span-6 space-y-1">
+                             <Label className="text-[8px] font-black uppercase text-muted-foreground">Option Name</Label>
+                             <Input {...modifierGroupForm.register(`options.${index}.name` as const)} placeholder="Extra Bacon" className="h-9 text-xs font-bold border-0 bg-slate-50" />
+                           </div>
+                           <div className="col-span-3 space-y-1">
+                             <Label className="text-[8px] font-black uppercase text-muted-foreground">Price (+)</Label>
+                             <Input {...modifierGroupForm.register(`options.${index}.priceAdjustment` as const)} type="number" step="0.01" className="h-9 text-xs font-bold border-0 bg-slate-50" />
+                           </div>
+                           <div className="col-span-2 flex items-center justify-center pb-2">
+                             <FormField control={modifierGroupForm.control} name={`options.${index}.isAvailable`} render={({ field }) => (
+                               <Switch checked={field.value} onCheckedChange={field.onChange} className="data-[state=checked]:bg-green-600 scale-75" />
+                             )} />
+                           </div>
+                           <div className="col-span-1 flex items-center justify-center pb-1">
+                              <Button type="button" variant="ghost" size="icon" onClick={() => removeOption(index)} className="h-8 w-8 text-destructive/40 hover:text-destructive"><X className="h-4 w-4" /></Button>
+                           </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row gap-3 pt-4">
+                    <Button type="submit" disabled={isProcessingSave} className="flex-1 h-14 bg-indigo-600 hover:bg-indigo-700 font-black uppercase tracking-widest text-[11px] gap-2 shadow-xl">
+                      {isProcessingSave ? <Loader2 className="h-5 w-5 animate-spin" /> : <Save className="h-5 w-5" />} Commit Modifier Group
+                    </Button>
+                    <Button type="button" variant="outline" onClick={() => { setIsModifierGroupFormOpen(false); setEditingModifierGroup(null); modifierGroupForm.reset(); }} className="h-14 px-8 border-2 font-black uppercase tracking-widest text-[11px]">
                       Discard
                     </Button>
                   </div>

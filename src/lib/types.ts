@@ -114,6 +114,24 @@ export const categories: readonly Category[] = [
   'Kids'
 ];
 
+export interface ModifierOption {
+  id: string;
+  name: string;
+  priceAdjustment: number;
+  isAvailable: boolean;
+}
+
+export interface ModifierGroup {
+  id: string;
+  sellerId: string;
+  name: string;
+  minSelection: number;
+  maxSelection: number;
+  options: ModifierOption[];
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
 export interface MenuItem {
     id: string;
     name: string;
@@ -127,11 +145,13 @@ export interface MenuItem {
     menuRanks?: Record<string, number>; // Mode-specific sort ranking within category
     featuredRanks?: Record<string, number>; // Mode-specific sort ranking within Featured category
     isAvailable?: boolean; // 86'd feature
+    modifierGroupIds?: string[]; // References to ModifierGroup IDs
 }
 
 export interface OrderItem extends MenuItem {
   quantity: number;
   cartId: string;
+  selectedModifiers?: Record<string, ModifierOption[]>;
 }
 
 export interface Order {
