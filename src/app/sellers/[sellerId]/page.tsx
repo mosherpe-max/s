@@ -118,7 +118,7 @@ import {
 } from 'date-fns';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Badge } from '@/badge';
+import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { StylizedKoopLogo } from '@/components/header';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
@@ -1704,7 +1704,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                 <form onSubmit={modifierGroupForm.handleSubmit(handleSaveModifierGroup)} className="space-y-8">
                   <FormField control={modifierGroupForm.control} name="name" render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-[10px] font-black uppercase tracking-widest">Group Name</Label>
+                      <FormLabel className="text-[10px] font-black uppercase tracking-widest">Group Name</FormLabel>
                       <FormControl><Input {...field} placeholder="Side Options" className="h-12 border-2 font-bold" /></FormControl>
                       <FormDescription className="text-[8px] font-medium uppercase text-muted-foreground">e.g. "Pizza Toppings", "Choice of Dressing"</FormDescription>
                       <FormMessage />
