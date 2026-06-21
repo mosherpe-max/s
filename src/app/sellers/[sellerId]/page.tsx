@@ -124,7 +124,7 @@ import {
 import * as XLSX from 'xlsx';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Badge } from '@/badge';
+import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { StylizedKoopLogo } from '@/components/header';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
