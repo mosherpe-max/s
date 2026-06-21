@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
@@ -77,7 +76,8 @@ import {
   ThermometerSnowflake,
   Flame,
   CloudSun,
-  AlertTriangle
+  AlertTriangle,
+  Sparkles
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -104,7 +104,7 @@ import {
   TabsContent,
   TabsList,
   TabsTrigger,
-} from "@/components/ui/tabs";
+} from "@/tabs";
 import {
   Select,
   SelectContent,
@@ -117,15 +117,13 @@ import { useRouter } from 'next/navigation';
 import { useFirestore, useCollection, useMemoFirebase, useFirebase, useAuth, useDoc, useUser } from '@/firebase';
 import { signOut, sendPasswordResetEmail } from 'firebase/auth';
 import { collection, query, limit, doc, setDoc, serverTimestamp, where, orderBy, updateDoc, getDoc, getDocs, writeBatch, Timestamp, deleteDoc } from 'firebase/firestore';
-import { httpsCallable, getFunctions } from 'firebase/functions';
 import type { Seller, PlatformConfig, Order, Venue, SellerType, MapUpdateSettings, SellerAdminRole } from '@/lib/types';
 import { sellerTypes } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { cn, getNumericOrderId, SUPER_ADMIN_ID } from '@/lib/utils';
 import { StylizedKoopLogo } from '@/components/header';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
-import { format, isToday, startOfMonth, subDays } from 'date-fns';
-import Image from 'next/image';
+import { startOfMonth } from 'date-fns';
 import { useIsMobile } from '@/hooks/use-mobile';
 import {
   Sheet,
@@ -136,7 +134,6 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { Checkbox } from '@/components/ui/checkbox';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import Link from 'next/link';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
@@ -145,6 +142,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { seedAllDemoData } from '@/lib/seed-data';
+import { format } from 'date-fns';
 
 const SYSTEM_DEFAULT_THRESHOLDS = {
   'Beverage Cart': { warning: 10, max: 15 },
@@ -214,13 +212,13 @@ function KPICard({ label, value, sub, icon: Icon, colorClass, trend }: { label: 
   return (
     <Card className="border-2 shadow-sm overflow-hidden relative h-full">
       <div className={cn("absolute top-0 left-0 bottom-0 w-1.5", colorClass)} />
-      <CardHeader className="pb-2 pt-5">
+      <CardHeader className="pb-2 pt-5 px-4 sm:px-6">
         <CardDescription className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center justify-between">
           <span className="flex items-center gap-2"><Icon className="h-3 w-3" /> {label}</span>
           {trend && <span className="text-green-500 font-bold flex items-center gap-0.5">{trend} <ArrowUpRight className="h-2 w-2" /></span>}
         </CardDescription>
       </CardHeader>
-      <CardContent className="pb-5">
+      <CardContent className="pb-5 px-4 sm:px-6">
         <div className="text-2xl sm:text-3xl font-black font-headline tracking-tighter text-[#213147] mb-1">{value}</div>
         <p className="text-[10px] font-bold text-muted-foreground uppercase">{sub}</p>
       </CardContent>
@@ -229,7 +227,6 @@ function KPICard({ label, value, sub, icon: Icon, colorClass, trend }: { label: 
 }
 
 export default function PlatformAdminPage() {
-  const { firebaseApp } = useFirebase();
   const firestore = useFirestore();
   const auth = useAuth();
   const { user, isUserLoading } = useUser();
@@ -707,7 +704,20 @@ export default function PlatformAdminPage() {
             />
           ))}
         </nav>
-        <div className="mt-auto border-t border-white/5 p-4 shrink-0">
+        <div className="mt-auto border-t border-white/5 p-4 shrink-0 space-y-4">
+          {showLabels && (
+            <div className="px-4 py-3 bg-white/5 rounded-xl border border-white/5">
+              <div className="flex items-center gap-3">
+                <div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-black text-xs">
+                  {user?.email?.charAt(0).toUpperCase() || 'P'}
+                </div>
+                <div className="flex flex-col min-w-0">
+                  <span className="text-[10px] font-black text-white truncate uppercase tracking-tight">Platform Admin</span>
+                  <span className="text-[8px] font-bold text-slate-400 truncate uppercase">{user?.email}</span>
+                </div>
+              </div>
+            </div>
+          )}
           {!isMobile && (
             <button onClick={() => sidebarOpen ? setSidebarOpen(false) : setSidebarOpen(true)} className="w-full flex items-center justify-center p-3 text-slate-400 hover:text-white hover:bg-white/5 rounded-xl transition-all">
               {sidebarOpen ? <ChevronLeft /> : <ChevronRight />}
@@ -1736,3 +1746,4 @@ export default function PlatformAdminPage() {
     </div>
   );
 }
+

@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useMemo, useEffect, use } from 'react';
@@ -99,20 +98,14 @@ import {
   TabsContent,
   TabsList,
   TabsTrigger,
-} from "@/components/ui/tabs";
+} from "@/tabs";
 import { Label } from '@/components/ui/label';
 import { cn, getNumericOrderId, SUPER_ADMIN_ID } from '@/lib/utils';
 import { 
-  isThisMonth, 
   isToday, 
   format, 
-  startOfHour, 
-  eachHourOfInterval, 
-  subHours, 
   differenceInMinutes, 
   startOfMonth, 
-  endOfDay, 
-  isWithinInterval, 
   startOfDay, 
   addHours, 
   isSameHour, 
@@ -123,17 +116,13 @@ import {
   isSameMonth, 
   isSameYear 
 } from 'date-fns';
-import * as XLSX from 'xlsx';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Badge } from '@/components/ui/badge';
+import { Badge } from '@/badge';
 import { useToast } from '@/hooks/use-toast';
 import { StylizedKoopLogo } from '@/components/header';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
-import { getFunctions, httpsCallable } from 'firebase/functions';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { MapView } from '@/components/map-view';
-import { OrderCard } from '@/components/order-card';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
 import {
@@ -152,9 +141,6 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
   Legend
 } from 'recharts';
 
@@ -181,6 +167,7 @@ import { categories } from '@/lib/types';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
 import { seedVenueModifiers } from '@/lib/seed-data';
+import { signOut } from 'firebase/auth';
 
 // --- CONSTANTS ---
 
@@ -379,7 +366,6 @@ function SortableCategory({ id, category, isVisible, onToggleVisibility }: { id:
 
 export default function SellerAdminPage({ params }: { params: Promise<{ sellerId: string }> }) {
   const { sellerId } = use(params);
-  const { firebaseApp } = useFirebase();
   const firestore = useFirestore();
   const auth = useAuth();
   const { user, isUserLoading } = useUser();
@@ -684,6 +670,16 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     }).finally(() => setIsProcessingSave(false));
   };
 
+  const handleLogout = async () => {
+    if (!auth) return;
+    try {
+      await signOut(auth);
+      router.push('/login');
+    } catch (error: any) {
+      toast({ variant: "destructive", title: "Logout Failed", description: error.message });
+    }
+  };
+
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
@@ -794,7 +790,20 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
             />
           ))}
         </nav>
-        <div className="mt-auto border-t border-white/5 p-4 shrink-0">
+        <div className="mt-auto border-t border-white/5 p-4 shrink-0 space-y-4">
+          {showLabels && (
+            <div className="px-4 py-3 bg-white/5 rounded-xl border border-white/5">
+              <div className="flex items-center gap-3">
+                <div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-black text-xs">
+                  {user?.email?.charAt(0).toUpperCase() || 'V'}
+                </div>
+                <div className="flex flex-col min-w-0">
+                  <span className="text-[10px] font-black text-white truncate uppercase tracking-tight">Venue Admin</span>
+                  <span className="text-[8px] font-bold text-slate-400 truncate uppercase">{user?.email}</span>
+                </div>
+              </div>
+            </div>
+          )}
           {!isMobile && (
             <button onClick={() => setSidebarOpen(!sidebarOpen)} className="w-full flex items-center justify-center p-3 text-slate-400 hover:text-white hover:bg-white/5 rounded-xl transition-all">
               {sidebarOpen ? <ChevronLeft /> : <ChevronRight />}
@@ -860,7 +869,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
               </SheetContent>
             </Sheet>
           )}
-          <button onClick={() => router.push('/')} className="p-2 text-muted-foreground hover:text-destructive transition-colors"><LogOut className="h-5 w-5" /></button>
+          <button onClick={handleLogout} className="p-2 text-muted-foreground hover:text-destructive transition-colors"><LogOut className="h-5 w-5" /></button>
         </div>
       </header>
 
@@ -1695,7 +1704,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                 <form onSubmit={modifierGroupForm.handleSubmit(handleSaveModifierGroup)} className="space-y-8">
                   <FormField control={modifierGroupForm.control} name="name" render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-[10px] font-black uppercase tracking-widest">Group Name</FormLabel>
+                      <FormLabel className="text-[10px] font-black uppercase tracking-widest">Group Name</Label>
                       <FormControl><Input {...field} placeholder="Side Options" className="h-12 border-2 font-bold" /></FormControl>
                       <FormDescription className="text-[8px] font-medium uppercase text-muted-foreground">e.g. "Pizza Toppings", "Choice of Dressing"</FormDescription>
                       <FormMessage />
@@ -1768,4 +1777,3 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     </div>
   );
 }
-
