@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useMemo, useEffect, use } from 'react';
@@ -452,7 +451,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
 
   const itemForm = useForm<ItemFormData>({
     resolver: zodResolver(itemSchema),
-    defaultValues: { name: '', price: 0, category: 'Other', isAvailable: true, availableOn: [], featuredOn: [] }
+    defaultValues: { name: '', description: '', price: 0, category: 'Other', isAvailable: true, availableOn: [], featuredOn: [] }
   });
 
   const handleSaveStaff = async (data: StaffFormData) => {
@@ -883,7 +882,15 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                                     <p className="text-[10px] font-bold text-primary font-mono mt-0.5">${item.price.toFixed(2)}</p>
                                   </div>
                                   <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-indigo-600" onClick={() => { setEditingItem(item); itemForm.reset(item); setIsItemFormOpen(true); }}><Edit className="h-4 w-4" /></Button>
+                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-indigo-600" onClick={() => { 
+                                      setEditingItem(item); 
+                                      itemForm.reset({
+                                        ...item,
+                                        description: item.description || '',
+                                        imageUrl: item.imageUrl || ''
+                                      }); 
+                                      setIsItemFormOpen(true); 
+                                    }}><Edit className="h-4 w-4" /></Button>
                                     <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleDeleteItem(item.id)}><Trash2 className="h-4 w-4" /></Button>
                                   </div>
                                 </CardContent>
