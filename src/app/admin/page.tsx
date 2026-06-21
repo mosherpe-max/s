@@ -105,18 +105,11 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Switch } from '@/components/ui/switch';
 import { useRouter } from 'next/navigation';
-import { useFirestore, useCollection, useMemoFirebase, useFirebase, useAuth, useDoc, useUser } from '@/firebase';
+import { useFirestore, useCollection, useMemoFirebase, useAuth, useDoc, useUser } from '@/firebase';
 import { signOut, sendPasswordResetEmail } from 'firebase/auth';
-import { collection, query, limit, doc, setDoc, serverTimestamp, where, orderBy, updateDoc, getDoc, getDocs, writeBatch, Timestamp, deleteDoc } from 'firebase/firestore';
+import { collection, query, limit, doc, setDoc, serverTimestamp, where, orderBy, updateDoc, writeBatch, deleteDoc } from 'firebase/firestore';
 import type { Seller, PlatformConfig, Order, Venue, SellerType, MapUpdateSettings, SellerAdminRole } from '@/lib/types';
 import { sellerTypes } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
@@ -143,6 +136,13 @@ import { z } from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { seedAllDemoData } from '@/lib/seed-data';
 import { format } from 'date-fns';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const SYSTEM_DEFAULT_THRESHOLDS = {
   'Beverage Cart': { warning: 10, max: 15 },
@@ -292,7 +292,6 @@ export default function PlatformAdminPage() {
     }
   }, [config]);
 
-  // Ensure queries only execute when a user is authenticated
   const sellersQuery = useMemoFirebase(() => {
     if (!firestore || !user) return null;
     return query(collection(firestore, 'sellers'), limit(100));
@@ -305,23 +304,6 @@ export default function PlatformAdminPage() {
 
   const { data: sellers } = useCollection<Seller>(sellersQuery);
   const { data: orders } = useCollection<Order>(ordersQuery);
-
-  const selectedVenueRef = useMemoFirebase(() => {
-    if (!firestore || !selectedSeller?.id || !user) return null;
-    return doc(firestore, 'venues', selectedSeller.id);
-  }, [firestore, selectedSeller?.id, user]);
-  const { data: selectedVenueData } = useDoc<Venue>(selectedVenueRef);
-
-  const venueAdminsQuery = useMemoFirebase(() => {
-    if (!firestore || !selectedSeller?.id || !user) return null;
-    return query(collection(firestore, 'roles_seller_admin'), where('sellerId', '==', selectedSeller.id));
-  }, [firestore, selectedSeller?.id, user]);
-  const { data: venueAdmins } = useCollection<SellerAdminRole>(venueAdminsQuery);
-
-  const selectedVenueOrders = useMemo(() => {
-    if (!orders || !selectedSeller?.id) return [];
-    return orders.filter(o => o.sellerId === selectedSeller.id);
-  }, [orders, selectedSeller?.id]);
 
   const metrics = useMemo(() => {
     if (!sellers || !orders) return null;
@@ -370,14 +352,13 @@ export default function PlatformAdminPage() {
     const venueId = data.name.toLowerCase().replace(/[^a-z0-9]/g, '-');
     const batch = writeBatch(firestore);
 
-    // 1. Create Business Registry (Venues)
     const venueRef = doc(firestore, 'venues', venueId);
     const venuePayload = {
       venueId,
       name: data.name,
       ownerUid: data.ownerUid,
-      patronConvenienceFee: 150, // Default $1.50
-      platformFeeFixed: 20,      // Default $0.20
+      patronConvenienceFee: 150, 
+      platformFeeFixed: 20,      
       platformFeePercent: 0,
       payoutsEnabled: false,
       stripeOnboardingComplete: false,
@@ -387,11 +368,8 @@ export default function PlatformAdminPage() {
     };
     batch.set(venueRef, venuePayload);
 
-    // 2. Create Operational Profile (Sellers)
     const sellerRef = doc(firestore, 'sellers', venueId);
     const isGolf = data.type.toLowerCase().includes('golf');
-    
-    // Inherit Global Timing Defaults
     const initialThresholds = config?.defaultThresholds || SYSTEM_DEFAULT_THRESHOLDS;
 
     const sellerPayload = {
@@ -421,7 +399,6 @@ export default function PlatformAdminPage() {
     };
     batch.set(sellerRef, sellerPayload);
 
-    // 3. Add initial Admin Role
     const roleRef = doc(firestore, 'roles_seller_admin', data.contactEmail.toLowerCase());
     batch.set(roleRef, {
       userName: data.contactName,
@@ -446,90 +423,6 @@ export default function PlatformAdminPage() {
     });
   };
 
-  const handleInviteUser = async (data: InviteUserData) => {
-    if (!firestore || !selectedSeller) return;
-    setIsProcessingSave(true);
-    
-    const roleRef = doc(firestore, 'roles_seller_admin', data.email.toLowerCase());
-    const payload = {
-      userName: data.userName,
-      email: data.email.toLowerCase(),
-      sellerId: selectedSeller.id,
-      courseName: selectedSeller.courseName,
-      assignedAt: serverTimestamp(),
-    };
-
-    setDoc(roleRef, payload).then(async () => {
-      toast({ title: "Admin Authorized", description: `${data.userName} now has management access.` });
-      
-      // Attempt to send invitation email (via Firebase reset flow)
-      try {
-        await sendPasswordResetEmail(auth!, data.email.toLowerCase());
-        toast({ title: "Invitation Sent", description: "Password setup link dispatched via email." });
-      } catch (err) {
-        console.warn("Could not send setup email directly. User likely doesn't exist yet or config restriction.", err);
-        toast({ variant: "destructive", title: "Email Pending", description: "User added to registry, but setup email requires manual trigger or existing account." });
-      }
-      
-      inviteForm.reset();
-    }).catch(async (error) => {
-      errorEmitter.emit('permission-error', new FirestorePermissionError({
-        path: roleRef.path,
-        operation: 'create',
-        requestResourceData: payload,
-      } satisfies SecurityRuleContext));
-    }).finally(() => {
-      setIsProcessingSave(false);
-    });
-  };
-
-  const handleRevokeAdmin = async (email: string) => {
-    if (!firestore) return;
-    const roleRef = doc(firestore, 'roles_seller_admin', email.toLowerCase());
-    deleteDoc(roleRef).then(() => {
-      toast({ title: "Access Revoked" });
-    }).catch(async (error) => {
-      errorEmitter.emit('permission-error', new FirestorePermissionError({
-        path: roleRef.path,
-        operation: 'delete',
-      } satisfies SecurityRuleContext));
-    });
-  };
-
-  const handleUpdateVenueBusiness = async (venueId: string, updates: Partial<Venue>) => {
-    if (!firestore) return;
-    setIsProcessingSave(true);
-    const venueRef = doc(firestore, 'venues', venueId);
-    const updateData = { ...updates, updatedAt: serverTimestamp() };
-    
-    updateDoc(venueRef, updateData).then(() => {
-      toast({ title: "Business Registry Updated" });
-    }).catch(async (error) => {
-      errorEmitter.emit('permission-error', new FirestorePermissionError({
-        path: venueRef.path,
-        operation: 'update',
-        requestResourceData: updateData,
-      } satisfies SecurityRuleContext));
-    }).finally(() => {
-      setIsProcessingSave(false);
-    });
-  };
-
-  const handleUpdateSellerProfile = async (id: string, updates: Partial<Seller>) => {
-    if (!firestore) return;
-    const sellerRef = doc(firestore, 'sellers', id);
-    const updateData = { ...updates, updatedAt: serverTimestamp() };
-    updateDoc(sellerRef, updateData).then(() => {
-      toast({ title: "Operational Profile Updated" });
-    }).catch(async (error) => {
-      errorEmitter.emit('permission-error', new FirestorePermissionError({
-        path: sellerRef.path,
-        operation: 'update',
-        requestResourceData: updateData,
-      } satisfies SecurityRuleContext));
-    });
-  };
-
   const handleResetDemos = async () => {
     if (!firestore) return;
     setIsResettingDemos(true);
@@ -551,14 +444,6 @@ export default function PlatformAdminPage() {
     } catch (error: any) {
       toast({ variant: "destructive", title: "Logout Failed", description: error.message });
     }
-  };
-
-  const handleLogoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onloadend = () => setLogoPreview(reader.result as string);
-    reader.readAsDataURL(file);
   };
 
   const handleUploadLogo = async () => {
@@ -592,7 +477,7 @@ export default function PlatformAdminPage() {
       updatedAt: serverTimestamp()
     };
     setDoc(platformDocRef, updateData, { merge: true }).then(() => {
-      toast({ title: "System Defaults Updated", description: "Global operational protocols and service authorizations synchronized." });
+      toast({ title: "System Defaults Updated" });
     }).catch(async (error) => {
       errorEmitter.emit('permission-error', new FirestorePermissionError({
         path: platformDocRef.path,
@@ -602,60 +487,6 @@ export default function PlatformAdminPage() {
     }).finally(() => {
       setIsSavingSystemConfig(false);
     });
-  };
-
-  const handleThresholdChange = (mode: string, type: 'warning' | 'max', value: string) => {
-    if (value === '') {
-      setSystemThresholds(prev => ({
-        ...prev,
-        [mode]: { ...prev[mode], [type]: 0 }
-      }));
-      return;
-    }
-    const numValue = parseInt(value, 10);
-    setSystemThresholds(prev => ({
-      ...prev,
-      [mode]: {
-        ...prev[mode],
-        [type]: isNaN(numValue) ? 0 : numValue
-      }
-    }));
-  };
-
-  const handleMapSettingChange = (mode: string, field: keyof MapUpdateSettings, value: any) => {
-    setMapSettings(prev => ({
-      ...prev,
-      [mode]: {
-        ...prev[mode],
-        [field]: value
-      }
-    }));
-  };
-
-  const handleGpsFreshnessChange = (field: 'hot' | 'warm' | 'cold', value: string) => {
-    if (value === '') {
-      setGpsFreshness(prev => ({ ...prev, [field]: 0 }));
-      return;
-    }
-    const numValue = parseInt(value, 10);
-    setGpsFreshness(prev => ({
-      ...prev,
-      [field]: isNaN(numValue) ? 0 : numValue
-    }));
-  };
-
-  const toggleMapStage = (mode: string, stage: string) => {
-    const current = mapSettings[mode].activeStages;
-    const next = current.includes(stage) 
-      ? current.filter(s => s !== stage)
-      : [...current, stage];
-    handleMapSettingChange(mode, 'activeStages', next);
-  };
-
-  const toggleGlobalMode = (mode: string) => {
-    setGlobalEnabledModes(prev => 
-      prev.includes(mode) ? prev.filter(m => m !== mode) : [...prev, mode]
-    );
   };
 
   const isSuperAdmin = user?.uid === SUPER_ADMIN_ID || user?.email === 'mosherpe@gmail.com';
@@ -719,7 +550,7 @@ export default function PlatformAdminPage() {
             </div>
           )}
           {!isMobile && (
-            <button onClick={() => sidebarOpen ? setSidebarOpen(false) : setSidebarOpen(true)} className="w-full flex items-center justify-center p-3 text-slate-400 hover:text-white hover:bg-white/5 rounded-xl transition-all">
+            <button onClick={() => setSidebarOpen(!sidebarOpen)} className="w-full flex items-center justify-center p-3 text-slate-400 hover:text-white hover:bg-white/5 rounded-xl transition-all">
               {sidebarOpen ? <ChevronLeft /> : <ChevronRight />}
             </button>
           )}
@@ -1089,7 +920,6 @@ export default function PlatformAdminPage() {
                       </CardContent>
                     </Card>
 
-                    {/* GPS FRESHNESS SETTINGS */}
                     <Card className="border-2 shadow-sm overflow-hidden">
                       <CardHeader className="border-b bg-primary/5 flex flex-row items-center gap-3">
                         <Satellite className="h-5 w-5 text-primary" />
@@ -1140,9 +970,6 @@ export default function PlatformAdminPage() {
                             <p className="text-[8px] sm:text-[10px] font-bold text-red-600/60 text-center">{"<"} {gpsFreshness.cold}s</p>
                           </div>
                         </div>
-                        <p className="text-[8px] font-bold text-muted-foreground uppercase leading-relaxed italic text-center">
-                          Defines when location markers shift through signal health states.
-                        </p>
                       </CardContent>
                     </Card>
 
@@ -1273,9 +1100,8 @@ export default function PlatformAdminPage() {
         </main>
       </div>
 
-      {/* DIALOG: ADD NEW VENUE */}
       <Dialog open={isAddVenueOpen} onOpenChange={setIsAddVenueOpen}>
-        <DialogContent className="sm:max-w-[600px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl">
+        <DialogContent className="sm:max-w-[600px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
           <DialogHeader className="p-8 bg-[#213147] text-white">
             <div className="flex items-center gap-4">
               <div className="bg-primary/20 p-3 rounded-2xl shrink-0">
@@ -1349,398 +1175,6 @@ export default function PlatformAdminPage() {
               </Form>
             </div>
           </ScrollArea>
-        </DialogContent>
-      </Dialog>
-
-      {/* DIALOG: MANAGE VENUE DETAILS */}
-      <Dialog open={isVenueDetailOpen} onOpenChange={setIsVenueDetailOpen}>
-        <DialogContent className="sm:max-w-[800px] max-w-[95vw] h-[85vh] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl flex flex-col">
-          <DialogHeader className="p-8 bg-slate-50 border-b relative shrink-0">
-            <div className="flex items-center gap-4 text-left">
-              <div className="bg-primary/10 p-3 rounded-2xl shrink-0">
-                <Building className="h-6 w-6 text-primary" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <DialogTitle className="font-headline font-black uppercase text-[#213147] text-2xl leading-none truncate pr-8">{selectedSeller?.courseName}</DialogTitle>
-                <div className="flex items-center gap-2 mt-1.5">
-                  <Badge variant="outline" className="text-[9px] font-black uppercase tracking-widest h-5">{selectedSeller?.type}</Badge>
-                  <Badge className="bg-green-600 uppercase text-[8px] font-black tracking-tight h-5">Registry Active</Badge>
-                </div>
-              </div>
-            </div>
-            <DialogDescription className="sr-only">Comprehensive venue business management tools</DialogDescription>
-          </DialogHeader>
-          
-          <Tabs defaultValue="profile" className="flex-1 flex flex-col min-h-0">
-            <div className="px-8 bg-slate-50 border-b overflow-x-auto no-scrollbar">
-              <TabsList className="bg-transparent h-12 gap-6 p-0 w-max min-w-full">
-                <TabsTrigger value="profile" className="data-[state=active]:bg-transparent data-[state=active]:border-b-4 data-[state=active]:border-primary data-[state=active]:shadow-none rounded-none font-black uppercase text-[10px] tracking-widest px-0">Profile</TabsTrigger>
-                <TabsTrigger value="users" className="data-[state=active]:bg-transparent data-[state=active]:border-b-4 data-[state=active]:border-primary data-[state=active]:shadow-none rounded-none font-black uppercase text-[10px] tracking-widest px-0">Users</TabsTrigger>
-                <TabsTrigger value="menu" className="data-[state=active]:bg-transparent data-[state=active]:border-b-4 data-[state=active]:border-primary data-[state=active]:shadow-none rounded-none font-black uppercase text-[10px] tracking-widest px-0">Menu</TabsTrigger>
-                <TabsTrigger value="billing" className="data-[state=active]:bg-transparent data-[state=active]:border-b-4 data-[state=active]:border-primary data-[state=active]:shadow-none rounded-none font-black uppercase text-[10px] tracking-widest px-0">Billing</TabsTrigger>
-                <TabsTrigger value="activity" className="data-[state=active]:bg-transparent data-[state=active]:border-b-4 data-[state=active]:border-primary data-[state=active]:shadow-none rounded-none font-black uppercase text-[10px] tracking-widest px-0">Activity</TabsTrigger>
-              </TabsList>
-            </div>
-
-            <ScrollArea className="flex-1">
-              <div className="p-8">
-                {/* TAB: PROFILE */}
-                <TabsContent value="profile" className="mt-0 space-y-8 animate-in fade-in duration-300">
-                  <div className="space-y-6">
-                    <div className="flex items-center gap-3 border-b-2 pb-2">
-                      <ClipboardList className="h-4 w-4 text-primary" />
-                      <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-[#213147]">Operational Profile</h4>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="space-y-1.5">
-                        <Label className="text-[10px] font-black uppercase text-muted-foreground">Display Name</Label>
-                        <Input 
-                          value={selectedSeller?.courseName || ''} 
-                          onChange={(e) => handleUpdateSellerProfile(selectedSeller!.id, { courseName: e.target.value })}
-                          className="h-11 border-2 font-bold" 
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-[10px] font-black uppercase text-muted-foreground">Primary Contact Email</Label>
-                        <Input 
-                          value={selectedSeller?.contactEmail || ''} 
-                          onChange={(e) => handleUpdateSellerProfile(selectedSeller!.id, { contactEmail: e.target.value })}
-                          className="h-11 border-2 font-bold" 
-                        />
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                       <div className="space-y-1.5">
-                        <Label className="text-[10px] font-black uppercase text-muted-foreground">Venue Type</Label>
-                        <Select value={selectedSeller?.type} onValueChange={(v: SellerType) => handleUpdateSellerProfile(selectedSeller!.id, { type: v })}>
-                          <SelectTrigger className="h-11 border-2 font-bold">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {sellerTypes.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-[10px] font-black uppercase text-muted-foreground">Operational Status</Label>
-                        <Select value={selectedSeller?.status} onValueChange={(v: 'Active'|'Inactive') => handleUpdateSellerProfile(selectedSeller!.id, { status: v })}>
-                          <SelectTrigger className="h-11 border-2 font-bold">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="Active">Active</SelectItem>
-                            <SelectItem value="Inactive">Inactive</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                  </div>
-                </TabsContent>
-
-                {/* TAB: USERS */}
-                <TabsContent value="users" className="mt-0 space-y-8 animate-in fade-in duration-300">
-                  <div className="space-y-10">
-                    <div className="space-y-6">
-                      <div className="flex items-center gap-3 border-b-2 pb-2">
-                        <ShieldCheck className="h-4 w-4 text-indigo-600" />
-                        <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-[#213147]">Authorized Administrators</h4>
-                      </div>
-
-                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                        {/* Invitation Form */}
-                        <Card className="border-2 border-dashed bg-slate-50/50 p-6 rounded-3xl">
-                           <div className="flex items-center gap-3 mb-6">
-                              <MailPlus className="h-5 w-5 text-indigo-600" />
-                              <h5 className="font-headline font-black text-xs uppercase text-[#213147]">Authorize New User</h5>
-                           </div>
-                           <Form {...inviteForm}>
-                             <form onSubmit={inviteForm.handleSubmit(handleInviteUser)} className="space-y-4">
-                                <FormField control={inviteForm.control} name="userName" render={({ field }) => (
-                                  <FormItem>
-                                    <FormLabel className="text-[10px] font-black uppercase text-muted-foreground">Full Name</FormLabel>
-                                    <FormControl><Input {...field} placeholder="Jane Doe" className="h-11 border-2 font-bold" /></FormControl>
-                                    <FormMessage />
-                                  </FormItem>
-                                )} />
-                                <FormField control={inviteForm.control} name="email" render={({ field }) => (
-                                  <FormItem>
-                                    <FormLabel className="text-[10px] font-black uppercase text-muted-foreground">Work Email</FormLabel>
-                                    <FormControl><Input {...field} type="email" placeholder="jane@venue.com" className="h-11 border-2 font-bold" /></FormControl>
-                                    <FormMessage />
-                                  </FormItem>
-                                )} />
-                                <Button type="submit" disabled={isProcessingSave} className="w-full h-12 bg-indigo-600 hover:bg-indigo-700 font-black uppercase text-[10px] tracking-widest gap-2">
-                                  {isProcessingSave ? <Loader2 className="animate-spin h-4 w-4" /> : <Plus className="h-4 w-4" />}
-                                  Authorize & Invite
-                                </Button>
-                             </form>
-                           </Form>
-                        </Card>
-
-                        {/* List of Admins */}
-                        <div className="space-y-4">
-                           <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground px-1">Venue Personnel Registry</p>
-                           <div className="space-y-3">
-                              {venueAdmins?.map(admin => (
-                                <div key={admin.email} className="bg-white p-4 rounded-2xl border-2 flex items-center justify-between group">
-                                   <div className="flex items-center gap-4">
-                                      <div className="bg-indigo-50 p-2 rounded-xl">
-                                         <UserCircle className="h-6 w-6 text-indigo-600" />
-                                      </div>
-                                      <div className="min-w-0">
-                                         <p className="text-xs font-black uppercase text-[#213147] truncate">{admin.userName}</p>
-                                         <p className="text-[10px] font-bold text-muted-foreground truncate">{admin.email}</p>
-                                      </div>
-                                   </div>
-                                   <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                      <Button variant="ghost" size="icon" className="h-8 w-8 text-indigo-600" title="Resend Invite" onClick={async () => {
-                                        try {
-                                          await sendPasswordResetEmail(auth!, admin.email);
-                                          toast({ title: "Setup Link Sent" });
-                                        } catch (e) {
-                                          toast({ variant: "destructive", title: "Invite Failed" });
-                                        }
-                                      }}>
-                                        <Key className="h-4 w-4" />
-                                      </Button>
-                                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" title="Revoke Access" onClick={() => handleRevokeAdmin(admin.email)}>
-                                        <Trash2 className="h-4 w-4" />
-                                      </Button>
-                                   </div>
-                                </div>
-                              ))}
-                              {venueAdmins?.length === 0 && (
-                                <div className="py-12 text-center bg-slate-50 border-2 border-dashed rounded-3xl">
-                                   <Users className="h-8 w-8 text-slate-200 mx-auto mb-2" />
-                                   <p className="text-[10px] font-bold text-slate-400 uppercase">No authorized users yet</p>
-                                </div>
-                              )}
-                           </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="bg-amber-50 border-2 border-amber-100 p-6 rounded-[2rem] space-y-4">
-                       <div className="flex items-center gap-3">
-                          <ShieldAlert className="h-5 w-5 text-amber-600" />
-                          <h5 className="font-headline font-black text-xs uppercase text-amber-800">Master Identity Policy</h5>
-                       </div>
-                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-end">
-                          <div className="space-y-2">
-                             <Label className="text-[10px] font-black uppercase text-amber-800/60">Primary Owner manager UID</Label>
-                             <div className="flex gap-2">
-                                <Input 
-                                  value={selectedVenueData?.ownerUid || ''} 
-                                  onChange={(e) => handleUpdateVenueBusiness(selectedSeller!.id, { ownerUid: e.target.value })}
-                                  className="h-11 border-2 border-amber-200 font-mono text-[10px] bg-white" 
-                                />
-                                <Button variant="outline" size="icon" className="h-11 w-11 border-2 border-amber-200 bg-white" onClick={() => {
-                                  if (selectedVenueData?.ownerUid) {
-                                    navigator.clipboard.writeText(selectedVenueData.ownerUid);
-                                    toast({ title: "UID Copied" });
-                                  }
-                                }}><Copy className="h-3.5 w-3.5" /></Button>
-                             </div>
-                          </div>
-                          <p className="text-[10px] font-bold text-amber-700/60 uppercase leading-relaxed italic">
-                             The Master Identity has bypass permissions for setup tools. Daily operations should use individual email accounts.
-                          </p>
-                       </div>
-                    </div>
-                  </div>
-                </TabsContent>
-
-                {/* TAB: MENU */}
-                <TabsContent value="menu" className="mt-0 space-y-8 animate-in fade-in duration-300">
-                  <div className="space-y-6">
-                    <div className="flex items-center gap-3 border-b-2 pb-2">
-                      <QrCode className="h-4 w-4 text-primary" />
-                      <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-[#213147]">Terminal Provisioning (Staff Access)</h4>
-                    </div>
-                    
-                    <div className="flex flex-col sm:flex-row items-center gap-8 bg-slate-50 p-6 rounded-3xl border-2 border-dashed">
-                      <div className="bg-white p-3 rounded-3xl border-2 shadow-xl shrink-0">
-                        <img 
-                          src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`${baseUrl}/sellers/${selectedSeller?.id}/staff-login`)}`}
-                          alt="Staff QR"
-                          width={140}
-                          height={140}
-                          className="rounded-xl w-32 h-32"
-                        />
-                      </div>
-                      <div className="flex-1 space-y-4 text-center sm:text-left">
-                        <div className="space-y-1">
-                          <p className="text-[10px] font-black uppercase tracking-widest text-[#213147]">Secure Staff Entry URL</p>
-                          <code className="block p-2 bg-white border rounded-lg text-[10px] break-all border-slate-200">
-                            {baseUrl}/sellers/{selectedSeller?.id}/staff-login
-                          </code>
-                        </div>
-                        <div className="flex flex-wrap gap-2 justify-center sm:justify-start">
-                          <Button size="sm" className="bg-[#213147] font-black uppercase text-[9px] tracking-widest h-9 gap-2">
-                            <Download className="h-3.5 w-3.5" /> Download Asset
-                          </Button>
-                          <Button variant="ghost" size="sm" asChild className="text-[10px] font-black uppercase h-9 gap-1.5">
-                            <Link href={`/sellers/${selectedSeller?.id}`}>
-                              <ExternalLink className="h-3.5 w-3.5" /> Launch Venue Terminal
-                            </Link>
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </TabsContent>
-
-                {/* TAB: BILLING */}
-                <TabsContent value="billing" className="mt-0 space-y-8 animate-in fade-in duration-300">
-                  <div className="space-y-8">
-                    <div className="space-y-6">
-                      <div className="flex items-center gap-3 border-b-2 pb-2">
-                        <DollarSign className="h-4 w-4 text-green-600" />
-                        <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-[#213147]">Revenue & Fee Protocol</h4>
-                      </div>
-                      
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                        <div className="space-y-1.5">
-                          <Label className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">Patron Conv. Fee (Cents)</Label>
-                          <input 
-                            type="number" 
-                            value={selectedVenueData?.patronConvenienceFee || ''} 
-                            onChange={(e) => handleUpdateVenueBusiness(selectedSeller!.id, { patronConvenienceFee: parseInt(e.target.value, 10) || 0 })}
-                            className="flex h-11 w-full rounded-md border-2 border-input bg-background px-3 py-2 text-sm font-bold ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50" 
-                          />
-                          <p className="text-[8px] font-bold text-primary uppercase">Current: ${((selectedVenueData?.patronConvenienceFee || 0) / 100).toFixed(2)}</p>
-                        </div>
-                        <div className="space-y-1.5">
-                          <Label className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">Koop Fixed Fee (Cents)</Label>
-                          <input 
-                            type="number" 
-                            value={selectedVenueData?.platformFeeFixed || ''} 
-                            onChange={(e) => handleUpdateVenueBusiness(selectedSeller!.id, { platformFeeFixed: parseInt(e.target.value, 10) || 0 })}
-                            className="flex h-11 w-full rounded-md border-2 border-input bg-background px-3 py-2 text-sm font-bold ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50" 
-                          />
-                          <p className="text-[8px] font-bold text-indigo-600 uppercase">Fixed platform cut</p>
-                        </div>
-                        <div className="space-y-1.5">
-                          <Label className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">Koop variable (%)</Label>
-                          <input 
-                            type="number" 
-                            value={selectedVenueData?.platformFeePercent || ''} 
-                            onChange={(e) => handleUpdateVenueBusiness(selectedSeller!.id, { platformFeePercent: parseFloat(e.target.value) || 0 })}
-                            className="flex h-11 w-full rounded-md border-2 border-input bg-background px-3 py-2 text-sm font-bold ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50" 
-                          />
-                          <p className="text-[8px] font-bold text-indigo-600 uppercase">Optional percentage</p>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                      <div className="space-y-4">
-                        <div className="flex items-center justify-between p-4 bg-amber-50 border-2 border-amber-100 rounded-2xl">
-                          <div className="flex items-center gap-3">
-                            <Star className="h-5 w-5 text-amber-600 fill-amber-600" />
-                            <div>
-                              <p className="text-[10px] font-black uppercase text-amber-800 leading-none mb-1">Founding Partner</p>
-                              <p className="text-[8px] font-bold text-amber-600 uppercase">Special Platform Status</p>
-                            </div>
-                          </div>
-                          <Switch 
-                            checked={selectedVenueData?.isFoundingPartner} 
-                            onCheckedChange={(v) => handleUpdateVenueBusiness(selectedSeller!.id, { isFoundingPartner: v })}
-                            className="data-[state=checked]:bg-amber-600"
-                          />
-                        </div>
-                        <div className="p-4 bg-indigo-50 border-2 border-indigo-100 rounded-2xl space-y-2">
-                          <p className="text-[9px] font-black uppercase text-indigo-700 tracking-widest">Stripe Connect ID</p>
-                          <code className="block text-[10px] font-mono text-indigo-600 bg-white p-2 rounded-lg border border-indigo-100 truncate">
-                            {selectedVenueData?.stripeConnectId || selectedVenueData?.stripeAccountId || 'NOT CONNECTED'}
-                          </code>
-                        </div>
-                      </div>
-
-                      <div className="space-y-4">
-                        <div className={cn(
-                          "p-4 rounded-2xl border-2 flex items-center justify-between",
-                          selectedVenueData?.payoutsEnabled ? "bg-green-50 border-green-100" : "bg-slate-50 border-slate-100"
-                        )}>
-                          <div className="flex items-center gap-3">
-                            <Coins className={cn("h-5 w-5", selectedVenueData?.payoutsEnabled ? "text-green-600" : "text-slate-400")} />
-                            <div>
-                              <p className={cn("text-[10px] font-black uppercase leading-none mb-1", selectedVenueData?.payoutsEnabled ? "text-green-800" : "text-slate-500")}>
-                                {selectedVenueData?.payoutsEnabled ? 'Payouts Enabled' : 'Payouts Restricted'}
-                              </p>
-                              <p className="text-[8px] font-bold text-muted-foreground uppercase">Manual Admin Override</p>
-                            </div>
-                          </div>
-                          <Switch 
-                            checked={selectedVenueData?.payoutsEnabled} 
-                            onCheckedChange={(v) => handleUpdateVenueBusiness(selectedSeller!.id, { payoutsEnabled: v })}
-                            className="data-[state=checked]:bg-green-600"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </TabsContent>
-
-                {/* TAB: ACTIVITY */}
-                <TabsContent value="activity" className="mt-0 space-y-8 animate-in fade-in duration-300">
-                  <div className="space-y-6">
-                    <div className="flex items-center gap-3 border-b-2 pb-2">
-                      <Activity className="h-4 w-4 text-red-500" />
-                      <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-[#213147]">Venue Activity Log</h4>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="p-4 bg-slate-50 rounded-2xl border-2 border-slate-100">
-                        <p className="text-[8px] font-black text-muted-foreground uppercase tracking-widest mb-1">Total Lifetime Orders</p>
-                        <p className="text-2xl font-black font-headline text-[#213147]">{selectedVenueOrders.length}</p>
-                      </div>
-                      <div className="p-4 bg-slate-50 rounded-2xl border-2 border-slate-100">
-                        <p className="text-[8px] font-black text-muted-foreground uppercase tracking-widest mb-1">Gross Revenue</p>
-                        <p className="text-2xl font-black font-headline text-green-600">${selectedVenueOrders.reduce((acc, o) => acc + (o.total || 0), 0).toFixed(2)}</p>
-                      </div>
-                    </div>
-
-                    <div className="border-2 rounded-2xl overflow-hidden bg-white shadow-sm">
-                      <div className="overflow-x-auto no-scrollbar">
-                        <Table className="min-w-[600px]">
-                          <TableHeader className="bg-slate-50 border-b">
-                            <TableRow>
-                              <TableHead className="text-[9px] font-black uppercase">Order ID</TableHead>
-                              <TableHead className="text-[9px] font-black uppercase">Date</TableHead>
-                              <TableHead className="text-[9px] font-black uppercase">Customer</TableHead>
-                              <TableHead className="text-[9px] font-black uppercase text-right">Total</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {selectedVenueOrders.slice(0, 5).map((o) => (
-                              <TableRow key={o.id}>
-                                <TableCell className="font-mono text-[10px] font-black">#{getNumericOrderId(o.id)}</TableCell>
-                                <TableCell className="text-[10px] font-bold text-muted-foreground uppercase">{o.createdAt && typeof o.createdAt.toDate === 'function' ? format(o.createdAt.toDate(), 'MMM d') : 'N/A'}</TableCell>
-                                <TableCell className="text-[10px] font-black text-[#213147] uppercase truncate max-w-[100px]">{o.customerName}</TableCell>
-                                <TableCell className="text-right font-mono text-[10px] font-black text-primary">${o.total.toFixed(2)}</TableCell>
-                              </TableRow>
-                            ))}
-                            {selectedVenueOrders.length === 0 && (
-                              <TableRow>
-                                <TableCell colSpan={4} className="h-20 text-center text-[10px] font-bold text-muted-foreground uppercase">No order activity recorded.</TableCell>
-                              </TableRow>
-                            )}
-                          </TableBody>
-                        </Table>
-                      </div>
-                    </div>
-                  </div>
-                </TabsContent>
-              </div>
-            </ScrollArea>
-          </Tabs>
-
-          <DialogFooter className="p-8 bg-slate-50 border-t shrink-0">
-            <Button onClick={() => setIsVenueDetailOpen(false)} className="w-full h-14 bg-[#213147] hover:bg-black font-black uppercase tracking-widest shadow-xl text-[11px]">
-              Commit Changes & Exit Maintenance
-            </Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

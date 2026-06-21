@@ -169,8 +169,6 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { seedVenueModifiers } from '@/lib/seed-data';
 import { signOut } from 'firebase/auth';
 
-// --- CONSTANTS ---
-
 const DEFAULT_THRESHOLDS: Record<string, { warning: number; max: number }> = {
   'Beverage Cart': { warning: 10, max: 15 },
   'Clubhouse': { warning: 15, max: 20 },
@@ -184,8 +182,6 @@ const MODE_COLORS: Record<string, string> = {
   'Lane Delivery': '#EC4899',
   'Take Out': '#F59E0B'
 };
-
-// --- SCHEMAS ---
 
 const staffSchema = z.object({
   name: z.string().min(2, 'Name required'),
@@ -223,8 +219,6 @@ const modifierGroupSchema = z.object({
 });
 
 type ModifierGroupFormData = z.infer<typeof modifierGroupSchema>;
-
-// --- UI COMPONENTS ---
 
 function NavButton({ id, label, icon: Icon, active, onClick, sidebarOpen }: { 
   id: string, label: string, icon: any, active: boolean, onClick: (id: string) => void, sidebarOpen: boolean 
@@ -362,8 +356,6 @@ function SortableCategory({ id, category, isVisible, onToggleVisibility }: { id:
   );
 }
 
-// --- MAIN PAGE ---
-
 export default function SellerAdminPage({ params }: { params: Promise<{ sellerId: string }> }) {
   const { sellerId } = use(params);
   const firestore = useFirestore();
@@ -373,7 +365,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   const { toast } = useToast();
   const isMobile = useIsMobile();
 
-  // Navigation State
   const [activeNav, setActiveNav] = useState('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isMounted, setIsMounted] = useState(false);
@@ -381,7 +372,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   const [analyticsRange, setAnalyticsRange] = useState<'Today' | 'MTD' | 'YTD'>('Today');
   const [now, setNow] = useState<number>(Date.now());
 
-  // Operational State
   const [isStaffFormOpen, setIsStaffFormOpen] = useState(false);
   const [editingStaff, setEditingStaff] = useState<StaffMember | null>(null);
   const [isItemFormOpen, setIsItemFormOpen] = useState(false);
@@ -392,7 +382,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   const [isSeeding, setIsSeeding] = useState(false);
   const [configMode, setConfigMode] = useState<string>('Beverage Cart');
 
-  // Settings State
   const [venueThresholds, setVenueThresholds] = useState<Record<string, { warning: number; max: number }>>({});
   const [venueName, setVenueName] = useState('');
   const [venueTaxRate, setVenueTaxRate] = useState(0);
@@ -447,7 +436,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     const today = filteredOrders.filter(o => o.createdAt && typeof o.createdAt.toDate === 'function' && isToday(o.createdAt.toDate()));
     const revenue = today.reduce((acc, o) => acc + (o.total || 0), 0);
     const avg = today.length > 0 ? (revenue / today.length).toFixed(2) : '0.00';
-    const overdueCount = filteredOrders.filter(o => o.status !== 'Delivered' && o.status !== 'Cancelled' && o.createdAt && typeof o.createdAt.toDate === 'function' && differenceInMinutes(new Date(), o.createdAt.toDate()) >= (seller?.orderThreshold?.[o.menuType]?.max || DEFAULT_THRESHOLDS[o.menuType]?.max || 20)).length;
+    const overdueCount = filteredOrders.filter(o => o.status !== 'Delivered' && o.status !== 'Cancelled' && o.createdAt && typeof o.createdAt.toDate === 'function' && differenceInMinutes(new Date(), o.createdAt.toDate()) >= (seller?.orderThresholds?.[o.menuType]?.max || DEFAULT_THRESHOLDS[o.menuType]?.max || 20)).length;
     return { revenue: revenue.toFixed(2), active: filteredOrders.filter(o => o.status !== 'Delivered' && o.status !== 'Cancelled').length, volume: today.length, avg, overdue: overdueCount };
   }, [orders, dashboardFilter, seller]);
 
@@ -777,7 +766,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
         <div className="p-6 border-b border-white/5 flex items-center justify-between shrink-0">
           <StylizedKoopLogo size={showLabels ? "md" : "sm"} />
         </div>
-        <nav className="flex-1 p-3 space-y-1 overflow-y-auto no-scrollbar min-h-0">
+        <nav className="flex-1 p-3 space-y-1 overflow-y-auto no-scrollbar min-h-0 text-left">
           {NAV_ITEMS.map((item) => (
             <NavButton 
               key={item.id} 
@@ -1040,7 +1029,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                                     </div>
                                     <p className="text-[10px] font-bold text-primary font-mono mt-0.5">${item.price.toFixed(2)}</p>
                                     
-                                    {/* Linked Modifiers Display */}
                                     {item.modifierGroupIds && item.modifierGroupIds.length > 0 && (
                                       <div className="mt-2 flex flex-wrap gap-1">
                                         {item.modifierGroupIds.map(gid => {
@@ -1126,12 +1114,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                         </CardContent>
                       </Card>
                     ))}
-                    {modifierGroups?.length === 0 && (
-                      <div className="col-span-full py-20 text-center bg-white border-2 border-dashed rounded-3xl opacity-40">
-                         <Tags className="h-12 w-12 mx-auto mb-4 text-slate-300" />
-                         <p className="text-xs font-black uppercase tracking-widest">No modifier groups defined yet</p>
-                      </div>
-                    )}
                   </div>
                 </div>
               )}
@@ -1157,7 +1139,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                   </div>
 
                   <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-                    {/* MASTER TOGGLES */}
                     <div className="lg:col-span-1 space-y-6">
                        <Card className="border-2 shadow-md overflow-hidden bg-white">
                           <CardHeader className="bg-[#213147] text-white p-4">
@@ -1171,7 +1152,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                              </div>
                              <p className="text-[9px] font-bold text-white/50 uppercase tracking-widest mt-1">Status: {!!(configMode === 'Beverage Cart' ? seller?.bevcartActive : configMode === 'Clubhouse' ? seller?.clubhouseActive : configMode === 'Lane Delivery' ? seller?.lanedeliveryActive : seller?.takeoutActive) ? 'Live' : 'Paused'}</p>
                           </CardHeader>
-                          <CardContent className="p-4 space-y-6">
+                          <CardContent className="p-4 space-y-6 text-left">
                              <div className="space-y-3">
                                 <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Authorize Master Items</Label>
                                 <ScrollArea className="h-[400px] border-2 rounded-xl p-2 bg-slate-50">
@@ -1190,21 +1171,18 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                                       ))}
                                    </div>
                                 </ScrollArea>
-                                <p className="text-[8px] font-bold text-muted-foreground uppercase leading-relaxed text-center px-2">Only checked items will appear in the ordering terminal for this mode.</p>
                              </div>
                           </CardContent>
                        </Card>
                     </div>
 
-                    {/* LAYOUT CANVAS */}
                     <div className="lg:col-span-3 space-y-8">
-                       {/* Category Prioritization */}
                        <div className="space-y-4">
                           <div className="flex items-center gap-3 border-b-2 pb-2 px-1">
                              <div className="p-1.5 bg-indigo-50 rounded-lg text-indigo-600"><LayoutList className="h-4 w-4" /></div>
                              <div className="space-y-0.5">
                                 <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-[#213147]">Category Layout & Priority</h4>
-                                <p className="text-[8px] font-bold text-muted-foreground uppercase">Enable categories and drag to reorder. 'Featured' is always forced first.</p>
+                                <p className="text-[8px] font-bold text-muted-foreground uppercase">Enable categories and drag to reorder.</p>
                              </div>
                           </div>
 
@@ -1223,7 +1201,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                                       onToggleVisibility={handleToggleCategoryVisibility} 
                                     />
                                   ))}
-                                  {/* Also show hidden categories at the end */}
                                   {categories.filter(c => c !== 'Featured' && !(seller?.categoryVisibility?.[configMode] || []).includes(c)).map(cat => (
                                     <div key={`cat-hidden-${cat}`} className="bg-slate-50 border-2 border-dashed rounded-xl p-3 flex items-center justify-between opacity-60">
                                        <span className="text-[10px] font-black uppercase text-slate-400">{cat}</span>
@@ -1235,16 +1212,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                           </DndContext>
                        </div>
 
-                       <div className="bg-primary/5 border-2 border-primary/20 p-4 rounded-2xl flex items-center gap-4">
-                          <div className="bg-primary text-white p-2 rounded-xl"><MousePointer2 className="h-4 w-4" /></div>
-                          <div>
-                             <p className="text-[11px] font-black uppercase text-[#213147]">Item Priority Builder</p>
-                             <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">Drag items within categories to prioritize. Star items to add them to the Featured section.</p>
-                          </div>
-                       </div>
-
                        <div className="space-y-10">
-                          {/* FEATURED SECTION */}
                           <div className="space-y-4">
                              <div className="flex items-center gap-2 border-b-2 pb-2 px-1">
                                 <Star className="h-4 w-4 text-amber-500 fill-current" />
@@ -1256,17 +1224,11 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                                       {menuItems?.filter(i => i.featuredOn?.includes(configMode)).sort((a, b) => (a.featuredRanks?.[configMode] || 0) - (b.featuredRanks?.[configMode] || 0)).map(item => (
                                         <SortableItem key={item.id} id={item.id} item={item} activeMode={configMode} isFeatured={true} onToggleFeatured={handleToggleItemFeatured} />
                                       ))}
-                                      {menuItems?.filter(i => i.featuredOn?.includes(configMode)).length === 0 && (
-                                        <div className="col-span-full py-8 text-center bg-white border-2 border-dashed rounded-2xl opacity-40">
-                                           <p className="text-[10px] font-black uppercase tracking-widest">No featured items for this mode</p>
-                                        </div>
-                                      )}
                                    </div>
                                 </SortableContext>
                              </DndContext>
                           </div>
 
-                          {/* STANDARD CATEGORIES */}
                           {(seller?.categoryVisibility?.[configMode] || categories.filter(c => c !== 'Featured')).map(cat => {
                             const items = menuItems?.filter(i => i.category === cat && i.availableOn?.includes(configMode))
                               .sort((a, b) => (a.menuRanks?.[configMode] || 0) - (b.menuRanks?.[configMode] || 0));
@@ -1419,7 +1381,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
               )}
 
               {activeNav === 'settings' && (
-                <div className="space-y-10 animate-in fade-in duration-500">
+                <div className="space-y-10 animate-in fade-in duration-500 text-left">
                   <div className="space-y-6">
                     <div className="flex items-center gap-3 border-b-2 pb-4">
                       <div className="p-2 bg-indigo-50 rounded-xl text-indigo-600"><Building className="h-5 w-5" /></div>
@@ -1439,7 +1401,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                             placeholder="Oak Ridge Country Club"
                             className="h-12 border-2 font-bold focus-visible:ring-primary"
                           />
-                          <p className="text-[8px] font-medium text-muted-foreground italic uppercase">This name will be displayed at the top of all customer menus.</p>
                         </div>
                         <div className="space-y-2">
                           <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Tax Rate (%)</Label>
@@ -1450,7 +1411,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                             onChange={(e) => setVenueTaxRate(parseFloat(e.target.value) || 0)}
                             className="h-12 border-2 font-bold focus-visible:ring-primary"
                           />
-                          <p className="text-[8px] font-medium text-muted-foreground italic uppercase">Standard sales tax applied at checkout.</p>
                         </div>
                       </CardContent>
                     </Card>
@@ -1527,9 +1487,8 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
         </main>
       </div>
 
-      {/* DIALOG: STAFF FORM */}
       <Dialog open={isStaffFormOpen} onOpenChange={setIsStaffFormOpen}>
-        <DialogContent className="sm:max-w-[425px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl">
+        <DialogContent className="sm:max-w-[425px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
           <DialogHeader className="p-8 bg-[#213147] text-white">
             <div className="flex items-center gap-4">
               <div className="bg-primary/20 p-3 rounded-2xl shrink-0"><Users className="h-6 w-6 text-primary" /></div>
@@ -1585,9 +1544,8 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
         </DialogContent>
       </Dialog>
 
-      {/* DIALOG: ITEM FORM */}
       <Dialog open={isItemFormOpen} onOpenChange={setIsItemFormOpen}>
-        <DialogContent className="sm:max-w-[500px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl">
+        <DialogContent className="sm:max-w-[500px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
           <DialogHeader className="p-8 bg-[#213147] text-white">
             <div className="flex items-center gap-4">
               <div className="bg-primary/20 p-3 rounded-2xl shrink-0"><UtensilsCrossed className="h-6 w-6 text-primary" /></div>
@@ -1639,7 +1597,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                     </FormItem>
                   )} />
 
-                  {/* Modifier Linking Selection */}
                   <FormField control={itemForm.control} name="modifierGroupIds" render={({ field }) => (
                     <FormItem className="space-y-3">
                       <FormLabel className="text-[10px] font-black uppercase tracking-widest text-indigo-600">Attached Modifier Sets</FormLabel>
@@ -1661,11 +1618,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                             </div>
                           </div>
                         ))}
-                        {(!modifierGroups || modifierGroups.length === 0) && (
-                          <p className="text-[9px] font-bold text-muted-foreground italic p-2 border-2 border-dashed rounded-xl text-center">
-                            No modifier groups defined. Go to "Modifiers" tab first.
-                          </p>
-                        )}
                       </div>
                       <FormMessage />
                     </FormItem>
@@ -1686,9 +1638,8 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
         </DialogContent>
       </Dialog>
 
-      {/* DIALOG: MODIFIER GROUP FORM */}
       <Dialog open={isModifierGroupFormOpen} onOpenChange={setIsModifierGroupFormOpen}>
-        <DialogContent className="sm:max-w-[500px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl">
+        <DialogContent className="sm:max-w-[500px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
           <DialogHeader className="p-8 bg-indigo-600 text-white">
             <div className="flex items-center gap-4">
               <div className="bg-white/20 p-3 rounded-2xl shrink-0"><Tags className="h-6 w-6 text-white" /></div>
