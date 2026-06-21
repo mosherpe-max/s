@@ -89,6 +89,48 @@
       "properties": {
         "assignedAt": { "type": "string", "format": "date-time" }
       }
+    },
+    "MenuItemNormalized": {
+      "title": "Menu Item (Normalized)",
+      "type": "object",
+      "description": "Base product definition in a normalized menu system.",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "price": { "type": "number" },
+        "description": { "type": "string" },
+        "isAvailable": { "type": "boolean" },
+        "modifierGroupIds": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "References to ModifierGroup IDs."
+        }
+      },
+      "required": ["name", "price"]
+    },
+    "ModifierGroup": {
+      "title": "Modifier Group",
+      "type": "object",
+      "description": "Set of options for customizing a menu item.",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "minSelection": { "type": "number" },
+        "maxSelection": { "type": "number" },
+        "options": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "name": { "type": "string" },
+              "priceAdjustment": { "type": "number" },
+              "isAvailable": { "type": "boolean" }
+            }
+          }
+        }
+      },
+      "required": ["name", "options"]
     }
   },
   "auth": {
@@ -101,7 +143,9 @@
       { "path": "/platform/config", "definition": { "entityName": "PlatformConfig" } },
       { "path": "/roles_admin/{uid}", "definition": { "entityName": "AdminRole" } },
       { "path": "/roles_seller_admin/{email}", "definition": { "entityName": "SellerAdminRole" } },
-      { "path": "/roles_sales_rep/{email}", "definition": { "entityName": "SalesRepRole" } }
+      { "path": "/roles_sales_rep/{email}", "definition": { "entityName": "SalesRepRole" } },
+      { "path": "/menu_items/{itemId}", "definition": { "entityName": "MenuItemNormalized" } },
+      { "path": "/modifier_groups/{groupId}", "definition": { "entityName": "ModifierGroup" } }
     ]
   }
 }
