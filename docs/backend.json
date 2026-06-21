@@ -114,6 +114,7 @@
       "description": "Set of options for customizing a menu item.",
       "properties": {
         "id": { "type": "string" },
+        "sellerId": { "type": "string" },
         "name": { "type": "string" },
         "minSelection": { "type": "number" },
         "maxSelection": { "type": "number" },
@@ -130,7 +131,7 @@
           }
         }
       },
-      "required": ["name", "options"]
+      "required": ["sellerId", "name", "options"]
     }
   },
   "auth": {
