@@ -104,7 +104,7 @@ import {
   TabsContent,
   TabsList,
   TabsTrigger,
-} from "@/tabs";
+} from "@/components/ui/tabs";
 import {
   Select,
   SelectContent,
@@ -1083,7 +1083,7 @@ export default function PlatformAdminPage() {
                         {logoPreview && (
                           <div className="flex gap-2">
                             <Button onClick={handleUploadLogo} disabled={isUploadingLogo} className="flex-1 font-black uppercase tracking-widest text-[10px]">Commit Branding</Button>
-                            <Button variant="outline" onClick={() => setLogoPreview(null)} className="font-black uppercase tracking-widest text-[10px]">Discard</Button>
+                            <Button variant="outline" onClick={() => setLogoPreview(null)} className="font-black uppercase tracking-widest text-[11px]">Discard</Button>
                           </div>
                         )}
                       </CardContent>
@@ -1737,7 +1737,7 @@ export default function PlatformAdminPage() {
           </Tabs>
 
           <DialogFooter className="p-8 bg-slate-50 border-t shrink-0">
-            <Button onClick={() => setIsVenueDetailOpen(false)} className="w-full h-14 bg-[#213147] hover:bg-black font-black uppercase tracking-widest shadow-xl text-xs">
+            <Button onClick={() => setIsVenueDetailOpen(false)} className="w-full h-14 bg-[#213147] hover:bg-black font-black uppercase tracking-widest shadow-xl text-[11px]">
               Commit Changes & Exit Maintenance
             </Button>
           </DialogFooter>
@@ -1746,4 +1746,3 @@ export default function PlatformAdminPage() {
     </div>
   );
 }
-

@@ -98,7 +98,7 @@ import {
   TabsContent,
   TabsList,
   TabsTrigger,
-} from "@/tabs";
+} from "@/components/ui/tabs";
 import { Label } from '@/components/ui/label';
 import { cn, getNumericOrderId, SUPER_ADMIN_ID } from '@/lib/utils';
 import { 
@@ -447,7 +447,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     const today = filteredOrders.filter(o => o.createdAt && typeof o.createdAt.toDate === 'function' && isToday(o.createdAt.toDate()));
     const revenue = today.reduce((acc, o) => acc + (o.total || 0), 0);
     const avg = today.length > 0 ? (revenue / today.length).toFixed(2) : '0.00';
-    const overdueCount = filteredOrders.filter(o => o.status !== 'Delivered' && o.status !== 'Cancelled' && o.createdAt && typeof o.createdAt.toDate === 'function' && differenceInMinutes(new Date(), o.createdAt.toDate()) >= (seller?.orderThresholds?.[o.menuType]?.max || DEFAULT_THRESHOLDS[o.menuType]?.max || 20)).length;
+    const overdueCount = filteredOrders.filter(o => o.status !== 'Delivered' && o.status !== 'Cancelled' && o.createdAt && typeof o.createdAt.toDate === 'function' && differenceInMinutes(new Date(), o.createdAt.toDate()) >= (seller?.orderThreshold?.[o.menuType]?.max || DEFAULT_THRESHOLDS[o.menuType]?.max || 20)).length;
     return { revenue: revenue.toFixed(2), active: filteredOrders.filter(o => o.status !== 'Delivered' && o.status !== 'Cancelled').length, volume: today.length, avg, overdue: overdueCount };
   }, [orders, dashboardFilter, seller]);
 
@@ -1512,7 +1512,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                     </div>
 
                     <div className="flex justify-end pt-4">
-                       <Button onClick={handleUpdateVenueSettings} disabled={isProcessingSave} className="h-14 px-10 bg-[#213147] hover:bg-black font-black uppercase tracking-widest text-xs gap-3 shadow-xl">
+                       <Button onClick={handleUpdateVenueSettings} disabled={isProcessingSave} className="h-14 px-10 bg-[#213147] hover:bg-black font-black uppercase tracking-widest text-[11px] gap-3 shadow-xl">
                         {isProcessingSave ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                         Commit Venue Settings
                        </Button>
@@ -1762,7 +1762,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
 
                   <div className="flex flex-col sm:flex-row gap-3 pt-4">
                     <Button type="submit" disabled={isProcessingSave} className="flex-1 h-14 bg-indigo-600 hover:bg-indigo-700 font-black uppercase tracking-widest text-[11px] gap-2 shadow-xl">
-                      {isProcessingSave ? <Loader2 className="h-5 w-5 animate-spin" /> : <Save className="h-5 w-5" />} Commit Modifier Group
+                      {isProcessingSave ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Commit Modifier Group
                     </Button>
                     <Button type="button" variant="outline" onClick={() => { setIsModifierGroupFormOpen(false); setEditingModifierGroup(null); modifierGroupForm.reset(); }} className="h-14 px-8 border-2 font-black uppercase tracking-widest text-[11px]">
                       Discard
