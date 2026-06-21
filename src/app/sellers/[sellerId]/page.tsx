@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useMemo, useEffect, use } from 'react';
@@ -417,7 +418,13 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   const { data: sellerRole, isLoading: isRoleLoading } = useDoc<SellerAdminRole>(sellerRoleRef);
 
   const isSuperAdmin = user?.uid === SUPER_ADMIN_ID || user?.email === 'mosherpe@gmail.com';
-  const isAuthorized = isSuperAdmin || (sellerRole?.sellerId === sellerId) || (venueData?.ownerUid === user?.uid);
+  
+  // FIX: Explicitly require user presence to prevent race condition permission errors
+  const isAuthorized = !!user && (
+    isSuperAdmin || 
+    (sellerRole?.sellerId === sellerId) || 
+    (venueData?.ownerUid === user?.uid)
+  );
 
   useEffect(() => {
     if (seller) {
@@ -617,14 +624,21 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   };
 
   const handleToggleMode = async (mode: string, current: boolean) => {
-    if (!firestore || !sellerId) return;
+    // FIX: Ensure valid firestore and auth identity before mutation
+    if (!firestore || !sellerId || !user) return;
     const fieldMap: Record<string, string> = { 'Beverage Cart': 'bevcartActive', 'Clubhouse': 'clubhouseActive', 'Lane Delivery': 'lanedeliveryActive', 'Take Out': 'takeoutActive' };
     const field = fieldMap[mode];
     if (field) {
       const sellerDocRef = doc(firestore, 'sellers', sellerId);
       const updateData = { [field]: !current };
+      
+      // FIX: Use non-blocking helper pattern
       updateDoc(sellerDocRef, updateData).catch(async (error) => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: sellerDocRef.path, operation: 'update', requestResourceData: updateData } satisfies SecurityRuleContext));
+        errorEmitter.emit('permission-error', new FirestorePermissionError({ 
+          path: sellerDocRef.path, 
+          operation: 'update', 
+          requestResourceData: updateData 
+        } satisfies SecurityRuleContext));
       });
     }
   };
