@@ -4,7 +4,7 @@ import { useState, use, useEffect, useMemo } from 'react';
 import { collection, doc, addDoc, serverTimestamp } from 'firebase/firestore';
 import { signInAnonymously } from 'firebase/auth';
 import { useFirestore, useCollection, useMemoFirebase, useDoc, useAuth, useUser, useFirebase } from '@/firebase';
-import type { Seller, MenuItem, OrderItem, PlatformConfig, Category } from '@/lib/types';
+import type { Seller, MenuItem, OrderItem, PlatformConfig, Category, Venue } from '@/lib/types';
 import { categories } from '@/lib/types';
 import { BuyerMenu } from '@/components/buyer-menu';
 import { OrderSummary } from '@/components/order-summary';
@@ -389,6 +389,9 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
   const sellerRef = useMemoFirebase(() => (firestore ? doc(firestore, 'sellers', sellerId) : null), [firestore, sellerId]);
   const { data: seller, isLoading: isSellerLoading } = useDoc<Seller>(sellerRef);
 
+  const venueRef = useMemoFirebase(() => (firestore ? doc(firestore, 'venues', sellerId) : null), [firestore, sellerId]);
+  const { data: venue, isLoading: isVenueLoading } = useDoc<Venue>(venueRef);
+
   const menuItemsQuery = useMemoFirebase(() => {
     if (!firestore || !sellerId) return null;
     return collection(firestore, 'sellers', sellerId, 'menuItems');
@@ -442,12 +445,18 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
   const taxRate = seller?.taxRate ?? 6.0;
   
   const platformFee = useMemo(() => {
+    // PRIORITY 1: Master Patron Convenience Fee from Venue Registry (cents -> dollars)
+    if (venue?.patronConvenienceFee !== undefined) {
+      return venue.patronConvenienceFee / 100;
+    }
+    
+    // PRIORITY 2: Operational profile overrides
     if (!seller) return 0;
     if (selectedMenuType && seller.serviceFees?.[selectedMenuType]) {
       return seller.serviceFees[selectedMenuType];
     }
     return seller.serviceFee || 0;
-  }, [seller, selectedMenuType]);
+  }, [seller, venue, selectedMenuType]);
 
   const filteredMenuItems = useMemo(() => {
     if (!menuItems || !selectedMenuType) return [];
@@ -509,7 +518,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
 
   const currentDescription = getModeDescription(selectedMenuType);
   const hasAnyAvailableMode = seller?.menuTypes?.some(t => isModeAvailable(t));
-  const isLoading = isSellerLoading || areItemsLoading;
+  const isLoading = isSellerLoading || areItemsLoading || isVenueLoading;
 
   if (isLoading) {
     return (
