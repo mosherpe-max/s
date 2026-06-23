@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -48,7 +49,7 @@ import type { Prospect, SalesActivity, ProspectStage } from '@/lib/types';
 
 const prospectSchema = z.object({
   venueName: z.string().min(2, 'Venue name required'),
-  venueType: z.enum(['Golf Course', 'Bowling Alley', 'Brewery/Restaurant']),
+  venueType: z.enum(['Golf Course', 'Bowling Center', 'Brewery/Restaurant']),
   stage: z.enum(['Contacted', 'Demo Scheduled', 'Proposal Sent', 'Closed', 'Lost']),
   contactName: z.string().min(2, 'Contact name required'),
   contactEmail: z.string().email('Valid email required'),
@@ -431,7 +432,7 @@ export default function SalesCRMPage() {
                   <FormItem><FormLabel>Venue Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="venueType" render={({ field }) => (
-                  <FormItem><FormLabel>Venue Type</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="Golf Course">Golf Course</SelectItem><SelectItem value="Bowling Alley">Bowling Alley</SelectItem><SelectItem value="Brewery/Restaurant">Brewery/Restaurant</SelectItem></SelectContent></Select></FormItem>
+                  <FormItem><FormLabel>Venue Type</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="Golf Course">Golf Course</SelectItem><SelectItem value="Bowling Center">Bowling Center</SelectItem><SelectItem value="Brewery/Restaurant">Brewery/Restaurant</SelectItem></SelectContent></Select></FormItem>
                 )} />
               </div>
               <FormField control={form.control} name="stage" render={({ field }) => (

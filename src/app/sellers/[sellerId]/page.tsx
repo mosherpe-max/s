@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useMemo, useEffect, use } from 'react';
@@ -662,7 +663,8 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     }
   };
 
-  const handleUpdateVenueSettings = async () => {
+  const handleUpdateVenueSettings = async (e: React.FormEvent) => {
+    e.preventDefault();
     if (!firestore || !sellerId) return;
     setIsProcessingSave(true);
     const sellerDocRef = doc(firestore, 'sellers', sellerId);
@@ -1580,6 +1582,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
 
               {activeNav === 'settings' && (
                 <div className="space-y-10 animate-in fade-in duration-500 text-left">
+                  <form onSubmit={handleUpdateVenueSettings} className="space-y-10">
                   <div className="space-y-6">
                     <div className="flex items-center gap-3 border-b-2 pb-4">
                       <div className="p-2 bg-indigo-50 rounded-xl text-indigo-600"><Building className="h-5 w-5" /></div>
@@ -1670,12 +1673,13 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                     </div>
 
                     <div className="flex justify-end pt-4">
-                       <Button onClick={handleUpdateVenueSettings} disabled={isProcessingSave} className="h-14 px-10 bg-[#213147] hover:bg-black font-black uppercase tracking-widest text-[11px] gap-3 shadow-xl">
+                       <Button type="submit" disabled={isProcessingSave} className="h-14 px-10 bg-[#213147] hover:bg-black font-black uppercase tracking-widest text-[11px] gap-3 shadow-xl">
                         {isProcessingSave ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                         Commit Venue Settings
                        </Button>
                     </div>
                   </div>
+                  </form>
                 </div>
               )}
 
@@ -1926,4 +1930,3 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     </div>
   );
 }
-

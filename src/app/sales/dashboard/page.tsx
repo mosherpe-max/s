@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -75,7 +76,7 @@ export default function SalesDashboardPage() {
     },
     {
       id: 'demo-bowling-alley',
-      title: 'Bowling Alley',
+      title: 'Bowling Center',
       sub: 'In-Game Food & Drinks',
       type: 'Laneside Service',
       gradient: 'from-pink-600 to-rose-500',

@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useEffect } from 'react';
@@ -122,13 +123,13 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* Bowling Alley Card */}
+        {/* Bowling Center Card */}
         <div className="reveal opacity-0 translate-y-8 transition-all duration-700 delay-100 ease-out bg-[#213147] px-8 md:px-16 py-24 relative overflow-hidden group">
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_70%_30%,rgba(229,0,0,0.08),transparent_60%)] opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
           
           <div className="relative z-10">
             <span className="text-6xl mb-6 block drop-shadow-[0_0_20px_rgba(229,0,0,0.3)]">🎳</span>
-            <div className="font-headline text-[13px] font-bold uppercase tracking-[0.2em] text-[#E50000] mb-3">Bowling Alleys</div>
+            <div className="font-headline text-[13px] font-bold uppercase tracking-[0.2em] text-[#E50000] mb-3">Bowling Centers</div>
             <h2 className="font-headline text-4xl md:text-5xl font-black uppercase leading-none mb-5 text-white">
               Order From<br />the Lane
             </h2>
@@ -143,7 +144,7 @@ export default function HomePage() {
               ))}
             </ul>
             <Link href="/sellers/demo-bowling-alley/order?menuType=Lane Delivery" className="font-headline text-sm font-bold uppercase tracking-widest bg-[#E50000] hover:bg-[#c40000] text-white py-4 rounded text-center transition-colors block">
-              Bowling Alley Demo
+              Bowling Center Demo
             </Link>
           </div>
         </div>
@@ -243,7 +244,7 @@ export default function HomePage() {
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] rounded-full bg-[radial-gradient(circle,rgba(229,0,0,0.05)_0%,transparent_60%)]" />
         <div className="relative z-10">
           <h2 className="font-headline text-5xl md:text-8xl font-black uppercase mb-6 tracking-tighter leading-none">Ready to Take<br />More Orders?</h2>
-          <p className="text-lg md:text-xl text-[#8a9ab0] max-w-[500px] mx-auto mb-12 leading-relaxed">Join golf courses and bowling alleys already using Koop to capture more revenue with zero POS headaches.</p>
+          <p className="text-lg md:text-xl text-[#8a9ab0] max-w-[500px] mx-auto mb-12 leading-relaxed">Join golf courses and bowling centers already using Koop to capture more revenue with zero POS headaches.</p>
           <div className="flex flex-wrap justify-center gap-4">
             <a href="mailto:sales@kooporders.com" className="font-headline text-sm md:text-base font-bold uppercase tracking-widest bg-[#E50000] hover:bg-[#c40000] text-white px-12 py-5 rounded transition-all shadow-2xl">
               Request a Demo

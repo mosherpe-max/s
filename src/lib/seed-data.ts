@@ -229,7 +229,7 @@ export async function seedAllDemoData(db: Firestore) {
   await seedVenueItems(db, 'demo-private-course', privateGolfItems);
   await seedVenueModifiers(db, 'demo-private-course', 'Private Golf Course');
 
-  // 3. BOWLING ALLEY
+  // 3. BOWLING CENTER
   await seedVenueItems(db, 'demo-bowling-alley', bowlingAlleyItems);
-  await seedVenueModifiers(db, 'demo-bowling-alley', 'Bowling Alley');
+  await seedVenueModifiers(db, 'demo-bowling-alley', 'Bowling Center');
 }

@@ -1,13 +1,13 @@
 
 import { Timestamp } from "firebase/firestore";
 
-export type SellerType = 'Private Golf Course' | 'Semi Private Golf Course' | 'Public Golf Course' | 'Bowling Alley' | 'Brewery' | 'Restaurant';
+export type SellerType = 'Private Golf Course' | 'Semi Private Golf Course' | 'Public Golf Course' | 'Bowling Center' | 'Brewery' | 'Restaurant';
 
 export const sellerTypes: readonly SellerType[] = [
   'Private Golf Course',
   'Semi Private Golf Course',
   'Public Golf Course',
-  'Bowling Alley',
+  'Bowling Center',
   'Brewery',
   'Restaurant'
 ];
