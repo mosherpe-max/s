@@ -60,7 +60,7 @@ import {
   Map as MapIcon,
   Timer,
   Save,
-  Calendar,
+  Calendar as CalendarIcon,
   FileText,
   Eye,
   EyeOff,
@@ -78,7 +78,8 @@ import {
   Tags,
   LayoutList,
   Wand2,
-  Ban
+  Ban,
+  CalendarDays
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -115,7 +116,9 @@ import {
   startOfYear, 
   addMonths, 
   isSameMonth, 
-  isSameYear 
+  isSameYear,
+  isWithinInterval,
+  endOfDay
 } from 'date-fns';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -144,6 +147,8 @@ import {
   ResponsiveContainer,
   Legend
 } from 'recharts';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
 
 import {
   DndContext,
@@ -265,25 +270,6 @@ function KPICard({ label, value, sub, icon: Icon, colorClass, highlight = false 
   );
 }
 
-function CollateralCard({ title, description, icon: Icon }: { title: string, description: string, icon: any }) {
-  return (
-    <Card className="border-2 shadow-sm group hover:border-primary/30 transition-all cursor-pointer bg-white">
-      <CardContent className="p-4 flex items-center gap-4">
-        <div className="bg-slate-50 group-hover:bg-primary/10 p-3 rounded-xl transition-colors">
-          <Icon className="h-6 w-6 text-slate-300 group-hover:text-primary transition-colors" />
-        </div>
-        <div className="min-w-0 flex-1">
-          <p className="font-black text-xs uppercase text-[#213147] truncate leading-tight">{title}</p>
-          <p className="text-[9px] font-bold text-muted-foreground uppercase leading-tight mt-1">{description}</p>
-        </div>
-        <div className="opacity-40 group-hover:opacity-100 transition-opacity shrink-0">
-          <Badge variant="outline" className="text-[7px] font-black uppercase tracking-tighter h-4 border-slate-200">Soon</Badge>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
 function SortableItem({ id, item, activeMode, isFeatured, onToggleFeatured }: { id: string, item: MenuItem, activeMode: string, isFeatured: boolean, onToggleFeatured: (id: string, current: string[]) => void }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
   
@@ -372,6 +358,14 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   const [dashboardFilter, setDashboardFilter] = useState('All');
   const [analyticsRange, setAnalyticsRange] = useState<'Today' | 'MTD' | 'YTD'>('Today');
   const [now, setNow] = useState<number>(Date.now());
+
+  // ORDER FILTER STATE
+  const [orderDateRange, setOrderDateRange] = useState<{ from: Date; to: Date }>({
+    from: startOfDay(new Date()),
+    to: endOfDay(new Date())
+  });
+  const [orderModeFilter, setOrderModeFilter] = useState<string>('All');
+  const [orderSearchTerm, setOrderSearchTerm] = useState<string>('');
 
   const [isStaffFormOpen, setIsStaffFormOpen] = useState(false);
   const [editingStaff, setEditingStaff] = useState<StaffMember | null>(null);
@@ -486,6 +480,22 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     }
     return { chartData };
   }, [orders, seller, analyticsRange]);
+
+  const filteredOrderHistory = useMemo(() => {
+    if (!orders) return [];
+    return orders
+      .filter(o => {
+        if (!o.createdAt || typeof o.createdAt.toDate !== 'function') return false;
+        const orderDate = o.createdAt.toDate();
+        const isInRange = isWithinInterval(orderDate, { start: orderDateRange.from, end: orderDateRange.to });
+        const isMatchingMode = orderModeFilter === 'All' || o.menuType === orderModeFilter;
+        const isMatchingSearch = !orderSearchTerm || 
+          o.id.toLowerCase().includes(orderSearchTerm.toLowerCase()) || 
+          o.customerName.toLowerCase().includes(orderSearchTerm.toLowerCase());
+        return isInRange && isMatchingMode && isMatchingSearch;
+      })
+      .sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
+  }, [orders, orderDateRange, orderModeFilter, orderSearchTerm]);
 
   const staffForm = useForm<StaffFormData>({
     resolver: zodResolver(staffSchema),
@@ -895,7 +905,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-4 rounded-2xl border-2 shadow-sm">
                     <div className="flex items-center gap-3">
                       <div className="p-2 bg-indigo-50 rounded-xl text-indigo-600"><Filter className="h-4 w-4" /></div>
-                      <h3 className="text-[10px] font-black uppercase tracking-widest text-[#213147]">Dashboard Filter</h3>
+                      <h3 className="text-[10px] font-black uppercase tracking-widest text-[#213147]">Dashboard Card Filter (Today Only)</h3>
                     </div>
                     <Tabs value={dashboardFilter} onValueChange={setDashboardFilter} className="w-full sm:w-auto">
                       <div className="overflow-x-auto no-scrollbar -mx-1 px-1">
@@ -910,10 +920,10 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                   </div>
 
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
-                    <KPICard label="Filtered Sales" value={`$${stats?.revenue}`} sub="Today" icon={DollarSign} colorClass="bg-green-500" />
+                    <KPICard label="Today's Revenue" value={`$${stats?.revenue}`} sub="Live Earnings" icon={DollarSign} colorClass="bg-green-500" />
                     <KPICard label="Avg. Order" value={`$${stats?.avg}`} sub="Mean Revenue" icon={TrendingUp} colorClass="bg-indigo-600" />
-                    <KPICard label="Active Tickets" value={stats?.active || 0} sub="In Pipeline" icon={ShoppingBag} colorClass="bg-primary" />
-                    <KPICard label="Overdue Orders" value={stats?.overdue || 0} sub="Beyond Threshold" icon={Clock} colorClass="bg-red-600" highlight={!!(stats?.overdue && stats.overdue > 0)} />
+                    <KPICard label="Today's Volume" value={stats?.volume || 0} sub="Processed" icon={ShoppingBag} colorClass="bg-primary" />
+                    <KPICard label="Active Tickets" value={stats?.active || 0} sub="In Pipeline" icon={Clock} colorClass="bg-red-600" highlight={!!(stats?.active && stats.active > 0)} />
                   </div>
 
                   <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -921,7 +931,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                       <CardHeader className="bg-slate-50/50 border-b flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                         <div className="space-y-0.5">
                           <CardTitle className="text-xs font-black uppercase tracking-widest text-[#213147]">Revenue Distribution</CardTitle>
-                          <CardDescription className="text-[8px] font-bold uppercase">Stacked performance by mode</CardDescription>
+                          <CardDescription className="text-[8px] font-bold uppercase">Toggle range for deeper historical analysis</CardDescription>
                         </div>
                         <div className="flex bg-slate-100 p-0.5 rounded-lg border-2">
                           {['Today', 'MTD', 'YTD'].map((r) => (
@@ -971,12 +981,68 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
 
               {activeNav === 'orders' && (
                  <div className="space-y-6 animate-in fade-in duration-500">
-                    <div className="flex justify-between items-center border-b-2 pb-4">
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b-2 pb-4">
                       <div className="space-y-1">
                         <h3 className="font-headline font-black text-2xl text-[#213147] uppercase leading-tight">Order Audit Log</h3>
-                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Transaction level oversight</p>
+                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Transaction level oversight & reporting</p>
                       </div>
                     </div>
+
+                    <Card className="border-2 shadow-sm p-4 bg-white">
+                       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                          <div className="space-y-1.5">
+                             <Label className="text-[9px] font-black uppercase text-muted-foreground tracking-widest px-1">Date Range</Label>
+                             <Popover>
+                                <PopoverTrigger asChild>
+                                   <Button variant="outline" className="w-full h-11 border-2 justify-start font-bold text-xs gap-2">
+                                      <CalendarDays className="h-4 w-4 text-primary" />
+                                      {format(orderDateRange.from, 'MMM d')} - {format(orderDateRange.to, 'MMM d, yyyy')}
+                                   </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0 rounded-2xl border-2" align="start">
+                                   <Calendar
+                                      initialFocus
+                                      mode="range"
+                                      defaultMonth={orderDateRange.from}
+                                      selected={{ from: orderDateRange.from, to: orderDateRange.to }}
+                                      onSelect={(range: any) => {
+                                        if (range?.from) setOrderDateRange(prev => ({ ...prev, from: range.from }));
+                                        if (range?.to) setOrderDateRange(prev => ({ ...prev, to: range.to }));
+                                      }}
+                                      numberOfMonths={2}
+                                   />
+                                </PopoverContent>
+                             </Popover>
+                          </div>
+
+                          <div className="space-y-1.5">
+                             <Label className="text-[9px] font-black uppercase text-muted-foreground tracking-widest px-1">Service Mode</Label>
+                             <Select value={orderModeFilter} onValueChange={setOrderModeFilter}>
+                                <SelectTrigger className="h-11 border-2 font-bold text-xs">
+                                   <SelectValue placeholder="All Modes" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                   <SelectItem value="All" className="text-xs font-bold uppercase">All Modes</SelectItem>
+                                   {seller?.menuTypes?.map(m => <SelectItem key={m} value={m} className="text-xs font-bold uppercase">{m}</SelectItem>)}
+                                </SelectContent>
+                             </Select>
+                          </div>
+
+                          <div className="md:col-span-2 space-y-1.5">
+                             <Label className="text-[9px] font-black uppercase text-muted-foreground tracking-widest px-1">Search Tickets</Label>
+                             <div className="relative">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                <Input 
+                                   placeholder="Order ID or Patron Name..." 
+                                   className="h-11 pl-10 border-2 font-bold text-xs" 
+                                   value={orderSearchTerm}
+                                   onChange={(e) => setOrderSearchTerm(e.target.value)}
+                                />
+                             </div>
+                          </div>
+                       </div>
+                    </Card>
+
                     <Card className="border-2 shadow-sm overflow-hidden">
                        <div className="overflow-x-auto no-scrollbar">
                           <Table className="min-w-[800px]">
@@ -992,7 +1058,13 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                               </TableRow>
                             </TableHeader>
                             <TableBody>
-                              {[...(orders || [])].sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0)).map((o) => (
+                              {filteredOrderHistory.length === 0 ? (
+                                <TableRow>
+                                  <TableCell colSpan={7} className="h-40 text-center text-muted-foreground font-bold uppercase text-[10px] opacity-40">
+                                     No matching orders found in this range
+                                  </TableCell>
+                                </TableRow>
+                              ) : filteredOrderHistory.map((o) => (
                                 <TableRow key={o.id} className="group">
                                   <TableCell className="font-mono text-[10px] font-black px-3">#{getNumericOrderId(o.id)}</TableCell>
                                   <TableCell className="text-[10px] font-bold text-slate-500 uppercase px-3">{o.createdAt && typeof o.createdAt.toDate === 'function' ? format(o.createdAt.toDate(), 'MMM d, h:mm a') : 'N/A'}</TableCell>
@@ -1406,15 +1478,93 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {seller?.type?.toLowerCase().includes('golf') ? (
                           <>
-                            <CollateralCard title="Golf Cart Card" description="4x6 double-sided card for cart steering wheels" icon={Smartphone} />
-                            <CollateralCard title="Cart Sticker" description="3x3 vinyl decal for dash or windshield mounting" icon={LucideImage} />
-                            <CollateralCard title="Golf Course Sign" description="18x24 coroplast for tee boxes and practice range" icon={MapIcon} />
-                            <CollateralCard title="Clubhouse Poster" description="11x17 high-impact poster for pro-shop entrance" icon={FileText} />
+                            <Card className="border-2 shadow-sm group hover:border-primary/30 transition-all cursor-pointer bg-white">
+                              <CardContent className="p-4 flex items-center gap-4">
+                                <div className="bg-slate-50 group-hover:bg-primary/10 p-3 rounded-xl transition-colors">
+                                  <Smartphone className="h-6 w-6 text-slate-300 group-hover:text-primary transition-colors" />
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <p className="font-black text-xs uppercase text-[#213147] truncate leading-tight">Golf Cart Card</p>
+                                  <p className="text-[9px] font-bold text-muted-foreground uppercase leading-tight mt-1">4x6 double-sided card for cart steering wheels</p>
+                                </div>
+                                <div className="opacity-40 group-hover:opacity-100 transition-opacity shrink-0">
+                                  <Badge variant="outline" className="text-[7px] font-black uppercase tracking-tighter h-4 border-slate-200">Soon</Badge>
+                                </div>
+                              </CardContent>
+                            </Card>
+                            <Card className="border-2 shadow-sm group hover:border-primary/30 transition-all cursor-pointer bg-white">
+                              <CardContent className="p-4 flex items-center gap-4">
+                                <div className="bg-slate-50 group-hover:bg-primary/10 p-3 rounded-xl transition-colors">
+                                  <LucideImage className="h-6 w-6 text-slate-300 group-hover:text-primary transition-colors" />
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <p className="font-black text-xs uppercase text-[#213147] truncate leading-tight">Cart Sticker</p>
+                                  <p className="text-[9px] font-bold text-muted-foreground uppercase leading-tight mt-1">3x3 vinyl decal for dash or windshield mounting</p>
+                                </div>
+                                <div className="opacity-40 group-hover:opacity-100 transition-opacity shrink-0">
+                                  <Badge variant="outline" className="text-[7px] font-black uppercase tracking-tighter h-4 border-slate-200">Soon</Badge>
+                                </div>
+                              </CardContent>
+                            </Card>
+                            <Card className="border-2 shadow-sm group hover:border-primary/30 transition-all cursor-pointer bg-white">
+                              <CardContent className="p-4 flex items-center gap-4">
+                                <div className="bg-slate-50 group-hover:bg-primary/10 p-3 rounded-xl transition-colors">
+                                  <MapIcon className="h-6 w-6 text-slate-300 group-hover:text-primary transition-colors" />
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <p className="font-black text-xs uppercase text-[#213147] truncate leading-tight">Golf Course Sign</p>
+                                  <p className="text-[9px] font-bold text-muted-foreground uppercase leading-tight mt-1">18x24 coroplast for tee boxes and practice range</p>
+                                </div>
+                                <div className="opacity-40 group-hover:opacity-100 transition-opacity shrink-0">
+                                  <Badge variant="outline" className="text-[7px] font-black uppercase tracking-tighter h-4 border-slate-200">Soon</Badge>
+                                </div>
+                              </CardContent>
+                            </Card>
+                            <Card className="border-2 shadow-sm group hover:border-primary/30 transition-all cursor-pointer bg-white">
+                              <CardContent className="p-4 flex items-center gap-4">
+                                <div className="bg-slate-50 group-hover:bg-primary/10 p-3 rounded-xl transition-colors">
+                                  <FileText className="h-6 w-6 text-slate-300 group-hover:text-primary transition-colors" />
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <p className="font-black text-xs uppercase text-[#213147] truncate leading-tight">Clubhouse Poster</p>
+                                  <p className="text-[9px] font-bold text-muted-foreground uppercase leading-tight mt-1">11x17 high-impact poster for pro-shop entrance</p>
+                                </div>
+                                <div className="opacity-40 group-hover:opacity-100 transition-opacity shrink-0">
+                                  <Badge variant="outline" className="text-[7px] font-black uppercase tracking-tighter h-4 border-slate-200">Soon</Badge>
+                                </div>
+                              </CardContent>
+                            </Card>
                           </>
                         ) : seller?.type?.toLowerCase().includes('bowling') ? (
                           <>
-                            <CollateralCard title="Lane Side Table Card" description="5x7 folded card for bowling lane scoring tables" icon={Smartphone} />
-                            <CollateralCard title="Proshop Poster" description="11x17 high-impact poster for main facility lobby" icon={FileText} />
+                             <Card className="border-2 shadow-sm group hover:border-primary/30 transition-all cursor-pointer bg-white">
+                              <CardContent className="p-4 flex items-center gap-4">
+                                <div className="bg-slate-50 group-hover:bg-primary/10 p-3 rounded-xl transition-colors">
+                                  <Smartphone className="h-6 w-6 text-slate-300 group-hover:text-primary transition-colors" />
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <p className="font-black text-xs uppercase text-[#213147] truncate leading-tight">Lane Side Table Card</p>
+                                  <p className="text-[9px] font-bold text-muted-foreground uppercase leading-tight mt-1">5x7 folded card for bowling lane scoring tables</p>
+                                </div>
+                                <div className="opacity-40 group-hover:opacity-100 transition-opacity shrink-0">
+                                  <Badge variant="outline" className="text-[7px] font-black uppercase tracking-tighter h-4 border-slate-200">Soon</Badge>
+                                </div>
+                              </CardContent>
+                            </Card>
+                            <Card className="border-2 shadow-sm group hover:border-primary/30 transition-all cursor-pointer bg-white">
+                              <CardContent className="p-4 flex items-center gap-4">
+                                <div className="bg-slate-50 group-hover:bg-primary/10 p-3 rounded-xl transition-colors">
+                                  <FileText className="h-6 w-6 text-slate-300 group-hover:text-primary transition-colors" />
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <p className="font-black text-xs uppercase text-[#213147] truncate leading-tight">Proshop Poster</p>
+                                  <p className="text-[9px] font-bold text-muted-foreground uppercase leading-tight mt-1">11x17 high-impact poster for main facility lobby</p>
+                                </div>
+                                <div className="opacity-40 group-hover:opacity-100 transition-opacity shrink-0">
+                                  <Badge variant="outline" className="text-[7px] font-black uppercase tracking-tighter h-4 border-slate-200">Soon</Badge>
+                                </div>
+                              </CardContent>
+                            </Card>
                           </>
                         ) : (
                           <div className="col-span-full py-20 text-center bg-white border-2 border-dashed rounded-[2rem] opacity-40">
@@ -1776,3 +1926,4 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     </div>
   );
 }
+
