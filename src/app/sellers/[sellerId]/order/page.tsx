@@ -315,7 +315,7 @@ function CheckoutDrawerContent({
 
         <div className="space-y-3">
           <div className="bg-slate-50 border border-slate-100 p-4 rounded-2xl flex items-start gap-3 animate-in fade-in slide-in-from-bottom-2 duration-500">
-            <Info className="h-4 w-4 text-slate-400 shrink-0 mt-0.5" />
+            <span className="text-primary mt-0.5"><Info className="h-4 w-4 shrink-0" /></span>
             <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-tight leading-relaxed">
               {checkoutNotice}
             </p>
@@ -590,8 +590,8 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
           </div>
 
           <div className="space-y-1">
-            <p className="text-[10px] font-black uppercase tracking-[0.1em] text-primary flex items-center gap-1.5">
-              <Info className="h-2.5 w-2.5 shrink-0" />
+            <p className="text-[10px] font-black uppercase tracking-[0.1em] text-white flex items-center gap-1.5">
+              <Info className="h-2.5 w-2.5 shrink-0 text-primary" />
               {currentDescription}
             </p>
             <p className="text-[8px] font-bold uppercase tracking-widest text-white/30 ml-4">
