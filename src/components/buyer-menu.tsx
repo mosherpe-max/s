@@ -84,11 +84,14 @@ export function BuyerMenu({
           >
             <div className="flex items-center gap-2 px-1">
               {category === 'Featured' ? (
-                <Star className="w-4 h-4 text-amber-500 fill-current" />
+                <Star className="w-4 h-4 text-[#213147] fill-current" />
               ) : (
                 <CategoryIcon className="w-4 h-4 text-primary" style={accentColor ? { color: accentColor } : {}} />
               )}
-              <h2 className="font-headline text-[13px] font-black uppercase tracking-[0.1em] text-[#213147]">{category}</h2>
+              <h2 className={cn(
+                "font-headline text-[13px] font-black uppercase tracking-[0.1em]",
+                category === 'Featured' ? "text-[#213147]" : "text-[#213147]"
+              )}>{category}</h2>
             </div>
             
             <div className="grid grid-cols-2 gap-3">

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, use, useEffect, useMemo } from 'react';
+import { useState, use, useEffect, useMemo, useRef } from 'react';
 import { collection, doc, addDoc, serverTimestamp } from 'firebase/firestore';
 import { signInAnonymously } from 'firebase/auth';
 import { useFirestore, useCollection, useMemoFirebase, useDoc, useAuth, useUser, useFirebase } from '@/firebase';
@@ -382,6 +382,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
   const menuTypeFromUrl = searchParams.get('menuType');
   const selectedMenuType = menuTypeFromUrl || '';
   const [locationValue, setLocationValue] = useState<string>('');
+  const [activeCategory, setActiveCategory] = useState<string>('');
 
   const configRef = useMemoFirebase(() => (firestore ? doc(firestore, 'platform', 'config') : null), [firestore]);
   const { data: platformConfig } = useDoc<PlatformConfig>(configRef);
@@ -436,6 +437,30 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
     }
   }, [seller, platformConfig, menuTypeFromUrl, isSellerLoading]);
 
+  // Observer to track which category is currently in view
+  useEffect(() => {
+    const options = {
+      root: null,
+      rootMargin: '-160px 0px -50% 0px',
+      threshold: 0
+    };
+
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          const catId = entry.target.id;
+          const catName = currentCategories.find(c => c.toLowerCase().replace(/\s+/g, '-') === catId);
+          if (catName) setActiveCategory(catName);
+        }
+      });
+    }, options);
+
+    const sections = document.querySelectorAll('section[id]');
+    sections.forEach(section => observer.observe(section));
+
+    return () => observer.disconnect();
+  }, [seller, menuItems, selectedMenuType]);
+
   const activeOrderItems = useMemo(() => orderItems.filter((item) => item.quantity > 0), [orderItems]);
   const subtotal = useMemo(() => activeOrderItems.reduce((acc, item) => {
     const unitPrice = item.price + (item.selectedModifiers ? Object.values(item.selectedModifiers).flat().reduce((s, m) => s + m.price, 0) : 0);
@@ -445,12 +470,9 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
   const taxRate = seller?.taxRate ?? 6.0;
   
   const platformFee = useMemo(() => {
-    // PRIORITY 1: Master Patron Convenience Fee from Venue Registry (cents -> dollars)
     if (venue?.patronConvenienceFee !== undefined) {
       return venue.patronConvenienceFee / 100;
     }
-    
-    // PRIORITY 2: Operational profile overrides
     if (!seller) return 0;
     if (selectedMenuType && seller.serviceFees?.[selectedMenuType]) {
       return seller.serviceFees[selectedMenuType];
@@ -469,19 +491,15 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
   const currentCategories = useMemo(() => {
     if (!seller || !filteredMenuItems.length) return [];
     
-    // Core logic: show a "Featured" category if any items are explicitly starred for this mode
     const hasExplicitFeatured = filteredMenuItems.some(i => i.featuredOn?.includes(selectedMenuType));
     
     const visibleCategories = categories.filter(c => {
       if (c === 'Featured') return hasExplicitFeatured;
-      
-      // Standard categories only appear if they have active items authorized for this mode
       const hasItemsInCat = filteredMenuItems.some(i => i.category === c && i.availableOn?.includes(selectedMenuType));
       const isEnabledByVenue = seller.categoryVisibility?.[selectedMenuType]?.includes(c) ?? true;
       return hasItemsInCat && isEnabledByVenue;
     });
 
-    // Ensure Featured is always at index 0
     return visibleCategories.sort((a, b) => {
       if (a === 'Featured') return -1;
       if (b === 'Featured') return 1;
@@ -503,6 +521,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
       const elementPosition = elementRect - bodyRect;
       const offsetPosition = elementPosition - offset;
       window.scrollTo({ top: offsetPosition, behavior: 'smooth' });
+      setActiveCategory(category);
     }
   };
 
@@ -530,7 +549,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
   }
 
   return (
-    <div className="flex flex-col min-h-screen bg-background">
+    <div className="flex flex-col min-h-screen bg-[#F0F0F0]">
       <header className="relative w-full min-h-[22vh] flex flex-col bg-[#213147] overflow-hidden shrink-0 pt-8 pb-8 px-6">
         <div className="absolute inset-0 z-0 opacity-10 pointer-events-none">
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full border-[30px] border-white" />
@@ -585,22 +604,29 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
       {hasAnyAvailableMode ? (
         <>
           <div className="sticky top-16 z-30 bg-white/95 backdrop-blur-md border-b-2 shadow-sm">
-            <div className="max-w-2xl auto px-4 py-3">
+            <div className="max-w-2xl mx-auto px-4 py-3">
               <div className="flex gap-2 overflow-x-auto no-scrollbar py-1">
-                {currentCategories.map((cat) => (
-                  <button
-                    key={cat}
-                    onClick={() => scrollToCategory(cat)}
-                    className={cn(
-                      "whitespace-nowrap px-4 py-1.5 rounded-full border-2 text-[9px] font-black uppercase tracking-widest transition-all active:scale-95",
-                      cat === 'Featured' 
-                        ? "bg-amber-50 border-amber-400 text-amber-600" 
-                        : "bg-slate-50 border-slate-100 text-slate-500 hover:border-primary/30 hover:text-primary"
-                    )}
-                  >
-                    {cat}
-                  </button>
-                ))}
+                {currentCategories.map((cat) => {
+                  const isSelected = activeCategory === cat;
+                  const isFeatured = cat === 'Featured';
+                  
+                  return (
+                    <button
+                      key={cat}
+                      onClick={() => scrollToCategory(cat)}
+                      className={cn(
+                        "whitespace-nowrap px-4 py-1.5 rounded-full border-2 text-[9px] font-black uppercase tracking-widest transition-all active:scale-95",
+                        isSelected 
+                          ? "bg-primary border-primary text-white shadow-md scale-105" 
+                          : (isFeatured 
+                              ? "bg-[#213147]/5 border-[#213147]/20 text-[#213147] hover:bg-[#213147]/10" 
+                              : "bg-slate-50 border-slate-100 text-slate-500 hover:border-primary/30 hover:text-primary")
+                      )}
+                    >
+                      {cat}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           </div>
