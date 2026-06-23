@@ -617,7 +617,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
                       className={cn(
                         "whitespace-nowrap px-4 py-1.5 rounded-full border-2 text-[9px] font-black uppercase tracking-widest transition-all active:scale-95",
                         isSelected 
-                          ? "bg-primary border-primary text-white shadow-md scale-105" 
+                          ? (isFeatured ? "bg-[#213147] border-[#213147] text-white shadow-md scale-105" : "bg-primary border-primary text-white shadow-md scale-105")
                           : (isFeatured 
                               ? "bg-[#213147]/5 border-[#213147]/20 text-[#213147] hover:bg-[#213147]/10" 
                               : "bg-slate-50 border-slate-100 text-slate-500 hover:border-primary/30 hover:text-primary")
