@@ -542,7 +542,6 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
               <h1 className="font-headline text-2xl font-black text-white uppercase tracking-tight leading-none mb-1">
                 {seller?.courseName}
               </h1>
-              <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-white/40">Select Service Mode</p>
             </div>
             <div className="flex flex-wrap gap-2">
               {seller?.menuTypes?.map((type) => {
