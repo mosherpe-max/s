@@ -90,8 +90,8 @@ export function IosInstallPrompt({ open, onOpenChange }: IosInstallPromptProps) 
           </div>
 
           <div className="flex items-center gap-4">
-            <div className="bg-blue-500/10 p-2.5 rounded-2xl shadow-sm border border-blue-500/20 shrink-0">
-              <Share className="h-5 w-5 text-blue-600" />
+            <div className="bg-primary/10 p-2.5 rounded-2xl shadow-sm border border-primary/20 shrink-0">
+              <Share className="h-5 w-5 text-primary" />
             </div>
             <div className="space-y-0.5">
               <p className="text-[10px] font-black uppercase tracking-tight">2. Select the Share icon</p>
@@ -100,8 +100,8 @@ export function IosInstallPrompt({ open, onOpenChange }: IosInstallPromptProps) 
           </div>
 
           <div className="flex items-center gap-4">
-            <div className="bg-green-500/10 p-2.5 rounded-2xl shadow-sm border border-green-500/20 shrink-0">
-              <PlusSquare className="h-5 w-5 text-green-700" />
+            <div className="bg-primary/10 p-2.5 rounded-2xl shadow-sm border border-primary/20 shrink-0">
+              <PlusSquare className="h-5 w-5 text-primary" />
             </div>
             <div className="space-y-0.5">
               <p className="text-[10px] font-black uppercase tracking-tight">3. Tap 'Add to Home Screen'</p>

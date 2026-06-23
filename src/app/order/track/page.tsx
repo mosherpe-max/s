@@ -169,7 +169,7 @@ function OrderTrackingContent() {
                 <div className="absolute top-3 left-3 z-10">
                   <Badge className={cn(
                     "flex items-center gap-1.5 px-2 py-1 border-0 shadow-lg transition-colors",
-                    isSignalLive ? "bg-green-600/90 text-white" : "bg-amber-600/90 text-white"
+                    isSignalLive ? "bg-primary text-white" : "bg-amber-600/90 text-white"
                   )}>
                     <div className={cn("h-1.5 w-1.5 rounded-full", isSignalLive ? "bg-white animate-pulse" : "bg-white/40")} />
                     <span className="text-[8px] font-black uppercase tracking-widest">
@@ -194,7 +194,7 @@ function OrderTrackingContent() {
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-0.5">
                 <p className="text-[10px] font-black text-white uppercase tracking-widest">Live Sync Active</p>
-                <div className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
+                <div className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
               </div>
               <p className="text-[10px] font-bold text-white/60 uppercase leading-relaxed">
                 Screen is locked open for precision. Keep this page visible for the best delivery service.

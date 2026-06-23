@@ -78,7 +78,7 @@ export function OrderNotificationListener() {
       switch (order.status) {
         case 'Preparing':
           toast({ 
-            title: title(<CheckCircle2 className="h-5 w-5 text-green-500" />, 'Order Confirmed'), 
+            title: title(<CheckCircle2 className="h-5 w-5 text-primary" />, 'Order Confirmed'), 
             description: 'Establishment received your order.', 
             action: trackAction 
           });
@@ -92,7 +92,7 @@ export function OrderNotificationListener() {
           break;
         case 'Delivered':
           toast({ 
-            title: title(<PartyPopper className="h-5 w-5 text-green-600" />, 'Delivered!'), 
+            title: title(<PartyPopper className="h-5 w-5 text-primary" />, 'Delivered!'), 
             description: 'Your items have arrived. Enjoy!', 
             action: trackAction 
           });
