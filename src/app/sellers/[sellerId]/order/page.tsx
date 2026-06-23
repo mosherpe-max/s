@@ -382,7 +382,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
   const menuTypeFromUrl = searchParams.get('menuType');
   const selectedMenuType = menuTypeFromUrl || '';
   const [locationValue, setLocationValue] = useState<string>('');
-  const [activeCategory, setActiveCategory] = useState<string>('');
+  const [activeCategory, setActiveCategory] = useState<string>('Featured');
 
   const configRef = useMemoFirebase(() => (firestore ? doc(firestore, 'platform', 'config') : null), [firestore]);
   const { data: platformConfig } = useDoc<PlatformConfig>(configRef);
@@ -506,6 +506,16 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
       return 0;
     });
   }, [seller, filteredMenuItems, selectedMenuType]);
+
+  useEffect(() => {
+    if (!isSellerLoading && !areItemsLoading) {
+       // Scroll to top/featured on mount
+       window.scrollTo({ top: 0, behavior: 'smooth' });
+       if (currentCategories.includes('Featured')) {
+         setActiveCategory('Featured');
+       }
+    }
+  }, [isSellerLoading, areItemsLoading]);
 
   const handleOrderComplete = (orderId: string) => {
     router.push(`/order/track?id=${orderId}&sellerId=${sellerId}`);

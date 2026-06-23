@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useMemo, useEffect, use } from 'react';
@@ -78,7 +77,8 @@ import {
   ListPlus,
   Tags,
   LayoutList,
-  Wand2
+  Wand2,
+  Ban
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -419,7 +419,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
 
   const isSuperAdmin = user?.uid === SUPER_ADMIN_ID || user?.email === 'mosherpe@gmail.com';
   
-  // FIX: Explicitly require user presence to prevent race condition permission errors
   const isAuthorized = !!user && (
     isSuperAdmin || 
     (sellerRole?.sellerId === sellerId) || 
@@ -624,15 +623,12 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   };
 
   const handleToggleMode = async (mode: string, current: boolean) => {
-    // FIX: Ensure valid firestore and auth identity before mutation
     if (!firestore || !sellerId || !user) return;
     const fieldMap: Record<string, string> = { 'Beverage Cart': 'bevcartActive', 'Clubhouse': 'clubhouseActive', 'Lane Delivery': 'lanedeliveryActive', 'Take Out': 'takeoutActive' };
     const field = fieldMap[mode];
     if (field) {
       const sellerDocRef = doc(firestore, 'sellers', sellerId);
       const updateData = { [field]: !current };
-      
-      // FIX: Use non-blocking helper pattern
       updateDoc(sellerDocRef, updateData).catch(async (error) => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({ 
           path: sellerDocRef.path, 
@@ -671,6 +667,15 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     }).catch(async (error) => {
       errorEmitter.emit('permission-error', new FirestorePermissionError({ path: sellerDocRef.path, operation: 'update', requestResourceData: updateData } satisfies SecurityRuleContext));
     }).finally(() => setIsProcessingSave(false));
+  };
+
+  const handleQuickDisableItem = async (itemId: string, currentStatus: boolean) => {
+    if (!firestore || !sellerId) return;
+    const itemRef = doc(firestore, 'sellers', sellerId, 'menuItems', itemId);
+    const nextStatus = !currentStatus;
+    updateDoc(itemRef, { isAvailable: nextStatus }).then(() => {
+      toast({ title: nextStatus ? "Item Enabled" : "Item Disabled (86'd)" });
+    });
   };
 
   const handleLogout = async () => {
@@ -1020,54 +1025,83 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                       <h3 className="font-headline font-black text-2xl text-[#213147] uppercase leading-tight">Master Menu Library</h3>
                       <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Global items available for all service modes</p>
                     </div>
-                    <Button onClick={() => { setEditingItem(null); itemForm.reset({ name: '', description: '', price: 0, category: 'Other', isAvailable: true, availableOn: [], featuredOn: [], modifierGroupIds: [] }); setIsItemFormOpen(true); }} className="bg-primary hover:bg-primary/90 h-12 px-6 rounded-xl font-black uppercase text-[11px] tracking-widest gap-2 shadow-xl">
-                      <Plus className="h-4 w-4" /> Create New Master Item
-                    </Button>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                     {categories.filter(c => c !== 'Featured').map(cat => {
                       const items = menuItems?.filter(i => i.category === cat);
-                      if (!items?.length) return null;
                       return (
-                        <div key={cat} className="space-y-3">
-                          <h4 className="text-[10px] font-black uppercase text-primary tracking-widest px-1">{cat}</h4>
+                        <div key={cat} className="space-y-4">
+                          <div className="flex items-center justify-between px-1 border-b border-slate-200 pb-2">
+                             <h4 className="text-[11px] font-black uppercase text-primary tracking-widest">{cat}</h4>
+                             <Button 
+                               variant="ghost" 
+                               size="icon" 
+                               className="h-7 w-7 rounded-full bg-slate-100 hover:bg-primary hover:text-white transition-all"
+                               onClick={() => { 
+                                 setEditingItem(null); 
+                                 itemForm.reset({ 
+                                   name: '', 
+                                   description: '', 
+                                   price: 0, 
+                                   category: cat as any, 
+                                   isAvailable: true, 
+                                   availableOn: [], 
+                                   featuredOn: [], 
+                                   modifierGroupIds: [] 
+                                 }); 
+                                 setIsItemFormOpen(true); 
+                               }}
+                             >
+                               <Plus className="h-3.5 w-3.5" />
+                             </Button>
+                          </div>
+                          
                           <div className="space-y-3">
-                            {items.map(item => (
-                              <Card key={item.id} className={cn("border-2 shadow-sm group transition-all", item.isAvailable ? "bg-white" : "bg-red-50 border-red-100 opacity-60")}>
-                                <CardContent className="p-4 flex items-center justify-between">
-                                  <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-2">
-                                      <p className="font-black text-xs uppercase text-[#213147] truncate">{item.name}</p>
-                                      {!item.isAvailable && <Badge variant="destructive" className="h-3.5 px-1 text-[7px] font-black uppercase border-0">86'D</Badge>}
-                                    </div>
-                                    <p className="text-[10px] font-bold text-primary font-mono mt-0.5">${item.price.toFixed(2)}</p>
-                                    
-                                    {item.modifierGroupIds && item.modifierGroupIds.length > 0 && (
-                                      <div className="mt-2 flex flex-wrap gap-1">
-                                        {item.modifierGroupIds.map(gid => {
-                                          const group = modifierGroups?.find(g => g.id === gid);
-                                          return group ? (
-                                            <Badge key={gid} variant="outline" className="text-[7px] font-bold uppercase border-indigo-100 text-indigo-600 bg-indigo-50/30">
-                                              {group.name}
-                                            </Badge>
-                                          ) : null;
-                                        })}
+                            {!items?.length ? (
+                              <div className="py-8 text-center bg-slate-50 border-2 border-dashed rounded-2xl opacity-40">
+                                <p className="text-[9px] font-black uppercase text-slate-400">Empty Section</p>
+                              </div>
+                            ) : items.map(item => (
+                              <Card key={item.id} className={cn("border-2 shadow-sm group transition-all", item.isAvailable ? "bg-white" : "bg-red-50 border-red-100")}>
+                                <CardContent className="p-3.5 flex flex-col gap-3">
+                                  <div className="flex items-start justify-between gap-3">
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex items-center gap-2">
+                                        <p className="font-black text-[11px] uppercase text-[#213147] truncate">{item.name}</p>
+                                        {!item.isAvailable && <Badge variant="destructive" className="h-3.5 px-1 text-[7px] font-black uppercase border-0">86'D</Badge>}
                                       </div>
-                                    )}
+                                      <p className="text-[10px] font-bold text-primary font-mono mt-0.5">${item.price.toFixed(2)}</p>
+                                    </div>
+                                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                      <Button variant="ghost" size="icon" className="h-8 w-8 text-indigo-600" onClick={() => { 
+                                        setEditingItem(item); 
+                                        itemForm.reset({
+                                          ...item,
+                                          description: item.description || '',
+                                          imageUrl: item.imageUrl || '',
+                                          modifierGroupIds: item.modifierGroupIds || []
+                                        }); 
+                                        setIsItemFormOpen(true); 
+                                      }}><Edit className="h-4 w-4" /></Button>
+                                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleDeleteItem(item.id)}><Trash2 className="h-4 w-4" /></Button>
+                                    </div>
                                   </div>
-                                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-indigo-600" onClick={() => { 
-                                      setEditingItem(item); 
-                                      itemForm.reset({
-                                        ...item,
-                                        description: item.description || '',
-                                        imageUrl: item.imageUrl || '',
-                                        modifierGroupIds: item.modifierGroupIds || []
-                                      }); 
-                                      setIsItemFormOpen(true); 
-                                    }}><Edit className="h-4 w-4" /></Button>
-                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleDeleteItem(item.id)}><Trash2 className="h-4 w-4" /></Button>
+                                  
+                                  <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+                                     <div className="flex items-center gap-2">
+                                        <Switch 
+                                          checked={!!item.isAvailable} 
+                                          onCheckedChange={() => handleQuickDisableItem(item.id, !!item.isAvailable)}
+                                          className="scale-75 data-[state=checked]:bg-green-600"
+                                        />
+                                        <span className={cn("text-[8px] font-black uppercase tracking-widest", item.isAvailable ? "text-green-600" : "text-red-600")}>
+                                          {item.isAvailable ? "Available" : "Disabled"}
+                                        </span>
+                                     </div>
+                                     <Badge variant="outline" className="text-[7px] font-bold uppercase border-slate-100 text-slate-400">
+                                        {item.availableOn?.length || 0} Modes
+                                     </Badge>
                                   </div>
                                 </CardContent>
                               </Card>
@@ -1592,7 +1626,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                     <FormField control={itemForm.control} name="category" render={({ field }) => (
                       <FormItem>
                         <FormLabel className="text-[10px] font-black uppercase tracking-widest">Category</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
                           <FormControl><SelectTrigger className="h-12 border-2 font-bold"><SelectValue /></SelectTrigger></FormControl>
                           <SelectContent>
                             {categories.filter(c => c !== 'Featured').map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
@@ -1669,7 +1703,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                 <form onSubmit={modifierGroupForm.handleSubmit(handleSaveModifierGroup)} className="space-y-8">
                   <FormField control={modifierGroupForm.control} name="name" render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-[10px] font-black uppercase tracking-widest">Group Name</FormLabel>
+                      <FormLabel className="text-[10px] font-black uppercase tracking-widest">Group Name</Label>
                       <FormControl><Input {...field} placeholder="Side Options" className="h-12 border-2 font-bold" /></FormControl>
                       <FormDescription className="text-[8px] font-medium uppercase text-muted-foreground">e.g. "Pizza Toppings", "Choice of Dressing"</FormDescription>
                       <FormMessage />
