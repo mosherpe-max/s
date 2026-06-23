@@ -515,7 +515,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
          setActiveCategory('Featured');
        }
     }
-  }, [isSellerLoading, areItemsLoading]);
+  }, [isSellerLoading, areItemsLoading, currentCategories]);
 
   const handleOrderComplete = (orderId: string) => {
     router.push(`/order/track?id=${orderId}&sellerId=${sellerId}`);
