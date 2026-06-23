@@ -78,7 +78,8 @@ import {
   Flame,
   CloudSun,
   AlertTriangle,
-  Sparkles
+  Sparkles,
+  LayoutList
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -170,6 +171,8 @@ const venueRegistrationSchema = z.object({
   contactName: z.string().min(2, 'Contact name required'),
   contactEmail: z.string().email('Valid email required'),
   ownerUid: z.string().min(1, 'Initial Owner UID required for registry'),
+  menuTypes: z.array(z.string()).min(1, 'Select at least one service mode'),
+  laneCount: z.coerce.number().min(0).optional(),
 });
 
 type VenueRegistrationData = z.infer<typeof venueRegistrationSchema>;
@@ -183,6 +186,8 @@ const venueMaintenanceSchema = z.object({
   platformFeePercent: z.coerce.number().min(0).max(100),
   monthlyPlatformFee: z.coerce.number().min(0),
   isFoundingPartner: z.boolean().default(false),
+  menuTypes: z.array(z.string()).min(1, 'Select at least one service mode'),
+  laneCount: z.coerce.number().min(0).optional(),
 });
 
 type VenueMaintenanceData = z.infer<typeof venueMaintenanceSchema>;
@@ -347,6 +352,8 @@ export default function PlatformAdminPage() {
       contactName: '',
       contactEmail: '',
       ownerUid: '',
+      menuTypes: ['Beverage Cart', 'Clubhouse'],
+      laneCount: 0,
     }
   });
 
@@ -361,11 +368,13 @@ export default function PlatformAdminPage() {
       platformFeePercent: 0,
       monthlyPlatformFee: 0,
       isFoundingPartner: false,
+      menuTypes: [],
+      laneCount: 0,
     }
   });
 
   useEffect(() => {
-    if (selectedVenueData) {
+    if (selectedVenueData && selectedSeller) {
       maintenanceForm.reset({
         name: selectedVenueData.name || '',
         ownerUid: selectedVenueData.ownerUid || '',
@@ -375,9 +384,11 @@ export default function PlatformAdminPage() {
         platformFeePercent: selectedVenueData.platformFeePercent || 0,
         monthlyPlatformFee: selectedVenueData.monthlyPlatformFee || 0,
         isFoundingPartner: selectedVenueData.isFoundingPartner || false,
+        menuTypes: selectedSeller.menuTypes || [],
+        laneCount: selectedSeller.laneCount || 0,
       });
     }
-  }, [selectedVenueData, maintenanceForm]);
+  }, [selectedVenueData, selectedSeller, maintenanceForm]);
 
   const handleCreateVenue = async (data: VenueRegistrationData) => {
     if (!firestore) return;
@@ -404,7 +415,6 @@ export default function PlatformAdminPage() {
     batch.set(venueRef, venuePayload);
 
     const sellerRef = doc(firestore, 'sellers', venueId);
-    const isGolf = data.type.toLowerCase().includes('golf');
     const initialThresholds = config?.defaultThresholds || SYSTEM_DEFAULT_THRESHOLDS;
 
     const sellerPayload = {
@@ -417,7 +427,8 @@ export default function PlatformAdminPage() {
       status: 'Active',
       serviceFee: 1.50,
       taxRate: 6.0,
-      menuTypes: isGolf ? ['Beverage Cart', 'Clubhouse', 'Take Out'] : ['Lane Delivery', 'Take Out'],
+      menuTypes: data.menuTypes,
+      laneCount: data.laneCount || 0,
       bevcartActive: false,
       clubhouseActive: false,
       lanedeliveryActive: false,
@@ -482,6 +493,8 @@ export default function PlatformAdminPage() {
     batch.update(sRef, {
       courseName: data.name,
       isFoundingPartner: data.isFoundingPartner,
+      menuTypes: data.menuTypes,
+      laneCount: data.laneCount || 0,
       updatedAt: serverTimestamp()
     });
 
@@ -1219,7 +1232,7 @@ export default function PlatformAdminPage() {
       </div>
 
       <Dialog open={isAddVenueOpen} onOpenChange={setIsAddVenueOpen}>
-        <DialogContent className="sm:max-w-[600px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
+        <DialogContent className="sm:max-w-[700px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
           <DialogHeader className="p-8 bg-[#213147] text-white">
             <div className="flex items-center gap-4">
               <div className="bg-primary/20 p-3 rounded-2xl shrink-0">
@@ -1234,7 +1247,7 @@ export default function PlatformAdminPage() {
           <ScrollArea className="max-h-[70vh]">
             <div className="p-8">
               <Form {...registrationForm}>
-                <form onSubmit={registrationForm.handleSubmit(handleCreateVenue)} className="space-y-6">
+                <form onSubmit={registrationForm.handleSubmit(handleCreateVenue)} className="space-y-8">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                     <FormField control={registrationForm.control} name="name" render={({ field }) => (
                       <FormItem>
@@ -1255,6 +1268,46 @@ export default function PlatformAdminPage() {
                       </FormItem>
                     )} />
                   </div>
+
+                  {registrationForm.watch('type') === 'Bowling Center' && (
+                    <FormField control={registrationForm.control} name="laneCount" render={({ field }) => (
+                      <FormItem className="bg-slate-50 p-4 rounded-2xl border-2">
+                        <FormLabel className="text-[10px] font-black uppercase tracking-widest">Facility Size (Number of Lanes)</FormLabel>
+                        <FormControl><Input {...field} type="number" min="1" className="h-11 border-2 font-bold" /></FormControl>
+                        <FormDescription className="text-[8px] font-bold uppercase">This creates a location selector for patrons at checkout.</FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                  )}
+
+                  <FormField control={registrationForm.control} name="menuTypes" render={({ field }) => (
+                    <FormItem className="space-y-4">
+                      <div className="flex items-center gap-2 border-b-2 pb-2">
+                        <Zap className="h-4 w-4 text-primary" />
+                        <h4 className="text-[10px] font-black uppercase tracking-widest">Authorized Service Modes</h4>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        {SERVICE_MODES.map((mode) => (
+                          <div 
+                            key={mode} 
+                            onClick={() => {
+                              const current = field.value || [];
+                              const next = current.includes(mode) ? current.filter(m => m !== mode) : [...current, mode];
+                              field.onChange(next);
+                            }}
+                            className={cn(
+                              "flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all",
+                              field.value?.includes(mode) ? "border-primary bg-primary/5" : "border-slate-100 opacity-60"
+                            )}
+                          >
+                            <Checkbox checked={field.value?.includes(mode)} />
+                            <span className="text-[10px] font-black uppercase text-[#213147]">{mode}</span>
+                          </div>
+                        ))}
+                      </div>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-4 border-t">
                     <FormField control={registrationForm.control} name="contactName" render={({ field }) => (
@@ -1296,9 +1349,8 @@ export default function PlatformAdminPage() {
         </DialogContent>
       </Dialog>
 
-      {/* VENUE MAINTENANCE DIALOG */}
       <Dialog open={isVenueDetailOpen} onOpenChange={setIsVenueDetailOpen}>
-        <DialogContent className="sm:max-w-[600px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
+        <DialogContent className="sm:max-w-[700px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
           <DialogHeader className="p-8 bg-[#213147] text-white">
             <div className="flex items-center gap-4">
               <div className="bg-primary/20 p-3 rounded-2xl shrink-0">
@@ -1315,7 +1367,7 @@ export default function PlatformAdminPage() {
           <ScrollArea className="max-h-[70vh]">
             <div className="p-8">
               <Form {...maintenanceForm}>
-                <form onSubmit={maintenanceForm.handleSubmit(handleSaveVenueMaintenance)} className="space-y-8">
+                <form onSubmit={maintenanceForm.handleSubmit(handleSaveVenueMaintenance)} className="space-y-10">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                     <FormField control={maintenanceForm.control} name="name" render={({ field }) => (
                       <FormItem>
@@ -1331,6 +1383,49 @@ export default function PlatformAdminPage() {
                         <FormMessage />
                       </FormItem>
                     )} />
+                  </div>
+
+                  <div className="space-y-6 bg-slate-50 p-6 rounded-3xl border-2">
+                    <div className="flex items-center gap-2 border-b pb-2">
+                      <LayoutList className="h-4 w-4 text-indigo-600" />
+                      <h4 className="text-[10px] font-black uppercase tracking-widest text-indigo-600">Service Configuration</h4>
+                    </div>
+
+                    <FormField control={maintenanceForm.control} name="menuTypes" render={({ field }) => (
+                      <FormItem className="space-y-4">
+                        <FormLabel className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Authorized Channels</FormLabel>
+                        <div className="grid grid-cols-2 gap-2">
+                          {SERVICE_MODES.map((mode) => (
+                            <div 
+                              key={`maint-mode-${mode}`}
+                              onClick={() => {
+                                const current = field.value || [];
+                                const next = current.includes(mode) ? current.filter(m => m !== mode) : [...current, mode];
+                                field.onChange(next);
+                              }}
+                              className={cn(
+                                "flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all",
+                                field.value?.includes(mode) ? "border-primary bg-white shadow-sm" : "bg-muted/10 border-transparent opacity-40"
+                              )}
+                            >
+                              <Checkbox checked={field.value?.includes(mode)} />
+                              <span className="text-[10px] font-black uppercase text-[#213147]">{mode}</span>
+                            </div>
+                          ))}
+                        </div>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+
+                    {selectedSeller?.type === 'Bowling Center' && (
+                      <FormField control={maintenanceForm.control} name="laneCount" render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-[10px] font-black uppercase tracking-widest">Number of Lanes</FormLabel>
+                          <FormControl><Input {...field} type="number" className="h-11 border-2 font-bold" /></FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )} />
+                    )}
                   </div>
 
                   <div className="space-y-6">
@@ -1415,3 +1510,4 @@ export default function PlatformAdminPage() {
     </div>
   );
 }
+
