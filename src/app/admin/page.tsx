@@ -374,21 +374,22 @@ export default function PlatformAdminPage() {
   });
 
   useEffect(() => {
-    if (selectedVenueData && selectedSeller) {
+    if (selectedSeller && isVenueDetailOpen) {
+      // Use Seller data as primary source, and Venue data as supplementary for financial settings
       maintenanceForm.reset({
-        name: selectedVenueData.name || '',
-        ownerUid: selectedVenueData.ownerUid || '',
-        stripeConnectId: selectedVenueData.stripeConnectId || selectedVenueData.stripeAccountId || '',
-        patronConvenienceFee: selectedVenueData.patronConvenienceFee || 150,
-        platformFeeFixed: selectedVenueData.platformFeeFixed || 20,
-        platformFeePercent: selectedVenueData.platformFeePercent || 0,
-        monthlyPlatformFee: selectedVenueData.monthlyPlatformFee || 0,
-        isFoundingPartner: selectedVenueData.isFoundingPartner || false,
+        name: selectedSeller.courseName || '',
+        ownerUid: selectedVenueData?.ownerUid || selectedSeller.ownerId || '',
+        stripeConnectId: selectedVenueData?.stripeConnectId || selectedVenueData?.stripeAccountId || '',
+        patronConvenienceFee: selectedVenueData?.patronConvenienceFee ?? 150,
+        platformFeeFixed: selectedVenueData?.platformFeeFixed ?? 20,
+        platformFeePercent: selectedVenueData?.platformFeePercent ?? 0,
+        monthlyPlatformFee: selectedVenueData?.monthlyPlatformFee ?? 0,
+        isFoundingPartner: selectedVenueData?.isFoundingPartner ?? selectedSeller.isFoundingPartner ?? false,
         menuTypes: selectedSeller.menuTypes || [],
         laneCount: selectedSeller.laneCount || 0,
       });
     }
-  }, [selectedVenueData, selectedSeller, maintenanceForm]);
+  }, [selectedVenueData, selectedSeller, maintenanceForm, isVenueDetailOpen]);
 
   const handleCreateVenue = async (data: VenueRegistrationData) => {
     if (!firestore) return;
@@ -477,7 +478,7 @@ export default function PlatformAdminPage() {
     const sRef = doc(firestore, 'sellers', selectedSeller.id);
     const batch = writeBatch(firestore);
 
-    batch.update(vRef, {
+    batch.set(vRef, {
       name: data.name,
       ownerUid: data.ownerUid,
       stripeConnectId: data.stripeConnectId || null,
@@ -488,7 +489,7 @@ export default function PlatformAdminPage() {
       monthlyPlatformFee: data.monthlyPlatformFee,
       isFoundingPartner: data.isFoundingPartner,
       updatedAt: serverTimestamp()
-    });
+    }, { merge: true });
 
     batch.update(sRef, {
       courseName: data.name,
@@ -1366,143 +1367,150 @@ export default function PlatformAdminPage() {
           </DialogHeader>
           <ScrollArea className="max-h-[70vh]">
             <div className="p-8">
-              <Form {...maintenanceForm}>
-                <form onSubmit={maintenanceForm.handleSubmit(handleSaveVenueMaintenance)} className="space-y-10">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                    <FormField control={maintenanceForm.control} name="name" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-[10px] font-black uppercase tracking-widest">Public Name</FormLabel>
-                        <FormControl><Input {...field} className="h-12 border-2 font-bold" /></FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )} />
-                    <FormField control={maintenanceForm.control} name="ownerUid" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-[10px] font-black uppercase tracking-widest">Owner UID</FormLabel>
-                        <FormControl><Input {...field} className="h-12 border-2 font-mono text-[10px]" /></FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )} />
-                  </div>
-
-                  <div className="space-y-6 bg-slate-50 p-6 rounded-3xl border-2">
-                    <div className="flex items-center gap-2 border-b pb-2">
-                      <LayoutList className="h-4 w-4 text-indigo-600" />
-                      <h4 className="text-[10px] font-black uppercase tracking-widest text-indigo-600">Service Configuration</h4>
-                    </div>
-
-                    <FormField control={maintenanceForm.control} name="menuTypes" render={({ field }) => (
-                      <FormItem className="space-y-4">
-                        <FormLabel className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Authorized Channels</FormLabel>
-                        <div className="grid grid-cols-2 gap-2">
-                          {SERVICE_MODES.map((mode) => (
-                            <div 
-                              key={`maint-mode-${mode}`}
-                              onClick={() => {
-                                const current = field.value || [];
-                                const next = current.includes(mode) ? current.filter(m => m !== mode) : [...current, mode];
-                                field.onChange(next);
-                              }}
-                              className={cn(
-                                "flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all",
-                                field.value?.includes(mode) ? "border-primary bg-white shadow-sm" : "bg-muted/10 border-transparent opacity-40"
-                              )}
-                            >
-                              <Checkbox checked={field.value?.includes(mode)} />
-                              <span className="text-[10px] font-black uppercase text-[#213147]">{mode}</span>
-                            </div>
-                          ))}
-                        </div>
-                        <FormMessage />
-                      </FormItem>
-                    )} />
-
-                    {selectedSeller?.type === 'Bowling Center' && (
-                      <FormField control={maintenanceForm.control} name="laneCount" render={({ field }) => (
+              {!selectedSeller ? (
+                <div className="flex flex-col items-center justify-center py-20 gap-4">
+                  <Loader2 className="h-10 w-10 animate-spin text-primary" />
+                  <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Loading Profiles...</p>
+                </div>
+              ) : (
+                <Form {...maintenanceForm}>
+                  <form onSubmit={maintenanceForm.handleSubmit(handleSaveVenueMaintenance)} className="space-y-10">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                      <FormField control={maintenanceForm.control} name="name" render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="text-[10px] font-black uppercase tracking-widest">Number of Lanes</FormLabel>
-                          <FormControl><Input {...field} type="number" className="h-11 border-2 font-bold" /></FormControl>
+                          <FormLabel className="text-[10px] font-black uppercase tracking-widest">Public Name</FormLabel>
+                          <FormControl><Input {...field} className="h-12 border-2 font-bold" /></FormControl>
                           <FormMessage />
                         </FormItem>
                       )} />
-                    )}
-                  </div>
-
-                  <div className="space-y-6">
-                    <div className="flex items-center gap-2 border-b-2 pb-2">
-                       <CreditCard className="h-4 w-4 text-indigo-600" />
-                       <h4 className="text-[10px] font-black uppercase tracking-widest text-indigo-600">Financial Integration</h4>
-                    </div>
-                    
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                       <FormField control={maintenanceForm.control} name="stripeConnectId" render={({ field }) => (
-                         <FormItem>
-                           <FormLabel className="text-[10px] font-black uppercase tracking-widest">Stripe Connect ID</FormLabel>
-                           <FormControl><Input {...field} placeholder="acct_..." className="h-11 border-2 font-mono text-[10px]" /></FormControl>
-                           <FormDescription className="text-[8px] font-bold uppercase text-muted-foreground">The Express account ID for payouts.</FormDescription>
-                           <FormMessage />
-                         </FormItem>
-                       )} />
-                       <FormField control={maintenanceForm.control} name="monthlyPlatformFee" render={({ field }) => (
-                         <FormItem>
-                           <FormLabel className="text-[10px] font-black uppercase tracking-widest">Monthly Platform Fee ($)</FormLabel>
-                           <FormControl><Input {...field} type="number" step="0.01" className="h-11 border-2 font-bold" /></FormControl>
-                           <FormDescription className="text-[8px] font-bold uppercase text-muted-foreground">The recurring subscription cost for this venue.</FormDescription>
-                           <FormMessage />
-                         </FormItem>
-                       )} />
-                    </div>
-
-                    <div className="grid grid-cols-3 gap-4">
-                      <FormField control={maintenanceForm.control} name="patronConvenienceFee" render={({ field }) => (
+                      <FormField control={maintenanceForm.control} name="ownerUid" render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="text-[9px] font-black uppercase tracking-widest">Patron Fee (Cents)</FormLabel>
-                          <FormControl><Input {...field} type="number" className="h-10 border-2 font-bold" /></FormControl>
-                          <FormDescription className="text-[7px] font-bold">Total added at checkout.</FormDescription>
-                        </FormItem>
-                      )} />
-                      <FormField control={maintenanceForm.control} name="platformFeeFixed" render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-[9px] font-black uppercase tracking-widest">Koop Fixed (Cents)</FormLabel>
-                          <FormControl><Input {...field} type="number" className="h-10 border-2 font-bold" /></FormControl>
-                          <FormDescription className="text-[7px] font-bold">Koop's flat cut per order.</FormDescription>
-                        </FormItem>
-                      )} />
-                      <FormField control={maintenanceForm.control} name="platformFeePercent" render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-[9px] font-black uppercase tracking-widest">Koop Percent (%)</FormLabel>
-                          <FormControl><Input {...field} type="number" step="0.1" className="h-10 border-2 font-bold" /></FormControl>
-                          <FormDescription className="text-[7px] font-bold">Koop's volume cut.</FormDescription>
+                          <FormLabel className="text-[10px] font-black uppercase tracking-widest">Owner UID</FormLabel>
+                          <FormControl><Input {...field} className="h-12 border-2 font-mono text-[10px]" /></FormControl>
+                          <FormMessage />
                         </FormItem>
                       )} />
                     </div>
-                  </div>
 
-                  <div className="flex items-center justify-between p-4 bg-amber-50 rounded-2xl border-2 border-amber-100">
-                    <div className="flex items-center gap-3">
-                      <Star className="h-5 w-5 text-amber-500 fill-current" />
-                      <div>
-                        <p className="text-[10px] font-black uppercase text-amber-800">Founding Partner</p>
-                        <p className="text-[8px] font-bold text-amber-600 uppercase">Displays elite badge across patron interface</p>
+                    <div className="space-y-6 bg-slate-50 p-6 rounded-3xl border-2">
+                      <div className="flex items-center gap-2 border-b pb-2">
+                        <LayoutList className="h-4 w-4 text-indigo-600" />
+                        <h4 className="text-[10px] font-black uppercase tracking-widest text-indigo-600">Service Configuration</h4>
+                      </div>
+
+                      <FormField control={maintenanceForm.control} name="menuTypes" render={({ field }) => (
+                        <FormItem className="space-y-4">
+                          <FormLabel className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Authorized Channels</FormLabel>
+                          <div className="grid grid-cols-2 gap-2">
+                            {SERVICE_MODES.map((mode) => (
+                              <div 
+                                key={`maint-mode-${mode}`}
+                                onClick={() => {
+                                  const current = field.value || [];
+                                  const next = current.includes(mode) ? current.filter(m => m !== mode) : [...current, mode];
+                                  field.onChange(next);
+                                }}
+                                className={cn(
+                                  "flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all",
+                                  field.value?.includes(mode) ? "border-primary bg-white shadow-sm" : "bg-muted/10 border-transparent opacity-40"
+                                )}
+                              >
+                                <Checkbox checked={field.value?.includes(mode)} />
+                                <span className="text-[10px] font-black uppercase text-[#213147]">{mode}</span>
+                              </div>
+                            ))}
+                          </div>
+                          <FormMessage />
+                        </FormItem>
+                      )} />
+
+                      {selectedSeller?.type === 'Bowling Center' && (
+                        <FormField control={maintenanceForm.control} name="laneCount" render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-[10px] font-black uppercase tracking-widest">Number of Lanes</FormLabel>
+                            <FormControl><Input {...field} type="number" className="h-11 border-2 font-bold" /></FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )} />
+                      )}
+                    </div>
+
+                    <div className="space-y-6">
+                      <div className="flex items-center gap-2 border-b-2 pb-2">
+                         <CreditCard className="h-4 w-4 text-indigo-600" />
+                         <h4 className="text-[10px] font-black uppercase tracking-widest text-indigo-600">Financial Integration</h4>
+                      </div>
+                      
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                         <FormField control={maintenanceForm.control} name="stripeConnectId" render={({ field }) => (
+                           <FormItem>
+                             <FormLabel className="text-[10px] font-black uppercase tracking-widest">Stripe Connect ID</FormLabel>
+                             <FormControl><Input {...field} placeholder="acct_..." className="h-11 border-2 font-mono text-[10px]" /></FormControl>
+                             <FormDescription className="text-[8px] font-bold uppercase text-muted-foreground">The Express account ID for payouts.</FormDescription>
+                             <FormMessage />
+                           </FormItem>
+                         )} />
+                         <FormField control={maintenanceForm.control} name="monthlyPlatformFee" render={({ field }) => (
+                           <FormItem>
+                             <FormLabel className="text-[10px] font-black uppercase tracking-widest">Monthly Platform Fee ($)</FormLabel>
+                             <FormControl><Input {...field} type="number" step="0.01" className="h-11 border-2 font-bold" /></FormControl>
+                             <FormDescription className="text-[8px] font-bold uppercase text-muted-foreground">The recurring subscription cost for this venue.</FormDescription>
+                             <FormMessage />
+                           </FormItem>
+                         )} />
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-4">
+                        <FormField control={maintenanceForm.control} name="patronConvenienceFee" render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-[9px] font-black uppercase tracking-widest">Patron Fee (Cents)</FormLabel>
+                            <FormControl><Input {...field} type="number" className="h-10 border-2 font-bold" /></FormControl>
+                            <FormDescription className="text-[7px] font-bold">Total added at checkout.</FormDescription>
+                          </FormItem>
+                        )} />
+                        <FormField control={maintenanceForm.control} name="platformFeeFixed" render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-[9px] font-black uppercase tracking-widest">Koop Fixed (Cents)</FormLabel>
+                            <FormControl><Input {...field} type="number" className="h-10 border-2 font-bold" /></FormControl>
+                            <FormDescription className="text-[7px] font-bold">Koop's flat cut per order.</FormDescription>
+                          </FormItem>
+                        )} />
+                        <FormField control={maintenanceForm.control} name="platformFeePercent" render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-[9px] font-black uppercase tracking-widest">Koop Percent (%)</FormLabel>
+                            <FormControl><Input {...field} type="number" step="0.1" className="h-10 border-2 font-bold" /></FormControl>
+                            <FormDescription className="text-[7px] font-bold">Koop's volume cut.</FormDescription>
+                          </FormItem>
+                        )} />
                       </div>
                     </div>
-                    <FormField control={maintenanceForm.control} name="isFoundingPartner" render={({ field }) => (
-                      <FormControl>
-                        <Switch checked={field.value} onCheckedChange={field.onChange} className="data-[state=checked]:bg-amber-500" />
-                      </FormControl>
-                    )} />
-                  </div>
 
-                  <div className="flex flex-col sm:flex-row gap-3">
-                    <Button type="submit" disabled={isProcessingSave} className="flex-1 h-14 bg-[#213147] hover:bg-black font-black uppercase tracking-widest text-[11px] gap-2 shadow-xl">
-                      {isProcessingSave ? <Loader2 className="h-5 w-5 animate-spin" /> : <Save className="h-5 w-5" />} Commit Changes
-                    </Button>
-                    <Button type="button" variant="outline" onClick={() => setIsVenueDetailOpen(false)} className="h-14 px-8 border-2 font-black uppercase tracking-widest text-[11px]">
-                      Discard
-                    </Button>
-                  </div>
-                </form>
-              </Form>
+                    <div className="flex items-center justify-between p-4 bg-amber-50 rounded-2xl border-2 border-amber-100">
+                      <div className="flex items-center gap-3">
+                        <Star className="h-5 w-5 text-amber-500 fill-current" />
+                        <div>
+                          <p className="text-[10px] font-black uppercase text-amber-800">Founding Partner</p>
+                          <p className="text-[8px] font-bold text-amber-600 uppercase">Displays elite badge across patron interface</p>
+                        </div>
+                      </div>
+                      <FormField control={maintenanceForm.control} name="isFoundingPartner" render={({ field }) => (
+                        <FormControl>
+                          <Switch checked={field.value} onCheckedChange={field.onChange} className="data-[state=checked]:bg-amber-500" />
+                        </FormControl>
+                      )} />
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row gap-3">
+                      <Button type="submit" disabled={isProcessingSave} className="flex-1 h-14 bg-[#213147] hover:bg-black font-black uppercase tracking-widest text-[11px] gap-2 shadow-xl">
+                        {isProcessingSave ? <Loader2 className="h-5 w-5 animate-spin" /> : <Save className="h-5 w-5" />} Commit Changes
+                      </Button>
+                      <Button type="button" variant="outline" onClick={() => setIsVenueDetailOpen(false)} className="h-14 px-8 border-2 font-black uppercase tracking-widest text-[11px]">
+                        Discard
+                      </Button>
+                    </div>
+                  </form>
+                </Form>
+              )}
             </div>
           </ScrollArea>
         </DialogContent>
@@ -1510,4 +1518,3 @@ export default function PlatformAdminPage() {
     </div>
   );
 }
-
