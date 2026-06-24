@@ -12,7 +12,7 @@ import { mockSellerLocation } from '@/lib/data';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
-import { Focus, Package, LogOut, Truck } from 'lucide-react';
+import { Focus, Package, LogOut, Truck, ChevronLeft, LayoutDashboard } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { isToday } from 'date-fns';
@@ -71,6 +71,7 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
   }, [primarySeller, sellerLocation]);
 
   const isBevCartActive = primarySeller?.bevcartActive === true;
+  const isAdminSession = currentStaffId?.startsWith('admin-');
 
   const handleToggleActive = (checked: boolean) => {
     if (!firestore || !sellerId || !user) return;
@@ -312,13 +313,25 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
   }, [primarySeller?.lastActive, platformConfig]);
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden bg-muted/20">
+    <div className="flex flex-col h-screen overflow-hidden bg-muted/20 text-left">
       <header className="flex-shrink-0 px-4 h-16 flex items-center justify-between border-b-2 border-[#E50000] bg-[#213147] z-20 shadow-sm">
-        <div className="flex flex-col min-w-0">
-          <h1 className="font-headline text-sm font-bold text-white uppercase tracking-tight">BEVCART PORTAL</h1>
-          <Badge variant="outline" className="h-4 px-1.5 text-[8px] bg-white/5 text-white border-white/10 uppercase">
-            {primarySeller?.courseName || 'Loading...'}
-          </Badge>
+        <div className="flex items-center gap-4">
+          {isAdminSession && (
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="h-8 text-[9px] font-black uppercase tracking-widest border-primary/30 bg-primary/10 text-primary hover:bg-primary hover:text-white"
+              onClick={() => router.push(`/sellers/${sellerId}`)}
+            >
+              <ChevronLeft className="h-3 w-3 mr-1" /> Admin
+            </Button>
+          )}
+          <div className="flex flex-col min-w-0">
+            <h1 className="font-headline text-sm font-bold text-white uppercase tracking-tight leading-none">BEVCART PORTAL</h1>
+            <Badge variant="outline" className="h-4 px-1.5 text-[8px] bg-white/5 text-white border-white/10 uppercase mt-1">
+              {primarySeller?.courseName || 'Loading...'}
+            </Badge>
+          </div>
         </div>
         <div className="flex items-center space-x-3">
           <Badge className="h-6 px-2 gap-1.5 border-0 shadow-inner transition-colors" style={{ backgroundColor: `${signalColor}20`, color: signalColor }}>
@@ -367,7 +380,7 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
           <ScrollArea className="flex-1 px-2">
             <div className="py-2.5 space-y-3">
               {isLoading ? <Skeleton className="h-40 w-full" /> : driverOrders.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-20 text-muted-foreground opacity-40">
+                <div className="flex flex-col items-center justify-center py-20 text-muted-foreground opacity-40 text-center">
                   <Package className="h-10 w-10 mb-2" />
                   <p className="text-[10px] font-black uppercase">No active orders</p>
                 </div>

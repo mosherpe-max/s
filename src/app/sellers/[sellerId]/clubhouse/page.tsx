@@ -9,7 +9,7 @@ import type { Order, Seller, StaffMember, PlatformConfig } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
-import { Package, LogOut, Building, LayoutList, Focus } from 'lucide-react';
+import { Package, LogOut, Building, LayoutList, Focus, ChevronLeft } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { useRouter } from 'next/navigation';
@@ -58,6 +58,7 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
 
   const isGolf = primarySeller?.type?.toLowerCase().includes('golf');
   const isClubhouseActive = primarySeller?.clubhouseActive === true;
+  const isAdminSession = currentStaffId?.startsWith('admin-');
 
   const broadcastLocation = (lat: number, lng: number) => {
     if (!firestore || !sellerId || !user) return;
@@ -256,13 +257,25 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
   }, [primarySeller?.lastActive, platformConfig]);
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden bg-muted/20">
+    <div className="flex flex-col h-screen overflow-hidden bg-muted/20 text-left">
       <header className="flex-shrink-0 px-4 h-16 flex items-center justify-between border-b-2 border-[#E50000] bg-[#213147] z-20 shadow-sm">
-        <div className="flex flex-col min-w-0">
-          <h1 className="font-headline text-sm font-bold text-white uppercase tracking-tight">CLUBHOUSE PORTAL</h1>
-          <Badge variant="outline" className="h-4 px-1.5 text-[8px] bg-white/5 text-white border-white/10 uppercase">
-            {primarySeller?.courseName || 'Loading...'}
-          </Badge>
+        <div className="flex items-center gap-4">
+          {isAdminSession && (
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="h-8 text-[9px] font-black uppercase tracking-widest border-primary/30 bg-primary/10 text-primary hover:bg-primary hover:text-white"
+              onClick={() => router.push(`/sellers/${sellerId}`)}
+            >
+              <ChevronLeft className="h-3 w-3 mr-1" /> Admin
+            </Button>
+          )}
+          <div className="flex flex-col min-w-0">
+            <h1 className="font-headline text-sm font-bold text-white uppercase tracking-tight leading-none">CLUBHOUSE PORTAL</h1>
+            <Badge variant="outline" className="h-4 px-1.5 text-[8px] bg-white/5 text-white border-white/10 uppercase mt-1">
+              {primarySeller?.courseName || 'Loading...'}
+            </Badge>
+          </div>
         </div>
         <div className="flex items-center space-x-3">
           {isGolf && (
