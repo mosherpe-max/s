@@ -160,6 +160,7 @@ function OrderTrackingContent() {
               <MapView 
                 sellerLocation={showBilateral ? driverLocation! : undefined} 
                 buyerLocation={order.deliveryLocation} 
+                primaryType={order.menuType}
                 radius={order.status === 'Placed' ? 804.672 : undefined}
                 zoomMode={order.status === 'Placed' ? 'radius' : 'all'}
                 interactive={false} 

@@ -297,7 +297,7 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
           id: s.id,
           name: s.name,
           location: { latitude: s.latitude!, longitude: s.longitude! },
-          type: s.role === 'Driver' ? 'Beverage Cart' : 'Clubhouse',
+          type: s.role === 'Driver' || s.role === 'Staff' ? 'Beverage Cart' : 'Clubhouse',
           colorOverride: color
         };
       });
@@ -348,6 +348,7 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
           {sellerLocation ? (
             <MapView 
               sellerLocation={sellerLocation} 
+              primaryType="Beverage Cart"
               buyers={mappedBuyers} 
               drivers={mappedDrivers}
               radius={1609.34} 

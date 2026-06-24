@@ -241,7 +241,7 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
           id: s.id,
           name: s.name,
           location: { latitude: s.latitude!, longitude: s.longitude! },
-          type: s.role === 'Driver' ? 'Beverage Cart' : 'Clubhouse',
+          type: s.role === 'Driver' || s.role === 'Staff' ? 'Beverage Cart' : 'Clubhouse',
           colorOverride: color
         };
       });
@@ -284,6 +284,7 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
             {primarySeller ? (
               <MapView 
                 sellerLocation={sellerLocation || { latitude: primarySeller.latitude, longitude: primarySeller.longitude }} 
+                primaryType="Clubhouse"
                 buyers={mappedBuyers} 
                 drivers={mappedDrivers}
                 radius={1609.34} 

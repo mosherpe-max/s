@@ -5,11 +5,16 @@ import { cn, getDriverColor } from '@/lib/utils';
 import { Map, Marker, useMap, useApiIsLoaded, APIProvider } from '@vis.gl/react-google-maps';
 import { useEffect, useState, useRef, useMemo } from 'react';
 
+// Specialized SVG Paths for high-fidelity markers
+const PATH_CLUBHOUSE = "M -10,10 L 10,10 L 10,-2 L 0,-12 L -10,-2 Z M -2,10 L -2,6 L 2,6 L 2,10";
+const PATH_CART = "M -12,3 L -8,-7 L 4,-7 L 8,3 L -12,3 Z M -9,4 A 2.5,2.5 0 1 1 -9,9 A 2.5,2.5 0 1 1 -9,4 M 5,4 A 2.5,2.5 0 1 1 5,9 A 2.5,2.5 0 1 1 5,4";
+
 interface MapViewProps {
   buyerLocation?: { latitude: number; longitude: number };
   sellerLocation?: { latitude: number; longitude: number };
   showPrimaryMarker?: boolean;
   primaryDriverId?: string;
+  primaryType?: 'Beverage Cart' | 'Clubhouse' | string;
   sellers?: {
     id: string;
     name: string;
@@ -162,11 +167,16 @@ function MapElements({ buyerLocation, sellerLocation, sellers, buyers, drivers, 
 /**
  * The core map rendering logic. 
  */
-function MapInternal({ buyerLocation, sellerLocation, showPrimaryMarker, primaryDriverId, sellers, buyers, drivers, radius, zoomMode, interactive, fitTrigger }: MapViewProps) {
+function MapInternal({ buyerLocation, sellerLocation, showPrimaryMarker, primaryDriverId, primaryType, sellers, buyers, drivers, radius, zoomMode, interactive, fitTrigger }: MapViewProps) {
   const apiIsLoaded = useApiIsLoaded();
   const center = useMemo(() => 
     buyerLocation ? { lat: buyerLocation.latitude, lng: buyerLocation.longitude } : (sellerLocation ? { lat: sellerLocation.latitude, lng: sellerLocation.longitude } : { lat: 0, lng: 0 }),
   [buyerLocation, sellerLocation]);
+
+  const getPathForType = (type: string | undefined) => {
+    if (type === 'Clubhouse' || type === 'Take Out') return PATH_CLUBHOUSE;
+    return PATH_CART; // Default to cart icon for drivers
+  };
 
   return (
     <div className="relative w-full h-full bg-[#1a2d44]">
@@ -207,10 +217,8 @@ function MapInternal({ buyerLocation, sellerLocation, showPrimaryMarker, primary
           />
         ))}
 
-        {/* Driver Pins - Unique Hexagonal Shape with Dynamic Color-Coding */}
+        {/* Driver Pins - Specialized Icons based on Role */}
         {drivers && drivers.map((driver, index) => {
-          const hexPath = "M 0,-15 L 13,-7.5 L 13,7.5 L 0,15 L -13,7.5 L -13,-7.5 Z";
-          // Logic: 1st driver is Koop Blue, others Red if no override
           const defaultColor = index === 0 ? '#213147' : '#E50000';
           
           return (
@@ -219,12 +227,12 @@ function MapInternal({ buyerLocation, sellerLocation, showPrimaryMarker, primary
               position={{ lat: driver.location.latitude, lng: driver.location.longitude }}
               title={`${driver.name} (${driver.type})`}
               icon={{
-                path: hexPath,
+                path: getPathForType(driver.type),
                 fillColor: driver.colorOverride || defaultColor,
                 fillOpacity: 1,
-                strokeWeight: 2,
+                strokeWeight: 1.5,
                 strokeColor: '#FFFFFF',
-                scale: 1,
+                scale: 1.2,
               }}
             />
           );
@@ -237,12 +245,12 @@ function MapInternal({ buyerLocation, sellerLocation, showPrimaryMarker, primary
             position={{ lat: sellerLocation.latitude, lng: sellerLocation.longitude }}
             title="Delivery Driver"
             icon={{
-              path: "M 0,-15 L 13,-7.5 L 13,7.5 L 0,15 L -13,7.5 L -13,-7.5 Z",
+              path: getPathForType(primaryType),
               fillColor: '#213147', // Koop Blue for primary driver
               fillOpacity: 1,
               strokeWeight: 2,
               strokeColor: '#FFFFFF',
-              scale: 0.8,
+              scale: 1.4,
             }}
           />
         )}
