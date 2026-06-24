@@ -83,7 +83,8 @@ import {
   Library,
   Radio,
   Power,
-  ExternalLink
+  ExternalLink,
+  Truck
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -886,6 +887,13 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     );
   };
 
+  const SERVICE_MODE_ICONS: Record<string, any> = {
+    'Beverage Cart': Truck,
+    'Clubhouse': Building,
+    'Lane Delivery': Users,
+    'Take Out': ShoppingBag,
+  };
+
   if (isUserLoading || isSellerLoading || isVenueLoading || isRoleLoading) {
     return (
       <div className="flex flex-col items-center justify-center h-screen bg-[#213147] text-white">
@@ -978,6 +986,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                           };
                           const field = fieldMap[mode];
                           const isActive = !!(seller?.[field as keyof Seller]);
+                          const ModeIcon = SERVICE_MODE_ICONS[mode] || Zap;
                           
                           return (
                             <div 
@@ -991,7 +1000,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                                 "p-2.5 rounded-xl transition-all shadow-sm",
                                 isActive ? "bg-primary text-white scale-110" : "bg-slate-200 text-slate-400"
                               )}>
-                                <Zap className="h-5 w-5" />
+                                <ModeIcon className="h-5 w-5" />
                               </div>
                               <div className="text-center space-y-0.5">
                                 <p className={cn("text-[10px] font-black uppercase tracking-tight", isActive ? "text-[#213147]" : "text-slate-400")}>{mode}</p>
