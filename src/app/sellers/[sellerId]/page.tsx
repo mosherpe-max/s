@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useMemo, useEffect, use } from 'react';
@@ -83,7 +82,8 @@ import {
   CalendarDays,
   Library,
   Radio,
-  Power
+  Power,
+  ExternalLink
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -673,6 +673,32 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     }
   };
 
+  const handleImpersonate = (mode: string) => {
+    if (typeof window === 'undefined' || !sellerId) return;
+
+    // Establish a temporary bypass session
+    localStorage.setItem('koop_staff_id', `admin-${user?.uid}`);
+    localStorage.setItem('koop_staff_name', `${user?.email || 'Admin'} (Management)`);
+    localStorage.setItem('koop_staff_role', mode);
+    localStorage.setItem('koop_staff_session_start', Date.now().toString());
+    localStorage.setItem('koop_venue_id', sellerId);
+
+    toast({ 
+      title: "Launching Terminal", 
+      description: `Entering ${mode} dashboard as management bypass.` 
+    });
+
+    // Push to the correct staff route
+    setTimeout(() => {
+      switch (mode) {
+        case 'Beverage Cart': router.push(`/sellers/${sellerId}/bevcart`); break;
+        case 'Clubhouse': router.push(`/sellers/${sellerId}/clubhouse`); break;
+        case 'Lane Delivery': router.push(`/sellers/${sellerId}/laneside`); break;
+        default: router.push(`/sellers/${sellerId}/clubhouse`); break;
+      }
+    }, 500);
+  };
+
   const handleUpdateStatus = (orderId: string, current: string) => {
     if (!firestore) return;
     const stages: Order['status'][] = ['Placed', 'Preparing', 'Out for Delivery', 'Delivered'];
@@ -957,10 +983,9 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                             <div 
                               key={`dashboard-mode-${mode}`}
                               className={cn(
-                                "flex flex-col items-center gap-3 p-4 rounded-2xl border-2 transition-all group cursor-pointer",
+                                "flex flex-col items-center gap-3 p-4 rounded-2xl border-2 transition-all group relative",
                                 isActive ? "border-primary bg-primary/5 shadow-inner" : "border-slate-100 bg-slate-50 opacity-60"
                               )}
-                              onClick={() => handleToggleMode(mode, isActive)}
                             >
                               <div className={cn(
                                 "p-2.5 rounded-xl transition-all shadow-sm",
@@ -972,11 +997,24 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                                 <p className={cn("text-[10px] font-black uppercase tracking-tight", isActive ? "text-[#213147]" : "text-slate-400")}>{mode}</p>
                                 <p className={cn("text-[8px] font-bold uppercase", isActive ? "text-green-600" : "text-slate-400")}>{isActive ? 'LIVE' : 'OFFLINE'}</p>
                               </div>
-                              <Switch 
-                                checked={isActive} 
-                                onCheckedChange={() => handleToggleMode(mode, isActive)}
-                                className="data-[state=checked]:bg-primary"
-                              />
+                              
+                              <div className="flex flex-col gap-2 w-full pt-2">
+                                <div className="flex items-center justify-center gap-2">
+                                  <Switch 
+                                    checked={isActive} 
+                                    onCheckedChange={() => handleToggleMode(mode, isActive)}
+                                    className="data-[state=checked]:bg-primary"
+                                  />
+                                </div>
+                                <Button 
+                                  variant="outline" 
+                                  size="sm" 
+                                  className="h-8 w-full text-[9px] font-black uppercase tracking-widest gap-1.5 border-2 hover:bg-indigo-600 hover:text-white hover:border-indigo-600 transition-all"
+                                  onClick={() => handleImpersonate(mode)}
+                                >
+                                  <ExternalLink className="h-3 w-3" /> Terminal
+                                </Button>
+                              </div>
                             </div>
                           );
                         })}
