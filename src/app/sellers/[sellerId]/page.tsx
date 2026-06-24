@@ -441,12 +441,13 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     return { revenue: revenue.toFixed(2), active: filteredOrders.filter(o => o.status !== 'Delivered' && o.status !== 'Cancelled').length, volume: today.length, avg, overdue: overdueCount };
   }, [orders, dashboardFilter, seller]);
 
-  const analyticsData = useMemo(() => {
-    if (!orders || !seller) return { chartData: [] };
+  const getChartDataForRange = (range: 'Today' | 'MTD' | 'YTD') => {
+    if (!orders || !seller) return [];
     const modes = seller.menuTypes || [];
     const now = new Date();
     let chartData: any[] = [];
-    if (analyticsRange === 'Today') {
+    
+    if (range === 'Today') {
       const start = startOfDay(now);
       chartData = Array.from({ length: 24 }, (_, i) => {
         const hour = addHours(start, i);
@@ -457,7 +458,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
         });
         return entry;
       });
-    } else if (analyticsRange === 'MTD') {
+    } else if (range === 'MTD') {
       const start = startOfMonth(now);
       chartData = eachDayOfInterval({ start, end: now }).map(day => {
         const entry: any = { time: format(day, 'MMM d') };
@@ -479,8 +480,11 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
         return entry;
       });
     }
-    return { chartData };
-  }, [orders, seller, analyticsRange]);
+    return chartData;
+  };
+
+  const todayChartData = useMemo(() => getChartDataForRange('Today'), [orders, seller]);
+  const analyticsData = useMemo(() => getChartDataForRange(analyticsRange), [orders, seller, analyticsRange]);
 
   const filteredOrderHistory = useMemo(() => {
     if (!orders) return [];
@@ -780,12 +784,12 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
 
   const NAV_ITEMS = [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
+    { id: "analytics", label: "Analytics", icon: BarChart3 },
     { id: "orders", label: "Orders", icon: ClipboardList },
     { id: "menu", label: "Menu Items", icon: UtensilsCrossed },
     { id: "modifiers", label: "Modifiers", icon: Tags },
     { id: "service", label: "Service Modes", icon: Zap },
     { id: "staff", label: "Staff", icon: Users },
-    { id: "analytics", label: "Analytics", icon: BarChart3 },
     { id: "settings", label: "Settings", icon: SettingsIcon },
     { id: "marketing", label: "Marketing", icon: Smartphone },
   ];
@@ -907,7 +911,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-4 rounded-2xl border-2 shadow-sm">
                     <div className="flex items-center gap-3">
                       <div className="p-2 bg-indigo-50 rounded-xl text-indigo-600"><Filter className="h-4 w-4" /></div>
-                      <h3 className="text-[10px] font-black uppercase tracking-widest text-[#213147]">Dashboard Card Filter (Today Only)</h3>
+                      <h3 className="text-[10px] font-black uppercase tracking-widest text-[#213147]">Real-Time Snapshot (Today)</h3>
                     </div>
                     <Tabs value={dashboardFilter} onValueChange={setDashboardFilter} className="w-full sm:w-auto">
                       <div className="overflow-x-auto no-scrollbar -mx-1 px-1">
@@ -928,56 +932,79 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                     <KPICard label="Active Tickets" value={stats?.active || 0} sub="In Pipeline" icon={Clock} colorClass="bg-red-600" highlight={!!(stats?.active && stats.active > 0)} />
                   </div>
 
-                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <Card className="lg:col-span-2 border-2 shadow-sm overflow-hidden">
-                      <CardHeader className="bg-slate-50/50 border-b flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                        <div className="space-y-0.5">
-                          <CardTitle className="text-xs font-black uppercase tracking-widest text-[#213147]">Revenue Distribution</CardTitle>
-                          <CardDescription className="text-[8px] font-bold uppercase">Toggle range for deeper historical analysis</CardDescription>
-                        </div>
-                        <div className="flex bg-slate-100 p-0.5 rounded-lg border-2">
-                          {['Today', 'MTD', 'YTD'].map((r) => (
-                            <button key={r} onClick={() => setAnalyticsRange(r as any)} className={cn("px-3 py-1 text-[8px] font-black uppercase tracking-tighter rounded-md transition-all", analyticsRange === r ? "bg-white text-[#213147] shadow-sm" : "text-slate-400 hover:text-slate-600")}>{r}</button>
+                  <Card className="border-2 shadow-sm overflow-hidden">
+                    <CardHeader className="bg-slate-50/50 border-b">
+                      <CardTitle className="text-xs font-black uppercase tracking-widest text-[#213147]">Today's Revenue Velocity</CardTitle>
+                      <CardDescription className="text-[8px] font-bold uppercase text-muted-foreground">Hourly distribution across authorized channels</CardDescription>
+                    </CardHeader>
+                    <CardContent className="pt-10 h-[350px]">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={todayChartData}>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
+                          <XAxis dataKey="time" axisLine={false} tickLine={false} fontSize={10} fontWeight="bold" />
+                          <YAxis axisLine={false} tickLine={false} fontSize={10} fontWeight="bold" />
+                          <Tooltip cursor={{ fill: 'transparent' }} contentStyle={{ fontSize: '10px', borderRadius: '12px', border: '2px solid #E2E8F0' }} />
+                          <Legend verticalAlign="top" align="right" iconType="circle" wrapperStyle={{ fontSize: '9px', fontWeight: 'bold', textTransform: 'uppercase' }} />
+                          {seller?.menuTypes?.map(mode => (
+                            <Bar key={mode} dataKey={mode} stackId="a" fill={MODE_COLORS[mode] || '#64748B'} />
                           ))}
-                        </div>
-                      </CardHeader>
-                      <CardContent className="pt-10 h-[300px]">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={analyticsData.chartData}>
-                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
-                            <XAxis dataKey="time" axisLine={false} tickLine={false} fontSize={10} fontWeight="bold" />
-                            <YAxis axisLine={false} tickLine={false} fontSize={10} fontWeight="bold" />
-                            <Tooltip cursor={{ fill: 'transparent' }} contentStyle={{ fontSize: '10px', borderRadius: '12px', border: '2px solid #E2E8F0' }} />
-                            <Legend verticalAlign="top" align="right" iconType="circle" wrapperStyle={{ fontSize: '9px', fontWeight: 'bold', textTransform: 'uppercase' }} />
-                            {seller?.menuTypes?.map(mode => (
-                              <Bar key={mode} dataKey={mode} stackId="a" fill={MODE_COLORS[mode] || '#64748B'} />
-                            ))}
-                          </BarChart>
-                        </ResponsiveContainer>
-                      </CardContent>
-                    </Card>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
 
-                    <Card className="border-2 shadow-sm">
-                      <CardHeader className="bg-slate-50/50 border-b">
-                        <CardTitle className="text-xs font-black uppercase tracking-widest text-[#213147]">Active Channels</CardTitle>
-                      </CardHeader>
-                      <CardContent className="p-4 space-y-3">
-                        {['Beverage Cart', 'Clubhouse', 'Lane Delivery', 'Take Out'].map(mode => {
-                          const isActive = (mode === 'Beverage Cart' && seller?.bevcartActive) || (mode === 'Clubhouse' && seller?.clubhouseActive) || (mode === 'Lane Delivery' && seller?.lanedeliveryActive) || (mode === 'Take Out' && seller?.takeoutActive);
-                          if (!seller?.menuTypes?.includes(mode)) return null;
-                          return (
-                            <div key={mode} className={cn("flex items-center justify-between p-3 rounded-xl border-2 transition-all", isActive ? "bg-white border-primary/20 shadow-sm" : "bg-slate-50 border-slate-100 opacity-60")}>
-                              <div className="flex items-center gap-2">
-                                <div className={cn("w-1.5 h-1.5 rounded-full animate-pulse", isActive ? "bg-green-500" : "bg-slate-300")} />
-                                <span className="text-[10px] font-black uppercase text-[#213147]">{mode}</span>
-                              </div>
-                              <Switch checked={isActive} onCheckedChange={() => handleToggleMode(mode, !!isActive)} className="data-[state=checked]:bg-primary" />
-                            </div>
-                          );
-                        })}
-                      </CardContent>
-                    </Card>
+              {activeNav === 'analytics' && (
+                <div className="space-y-6 animate-in fade-in duration-500">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b-2 pb-4">
+                    <div className="space-y-1">
+                      <h3 className="font-headline font-black text-2xl text-[#213147] uppercase leading-tight">Performance Analytics</h3>
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Historical revenue trends and channel distribution</p>
+                    </div>
                   </div>
+
+                  <Card className="border-2 shadow-lg overflow-hidden bg-white">
+                    <CardHeader className="bg-slate-50/50 border-b flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                      <div className="space-y-0.5">
+                        <CardTitle className="text-xs font-black uppercase tracking-widest text-[#213147]">Revenue Distribution</CardTitle>
+                        <CardDescription className="text-[8px] font-bold uppercase">Toggle range for deeper historical analysis</CardDescription>
+                      </div>
+                      <div className="flex bg-slate-100 p-0.5 rounded-lg border-2">
+                        {['Today', 'MTD', 'YTD'].map((r) => (
+                          <button 
+                            key={r} 
+                            onClick={() => setAnalyticsRange(r as any)} 
+                            className={cn(
+                              "px-4 py-1.5 text-[9px] font-black uppercase tracking-tighter rounded-md transition-all", 
+                              analyticsRange === r ? "bg-white text-[#213147] shadow-sm" : "text-slate-400 hover:text-slate-600"
+                            )}
+                          >
+                            {r}
+                          </button>
+                        ))}
+                      </div>
+                    </CardHeader>
+                    <CardContent className="pt-10 h-[450px]">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={analyticsData}>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
+                          <XAxis dataKey="time" axisLine={false} tickLine={false} fontSize={10} fontWeight="bold" />
+                          <YAxis axisLine={false} tickLine={false} fontSize={10} fontWeight="bold" />
+                          <Tooltip cursor={{ fill: 'transparent' }} contentStyle={{ fontSize: '10px', borderRadius: '12px', border: '2px solid #E2E8F0' }} />
+                          <Legend verticalAlign="top" align="right" iconType="circle" wrapperStyle={{ fontSize: '9px', fontWeight: 'bold', textTransform: 'uppercase' }} />
+                          {seller?.menuTypes?.map(mode => (
+                            <Bar key={mode} dataKey={mode} stackId="a" fill={MODE_COLORS[mode] || '#64748B'} />
+                          ))}
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </CardContent>
+                    <CardFooter className="bg-slate-50 border-t py-4">
+                       <p className="text-[9px] font-bold uppercase text-muted-foreground tracking-widest">
+                         Reporting Currency: USD • Last Updated: {format(new Date(now), 'h:mm a')}
+                       </p>
+                    </CardFooter>
+                  </Card>
                 </div>
               )}
 
@@ -1165,7 +1192,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                                   <div className="flex items-center justify-between pt-2 border-t border-slate-100">
                                      <div className="flex items-center gap-2">
                                         <Switch 
-                                          checked={!!item.isAvailable} 
+                                          checked={!!(item.isAvailable)} 
                                           onCheckedChange={() => handleQuickDisableItem(item.id, !!item.isAvailable)}
                                           className="scale-75 data-[state=checked]:bg-green-600"
                                         />
