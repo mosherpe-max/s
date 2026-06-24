@@ -80,7 +80,8 @@ import {
   LayoutList,
   Wand2,
   Ban,
-  CalendarDays
+  CalendarDays,
+  Library
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -271,7 +272,15 @@ function KPICard({ label, value, sub, icon: Icon, colorClass, highlight = false 
   );
 }
 
-function SortableItem({ id, item, activeMode, isFeatured, onToggleFeatured }: { id: string, item: MenuItem, activeMode: string, isFeatured: boolean, onToggleFeatured: (id: string, current: string[]) => void }) {
+function SortableItem({ id, item, activeMode, isFeatured, onToggleFeatured, onRemoveFromMode, onEdit }: { 
+  id: string, 
+  item: MenuItem, 
+  activeMode: string, 
+  isFeatured: boolean, 
+  onToggleFeatured: (id: string, current: string[]) => void,
+  onRemoveFromMode: (id: string) => void,
+  onEdit: (item: MenuItem) => void
+}) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
   
   const style = {
@@ -296,16 +305,24 @@ function SortableItem({ id, item, activeMode, isFeatured, onToggleFeatured }: { 
         <p className="text-[11px] font-black uppercase text-[#213147] truncate leading-none mb-1">{item.name}</p>
         <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">${item.price.toFixed(2)}</p>
       </div>
-      <button 
-        onClick={() => onToggleFeatured(item.id, item.featuredOn || [])}
-        className={cn(
-          "p-2 rounded-lg transition-all active:scale-95",
-          isFeatured ? "bg-amber-100 text-amber-600" : "bg-slate-50 text-slate-300 hover:text-slate-400"
-        )}
-        title={isFeatured ? "Remove from Featured" : "Add to Featured"}
-      >
-        <Star className={cn("h-4 w-4", isFeatured && "fill-current")} />
-      </button>
+      <div className="flex items-center gap-1">
+        <button 
+          onClick={() => onToggleFeatured(item.id, item.featuredOn || [])}
+          className={cn(
+            "p-2 rounded-lg transition-all active:scale-95",
+            isFeatured ? "bg-amber-100 text-amber-600" : "bg-slate-50 text-slate-300 hover:text-slate-400"
+          )}
+          title={isFeatured ? "Remove from Featured" : "Add to Featured"}
+        >
+          <Star className={cn("h-4 w-4", isFeatured && "fill-current")} />
+        </button>
+        <Button variant="ghost" size="icon" className="h-8 w-8 text-indigo-600" onClick={() => onEdit(item)}>
+          <Edit className="h-3.5 w-3.5" />
+        </Button>
+        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-red-50" onClick={() => onRemoveFromMode(item.id)} title="Remove from Mode">
+          <X className="h-4 w-4" />
+        </Button>
+      </div>
     </div>
   );
 }
@@ -755,10 +772,13 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
 
   const handleToggleItemAvailability = (itemId: string, currentOn: string[]) => {
     if (!firestore || !sellerId) return;
-    const isNowOn = currentOn.includes(configMode);
-    const nextOn = isNowOn ? currentOn.filter(m => m !== configMode) : [...currentOn, configMode];
+    const current = currentOn || [];
+    const isNowOn = current.includes(configMode);
+    const nextOn = isNowOn ? current.filter(m => m !== configMode) : [...current, configMode];
     const itemRef = doc(firestore, 'sellers', sellerId, 'menuItems', itemId);
-    updateDoc(itemRef, { availableOn: nextOn });
+    updateDoc(itemRef, { availableOn: nextOn }).then(() => {
+      toast({ title: isNowOn ? "Removed from Mode" : "Added to Mode" });
+    });
   };
 
   const handleToggleItemFeatured = (itemId: string, currentFeatured: string[]) => {
@@ -1272,7 +1292,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b-2 pb-4">
                     <div className="space-y-1">
                       <h3 className="font-headline font-black text-2xl text-[#213147] uppercase leading-tight">Service Mode Menu Builder</h3>
-                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Select a mode to customize its specific layout</p>
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Construct specific menus for each active channel</p>
                     </div>
                     <div className="w-full sm:w-64">
                        <Select value={configMode} onValueChange={setConfigMode}>
@@ -1287,127 +1307,178 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-                    <div className="lg:col-span-1 space-y-6">
-                       <Card className="border-2 shadow-md overflow-hidden bg-white">
-                          <CardHeader className="bg-[#213147] text-white p-4">
-                             <div className="flex items-center justify-between">
-                                <span className="text-[11px] font-black uppercase tracking-widest">{configMode}</span>
-                                <Switch 
-                                  checked={!!(configMode === 'Beverage Cart' ? seller?.bevcartActive : configMode === 'Clubhouse' ? seller?.clubhouseActive : configMode === 'Lane Delivery' ? seller?.lanedeliveryActive : seller?.takeoutActive)} 
-                                  onCheckedChange={(v) => handleToggleMode(configMode, !v)} 
-                                  className="data-[state=checked]:bg-primary"
+                  <div className="grid grid-cols-1 gap-12">
+                    {/* GLOBAL VISIBILITY CONTROL */}
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-3 border-b-2 pb-2 px-1">
+                          <div className="p-1.5 bg-indigo-50 rounded-lg text-indigo-600"><LayoutList className="h-4 w-4" /></div>
+                          <div className="space-y-0.5">
+                            <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-[#213147]">Category Visibility & Sorting</h4>
+                            <p className="text-[8px] font-bold text-muted-foreground uppercase">Enable categories and drag to define patron scroll order.</p>
+                          </div>
+                      </div>
+
+                      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(e) => handleDragEnd(e, 'layout')}>
+                        <SortableContext 
+                          items={seller?.categoryVisibility?.[configMode] || categories.filter(c => c !== 'Featured')} 
+                          strategy={verticalListSortingStrategy}
+                        >
+                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+                              {(seller?.categoryVisibility?.[configMode] || categories.filter(c => c !== 'Featured')).map(cat => (
+                                <SortableCategory 
+                                  key={`cat-sort-${cat}`} 
+                                  id={cat} 
+                                  category={cat} 
+                                  isVisible={true} 
+                                  onToggleVisibility={handleToggleCategoryVisibility} 
                                 />
-                             </div>
-                             <p className="text-[9px] font-bold text-white/50 uppercase tracking-widest mt-1">Status: {!!(configMode === 'Beverage Cart' ? seller?.bevcartActive : configMode === 'Clubhouse' ? seller?.clubhouseActive : configMode === 'Lane Delivery' ? seller?.lanedeliveryActive : seller?.takeoutActive) ? 'Live' : 'Paused'}</p>
-                          </CardHeader>
-                          <CardContent className="p-4 space-y-6 text-left">
-                             <div className="space-y-3">
-                                <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Authorize Master Items</Label>
-                                <ScrollArea className="h-[400px] border-2 rounded-xl p-2 bg-slate-50">
-                                   <div className="space-y-1">
-                                      {menuItems?.map(item => (
-                                        <div key={`auth-${item.id}`} className="flex items-center justify-between p-2 hover:bg-white rounded-lg transition-all group">
-                                           <div className="flex items-center gap-2">
-                                              <Checkbox 
-                                                checked={item.availableOn?.includes(configMode)} 
-                                                onCheckedChange={() => handleToggleItemAvailability(item.id, item.availableOn || [])}
-                                              />
-                                              <span className="text-[10px] font-black uppercase text-[#213147] truncate max-w-[120px]">{item.name}</span>
-                                           </div>
-                                           <Badge variant="outline" className="text-[7px] font-black uppercase opacity-40 group-hover:opacity-100">{item.category}</Badge>
-                                        </div>
-                                      ))}
-                                   </div>
-                                </ScrollArea>
-                             </div>
-                          </CardContent>
-                       </Card>
+                              ))}
+                              {categories.filter(c => c !== 'Featured' && !(seller?.categoryVisibility?.[configMode] || []).includes(c)).map(cat => (
+                                <div key={`cat-hidden-${cat}`} className="bg-slate-50 border-2 border-dashed rounded-xl p-3 flex items-center justify-between opacity-60">
+                                    <span className="text-[10px] font-black uppercase text-slate-400">{cat}</span>
+                                    <Switch checked={false} onCheckedChange={() => handleToggleCategoryVisibility(cat)} className="scale-75" />
+                                </div>
+                              ))}
+                            </div>
+                        </SortableContext>
+                      </DndContext>
                     </div>
 
-                    <div className="lg:col-span-3 space-y-8">
-                       <div className="space-y-4">
-                          <div className="flex items-center gap-3 border-b-2 pb-2 px-1">
-                             <div className="p-1.5 bg-indigo-50 rounded-lg text-indigo-600"><LayoutList className="h-4 w-4" /></div>
-                             <div className="space-y-0.5">
-                                <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-[#213147]">Category Layout & Priority</h4>
-                                <p className="text-[8px] font-bold text-muted-foreground uppercase">Enable categories and drag to reorder.</p>
-                             </div>
+                    <div className="space-y-12">
+                       {/* FEATURED SECTION */}
+                       <div className="space-y-4 bg-amber-50/30 p-6 rounded-[2rem] border-2 border-amber-100/50">
+                          <div className="flex items-center gap-2 border-b-2 border-amber-100 pb-2 px-1">
+                             <Star className="h-4 w-4 text-amber-500 fill-current" />
+                             <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-amber-800">Featured Highlight Items</h4>
                           </div>
-
-                          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(e) => handleDragEnd(e, 'layout')}>
-                            <SortableContext 
-                              items={seller?.categoryVisibility?.[configMode] || categories.filter(c => c !== 'Featured')} 
-                              strategy={verticalListSortingStrategy}
-                            >
-                               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                                  {(seller?.categoryVisibility?.[configMode] || categories.filter(c => c !== 'Featured')).map(cat => (
-                                    <SortableCategory 
-                                      key={`cat-sort-${cat}`} 
-                                      id={cat} 
-                                      category={cat} 
-                                      isVisible={true} 
-                                      onToggleVisibility={handleToggleCategoryVisibility} 
+                          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(e) => handleDragEnd(e, 'featured')}>
+                             <SortableContext items={menuItems?.filter(i => i.featuredOn?.includes(configMode)).sort((a, b) => (a.featuredRanks?.[configMode] || 0) - (b.featuredRanks?.[configMode] || 0)).map(i => i.id) || []} strategy={verticalListSortingStrategy}>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                                   {menuItems?.filter(i => i.featuredOn?.includes(configMode)).sort((a, b) => (a.featuredRanks?.[configMode] || 0) - (b.featuredRanks?.[configMode] || 0)).map(item => (
+                                     <SortableItem 
+                                      key={item.id} 
+                                      id={item.id} 
+                                      item={item} 
+                                      activeMode={configMode} 
+                                      isFeatured={true} 
+                                      onToggleFeatured={handleToggleItemFeatured} 
+                                      onRemoveFromMode={() => handleToggleItemAvailability(item.id, item.availableOn || [])}
+                                      onEdit={(it) => { setEditingItem(it); itemForm.reset(it); setIsItemFormOpen(true); }}
                                     />
-                                  ))}
-                                  {categories.filter(c => c !== 'Featured' && !(seller?.categoryVisibility?.[configMode] || []).includes(c)).map(cat => (
-                                    <div key={`cat-hidden-${cat}`} className="bg-slate-50 border-2 border-dashed rounded-xl p-3 flex items-center justify-between opacity-60">
-                                       <span className="text-[10px] font-black uppercase text-slate-400">{cat}</span>
-                                       <Switch checked={false} onCheckedChange={() => handleToggleCategoryVisibility(cat)} className="scale-75" />
-                                    </div>
-                                  ))}
-                               </div>
-                            </SortableContext>
+                                   ))}
+                                   {menuItems?.filter(i => i.featuredOn?.includes(configMode)).length === 0 && (
+                                     <div className="col-span-full py-8 text-center border-2 border-dashed rounded-2xl opacity-40 bg-white">
+                                       <p className="text-[10px] font-black uppercase tracking-widest text-amber-800/50">No Featured items for this mode</p>
+                                     </div>
+                                   )}
+                                </div>
+                             </SortableContext>
                           </DndContext>
                        </div>
 
-                       <div className="space-y-10">
-                          <div className="space-y-4">
-                             <div className="flex items-center gap-2 border-b-2 pb-2 px-1">
-                                <Star className="h-4 w-4 text-amber-500 fill-current" />
-                                <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-[#213147]">Featured (Top of Menu)</h4>
-                             </div>
-                             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(e) => handleDragEnd(e, 'featured')}>
-                                <SortableContext items={menuItems?.filter(i => i.featuredOn?.includes(configMode)).sort((a, b) => (a.featuredRanks?.[configMode] || 0) - (b.featuredRanks?.[configMode] || 0)).map(i => i.id) || []} strategy={verticalListSortingStrategy}>
-                                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                      {menuItems?.filter(i => i.featuredOn?.includes(configMode)).sort((a, b) => (a.featuredRanks?.[configMode] || 0) - (b.featuredRanks?.[configMode] || 0)).map(item => (
-                                        <SortableItem key={item.id} id={item.id} item={item} activeMode={configMode} isFeatured={true} onToggleFeatured={handleToggleItemFeatured} />
-                                      ))}
+                       {/* CATEGORY SECTIONS */}
+                       {categories.filter(c => c !== 'Featured').map(cat => {
+                         const allItemsInCat = menuItems?.filter(i => i.category === cat) || [];
+                         const activeInMode = allItemsInCat.filter(i => i.availableOn?.includes(configMode))
+                           .sort((a, b) => (a.menuRanks?.[configMode] || 0) - (b.menuRanks?.[configMode] || 0));
+                         const remainingInLibrary = allItemsInCat.filter(i => !i.availableOn?.includes(configMode));
+                         
+                         return (
+                           <div key={`mode-cat-${cat}`} className="space-y-6">
+                              <div className="flex items-center justify-between border-b-2 pb-2 px-1">
+                                 <div className="flex items-center gap-3">
+                                   <Badge variant="secondary" className="h-6 px-3 text-[10px] font-black uppercase tracking-widest bg-[#213147] text-white border-0">{cat}</Badge>
+                                   <div className="flex items-center gap-2">
+                                      <Switch 
+                                        checked={(seller?.categoryVisibility?.[configMode] || []).includes(cat)} 
+                                        onCheckedChange={() => handleToggleCategoryVisibility(cat)}
+                                        className="scale-75"
+                                      />
+                                      <span className="text-[9px] font-black uppercase text-muted-foreground">Category Visible</span>
                                    </div>
-                                </SortableContext>
-                             </DndContext>
-                          </div>
-
-                          {(seller?.categoryVisibility?.[configMode] || categories.filter(c => c !== 'Featured')).map(cat => {
-                            const items = menuItems?.filter(i => i.category === cat && i.availableOn?.includes(configMode))
-                              .sort((a, b) => (a.menuRanks?.[configMode] || 0) - (b.menuRanks?.[configMode] || 0));
-                            if (!items?.length) return null;
-
-                            return (
-                              <div key={`sort-cat-${cat}`} className="space-y-4">
-                                <div className="flex items-center gap-2 border-b-2 pb-2 px-1">
-                                   <Badge variant="secondary" className="h-5 px-1.5 text-[8px] font-black uppercase tracking-widest">{cat}</Badge>
-                                </div>
-                                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(e) => handleDragEnd(e, 'category', cat)}>
-                                   <SortableContext items={items.map(i => i.id)} strategy={verticalListSortingStrategy}>
-                                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                         {items.map(item => (
-                                           <SortableItem 
-                                             key={`sort-item-${item.id}`} 
-                                             id={item.id} 
-                                             item={item} 
-                                             activeMode={configMode} 
-                                             isFeatured={item.featuredOn?.includes(configMode) || false} 
-                                             onToggleFeatured={handleToggleItemFeatured} 
-                                           />
-                                         ))}
-                                      </div>
-                                   </SortableContext>
-                                </DndContext>
+                                 </div>
+                                 <Button 
+                                   variant="ghost" 
+                                   size="sm" 
+                                   className="h-8 text-[9px] font-black uppercase gap-1.5 bg-slate-100 hover:bg-primary hover:text-white transition-all rounded-full"
+                                   onClick={() => { 
+                                     setEditingItem(null); 
+                                     itemForm.reset({ name: '', description: '', price: 0, category: cat as any, isAvailable: true, availableOn: [configMode], featuredOn: [], modifierGroupIds: [] }); 
+                                     setIsItemFormOpen(true); 
+                                   }}
+                                 >
+                                   <Plus className="h-3 w-3" /> Add Master Item
+                                 </Button>
                               </div>
-                            );
-                          })}
-                       </div>
+
+                              <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+                                 {/* ACTIVE LIST */}
+                                 <div className="md:col-span-3 space-y-3">
+                                    <div className="flex items-center gap-2 px-1 mb-2">
+                                      <CheckCircle2 className="h-3.5 w-3.5 text-green-600" />
+                                      <span className="text-[10px] font-black uppercase tracking-widest text-green-700">Active on {configMode}</span>
+                                    </div>
+                                    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(e) => handleDragEnd(e, 'category', cat)}>
+                                       <SortableContext items={activeInMode.map(i => i.id)} strategy={verticalListSortingStrategy}>
+                                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                             {activeInMode.map(item => (
+                                               <SortableItem 
+                                                 key={`active-item-${item.id}`} 
+                                                 id={item.id} 
+                                                 item={item} 
+                                                 activeMode={configMode} 
+                                                 isFeatured={item.featuredOn?.includes(configMode) || false} 
+                                                 onToggleFeatured={handleToggleItemFeatured} 
+                                                 onRemoveFromMode={() => handleToggleItemAvailability(item.id, item.availableOn || [])}
+                                                 onEdit={(it) => { setEditingItem(it); itemForm.reset(it); setIsItemFormOpen(true); }}
+                                               />
+                                             ))}
+                                             {activeInMode.length === 0 && (
+                                               <div className="col-span-full py-10 text-center border-2 border-dashed rounded-2xl opacity-30 bg-slate-50">
+                                                  <p className="text-[9px] font-black uppercase tracking-[0.2em]">No items authorized</p>
+                                               </div>
+                                             )}
+                                          </div>
+                                       </SortableContext>
+                                    </DndContext>
+                                 </div>
+
+                                 {/* LIBRARY LIST */}
+                                 <div className="md:col-span-1 space-y-3">
+                                    <div className="flex items-center gap-2 px-1 mb-2">
+                                      <Library className="h-3.5 w-3.5 text-indigo-600" />
+                                      <span className="text-[10px] font-black uppercase tracking-widest text-indigo-700">From Master Library</span>
+                                    </div>
+                                    <ScrollArea className="h-[250px] border-2 rounded-2xl bg-slate-50/50 p-2">
+                                       <div className="space-y-2">
+                                          {remainingInLibrary.map(item => (
+                                            <div key={`lib-item-${item.id}`} className="bg-white border-2 rounded-xl p-2.5 flex items-center justify-between gap-2 shadow-sm group">
+                                               <div className="min-w-0 flex-1">
+                                                  <p className="text-[10px] font-black uppercase text-[#213147] truncate">{item.name}</p>
+                                                  <p className="text-[8px] font-bold text-muted-foreground uppercase">${item.price.toFixed(2)}</p>
+                                               </div>
+                                               <div className="flex items-center gap-1">
+                                                  <Button variant="ghost" size="icon" className="h-7 w-7 text-indigo-600" onClick={() => handleToggleItemAvailability(item.id, item.availableOn || [])}>
+                                                    <Plus className="h-3.5 w-3.5" />
+                                                  </Button>
+                                                  <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => handleDeleteItem(item.id)}>
+                                                    <Trash2 className="h-3.5 w-3.5" />
+                                                  </Button>
+                                               </div>
+                                            </div>
+                                          ))}
+                                          {remainingInLibrary.length === 0 && (
+                                            <div className="py-8 text-center opacity-30">
+                                               <p className="text-[8px] font-black uppercase tracking-widest">Library empty</p>
+                                            </div>
+                                          )}
+                                       </div>
+                                    </ScrollArea>
+                                 </div>
+                              </div>
+                           </div>
+                         );
+                       })}
                     </div>
                   </div>
                 </div>
@@ -1957,3 +2028,4 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     </div>
   );
 }
+
