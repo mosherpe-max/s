@@ -81,7 +81,9 @@ import {
   Wand2,
   Ban,
   CalendarDays,
-  Library
+  Library,
+  Radio,
+  Power
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -928,7 +930,61 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
               
               {activeNav === 'dashboard' && (
                 <div className="space-y-6 sm:space-y-8 animate-in fade-in duration-500">
-                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-4 rounded-2xl border-2 shadow-sm">
+                  {/* SERVICE COMMAND CENTER */}
+                  <Card className="border-2 shadow-md overflow-hidden bg-white">
+                    <CardHeader className="border-b bg-[#213147] text-white flex flex-row items-center justify-between py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="bg-primary/20 p-2 rounded-xl"><Power className="h-5 w-5 text-primary" /></div>
+                        <div>
+                          <CardTitle className="text-xs font-black uppercase tracking-widest text-white leading-none">Service Command Center</CardTitle>
+                          <CardDescription className="text-[8px] font-bold uppercase text-white/40 mt-1">Real-time channel authorization</CardDescription>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="p-4 sm:p-6">
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                        {seller?.menuTypes?.map(mode => {
+                          const fieldMap: Record<string, keyof Seller> = { 
+                            'Beverage Cart': 'bevcartActive', 
+                            'Clubhouse': 'clubhouseActive', 
+                            'Lane Delivery': 'lanedeliveryActive', 
+                            'Take Out': 'takeoutActive' 
+                          };
+                          const field = fieldMap[mode];
+                          const isActive = !!(seller?.[field as keyof Seller]);
+                          
+                          return (
+                            <div 
+                              key={`dashboard-mode-${mode}`}
+                              className={cn(
+                                "flex flex-col items-center gap-3 p-4 rounded-2xl border-2 transition-all group cursor-pointer",
+                                isActive ? "border-primary bg-primary/5 shadow-inner" : "border-slate-100 bg-slate-50 opacity-60"
+                              )}
+                              onClick={() => handleToggleMode(mode, isActive)}
+                            >
+                              <div className={cn(
+                                "p-2.5 rounded-xl transition-all shadow-sm",
+                                isActive ? "bg-primary text-white scale-110" : "bg-slate-200 text-slate-400"
+                              )}>
+                                <Zap className="h-5 w-5" />
+                              </div>
+                              <div className="text-center space-y-0.5">
+                                <p className={cn("text-[10px] font-black uppercase tracking-tight", isActive ? "text-[#213147]" : "text-slate-400")}>{mode}</p>
+                                <p className={cn("text-[8px] font-bold uppercase", isActive ? "text-green-600" : "text-slate-400")}>{isActive ? 'LIVE' : 'OFFLINE'}</p>
+                              </div>
+                              <Switch 
+                                checked={isActive} 
+                                onCheckedChange={() => handleToggleMode(mode, isActive)}
+                                className="data-[state=checked]:bg-primary"
+                              />
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <div className="flex flex-col sm:row justify-between items-start sm:items-center gap-4 bg-white p-4 rounded-2xl border-2 shadow-sm">
                     <div className="flex items-center gap-3">
                       <div className="p-2 bg-indigo-50 rounded-xl text-indigo-600"><Filter className="h-4 w-4" /></div>
                       <h3 className="text-[10px] font-black uppercase tracking-widest text-[#213147]">Real-Time Snapshot (Today)</h3>
@@ -2028,4 +2084,3 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     </div>
   );
 }
-
