@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useMemo, useEffect, use } from 'react';
@@ -154,6 +155,7 @@ import {
 } from 'recharts';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
+import { DateRange } from 'react-day-picker';
 
 import {
   DndContext,
@@ -381,7 +383,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   const [now, setNow] = useState<number>(Date.now());
 
   // ORDER FILTER STATE
-  const [orderDateRange, setOrderDateRange] = useState<{ from: Date; to: Date }>({
+  const [orderDateRange, setOrderDateRange] = useState<DateRange | undefined>({
     from: startOfDay(new Date()),
     to: endOfDay(new Date())
   });
@@ -507,12 +509,16 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   const analyticsData = useMemo(() => getChartDataForRange(analyticsRange), [orders, seller, analyticsRange]);
 
   const filteredOrderHistory = useMemo(() => {
-    if (!orders) return [];
+    if (!orders || !orderDateRange?.from) return [];
     return orders
       .filter(o => {
         if (!o.createdAt || typeof o.createdAt.toDate !== 'function') return false;
         const orderDate = o.createdAt.toDate();
-        const isInRange = isWithinInterval(orderDate, { start: orderDateRange.from, end: orderDateRange.to });
+        
+        const fromDate = startOfDay(orderDateRange.from!);
+        const toDate = endOfDay(orderDateRange.to || orderDateRange.from!);
+        
+        const isInRange = isWithinInterval(orderDate, { start: fromDate, end: toDate });
         const isMatchingMode = orderModeFilter === 'All' || o.menuType === orderModeFilter;
         const isMatchingSearch = !orderSearchTerm || 
           o.id.toLowerCase().includes(orderSearchTerm.toLowerCase()) || 
@@ -1148,19 +1154,24 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                                 <PopoverTrigger asChild>
                                    <Button variant="outline" className="w-full h-11 border-2 justify-start font-bold text-xs gap-2">
                                       <CalendarDays className="h-4 w-4 text-primary" />
-                                      {format(orderDateRange.from, 'MMM d')} - {format(orderDateRange.to, 'MMM d, yyyy')}
+                                      {orderDateRange?.from ? (
+                                        orderDateRange.to ? (
+                                          <>{format(orderDateRange.from, 'MMM d')} - {format(orderDateRange.to, 'MMM d, yyyy')}</>
+                                        ) : (
+                                          format(orderDateRange.from, 'MMM d, yyyy')
+                                        )
+                                      ) : (
+                                        <span>Pick a date</span>
+                                      )}
                                    </Button>
                                 </PopoverTrigger>
                                 <PopoverContent className="w-auto p-0 rounded-2xl border-2" align="start">
                                    <Calendar
                                       initialFocus
                                       mode="range"
-                                      defaultMonth={orderDateRange.from}
-                                      selected={{ from: orderDateRange.from, to: orderDateRange.to }}
-                                      onSelect={(range: any) => {
-                                        if (range?.from) setOrderDateRange(prev => ({ ...prev, from: range.from }));
-                                        if (range?.to) setOrderDateRange(prev => ({ ...prev, to: range.to }));
-                                      }}
+                                      defaultMonth={orderDateRange?.from}
+                                      selected={orderDateRange}
+                                      onSelect={setOrderDateRange}
                                       numberOfMonths={2}
                                    />
                                 </PopoverContent>
