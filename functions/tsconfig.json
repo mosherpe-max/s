@@ -9,7 +9,9 @@
     "esModuleInterop": true,
     "resolveJsonModule": true,
     "allowSyntheticDefaultImports": true,
-    "strict": true
+    "strict": true,
+    "sourceMap": true,
+    "preserveConstEnums": true
   },
   "compileOnSave": true,
   "include": [
