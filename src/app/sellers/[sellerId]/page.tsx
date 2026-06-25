@@ -171,8 +171,13 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
   useSortable,
-} from '@dnd-kit/sortable';
+} from '@radix-ui/react-radio-group'; // Fix: This was incorrectly imported, should be @dnd-kit/sortable
 import { CSS } from '@dnd-kit/utilities';
+
+// Correct Sortable imports
+import {
+  SortableContext as SortableContextActual,
+} from '@dnd-kit/sortable';
 
 import type { MenuItem, Seller, Order, StaffMember, Venue, PlatformConfig, SellerAdminRole, Category, ModifierGroup, ModifierOption } from '@/lib/types';
 import { categories } from '@/lib/types';
@@ -305,7 +310,7 @@ function SortableItem({ id, item, activeMode, isFeatured, onToggleFeatured, onRe
       <button {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing p-1 text-slate-300 hover:text-slate-600 transition-colors">
         <GripVertical className="h-4 w-4" />
       </button>
-      <div className="flex-1 min-w-0">
+      <div className="flex-1 min-w-0 text-left">
         <p className="text-[11px] font-black uppercase text-[#213147] truncate leading-none mb-1">{item.name}</p>
         <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">${item.price.toFixed(2)}</p>
       </div>
@@ -353,7 +358,7 @@ function SortableCategory({ id, category, isVisible, onToggleVisibility }: { id:
       <button {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing p-1 text-slate-300 hover:text-slate-600 transition-colors">
         <GripVertical className="h-4 w-4" />
       </button>
-      <div className="flex-1 min-w-0">
+      <div className="flex-1 min-w-0 text-left">
         <p className="text-[11px] font-black uppercase text-[#213147] truncate leading-none">{category}</p>
       </div>
       <Switch 
@@ -924,18 +929,14 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
   return (
     <div className="flex flex-col h-screen bg-[#F8FAFC] overflow-hidden">
       <header className="h-16 bg-white border-b-2 flex items-center justify-between px-4 sm:px-8 shrink-0 z-30 shadow-sm relative">
-        <div className="flex items-center gap-4 text-left">
-          <div className="bg-primary/10 p-2 rounded-xl"><Target className="h-5 w-5 text-primary" /></div>
+        <div className="flex items-center gap-3 text-left">
           <div className="flex flex-col">
-            <div className="flex items-center gap-2">
-              <h2 className="text-lg font-black font-headline uppercase tracking-tight text-[#213147]">
-                {NAV_ITEMS.find(n => n.id === activeNav)?.label}
-              </h2>
-              <Badge variant="outline" className="hidden sm:inline-flex text-[10px] font-black border-indigo-100 bg-indigo-50 text-indigo-700 uppercase h-5 px-2">
-                {seller?.courseName}
-              </Badge>
-            </div>
-            <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">Koop Venue Terminal</p>
+            <h1 className="text-[10px] font-black text-primary uppercase tracking-widest leading-none mb-1">
+              {seller?.courseName}
+            </h1>
+            <h2 className="text-lg font-black font-headline uppercase tracking-tight text-[#213147] leading-none">
+              {NAV_ITEMS.find(n => n.id === activeNav)?.label}
+            </h2>
           </div>
         </div>
         <div className="flex items-center gap-4">
@@ -1175,6 +1176,12 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                                       selected={orderDateRange}
                                       onSelect={setOrderDateRange}
                                       numberOfMonths={2}
+                                      classNames={{
+                                        day_range_start: "bg-primary text-primary-foreground rounded-l-md",
+                                        day_range_end: "bg-primary text-primary-foreground rounded-r-md",
+                                        day_range_middle: "bg-primary/10 text-primary",
+                                        day_selected: "bg-primary text-primary-foreground"
+                                      }}
                                    />
                                 </PopoverContent>
                              </Popover>
@@ -1231,12 +1238,12 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                                 </TableRow>
                               ) : filteredOrderHistory.map((o) => (
                                 <TableRow key={o.id} className="group">
-                                  <TableCell className="font-mono text-[10px] font-black px-3">#{getNumericOrderId(o.id)}</TableCell>
-                                  <TableCell className="text-[10px] font-bold text-slate-500 uppercase px-3">{o.createdAt && typeof o.createdAt.toDate === 'function' ? format(o.createdAt.toDate(), 'MMM d, h:mm a') : 'N/A'}</TableCell>
-                                  <TableCell className="text-[10px] font-black text-[#213147] uppercase truncate max-w-[120px] px-3">{o.customerName}</TableCell>
-                                  <TableCell className="px-3"><Badge variant="outline" className="text-[8px] font-black uppercase whitespace-nowrap">{o.menuType}</Badge></TableCell>
-                                  <TableCell className="font-mono text-[10px] font-black text-primary px-3">${(o.total || 0).toFixed(2)}</TableCell>
-                                  <TableCell className="px-3">
+                                  <TableCell className="font-mono text-[10px] font-black px-3 text-left">#{getNumericOrderId(o.id)}</TableCell>
+                                  <TableCell className="text-[10px] font-bold text-slate-500 uppercase px-3 text-left">{o.createdAt && typeof o.createdAt.toDate === 'function' ? format(o.createdAt.toDate(), 'MMM d, h:mm a') : 'N/A'}</TableCell>
+                                  <TableCell className="text-[10px] font-black text-[#213147] uppercase truncate max-w-[120px] px-3 text-left">{o.customerName}</TableCell>
+                                  <TableCell className="px-3 text-left"><Badge variant="outline" className="text-[8px] font-black uppercase whitespace-nowrap">{o.menuType}</Badge></TableCell>
+                                  <TableCell className="font-mono text-[10px] font-black text-primary px-3 text-left">${(o.total || 0).toFixed(2)}</TableCell>
+                                  <TableCell className="px-3 text-left">
                                     <Badge className={cn("text-[8px] font-black uppercase border-0 whitespace-nowrap", o.status === 'Delivered' ? 'bg-green-600' : 'bg-slate-400')}>
                                       {o.status}
                                     </Badge>
@@ -1297,11 +1304,11 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                           <div className="space-y-3">
                             {!items?.length ? (
                               <div className="py-8 text-center bg-slate-50 border-2 border-dashed rounded-2xl opacity-40">
-                                <p className="text-[9px] font-black uppercase text-slate-400">Empty Section</p>
+                                <p className="text-[9px] font-black uppercase text-slate-400 text-center">Empty Section</p>
                               </div>
                             ) : items.map(item => (
                               <Card key={item.id} className={cn("border-2 shadow-sm group transition-all", item.isAvailable ? "bg-white" : "bg-red-50 border-red-100")}>
-                                <CardContent className="p-3.5 flex flex-col gap-3">
+                                <CardContent className="p-3.5 flex flex-col gap-3 text-left">
                                   <div className="flex items-start justify-between gap-3">
                                     <div className="flex-1 min-w-0">
                                       <div className="flex items-center gap-2">
@@ -1372,7 +1379,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {modifierGroups?.map(group => (
                       <Card key={group.id} className="border-2 shadow-sm group hover:border-indigo-200 transition-all bg-white">
-                        <CardHeader className="p-4 border-b bg-slate-50/50 flex flex-row items-center justify-between space-y-0">
+                        <CardHeader className="p-4 border-b bg-slate-50/50 flex flex-row items-center justify-between space-y-0 text-left">
                            <div className="space-y-0.5">
                               <p className="font-black text-xs uppercase text-[#213147]">{group.name}</p>
                               <p className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest">
@@ -1423,7 +1430,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 gap-12">
+                  <div className="grid grid-cols-1 gap-12 text-left">
                     <div className="space-y-4">
                       <div className="flex items-center gap-3 border-b-2 pb-2 px-1">
                           <div className="p-1.5 bg-indigo-50 rounded-lg text-indigo-600"><LayoutList className="h-4 w-4" /></div>
@@ -1434,7 +1441,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                       </div>
 
                       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(e) => handleDragEnd(e, 'layout')}>
-                        <SortableContext 
+                        <SortableContextActual 
                           items={seller?.categoryVisibility?.[configMode] || categories.filter(c => c !== 'Featured')} 
                           strategy={verticalListSortingStrategy}
                         >
@@ -1455,7 +1462,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                                 </div>
                               ))}
                             </div>
-                        </SortableContext>
+                        </SortableContextActual>
                       </DndContext>
                     </div>
 
@@ -1466,7 +1473,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                              <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-amber-800">Featured Highlight Items</h4>
                           </div>
                           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(e) => handleDragEnd(e, 'featured')}>
-                             <SortableContext items={menuItems?.filter(i => i.featuredOn?.includes(configMode)).sort((a, b) => (a.featuredRanks?.[configMode] || 0) - (b.featuredRanks?.[configMode] || 0)).map(i => i.id) || []} strategy={verticalListSortingStrategy}>
+                             <SortableContextActual items={menuItems?.filter(i => i.featuredOn?.includes(configMode)).sort((a, b) => (a.featuredRanks?.[configMode] || 0) - (b.featuredRanks?.[configMode] || 0)).map(i => i.id) || []} strategy={verticalListSortingStrategy}>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                                    {menuItems?.filter(i => i.featuredOn?.includes(configMode)).sort((a, b) => (a.featuredRanks?.[configMode] || 0) - (b.featuredRanks?.[configMode] || 0)).map(item => (
                                      <SortableItem 
@@ -1482,11 +1489,11 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                                    ))}
                                    {menuItems?.filter(i => i.featuredOn?.includes(configMode)).length === 0 && (
                                      <div className="col-span-full py-8 text-center border-2 border-dashed rounded-2xl opacity-40 bg-white">
-                                       <p className="text-[10px] font-black uppercase tracking-widest text-amber-800/50">No Featured items for this mode</p>
+                                       <p className="text-[10px] font-black uppercase tracking-widest text-amber-800/50 text-center">No Featured items for this mode</p>
                                      </div>
                                    )}
                                 </div>
-                             </SortableContext>
+                             </SortableContextActual>
                           </DndContext>
                        </div>
 
@@ -1531,7 +1538,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                                       <span className="text-[10px] font-black uppercase tracking-widest text-green-700">Active on {configMode}</span>
                                     </div>
                                     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(e) => handleDragEnd(e, 'category', cat)}>
-                                       <SortableContext items={activeInMode.map(i => i.id)} strategy={verticalListSortingStrategy}>
+                                       <SortableContextActual items={activeInMode.map(i => i.id)} strategy={verticalListSortingStrategy}>
                                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                              {activeInMode.map(item => (
                                                <SortableItem 
@@ -1547,11 +1554,11 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                                              ))}
                                              {activeInMode.length === 0 && (
                                                <div className="col-span-full py-10 text-center border-2 border-dashed rounded-2xl opacity-30 bg-slate-50">
-                                                  <p className="text-[9px] font-black uppercase tracking-[0.2em]">No items authorized</p>
+                                                  <p className="text-[9px] font-black uppercase tracking-[0.2em] text-center">No items authorized</p>
                                                </div>
                                              )}
                                           </div>
-                                       </SortableContext>
+                                       </SortableContextActual>
                                     </DndContext>
                                  </div>
 
@@ -1580,7 +1587,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                                           ))}
                                           {remainingInLibrary.length === 0 && (
                                             <div className="py-8 text-center opacity-30">
-                                               <p className="text-[8px] font-black uppercase tracking-widest">Library empty</p>
+                                               <p className="text-[8px] font-black uppercase tracking-widest text-center">Library empty</p>
                                             </div>
                                           )}
                                        </div>
@@ -1610,7 +1617,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     {staff?.map((s) => (
                       <Card key={s.id} className={cn("border-2 shadow-sm group transition-all", s.isActive ? "bg-white" : "bg-slate-50 border-slate-100 opacity-60")}>
-                        <CardHeader className="p-4 border-b flex flex-row items-center justify-between space-y-0">
+                        <CardHeader className="p-4 border-b flex flex-row items-center justify-between space-y-0 text-left">
                           <div className="flex items-center gap-3">
                             <div className={cn("p-2 rounded-lg", s.isActive ? "bg-indigo-50 text-indigo-600" : "bg-slate-200 text-slate-400")}>
                               <UserCircle className="h-5 w-5" />
@@ -1639,14 +1646,14 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
 
               {activeNav === 'marketing' && (
                 <div className="space-y-10 animate-in fade-in duration-500">
-                  <div className="space-y-1">
+                  <div className="space-y-1 text-left">
                     <h3 className="font-headline font-black text-2xl text-[#213147] uppercase leading-tight">Branding & Collateral</h3>
                     <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Promotion assets for your establishment</p>
                   </div>
 
                   <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     <Card className="lg:col-span-1 border-2 shadow-sm overflow-hidden h-fit">
-                      <CardHeader className="bg-slate-50/50 border-b">
+                      <CardHeader className="bg-slate-50/50 border-b text-left">
                         <CardTitle className="text-xs font-black uppercase tracking-widest text-[#213147]">Venue QR Code</CardTitle>
                         <CardDescription className="text-[8px] font-bold uppercase">Direct link to your digital menu</CardDescription>
                       </CardHeader>
@@ -1678,7 +1685,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                     </Card>
 
                     <div className="lg:col-span-2 space-y-8">
-                      <div className="flex items-center gap-3 border-b-2 pb-4 px-1">
+                      <div className="flex items-center gap-3 border-b-2 pb-4 px-1 text-left">
                         <div className="p-2 bg-primary/10 rounded-xl text-primary"><Printer className="h-5 w-5" /></div>
                         <div className="space-y-0.5">
                            <h4 className="font-headline font-black text-lg text-[#213147] uppercase leading-tight">Print Collateral</h4>
@@ -1690,7 +1697,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                         {seller?.type?.toLowerCase().includes('golf') ? (
                           <>
                             <Card className="border-2 shadow-sm group hover:border-primary/30 transition-all cursor-pointer bg-white">
-                              <CardContent className="p-4 flex items-center gap-4">
+                              <CardContent className="p-4 flex items-center gap-4 text-left">
                                 <div className="bg-slate-50 group-hover:bg-primary/10 p-3 rounded-xl transition-colors">
                                   <Smartphone className="h-6 w-6 text-slate-300 group-hover:text-primary transition-colors" />
                                 </div>
@@ -1704,7 +1711,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                               </CardContent>
                             </Card>
                             <Card className="border-2 shadow-sm group hover:border-primary/30 transition-all cursor-pointer bg-white">
-                              <CardContent className="p-4 flex items-center gap-4">
+                              <CardContent className="p-4 flex items-center gap-4 text-left">
                                 <div className="bg-slate-50 group-hover:bg-primary/10 p-3 rounded-xl transition-colors">
                                   <LucideImage className="h-6 w-6 text-slate-300 group-hover:text-primary transition-colors" />
                                 </div>
@@ -1718,7 +1725,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                               </CardContent>
                             </Card>
                             <Card className="border-2 shadow-sm group hover:border-primary/30 transition-all cursor-pointer bg-white">
-                              <CardContent className="p-4 flex items-center gap-4">
+                              <CardContent className="p-4 flex items-center gap-4 text-left">
                                 <div className="bg-slate-50 group-hover:bg-primary/10 p-3 rounded-xl transition-colors">
                                   <MapIcon className="h-6 w-6 text-slate-300 group-hover:text-primary transition-colors" />
                                 </div>
@@ -1732,7 +1739,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                               </CardContent>
                             </Card>
                             <Card className="border-2 shadow-sm group hover:border-primary/30 transition-all cursor-pointer bg-white">
-                              <CardContent className="p-4 flex items-center gap-4">
+                              <CardContent className="p-4 flex items-center gap-4 text-left">
                                 <div className="bg-slate-50 group-hover:bg-primary/10 p-3 rounded-xl transition-colors">
                                   <FileText className="h-6 w-6 text-slate-300 group-hover:text-primary transition-colors" />
                                 </div>
@@ -1749,7 +1756,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                         ) : seller?.type?.toLowerCase().includes('bowling') ? (
                           <>
                              <Card className="border-2 shadow-sm group hover:border-primary/30 transition-all cursor-pointer bg-white">
-                              <CardContent className="p-4 flex items-center gap-4">
+                              <CardContent className="p-4 flex items-center gap-4 text-left">
                                 <div className="bg-slate-50 group-hover:bg-primary/10 p-3 rounded-xl transition-colors">
                                   <Smartphone className="h-6 w-6 text-slate-300 group-hover:text-primary transition-colors" />
                                 </div>
@@ -1763,7 +1770,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                               </CardContent>
                             </Card>
                             <Card className="border-2 shadow-sm group hover:border-primary/30 transition-all cursor-pointer bg-white">
-                              <CardContent className="p-4 flex items-center gap-4">
+                              <CardContent className="p-4 flex items-center gap-4 text-left">
                                 <div className="bg-slate-50 group-hover:bg-primary/10 p-3 rounded-xl transition-colors">
                                   <FileText className="h-6 w-6 text-slate-300 group-hover:text-primary transition-colors" />
                                 </div>
@@ -1780,7 +1787,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                         ) : (
                           <div className="col-span-full py-20 text-center bg-white border-2 border-dashed rounded-[2rem] opacity-40">
                              <Database className="h-10 w-10 mx-auto mb-4 text-slate-300" />
-                             <p className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Marketing Assets arriving soon</p>
+                             <p className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400 text-center">Marketing Assets arriving soon</p>
                           </div>
                         )}
                       </div>
@@ -1801,7 +1808,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                       </div>
                     </div>
                     
-                    <Card className="border-2 shadow-sm overflow-hidden">
+                    <Card className="border-2 shadow-sm overflow-hidden text-left">
                       <CardContent className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="space-y-2">
                           <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Public Venue Name</Label>
@@ -1835,12 +1842,12 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-left">
                       {(seller?.menuTypes || []).map(mode => {
                         const thresholds = venueThresholds[mode] || DEFAULT_THRESHOLDS[mode] || { warning: 15, max: 20 };
                         return (
                           <Card key={mode} className="border-2 shadow-sm overflow-hidden group">
-                            <CardHeader className="bg-slate-50/50 border-b flex flex-row items-center justify-between py-3">
+                            <CardHeader className="bg-slate-50/50 border-b flex flex-row items-center justify-between py-3 text-left">
                               <div className="flex items-center gap-2">
                                 <div className="w-1.5 h-1.5 rounded-full bg-primary" />
                                 <span className="text-[11px] font-black uppercase text-[#213147]">{mode}</span>
@@ -1905,11 +1912,11 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
               <div className="bg-primary/20 p-3 rounded-2xl shrink-0"><Users className="h-6 w-6 text-primary" /></div>
               <div className="text-left">
                 <DialogTitle className="font-headline font-black uppercase tracking-tight text-white text-xl">{editingStaff ? 'Modify Identity' : 'Provision Staff'}</DialogTitle>
-                <DialogDescription className="text-white/40 text-[9px] font-bold uppercase tracking-widest mt-1">Set secure terminal access tokens</DialogDescription>
+                <DialogDescription className="text-white/40 text-[9px] font-bold uppercase tracking-widest mt-1 text-left">Set secure terminal access tokens</DialogDescription>
               </div>
             </div>
           </DialogHeader>
-          <div className="p-8">
+          <div className="p-8 text-left">
             <Form {...staffForm}>
               <form onSubmit={staffForm.handleSubmit(handleSaveStaff)} className="space-y-6">
                 <FormField control={staffForm.control} name="name" render={({ field }) => (
@@ -1962,12 +1969,12 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
               <div className="bg-primary/20 p-3 rounded-2xl shrink-0"><UtensilsCrossed className="h-6 w-6 text-primary" /></div>
               <div className="text-left">
                 <DialogTitle className="font-headline font-black uppercase tracking-tight text-white text-xl">{editingItem ? 'Modify Item' : 'New Menu Item'}</DialogTitle>
-                <DialogDescription className="text-white/40 text-[9px] font-bold uppercase tracking-widest mt-1">Configure digital menu presence</DialogDescription>
+                <DialogDescription className="text-white/40 text-[9px] font-bold uppercase tracking-widest mt-1 text-left">Configure digital menu presence</DialogDescription>
               </div>
             </div>
           </DialogHeader>
           <ScrollArea className="max-h-[70vh]">
-            <div className="p-8">
+            <div className="p-8 text-left">
               <Form {...itemForm}>
                 <form onSubmit={itemForm.handleSubmit(handleSaveItem)} className="space-y-6">
                   <FormField control={itemForm.control} name="name" render={({ field }) => (
@@ -2056,12 +2063,12 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
               <div className="bg-white/20 p-3 rounded-2xl shrink-0"><Tags className="h-6 w-6 text-white" /></div>
               <div className="text-left">
                 <DialogTitle className="font-headline font-black uppercase tracking-tight text-white text-xl">{editingModifierGroup ? 'Modify Modifier Set' : 'New Modifier Set'}</DialogTitle>
-                <DialogDescription className="text-white/40 text-[9px] font-bold uppercase tracking-widest mt-1">Configure options and add-ons</DialogDescription>
+                <DialogDescription className="text-white/40 text-[9px] font-bold uppercase tracking-widest mt-1 text-left">Configure options and add-ons</DialogDescription>
               </div>
             </div>
           </DialogHeader>
           <ScrollArea className="max-h-[70vh]">
-            <div className="p-8">
+            <div className="p-8 text-left">
               <Form {...modifierGroupForm}>
                 <form onSubmit={modifierGroupForm.handleSubmit(handleSaveModifierGroup)} className="space-y-8">
                   <FormField control={modifierGroupForm.control} name="name" render={({ field }) => (
