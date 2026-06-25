@@ -77,11 +77,13 @@ export const handleStripeWebhook = onRequest({
 });
 
 /**
- * onOrderStatusUpdate
- * Triggers on any creation or update to an order.
+ * onGuestOrderStatusUpdate
+ * Triggers on any creation or update to an order document.
  * Manages patron SMS notifications via Twilio using Google Cloud Secret Manager.
+ * 
+ * Path: orders/{orderId}
  */
-export const onOrderStatusUpdate = onDocumentWritten({
+export const onGuestOrderStatusUpdate = onDocumentWritten({
   document: "orders/{orderId}",
   secrets: ["TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN", "TWILIO_FROM_NUMBER"],
   region: 'us-central1',
@@ -99,44 +101,42 @@ export const onOrderStatusUpdate = onDocumentWritten({
   const customerPhone = afterData?.customerPhone;
   const status = afterData?.status;
 
-  // 2. Validation
+  // 2. Validation: Ensure we have a destination for the notification
   if (!customerPhone) {
-    logger.warn(`[onOrderStatusUpdate] Missing customerPhone for order: ${orderId}`);
+    logger.warn(`[onGuestOrderStatusUpdate] Missing customerPhone for order: ${orderId}`);
     return;
   }
 
-  // 3. Initialize Twilio from Secrets
+  // 3. Initialize Twilio from Secrets (provided via process.env automatically)
   const accountSid = process.env.TWILIO_ACCOUNT_SID;
   const authToken = process.env.TWILIO_AUTH_TOKEN;
   const fromNumber = process.env.TWILIO_FROM_NUMBER;
 
   if (!accountSid || !authToken || !fromNumber) {
-    logger.error("[onOrderStatusUpdate] Twilio credentials missing from Secret Manager.");
+    logger.error("[onGuestOrderStatusUpdate] Twilio credentials missing from Secret Manager.");
     return;
   }
 
   const client = twilio(accountSid, authToken);
   let messageBody = "";
 
-  // 4. Logic for New Orders (Creation)
+  // 4. Rule 1: New Order Created with status 'received'
   if (!before || !before.exists) {
-    if (status === 'received' || status === 'Placed') {
-      messageBody = "Thanks for your order at Koop! Your order has been received and is being prepared.";
+    if (status === 'received') {
+      messageBody = `Thanks for your order at Koop! We've received it and are preparing it now. Track your order status live here: https://koop.app/orders/${orderId}`;
     }
   } 
-  // 5. Logic for Status Updates
+  // 5. Rule 2: Order Updated with status transition to 'delivery'
   else {
     const beforeData = before.data();
     const oldStatus = beforeData?.status;
 
-    // Check for transition to delivery
-    // Note: 'Out for Delivery' is the state used in the app lifecycle
-    if ((status === 'delivery' || status === 'Out for Delivery') && oldStatus !== status) {
-      messageBody = "Your Koop order is out for delivery! See you shortly.";
+    if (status === 'delivery' && oldStatus !== 'delivery') {
+      messageBody = `Your Koop order is out for delivery! A runner is on the way. track progress here: https://koop.app/orders/${orderId}`;
     }
   }
 
-  // 6. Dispatch SMS
+  // 6. Dispatch SMS with safe error-catching
   if (messageBody) {
     try {
       const result = await client.messages.create({
@@ -144,9 +144,10 @@ export const onOrderStatusUpdate = onDocumentWritten({
         from: fromNumber,
         to: customerPhone
       });
-      logger.info(`[onOrderStatusUpdate] SMS sent to ${customerPhone} (Order: ${orderId}, SID: ${result.sid})`);
+      logger.info(`[onGuestOrderStatusUpdate] SMS sent to ${customerPhone} (Order: ${orderId}, SID: ${result.sid})`);
     } catch (error: any) {
-      logger.error(`[onOrderStatusUpdate] Twilio dispatch failed for ${orderId}:`, error);
+      // Safe logging for invalid phone formats or carrier issues
+      logger.error(`[onGuestOrderStatusUpdate] Twilio dispatch failed for ${orderId}: ${error.message}`);
     }
   }
 });
