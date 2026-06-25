@@ -12,9 +12,8 @@ import {
   serverTimestamp, 
   getDocs,
   deleteDoc,
-  Timestamp 
 } from 'firebase/firestore';
-import { useFirestore, useDoc, useCollection, useMemoFirebase, useUser, useFirebase, useAuth } from '@/firebase';
+import { useFirestore, useDoc, useCollection, useMemoFirebase, useUser, useAuth } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { 
@@ -34,57 +33,33 @@ import {
   Sparkles,
   Loader2,
   LogOut,
-  ArrowRight,
   ShieldCheck,
-  AlertTriangle,
   Clock,
   DollarSign,
   ShoppingBag,
-  Layers,
   GripVertical,
   Download,
-  Activity,
   CheckCircle2,
   Search,
   TrendingUp,
-  HeartPulse,
   Menu as LucideMenu,
   Image as LucideImage,
-  QrCode,
   Smartphone,
-  Check,
   X,
-  Target,
   Filter,
-  MousePointer2,
   Map as MapIcon,
   Timer,
   Save,
-  Calendar as CalendarIcon,
-  FileText,
-  Eye,
-  EyeOff,
-  Globe,
-  Database,
-  SearchCode,
-  UserCircle,
-  Key,
-  UserPlus,
-  Building,
-  Printer,
-  Star,
-  Settings2,
-  ListPlus,
-  Tags,
-  LayoutList,
-  Wand2,
-  Ban,
   CalendarDays,
   Library,
-  Radio,
   Power,
   ExternalLink,
-  Truck
+  Truck,
+  Building,
+  Tags,
+  Star,
+  LayoutList,
+  Wand2,
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -171,15 +146,10 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
   useSortable,
-} from '@radix-ui/react-radio-group'; // Fix: This was incorrectly imported, should be @dnd-kit/sortable
+} from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
-// Correct Sortable imports
-import {
-  SortableContext as SortableContextActual,
-} from '@dnd-kit/sortable';
-
-import type { MenuItem, Seller, Order, StaffMember, Venue, PlatformConfig, SellerAdminRole, Category, ModifierGroup, ModifierOption } from '@/lib/types';
+import type { MenuItem, Seller, Order, StaffMember, Venue, SellerAdminRole, ModifierGroup } from '@/lib/types';
 import { categories } from '@/lib/types';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -281,7 +251,7 @@ function KPICard({ label, value, sub, icon: Icon, colorClass, highlight = false 
   );
 }
 
-function SortableItem({ id, item, activeMode, isFeatured, onToggleFeatured, onRemoveFromMode, onEdit }: { 
+function SortableItem({ id, item, isFeatured, onToggleFeatured, onRemoveFromMode, onEdit }: { 
   id: string, 
   item: MenuItem, 
   activeMode: string, 
@@ -1177,10 +1147,10 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                                       onSelect={setOrderDateRange}
                                       numberOfMonths={2}
                                       classNames={{
-                                        day_range_start: "bg-primary text-primary-foreground rounded-l-md",
-                                        day_range_end: "bg-primary text-primary-foreground rounded-r-md",
-                                        day_range_middle: "bg-primary/10 text-primary",
-                                        day_selected: "bg-primary text-primary-foreground"
+                                        range_start: "bg-primary text-primary-foreground rounded-l-md",
+                                        range_end: "bg-primary text-primary-foreground rounded-r-md",
+                                        range_middle: "bg-primary/10 text-primary",
+                                        selected: "bg-primary text-primary-foreground"
                                       }}
                                    />
                                 </PopoverContent>
@@ -1441,7 +1411,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                       </div>
 
                       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(e) => handleDragEnd(e, 'layout')}>
-                        <SortableContextActual 
+                        <SortableContext 
                           items={seller?.categoryVisibility?.[configMode] || categories.filter(c => c !== 'Featured')} 
                           strategy={verticalListSortingStrategy}
                         >
@@ -1462,7 +1432,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                                 </div>
                               ))}
                             </div>
-                        </SortableContextActual>
+                        </SortableContext>
                       </DndContext>
                     </div>
 
@@ -1473,7 +1443,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                              <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-amber-800">Featured Highlight Items</h4>
                           </div>
                           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(e) => handleDragEnd(e, 'featured')}>
-                             <SortableContextActual items={menuItems?.filter(i => i.featuredOn?.includes(configMode)).sort((a, b) => (a.featuredRanks?.[configMode] || 0) - (b.featuredRanks?.[configMode] || 0)).map(i => i.id) || []} strategy={verticalListSortingStrategy}>
+                             <SortableContext items={menuItems?.filter(i => i.featuredOn?.includes(configMode)).sort((a, b) => (a.featuredRanks?.[configMode] || 0) - (b.featuredRanks?.[configMode] || 0)).map(i => i.id) || []} strategy={verticalListSortingStrategy}>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                                    {menuItems?.filter(i => i.featuredOn?.includes(configMode)).sort((a, b) => (a.featuredRanks?.[configMode] || 0) - (b.featuredRanks?.[configMode] || 0)).map(item => (
                                      <SortableItem 
@@ -1493,7 +1463,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                                      </div>
                                    )}
                                 </div>
-                             </SortableContextActual>
+                             </SortableContext>
                           </DndContext>
                        </div>
 
@@ -1538,7 +1508,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                                       <span className="text-[10px] font-black uppercase tracking-widest text-green-700">Active on {configMode}</span>
                                     </div>
                                     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(e) => handleDragEnd(e, 'category', cat)}>
-                                       <SortableContextActual items={activeInMode.map(i => i.id)} strategy={verticalListSortingStrategy}>
+                                       <SortableContext items={activeInMode.map(i => i.id)} strategy={verticalListSortingStrategy}>
                                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                              {activeInMode.map(item => (
                                                <SortableItem 
@@ -1558,7 +1528,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                                                </div>
                                              )}
                                           </div>
-                                       </SortableContextActual>
+                                       </SortableContext>
                                     </DndContext>
                                  </div>
 
@@ -1610,7 +1580,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                       <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Shift management & access tokens</p>
                     </div>
                     <Button onClick={() => { setEditingStaff(null); staffForm.reset(); setIsStaffFormOpen(true); }} className="bg-primary hover:bg-primary/90 h-12 px-6 rounded-xl font-black uppercase text-[11px] tracking-widest gap-2 shadow-xl shadow-primary/20">
-                      <UserPlus className="h-4 w-4" /> Provision New Identity
+                      <Plus className="h-4 w-4" /> Provision New Identity
                     </Button>
                   </div>
 
@@ -1620,7 +1590,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                         <CardHeader className="p-4 border-b flex flex-row items-center justify-between space-y-0 text-left">
                           <div className="flex items-center gap-3">
                             <div className={cn("p-2 rounded-lg", s.isActive ? "bg-indigo-50 text-indigo-600" : "bg-slate-200 text-slate-400")}>
-                              <UserCircle className="h-5 w-5" />
+                              <Users className="h-5 w-5" />
                             </div>
                             <div className="min-w-0 text-left">
                               <p className="font-black text-xs uppercase text-[#213147] truncate">{s.name}</p>
@@ -1686,7 +1656,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
 
                     <div className="lg:col-span-2 space-y-8">
                       <div className="flex items-center gap-3 border-b-2 pb-4 px-1 text-left">
-                        <div className="p-2 bg-primary/10 rounded-xl text-primary"><Printer className="h-5 w-5" /></div>
+                        <div className="p-2 bg-primary/10 rounded-xl text-primary"><MapIcon className="h-5 w-5" /></div>
                         <div className="space-y-0.5">
                            <h4 className="font-headline font-black text-lg text-[#213147] uppercase leading-tight">Print Collateral</h4>
                            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Establishment-specific signage templates</p>
@@ -1724,34 +1694,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                                 </div>
                               </CardContent>
                             </Card>
-                            <Card className="border-2 shadow-sm group hover:border-primary/30 transition-all cursor-pointer bg-white">
-                              <CardContent className="p-4 flex items-center gap-4 text-left">
-                                <div className="bg-slate-50 group-hover:bg-primary/10 p-3 rounded-xl transition-colors">
-                                  <MapIcon className="h-6 w-6 text-slate-300 group-hover:text-primary transition-colors" />
-                                </div>
-                                <div className="min-w-0 flex-1 text-left">
-                                  <p className="font-black text-xs uppercase text-[#213147] truncate leading-tight">Golf Course Sign</p>
-                                  <p className="text-[9px] font-bold text-muted-foreground uppercase leading-tight mt-1">18x24 coroplast for tee boxes and practice range</p>
-                                </div>
-                                <div className="opacity-40 group-hover:opacity-100 transition-opacity shrink-0">
-                                  <Badge variant="outline" className="text-[7px] font-black uppercase tracking-tighter h-4 border-slate-200">Soon</Badge>
-                                </div>
-                              </CardContent>
-                            </Card>
-                            <Card className="border-2 shadow-sm group hover:border-primary/30 transition-all cursor-pointer bg-white">
-                              <CardContent className="p-4 flex items-center gap-4 text-left">
-                                <div className="bg-slate-50 group-hover:bg-primary/10 p-3 rounded-xl transition-colors">
-                                  <FileText className="h-6 w-6 text-slate-300 group-hover:text-primary transition-colors" />
-                                </div>
-                                <div className="min-w-0 flex-1 text-left">
-                                  <p className="font-black text-xs uppercase text-[#213147] truncate leading-tight">Clubhouse Poster</p>
-                                  <p className="text-[9px] font-bold text-muted-foreground uppercase leading-tight mt-1">11x17 high-impact poster for pro-shop entrance</p>
-                                </div>
-                                <div className="opacity-40 group-hover:opacity-100 transition-opacity shrink-0">
-                                  <Badge variant="outline" className="text-[7px] font-black uppercase tracking-tighter h-4 border-slate-200">Soon</Badge>
-                                </div>
-                              </CardContent>
-                            </Card>
                           </>
                         ) : seller?.type?.toLowerCase().includes('bowling') ? (
                           <>
@@ -1769,27 +1711,8 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                                 </div>
                               </CardContent>
                             </Card>
-                            <Card className="border-2 shadow-sm group hover:border-primary/30 transition-all cursor-pointer bg-white">
-                              <CardContent className="p-4 flex items-center gap-4 text-left">
-                                <div className="bg-slate-50 group-hover:bg-primary/10 p-3 rounded-xl transition-colors">
-                                  <FileText className="h-6 w-6 text-slate-300 group-hover:text-primary transition-colors" />
-                                </div>
-                                <div className="min-w-0 flex-1 text-left">
-                                  <p className="font-black text-xs uppercase text-[#213147] truncate leading-tight">Proshop Poster</p>
-                                  <p className="text-[9px] font-bold text-muted-foreground uppercase leading-tight mt-1">11x17 high-impact poster for main facility lobby</p>
-                                </div>
-                                <div className="opacity-40 group-hover:opacity-100 transition-opacity shrink-0">
-                                  <Badge variant="outline" className="text-[7px] font-black uppercase tracking-tighter h-4 border-slate-200">Soon</Badge>
-                                </div>
-                              </CardContent>
-                            </Card>
                           </>
-                        ) : (
-                          <div className="col-span-full py-20 text-center bg-white border-2 border-dashed rounded-[2rem] opacity-40">
-                             <Database className="h-10 w-10 mx-auto mb-4 text-slate-300" />
-                             <p className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400 text-center">Marketing Assets arriving soon</p>
-                          </div>
-                        )}
+                        ) : null}
                       </div>
                     </div>
                   </div>
