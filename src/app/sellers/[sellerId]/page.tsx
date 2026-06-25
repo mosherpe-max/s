@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useMemo, useEffect, use } from 'react';
@@ -192,7 +191,7 @@ const DEFAULT_THRESHOLDS: Record<string, { warning: number; max: number }> = {
 const MODE_COLORS: Record<string, string> = {
   'Beverage Cart': '#E50000',
   'Clubhouse': '#213147',
-  'Lane Delivery': '#EC4899',
+  'Lane Delivery': '#7C3AED',
   'Take Out': '#F59E0B'
 };
 
@@ -650,7 +649,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     });
   };
 
-  const handleSeedPresets = async () => {
+  const handleSeedPresets = async ( ) => {
     if (!firestore || !seller || !sellerId) return;
     setIsSeeding(true);
     try {

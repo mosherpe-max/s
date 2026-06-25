@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
@@ -178,7 +177,7 @@ const SERVICE_MODES = ['Beverage Cart', 'Clubhouse', 'Lane Delivery', 'Take Out'
 const MODE_COLORS: Record<string, string> = {
   'Beverage Cart': '#E50000',
   'Clubhouse': '#213147',
-  'Lane Delivery': '#EC4899',
+  'Lane Delivery': '#7C3AED',
   'Take Out': '#F59E0B'
 };
 
