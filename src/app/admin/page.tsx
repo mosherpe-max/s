@@ -118,7 +118,7 @@ import { useToast } from '@/hooks/use-toast';
 import { cn, getNumericOrderId, SUPER_ADMIN_ID } from '@/lib/utils';
 import { StylizedKoopLogo } from '@/components/header';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
-import { startOfMonth } from 'date-fns';
+import { startOfMonth, startOfDay, addHours, isSameHour, isSameDay, eachDayOfInterval, startOfYear, addMonths, isSameMonth, isSameYear, format } from 'date-fns';
 import { useIsMobile } from '@/hooks/use-mobile';
 import {
   Sheet,
@@ -144,6 +144,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Legend
+} from 'recharts';
 
 const SYSTEM_DEFAULT_THRESHOLDS = {
   'Beverage Cart': { warning: 10, max: 15 },
@@ -164,6 +174,13 @@ const SYSTEM_DEFAULT_GPS_THRESHOLDS = {
 };
 
 const SERVICE_MODES = ['Beverage Cart', 'Clubhouse', 'Lane Delivery', 'Take Out'];
+
+const MODE_COLORS: Record<string, string> = {
+  'Beverage Cart': '#E50000',
+  'Clubhouse': '#213147',
+  'Lane Delivery': '#EC4899',
+  'Take Out': '#F59E0B'
+};
 
 const venueRegistrationSchema = z.object({
   name: z.string().min(2, 'Establishment name required'),
@@ -249,6 +266,7 @@ export default function PlatformAdminPage() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isMounted, setIsMounted] = useState(false);
   const [baseUrl, setBaseUrl] = useState('');
+  const [analyticsRange, setAnalyticsRange] = useState<'Today' | 'MTD' | 'YTD'>('Today');
   
   const [selectedSeller, setSelectedSeller] = useState<Seller | null>(null);
   const [isVenueDetailOpen, setIsVenueDetailOpen] = useState(false);
@@ -317,7 +335,7 @@ export default function PlatformAdminPage() {
 
   const ordersQuery = useMemoFirebase(() => {
     if (!firestore || !user) return null;
-    return query(collection(firestore, 'orders'), limit(500), orderBy('createdAt', 'desc'));
+    return query(collection(firestore, 'orders'), limit(1000), orderBy('createdAt', 'desc'));
   }, [firestore, user]);
 
   const { data: sellers } = useCollection<Seller>(sellersQuery);
@@ -343,6 +361,71 @@ export default function PlatformAdminPage() {
       fees: { mtd: mtdFees }
     };
   }, [sellers, orders]);
+
+  // ANALYTICS PROCESSING ENGINE
+  const getKoopAnalyticsData = (range: 'Today' | 'MTD' | 'YTD') => {
+    if (!orders) return [];
+    const now = new Date();
+    let chartData: any[] = [];
+    
+    if (range === 'Today') {
+      const start = startOfDay(now);
+      chartData = Array.from({ length: 24 }, (_, i) => {
+        const hour = addHours(start, i);
+        const entry: any = { time: format(hour, 'ha') };
+        SERVICE_MODES.forEach(mode => {
+          const matching = orders.filter(o => 
+            o.menuType === mode && 
+            o.createdAt && 
+            typeof o.createdAt.toDate === 'function' && 
+            isSameHour(o.createdAt.toDate(), hour) && 
+            isSameDay(o.createdAt.toDate(), now)
+          );
+          entry[`${mode}_total`] = Math.round(matching.reduce((sum, o) => sum + o.total, 0));
+          entry[`${mode}_fees`] = Math.round(matching.reduce((sum, o) => sum + o.serviceFee, 0));
+        });
+        return entry;
+      });
+    } else if (range === 'MTD') {
+      const start = startOfMonth(now);
+      chartData = eachDayOfInterval({ start, end: now }).map(day => {
+        const entry: any = { time: format(day, 'MMM d') };
+        SERVICE_MODES.forEach(mode => {
+          const matching = orders.filter(o => 
+            o.menuType === mode && 
+            o.createdAt && 
+            typeof o.createdAt.toDate === 'function' && 
+            isSameDay(o.createdAt.toDate(), day)
+          );
+          entry[`${mode}_total`] = Math.round(matching.reduce((sum, o) => sum + o.total, 0));
+          entry[`${mode}_fees`] = Math.round(matching.reduce((sum, o) => sum + o.serviceFee, 0));
+        });
+        return entry;
+      });
+    } else {
+      const start = startOfYear(now);
+      chartData = Array.from({ length: now.getMonth() + 1 }, (_, i) => {
+        const month = addMonths(start, i);
+        const entry: any = { time: format(month, 'MMM') };
+        SERVICE_MODES.forEach(mode => {
+          const matching = orders.filter(o => 
+            o.menuType === mode && 
+            o.createdAt && 
+            typeof o.createdAt.toDate === 'function' && 
+            isSameMonth(o.createdAt.toDate(), month) && 
+            isSameYear(o.createdAt.toDate(), now)
+          );
+          entry[`${mode}_total`] = Math.round(matching.reduce((sum, o) => sum + o.total, 0));
+          entry[`${mode}_fees`] = Math.round(matching.reduce((sum, o) => sum + o.serviceFee, 0));
+        });
+        return entry;
+      });
+    }
+    return chartData;
+  };
+
+  const todayChartData = useMemo(() => getKoopAnalyticsData('Today'), [orders]);
+  const rangeAnalyticsData = useMemo(() => getKoopAnalyticsData(analyticsRange), [orders, analyticsRange]);
 
   const registrationForm = useForm<VenueRegistrationData>({
     resolver: zodResolver(venueRegistrationSchema),
@@ -375,7 +458,6 @@ export default function PlatformAdminPage() {
 
   useEffect(() => {
     if (selectedSeller && isVenueDetailOpen) {
-      // Use Seller data as primary source, and Venue data as supplementary for financial settings
       maintenanceForm.reset({
         name: selectedSeller.courseName || '',
         ownerUid: selectedVenueData?.ownerUid || selectedSeller.ownerId || '',
@@ -642,6 +724,7 @@ export default function PlatformAdminPage() {
 
   const NAV_ITEMS = [
     { id: "dashboard", label: "Global Overview", icon: LayoutDashboard },
+    { id: "analytics", label: "Global Analytics", icon: BarChart3 },
     { id: "venues", label: "Venue Management", icon: Store },
     { id: "demos", label: "Sales Demos", icon: Zap },
     { id: "system", label: "System Control", icon: Settings2 },
@@ -789,6 +872,119 @@ export default function PlatformAdminPage() {
                     <KPICard label="GMV (MTD)" value={`$${metrics?.gmv.mtd.toLocaleString()}`} sub="Gross sales" icon={DollarSign} colorClass="bg-green-600" />
                     <KPICard label="Orders (MTD)" value={metrics?.orders.mtd || 0} sub="Processed" icon={ShoppingBag} colorClass="bg-primary" />
                     <KPICard label="Fee Revenue" value={`$${metrics?.fees.mtd.toLocaleString()}`} sub="Platform cut" icon={BarChart3} colorClass="bg-amber-500" />
+                  </div>
+
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <Card className="border-2 shadow-sm overflow-hidden">
+                      <CardHeader className="bg-slate-50/50 border-b">
+                        <CardTitle className="text-xs font-black uppercase tracking-widest text-[#213147]">Today's Platform GMV</CardTitle>
+                        <CardDescription className="text-[8px] font-bold uppercase">Consolidated gross sales across all venues</CardDescription>
+                      </CardHeader>
+                      <CardContent className="pt-10 h-[350px]">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={todayChartData}>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
+                            <XAxis dataKey="time" axisLine={false} tickLine={false} fontSize={10} fontWeight="bold" />
+                            <YAxis axisLine={false} tickLine={false} fontSize={10} fontWeight="bold" />
+                            <Tooltip cursor={{ fill: 'transparent' }} contentStyle={{ fontSize: '10px', borderRadius: '12px', border: '2px solid #E2E8F0' }} />
+                            <Legend verticalAlign="top" align="right" iconType="circle" wrapperStyle={{ fontSize: '9px', fontWeight: 'bold', textTransform: 'uppercase' }} />
+                            {SERVICE_MODES.map(mode => (
+                              <Bar key={`${mode}_total`} name={mode} dataKey={`${mode}_total`} stackId="a" fill={MODE_COLORS[mode] || '#64748B'} />
+                            ))}
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </CardContent>
+                    </Card>
+
+                    <Card className="border-2 shadow-sm overflow-hidden">
+                      <CardHeader className="bg-slate-50/50 border-b">
+                        <CardTitle className="text-xs font-black uppercase tracking-widest text-[#213147]">Today's Koop Revenue</CardTitle>
+                        <CardDescription className="text-[8px] font-bold uppercase">Consolidated collected convenience fees</CardDescription>
+                      </CardHeader>
+                      <CardContent className="pt-10 h-[350px]">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={todayChartData}>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
+                            <XAxis dataKey="time" axisLine={false} tickLine={false} fontSize={10} fontWeight="bold" />
+                            <YAxis axisLine={false} tickLine={false} fontSize={10} fontWeight="bold" />
+                            <Tooltip cursor={{ fill: 'transparent' }} contentStyle={{ fontSize: '10px', borderRadius: '12px', border: '2px solid #E2E8F0' }} />
+                            <Legend verticalAlign="top" align="right" iconType="circle" wrapperStyle={{ fontSize: '9px', fontWeight: 'bold', textTransform: 'uppercase' }} />
+                            {SERVICE_MODES.map(mode => (
+                              <Bar key={`${mode}_fees`} name={mode} dataKey={`${mode}_fees`} stackId="a" fill={MODE_COLORS[mode] || '#64748B'} />
+                            ))}
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </CardContent>
+                    </Card>
+                  </div>
+                </div>
+              )}
+
+              {activeNav === 'analytics' && (
+                <div className="space-y-8 animate-in fade-in duration-500">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b-2 pb-4">
+                    <div className="space-y-1">
+                      <h3 className="font-headline font-black text-2xl text-[#213147] uppercase leading-tight">Global Platform Analytics</h3>
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Historical performance distribution across all partners</p>
+                    </div>
+                    <div className="flex bg-slate-100 p-0.5 rounded-lg border-2">
+                      {['Today', 'MTD', 'YTD'].map((r) => (
+                        <button 
+                          key={r} 
+                          onClick={() => setAnalyticsRange(r as any)} 
+                          className={cn(
+                            "px-6 py-2 text-[10px] font-black uppercase tracking-widest rounded-md transition-all", 
+                            analyticsRange === r ? "bg-white text-[#213147] shadow-sm" : "text-slate-400 hover:text-slate-600"
+                          )}
+                        >
+                          {r}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="space-y-10">
+                    <Card className="border-2 shadow-lg overflow-hidden bg-white">
+                      <CardHeader className="bg-slate-50/50 border-b">
+                        <CardTitle className="text-xs font-black uppercase tracking-widest text-[#213147]">Consolidated Platform GMV</CardTitle>
+                        <CardDescription className="text-[8px] font-bold uppercase">Total gross volume ({analyticsRange})</CardDescription>
+                      </CardHeader>
+                      <CardContent className="pt-10 h-[450px]">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={rangeAnalyticsData}>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
+                            <XAxis dataKey="time" axisLine={false} tickLine={false} fontSize={10} fontWeight="bold" />
+                            <YAxis axisLine={false} tickLine={false} fontSize={10} fontWeight="bold" />
+                            <Tooltip cursor={{ fill: 'transparent' }} contentStyle={{ fontSize: '10px', borderRadius: '12px', border: '2px solid #E2E8F0' }} />
+                            <Legend verticalAlign="top" align="right" iconType="circle" wrapperStyle={{ fontSize: '9px', fontWeight: 'bold', textTransform: 'uppercase' }} />
+                            {SERVICE_MODES.map(mode => (
+                              <Bar key={`${mode}_total`} name={mode} dataKey={`${mode}_total`} stackId="a" fill={MODE_COLORS[mode] || '#64748B'} />
+                            ))}
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </CardContent>
+                    </Card>
+
+                    <Card className="border-2 shadow-lg overflow-hidden bg-white">
+                      <CardHeader className="bg-slate-50/50 border-b">
+                        <CardTitle className="text-xs font-black uppercase tracking-widest text-[#213147]">Platform Fee Revenue</CardTitle>
+                        <CardDescription className="text-[8px] font-bold uppercase">Total collected fees ({analyticsRange})</CardDescription>
+                      </CardHeader>
+                      <CardContent className="pt-10 h-[450px]">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={rangeAnalyticsData}>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
+                            <XAxis dataKey="time" axisLine={false} tickLine={false} fontSize={10} fontWeight="bold" />
+                            <YAxis axisLine={false} tickLine={false} fontSize={10} fontWeight="bold" />
+                            <Tooltip cursor={{ fill: 'transparent' }} contentStyle={{ fontSize: '10px', borderRadius: '12px', border: '2px solid #E2E8F0' }} />
+                            <Legend verticalAlign="top" align="right" iconType="circle" wrapperStyle={{ fontSize: '9px', fontWeight: 'bold', textTransform: 'uppercase' }} />
+                            {SERVICE_MODES.map(mode => (
+                              <Bar key={`${mode}_fees`} name={mode} dataKey={`${mode}_fees`} stackId="a" fill={MODE_COLORS[mode] || '#64748B'} />
+                            ))}
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </CardContent>
+                    </Card>
                   </div>
                 </div>
               )}
@@ -1097,7 +1293,7 @@ export default function PlatformAdminPage() {
                               min="1"
                               value={gpsFreshness.cold || ''} 
                               onChange={e => handleGpsFreshnessChange('cold', e.target.value)} 
-                              className="h-10 border-2 font-bold focus-visible:ring-red-500 border-red-100 text-center"
+                              className="h-10 border-2 font-bold focus-visible:ring-red-500 border-amber-100 text-center"
                             />
                             <p className="text-[8px] sm:text-[10px] font-bold text-red-600/60 text-center">{"<"} {gpsFreshness.cold}s</p>
                           </div>
