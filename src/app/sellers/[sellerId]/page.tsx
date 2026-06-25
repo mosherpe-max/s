@@ -649,7 +649,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
     });
   };
 
-  const handleSeedPresets = async ( ) => {
+  const handleSeedPresets = async () => {
     if (!firestore || !seller || !sellerId) return;
     setIsSeeding(true);
     try {
@@ -870,7 +870,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
         </nav>
         <div className="mt-auto border-t border-white/5 p-4 shrink-0 space-y-4">
           {showLabels && (
-            <div className="px-4 py-3 bg-white/5 rounded-xl border border-white/5">
+            <div className="px-4 py-3 bg-white/5 rounded-xl border border-white/5 text-left">
               <div className="flex items-center gap-3">
                 <div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-black text-xs">
                   {user?.email?.charAt(0).toUpperCase() || 'V'}
@@ -973,7 +973,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
               
               {activeNav === 'dashboard' && (
                 <div className="space-y-6 sm:space-y-8 animate-in fade-in duration-500">
-                  {/* SERVICE COMMAND CENTER */}
                   <Card className="border-2 shadow-md overflow-hidden bg-white">
                     <CardHeader className="border-b bg-[#213147] text-white flex flex-row items-center justify-between py-4">
                       <div className="flex items-center gap-3">
@@ -1425,7 +1424,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                   </div>
 
                   <div className="grid grid-cols-1 gap-12">
-                    {/* GLOBAL VISIBILITY CONTROL */}
                     <div className="space-y-4">
                       <div className="flex items-center gap-3 border-b-2 pb-2 px-1">
                           <div className="p-1.5 bg-indigo-50 rounded-lg text-indigo-600"><LayoutList className="h-4 w-4" /></div>
@@ -1462,7 +1460,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                     </div>
 
                     <div className="space-y-12">
-                       {/* FEATURED SECTION */}
                        <div className="space-y-4 bg-amber-50/30 p-6 rounded-[2rem] border-2 border-amber-100/50">
                           <div className="flex items-center gap-2 border-b-2 border-amber-100 pb-2 px-1">
                              <Star className="h-4 w-4 text-amber-500 fill-current" />
@@ -1493,7 +1490,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                           </DndContext>
                        </div>
 
-                       {/* CATEGORY SECTIONS */}
                        {categories.filter(c => c !== 'Featured').map(cat => {
                          const allItemsInCat = menuItems?.filter(i => i.category === cat) || [];
                          const activeInMode = allItemsInCat.filter(i => i.availableOn?.includes(configMode))
@@ -1529,7 +1525,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                               </div>
 
                               <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-                                 {/* ACTIVE LIST */}
                                  <div className="md:col-span-3 space-y-3">
                                     <div className="flex items-center gap-2 px-1 mb-2">
                                       <CheckCircle2 className="h-3.5 w-3.5 text-green-600" />
@@ -1560,7 +1555,6 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                                     </DndContext>
                                  </div>
 
-                                 {/* LIBRARY LIST */}
                                  <div className="md:col-span-1 space-y-3">
                                     <div className="flex items-center gap-2 px-1 mb-2">
                                       <Library className="h-3.5 w-3.5 text-indigo-600" />
@@ -1570,7 +1564,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                                        <div className="space-y-2">
                                           {remainingInLibrary.map(item => (
                                             <div key={`lib-item-${item.id}`} className="bg-white border-2 rounded-xl p-2.5 flex items-center justify-between gap-2 shadow-sm group">
-                                               <div className="min-w-0 flex-1">
+                                               <div className="min-w-0 flex-1 text-left">
                                                   <p className="text-[10px] font-black uppercase text-[#213147] truncate">{item.name}</p>
                                                   <p className="text-[8px] font-bold text-muted-foreground uppercase">${item.price.toFixed(2)}</p>
                                                </div>
@@ -1621,14 +1615,14 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                             <div className={cn("p-2 rounded-lg", s.isActive ? "bg-indigo-50 text-indigo-600" : "bg-slate-200 text-slate-400")}>
                               <UserCircle className="h-5 w-5" />
                             </div>
-                            <div className="min-w-0">
+                            <div className="min-w-0 text-left">
                               <p className="font-black text-xs uppercase text-[#213147] truncate">{s.name}</p>
                               <Badge variant="secondary" className="h-4 px-1 text-[8px] font-black uppercase mt-0.5">{s.role}</Badge>
                             </div>
                           </div>
                         </CardHeader>
                         <CardContent className="p-4 flex items-center justify-between">
-                          <div className="flex flex-col gap-1">
+                          <div className="flex flex-col gap-1 text-left">
                              <span className="text-[8px] font-black uppercase text-muted-foreground tracking-widest">Access Key</span>
                              <span className="font-mono text-[10px] font-bold text-[#213147]">{s.pin}</span>
                           </div>
@@ -1684,7 +1678,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                     </Card>
 
                     <div className="lg:col-span-2 space-y-8">
-                      <div className="flex items-center gap-3 border-b-2 pb-4">
+                      <div className="flex items-center gap-3 border-b-2 pb-4 px-1">
                         <div className="p-2 bg-primary/10 rounded-xl text-primary"><Printer className="h-5 w-5" /></div>
                         <div className="space-y-0.5">
                            <h4 className="font-headline font-black text-lg text-[#213147] uppercase leading-tight">Print Collateral</h4>
@@ -1700,7 +1694,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                                 <div className="bg-slate-50 group-hover:bg-primary/10 p-3 rounded-xl transition-colors">
                                   <Smartphone className="h-6 w-6 text-slate-300 group-hover:text-primary transition-colors" />
                                 </div>
-                                <div className="min-w-0 flex-1">
+                                <div className="min-w-0 flex-1 text-left">
                                   <p className="font-black text-xs uppercase text-[#213147] truncate leading-tight">Golf Cart Card</p>
                                   <p className="text-[9px] font-bold text-muted-foreground uppercase leading-tight mt-1">4x6 double-sided card for cart steering wheels</p>
                                 </div>
@@ -1714,7 +1708,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                                 <div className="bg-slate-50 group-hover:bg-primary/10 p-3 rounded-xl transition-colors">
                                   <LucideImage className="h-6 w-6 text-slate-300 group-hover:text-primary transition-colors" />
                                 </div>
-                                <div className="min-w-0 flex-1">
+                                <div className="min-w-0 flex-1 text-left">
                                   <p className="font-black text-xs uppercase text-[#213147] truncate leading-tight">Cart Sticker</p>
                                   <p className="text-[9px] font-bold text-muted-foreground uppercase leading-tight mt-1">3x3 vinyl decal for dash or windshield mounting</p>
                                 </div>
@@ -1728,7 +1722,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                                 <div className="bg-slate-50 group-hover:bg-primary/10 p-3 rounded-xl transition-colors">
                                   <MapIcon className="h-6 w-6 text-slate-300 group-hover:text-primary transition-colors" />
                                 </div>
-                                <div className="min-w-0 flex-1">
+                                <div className="min-w-0 flex-1 text-left">
                                   <p className="font-black text-xs uppercase text-[#213147] truncate leading-tight">Golf Course Sign</p>
                                   <p className="text-[9px] font-bold text-muted-foreground uppercase leading-tight mt-1">18x24 coroplast for tee boxes and practice range</p>
                                 </div>
@@ -1742,7 +1736,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                                 <div className="bg-slate-50 group-hover:bg-primary/10 p-3 rounded-xl transition-colors">
                                   <FileText className="h-6 w-6 text-slate-300 group-hover:text-primary transition-colors" />
                                 </div>
-                                <div className="min-w-0 flex-1">
+                                <div className="min-w-0 flex-1 text-left">
                                   <p className="font-black text-xs uppercase text-[#213147] truncate leading-tight">Clubhouse Poster</p>
                                   <p className="text-[9px] font-bold text-muted-foreground uppercase leading-tight mt-1">11x17 high-impact poster for pro-shop entrance</p>
                                 </div>
@@ -1759,7 +1753,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                                 <div className="bg-slate-50 group-hover:bg-primary/10 p-3 rounded-xl transition-colors">
                                   <Smartphone className="h-6 w-6 text-slate-300 group-hover:text-primary transition-colors" />
                                 </div>
-                                <div className="min-w-0 flex-1">
+                                <div className="min-w-0 flex-1 text-left">
                                   <p className="font-black text-xs uppercase text-[#213147] truncate leading-tight">Lane Side Table Card</p>
                                   <p className="text-[9px] font-bold text-muted-foreground uppercase leading-tight mt-1">5x7 folded card for bowling lane scoring tables</p>
                                 </div>
@@ -1773,7 +1767,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                                 <div className="bg-slate-50 group-hover:bg-primary/10 p-3 rounded-xl transition-colors">
                                   <FileText className="h-6 w-6 text-slate-300 group-hover:text-primary transition-colors" />
                                 </div>
-                                <div className="min-w-0 flex-1">
+                                <div className="min-w-0 flex-1 text-left">
                                   <p className="font-black text-xs uppercase text-[#213147] truncate leading-tight">Proshop Poster</p>
                                   <p className="text-[9px] font-bold text-muted-foreground uppercase leading-tight mt-1">11x17 high-impact poster for main facility lobby</p>
                                 </div>
@@ -1786,7 +1780,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                         ) : (
                           <div className="col-span-full py-20 text-center bg-white border-2 border-dashed rounded-[2rem] opacity-40">
                              <Database className="h-10 w-10 mx-auto mb-4 text-slate-300" />
-                             <p className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Marketing Assets for your venue type arriving soon</p>
+                             <p className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Marketing Assets arriving soon</p>
                           </div>
                         )}
                       </div>
@@ -1909,7 +1903,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
           <DialogHeader className="p-8 bg-[#213147] text-white">
             <div className="flex items-center gap-4">
               <div className="bg-primary/20 p-3 rounded-2xl shrink-0"><Users className="h-6 w-6 text-primary" /></div>
-              <div>
+              <div className="text-left">
                 <DialogTitle className="font-headline font-black uppercase tracking-tight text-white text-xl">{editingStaff ? 'Modify Identity' : 'Provision Staff'}</DialogTitle>
                 <DialogDescription className="text-white/40 text-[9px] font-bold uppercase tracking-widest mt-1">Set secure terminal access tokens</DialogDescription>
               </div>
@@ -1966,7 +1960,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
           <DialogHeader className="p-8 bg-[#213147] text-white">
             <div className="flex items-center gap-4">
               <div className="bg-primary/20 p-3 rounded-2xl shrink-0"><UtensilsCrossed className="h-6 w-6 text-primary" /></div>
-              <div>
+              <div className="text-left">
                 <DialogTitle className="font-headline font-black uppercase tracking-tight text-white text-xl">{editingItem ? 'Modify Item' : 'New Menu Item'}</DialogTitle>
                 <DialogDescription className="text-white/40 text-[9px] font-bold uppercase tracking-widest mt-1">Configure digital menu presence</DialogDescription>
               </div>
@@ -2029,7 +2023,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                                 field.onChange(next);
                               }} 
                             />
-                            <div className="flex-1 min-w-0">
+                            <div className="flex-1 min-w-0 text-left">
                                <p className="text-[10px] font-black uppercase text-[#213147]">{group.name}</p>
                                <p className="text-[8px] font-bold text-muted-foreground uppercase">{group.options.length} options</p>
                             </div>
@@ -2060,7 +2054,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
           <DialogHeader className="p-8 bg-indigo-600 text-white">
             <div className="flex items-center gap-4">
               <div className="bg-white/20 p-3 rounded-2xl shrink-0"><Tags className="h-6 w-6 text-white" /></div>
-              <div>
+              <div className="text-left">
                 <DialogTitle className="font-headline font-black uppercase tracking-tight text-white text-xl">{editingModifierGroup ? 'Modify Modifier Set' : 'New Modifier Set'}</DialogTitle>
                 <DialogDescription className="text-white/40 text-[9px] font-bold uppercase tracking-widest mt-1">Configure options and add-ons</DialogDescription>
               </div>
@@ -2072,7 +2066,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                 <form onSubmit={modifierGroupForm.handleSubmit(handleSaveModifierGroup)} className="space-y-8">
                   <FormField control={modifierGroupForm.control} name="name" render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-[10px] font-black uppercase tracking-widest">Group Name</Label>
+                      <FormLabel className="text-[10px] font-black uppercase tracking-widest">Group Name</FormLabel>
                       <FormControl><Input {...field} placeholder="Side Options" className="h-12 border-2 font-bold" /></FormControl>
                       <FormDescription className="text-[8px] font-medium uppercase text-muted-foreground">e.g. "Pizza Toppings", "Choice of Dressing"</FormDescription>
                       <FormMessage />
