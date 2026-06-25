@@ -876,7 +876,9 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                   {user?.email?.charAt(0).toUpperCase() || 'V'}
                 </div>
                 <div className="flex flex-col min-w-0">
-                  <span className="text-[10px] font-black text-white truncate uppercase tracking-tight">Venue Admin</span>
+                  <span className="text-[10px] font-black text-white truncate uppercase tracking-tight">
+                    {seller?.courseName || 'Venue Admin'}
+                  </span>
                   <span className="text-[8px] font-bold text-slate-400 truncate uppercase">{user?.email}</span>
                 </div>
               </div>
@@ -926,7 +928,9 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
           <div className="bg-primary/10 p-2 rounded-xl"><Target className="h-5 w-5 text-primary" /></div>
           <div className="flex flex-col">
             <div className="flex items-center gap-2">
-              <h2 className="text-lg font-black font-headline uppercase tracking-tight text-[#213147]">{NAV_ITEMS.find(n => n.id === activeNav)?.label}</h2>
+              <h2 className="text-lg font-black font-headline uppercase tracking-tight text-[#213147]">
+                {NAV_ITEMS.find(n => n.id === activeNav)?.label}
+              </h2>
               <Badge variant="outline" className="hidden sm:inline-flex text-[10px] font-black border-indigo-100 bg-indigo-50 text-indigo-700 uppercase h-5 px-2">
                 {seller?.courseName}
               </Badge>
@@ -2068,7 +2072,7 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
                 <form onSubmit={modifierGroupForm.handleSubmit(handleSaveModifierGroup)} className="space-y-8">
                   <FormField control={modifierGroupForm.control} name="name" render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-[10px] font-black uppercase tracking-widest">Group Name</FormLabel>
+                      <FormLabel className="text-[10px] font-black uppercase tracking-widest">Group Name</Label>
                       <FormControl><Input {...field} placeholder="Side Options" className="h-12 border-2 font-bold" /></FormControl>
                       <FormDescription className="text-[8px] font-medium uppercase text-muted-foreground">e.g. "Pizza Toppings", "Choice of Dressing"</FormDescription>
                       <FormMessage />
