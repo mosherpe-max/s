@@ -11,10 +11,10 @@
         "ownerUid": { "type": "string", "description": "The Firebase Auth UID of the primary venue manager." },
         "stripeAccountId": { "type": "string" },
         "stripeConnectId": { "type": "string" },
-        "platformFeeFixed": { "type": "number", "description": "Koop's fixed fee in cents per transaction." },
-        "platformFeePercent": { "type": "number", "description": "Koop's percentage fee per transaction." },
+        "solutionFeeFixed": { "type": "number", "description": "Koop's fixed fee in cents per transaction." },
+        "solutionFeePercent": { "type": "number", "description": "Koop's percentage fee per transaction." },
         "patronConvenienceFee": { "type": "number", "description": "The fee charged to the patron in cents." },
-        "monthlyPlatformFee": { "type": "number", "description": "The monthly subscription fee for the venue in dollars." },
+        "monthlySolutionFee": { "type": "number", "description": "The monthly subscription fee for the venue in dollars." },
         "stripeOnboardingComplete": { "type": "boolean" },
         "payoutsEnabled": { "type": "boolean" },
         "isFoundingPartner": { "type": "boolean" },
@@ -41,10 +41,10 @@
       },
       "required": ["id", "courseName", "contactEmail", "status"]
     },
-    "PlatformConfig": {
-      "title": "Platform Config",
+    "SolutionConfig": {
+      "title": "Solution Config",
       "type": "object",
-      "description": "Global configuration settings for the KOOP platform.",
+      "description": "Global configuration settings for the KOOP solution.",
       "properties": {
         "supportEmail": { "type": "string", "format": "email" },
         "logoUrl": { "type": "string" },
@@ -64,7 +64,7 @@
     "AdminRole": {
       "title": "Admin Role",
       "type": "object",
-      "description": "Global platform administrator permission marker.",
+      "description": "Global solution administrator permission marker.",
       "properties": {
         "grantedAt": { "type": "string", "format": "date-time" },
         "grantedBy": { "type": "string" }
@@ -142,7 +142,7 @@
     "structure": [
       { "path": "/venues/{venueId}", "definition": { "entityName": "Venue" } },
       { "path": "/sellers/{sellerId}", "definition": { "entityName": "Seller" } },
-      { "path": "/platform/config", "definition": { "entityName": "PlatformConfig" } },
+      { "path": "/solution/config", "definition": { "entityName": "SolutionConfig" } },
       { "path": "/roles_admin/{uid}", "definition": { "entityName": "AdminRole" } },
       { "path": "/roles_seller_admin/{email}", "definition": { "entityName": "SellerAdminRole" } },
       { "path": "/roles_sales_rep/{email}", "definition": { "entityName": "SalesRepRole" } },

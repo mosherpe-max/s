@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Suspense, useEffect, useRef, useState, use } from 'react';
@@ -37,7 +38,10 @@ function OrderTrackingContent() {
   const sellerRef = useMemoFirebase(() => (firestore && order?.sellerId ? doc(firestore, 'sellers', order.sellerId) : null), [firestore, order?.sellerId]);
   const { data: seller, isLoading: isSellerLoading } = useDoc<Seller>(sellerRef);
 
-  const staffRef = useMemoFirebase(() => (firestore && order?.sellerId && order?.assignedStaffId ? doc(firestore, 'sellers', order.sellerId, 'staff', order.assignedStaffId) : null), [firestore, order?.sellerId, order?.assignedStaffId]);
+  const staffRef = useMemoFirebase(() => {
+    if (!firestore || !order?.sellerId || !order?.assignedStaffId) return null;
+    return doc(firestore, 'sellers', order.sellerId, 'staff', order.assignedStaffId);
+  }, [firestore, order?.sellerId, order?.assignedStaffId]);
   const { data: assignedStaff } = useDoc<StaffMember>(staffRef);
 
   const isGolf = seller?.type?.toLowerCase().includes('golf');
@@ -346,7 +350,7 @@ function OrderTrackingContent() {
                       </button>
                     </PopoverTrigger>
                     <PopoverContent className="text-[10px] normal-case tracking-normal p-3 rounded-xl max-w-[200px]">
-                      This fee supports the mobile ordering platform and real-time delivery logistics.
+                      This fee supports the mobile ordering solution and real-time delivery logistics.
                     </PopoverContent>
                    </Popover>
                  </div>

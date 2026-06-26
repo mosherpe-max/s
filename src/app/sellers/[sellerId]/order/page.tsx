@@ -1,10 +1,11 @@
+
 'use client';
 
 import { useState, use, useEffect, useMemo, useRef } from 'react';
 import { collection, doc, addDoc, serverTimestamp } from 'firebase/firestore';
 import { signInAnonymously } from 'firebase/auth';
 import { useFirestore, useCollection, useMemoFirebase, useDoc, useAuth, useUser, useFirebase } from '@/firebase';
-import type { Seller, MenuItem, OrderItem, PlatformConfig, Category, Venue } from '@/lib/types';
+import type { Seller, MenuItem, OrderItem, SolutionConfig, Category, Venue } from '@/lib/types';
 import { categories } from '@/lib/types';
 import { BuyerMenu } from '@/components/buyer-menu';
 import { OrderSummary } from '@/components/order-summary';
@@ -157,7 +158,7 @@ function CheckoutDrawerContent({
   setLocationValue, 
   activeOrderItems, 
   subtotal, 
-  platformFee, 
+  solutionFee, 
   taxRate,
   onOrderComplete
 }: any) {
@@ -178,7 +179,7 @@ function CheckoutDrawerContent({
   const isBowling = seller?.type?.toLowerCase().includes('bowling');
 
   const tax = subtotal * (taxRate / 100);
-  const finalTotal = subtotal + platformFee + tax + tip;
+  const finalTotal = subtotal + solutionFee + tax + tip;
   const baseTotalForBackend = subtotal + tax + tip;
 
   useEffect(() => {
@@ -241,7 +242,7 @@ function CheckoutDrawerContent({
         deliveryLocation: mockBuyerLocation,
         items: activeOrderItems,
         subtotal,
-        serviceFee: platformFee,
+        serviceFee: solutionFee,
         tax,
         tip,
         total: finalTotal,
@@ -278,7 +279,7 @@ function CheckoutDrawerContent({
       deliveryLocation: mockBuyerLocation,
       items: activeOrderItems,
       subtotal,
-      serviceFee: platformFee,
+      serviceFee: solutionFee,
       tax,
       tip,
       total: finalTotal,
@@ -288,7 +289,7 @@ function CheckoutDrawerContent({
       menuTypeLocation: locationValue || null,
       createdAt: serverTimestamp(),
     };
-  }, [user, sellerId, activeOrderItems, subtotal, platformFee, tax, tip, finalTotal, selectedMenuType, locationValue]);
+  }, [user, sellerId, activeOrderItems, subtotal, solutionFee, tax, tip, finalTotal, selectedMenuType, locationValue]);
 
   const checkoutNotice = isGolf 
     ? "A small convenience fee has been added to support mobile ordering on the course."
@@ -328,7 +329,7 @@ function CheckoutDrawerContent({
 
         <TipSelector subtotal={subtotal} onTipChange={setTip} />
 
-        <PricingBreakdown subtotal={subtotal} serviceFee={platformFee} tax={tax} tip={tip} taxRate={taxRate} />
+        <PricingBreakdown subtotal={subtotal} serviceFee={solutionFee} tax={tax} tip={tip} taxRate={taxRate} />
 
         <div className="space-y-3">
           <div className="bg-slate-50 border border-slate-100 p-4 rounded-2xl flex items-start gap-3 animate-in fade-in slide-in-from-bottom-2 duration-500">
@@ -401,8 +402,8 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
   const [locationValue, setLocationValue] = useState<string>('');
   const [activeCategory, setActiveCategory] = useState<string>('Featured');
 
-  const configRef = useMemoFirebase(() => (firestore ? doc(firestore, 'platform', 'config') : null), [firestore]);
-  const { data: platformConfig } = useDoc<PlatformConfig>(configRef);
+  const configRef = useMemoFirebase(() => (firestore ? doc(firestore, 'solution', 'config') : null), [firestore]);
+  const { data: solutionConfig } = useDoc<SolutionConfig>(configRef);
 
   const sellerRef = useMemoFirebase(() => (firestore ? doc(firestore, 'sellers', sellerId) : null), [firestore, sellerId]);
   const { data: seller, isLoading: isSellerLoading } = useDoc<Seller>(sellerRef);
@@ -423,8 +424,8 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
   };
 
   const isModeAvailable = (type: string) => {
-    if (!seller || !platformConfig) return false;
-    const isGloballyAuthorized = platformConfig.enabledModes?.includes(type) ?? true;
+    if (!seller || !solutionConfig) return false;
+    const isGloballyAuthorized = solutionConfig.enabledModes?.includes(type) ?? true;
     if (!isGloballyAuthorized) return false;
     const isVenueAuthorized = seller.menuTypes.includes(type);
     if (!isVenueAuthorized) return false;
@@ -438,7 +439,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
   };
 
   useEffect(() => {
-    if (!menuTypeFromUrl && seller && platformConfig && !isSellerLoading) {
+    if (!menuTypeFromUrl && seller && solutionConfig && !isSellerLoading) {
       let defaultType = '';
       if (seller.type.toLowerCase().includes('bowling')) {
         defaultType = 'Lane Delivery';
@@ -452,7 +453,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
         if (firstAvailable) updateMenuType(firstAvailable);
       }
     }
-  }, [seller, platformConfig, menuTypeFromUrl, isSellerLoading]);
+  }, [seller, solutionConfig, menuTypeFromUrl, isSellerLoading]);
 
   // Observer to track which category is currently in view
   useEffect(() => {
@@ -486,7 +487,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
   
   const taxRate = seller?.taxRate ?? 6.0;
   
-  const platformFee = useMemo(() => {
+  const solutionFee = useMemo(() => {
     if (venue?.patronConvenienceFee !== undefined) {
       return venue.patronConvenienceFee / 100;
     }
@@ -513,7 +514,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
     const visibleCategories = categories.filter(c => {
       if (c === 'Featured') return hasExplicitFeatured;
       const hasItemsInCat = filteredMenuItems.some(i => i.category === c && i.availableOn?.includes(selectedMenuType));
-      const isEnabledByVenue = seller.categoryVisibility?.[selectedMenuType]?.includes(c) ?? true;
+      const isEnabled byVenue = seller.categoryVisibility?.[selectedMenuType]?.includes(c) ?? true;
       return hasItemsInCat && isEnabledByVenue;
     });
 
@@ -738,7 +739,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
             setLocationValue={setLocationValue}
             activeOrderItems={activeOrderItems}
             subtotal={subtotal}
-            platformFee={platformFee}
+            solutionFee={solutionFee}
             taxRate={taxRate}
             onOrderComplete={handleOrderComplete}
           />

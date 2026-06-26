@@ -1,4 +1,4 @@
-import { onRequest } from "firebase-functions/v2/https";
+import { onRequest, onCall, HttpsError } from "firebase-functions/v2/https";
 import { onDocumentWritten } from "firebase-functions/v2/firestore";
 import * as logger from "firebase-functions/logger";
 import { initializeApp } from "firebase-admin/app";
@@ -11,9 +11,66 @@ import twilio from 'twilio';
 initializeApp();
 const db = getFirestore();
 /**
+ * createPaymentIntent
+ * Securely generates a Stripe Client Secret for the patron checkout.
+ */
+export const createPaymentIntent = onCall({
+    secrets: ["STRIPE_SECRET_KEY"],
+    region: 'us-central1',
+}, async (request) => {
+    const { amount, sellerId } = request.data;
+    // 1. Validation
+    if (!amount || amount <= 0) {
+        logger.error("[createPaymentIntent] Invalid amount received:", { amount });
+        throw new HttpsError('invalid-argument', 'A valid positive amount is required for checkout.');
+    }
+    if (!sellerId) {
+        logger.error("[createPaymentIntent] Missing sellerId in request.");
+        throw new HttpsError('invalid-argument', 'Establishment identity is required for routing.');
+    }
+    // 2. Stripe Initialization
+    const apiKey = process.env.STRIPE_SECRET_KEY;
+    if (!apiKey) {
+        logger.error("[createPaymentIntent] STRIPE_SECRET_KEY is missing from environment/secrets.");
+        throw new HttpsError('failed-precondition', 'The payment gateway is not configured. Please contact support.');
+    }
+    // Use a specific API version for stability
+    const stripe = new Stripe(apiKey, {
+        apiVersion: '2025-01-27.acacia',
+    });
+    try {
+        logger.info(`[createPaymentIntent] Creating intent for $${amount} (Venue: ${sellerId})`);
+        // 3. Create Intent
+        const paymentIntent = await stripe.paymentIntents.create({
+            amount: Math.round(amount * 100), // Convert dollars to cents
+            currency: 'usd',
+            automatic_payment_methods: {
+                enabled: true,
+            },
+            metadata: {
+                sellerId,
+                buyerUid: request.auth?.uid || 'anonymous'
+            }
+        });
+        if (!paymentIntent.client_secret) {
+            throw new Error("Stripe failed to generate a client secret.");
+        }
+        return {
+            clientSecret: paymentIntent.client_secret,
+        };
+    }
+    catch (err) {
+        logger.error(`[createPaymentIntent] Stripe API Error:`, {
+            message: err.message,
+            code: err.code,
+            type: err.type
+        });
+        throw new HttpsError('internal', err.message || 'Unable to initialize secure payment environment.');
+    }
+});
+/**
  * handleStripeWebhook
  * Secure HTTP endpoint for Stripe event ingestion.
- * Verifies signatures and creates order documents in Firestore.
  */
 export const handleStripeWebhook = onRequest({
     secrets: ["STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET"],
@@ -56,7 +113,7 @@ export const handleStripeWebhook = onRequest({
                 updatedAt: FieldValue.serverTimestamp(),
             };
             const orderRef = await db.collection('orders').add(orderData);
-            logger.info(`[handleStripeWebhook] Successfully created order ${orderRef.id} for phone ${customerPhone}`);
+            logger.info(`[handleStripeWebhook] Successfully created order ${orderRef.id}`);
         }
         catch (err) {
             logger.error(`[handleStripeWebhook] Firestore ingestion failed: ${err.message}`);
@@ -69,9 +126,7 @@ export const handleStripeWebhook = onRequest({
 /**
  * onGuestOrderStatusUpdate
  * Triggers on any creation or update to an order document.
- * Manages patron SMS notifications via Twilio using Google Cloud Secret Manager.
- *
- * Path: orders/{orderId}
+ * Manages patron SMS notifications via Twilio.
  */
 export const onGuestOrderStatusUpdate = onDocumentWritten({
     document: "orders/{orderId}",
@@ -81,19 +136,13 @@ export const onGuestOrderStatusUpdate = onDocumentWritten({
     const orderId = event.params.orderId;
     const before = event.data?.before;
     const after = event.data?.after;
-    // 1. Handle Deletions (Ignore)
-    if (!after || !after.exists) {
+    if (!after || !after.exists)
         return;
-    }
     const afterData = after.data();
     const customerPhone = afterData?.customerPhone;
     const status = afterData?.status;
-    // 2. Validation: Ensure we have a destination for the notification
-    if (!customerPhone) {
-        logger.warn(`[onGuestOrderStatusUpdate] Missing customerPhone for order: ${orderId}`);
+    if (!customerPhone)
         return;
-    }
-    // 3. Initialize Twilio from Secrets (provided via process.env automatically)
     const accountSid = process.env.TWILIO_ACCOUNT_SID;
     const authToken = process.env.TWILIO_AUTH_TOKEN;
     const fromNumber = process.env.TWILIO_FROM_NUMBER;
@@ -103,13 +152,11 @@ export const onGuestOrderStatusUpdate = onDocumentWritten({
     }
     const client = twilio(accountSid, authToken);
     let messageBody = "";
-    // 4. Rule 1: New Order Created with status 'received'
     if (!before || !before.exists) {
         if (status === 'received') {
             messageBody = `Thanks for your order at Koop! We've received it and are preparing it now. Track your order status live here: https://koop.app/orders/${orderId}`;
         }
     }
-    // 5. Rule 2: Order Updated with status transition to 'delivery'
     else {
         const beforeData = before.data();
         const oldStatus = beforeData?.status;
@@ -117,19 +164,17 @@ export const onGuestOrderStatusUpdate = onDocumentWritten({
             messageBody = `Your Koop order is out for delivery! A runner is on the way. track progress here: https://koop.app/orders/${orderId}`;
         }
     }
-    // 6. Dispatch SMS with safe error-catching
     if (messageBody) {
         try {
-            const result = await client.messages.create({
+            await client.messages.create({
                 body: messageBody,
                 from: fromNumber,
                 to: customerPhone
             });
-            logger.info(`[onGuestOrderStatusUpdate] SMS sent to ${customerPhone} (Order: ${orderId}, SID: ${result.sid})`);
+            logger.info(`[onGuestOrderStatusUpdate] SMS sent to ${customerPhone} (Order: ${orderId})`);
         }
         catch (error) {
-            // Safe logging for invalid phone formats or carrier issues
-            logger.error(`[onGuestOrderStatusUpdate] Twilio dispatch failed for ${orderId}: ${error.message}`);
+            logger.error(`[onGuestOrderStatusUpdate] Twilio dispatch failed: ${error.message}`);
         }
     }
 });

@@ -1,10 +1,11 @@
+
 import { MetadataRoute } from 'next';
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
     name: 'KOOP Refreshment Delivery',
     short_name: 'KOOP',
-    description: 'On-course refreshment delivery platform.',
+    description: 'On-course refreshment delivery solution.',
     start_url: '/',
     display: 'standalone',
     background_color: '#213147',

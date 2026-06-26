@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -19,9 +20,9 @@ import { SUPER_ADMIN_ID } from '@/lib/utils';
 import type { SellerAdminRole } from '@/lib/types';
 
 /**
- * INTERNAL PLATFORM GATEWAY
- * Restricted exclusively to Platform Administrators, Sales Reps,
- * and Venue Managers. Staff access the platform through 
+ * INTERNAL SOLUTION GATEWAY
+ * Restricted exclusively to Solution Administrators, Sales Reps,
+ * and Venue Managers. Staff access the solution through 
  * PIN-based entry on dedicated devices.
  */
 export default function LoginPage() {
@@ -36,7 +37,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [isAdminSettingUp, setIsAdminSettingUp] = useState(false);
 
-  // Hardcoded Super Admin Check (Primary Platform Control)
+  // Hardcoded Super Admin Check (Primary Solution Control)
   const isSuperAdmin = user?.uid === SUPER_ADMIN_ID || 
                       user?.email === 'mosherpe@gmail.com';
 
@@ -61,7 +62,7 @@ export default function LoginPage() {
   }, [firestore, user]);
   const { data: sellerRole, isLoading: isSellerRoleLoading } = useDoc<SellerAdminRole>(sellerRoleRef);
 
-  const isPlatformAdmin = isSuperAdmin || !!globalRole;
+  const isSolutionAdmin = isSuperAdmin || !!globalRole;
   const isInternalStaff = !!salesRole;
   const isVenueManager = !!sellerRole;
 
@@ -71,14 +72,14 @@ export default function LoginPage() {
   useEffect(() => {
     if (!user || isUserLoading || isVerifyingRoles) return;
 
-    if (isPlatformAdmin) {
+    if (isSolutionAdmin) {
       router.push('/admin');
     } else if (isInternalStaff) {
       router.push('/sales/dashboard');
     } else if (isVenueManager && sellerRole?.sellerId) {
       router.push(`/sellers/${sellerRole.sellerId}`);
     }
-  }, [user, isUserLoading, isPlatformAdmin, isInternalStaff, isVenueManager, sellerRole, router, isVerifyingRoles]);
+  }, [user, isUserLoading, isSolutionAdmin, isInternalStaff, isVenueManager, sellerRole, router, isVerifyingRoles]);
 
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -91,7 +92,7 @@ export default function LoginPage() {
       toast({ 
         variant: "destructive", 
         title: "Access Denied", 
-        description: "Credentials not recognized by platform security." 
+        description: "Credentials not recognized by solution security." 
       });
     } finally {
       setIsLoading(false);
@@ -115,12 +116,12 @@ export default function LoginPage() {
     try {
       await setDoc(doc(firestore, 'roles_admin', user.uid), {
         grantedAt: serverTimestamp(),
-        grantedBy: 'Platform Setup Tool'
+        grantedBy: 'Solution Setup Tool'
       });
 
       toast({ 
         title: "Internal Admin Activated", 
-        description: "Global platform privileges assigned." 
+        description: "Global solution privileges assigned." 
       });
       
       router.push('/admin');
@@ -158,7 +159,7 @@ export default function LoginPage() {
             INTERNAL GATEWAY
           </CardTitle>
           <CardDescription className="font-medium text-xs">
-            Restricted Platform Access
+            Restricted Solution Access
           </CardDescription>
         </CardHeader>
 
@@ -181,17 +182,17 @@ export default function LoginPage() {
                   <Loader2 className="h-8 w-8 animate-spin text-primary" />
                   <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Verifying Authorizations...</p>
                 </div>
-              ) : (isPlatformAdmin || isInternalStaff || isVenueManager) ? (
+              ) : (isSolutionAdmin || isInternalStaff || isVenueManager) ? (
                 <div className="space-y-4">
                   <div className="p-5 bg-primary/10 border-2 border-primary/20 rounded-2xl flex flex-col items-center text-center gap-2">
                     {isVenueManager ? <Store className="h-10 w-10 text-primary" /> : isInternalStaff ? <Target className="h-10 w-10 text-indigo-600" /> : <ShieldCheck className="h-10 w-10 text-primary" />}
                     <h3 className="font-headline font-bold text-primary uppercase">INTERNAL VERIFIED</h3>
                     <p className="text-xs text-muted-foreground">
-                      {isPlatformAdmin ? 'Platform Management Console' : isVenueManager ? `Venue Manager: ${sellerRole?.courseName}` : 'Sales Professional Workspace'}
+                      {isSolutionAdmin ? 'Solution Management Console' : isVenueManager ? `Venue Manager: ${sellerRole?.courseName}` : 'Sales Professional Workspace'}
                     </p>
                   </div>
                   <Button asChild className="w-full h-14 bg-[#213147] hover:bg-[#213147]/90 text-white font-headline font-black uppercase tracking-widest shadow-xl">
-                    <a href={isPlatformAdmin ? '/admin' : isVenueManager ? `/sellers/${sellerRole?.sellerId}` : '/sales/dashboard'}>
+                    <a href={isSolutionAdmin ? '/admin' : isVenueManager ? `/sellers/${sellerRole?.sellerId}` : '/sales/dashboard'}>
                       LAUNCH DASHBOARD
                       <ArrowRight className="ml-2 h-5 w-5" />
                     </a>
@@ -202,14 +203,14 @@ export default function LoginPage() {
                   <div className="p-5 bg-indigo-50 border-2 border-indigo-100 rounded-2xl space-y-3">
                     <div className="flex items-center gap-2 text-indigo-600">
                       <ShieldCheck className="h-4 w-4" />
-                      <p className="text-[10px] font-black uppercase tracking-widest">Platform Role Required</p>
+                      <p className="text-[10px] font-black uppercase tracking-widest">Solution Role Required</p>
                     </div>
                     <p className="text-xs text-indigo-800 font-medium leading-relaxed">
                       This portal is reserved for internal KOOP operations. External partners should use the direct dashboard URLs.
                     </p>
                     <div className="bg-white p-3 rounded-lg border-2 border-indigo-100 space-y-2">
                       <div className="flex items-center justify-between">
-                        <span className="text-[9px] font-black uppercase text-muted-foreground">Platform Identity</span>
+                        <span className="text-[9px] font-black uppercase text-muted-foreground">Solution Identity</span>
                         <Button variant="ghost" size="icon" className="h-6 w-6" onClick={copyUid}><Copy className="h-3 w-3" /></Button>
                       </div>
                       <code className="text-[10px] font-mono font-black break-all text-indigo-600">{user.uid}</code>
@@ -241,7 +242,7 @@ export default function LoginPage() {
             <form onSubmit={handleEmailAuth} className="space-y-6">
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="email" className="text-[10px] font-black uppercase tracking-widest">Platform Identity</Label>
+                  <Label htmlFor="email" className="text-[10px] font-black uppercase tracking-widest">Solution Identity</Label>
                   <div className="relative">
                     <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                     <Input 
@@ -274,7 +275,7 @@ export default function LoginPage() {
 
               <div className="bg-amber-50 border border-amber-100 p-3 rounded-xl">
                 <p className="text-[9px] text-amber-800 font-bold uppercase tracking-wide leading-relaxed text-center">
-                  This gateway is restricted to authorized platform personnel and establishment managers.
+                  This gateway is restricted to authorized solution personnel and establishment managers.
                 </p>
               </div>
 

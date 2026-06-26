@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useMemo, useEffect, use } from 'react';
@@ -340,7 +341,7 @@ function SortableCategory({ id, category, isVisible, onToggleVisibility }: { id:
   );
 }
 
-export default function SellerAdminPage({ params }: { params: Promise<{ sellerId: string }> }) {
+export default function SolutionAdminPage({ params }: { params: Promise<{ sellerId: string }> }) {
   const { sellerId } = use(params);
   const firestore = useFirestore();
   const auth = useAuth();
@@ -898,13 +899,13 @@ export default function SellerAdminPage({ params }: { params: Promise<{ sellerId
 
   return (
     <div className="flex flex-col h-screen bg-[#F8FAFC] overflow-hidden">
-      <header className="h-16 bg-white border-b-2 flex items-center justify-between px-4 sm:px-8 shrink-0 z-30 shadow-sm relative">
+      <header className="h-20 bg-white border-b-2 flex items-center justify-between px-4 sm:px-8 shrink-0 z-30 shadow-sm relative">
         <div className="flex items-center gap-3 text-left">
           <div className="flex flex-col">
-            <h1 className="text-[10px] font-black text-primary uppercase tracking-widest leading-none mb-1">
+            <h1 className="text-sm font-black text-[#213147] uppercase tracking-tight leading-none mb-1">
               {seller?.courseName}
             </h1>
-            <h2 className="text-lg font-black font-headline uppercase tracking-tight text-[#213147] leading-none">
+            <h2 className="text-[10px] font-bold uppercase tracking-widest text-primary leading-none">
               {NAV_ITEMS.find(n => n.id === activeNav)?.label}
             </h2>
           </div>

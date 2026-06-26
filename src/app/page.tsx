@@ -49,7 +49,7 @@ export default function HomePage() {
 
         <div className="relative z-10 max-w-[860px]">
           <div className="font-headline text-[13px] font-bold uppercase tracking-[0.2em] text-[#E50000] mb-5 animate-in fade-in slide-in-from-bottom-4 duration-700">
-            Mobile Ordering Platform
+            Mobile Ordering Solution
           </div>
           <h1 className="font-headline text-[clamp(52px,8vw,112px)] font-black leading-[0.92] tracking-tighter text-white mb-7 uppercase animate-in fade-in slide-in-from-bottom-6 duration-700 delay-100">
             More Orders.<br /><span className="text-[#E50000]">Zero</span> Friction.
@@ -210,7 +210,7 @@ export default function HomePage() {
           <div className="space-y-6">
             {[
               { n: '01', t: 'Launch Fee', d: 'One-time setup covering menu build, QR code generation, marketing materials, and live staff training.' },
-              { n: '02', t: 'Monthly Platform Fee', d: 'A flat monthly subscription for platform access, ongoing support, and updates.' },
+              { n: '02', t: 'Monthly Solution Fee', d: 'A flat monthly subscription for solution access, ongoing support, and updates.' },
               { n: '03', t: 'Patron Convenience Fee', d: 'A small per-order fee paid by the patron at checkout. You never pay a transaction fee.' }
             ].map(item => (
               <div key={item.n} className="reveal opacity-0 translate-y-8 transition-all duration-700 flex items-start gap-6 p-6 bg-white/5 border border-white/10 rounded-lg hover:border-[#E50000]/30 transition-all">

@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect } from 'react';
@@ -25,7 +26,7 @@ export default function RootError({
         System Interrupted
       </h2>
       <p className="text-white/60 text-sm max-w-md mb-10 leading-relaxed font-medium">
-        We encountered an unexpected error while initializing the KOOP platform.
+        We encountered an unexpected error while initializing the KOOP solution.
         This could be due to a network interruption or configuration sync.
       </p>
       <div className="flex flex-col gap-3 w-full max-w-xs">

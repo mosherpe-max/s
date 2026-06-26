@@ -1,3 +1,4 @@
+
 'use client';
 
 import { collection, query, where, doc, updateDoc, serverTimestamp, setDoc } from 'firebase/firestore';
@@ -7,7 +8,7 @@ import { useEffect, useState, useMemo, useRef, use } from 'react';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { OrderCard } from '@/components/order-card';
-import type { Order, Seller, StaffMember, PlatformConfig } from '@/lib/types';
+import type { Order, Seller, StaffMember, SolutionConfig } from '@/lib/types';
 import { mockSellerLocation } from '@/lib/data';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -54,8 +55,8 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
   }, [firestore, sellerId]);
   const { data: primarySeller, isLoading: isPrimaryLoading } = useDoc<Seller>(primarySellerRef);
 
-  const configRef = useMemoFirebase(() => (firestore ? doc(firestore, 'platform', 'config') : null), [firestore]);
-  const { data: platformConfig } = useDoc<PlatformConfig>(configRef);
+  const configRef = useMemoFirebase(() => (firestore ? doc(firestore, 'solution', 'config') : null), [firestore]);
+  const { data: solutionConfig } = useDoc<SolutionConfig>(configRef);
 
   const staffQuery = useMemoFirebase(() => {
     if (!firestore || !sellerId) return null;
@@ -142,13 +143,13 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
     
     // THROTTLE & JITTER FILTER: Check distance from last broadcast and time elapsed
     const nowTime = Date.now();
-    const syncInterval = (platformConfig?.mapUpdateSettings?.['Beverage Cart']?.frequencySeconds || 15) * 1000;
+    const syncInterval = (solutionConfig?.mapUpdateSettings?.['Beverage Cart']?.frequencySeconds || 15) * 1000;
     
     if (lastBroadcastRef.current) {
       const distance = calculateDistance(lat, lng, lastBroadcastRef.current.lat, lastBroadcastRef.current.lng);
       const timeElapsed = nowTime - lastBroadcastRef.current.time;
       
-      // AGGRESSIVE JITTER FILTER: Ignore movements < 5 meters unless 1 minute has passed (forced heartbeat)
+      // AGGRESSIVE JITTER FILTER: Ignore movements < 5 meters unless 1 minute has passed (heartbeat)
       if (distance < 5 && timeElapsed < 60000) return;
       
       // Throttle broadcast frequency based on system config (default 15s)
@@ -188,7 +189,7 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
         broadcastLocation(lat, lng);
       }, null, { enableHighAccuracy: true });
     }
-  }, [firestore, sellerId, user, currentStaffId, platformConfig]);
+  }, [firestore, sellerId, user, currentStaffId, solutionConfig]);
 
   useEffect(() => {
     if (navigator.geolocation && firestore && sellerId && user) {
@@ -208,12 +209,12 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
           broadcastLocation(lat, lng);
         },
         null,
-        // Configured maximumAge to reduce jitter from hyper-active device hardware
+        // Configured maximumAge to instruct device to throttle sensor activity
         { enableHighAccuracy: true, timeout: 10000, maximumAge: 5000 }
       );
       return () => navigator.geolocation.clearWatch(watchId);
     }
-  }, [firestore, sellerId, user, currentStaffId, platformConfig]);
+  }, [firestore, sellerId, user, currentStaffId, solutionConfig]);
 
   const handleUpdateOrderStatus = (orderId: string, currentStatus: string) => {
     if (!firestore) return;
@@ -276,7 +277,7 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
     if (!now || !driverOrders) return [];
     return driverOrders.map(o => {
       const lastGps = o.lastGpsUpdate?.toDate();
-      const color = getSignalColor(lastGps, platformConfig?.gpsFreshnessThresholds);
+      const color = getSignalColor(lastGps, solutionConfig?.gpsFreshnessThresholds);
       
       return { 
         id: o.id, 
@@ -286,14 +287,14 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
         colorClass: o.status === 'Out for Delivery' ? "bg-blue-600" : "bg-green-600" 
       };
     });
-  }, [driverOrders, now, platformConfig]);
+  }, [driverOrders, now, solutionConfig]);
 
   const mappedDrivers = useMemo(() => {
     if (!allStaff) return [];
     return allStaff
       .filter(s => s.id !== currentStaffId && s.latitude && s.longitude && s.lastActive)
       .map(s => {
-        const color = getSignalColor(s.lastActive?.toDate(), platformConfig?.gpsFreshnessThresholds);
+        const color = getSignalColor(s.lastActive?.toDate(), solutionConfig?.gpsFreshnessThresholds);
         return {
           id: s.id,
           name: s.name,
@@ -302,15 +303,15 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
           colorOverride: color
         };
       });
-  }, [allStaff, currentStaffId, platformConfig]);
+  }, [allStaff, currentStaffId, solutionConfig]);
 
   const isLoading = areActiveOrdersLoading || isPrimaryLoading;
 
   // Driver Signal Strength Indicator
   const signalColor = useMemo(() => {
     const lastActive = primarySeller?.lastActive?.toDate();
-    return getSignalColor(lastActive, platformConfig?.gpsFreshnessThresholds);
-  }, [primarySeller?.lastActive, platformConfig]);
+    return getSignalColor(lastActive, solutionConfig?.gpsFreshnessThresholds);
+  }, [primarySeller?.lastActive, solutionConfig]);
 
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-muted/20 text-left">

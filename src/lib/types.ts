@@ -17,7 +17,7 @@ export interface MapUpdateSettings {
   activeStages: string[];
 }
 
-export interface PlatformConfig {
+export interface SolutionConfig {
   supportEmail: string;
   logoUrl?: string;
   defaultThresholds?: Record<string, { warning: number; max: number }>;
@@ -37,12 +37,12 @@ export interface Venue {
   ownerUid: string;
   stripeAccountId?: string;
   stripeConnectId?: string;
-  platformFeeFixed?: number;
-  platformFeePercent?: number;
+  solutionFeeFixed?: number;
+  solutionFeePercent?: number;
   patronConvenienceFee?: number; // Master fee in cents
   serviceFees?: Record<string, number>; // Individual overrides in cents
   payoutsEnabled?: boolean;
-  monthlyPlatformFee?: number;
+  monthlySolutionFee?: number;
   serviceStartDate?: Timestamp;
   isFoundingPartner?: boolean;
   createdAt: Timestamp;

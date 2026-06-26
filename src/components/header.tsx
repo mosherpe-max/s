@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -32,17 +33,16 @@ import {
 } from "@/components/ui/sheet";
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import type { PlatformConfig } from '@/lib/types';
+import type { SolutionConfig } from '@/lib/types';
 import { useCart } from '@/lib/cart-context';
 
 /**
- * High-fidelity logo component used across the platform.
- * Reverted to check loading state to avoid visual flickering.
+ * High-fidelity logo component used across the solution.
  */
 export function StylizedKoopLogo({ size = 'md', colorClass = 'text-white' }: { size?: 'sm' | 'md' | 'lg', colorClass?: string }) {
   const firestore = useFirestore();
-  const configRef = useMemoFirebase(() => (firestore ? doc(firestore, 'platform', 'config') : null), [firestore]);
-  const { data: config, isLoading } = useDoc<PlatformConfig>(configRef);
+  const configRef = useMemoFirebase(() => (firestore ? doc(firestore, 'solution', 'config') : null), [firestore]);
+  const { data: config, isLoading } = useDoc<SolutionConfig>(configRef);
 
   const sizes = {
     sm: { text: 'text-[13px]', svg: 'w-[18px] h-[18px]', img: 'h-5 w-auto', gap: 'gap-0.5' },
@@ -51,7 +51,6 @@ export function StylizedKoopLogo({ size = 'md', colorClass = 'text-white' }: { s
   };
   const s = sizes[size];
 
-  // Show a pulsing placeholder while configuration is loading
   if (isLoading) {
     return (
       <div 
@@ -61,7 +60,6 @@ export function StylizedKoopLogo({ size = 'md', colorClass = 'text-white' }: { s
     );
   }
 
-  // If a custom platform logo exists in config, render that image
   if (config?.logoUrl) {
     return (
       <div className={cn("flex items-center justify-center select-none", s.img)}>
@@ -74,7 +72,6 @@ export function StylizedKoopLogo({ size = 'md', colorClass = 'text-white' }: { s
     );
   }
 
-  // DEFAULT STATE: Render the signature KOOP SVG
   return (
     <div className={cn("flex items-center font-headline font-black tracking-tighter leading-none select-none uppercase", colorClass, s.text, s.gap)}>
       <span>K</span>
@@ -102,7 +99,7 @@ function HomeNavigationMenu() {
       <SheetContent side="right" className="w-[300px] sm:w-[400px] p-0 border-l-4 border-primary/20 bg-[#213147] text-white">
         <SheetHeader className="p-6 border-b border-white/5 text-left">
           <StylizedKoopLogo size="md" />
-          <SheetTitle className="text-[10px] font-black uppercase tracking-[0.2em] text-primary mt-2">Platform Navigator</SheetTitle>
+          <SheetTitle className="text-[10px] font-black uppercase tracking-[0.2em] text-primary mt-2">Solution Navigator</SheetTitle>
           <SheetDescription className="text-xs text-white/40">Access demo environments and administrative portals.</SheetDescription>
         </SheetHeader>
         <ScrollArea className="h-[calc(100vh-100px)]">
@@ -240,7 +237,7 @@ export function AppHeader() {
               <div className="h-4 w-32 bg-white/10 animate-pulse rounded-full" />
             ) : (
               <h1 className="font-headline text-sm font-black text-white uppercase tracking-tight truncate leading-tight w-full">
-                {seller?.courseName || 'KOOP Platform'}
+                {seller?.courseName || 'KOOP Solution'}
               </h1>
             )}
             {activeMenuType && (

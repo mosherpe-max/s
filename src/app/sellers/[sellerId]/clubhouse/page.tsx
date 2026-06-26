@@ -1,3 +1,4 @@
+
 'use client';
 
 import { collection, query, where, doc, updateDoc, serverTimestamp, setDoc } from 'firebase/firestore';
@@ -5,7 +6,7 @@ import { useCollection, useFirestore, useMemoFirebase, useDoc, useUser } from '@
 import { useEffect, useState, useMemo, useRef, use } from 'react';
 import { Switch } from '@/components/ui/switch';
 import { OrderCard } from '@/components/order-card';
-import type { Order, Seller, StaffMember, PlatformConfig } from '@/lib/types';
+import type { Order, Seller, StaffMember, SolutionConfig } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
@@ -47,8 +48,8 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
   }, [firestore, sellerId]);
   const { data: primarySeller, isLoading: isPrimaryLoading } = useDoc<Seller>(primarySellerRef);
 
-  const configRef = useMemoFirebase(() => (firestore ? doc(firestore, 'platform', 'config') : null), [firestore]);
-  const { data: platformConfig } = useDoc<PlatformConfig>(configRef);
+  const configRef = useMemoFirebase(() => (firestore ? doc(firestore, 'solution', 'config') : null), [firestore]);
+  const { data: solutionConfig } = useDoc<SolutionConfig>(configRef);
 
   const staffQuery = useMemoFirebase(() => {
     if (!firestore || !sellerId) return null;
@@ -64,7 +65,7 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
     if (!firestore || !sellerId || !user) return;
     
     const nowTime = Date.now();
-    const syncInterval = (platformConfig?.mapUpdateSettings?.['Clubhouse']?.frequencySeconds || 15) * 1000;
+    const syncInterval = (solutionConfig?.mapUpdateSettings?.['Clubhouse']?.frequencySeconds || 15) * 1000;
     
     if (lastBroadcastRef.current) {
       const distance = calculateDistance(lat, lng, lastBroadcastRef.current.lat, lastBroadcastRef.current.lng);
@@ -105,7 +106,7 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
         broadcastLocation(lat, lng);
       }, null, { enableHighAccuracy: true });
     }
-  }, [isGolf, firestore, sellerId, user, currentStaffId, platformConfig]);
+  }, [isGolf, firestore, sellerId, user, currentStaffId, solutionConfig]);
 
   // Track Server Location for Golf Courses
   useEffect(() => {
@@ -118,19 +119,19 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
           setSellerLocation(prev => {
             if (!prev) return { latitude: lat, longitude: lng };
             const dist = calculateDistance(lat, lng, prev.latitude, prev.longitude);
-            // Only update local marker if movement is > 5 meters to prevent "stationary dancing"
+            // Only update local marker if movement is > 5 meters
             return dist > 5 ? { latitude: lat, longitude: lng } : prev;
           });
           
           broadcastLocation(lat, lng);
         },
         null,
-        // Added maximumAge to instruct device to throttle sensor activity
+        // Configured maximumAge to instruction device to throttle sensor activity
         { enableHighAccuracy: true, timeout: 10000, maximumAge: 5000 }
       );
       return () => navigator.geolocation.clearWatch(watchId);
     }
-  }, [isGolf, firestore, sellerId, user, currentStaffId, platformConfig]);
+  }, [isGolf, firestore, sellerId, user, currentStaffId, solutionConfig]);
 
   const handleToggleActive = (checked: boolean) => {
     if (!firestore || !sellerId || !user) return;
@@ -220,7 +221,7 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
       .filter(o => o.menuType === 'Clubhouse')
       .map(o => {
         const lastGps = o.lastGpsUpdate?.toDate();
-        const color = getSignalColor(lastGps, platformConfig?.gpsFreshnessThresholds);
+        const color = getSignalColor(lastGps, solutionConfig?.gpsFreshnessThresholds);
         
         return { 
           id: o.id, 
@@ -230,14 +231,14 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
           colorClass: o.status === 'Out for Delivery' ? "bg-blue-600" : "bg-indigo-600" 
         };
       });
-  }, [clubhouseOrders, now, platformConfig]);
+  }, [clubhouseOrders, now, solutionConfig]);
 
   const mappedDrivers = useMemo(() => {
     if (!allStaff) return [];
     return allStaff
       .filter(s => s.id !== currentStaffId && s.latitude && s.longitude && s.lastActive)
       .map(s => {
-        const color = getSignalColor(s.lastActive?.toDate(), platformConfig?.gpsFreshnessThresholds);
+        const color = getSignalColor(s.lastActive?.toDate(), solutionConfig?.gpsFreshnessThresholds);
         return {
           id: s.id,
           name: s.name,
@@ -246,15 +247,15 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
           colorOverride: color
         };
       });
-  }, [allStaff, currentStaffId, platformConfig]);
+  }, [allStaff, currentStaffId, solutionConfig]);
 
   const isLoading = areActiveOrdersLoading || isPrimaryLoading;
 
   // Driver Signal Strength Indicator
   const signalColor = useMemo(() => {
     const lastActive = primarySeller?.lastActive?.toDate();
-    return getSignalColor(lastActive, platformConfig?.gpsFreshnessThresholds);
-  }, [primarySeller?.lastActive, platformConfig]);
+    return getSignalColor(lastActive, solutionConfig?.gpsFreshnessThresholds);
+  }, [primarySeller?.lastActive, solutionConfig]);
 
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-muted/20 text-left">

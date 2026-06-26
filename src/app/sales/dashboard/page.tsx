@@ -215,7 +215,7 @@ export default function SalesDashboardPage() {
                       <Presentation className="h-6 w-6" />
                     </div>
                     <div>
-                      <p className="font-bold text-sm uppercase">2026 Platform Pitch Deck</p>
+                      <p className="font-bold text-sm uppercase">2026 Solution Pitch Deck</p>
                       <p className="text-[10px] text-muted-foreground uppercase font-black tracking-widest">Keynote / PDF • 4.2 MB</p>
                     </div>
                   </div>

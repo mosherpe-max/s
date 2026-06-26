@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
@@ -111,7 +112,7 @@ import { useRouter } from 'next/navigation';
 import { useFirestore, useCollection, useMemoFirebase, useAuth, useDoc, useUser } from '@/firebase';
 import { signOut } from 'firebase/auth';
 import { collection, query, limit, doc, setDoc, serverTimestamp, where, orderBy, updateDoc, writeBatch, deleteDoc } from 'firebase/firestore';
-import type { Seller, PlatformConfig, Order, Venue, MapUpdateSettings } from '@/lib/types';
+import type { Seller, SolutionConfig, Order, Venue, MapUpdateSettings } from '@/lib/types';
 import { sellerTypes } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { cn, getNumericOrderId, SUPER_ADMIN_ID } from '@/lib/utils';
@@ -198,9 +199,9 @@ const venueMaintenanceSchema = z.object({
   ownerUid: z.string().min(1, 'Owner UID required'),
   stripeConnectId: z.string().optional(),
   patronConvenienceFee: z.coerce.number().min(0),
-  platformFeeFixed: z.coerce.number().min(0),
-  platformFeePercent: z.coerce.number().min(0).max(100),
-  monthlyPlatformFee: z.coerce.number().min(0),
+  solutionFeeFixed: z.coerce.number().min(0),
+  solutionFeePercent: z.coerce.number().min(0).max(100),
+  monthlySolutionFee: z.coerce.number().min(0),
   isFoundingPartner: z.boolean().default(false),
   menuTypes: z.array(z.string()).min(1, 'Select at least one service mode'),
   laneCount: z.coerce.number().min(0).optional(),
@@ -253,7 +254,7 @@ function KPICard({ label, value, sub, icon: Icon, colorClass, trend }: { label: 
   );
 }
 
-export default function PlatformAdminPage() {
+export default function SolutionAdminPage() {
   const firestore = useFirestore();
   const auth = useAuth();
   const { user, isUserLoading } = useUser();
@@ -274,7 +275,7 @@ export default function PlatformAdminPage() {
   const [isResettingDemos, setIsResettingDemos] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
-  // --- PLATFORM CONFIG STATE ---
+  // --- SOLUTION CONFIG STATE ---
   const [systemThresholds, setSystemThresholds] = useState<Record<string, { warning: number; max: number }>>(SYSTEM_DEFAULT_THRESHOLDS);
   const [mapSettings, setMapSettings] = useState<Record<string, MapUpdateSettings>>(SYSTEM_DEFAULT_MAP_SETTINGS);
   const [gpsFreshness, setGpsFreshness] = useState(SYSTEM_DEFAULT_GPS_THRESHOLDS);
@@ -293,8 +294,8 @@ export default function PlatformAdminPage() {
     }
   }, []);
 
-  const configRef = useMemoFirebase(() => (firestore ? doc(firestore, 'platform', 'config') : null), [firestore]);
-  const { data: config } = useDoc<PlatformConfig>(configRef);
+  const configRef = useMemoFirebase(() => (firestore ? doc(firestore, 'solution', 'config') : null), [firestore]);
+  const { data: config } = useDoc<SolutionConfig>(configRef);
 
   // Fetch Venue Data for Maintenance
   const venueRef = useMemoFirebase(() => {
@@ -446,9 +447,9 @@ export default function PlatformAdminPage() {
       ownerUid: '',
       stripeConnectId: '',
       patronConvenienceFee: 150,
-      platformFeeFixed: 20,
-      platformFeePercent: 0,
-      monthlyPlatformFee: 0,
+      solutionFeeFixed: 20,
+      solutionFeePercent: 0,
+      monthlySolutionFee: 0,
       isFoundingPartner: false,
       menuTypes: [],
       laneCount: 0,
@@ -462,9 +463,9 @@ export default function PlatformAdminPage() {
         ownerUid: selectedVenueData?.ownerUid || selectedSeller.ownerId || '',
         stripeConnectId: selectedVenueData?.stripeConnectId || selectedVenueData?.stripeAccountId || '',
         patronConvenienceFee: selectedVenueData?.patronConvenienceFee ?? 150,
-        platformFeeFixed: selectedVenueData?.platformFeeFixed ?? 20,
-        platformFeePercent: selectedVenueData?.platformFeePercent ?? 0,
-        monthlyPlatformFee: selectedVenueData?.monthlyPlatformFee ?? 0,
+        solutionFeeFixed: selectedVenueData?.solutionFeeFixed ?? 20,
+        solutionFeePercent: selectedVenueData?.solutionFeePercent ?? 0,
+        monthlySolutionFee: selectedVenueData?.monthlySolutionFee ?? 0,
         isFoundingPartner: selectedVenueData?.isFoundingPartner ?? selectedSeller.isFoundingPartner ?? false,
         menuTypes: selectedSeller.menuTypes || [],
         laneCount: selectedSeller.laneCount || 0,
@@ -485,9 +486,9 @@ export default function PlatformAdminPage() {
       name: data.name,
       ownerUid: data.ownerUid,
       patronConvenienceFee: 150, 
-      platformFeeFixed: 20,      
-      platformFeePercent: 0,
-      monthlyPlatformFee: 0,
+      solutionFeeFixed: 20,      
+      solutionFeePercent: 0,
+      monthlySolutionFee: 0,
       payoutsEnabled: false,
       stripeOnboardingComplete: false,
       isFoundingPartner: false,
@@ -537,7 +538,7 @@ export default function PlatformAdminPage() {
     });
 
     batch.commit().then(() => {
-      toast({ title: "Venue Created", description: `${data.name} has been added to the Koop platform.` });
+      toast({ title: "Venue Created", description: `${data.name} has been added to the Koop solution.` });
       setIsAddVenueOpen(false);
       registrationForm.reset();
     }).catch(async (error) => {
@@ -565,9 +566,9 @@ export default function PlatformAdminPage() {
       stripeConnectId: data.stripeConnectId || null,
       stripeAccountId: data.stripeConnectId || null,
       patronConvenienceFee: data.patronConvenienceFee,
-      platformFeeFixed: data.platformFeeFixed,
-      platformFeePercent: data.platformFeePercent,
-      monthlyPlatformFee: data.monthlyPlatformFee,
+      solutionFeeFixed: data.solutionFeeFixed,
+      solutionFeePercent: data.solutionFeePercent,
+      monthlySolutionFee: data.monthlySolutionFee,
       isFoundingPartner: data.isFoundingPartner,
       updatedAt: serverTimestamp()
     }, { merge: true });
@@ -620,14 +621,14 @@ export default function PlatformAdminPage() {
   const handleUploadLogo = async () => {
     if (!firestore || !logoPreview) return;
     setIsProcessingLogo(true);
-    const platformDocRef = doc(firestore, 'platform', 'config');
+    const solutionDocRef = doc(firestore, 'solution', 'config');
     const updateData = { logoUrl: logoPreview, updatedAt: serverTimestamp() };
-    setDoc(platformDocRef, updateData, { merge: true }).then(() => {
-      toast({ title: "Platform Branding Updated" });
+    setDoc(solutionDocRef, updateData, { merge: true }).then(() => {
+      toast({ title: "Solution Branding Updated" });
       setLogoPreview(null);
     }).catch(async (error) => {
       errorEmitter.emit('permission-error', new FirestorePermissionError({
-        path: platformDocRef.path,
+        path: solutionDocRef.path,
         operation: 'write',
         requestResourceData: updateData,
       } satisfies SecurityRuleContext));
@@ -639,7 +640,7 @@ export default function PlatformAdminPage() {
   const handleUpdateSystemDefaults = async () => {
     if (!firestore) return;
     setIsSavingSystemConfig(true);
-    const platformDocRef = doc(firestore, 'platform', 'config');
+    const solutionDocRef = doc(firestore, 'solution', 'config');
     const updateData = {
       defaultThresholds: systemThresholds,
       mapUpdateSettings: mapSettings,
@@ -647,11 +648,11 @@ export default function PlatformAdminPage() {
       enabledModes: globalEnabledModes,
       updatedAt: serverTimestamp()
     };
-    setDoc(platformDocRef, updateData, { merge: true }).then(() => {
+    setDoc(solutionDocRef, updateData, { merge: true }).then(() => {
       toast({ title: "System Defaults Updated" });
     }).catch(async (error) => {
       errorEmitter.emit('permission-error', new FirestorePermissionError({
-        path: platformDocRef.path,
+        path: solutionDocRef.path,
         operation: 'write',
         requestResourceData: updateData,
       } satisfies SecurityRuleContext));
@@ -757,7 +758,7 @@ export default function PlatformAdminPage() {
                   {user?.email?.charAt(0).toUpperCase() || 'P'}
                 </div>
                 <div className="flex flex-col min-w-0">
-                  <span className="text-[10px] font-black text-white truncate uppercase tracking-tight">Platform Admin</span>
+                  <span className="text-[10px] font-black text-white truncate uppercase tracking-tight">Solution Admin</span>
                   <span className="text-[8px] font-bold text-slate-400 truncate uppercase">{user?.email}</span>
                 </div>
               </div>
@@ -826,7 +827,7 @@ export default function PlatformAdminPage() {
             <h2 className="text-lg sm:text-xl font-black font-headline uppercase tracking-tight text-[#213147]">
               {NAV_ITEMS.find(n => n.id === activeNav)?.label}
             </h2>
-            <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">Platform Command Console</p>
+            <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">Solution Command Console</p>
           </div>
         </div>
         
@@ -840,7 +841,7 @@ export default function PlatformAdminPage() {
               </SheetTrigger>
               <SheetContent side="right" className="p-0 bg-[#213147] border-l-4 border-primary/20">
                 <SheetHeader className="sr-only">
-                  <SheetTitle>Platform Navigator</SheetTitle>
+                  <SheetTitle>Solution Navigator</SheetTitle>
                   <SheetDescription>Global administration navigation menu.</SheetDescription>
                 </SheetHeader>
                 <SideBarContent forceLabels={true} />
@@ -870,13 +871,13 @@ export default function PlatformAdminPage() {
                     <KPICard label="Active Partners" value={metrics?.venueCounts.total || 0} sub="Global registry" icon={Store} colorClass="bg-indigo-600" />
                     <KPICard label="GMV (MTD)" value={`$${metrics?.gmv.mtd.toLocaleString()}`} sub="Gross sales" icon={DollarSign} colorClass="bg-green-600" />
                     <KPICard label="Orders (MTD)" value={metrics?.orders.mtd || 0} sub="Processed" icon={ShoppingBag} colorClass="bg-primary" />
-                    <KPICard label="Fee Revenue" value={`$${metrics?.fees.mtd.toLocaleString()}`} sub="Platform cut" icon={BarChart3} colorClass="bg-amber-500" />
+                    <KPICard label="Fee Revenue" value={`$${metrics?.fees.mtd.toLocaleString()}`} sub="Solution cut" icon={BarChart3} colorClass="bg-amber-500" />
                   </div>
 
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <Card className="border-2 shadow-sm overflow-hidden">
                       <CardHeader className="bg-slate-50/50 border-b">
-                        <CardTitle className="text-xs font-black uppercase tracking-widest text-[#213147]">Today's Platform GMV</CardTitle>
+                        <CardTitle className="text-xs font-black uppercase tracking-widest text-[#213147]">Today's Solution GMV</CardTitle>
                         <CardDescription className="text-[8px] font-bold uppercase">Consolidated gross sales across all venues</CardDescription>
                       </CardHeader>
                       <CardContent className="pt-10 h-[350px]">
@@ -923,7 +924,7 @@ export default function PlatformAdminPage() {
                 <div className="space-y-8 animate-in fade-in duration-500">
                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b-2 pb-4">
                     <div className="space-y-1">
-                      <h3 className="font-headline font-black text-2xl text-[#213147] uppercase leading-tight">Global Platform Analytics</h3>
+                      <h3 className="font-headline font-black text-2xl text-[#213147] uppercase leading-tight">Global Solution Analytics</h3>
                       <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Historical performance distribution across all partners</p>
                     </div>
                     <div className="flex bg-slate-100 p-0.5 rounded-lg border-2">
@@ -945,7 +946,7 @@ export default function PlatformAdminPage() {
                   <div className="space-y-10">
                     <Card className="border-2 shadow-lg overflow-hidden bg-white">
                       <CardHeader className="bg-slate-50/50 border-b">
-                        <CardTitle className="text-xs font-black uppercase tracking-widest text-[#213147]">Consolidated Platform GMV</CardTitle>
+                        <CardTitle className="text-xs font-black uppercase tracking-widest text-[#213147]">Consolidated Solution GMV</CardTitle>
                         <CardDescription className="text-[8px] font-bold uppercase">Total gross volume ({analyticsRange})</CardDescription>
                       </CardHeader>
                       <CardContent className="pt-10 h-[450px]">
@@ -966,7 +967,7 @@ export default function PlatformAdminPage() {
 
                     <Card className="border-2 shadow-lg overflow-hidden bg-white">
                       <CardHeader className="bg-slate-50/50 border-b">
-                        <CardTitle className="text-xs font-black uppercase tracking-widest text-[#213147]">Platform Fee Revenue</CardTitle>
+                        <CardTitle className="text-xs font-black uppercase tracking-widest text-[#213147]">Solution Fee Revenue</CardTitle>
                         <CardDescription className="text-[8px] font-bold uppercase">Total collected fees ({analyticsRange})</CardDescription>
                       </CardHeader>
                       <CardContent className="pt-10 h-[450px]">
@@ -1188,7 +1189,7 @@ export default function PlatformAdminPage() {
                         <ShieldAlert className="h-5 w-5 text-primary" />
                         <div>
                           <CardTitle className="font-black uppercase tracking-tight text-sm">Global Service Authorization</CardTitle>
-                          <CardDescription className="text-[10px] font-bold uppercase text-white/50">Restrict specific channels across the entire platform</CardDescription>
+                          <CardDescription className="text-[10px] font-bold uppercase text-white/50">Restrict specific channels across the entire solution</CardDescription>
                         </div>
                       </CardHeader>
                       <CardContent className="p-6">
@@ -1220,7 +1221,7 @@ export default function PlatformAdminPage() {
 
                     <Card className="border-2 shadow-sm overflow-hidden">
                       <CardHeader className="border-b bg-primary/5">
-                        <CardTitle className="font-black uppercase tracking-tight text-sm">Platform Branding</CardTitle>
+                        <CardTitle className="font-black uppercase tracking-tight text-sm">Solution Branding</CardTitle>
                         <CardDescription className="text-[10px] font-bold uppercase">Master logo across all venue portals</CardDescription>
                       </CardHeader>
                       <CardContent className="p-6 space-y-4">
@@ -1261,12 +1262,12 @@ export default function PlatformAdminPage() {
                             <Label className="text-[8px] font-black uppercase text-green-600 tracking-widest flex items-center gap-1 text-center justify-center">
                               <CheckCircle2 className="h-2 w-2" /> Hot (Good)
                             </Label>
-                            <Input 
+                            <input 
                               type="number" 
                               min="1"
                               value={gpsFreshness.hot || ''} 
                               onChange={e => handleGpsFreshnessChange('hot', e.target.value)} 
-                              className="h-10 border-2 font-bold focus-visible:ring-green-500 border-green-100 text-center"
+                              className="h-10 w-full border-2 rounded-md font-bold focus-visible:ring-green-500 border-green-100 text-center"
                             />
                             <p className="text-[8px] sm:text-[10px] font-bold text-green-600/60 text-center">{"<"} {gpsFreshness.hot}s</p>
                           </div>
@@ -1274,12 +1275,12 @@ export default function PlatformAdminPage() {
                             <Label className="text-[8px] font-black uppercase text-amber-600 tracking-widest flex items-center gap-1 text-center justify-center">
                               <AlertTriangle className="h-2 w-2" /> Warm (Concern)
                             </Label>
-                            <Input 
+                            <input 
                               type="number" 
                               min="1"
                               value={gpsFreshness.warm || ''} 
                               onChange={e => handleGpsFreshnessChange('warm', e.target.value)} 
-                              className="h-10 border-2 font-bold focus-visible:ring-amber-500 border-amber-100 text-center"
+                              className="h-10 w-full border-2 rounded-md font-bold focus-visible:ring-amber-500 border-amber-100 text-center"
                             />
                             <p className="text-[8px] sm:text-[10px] font-bold text-amber-600/60 text-center">{"<"} {gpsFreshness.warm}s</p>
                           </div>
@@ -1287,12 +1288,12 @@ export default function PlatformAdminPage() {
                             <Label className="text-[8px] font-black uppercase text-red-600 tracking-widest flex items-center gap-1 text-center justify-center">
                               <Flame className="h-2 w-2" /> Cold (Bad)
                             </Label>
-                            <Input 
+                            <input 
                               type="number" 
                               min="1"
                               value={gpsFreshness.cold || ''} 
                               onChange={e => handleGpsFreshnessChange('cold', e.target.value)} 
-                              className="h-10 border-2 font-bold focus-visible:ring-red-500 border-amber-100 text-center"
+                              className="h-10 w-full border-2 rounded-md font-bold focus-visible:ring-red-500 border-amber-100 text-center"
                             />
                             <p className="text-[8px] sm:text-[10px] font-bold text-red-600/60 text-center">{"<"} {gpsFreshness.cold}s</p>
                           </div>
@@ -1414,7 +1415,7 @@ export default function PlatformAdminPage() {
                           className="w-full h-14 bg-[#213147] hover:bg-black font-black uppercase tracking-widest text-[11px] gap-3 shadow-xl"
                         >
                           {isSavingSystemConfig ? <Loader2 className="h-5 w-5 animate-spin" /> : <Save className="h-5 w-5" />}
-                          Commit Platform Operational Protocols
+                          Commit Solution Operational Protocols
                         </Button>
                       </CardFooter>
                     </Card>
@@ -1536,7 +1537,7 @@ export default function PlatformAdminPage() {
 
                   <Button type="submit" disabled={isProcessingSave} className="w-full h-16 bg-[#213147] hover:bg-black font-black uppercase tracking-[0.2em] text-xs shadow-2xl gap-3">
                     {isProcessingSave ? <Loader2 className="animate-spin h-5 w-5" /> : <CheckCircle2 className="h-5 w-5" />}
-                    Initialize Platform Entry
+                    Initialize Solution Entry
                   </Button>
                 </form>
               </Form>
@@ -1555,7 +1556,7 @@ export default function PlatformAdminPage() {
               <div>
                 <DialogTitle className="font-headline font-black uppercase tracking-tight text-white text-xl leading-none">Venue Maintenance</DialogTitle>
                 <DialogDescription className="text-white/40 text-[9px] font-bold uppercase tracking-widest mt-1">
-                  Adjust platform registry and financial settings for {selectedSeller?.courseName}
+                  Adjust solution registry and financial settings for {selectedSeller?.courseName}
                 </DialogDescription>
               </div>
             </div>
@@ -1645,9 +1646,9 @@ export default function PlatformAdminPage() {
                              <FormMessage />
                            </FormItem>
                          )} />
-                         <FormField control={maintenanceForm.control} name="monthlyPlatformFee" render={({ field }) => (
+                         <FormField control={maintenanceForm.control} name="monthlySolutionFee" render={({ field }) => (
                            <FormItem>
-                             <FormLabel className="text-[10px] font-black uppercase tracking-widest">Monthly Platform Fee ($)</FormLabel>
+                             <FormLabel className="text-[10px] font-black uppercase tracking-widest">Monthly Solution Fee ($)</FormLabel>
                              <FormControl><Input {...field} type="number" step="0.01" className="h-11 border-2 font-bold" /></FormControl>
                              <FormDescription className="text-[8px] font-bold uppercase text-muted-foreground">The recurring subscription cost for this venue.</FormDescription>
                              <FormMessage />
@@ -1663,14 +1664,14 @@ export default function PlatformAdminPage() {
                             <FormDescription className="text-[7px] font-bold">Total added at checkout.</FormDescription>
                           </FormItem>
                         )} />
-                        <FormField control={maintenanceForm.control} name="platformFeeFixed" render={({ field }) => (
+                        <FormField control={maintenanceForm.control} name="solutionFeeFixed" render={({ field }) => (
                           <FormItem>
                             <FormLabel className="text-[9px] font-black uppercase tracking-widest">Koop Fixed (Cents)</FormLabel>
                             <FormControl><Input {...field} type="number" className="h-10 border-2 font-bold" /></FormControl>
                             <FormDescription className="text-[7px] font-bold">Koop's flat cut per order.</FormDescription>
                           </FormItem>
                         )} />
-                        <FormField control={maintenanceForm.control} name="platformFeePercent" render={({ field }) => (
+                        <FormField control={maintenanceForm.control} name="solutionFeePercent" render={({ field }) => (
                           <FormItem>
                             <FormLabel className="text-[9px] font-black uppercase tracking-widest">Koop Percent (%)</FormLabel>
                             <FormControl><Input {...field} type="number" step="0.1" className="h-10 border-2 font-bold" /></FormControl>
