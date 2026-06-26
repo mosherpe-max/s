@@ -191,14 +191,31 @@ function CheckoutDrawerContent({
             const result = await signInAnonymously(auth);
             currentUser = result.user;
           }
-          if (!currentUser) throw new Error("Identity verification failed.");
+          if (!currentUser) throw new Error("Anonymous session could not be established.");
+          
           const functions = getFunctions(firebaseApp, 'us-central1');
           const createIntent = httpsCallable(functions, 'createPaymentIntent');
-          const result = await createIntent({ amount: baseTotalForBackend, sellerId });
-          const { clientSecret: secret } = result.data as { clientSecret: string };
-          setClientSecret(secret);
+          
+          const result = await createIntent({ 
+            amount: baseTotalForBackend, 
+            sellerId 
+          });
+          
+          const data = result.data as { clientSecret: string };
+          if (data?.clientSecret) {
+            setClientSecret(data.clientSecret);
+          } else {
+            throw new Error("Backend did not return a secure token.");
+          }
         } catch (e: any) {
-          toast({ variant: 'destructive', title: 'Payment Setup Error', description: e.message || "Could not initialize secure payment." });
+          console.error("Payment Intent Fetch Failure:", e);
+          toast({ 
+            variant: 'destructive', 
+            title: 'Payment Setup Error', 
+            description: e.message || "The payment gateway is currently unavailable. Please use Pay at Delivery." 
+          });
+          // Fallback to manual payment if Stripe fails to initialize
+          setPaymentMethod('Pay at Delivery');
         } finally {
           setIsFetchingIntent(false);
         }
@@ -352,7 +369,7 @@ function CheckoutDrawerContent({
               {paymentMethod === 'Stripe' && <Check className="h-4 w-4 text-primary" />}
             </div>
           </RadioGroup>
-          {paymentMethod === 'Stripe' && (isFetchingIntent ? (<div className="flex flex-col items-center gap-2 py-8"><Loader2 className="h-6 w-6 animate-spin text-primary opacity-50" /><p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Initializing Secure Environment...</p></div>) : clientSecret ? (<Elements stripe={stripePromise} options={{ clientSecret }}><StripeActionArea clientSecret={clientSecret} isProcessing={isProcessing} setIsProcessing={setIsProcessing} onOrderComplete={onOrderComplete} orderData={currentOrderData} /></Elements>) : (<div className="p-8 text-center border-2 border-dashed rounded-3xl"><AlertTriangle className="h-6 w-6 text-amber-500 mx-auto mb-2" /><p className="text-[10px] font-bold text-amber-700 uppercase">Configuration required to initialize payments</p></div>))}
+          {paymentMethod === 'Stripe' && (isFetchingIntent ? (<div className="flex flex-col items-center gap-2 py-8"><Loader2 className="h-6 w-6 animate-spin text-primary opacity-50" /><p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Initializing Secure Environment...</p></div>) : clientSecret ? (<Elements stripe={stripePromise} options={{ clientSecret }}><StripeActionArea clientSecret={clientSecret} isProcessing={isProcessing} setIsProcessing={setIsProcessing} onOrderComplete={onOrderComplete} orderData={currentOrderData} /></Elements>) : (<div className="p-8 text-center border-2 border-dashed rounded-3xl"><AlertTriangle className="h-6 w-6 text-amber-500 mx-auto mb-2" /><p className="text-[10px] font-bold text-amber-700 uppercase">Gateway configuration error</p></div>))}
           {paymentMethod === 'Pay at Delivery' && (
             <>
               <div className="fixed bottom-7 left-0 right-0 p-4 bg-white/80 backdrop-blur-md border-t z-50">
