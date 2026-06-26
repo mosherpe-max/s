@@ -1,4 +1,4 @@
-import { onRequest } from "firebase-functions/v2/https";
+import { onRequest, onCall, HttpsError } from "firebase-functions/v2/https";
 import { onDocumentWritten } from "firebase-functions/v2/firestore";
 import * as logger from "firebase-functions/logger";
 import { initializeApp } from "firebase-admin/app";
@@ -11,6 +11,55 @@ import twilio from 'twilio';
  */
 initializeApp();
 const db = getFirestore();
+
+/**
+ * createPaymentIntent
+ * Securely generates a Stripe Client Secret for the patron checkout.
+ */
+export const createPaymentIntent = onCall({
+  secrets: ["STRIPE_SECRET_KEY"],
+  region: 'us-central1',
+}, async (request) => {
+  const { amount, sellerId } = request.data;
+
+  // 1. Validation
+  if (!amount || amount <= 0) {
+    throw new HttpsError('invalid-argument', 'Valid amount is required.');
+  }
+  if (!sellerId) {
+    throw new HttpsError('invalid-argument', 'Seller ID is required for routing.');
+  }
+
+  // 2. Stripe Initialization
+  const apiKey = process.env.STRIPE_SECRET_KEY;
+  if (!apiKey) {
+    logger.error("[createPaymentIntent] Stripe Secret Key is missing in Secret Manager.");
+    throw new HttpsError('failed-precondition', 'Payment system configuration error.');
+  }
+
+  const stripe = new Stripe(apiKey);
+
+  try {
+    logger.info(`[createPaymentIntent] Creating intent for amount: ${amount} (Venue: ${sellerId})`);
+    
+    // 3. Create Intent
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount: Math.round(amount * 100), // Convert dollars to cents
+      currency: 'usd',
+      metadata: {
+        sellerId,
+        buyerUid: request.auth?.uid || 'anonymous'
+      }
+    });
+
+    return {
+      clientSecret: paymentIntent.client_secret,
+    };
+  } catch (err: any) {
+    logger.error(`[createPaymentIntent] Stripe Error: ${err.message}`);
+    throw new HttpsError('internal', err.message || 'Unable to initialize secure payment.');
+  }
+});
 
 /**
  * handleStripeWebhook
