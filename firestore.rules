@@ -22,6 +22,13 @@ service cloud.firestore {
       );
     }
 
+    // Solution configuration readable by everyone (e.g. for branding and support email access)
+    // This must remain public to allow the StylizedKoopLogo and Solution defaults to load for patrons.
+    match /solution/config {
+      allow read: if true;
+      allow write: if isSuperAdmin();
+    }
+
     // Global catch-all for Super Admins
     match /{document=**} {
       allow read, write: if isSuperAdmin();
@@ -38,12 +45,6 @@ service cloud.firestore {
 
     match /roles_sales_rep/{email} {
       allow read: if isSignedIn() && request.auth.token.email.lower() == email.lower();
-    }
-
-    // Solution configuration readable by everyone (e.g. for support email access)
-    match /solution/config {
-      allow read: if true;
-      allow write: if isSuperAdmin();
     }
 
     // Venue registry readable by everyone (contains non-sensitive business names/IDs)
