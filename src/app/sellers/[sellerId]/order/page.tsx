@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, use, useEffect, useMemo, useRef } from 'react';
@@ -403,7 +402,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
   const [activeCategory, setActiveCategory] = useState<string>('Featured');
 
   const configRef = useMemoFirebase(() => (firestore ? doc(firestore, 'solution', 'config') : null), [firestore]);
-  const { data: solutionConfig } = useDoc<SolutionConfig>(configRef);
+  const { data: solutionConfig, isLoading: isConfigLoading } = useDoc<SolutionConfig>(configRef);
 
   const sellerRef = useMemoFirebase(() => (firestore ? doc(firestore, 'sellers', sellerId) : null), [firestore, sellerId]);
   const { data: seller, isLoading: isSellerLoading } = useDoc<Seller>(sellerRef);
@@ -424,11 +423,15 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
   };
 
   const isModeAvailable = (type: string) => {
-    if (!seller || !solutionConfig) return false;
-    const isGloballyAuthorized = solutionConfig.enabledModes?.includes(type) ?? true;
+    if (!seller) return false;
+    
+    // If solution config is missing or loading, we assume all modes are globally authorized for this establishment
+    const isGloballyAuthorized = !solutionConfig || (solutionConfig.enabledModes?.includes(type) ?? true);
     if (!isGloballyAuthorized) return false;
+    
     const isVenueAuthorized = seller.menuTypes.includes(type);
     if (!isVenueAuthorized) return false;
+    
     switch(type) {
       case 'Beverage Cart': return !!seller.bevcartActive;
       case 'Clubhouse': return !!seller.clubhouseActive;
@@ -439,13 +442,14 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
   };
 
   useEffect(() => {
-    if (!menuTypeFromUrl && seller && solutionConfig && !isSellerLoading) {
+    if (!menuTypeFromUrl && seller && !isSellerLoading && !isConfigLoading) {
       let defaultType = '';
       if (seller.type.toLowerCase().includes('bowling')) {
         defaultType = 'Lane Delivery';
       } else {
         defaultType = 'Beverage Cart';
       }
+      
       if (isModeAvailable(defaultType)) {
         updateMenuType(defaultType);
       } else {
@@ -453,7 +457,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
         if (firstAvailable) updateMenuType(firstAvailable);
       }
     }
-  }, [seller, solutionConfig, menuTypeFromUrl, isSellerLoading]);
+  }, [seller, solutionConfig, menuTypeFromUrl, isSellerLoading, isConfigLoading]);
 
   // Observer to track which category is currently in view
   useEffect(() => {
@@ -565,7 +569,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
 
   const currentDescription = getModeDescription(selectedMenuType);
   const hasAnyAvailableMode = seller?.menuTypes?.some(t => isModeAvailable(t));
-  const isLoading = isSellerLoading || areItemsLoading || isVenueLoading;
+  const isLoading = isSellerLoading || areItemsLoading || isVenueLoading || (isConfigLoading && !solutionConfig);
 
   if (isLoading) {
     return (
@@ -748,4 +752,3 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
     </div>
   );
 }
-
