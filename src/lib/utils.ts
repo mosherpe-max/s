@@ -1,9 +1,8 @@
-
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
 
 /**
- * Global Platform Administrator Identity.
+ * Global Solution Administrator Identity.
  * This UID bypasses all Firestore Security Rules via 'God Mode'.
  */
 export const SUPER_ADMIN_ID = 'o9vAQy0aFRPSNPoG0ETvjiGt9If1';
@@ -113,4 +112,3 @@ export function calculateDistance(lat1: number, lon1: number, lat2: number, lon2
 
   return R * c;
 }
-

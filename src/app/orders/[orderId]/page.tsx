@@ -4,7 +4,9 @@ import { useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { useFirestore, useDoc, useMemoFirebase } from '@/firebase';
 import { doc } from 'firebase/firestore';
-import { Loader2 } from 'lucide-react';
+import { Loader2, AlertCircle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import Link from 'next/link';
 import type { Order } from '@/lib/types';
 
 /**
@@ -27,13 +29,18 @@ export default function OrderStatusGateway({ params }: { params: Promise<{ order
     }
   }, [order, router]);
 
-  if (error) {
+  // Show error state if the fetch fails or document doesn't exist after loading
+  if (error || (!isLoading && !order)) {
     return (
       <div className="min-h-screen bg-[#213147] text-white flex flex-col items-center justify-center p-8 text-center">
         <div className="bg-red-500/10 p-6 rounded-[2rem] border-2 border-red-500/20 mb-6">
-          <p className="font-headline font-black text-xl uppercase text-red-500">Order Not Found</p>
+          <AlertCircle className="h-12 w-12 text-red-500" />
         </div>
-        <p className="text-white/60 text-sm max-w-xs">We couldn't locate this order. Please check the link or contact the venue for assistance.</p>
+        <h2 className="font-headline font-black text-xl uppercase text-white mb-2">Order Not Found</h2>
+        <p className="text-white/60 text-sm max-w-xs mb-8">We couldn't locate this order. It may have expired or the link is incorrect.</p>
+        <Button asChild variant="outline" className="h-12 border-2 text-white hover:bg-white/10 uppercase text-[10px] font-black tracking-widest px-8">
+          <Link href="/">Return to Home</Link>
+        </Button>
       </div>
     );
   }

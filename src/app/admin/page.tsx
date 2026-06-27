@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
@@ -74,7 +73,7 @@ import {
   Settings,
   MailPlus,
   Key,
-  ThermometerSnowflake,
+  Thermometer,
   Flame,
   CloudSun,
   AlertTriangle,
@@ -1714,4 +1713,3 @@ export default function SolutionAdminPage() {
     </div>
   );
 }
-
