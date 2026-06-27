@@ -428,16 +428,7 @@ export default function SolutionAdminPage({ params }: { params: Promise<{ seller
     }
   }, [seller]);
 
-  const stats = useMemo(() => {
-    if (!orders) return null;
-    const filteredOrders = dashboardFilter === 'All' ? orders : orders.filter(o => o.menuType === dashboardFilter);
-    const today = filteredOrders.filter(o => o.createdAt && typeof o.createdAt.toDate === 'function' && isToday(o.createdAt.toDate()));
-    const revenue = today.reduce((acc, o) => acc + (o.total || 0), 0);
-    const avg = today.length > 0 ? (revenue / today.length).toFixed(2) : '0.00';
-    const overdueCount = filteredOrders.filter(o => o.status !== 'Delivered' && o.status !== 'Cancelled' && o.createdAt && typeof o.createdAt.toDate === 'function' && differenceInMinutes(new Date(), o.createdAt.toDate()) >= (seller?.orderThresholds?.[o.menuType]?.max || DEFAULT_THRESHOLDS[o.menuType]?.max || 20)).length;
-    return { revenue: revenue.toFixed(2), active: filteredOrders.filter(o => o.status !== 'Delivered' && o.status !== 'Cancelled').length, volume: today.length, avg, overdue: overdueCount };
-  }, [orders, dashboardFilter, seller]);
-
+  // ANALYTICS PROCESSING ENGINE - Defined before useMemo blocks
   const getChartDataForRange = (range: 'Today' | 'MTD' | 'YTD') => {
     if (!orders || !seller) return [];
     const modes = seller.menuTypes || [];
@@ -479,6 +470,16 @@ export default function SolutionAdminPage({ params }: { params: Promise<{ seller
     }
     return chartData;
   };
+
+  const stats = useMemo(() => {
+    if (!orders) return null;
+    const filteredOrders = dashboardFilter === 'All' ? orders : orders.filter(o => o.menuType === dashboardFilter);
+    const today = filteredOrders.filter(o => o.createdAt && typeof o.createdAt.toDate === 'function' && isToday(o.createdAt.toDate()));
+    const revenue = today.reduce((acc, o) => acc + (o.total || 0), 0);
+    const avg = today.length > 0 ? (revenue / today.length).toFixed(2) : '0.00';
+    const overdueCount = filteredOrders.filter(o => o.status !== 'Delivered' && o.status !== 'Cancelled' && o.createdAt && typeof o.createdAt.toDate === 'function' && differenceInMinutes(new Date(), o.createdAt.toDate()) >= (seller?.orderThresholds?.[o.menuType]?.max || DEFAULT_THRESHOLDS[o.menuType]?.max || 20)).length;
+    return { revenue: revenue.toFixed(2), active: filteredOrders.filter(o => o.status !== 'Delivered' && o.status !== 'Cancelled').length, volume: today.length, avg, overdue: overdueCount };
+  }, [orders, dashboardFilter, seller]);
 
   const todayChartData = useMemo(() => getChartDataForRange('Today'), [orders, seller]);
   const analyticsData = useMemo(() => getChartDataForRange(analyticsRange), [orders, seller, analyticsRange]);
@@ -1998,7 +1999,9 @@ export default function SolutionAdminPage({ params }: { params: Promise<{ seller
                   <FormField control={modifierGroupForm.control} name="name" render={({ field }) => (
                     <FormItem>
                       <FormLabel className="text-[10px] font-black uppercase tracking-widest">Group Name</FormLabel>
-                      <FormControl><Input {...field} placeholder="Side Options" className="h-12 border-2 font-bold" /></FormControl>
+                      <FormControl>
+                        <Input {...field} placeholder="Side Options" className="h-12 border-2 font-bold" />
+                      </FormControl>
                       <FormDescription className="text-[8px] font-medium uppercase text-muted-foreground">e.g. "Pizza Toppings", "Choice of Dressing"</FormDescription>
                       <FormMessage />
                     </FormItem>
@@ -2070,3 +2073,4 @@ export default function SolutionAdminPage({ params }: { params: Promise<{ seller
     </div>
   );
 }
+

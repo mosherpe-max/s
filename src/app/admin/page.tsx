@@ -341,27 +341,6 @@ export default function SolutionAdminPage() {
   const { data: sellers } = useCollection<Seller>(sellersQuery);
   const { data: orders } = useCollection<Order>(ordersQuery);
 
-  const metrics = useMemo(() => {
-    if (!sellers || !orders) return null;
-    const now = new Date();
-    const monthStart = startOfMonth(now);
-    const activeSellers = sellers.filter(s => s.status === 'Active');
-    const mtdOrders = orders.filter(o => {
-      if (!o.createdAt || typeof o.createdAt.toDate !== 'function') return false;
-      try {
-        return o.createdAt.toDate() >= monthStart;
-      } catch { return false; }
-    });
-    const mtdGMV = mtdOrders.reduce((acc, o) => acc + (o.total || 0), 0);
-    const mtdFees = mtdOrders.reduce((acc, o) => acc + (o.serviceFee || 0), 0);
-    return {
-      venueCounts: { total: activeSellers.length },
-      gmv: { mtd: mtdGMV },
-      orders: { mtd: mtdOrders.length },
-      fees: { mtd: mtdFees }
-    };
-  }, [sellers, orders]);
-
   // ANALYTICS PROCESSING ENGINE
   const getKoopAnalyticsData = (range: 'Today' | 'MTD' | 'YTD') => {
     if (!orders) return [];
@@ -423,6 +402,27 @@ export default function SolutionAdminPage() {
     }
     return chartData;
   };
+
+  const metrics = useMemo(() => {
+    if (!sellers || !orders) return null;
+    const now = new Date();
+    const monthStart = startOfMonth(now);
+    const activeSellers = sellers.filter(s => s.status === 'Active');
+    const mtdOrders = orders.filter(o => {
+      if (!o.createdAt || typeof o.createdAt.toDate !== 'function') return false;
+      try {
+        return o.createdAt.toDate() >= monthStart;
+      } catch { return false; }
+    });
+    const mtdGMV = mtdOrders.reduce((acc, o) => acc + (o.total || 0), 0);
+    const mtdFees = mtdOrders.reduce((acc, o) => acc + (o.serviceFee || 0), 0);
+    return {
+      venueCounts: { total: activeSellers.length },
+      gmv: { mtd: mtdGMV },
+      orders: { mtd: mtdOrders.length },
+      fees: { mtd: mtdFees }
+    };
+  }, [sellers, orders]);
 
   const todayChartData = useMemo(() => getKoopAnalyticsData('Today'), [orders]);
   const rangeAnalyticsData = useMemo(() => getKoopAnalyticsData(analyticsRange), [orders, analyticsRange]);
@@ -1555,7 +1555,7 @@ export default function SolutionAdminPage() {
               </div>
               <div>
                 <DialogTitle className="font-headline font-black uppercase tracking-tight text-white text-xl leading-none">Venue Maintenance</DialogTitle>
-                <DialogDescription className="text-white/40 text-[9px] font-bold uppercase tracking-widest mt-1">
+                <DialogDescription className="text-white/40 text-[9px] font-bold uppercase tracking-widest mt-1 text-left">
                   Adjust solution registry and financial settings for {selectedSeller?.courseName}
                 </DialogDescription>
               </div>
@@ -1714,3 +1714,4 @@ export default function SolutionAdminPage() {
     </div>
   );
 }
+

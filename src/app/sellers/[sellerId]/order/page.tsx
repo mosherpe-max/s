@@ -514,7 +514,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
     const visibleCategories = categories.filter(c => {
       if (c === 'Featured') return hasExplicitFeatured;
       const hasItemsInCat = filteredMenuItems.some(i => i.category === c && i.availableOn?.includes(selectedMenuType));
-      const isEnabled byVenue = seller.categoryVisibility?.[selectedMenuType]?.includes(c) ?? true;
+      const isEnabledByVenue = seller.categoryVisibility?.[selectedMenuType]?.includes(c) ?? true;
       return hasItemsInCat && isEnabledByVenue;
     });
 
@@ -748,3 +748,4 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
     </div>
   );
 }
+

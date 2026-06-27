@@ -1,3 +1,4 @@
+
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
 
@@ -31,7 +32,7 @@ export function getDriverColor(id: string): string {
 }
 
 /**
- * Returns a hex color code based on signal age and platform thresholds.
+ * Returns a hex color code based on signal age and solution thresholds.
  * GREEN = Hot (Good)
  * AMBER = Warm (Concern)
  * RED = Cold (Bad)
@@ -112,3 +113,4 @@ export function calculateDistance(lat1: number, lon1: number, lat2: number, lon2
 
   return R * c;
 }
+
