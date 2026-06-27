@@ -2,7 +2,7 @@
 import { onRequest, onCall, HttpsError } from "firebase-functions/v2/https";
 import { onDocumentWritten } from "firebase-functions/v2/firestore";
 import * as logger from "firebase-functions/logger";
-import { initializeApp } from "firebase-app-modern";
+import { initializeApp } from "firebase-admin/app";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import Stripe from 'stripe';
 import twilio from 'twilio';
@@ -147,9 +147,9 @@ export const handleStripeWebhook = onRequest({
  * Triggers on any creation or update to an order document.
  * Manages patron SMS notifications via Twilio.
  * 
- * NOTE: This is the primary notification channel for ALL patrons, 
- * including PWA (installed) users, to ensure delivery tracking links 
- * are received even if the browser/app is not currently focused.
+ * NOTE: Per user request, texts are ONLY sent when:
+ * 1. Order Received (Initial creation)
+ * 2. Out for Delivery (Transition to 'Out for Delivery')
  */
 export const onGuestOrderStatusUpdate = onDocumentWritten({
   document: "orders/{orderId}",
@@ -187,7 +187,7 @@ export const onGuestOrderStatusUpdate = onDocumentWritten({
   const trackingLink = `https://koop.app/orders/${orderId}`;
 
   if (!before || !before.exists) {
-    // RULE 1: INITIAL CREATION
+    // RULE 1: INITIAL CREATION (Order Received)
     if (status === 'received' || status === 'Placed') {
       messageBody = `Thanks for your order! We've received it and it's in our queue. Track live: ${trackingLink}`;
     }
@@ -197,19 +197,11 @@ export const onGuestOrderStatusUpdate = onDocumentWritten({
     const oldStatus = beforeData?.status;
 
     if (status !== oldStatus) {
-      if (status === 'Preparing') {
-        // RULE 1.5: DRIVER ACCEPTANCE
-        messageBody = `Order Confirmed! Your order is being prepared now. Track live: ${trackingLink}`;
-      } else if (status === 'Out for Delivery') {
-        // RULE 2: DISPATCH
+      if (status === 'Out for Delivery') {
+        // RULE 2: DISPATCH (Out for Delivery)
         messageBody = `Your order is out for delivery! A runner is on the way. Track live: ${trackingLink}`;
-      } else if (status === 'Delivered') {
-        // RULE 3: COMPLETION
-        messageBody = `Your order has been delivered. Enjoy! Thanks for using Koop.`;
-      } else if (status === 'Cancelled') {
-        // OPTIONAL: VOID NOTIFICATION
-        messageBody = `Your order at the venue has been cancelled. If you have questions, please see staff.`;
       }
+      // Other statuses (Preparing, Delivered, Cancelled) do not trigger SMS per user request.
     }
   }
 

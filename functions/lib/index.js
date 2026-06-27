@@ -1,3 +1,4 @@
+
 import { onRequest, onCall, HttpsError } from "firebase-functions/v2/https";
 import { onDocumentWritten } from "firebase-functions/v2/firestore";
 import * as logger from "firebase-functions/logger";
@@ -159,7 +160,7 @@ export const onGuestOrderStatusUpdate = onDocumentWritten({
     // High-fidelity tracking link
     const trackingLink = `https://koop.app/orders/${orderId}`;
     if (!before || !before.exists) {
-        // INITIAL CREATION
+        // RULE 1: INITIAL CREATION
         if (status === 'received' || status === 'Placed') {
             messageBody = `Thanks for your order! We've received it and it's in our queue. Track live: ${trackingLink}`;
         }
@@ -169,17 +170,9 @@ export const onGuestOrderStatusUpdate = onDocumentWritten({
         const beforeData = before.data();
         const oldStatus = beforeData?.status;
         if (status !== oldStatus) {
-            if (status === 'Preparing') {
-                // Driver accepted the order
-                messageBody = `Order Confirmed! Your order is being prepared now. Track live: ${trackingLink}`;
-            }
-            else if (status === 'Out for Delivery') {
-                // Driver is moving
+            if (status === 'Out for Delivery') {
+                // RULE 2: DISPATCH
                 messageBody = `Your order is out for delivery! A runner is on the way. Track live: ${trackingLink}`;
-            }
-            else if (status === 'Delivered') {
-                // Order complete
-                messageBody = `Your order has been delivered. Enjoy! Thanks for using Koop.`;
             }
         }
     }
