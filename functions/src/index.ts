@@ -1,3 +1,4 @@
+
 import { onRequest, onCall, HttpsError } from "firebase-functions/v2/https";
 import { onDocumentWritten } from "firebase-functions/v2/firestore";
 import * as logger from "firebase-functions/logger";
@@ -20,7 +21,7 @@ export const createPaymentIntent = onCall({
   secrets: ["STRIPE_SECRET_KEY"],
   region: 'us-central1',
 }, async (request) => {
-  const { amount, sellerId, patronName, patronPhone } = request.data;
+  const { amount, sellerId, patronName, patronPhone, patronEmail } = request.data;
 
   // 1. Validation
   if (!amount || amount <= 0) {
@@ -57,7 +58,8 @@ export const createPaymentIntent = onCall({
         sellerId,
         buyerUid: request.auth?.uid || 'anonymous',
         customerName: patronName || 'Guest',
-        customerPhone: patronPhone || ''
+        customerPhone: patronPhone || '',
+        customerEmail: patronEmail || ''
       }
     });
 
@@ -115,12 +117,10 @@ export const handleStripeWebhook = onRequest({
     logger.info(`[handleStripeWebhook] Processing successful PaymentIntent: ${paymentIntent.id}`);
 
     try {
-      // Find existing order if any, or create a new one
-      // In this architecture, the frontend usually creates the doc first OR we create it here
-      // For digital checkout, we create the order doc on success to avoid "ghost" orders
       const orderData = {
         customerName: metadata.customerName || 'Guest Patron',
         customerPhone: metadata.customerPhone || null,
+        customerEmail: metadata.customerEmail || null,
         status: "received",
         sellerId: metadata.sellerId || null,
         buyerProfileId: metadata.buyerUid || null,
@@ -193,7 +193,6 @@ export const onGuestOrderStatusUpdate = onDocumentWritten({
 
   if (messageBody) {
     try {
-      // Ensure phone is E.164 (simplistic check)
       const to = customerPhone.startsWith('+') ? customerPhone : `+1${customerPhone}`;
       await client.messages.create({
         body: messageBody,

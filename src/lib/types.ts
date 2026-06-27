@@ -159,6 +159,8 @@ export interface Order {
   sellerId: string;
   buyerProfileId: string;
   customerName: string;
+  customerPhone: string;
+  customerEmail?: string;
   menuType: string;
   menuTypeLocation?: string;
   deliveryLocation: {

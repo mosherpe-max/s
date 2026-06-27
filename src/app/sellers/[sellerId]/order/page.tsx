@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, use, useEffect, useMemo, useRef } from 'react';
@@ -37,7 +38,8 @@ import {
   Clock,
   Zap,
   User,
-  Smartphone
+  Smartphone,
+  Mail
 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useCart } from '@/lib/cart-context';
@@ -81,12 +83,51 @@ function CheckoutBrandingBar() {
   );
 }
 
+function PatronContactForm({ email, setEmail, name, setName, phone, setPhone }: any) {
+  return (
+    <div className="space-y-3 mb-6">
+      <div className="relative">
+        <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+        <Input 
+          placeholder="Email Address" 
+          type="email"
+          value={email} 
+          onChange={(e) => setEmail(e.target.value)} 
+          className="pl-10 h-12 border-2 border-slate-100 rounded-xl font-bold focus-visible:ring-primary"
+        />
+      </div>
+      <div className="relative">
+        <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+        <Input 
+          placeholder="Full Name" 
+          value={name} 
+          onChange={(e) => setName(e.target.value)} 
+          className="pl-10 h-12 border-2 border-slate-100 rounded-xl font-bold focus-visible:ring-primary"
+        />
+      </div>
+      <div className="relative">
+        <Smartphone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+        <Input 
+          placeholder="Mobile Number" 
+          type="tel"
+          value={phone} 
+          onChange={(e) => setPhone(e.target.value)} 
+          className="pl-10 h-12 border-2 border-slate-100 rounded-xl font-bold focus-visible:ring-primary"
+        />
+      </div>
+    </div>
+  );
+}
+
 function StripeActionArea({ 
   clientSecret, 
   isProcessing, 
   setIsProcessing, 
   onOrderComplete,
-  orderData
+  orderData,
+  patronEmail, setPatronEmail,
+  patronName, setPatronName,
+  patronPhone, setPatronPhone
 }: any) {
   const stripe = useStripe();
   const elements = useElements();
@@ -109,6 +150,9 @@ function StripeActionArea({
       if (paymentIntent && (paymentIntent.status === 'succeeded' || paymentIntent.status === 'processing')) {
         const finalOrderData = {
           ...orderData,
+          customerEmail: patronEmail,
+          customerName: patronName,
+          customerPhone: patronPhone.replace(/\D/g, ''),
           paymentStatus: paymentIntent.status === 'succeeded' ? 'Succeeded' : 'Processing',
           stripePaymentIntentId: paymentIntent.id,
         };
@@ -131,9 +175,20 @@ function StripeActionArea({
 
   return (
     <div className="space-y-6">
-      <div className="mt-4 p-4 border-2 border-slate-100 rounded-3xl bg-slate-50/50 min-h-[100px] flex flex-col justify-center">
+      <div className="mt-4 p-6 border-2 border-slate-100 rounded-[2.5rem] bg-slate-50/50 min-h-[100px] flex flex-col justify-center animate-in fade-in duration-500">
+        <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary mb-4 px-1 flex items-center gap-2">
+           <CreditCard className="h-3 w-3" /> Secure Payment Details
+        </h3>
+        
+        <PatronContactForm 
+          email={patronEmail} setEmail={setPatronEmail}
+          name={patronName} setName={setPatronName}
+          phone={patronPhone} setPhone={setPatronPhone}
+        />
+
         <StripeCheckoutForm onReadyStateChange={setIsStripeReady} />
       </div>
+
       <div className="fixed bottom-7 left-0 right-0 p-4 bg-white/80 backdrop-blur-md border-t z-50">
         <div className="max-w-xl mx-auto">
           <Button 
@@ -169,12 +224,12 @@ function CheckoutDrawerContent({
   const auth = useAuth();
   const { user } = useUser();
   const { toast } = useToast();
-  const { updateItem, removeItem } = useCart();
   
+  const [patronEmail, setPatronEmail] = useState('');
   const [patronName, setPatronName] = useState('');
   const [patronPhone, setPatronPhone] = useState('');
   const [tip, setTip] = useState(0);
-  const [paymentMethod, setPaymentMethod] = useState<'Pay at Delivery' | 'Stripe'>('Pay at Delivery');
+  const [paymentMethod, setPaymentMethod] = useState<'Pay at Delivery' | 'Stripe' | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [isFetchingIntent, setIsFetchingIntent] = useState(false);
@@ -186,7 +241,7 @@ function CheckoutDrawerContent({
   const finalTotal = subtotal + solutionFee + tax + tip;
   const baseTotalForBackend = subtotal + tax + tip;
 
-  const isContactInfoValid = patronName.length >= 2 && patronPhone.replace(/\D/g, '').length >= 10;
+  const isContactInfoValid = patronName.length >= 2 && patronPhone.replace(/\D/g, '').length >= 10 && patronEmail.includes('@');
 
   useEffect(() => {
     if (paymentMethod === 'Stripe' && !clientSecret && !isFetchingIntent && baseTotalForBackend > 0 && isContactInfoValid) {
@@ -198,7 +253,7 @@ function CheckoutDrawerContent({
             const result = await signInAnonymously(auth);
             currentUser = result.user;
           }
-          if (!currentUser) throw new Error("Anonymous session could not be established.");
+          if (!currentUser) throw new Error("Anonymous session failed.");
           
           const functions = getFunctions(firebaseApp, 'us-central1');
           const createIntent = httpsCallable(functions, 'createPaymentIntent');
@@ -207,21 +262,21 @@ function CheckoutDrawerContent({
             amount: baseTotalForBackend, 
             sellerId,
             patronName,
-            patronPhone: patronPhone.replace(/\D/g, '')
+            patronPhone: patronPhone.replace(/\D/g, ''),
+            patronEmail
           });
           
           const data = result.data as { clientSecret: string };
           if (data?.clientSecret) {
             setClientSecret(data.clientSecret);
           } else {
-            throw new Error("Backend did not return a secure token.");
+            throw new Error("Secure gateway could not be initialized.");
           }
         } catch (e: any) {
-          console.error("Payment Intent Fetch Failure:", e);
           toast({ 
             variant: 'destructive', 
-            title: 'Payment Setup Error', 
-            description: e.message || "The payment gateway is currently unavailable. Please use Pay at Delivery." 
+            title: 'Gateway Error', 
+            description: "The digital gateway is unavailable. Please use Pay at Delivery." 
           });
           setPaymentMethod('Pay at Delivery');
         } finally {
@@ -230,12 +285,12 @@ function CheckoutDrawerContent({
       };
       fetchIntent();
     }
-  }, [paymentMethod, baseTotalForBackend, sellerId, firebaseApp, clientSecret, isFetchingIntent, toast, user, auth, isContactInfoValid, patronName, patronPhone]);
+  }, [paymentMethod, baseTotalForBackend, sellerId, firebaseApp, clientSecret, isFetchingIntent, toast, user, auth, isContactInfoValid, patronName, patronPhone, patronEmail]);
 
   const handleManualOrder = async () => {
     if (!firestore || activeOrderItems.length === 0) return;
     if (!isContactInfoValid) {
-      toast({ variant: 'destructive', title: 'Missing Info', description: 'Please provide your name and mobile number for notifications.' });
+      toast({ variant: 'destructive', title: 'Details Required', description: 'Please complete your contact info to receive tracking updates.' });
       return;
     }
     setIsProcessing(true);
@@ -249,6 +304,7 @@ function CheckoutDrawerContent({
       const orderData: any = {
         sellerId,
         buyerProfileId: currentUser.uid,
+        customerEmail: patronEmail,
         customerName: patronName || 'Guest Patron',
         customerPhone: patronPhone.replace(/\D/g, ''),
         deliveryLocation: mockBuyerLocation,
@@ -287,8 +343,6 @@ function CheckoutDrawerContent({
     return {
       sellerId,
       buyerProfileId: user.uid,
-      customerName: patronName || 'Guest Patron',
-      customerPhone: patronPhone.replace(/\D/g, ''),
       deliveryLocation: mockBuyerLocation,
       items: activeOrderItems,
       subtotal,
@@ -302,68 +356,31 @@ function CheckoutDrawerContent({
       menuTypeLocation: locationValue || null,
       createdAt: serverTimestamp(),
     };
-  }, [user, sellerId, activeOrderItems, subtotal, solutionFee, tax, tip, finalTotal, selectedMenuType, locationValue, patronName, patronPhone]);
-
-  const checkoutNotice = isGolf 
-    ? "A small convenience fee has been added to support mobile ordering on the course."
-    : isBowling 
-    ? "A small convenience fee has been added so you can order without leaving your lane."
-    : "A small convenience fee is included in your order total to support mobile ordering technology.";
+  }, [user, sellerId, activeOrderItems, subtotal, solutionFee, tax, tip, finalTotal, selectedMenuType, locationValue]);
 
   return (
     <ScrollArea className="flex-1">
-      <div className="max-w-xl mx-auto px-4 sm:px-6 py-8 space-y-8 pb-32">
-        <div className="flex justify-start -mb-4">
+      <div className="max-w-xl mx-auto px-4 sm:px-6 py-8 space-y-10 pb-32">
+        <div className="flex justify-start -mb-6">
           <SheetClose asChild>
             <Button variant="ghost" className="text-[10px] font-black uppercase tracking-widest text-primary h-8 gap-1.5 p-0 hover:bg-transparent hover:text-primary/80">
-              <ChevronLeft className="h-3.5 w-3.5" /> Add More Items
+              <ChevronLeft className="h-3.5 w-3.5" /> Back to Menu
             </Button>
           </SheetClose>
         </div>
 
-        {/* PATRON CONTACT INFO */}
-        <div className="space-y-4 bg-white p-6 rounded-[2rem] border-2 border-primary/10 shadow-sm">
-          <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2 px-1">
-            <Smartphone className="h-3 w-3" /> SMS Notifications
-          </h3>
-          <div className="space-y-4">
-            <div className="relative">
-              <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-              <Input 
-                placeholder="Full Name" 
-                value={patronName} 
-                onChange={(e) => setPatronName(e.target.value)} 
-                className="pl-10 h-12 border-2 border-slate-100 rounded-xl font-bold focus-visible:ring-primary"
-              />
-            </div>
-            <div className="relative">
-              <Smartphone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-              <Input 
-                placeholder="Mobile Number (for tracking link)" 
-                type="tel"
-                value={patronPhone} 
-                onChange={(e) => setPatronPhone(e.target.value)} 
-                className="pl-10 h-12 border-2 border-slate-100 rounded-xl font-bold focus-visible:ring-primary"
-              />
-            </div>
-          </div>
-          <p className="text-[9px] font-bold text-muted-foreground uppercase leading-relaxed px-1">
-            We'll text you an order confirmation and a live delivery tracking link.
-          </p>
-        </div>
-
         <OrderSummary 
           items={activeOrderItems} 
-          onUpdateItem={updateItem}
-          onRemoveItem={removeItem}
+          onUpdateItem={() => {}} // Disabled in drawer for focus
+          onRemoveItem={() => {}}
         />
         
         {selectedMenuType === 'Lane Delivery' && seller?.laneCount && (
-          <div className="space-y-3">
+          <div className="space-y-4">
             <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground px-1">STATION / LANE</h3>
             <div className="grid grid-cols-5 sm:grid-cols-6 gap-2">
               {Array.from({ length: seller.laneCount }, (_, i) => (i + 1).toString()).map(l => (
-                <Button key={l} variant={locationValue === `Lane ${l}` ? 'default' : 'outline'} size="sm" onClick={() => setLocationValue(`Lane ${l}`)} className="font-bold h-10 px-0">
+                <Button key={l} variant={locationValue === `Lane ${l}` ? 'default' : 'outline'} size="sm" onClick={() => setLocationValue(`Lane ${l}`)} className="font-black h-11 px-0 rounded-xl">
                   {l}
                 </Button>
               ))}
@@ -375,30 +392,16 @@ function CheckoutDrawerContent({
 
         <PricingBreakdown subtotal={subtotal} serviceFee={solutionFee} tax={tax} tip={tip} taxRate={taxRate} />
 
-        <div className="space-y-3">
-          <div className="bg-slate-50 border border-slate-100 p-4 rounded-2xl flex items-start gap-3 animate-in fade-in duration-500">
-            <span className="text-primary mt-0.5"><Info className="h-4 w-4 shrink-0" /></span>
-            <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-tight leading-relaxed">
-              {checkoutNotice}
-            </p>
-          </div>
-
-          {isGolf && (
-            <div className="bg-primary/5 border border-primary/10 p-4 rounded-2xl flex items-start gap-3 animate-in fade-in duration-700">
-              <Satellite className="h-4 w-4 text-primary shrink-0 mt-0.5" />
-              <div className="space-y-0.5">
-                <p className="text-[10px] font-black text-primary uppercase tracking-widest">Delivery Pro Tip</p>
-                <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-tight leading-relaxed">
-                  Enable GPS tracking when prompted at checkout. This allows our staff to find you instantly and ensures a faster delivery experience.
-                </p>
-              </div>
-            </div>
-          )}
-        </div>
-
         <div className="space-y-4">
           <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground px-1">PAYMENT METHOD</h3>
-          <RadioGroup value={paymentMethod} onValueChange={(v: any) => setPaymentMethod(v)} className="grid grid-cols-1 gap-3">
+          <RadioGroup value={paymentMethod || ''} onValueChange={(v: any) => setPaymentMethod(v)} className="grid grid-cols-1 gap-3">
+            <div className={cn("flex items-center justify-between p-4 rounded-2xl border-2 transition-all cursor-pointer", paymentMethod === 'Stripe' ? "border-primary bg-primary/5 shadow-md" : "border-slate-100 hover:border-slate-200")} onClick={() => setPaymentMethod('Stripe')}>
+              <div className="flex items-center gap-4">
+                <div className={cn("p-2 rounded-lg", paymentMethod === 'Stripe' ? "bg-primary text-white" : "bg-slate-100 text-slate-400")}><CreditCard className="h-5 w-5" /></div>
+                <div className="text-left"><p className="text-xs font-black uppercase tracking-tight text-[#213147]">Digital Checkout</p><p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">SECURE CARD PAYMENT</p></div>
+              </div>
+              {paymentMethod === 'Stripe' && <Check className="h-4 w-4 text-primary" />}
+            </div>
             <div className={cn("flex items-center justify-between p-4 rounded-2xl border-2 transition-all cursor-pointer", paymentMethod === 'Pay at Delivery' ? "border-primary bg-primary/5 shadow-md" : "border-slate-100 hover:border-slate-200")} onClick={() => setPaymentMethod('Pay at Delivery')}>
               <div className="flex items-center gap-4">
                 <div className={cn("p-2 rounded-lg", paymentMethod === 'Pay at Delivery' ? "bg-primary text-white" : "bg-slate-100 text-slate-400")}><Banknote className="h-5 w-5" /></div>
@@ -406,40 +409,59 @@ function CheckoutDrawerContent({
               </div>
               {paymentMethod === 'Pay at Delivery' && <Check className="h-4 w-4 text-primary" />}
             </div>
-            <div className={cn("flex items-center justify-between p-4 rounded-2xl border-2 transition-all cursor-pointer", paymentMethod === 'Stripe' ? "border-primary bg-primary/5 shadow-md" : "border-slate-100 hover:border-slate-200")} onClick={() => setPaymentMethod('Stripe')}>
-              <div className="flex items-center gap-4">
-                <div className={cn("p-2 rounded-lg", paymentMethod === 'Stripe' ? "bg-primary text-white" : "bg-slate-100 text-slate-400")}><CreditCard className="h-5 w-5" /></div>
-                <div className="text-left"><p className="text-xs font-black uppercase tracking-tight text-[#213147]">Digital Checkout</p><p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">SECURE PAYMENT ELEMENT</p></div>
-              </div>
-              {paymentMethod === 'Stripe' && <Check className="h-4 w-4 text-primary" />}
-            </div>
           </RadioGroup>
+
           {paymentMethod === 'Stripe' && (
-            !isContactInfoValid ? (
-              <div className="p-8 text-center border-2 border-dashed rounded-3xl opacity-40">
-                <AlertTriangle className="h-6 w-6 text-amber-500 mx-auto mb-2" />
-                <p className="text-[10px] font-bold text-amber-700 uppercase">Contact Info Required for SMS</p>
+            isFetchingIntent ? (
+              <div className="flex flex-col items-center gap-2 py-10">
+                <Loader2 className="h-8 w-8 animate-spin text-primary opacity-50" />
+                <p className="text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground">Initializing Secure Feed...</p>
               </div>
+            ) : clientSecret ? (
+              <Elements stripe={stripePromise} options={{ clientSecret }}>
+                <StripeActionArea 
+                  clientSecret={clientSecret} 
+                  isProcessing={isProcessing} 
+                  setIsProcessing={setIsProcessing} 
+                  onOrderComplete={onOrderComplete} 
+                  orderData={currentOrderData}
+                  patronEmail={patronEmail} setPatronEmail={setPatronEmail}
+                  patronName={patronName} setPatronName={setPatronName}
+                  patronPhone={patronPhone} setPatronPhone={setPatronPhone}
+                />
+              </Elements>
             ) : (
-              isFetchingIntent ? (
-                <div className="flex flex-col items-center gap-2 py-8">
-                  <Loader2 className="h-6 w-6 animate-spin text-primary opacity-50" />
-                  <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Initializing Secure Environment...</p>
-                </div>
-              ) : clientSecret ? (
-                <Elements stripe={stripePromise} options={{ clientSecret }}>
-                  <StripeActionArea clientSecret={clientSecret} isProcessing={isProcessing} setIsProcessing={setIsProcessing} onOrderComplete={onOrderComplete} orderData={currentOrderData} />
-                </Elements>
-              ) : (
-                <div className="p-8 text-center border-2 border-dashed rounded-3xl">
-                  <AlertTriangle className="h-6 w-6 text-amber-500 mx-auto mb-2" />
-                  <p className="text-[10px] font-bold text-amber-700 uppercase">Gateway configuration error</p>
-                </div>
-              )
+              <div className="p-6 border-2 border-slate-100 rounded-[2.5rem] bg-slate-50/50 animate-in fade-in duration-500">
+                <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary mb-4 px-1 flex items-center gap-2">
+                   <User className="h-3 w-3" /> Contact Details
+                </h3>
+                <PatronContactForm 
+                  email={patronEmail} setEmail={setPatronEmail}
+                  name={patronName} setName={setPatronName}
+                  phone={patronPhone} setPhone={setPatronPhone}
+                />
+                {!isContactInfoValid && (
+                  <div className="bg-amber-50 p-3 rounded-xl border border-amber-100 flex items-center gap-2">
+                    <Info className="h-3 w-3 text-amber-600" />
+                    <p className="text-[8px] font-black uppercase text-amber-700">All fields required for SMS notifications</p>
+                  </div>
+                )}
+              </div>
             )
           )}
+
           {paymentMethod === 'Pay at Delivery' && (
-            <>
+            <div className="space-y-6">
+              <div className="p-6 border-2 border-slate-100 rounded-[2.5rem] bg-slate-50/50 animate-in fade-in duration-500">
+                <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary mb-4 px-1 flex items-center gap-2">
+                   <User className="h-3 w-3" /> Contact Details
+                </h3>
+                <PatronContactForm 
+                  email={patronEmail} setEmail={setPatronEmail}
+                  name={patronName} setName={setPatronName}
+                  phone={patronPhone} setPhone={setPatronPhone}
+                />
+              </div>
               <div className="fixed bottom-7 left-0 right-0 p-4 bg-white/80 backdrop-blur-md border-t z-50">
                 <div className="max-w-xl mx-auto">
                   <Button 
@@ -454,7 +476,7 @@ function CheckoutDrawerContent({
                 </div>
               </div>
               <CheckoutBrandingBar />
-            </>
+            </div>
           )}
         </div>
       </div>
@@ -498,13 +520,10 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
 
   const isModeAvailable = (type: string) => {
     if (!seller) return false;
-    
     const isGloballyAuthorized = !solutionConfig || (solutionConfig.enabledModes?.includes(type) ?? true);
     if (!isGloballyAuthorized) return false;
-    
     const isVenueAuthorized = seller.menuTypes.includes(type);
     if (!isVenueAuthorized) return false;
-    
     switch(type) {
       case 'Beverage Cart': return !!seller.bevcartActive;
       case 'Clubhouse': return !!seller.clubhouseActive;
@@ -515,30 +534,18 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
   };
 
   useEffect(() => {
-    if (!menuTypeFromUrl && seller && !isSellerLoading && !isConfigLoading) {
-      let defaultType = '';
-      if (seller.type.toLowerCase().includes('bowling')) {
-        defaultType = 'Lane Delivery';
-      } else {
-        defaultType = 'Beverage Cart';
-      }
-      
-      if (isModeAvailable(defaultType)) {
-        updateMenuType(defaultType);
-      } else {
+    if (!menuTypeFromUrl && seller && !isSellerLoading) {
+      let defaultType = seller.type.toLowerCase().includes('bowling') ? 'Lane Delivery' : 'Beverage Cart';
+      if (isModeAvailable(defaultType)) updateMenuType(defaultType);
+      else {
         const firstAvailable = seller.menuTypes.find(t => isModeAvailable(t));
         if (firstAvailable) updateMenuType(firstAvailable);
       }
     }
-  }, [seller, solutionConfig, menuTypeFromUrl, isSellerLoading, isConfigLoading]);
+  }, [seller, solutionConfig, menuTypeFromUrl, isSellerLoading]);
 
   useEffect(() => {
-    const options = {
-      root: null,
-      rootMargin: '-160px 0px -50% 0px',
-      threshold: 0
-    };
-
+    const options = { root: null, rootMargin: '-160px 0px -50% 0px', threshold: 0 };
     const observer = new IntersectionObserver((entries) => {
       entries.forEach(entry => {
         if (entry.isIntersecting) {
@@ -548,10 +555,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
         }
       });
     }, options);
-
-    const sections = document.querySelectorAll('section[id]');
-    sections.forEach(section => observer.observe(section));
-
+    document.querySelectorAll('section[id]').forEach(section => observer.observe(section));
     return () => observer.disconnect();
   }, [seller, menuItems, selectedMenuType]);
 
@@ -562,53 +566,27 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
   }, 0), [activeOrderItems]);
   
   const taxRate = seller?.taxRate ?? 6.0;
-  
   const solutionFee = useMemo(() => {
-    if (venue?.patronConvenienceFee !== undefined) {
-      return venue.patronConvenienceFee / 100;
-    }
+    if (venue?.patronConvenienceFee !== undefined) return venue.patronConvenienceFee / 100;
     if (!seller) return 0;
-    if (selectedMenuType && seller.serviceFees?.[selectedMenuType]) {
-      return seller.serviceFees[selectedMenuType];
-    }
-    return seller.serviceFee || 0;
+    return (selectedMenuType && seller.serviceFees?.[selectedMenuType]) || seller.serviceFee || 0;
   }, [seller, venue, selectedMenuType]);
 
   const filteredMenuItems = useMemo(() => {
     if (!menuItems || !selectedMenuType) return [];
-    return menuItems.filter(item => 
-      item.availableOn?.includes(selectedMenuType) || 
-      item.featuredOn?.includes(selectedMenuType)
-    );
+    return menuItems.filter(item => item.availableOn?.includes(selectedMenuType) || item.featuredOn?.includes(selectedMenuType));
   }, [menuItems, selectedMenuType]);
 
   const currentCategories = useMemo(() => {
     if (!seller || !filteredMenuItems.length) return [];
-    
     const hasExplicitFeatured = filteredMenuItems.some(i => i.featuredOn?.includes(selectedMenuType));
-    
     const visibleCategories = categories.filter(c => {
       if (c === 'Featured') return hasExplicitFeatured;
       const hasItemsInCat = filteredMenuItems.some(i => i.category === c && i.availableOn?.includes(selectedMenuType));
-      const isEnabledByVenue = seller.categoryVisibility?.[selectedMenuType]?.includes(c) ?? true;
-      return hasItemsInCat && isEnabledByVenue;
+      return hasItemsInCat && (seller.categoryVisibility?.[selectedMenuType]?.includes(c) ?? true);
     });
-
-    return visibleCategories.sort((a, b) => {
-      if (a === 'Featured') return -1;
-      if (b === 'Featured') return 1;
-      return 0;
-    });
+    return visibleCategories.sort((a, b) => (a === 'Featured' ? -1 : (b === 'Featured' ? 1 : 0)));
   }, [seller, filteredMenuItems, selectedMenuType]);
-
-  useEffect(() => {
-    if (!isSellerLoading && !areItemsLoading) {
-       window.scrollTo({ top: 0, behavior: 'smooth' });
-       if (currentCategories.includes('Featured')) {
-         setActiveCategory('Featured');
-       }
-    }
-  }, [isSellerLoading, areItemsLoading, currentCategories]);
 
   const handleOrderComplete = (orderId: string) => {
     router.push(`/order/track?id=${orderId}&sellerId=${sellerId}`);
@@ -619,27 +597,12 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
     const element = document.getElementById(category.toLowerCase().replace(/\s+/g, '-'));
     if (element) {
       const offset = 160; 
-      const bodyRect = document.body.getBoundingClientRect().top;
-      const elementRect = element.getBoundingClientRect().top;
-      const elementPosition = elementRect - bodyRect;
-      const offsetPosition = elementPosition - offset;
-      window.scrollTo({ top: offsetPosition, behavior: 'smooth' });
+      const elementPosition = element.getBoundingClientRect().top - document.body.getBoundingClientRect().top;
+      window.scrollTo({ top: elementPosition - offset, behavior: 'smooth' });
       setActiveCategory(category);
     }
   };
 
-  const getModeDescription = (type: string) => {
-    switch (type) {
-      case 'Beverage Cart': return "Drinks and snacks delivered to you on the course.";
-      case 'Clubhouse': return "Food and drinks delivered to you on the course.";
-      case 'Take Out': return "Food and drinks picked up at the venue.";
-      case 'Lane Delivery': return "Food and drinks delivered to your lane.";
-      default: return "Select items to begin your order — a small convenience fee applies at checkout.";
-    }
-  };
-
-  const currentDescription = getModeDescription(selectedMenuType);
-  const hasAnyAvailableMode = seller?.menuTypes?.some(t => isModeAvailable(t));
   const isLoading = isSellerLoading || areItemsLoading || isVenueLoading || (isConfigLoading && !solutionConfig);
 
   if (isLoading) {
@@ -657,136 +620,53 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
         <div className="absolute inset-0 z-0 opacity-10 pointer-events-none">
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full border-[30px] border-white" />
         </div>
-        
         <div className="relative z-10 flex flex-col items-start text-left space-y-6 max-w-2xl w-full mx-auto">
           <div className="space-y-4 w-full">
-            <div className="flex flex-col">
-              <h1 className="font-headline text-2xl font-black text-white uppercase tracking-tight leading-none mb-1">
-                {seller?.courseName}
-              </h1>
-            </div>
+            <h1 className="font-headline text-2xl font-black text-white uppercase tracking-tight leading-none mb-1">{seller?.courseName}</h1>
             <div className="flex flex-wrap gap-2">
               {seller?.menuTypes?.map((type) => {
                 const Icon = serviceTypeIcons[type] || Store;
                 const available = isModeAvailable(type);
                 const isSelected = selectedMenuType === type;
-                
                 return (
-                  <button
-                    key={type}
-                    disabled={!available}
-                    onClick={() => updateMenuType(type)}
-                    className={cn(
-                      "flex items-center gap-2 px-4 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all shadow-lg",
-                      isSelected 
-                        ? "bg-primary text-white scale-105" 
-                        : (available ? "bg-white/10 text-white hover:bg-white/20" : "bg-white/5 text-white/20 grayscale cursor-not-allowed border border-white/5")
-                    )}
-                  >
-                    <Icon className="h-3.5 w-3.5" />
-                    {type}
-                    {!available && <span className="ml-1 opacity-40 text-[8px]">(OFF)</span>}
+                  <button key={type} disabled={!available} onClick={() => updateMenuType(type)} className={cn("flex items-center gap-2 px-4 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all shadow-lg", isSelected ? "bg-primary text-white scale-105" : (available ? "bg-white/10 text-white hover:bg-white/20" : "bg-white/5 text-white/20 grayscale cursor-not-allowed border border-white/5"))}>
+                    <Icon className="h-3.5 w-3.5" /> {type}
                   </button>
                 );
               })}
             </div>
           </div>
-
           <div className="space-y-1">
-            <p className="text-[10px] font-black uppercase tracking-[0.1em] text-white flex items-center gap-1.5">
-              <Info className="h-2.5 w-2.5 shrink-0 text-primary" />
-              {currentDescription}
-            </p>
-            <p className="text-[8px] font-bold uppercase tracking-widest text-white/30 ml-4">
-              A small convenience fee applies at checkout
-            </p>
+            <p className="text-[10px] font-black uppercase tracking-[0.1em] text-white flex items-center gap-1.5"><Info className="h-2.5 w-2.5 shrink-0 text-primary" /> Select items to begin your order — a small convenience fee applies at checkout.</p>
           </div>
         </div>
       </header>
 
-      {hasAnyAvailableMode ? (
+      {selectedMenuType && (
         <>
           <div className="sticky top-16 z-30 bg-white/95 backdrop-blur-md border-b-2 shadow-sm">
-            <div className="max-w-2xl mx-auto px-4 py-3">
-              <div className="flex gap-2 overflow-x-auto no-scrollbar py-1">
-                {currentCategories.map((cat) => {
-                  const isSelected = activeCategory === cat;
-                  const isFeatured = cat === 'Featured';
-                  
-                  return (
-                    <button
-                      key={cat}
-                      onClick={() => scrollToCategory(cat)}
-                      className={cn(
-                        "whitespace-nowrap px-4 py-1.5 rounded-full border-2 text-[9px] font-black uppercase tracking-widest transition-all active:scale-95",
-                        isSelected 
-                          ? (isFeatured ? "bg-[#213147] border-[#213147] text-white shadow-md scale-105" : "bg-primary border-primary text-white shadow-md scale-105")
-                          : (isFeatured 
-                              ? "bg-[#213147]/5 border-[#213147]/20 text-[#213147] hover:bg-[#213147]/10" 
-                              : "bg-slate-50 border-slate-100 text-slate-500 hover:border-primary/30 hover:text-primary")
-                      )}
-                    >
-                      {cat}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
+            <div className="max-w-2xl mx-auto px-4 py-3"><div className="flex gap-2 overflow-x-auto no-scrollbar py-1">
+              {currentCategories.map((cat) => (
+                <button key={cat} onClick={() => scrollToCategory(cat)} className={cn("whitespace-nowrap px-4 py-1.5 rounded-full border-2 text-[9px] font-black uppercase tracking-widest transition-all active:scale-95", activeCategory === cat ? (cat === 'Featured' ? "bg-[#213147] border-[#213147] text-white shadow-md scale-105" : "bg-primary border-primary text-white shadow-md scale-105") : (cat === 'Featured' ? "bg-[#213147]/5 border-[#213147]/20 text-[#213147] hover:bg-[#213147]/10" : "bg-slate-50 border-slate-100 text-slate-500 hover:border-primary/30 hover:text-primary"))}>
+                  {cat}
+                </button>
+              ))}
+            </div></div>
           </div>
 
           <main className="flex-1 px-4 pt-8 pb-32 max-w-2xl mx-auto w-full">
-            {selectedMenuType ? (
-              <BuyerMenu 
-                orderItems={orderItems} 
-                onUpdateItem={updateItem} 
-                onOpenModifiers={() => {}}
-                currentCategories={currentCategories} 
-                menuItems={filteredMenuItems} 
-                selectedMenuType={selectedMenuType}
-              />
-            ) : (
-              <div className="flex flex-col items-center justify-center py-20 text-center space-y-4 opacity-40">
-                <div className="p-6 bg-slate-100 rounded-full">
-                  <Utensils className="h-12 w-12 text-[#213147]" />
-                </div>
-                <div className="space-y-1">
-                  <p className="font-headline font-black uppercase tracking-widest text-[#213147]">Awaiting Selection</p>
-                  <p className="text-[10px] font-bold uppercase tracking-widest">Please choose a service mode above to view the menu</p>
-                </div>
-              </div>
-            )}
+            <BuyerMenu orderItems={orderItems} onUpdateItem={updateItem} onOpenModifiers={() => {}} currentCategories={currentCategories} menuItems={filteredMenuItems} selectedMenuType={selectedMenuType} />
           </main>
         </>
-      ) : (
-        <main className="flex-1 flex flex-col items-center justify-center p-8 text-center max-w-md mx-auto">
-          <div className="bg-amber-50 p-10 rounded-[3rem] border-2 border-amber-100 shadow-xl space-y-6 animate-in zoom-in-95 duration-500">
-             <div className="bg-amber-500/10 p-4 rounded-3xl inline-block">
-                <Clock className="h-12 w-12 text-amber-600" />
-             </div>
-             <div className="space-y-3">
-                <h2 className="font-headline text-2xl font-black uppercase tracking-tight text-[#213147]">Service Paused</h2>
-                <p className="text-sm text-slate-600 font-medium leading-relaxed">
-                  We apologize, but there are no active service modes currently available at {seller?.courseName}. 
-                </p>
-             </div>
-             <div className="pt-4 border-t border-amber-100">
-                <p className="text-[10px] font-black uppercase tracking-widest text-amber-700">Please check back again soon!</p>
-             </div>
-          </div>
-          <Button variant="ghost" onClick={() => router.push('/')} className="mt-8 text-muted-foreground uppercase text-[10px] font-black tracking-widest">Return to Home</Button>
-        </main>
       )}
 
       <Sheet open={isCartOpen} onOpenChange={setIsCartOpen}>
-        {activeOrderItems.length > 0 && (
+        {totalItems > 0 && (
           <div className="fixed bottom-7 left-0 right-0 p-4 bg-white/80 backdrop-blur-md border-t z-40">
             <div className="max-w-xl mx-auto">
               <SheetTrigger asChild>
                 <Button size="lg" className="w-full h-14 font-black uppercase tracking-widest shadow-xl flex justify-between px-8">
-                  <div className="flex items-center gap-3">
-                    <span>REVIEW ORDER</span>
-                    <span className="bg-white/20 text-[10px] px-2 py-0.5 rounded-full">{totalItems} ITEMS</span>
-                  </div>
+                  <div className="flex items-center gap-3"><span>REVIEW ORDER</span><span className="bg-white/20 text-[10px] px-2 py-0.5 rounded-full">{totalItems} ITEMS</span></div>
                   <span className="bg-white/20 px-3 py-1 rounded-lg">${subtotal.toFixed(2)}</span>
                 </Button>
               </SheetTrigger>
@@ -796,13 +676,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
         <SheetContent side="bottom" className="rounded-t-[2rem] h-[90vh] flex flex-col p-0 overflow-hidden">
           <SheetHeader className="px-6 py-5 border-b bg-[#213147] text-white shrink-0">
             <div className="max-w-xl mx-auto w-full flex flex-col items-start pr-10">
-              <div className="flex items-center gap-3 mb-1">
-                <SheetTitle className="font-headline font-black uppercase tracking-tight text-white text-xl">Checkout</SheetTitle>
-                <Badge variant="outline" className="text-[9px] font-black border-primary/40 bg-primary/10 text-primary uppercase h-5">
-                  {selectedMenuType}
-                </Badge>
-              </div>
-              <SheetDescription className="sr-only">Complete your order from {seller?.courseName}</SheetDescription>
+              <div className="flex items-center gap-3 mb-1"><SheetTitle className="font-headline font-black uppercase tracking-tight text-white text-xl">Checkout</SheetTitle><Badge variant="outline" className="text-[9px] font-black border-primary/40 bg-primary/10 text-primary uppercase h-5">{selectedMenuType}</Badge></div>
               <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/50">{seller?.courseName}</p>
             </div>
           </SheetHeader>
