@@ -1,4 +1,3 @@
-
 'use client';
 
 import { Separator } from '@/components/ui/separator';
@@ -17,9 +16,8 @@ interface PricingBreakdownProps {
 }
 
 /**
- * Renders the financial calculation lines (Subtotal, Fees, Tax, Tip, and Final Total).
- * Standardized typography across all lines while maintaining the "KOOP" convenience fee badge.
- * Optimized for horizontal mobile visibility.
+ * Standardized pricing display optimized for horizontal mobile visibility.
+ * Prevents layout shifts and text overlap on narrow screens.
  */
 export function PricingBreakdown({ 
   subtotal, 
@@ -32,62 +30,62 @@ export function PricingBreakdown({
 
   return (
     <div className="space-y-4">
-      <div className="space-y-3 text-[10px] sm:text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
+      <div className="space-y-3 text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-muted-foreground">
         {/* SUBTOTAL */}
-        <div className="flex justify-between items-center px-1">
-          <p>Subtotal</p>
-          <p className="font-mono text-foreground">${subtotal.toFixed(2)}</p>
+        <div className="flex justify-between items-center px-1 gap-2">
+          <p className="truncate">Subtotal</p>
+          <p className="font-mono text-foreground font-bold shrink-0">${subtotal.toFixed(2)}</p>
         </div>
 
         {/* TAX */}
-        <div className="flex justify-between items-center px-1">
-          <p>Estimated Tax ({taxRate}%)</p>
-          <p className="font-mono text-foreground">${tax.toFixed(2)}</p>
+        <div className="flex justify-between items-center px-1 gap-2">
+          <p className="truncate">Estimated Tax ({taxRate}%)</p>
+          <p className="font-mono text-foreground font-bold shrink-0">${tax.toFixed(2)}</p>
         </div>
 
         {/* TIP */}
-        <div className="flex justify-between items-center px-1">
-          <p>Gratuity / Tip</p>
-          <p className="font-mono text-foreground">${tip.toFixed(2)}</p>
+        <div className="flex justify-between items-center px-1 gap-2">
+          <p className="truncate">Gratuity / Tip</p>
+          <p className="font-mono text-foreground font-bold shrink-0">${tip.toFixed(2)}</p>
         </div>
 
         {/* CONVENIENCE FEE WITH KOOP BADGE */}
-        <div className="flex justify-between items-center px-1">
-          <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+        <div className="flex justify-between items-center px-1 gap-2">
+          <div className="flex items-center gap-1 min-w-0 overflow-hidden">
             <p className="truncate">Convenience Fee</p>
             <Popover>
               <PopoverTrigger asChild>
                 <button 
                   type="button" 
-                  className="inline-flex items-center justify-center px-1.5 py-0.5 rounded-[4px] bg-slate-100 hover:bg-slate-200 active:scale-95 transition-all focus:outline-none touch-manipulation border border-slate-200/50 shadow-sm shrink-0"
-                  aria-label="Convenience fee information"
+                  className="inline-flex items-center justify-center px-1 rounded-[4px] bg-slate-100 hover:bg-slate-200 transition-all active:scale-90 shrink-0"
+                  aria-label="Convenience fee info"
                 >
-                  <span className="text-[8px] sm:text-[9px] font-black text-slate-400 tracking-tighter">KOOP</span>
+                  <span className="text-[7px] font-black text-slate-400 tracking-tighter">KOOP</span>
                 </button>
               </PopoverTrigger>
               <PopoverContent 
                 side="top" 
                 align="center"
-                className="max-w-[260px] text-[11px] leading-relaxed font-medium p-4 shadow-[0_10px_40px_rgba(0,0,0,0.2)] border-2 z-[150] rounded-xl bg-white normal-case tracking-normal"
+                className="max-w-[260px] text-[11px] leading-relaxed font-medium p-4 shadow-2xl border-2 z-[150] rounded-xl bg-white normal-case tracking-normal"
               >
                 <div className="space-y-2">
-                  <p className="font-black uppercase text-[9px] tracking-widest text-primary border-b pb-1">Convenience Fee Policy</p>
-                  <p className="text-muted-foreground">This fee helps us provide the mobile ordering technology and real-time tracking at your venue.</p>
+                  <p className="font-black uppercase text-[9px] tracking-widest text-primary border-b pb-1">Fee Policy</p>
+                  <p className="text-muted-foreground">This fee supports the mobile ordering solution and real-time logistics.</p>
                   <p className="font-bold text-foreground italic">It is not a tip and does not go to the delivery staff.</p>
                 </div>
               </PopoverContent>
             </Popover>
           </div>
-          <p className="font-mono text-foreground shrink-0">${serviceFee.toFixed(2)}</p>
+          <p className="font-mono text-foreground font-bold shrink-0">${serviceFee.toFixed(2)}</p>
         </div>
       </div>
 
-      <Separator className="bg-border" />
+      <Separator className="bg-slate-200" />
 
       {/* TOTAL */}
-      <div className="flex justify-between items-center font-black text-base sm:text-lg py-1 px-1">
-        <p className="font-headline tracking-tight text-[#213147]">TOTAL</p>
-        <p className="font-mono text-primary text-lg sm:text-xl">${total.toFixed(2)}</p>
+      <div className="flex justify-between items-center py-1 px-1 gap-4">
+        <p className="font-headline font-black tracking-tight text-[#213147] text-base sm:text-lg">TOTAL</p>
+        <p className="font-mono text-primary font-black text-lg sm:text-xl shrink-0">${total.toFixed(2)}</p>
       </div>
     </div>
   );

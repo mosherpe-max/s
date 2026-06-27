@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, use, useEffect, useMemo, useRef } from 'react';
@@ -72,7 +71,7 @@ const serviceTypeIcons: Record<string, any> = {
 function CheckoutBrandingBar() {
   return (
     <div className="fixed bottom-0 left-0 right-0 h-7 bg-[#213147] text-white flex items-center justify-center z-[60] w-full border-t border-white/5">
-      <div className="max-w-xl mx-auto w-full px-6 flex items-center justify-between">
+      <div className="max-w-xl mx-auto w-full px-4 sm:px-6 flex items-center justify-between">
         <span className="text-[10px] font-black uppercase tracking-widest text-white/40">Secure Order</span>
         <div className="flex items-center gap-0.5">
           <span className="text-[10px] font-black uppercase tracking-widest text-white/60">Powered by</span>
@@ -175,7 +174,7 @@ function StripeActionArea({
 
   return (
     <div className="space-y-6">
-      <div className="mt-4 p-6 border-2 border-slate-100 rounded-[2.5rem] bg-slate-50/50 min-h-[100px] flex flex-col justify-center animate-in fade-in duration-500">
+      <div className="mt-4 p-5 sm:p-6 border-2 border-slate-100 rounded-[2rem] sm:rounded-[2.5rem] bg-slate-50/50 min-h-[100px] flex flex-col justify-center animate-in fade-in duration-500">
         <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary mb-4 px-1 flex items-center gap-2">
            <CreditCard className="h-3 w-3" /> Secure Payment Details
         </h3>
@@ -359,8 +358,8 @@ function CheckoutDrawerContent({
   }, [user, sellerId, activeOrderItems, subtotal, solutionFee, tax, tip, finalTotal, selectedMenuType, locationValue]);
 
   return (
-    <ScrollArea className="flex-1">
-      <div className="max-w-xl mx-auto px-4 sm:px-6 py-8 space-y-10 pb-32">
+    <ScrollArea className="flex-1 w-full overflow-x-hidden">
+      <div className="max-w-xl mx-auto px-4 py-8 space-y-10 pb-32">
         <div className="flex justify-start -mb-6">
           <SheetClose asChild>
             <Button variant="ghost" className="text-[10px] font-black uppercase tracking-widest text-primary h-8 gap-1.5 p-0 hover:bg-transparent hover:text-primary/80">
@@ -431,7 +430,7 @@ function CheckoutDrawerContent({
                 />
               </Elements>
             ) : (
-              <div className="p-6 border-2 border-slate-100 rounded-[2.5rem] bg-slate-50/50 animate-in fade-in duration-500">
+              <div className="p-5 sm:p-6 border-2 border-slate-100 rounded-[2rem] bg-slate-50/50 animate-in fade-in duration-500">
                 <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary mb-4 px-1 flex items-center gap-2">
                    <User className="h-3 w-3" /> Contact Details
                 </h3>
@@ -452,7 +451,7 @@ function CheckoutDrawerContent({
 
           {paymentMethod === 'Pay at Delivery' && (
             <div className="space-y-6">
-              <div className="p-6 border-2 border-slate-100 rounded-[2.5rem] bg-slate-50/50 animate-in fade-in duration-500">
+              <div className="p-5 sm:p-6 border-2 border-slate-100 rounded-[2rem] bg-slate-50/50 animate-in fade-in duration-500">
                 <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary mb-4 px-1 flex items-center gap-2">
                    <User className="h-3 w-3" /> Contact Details
                 </h3>
@@ -615,7 +614,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
   }
 
   return (
-    <div className="flex flex-col min-h-screen bg-[#F0F0F0]">
+    <div className="flex flex-col min-h-screen bg-[#F0F0F0] overflow-x-hidden">
       <header className="relative w-full min-h-[22vh] flex flex-col bg-[#213147] overflow-hidden shrink-0 pt-8 pb-8 px-6">
         <div className="absolute inset-0 z-0 opacity-10 pointer-events-none">
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full border-[30px] border-white" />
@@ -665,15 +664,15 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
           <div className="fixed bottom-7 left-0 right-0 p-4 bg-white/80 backdrop-blur-md border-t z-40">
             <div className="max-w-xl mx-auto">
               <SheetTrigger asChild>
-                <Button size="lg" className="w-full h-14 font-black uppercase tracking-widest shadow-xl flex justify-between px-8">
-                  <div className="flex items-center gap-3"><span>REVIEW ORDER</span><span className="bg-white/20 text-[10px] px-2 py-0.5 rounded-full">{totalItems} ITEMS</span></div>
+                <Button size="lg" className="w-full h-14 font-black uppercase tracking-widest shadow-xl flex justify-between px-6 sm:px-8">
+                  <div className="flex items-center gap-2 sm:gap-3"><span>REVIEW ORDER</span><span className="bg-white/20 text-[10px] px-2 py-0.5 rounded-full">{totalItems} ITEMS</span></div>
                   <span className="bg-white/20 px-3 py-1 rounded-lg">${subtotal.toFixed(2)}</span>
                 </Button>
               </SheetTrigger>
             </div>
           </div>
         )}
-        <SheetContent side="bottom" className="rounded-t-[2rem] h-[90vh] flex flex-col p-0 overflow-hidden">
+        <SheetContent side="bottom" className="rounded-t-[2rem] h-[90vh] flex flex-col p-0 overflow-hidden outline-none">
           <SheetHeader className="px-6 py-5 border-b bg-[#213147] text-white shrink-0">
             <div className="max-w-xl mx-auto w-full flex flex-col items-start pr-10">
               <div className="flex items-center gap-3 mb-1"><SheetTitle className="font-headline font-black uppercase tracking-tight text-white text-xl">Checkout</SheetTitle><Badge variant="outline" className="text-[9px] font-black border-primary/40 bg-primary/10 text-primary uppercase h-5">{selectedMenuType}</Badge></div>

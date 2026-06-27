@@ -12,9 +12,8 @@ interface OrderSummaryProps {
 }
 
 /**
- * Redesigned to match the reference image: Rounded white card with sub-items.
- * Now includes both plus and minus controls for real-time checkout adjustments.
- * Optimized for horizontal mobile visibility.
+ * Responsive order summary optimized for horizontal mobile visibility.
+ * Prevents text overflow and maintains interactive targets on narrow screens.
  */
 export function OrderSummary({ 
   items, 
@@ -32,7 +31,7 @@ export function OrderSummary({
   };
 
   if (items.length === 0) {
-    return <p className="text-muted-foreground text-center py-8">Your cart is empty.</p>;
+    return <p className="text-muted-foreground text-center py-8 font-bold uppercase text-[10px] tracking-widest">Your cart is empty.</p>;
   }
 
   return (
@@ -47,43 +46,43 @@ export function OrderSummary({
             Object.values(item.selectedModifiers).flat().reduce((s, m) => s + m.price, 0) : 0);
 
           return (
-            <div key={item.cartId} className="p-4 sm:p-5 flex items-center gap-3 sm:gap-4 bg-white hover:bg-muted/5 transition-colors">
-              {/* Quantity Circle */}
-              <div className="flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-[#213147] text-white shrink-0">
+            <div key={item.cartId} className="p-3 sm:p-4 flex items-center gap-3 bg-white hover:bg-muted/5 transition-colors">
+              {/* Quantity Indicator */}
+              <div className="flex items-center justify-center w-9 h-9 sm:w-11 sm:h-11 rounded-xl bg-[#213147] text-white shrink-0">
                 <span className="font-black text-sm sm:text-base">{item.quantity}</span>
               </div>
 
               {/* Item Info */}
               <div className="flex-1 min-w-0">
-                <p className="font-bold text-[#213147] text-xs sm:text-sm leading-tight truncate uppercase">{item.name}</p>
+                <p className="font-black text-[#213147] text-[11px] sm:text-xs leading-tight truncate uppercase tracking-tight">{item.name}</p>
                 {(modifierList || item.description) && (
-                  <p className="text-[9px] text-muted-foreground font-medium truncate mt-0.5 uppercase">
+                  <p className="text-[8px] sm:text-[9px] text-muted-foreground font-bold truncate mt-0.5 uppercase tracking-tighter">
                     {modifierList || item.description}
                   </p>
                 )}
               </div>
 
               {/* Price and Actions */}
-              <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-                <span className="font-mono font-bold text-[#213147] text-xs sm:text-sm mr-1 sm:mr-2">
+              <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
+                <span className="font-mono font-black text-[#213147] text-[10px] sm:text-xs">
                   ${(unitPriceWithMods * item.quantity).toFixed(2)}
                 </span>
-                <div className="flex items-center gap-1 sm:gap-2">
+                <div className="flex items-center gap-0.5 sm:gap-1">
                   <Button 
                     variant="ghost" 
                     size="icon" 
-                    className="h-9 w-9 sm:h-10 sm:w-10 rounded-full text-destructive hover:bg-destructive/10 border border-destructive/10"
+                    className="h-8 w-8 sm:h-9 sm:w-9 rounded-full text-destructive hover:bg-destructive/10"
                     onClick={() => handleQuantityChange(item, -1)}
                   >
-                    <MinusCircle className="h-5 w-5 sm:h-6 sm:w-6" />
+                    <MinusCircle className="h-4 w-4 sm:h-5 sm:w-5" />
                   </Button>
                   <Button 
                     variant="ghost" 
                     size="icon" 
-                    className="h-9 w-9 sm:h-10 sm:w-10 rounded-full text-primary hover:bg-primary/10 border border-primary/10"
+                    className="h-8 w-8 sm:h-9 sm:w-9 rounded-full text-primary hover:bg-primary/10"
                     onClick={() => handleQuantityChange(item, 1)}
                   >
-                    <PlusCircle className="h-5 w-5 sm:h-6 sm:w-6" />
+                    <PlusCircle className="h-4 w-4 sm:h-5 sm:w-5" />
                   </Button>
                 </div>
               </div>
