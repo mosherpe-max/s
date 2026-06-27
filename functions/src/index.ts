@@ -20,7 +20,7 @@ export const createPaymentIntent = onCall({
   secrets: ["STRIPE_SECRET_KEY"],
   region: 'us-central1',
 }, async (request) => {
-  const { amount, sellerId } = request.data;
+  const { amount, sellerId, patronName, patronPhone } = request.data;
 
   // 1. Validation
   if (!amount || amount <= 0) {
@@ -39,7 +39,6 @@ export const createPaymentIntent = onCall({
     throw new HttpsError('failed-precondition', 'The payment gateway is not configured. Please contact support.');
   }
 
-  // Use a specific API version for stability
   const stripe = new Stripe(apiKey, {
     apiVersion: '2025-01-27.acacia' as any,
   });
@@ -56,7 +55,9 @@ export const createPaymentIntent = onCall({
       },
       metadata: {
         sellerId,
-        buyerUid: request.auth?.uid || 'anonymous'
+        buyerUid: request.auth?.uid || 'anonymous',
+        customerName: patronName || 'Guest',
+        customerPhone: patronPhone || ''
       }
     });
 
@@ -106,29 +107,31 @@ export const handleStripeWebhook = onRequest({
     return;
   }
 
-  if (event.type === 'checkout.session.completed') {
-    const session = event.data.object as Stripe.Checkout.Session;
-    const customerPhone = session.customer_details?.phone;
-    const metadata = session.metadata || {};
+  // Handle successful payments from the PaymentElement flow
+  if (event.type === 'payment_intent.succeeded') {
+    const paymentIntent = event.data.object as Stripe.PaymentIntent;
+    const metadata = paymentIntent.metadata || {};
 
-    logger.info(`[handleStripeWebhook] Processing completed session: ${session.id}`);
+    logger.info(`[handleStripeWebhook] Processing successful PaymentIntent: ${paymentIntent.id}`);
 
     try {
+      // Find existing order if any, or create a new one
+      // In this architecture, the frontend usually creates the doc first OR we create it here
+      // For digital checkout, we create the order doc on success to avoid "ghost" orders
       const orderData = {
-        customerPhone: customerPhone || null,
+        customerName: metadata.customerName || 'Guest Patron',
+        customerPhone: metadata.customerPhone || null,
         status: "received",
-        deviceOS: metadata.deviceOS || "iOS",
         sellerId: metadata.sellerId || null,
         buyerProfileId: metadata.buyerUid || null,
-        stripeSessionId: session.id,
-        subtotal: (session.amount_subtotal || 0) / 100,
-        total: (session.amount_total || 0) / 100,
+        stripePaymentIntentId: paymentIntent.id,
+        total: (paymentIntent.amount || 0) / 100,
         createdAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),
       };
 
       const orderRef = await db.collection('orders').add(orderData);
-      logger.info(`[handleStripeWebhook] Successfully created order ${orderRef.id}`);
+      logger.info(`[handleStripeWebhook] Successfully created order ${orderRef.id} for PI ${paymentIntent.id}`);
     } catch (err: any) {
       logger.error(`[handleStripeWebhook] Firestore ingestion failed: ${err.message}`);
       res.status(500).send("Internal Server Error during Firestore write");
@@ -172,27 +175,32 @@ export const onGuestOrderStatusUpdate = onDocumentWritten({
 
   const client = twilio(accountSid, authToken);
   let messageBody = "";
+  
+  // High-fidelity tracking link
+  const trackingLink = `https://koop.app/orders/${orderId}`;
 
   if (!before || !before.exists) {
-    if (status === 'received') {
-      messageBody = `Thanks for your order at Koop! We've received it and are preparing it now. Track your order status live here: https://koop.app/orders/${orderId}`;
+    if (status === 'received' || status === 'Placed') {
+      messageBody = `Thanks for your order at Koop! We've received it and are preparing it now. Track your order status live here: ${trackingLink}`;
     }
   } else {
     const beforeData = before.data();
     const oldStatus = beforeData?.status;
-    if (status === 'delivery' && oldStatus !== 'delivery') {
-      messageBody = `Your Koop order is out for delivery! A runner is on the way. track progress here: https://koop.app/orders/${orderId}`;
+    if (status === 'Out for Delivery' && oldStatus !== 'Out for Delivery') {
+      messageBody = `Your Koop order is out for delivery! A runner is on the way. track progress here: ${trackingLink}`;
     }
   }
 
   if (messageBody) {
     try {
+      // Ensure phone is E.164 (simplistic check)
+      const to = customerPhone.startsWith('+') ? customerPhone : `+1${customerPhone}`;
       await client.messages.create({
         body: messageBody,
         from: fromNumber,
-        to: customerPhone
+        to: to
       });
-      logger.info(`[onGuestOrderStatusUpdate] SMS sent to ${customerPhone} (Order: ${orderId})`);
+      logger.info(`[onGuestOrderStatusUpdate] SMS sent to ${to} (Order: ${orderId})`);
     } catch (error: any) {
       logger.error(`[onGuestOrderStatusUpdate] Twilio dispatch failed: ${error.message}`);
     }

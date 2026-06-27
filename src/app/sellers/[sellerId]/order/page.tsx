@@ -35,12 +35,15 @@ import {
   Satellite,
   ChevronLeft,
   Clock,
-  Zap
+  Zap,
+  User,
+  Smartphone
 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useCart } from '@/lib/cart-context';
 import { Label } from '@/components/ui/label';
 import { RadioGroup } from '@/components/ui/radio-group';
+import { Input } from '@/components/ui/input';
 import { mockBuyerLocation } from '@/lib/data';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, useStripe, useElements } from '@stripe/react-stripe-js';
@@ -168,6 +171,8 @@ function CheckoutDrawerContent({
   const { toast } = useToast();
   const { updateItem, removeItem } = useCart();
   
+  const [patronName, setPatronName] = useState('');
+  const [patronPhone, setPatronPhone] = useState('');
   const [tip, setTip] = useState(0);
   const [paymentMethod, setPaymentMethod] = useState<'Pay at Delivery' | 'Stripe'>('Pay at Delivery');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -181,8 +186,10 @@ function CheckoutDrawerContent({
   const finalTotal = subtotal + solutionFee + tax + tip;
   const baseTotalForBackend = subtotal + tax + tip;
 
+  const isContactInfoValid = patronName.length >= 2 && patronPhone.replace(/\D/g, '').length >= 10;
+
   useEffect(() => {
-    if (paymentMethod === 'Stripe' && !clientSecret && !isFetchingIntent && baseTotalForBackend > 0) {
+    if (paymentMethod === 'Stripe' && !clientSecret && !isFetchingIntent && baseTotalForBackend > 0 && isContactInfoValid) {
       const fetchIntent = async () => {
         setIsFetchingIntent(true);
         try {
@@ -198,7 +205,9 @@ function CheckoutDrawerContent({
           
           const result = await createIntent({ 
             amount: baseTotalForBackend, 
-            sellerId 
+            sellerId,
+            patronName,
+            patronPhone: patronPhone.replace(/\D/g, '')
           });
           
           const data = result.data as { clientSecret: string };
@@ -214,7 +223,6 @@ function CheckoutDrawerContent({
             title: 'Payment Setup Error', 
             description: e.message || "The payment gateway is currently unavailable. Please use Pay at Delivery." 
           });
-          // Fallback to manual payment if Stripe fails to initialize
           setPaymentMethod('Pay at Delivery');
         } finally {
           setIsFetchingIntent(false);
@@ -222,10 +230,14 @@ function CheckoutDrawerContent({
       };
       fetchIntent();
     }
-  }, [paymentMethod, baseTotalForBackend, sellerId, firebaseApp, clientSecret, isFetchingIntent, toast, user, auth]);
+  }, [paymentMethod, baseTotalForBackend, sellerId, firebaseApp, clientSecret, isFetchingIntent, toast, user, auth, isContactInfoValid, patronName, patronPhone]);
 
   const handleManualOrder = async () => {
     if (!firestore || activeOrderItems.length === 0) return;
+    if (!isContactInfoValid) {
+      toast({ variant: 'destructive', title: 'Missing Info', description: 'Please provide your name and mobile number for notifications.' });
+      return;
+    }
     setIsProcessing(true);
     try {
       let currentUser = user;
@@ -237,7 +249,8 @@ function CheckoutDrawerContent({
       const orderData: any = {
         sellerId,
         buyerProfileId: currentUser.uid,
-        customerName: currentUser.email || 'Guest Patron',
+        customerName: patronName || 'Guest Patron',
+        customerPhone: patronPhone.replace(/\D/g, ''),
         deliveryLocation: mockBuyerLocation,
         items: activeOrderItems,
         subtotal,
@@ -274,7 +287,8 @@ function CheckoutDrawerContent({
     return {
       sellerId,
       buyerProfileId: user.uid,
-      customerName: user.email || 'Guest Patron',
+      customerName: patronName || 'Guest Patron',
+      customerPhone: patronPhone.replace(/\D/g, ''),
       deliveryLocation: mockBuyerLocation,
       items: activeOrderItems,
       subtotal,
@@ -288,7 +302,7 @@ function CheckoutDrawerContent({
       menuTypeLocation: locationValue || null,
       createdAt: serverTimestamp(),
     };
-  }, [user, sellerId, activeOrderItems, subtotal, solutionFee, tax, tip, finalTotal, selectedMenuType, locationValue]);
+  }, [user, sellerId, activeOrderItems, subtotal, solutionFee, tax, tip, finalTotal, selectedMenuType, locationValue, patronName, patronPhone]);
 
   const checkoutNotice = isGolf 
     ? "A small convenience fee has been added to support mobile ordering on the course."
@@ -305,6 +319,37 @@ function CheckoutDrawerContent({
               <ChevronLeft className="h-3.5 w-3.5" /> Add More Items
             </Button>
           </SheetClose>
+        </div>
+
+        {/* PATRON CONTACT INFO */}
+        <div className="space-y-4 bg-white p-6 rounded-[2rem] border-2 border-primary/10 shadow-sm">
+          <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2 px-1">
+            <Smartphone className="h-3 w-3" /> SMS Notifications
+          </h3>
+          <div className="space-y-4">
+            <div className="relative">
+              <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+              <Input 
+                placeholder="Full Name" 
+                value={patronName} 
+                onChange={(e) => setPatronName(e.target.value)} 
+                className="pl-10 h-12 border-2 border-slate-100 rounded-xl font-bold focus-visible:ring-primary"
+              />
+            </div>
+            <div className="relative">
+              <Smartphone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+              <Input 
+                placeholder="Mobile Number (for tracking link)" 
+                type="tel"
+                value={patronPhone} 
+                onChange={(e) => setPatronPhone(e.target.value)} 
+                className="pl-10 h-12 border-2 border-slate-100 rounded-xl font-bold focus-visible:ring-primary"
+              />
+            </div>
+          </div>
+          <p className="text-[9px] font-bold text-muted-foreground uppercase leading-relaxed px-1">
+            We'll text you an order confirmation and a live delivery tracking link.
+          </p>
         </div>
 
         <OrderSummary 
@@ -331,7 +376,7 @@ function CheckoutDrawerContent({
         <PricingBreakdown subtotal={subtotal} serviceFee={solutionFee} tax={tax} tip={tip} taxRate={taxRate} />
 
         <div className="space-y-3">
-          <div className="bg-slate-50 border border-slate-100 p-4 rounded-2xl flex items-start gap-3 animate-in fade-in slide-in-from-bottom-2 duration-500">
+          <div className="bg-slate-50 border border-slate-100 p-4 rounded-2xl flex items-start gap-3 animate-in fade-in duration-500">
             <span className="text-primary mt-0.5"><Info className="h-4 w-4 shrink-0" /></span>
             <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-tight leading-relaxed">
               {checkoutNotice}
@@ -339,7 +384,7 @@ function CheckoutDrawerContent({
           </div>
 
           {isGolf && (
-            <div className="bg-primary/5 border border-primary/10 p-4 rounded-2xl flex items-start gap-3 animate-in fade-in slide-in-from-bottom-2 duration-700">
+            <div className="bg-primary/5 border border-primary/10 p-4 rounded-2xl flex items-start gap-3 animate-in fade-in duration-700">
               <Satellite className="h-4 w-4 text-primary shrink-0 mt-0.5" />
               <div className="space-y-0.5">
                 <p className="text-[10px] font-black text-primary uppercase tracking-widest">Delivery Pro Tip</p>
@@ -369,13 +414,42 @@ function CheckoutDrawerContent({
               {paymentMethod === 'Stripe' && <Check className="h-4 w-4 text-primary" />}
             </div>
           </RadioGroup>
-          {paymentMethod === 'Stripe' && (isFetchingIntent ? (<div className="flex flex-col items-center gap-2 py-8"><Loader2 className="h-6 w-6 animate-spin text-primary opacity-50" /><p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Initializing Secure Environment...</p></div>) : clientSecret ? (<Elements stripe={stripePromise} options={{ clientSecret }}><StripeActionArea clientSecret={clientSecret} isProcessing={isProcessing} setIsProcessing={setIsProcessing} onOrderComplete={onOrderComplete} orderData={currentOrderData} /></Elements>) : (<div className="p-8 text-center border-2 border-dashed rounded-3xl"><AlertTriangle className="h-6 w-6 text-amber-500 mx-auto mb-2" /><p className="text-[10px] font-bold text-amber-700 uppercase">Gateway configuration error</p></div>))}
+          {paymentMethod === 'Stripe' && (
+            !isContactInfoValid ? (
+              <div className="p-8 text-center border-2 border-dashed rounded-3xl opacity-40">
+                <AlertTriangle className="h-6 w-6 text-amber-500 mx-auto mb-2" />
+                <p className="text-[10px] font-bold text-amber-700 uppercase">Contact Info Required for SMS</p>
+              </div>
+            ) : (
+              isFetchingIntent ? (
+                <div className="flex flex-col items-center gap-2 py-8">
+                  <Loader2 className="h-6 w-6 animate-spin text-primary opacity-50" />
+                  <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Initializing Secure Environment...</p>
+                </div>
+              ) : clientSecret ? (
+                <Elements stripe={stripePromise} options={{ clientSecret }}>
+                  <StripeActionArea clientSecret={clientSecret} isProcessing={isProcessing} setIsProcessing={setIsProcessing} onOrderComplete={onOrderComplete} orderData={currentOrderData} />
+                </Elements>
+              ) : (
+                <div className="p-8 text-center border-2 border-dashed rounded-3xl">
+                  <AlertTriangle className="h-6 w-6 text-amber-500 mx-auto mb-2" />
+                  <p className="text-[10px] font-bold text-amber-700 uppercase">Gateway configuration error</p>
+                </div>
+              )
+            )
+          )}
           {paymentMethod === 'Pay at Delivery' && (
             <>
               <div className="fixed bottom-7 left-0 right-0 p-4 bg-white/80 backdrop-blur-md border-t z-50">
                 <div className="max-w-xl mx-auto">
-                  <Button size="lg" className="w-full h-14 font-black uppercase tracking-widest gap-2 shadow-xl" onClick={handleManualOrder} disabled={isProcessing}>
-                    {isProcessing ? <Loader2 className="animate-spin" /> : <ShoppingBag className="h-5 w-5" />} PLACE ORDER
+                  <Button 
+                    size="lg" 
+                    className="w-full h-14 font-black uppercase tracking-widest gap-2 shadow-xl" 
+                    onClick={handleManualOrder} 
+                    disabled={isProcessing || !isContactInfoValid}
+                  >
+                    {isProcessing ? <Loader2 className="animate-spin" /> : <ShoppingBag className="h-5 w-5" />} 
+                    PLACE ORDER
                   </Button>
                 </div>
               </div>
@@ -425,7 +499,6 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
   const isModeAvailable = (type: string) => {
     if (!seller) return false;
     
-    // If solution config is missing or loading, we assume all modes are globally authorized for this establishment
     const isGloballyAuthorized = !solutionConfig || (solutionConfig.enabledModes?.includes(type) ?? true);
     if (!isGloballyAuthorized) return false;
     
@@ -459,7 +532,6 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
     }
   }, [seller, solutionConfig, menuTypeFromUrl, isSellerLoading, isConfigLoading]);
 
-  // Observer to track which category is currently in view
   useEffect(() => {
     const options = {
       root: null,
@@ -531,7 +603,6 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
 
   useEffect(() => {
     if (!isSellerLoading && !areItemsLoading) {
-       // Scroll to top/featured on mount
        window.scrollTo({ top: 0, behavior: 'smooth' });
        if (currentCategories.includes('Featured')) {
          setActiveCategory('Featured');
