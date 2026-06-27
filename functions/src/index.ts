@@ -162,7 +162,10 @@ export const onGuestOrderStatusUpdate = onDocumentWritten({
   const customerPhone = afterData?.customerPhone;
   const status = afterData?.status;
 
-  if (!customerPhone) return;
+  if (!customerPhone) {
+    logger.info(`[onGuestOrderStatusUpdate] No phone number for order ${orderId}. Skipping SMS.`);
+    return;
+  }
 
   const accountSid = process.env.TWILIO_ACCOUNT_SID;
   const authToken = process.env.TWILIO_AUTH_TOKEN;
@@ -180,28 +183,43 @@ export const onGuestOrderStatusUpdate = onDocumentWritten({
   const trackingLink = `https://koop.app/orders/${orderId}`;
 
   if (!before || !before.exists) {
+    // INITIAL CREATION
     if (status === 'received' || status === 'Placed') {
-      messageBody = `Thanks for your order at Koop! We've received it and are preparing it now. Track your order status live here: ${trackingLink}`;
+      messageBody = `Thanks for your order! We've received it and it's in our queue. Track live: ${trackingLink}`;
     }
   } else {
+    // STATUS UPDATES
     const beforeData = before.data();
     const oldStatus = beforeData?.status;
-    if (status === 'Out for Delivery' && oldStatus !== 'Out for Delivery') {
-      messageBody = `Your Koop order is out for delivery! A runner is on the way. track progress here: ${trackingLink}`;
+
+    if (status !== oldStatus) {
+      if (status === 'Preparing') {
+        // Driver accepted the order
+        messageBody = `Order Confirmed! Your order is being prepared now. Track live: ${trackingLink}`;
+      } else if (status === 'Out for Delivery') {
+        // Driver is moving
+        messageBody = `Your order is out for delivery! A runner is on the way. Track live: ${trackingLink}`;
+      } else if (status === 'Delivered') {
+        // Order complete
+        messageBody = `Your order has been delivered. Enjoy! Thanks for using Koop.`;
+      }
     }
   }
 
   if (messageBody) {
     try {
-      const to = customerPhone.startsWith('+') ? customerPhone : `+1${customerPhone}`;
+      // Robust US phone formatting
+      const cleanPhone = customerPhone.replace(/\D/g, '');
+      const to = cleanPhone.length === 10 ? `+1${cleanPhone}` : `+${cleanPhone}`;
+      
       await client.messages.create({
         body: messageBody,
         from: fromNumber,
         to: to
       });
-      logger.info(`[onGuestOrderStatusUpdate] SMS sent to ${to} (Order: ${orderId})`);
+      logger.info(`[onGuestOrderStatusUpdate] SMS sent to ${to} for order ${orderId} (Status: ${status})`);
     } catch (error: any) {
-      logger.error(`[onGuestOrderStatusUpdate] Twilio dispatch failed: ${error.message}`);
+      logger.error(`[onGuestOrderStatusUpdate] Twilio dispatch failed for ${orderId}: ${error.message}`);
     }
   }
 });
