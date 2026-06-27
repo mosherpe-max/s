@@ -18,7 +18,7 @@ export const createPaymentIntent = onCall({
     secrets: ["STRIPE_SECRET_KEY"],
     region: 'us-central1',
 }, async (request) => {
-    const { amount, sellerId } = request.data;
+    const { amount, sellerId, patronName, patronPhone, patronEmail } = request.data;
     // 1. Validation
     if (!amount || amount <= 0) {
         logger.error("[createPaymentIntent] Invalid amount received:", { amount });
@@ -34,7 +34,6 @@ export const createPaymentIntent = onCall({
         logger.error("[createPaymentIntent] STRIPE_SECRET_KEY is missing from environment/secrets.");
         throw new HttpsError('failed-precondition', 'The payment gateway is not configured. Please contact support.');
     }
-    // Use a specific API version for stability
     const stripe = new Stripe(apiKey, {
         apiVersion: '2025-01-27.acacia',
     });
@@ -49,7 +48,10 @@ export const createPaymentIntent = onCall({
             },
             metadata: {
                 sellerId,
-                buyerUid: request.auth?.uid || 'anonymous'
+                buyerUid: request.auth?.uid || 'anonymous',
+                customerName: patronName || 'Guest',
+                customerPhone: patronPhone || '',
+                customerEmail: patronEmail || ''
             }
         });
         if (!paymentIntent.client_secret) {
@@ -94,26 +96,26 @@ export const handleStripeWebhook = onRequest({
         res.status(400).send(`Webhook Error: ${err.message}`);
         return;
     }
-    if (event.type === 'checkout.session.completed') {
-        const session = event.data.object;
-        const customerPhone = session.customer_details?.phone;
-        const metadata = session.metadata || {};
-        logger.info(`[handleStripeWebhook] Processing completed session: ${session.id}`);
+    // Handle successful payments from the PaymentElement flow
+    if (event.type === 'payment_intent.succeeded') {
+        const paymentIntent = event.data.object;
+        const metadata = paymentIntent.metadata || {};
+        logger.info(`[handleStripeWebhook] Processing successful PaymentIntent: ${paymentIntent.id}`);
         try {
             const orderData = {
-                customerPhone: customerPhone || null,
+                customerName: metadata.customerName || 'Guest Patron',
+                customerPhone: metadata.customerPhone || null,
+                customerEmail: metadata.customerEmail || null,
                 status: "received",
-                deviceOS: metadata.deviceOS || "iOS",
                 sellerId: metadata.sellerId || null,
                 buyerProfileId: metadata.buyerUid || null,
-                stripeSessionId: session.id,
-                subtotal: (session.amount_subtotal || 0) / 100,
-                total: (session.amount_total || 0) / 100,
+                stripePaymentIntentId: paymentIntent.id,
+                total: (paymentIntent.amount || 0) / 100,
                 createdAt: FieldValue.serverTimestamp(),
                 updatedAt: FieldValue.serverTimestamp(),
             };
             const orderRef = await db.collection('orders').add(orderData);
-            logger.info(`[handleStripeWebhook] Successfully created order ${orderRef.id}`);
+            logger.info(`[handleStripeWebhook] Successfully created order ${orderRef.id} for PI ${paymentIntent.id}`);
         }
         catch (err) {
             logger.error(`[handleStripeWebhook] Firestore ingestion failed: ${err.message}`);
@@ -141,8 +143,10 @@ export const onGuestOrderStatusUpdate = onDocumentWritten({
     const afterData = after.data();
     const customerPhone = afterData?.customerPhone;
     const status = afterData?.status;
-    if (!customerPhone)
+    if (!customerPhone) {
+        logger.info(`[onGuestOrderStatusUpdate] No phone number for order ${orderId}. Skipping SMS.`);
         return;
+    }
     const accountSid = process.env.TWILIO_ACCOUNT_SID;
     const authToken = process.env.TWILIO_AUTH_TOKEN;
     const fromNumber = process.env.TWILIO_FROM_NUMBER;
@@ -152,29 +156,47 @@ export const onGuestOrderStatusUpdate = onDocumentWritten({
     }
     const client = twilio(accountSid, authToken);
     let messageBody = "";
+    // High-fidelity tracking link
+    const trackingLink = `https://koop.app/orders/${orderId}`;
     if (!before || !before.exists) {
-        if (status === 'received') {
-            messageBody = `Thanks for your order at Koop! We've received it and are preparing it now. Track your order status live here: https://koop.app/orders/${orderId}`;
+        // INITIAL CREATION
+        if (status === 'received' || status === 'Placed') {
+            messageBody = `Thanks for your order! We've received it and it's in our queue. Track live: ${trackingLink}`;
         }
     }
     else {
+        // STATUS UPDATES
         const beforeData = before.data();
         const oldStatus = beforeData?.status;
-        if (status === 'delivery' && oldStatus !== 'delivery') {
-            messageBody = `Your Koop order is out for delivery! A runner is on the way. track progress here: https://koop.app/orders/${orderId}`;
+        if (status !== oldStatus) {
+            if (status === 'Preparing') {
+                // Driver accepted the order
+                messageBody = `Order Confirmed! Your order is being prepared now. Track live: ${trackingLink}`;
+            }
+            else if (status === 'Out for Delivery') {
+                // Driver is moving
+                messageBody = `Your order is out for delivery! A runner is on the way. Track live: ${trackingLink}`;
+            }
+            else if (status === 'Delivered') {
+                // Order complete
+                messageBody = `Your order has been delivered. Enjoy! Thanks for using Koop.`;
+            }
         }
     }
     if (messageBody) {
         try {
+            // Robust US phone formatting
+            const cleanPhone = customerPhone.replace(/\D/g, '');
+            const to = cleanPhone.length === 10 ? `+1${cleanPhone}` : `+${cleanPhone}`;
             await client.messages.create({
                 body: messageBody,
                 from: fromNumber,
-                to: customerPhone
+                to: to
             });
-            logger.info(`[onGuestOrderStatusUpdate] SMS sent to ${customerPhone} (Order: ${orderId})`);
+            logger.info(`[onGuestOrderStatusUpdate] SMS sent to ${to} for order ${orderId} (Status: ${status})`);
         }
         catch (error) {
-            logger.error(`[onGuestOrderStatusUpdate] Twilio dispatch failed: ${error.message}`);
+            logger.error(`[onGuestOrderStatusUpdate] Twilio dispatch failed for ${orderId}: ${error.message}`);
         }
     }
 });

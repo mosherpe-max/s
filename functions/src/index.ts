@@ -2,7 +2,7 @@
 import { onRequest, onCall, HttpsError } from "firebase-functions/v2/https";
 import { onDocumentWritten } from "firebase-functions/v2/firestore";
 import * as logger from "firebase-functions/logger";
-import { initializeApp } from "firebase-admin/app";
+import { initializeApp } from "firebase-app-modern";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import Stripe from 'stripe';
 import twilio from 'twilio';
@@ -146,6 +146,10 @@ export const handleStripeWebhook = onRequest({
  * onGuestOrderStatusUpdate
  * Triggers on any creation or update to an order document.
  * Manages patron SMS notifications via Twilio.
+ * 
+ * NOTE: This is the primary notification channel for ALL patrons, 
+ * including PWA (installed) users, to ensure delivery tracking links 
+ * are received even if the browser/app is not currently focused.
  */
 export const onGuestOrderStatusUpdate = onDocumentWritten({
   document: "orders/{orderId}",
@@ -179,11 +183,11 @@ export const onGuestOrderStatusUpdate = onDocumentWritten({
   const client = twilio(accountSid, authToken);
   let messageBody = "";
   
-  // High-fidelity tracking link
+  // Clean clean absolute tracking link
   const trackingLink = `https://koop.app/orders/${orderId}`;
 
   if (!before || !before.exists) {
-    // INITIAL CREATION
+    // RULE 1: INITIAL CREATION
     if (status === 'received' || status === 'Placed') {
       messageBody = `Thanks for your order! We've received it and it's in our queue. Track live: ${trackingLink}`;
     }
@@ -194,14 +198,17 @@ export const onGuestOrderStatusUpdate = onDocumentWritten({
 
     if (status !== oldStatus) {
       if (status === 'Preparing') {
-        // Driver accepted the order
+        // RULE 1.5: DRIVER ACCEPTANCE
         messageBody = `Order Confirmed! Your order is being prepared now. Track live: ${trackingLink}`;
       } else if (status === 'Out for Delivery') {
-        // Driver is moving
+        // RULE 2: DISPATCH
         messageBody = `Your order is out for delivery! A runner is on the way. Track live: ${trackingLink}`;
       } else if (status === 'Delivered') {
-        // Order complete
+        // RULE 3: COMPLETION
         messageBody = `Your order has been delivered. Enjoy! Thanks for using Koop.`;
+      } else if (status === 'Cancelled') {
+        // OPTIONAL: VOID NOTIFICATION
+        messageBody = `Your order at the venue has been cancelled. If you have questions, please see staff.`;
       }
     }
   }
@@ -217,7 +224,7 @@ export const onGuestOrderStatusUpdate = onDocumentWritten({
         from: fromNumber,
         to: to
       });
-      logger.info(`[onGuestOrderStatusUpdate] SMS sent to ${to} for order ${orderId} (Status: ${status})`);
+      logger.info(`[onGuestOrderStatusUpdate] SMS successfully dispatched to ${to} for order ${orderId} (New Status: ${status})`);
     } catch (error: any) {
       logger.error(`[onGuestOrderStatusUpdate] Twilio dispatch failed for ${orderId}: ${error.message}`);
     }
