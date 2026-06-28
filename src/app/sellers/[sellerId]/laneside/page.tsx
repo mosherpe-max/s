@@ -1,7 +1,7 @@
 
 'use client';
 
-import { collection, query, where, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, where, doc, updateDoc, serverTimestamp, deleteDoc } from 'firebase/firestore';
 import { useCollection, useFirestore, useMemoFirebase, useDoc, useUser } from '@/firebase';
 import { useEffect, useState, useMemo, useRef, use } from 'react';
 import { Switch } from '@/components/ui/switch';
@@ -64,6 +64,33 @@ export default function LaneSideServerDashboardPage({ params }: { params: Promis
   const handleToggleActive = (checked: boolean) => {
     if (!firestore || !sellerId || !user) return;
     updateDoc(doc(firestore, 'sellers', sellerId), { lanedeliveryActive: checked }).catch(() => {});
+  };
+
+  const handleExitTerminal = async (target: 'admin' | 'root') => {
+    if (currentStaffId && firestore && sellerId) {
+      const staffRef = doc(firestore, 'sellers', sellerId, 'staff', currentStaffId);
+      // Immediately invalidate signal on maps (though laneside is static, we clean up the session)
+      await updateDoc(staffRef, { 
+        lastActive: new Date(0),
+        latitude: null,
+        longitude: null 
+      }).catch(() => {});
+      
+      if (isAdminSession) {
+        await deleteDoc(staffRef).catch(() => {});
+      }
+    }
+
+    localStorage.removeItem('koop_staff_id');
+    localStorage.removeItem('koop_staff_name');
+    localStorage.removeItem('koop_staff_role');
+    localStorage.removeItem('koop_staff_session_start');
+
+    if (target === 'admin') {
+      router.push(`/sellers/${sellerId}`);
+    } else {
+      router.push('/');
+    }
   };
 
   const activeOrdersQuery = useMemoFirebase(() => {
@@ -134,7 +161,7 @@ export default function LaneSideServerDashboardPage({ params }: { params: Promis
         <div className="flex items-center gap-4">
           {isAdminSession && (
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" className="h-8 text-[9px] font-black uppercase tracking-widest border-primary/30 bg-primary/10 text-primary hover:bg-primary hover:text-white" onClick={() => router.push(`/sellers/${sellerId}`)}><ChevronLeft className="h-3 w-3 mr-1" /> Admin</Button>
+              <Button variant="outline" size="sm" className="h-8 text-[9px] font-black uppercase tracking-widest border-primary/30 bg-primary/10 text-primary hover:bg-primary hover:text-white" onClick={() => handleExitTerminal('admin')}><ChevronLeft className="h-3 w-3 mr-1" /> Exit Terminal</Button>
               {isSuperAdmin && (
                 <Button variant="outline" size="sm" asChild className="h-8 text-[9px] font-black uppercase tracking-widest border-amber-200 bg-amber-50 text-amber-600 hover:bg-amber-100"><Link href="/admin"><ShieldAlert className="h-3 w-3 mr-1" /> Solution Admin</Link></Button>
               )}
@@ -150,7 +177,7 @@ export default function LaneSideServerDashboardPage({ params }: { params: Promis
         </div>
         <div className="flex items-center space-x-3">
           <Switch checked={isServerActive} onCheckedChange={handleToggleActive} className="data-[state=checked]:bg-green-600" />
-          <Button variant="ghost" size="icon" onClick={() => router.push('/')} className="text-white/40 hover:text-white"><LogOut className="h-4 w-4" /></Button>
+          <Button variant="ghost" size="icon" onClick={() => handleExitTerminal('root')} className="text-white/40 hover:text-white"><LogOut className="h-4 w-4" /></Button>
         </div>
       </header>
 
