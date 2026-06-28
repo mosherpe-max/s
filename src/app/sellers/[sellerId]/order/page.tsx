@@ -84,7 +84,7 @@ function CheckoutBrandingBar() {
 
 function PatronContactForm({ email, setEmail, name, setName, phone, setPhone }: any) {
   return (
-    <div className="space-y-3 mb-6">
+    <div className="space-y-3 mb-6 text-left">
       <div className="relative">
         <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
         <Input 
@@ -142,6 +142,13 @@ function StripeActionArea({
         elements,
         confirmParams: {
           return_url: `${window.location.origin}/order/track`,
+          payment_method_data: {
+            billing_details: {
+              name: patronName,
+              email: patronEmail,
+              phone: patronPhone
+            }
+          }
         },
         redirect: 'if_required',
       });
@@ -164,6 +171,7 @@ function StripeActionArea({
             operation: 'create',
             requestResourceData: finalOrderData,
           } satisfies SecurityRuleContext));
+          setIsProcessing(false);
         });
       }
     } catch (e: any) {
@@ -174,22 +182,20 @@ function StripeActionArea({
 
   return (
     <div className="space-y-6">
-      <div className="mt-4 p-5 sm:p-6 border-2 border-slate-100 rounded-[2rem] sm:rounded-[2.5rem] bg-slate-50/50 min-h-[100px] flex flex-col justify-center animate-in fade-in duration-500">
-        <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary mb-4 px-1 flex items-center gap-2">
-           <CreditCard className="h-3 w-3" /> Secure Payment Details
-        </h3>
-        
-        <PatronContactForm 
-          email={patronEmail} setEmail={setPatronEmail}
-          name={patronName} setName={setPatronName}
-          phone={patronPhone} setPhone={setPatronPhone}
+      <div className="mt-4 p-4 sm:p-5 border-2 border-slate-100 rounded-[2rem] sm:rounded-[2.5rem] bg-slate-50/50 animate-in fade-in duration-500">
+        <StripeCheckoutForm 
+          onReadyStateChange={setIsStripeReady} 
+          patronName={patronName}
+          setPatronName={setPatronName}
+          patronPhone={patronPhone}
+          setPatronPhone={setPatronPhone}
+          patronEmail={patronEmail}
+          setPatronEmail={setPatronEmail}
         />
-
-        <StripeCheckoutForm onReadyStateChange={setIsStripeReady} />
       </div>
 
       <div className="fixed bottom-7 left-0 right-0 p-4 bg-white/80 backdrop-blur-md border-t z-50">
-        <div className="max-w-xl mx-auto">
+        <div className="max-w-xl mx-auto px-2">
           <Button 
             size="lg" 
             className="w-full h-14 font-black uppercase tracking-widest gap-2 shadow-xl" 
@@ -232,9 +238,6 @@ function CheckoutDrawerContent({
   const [isProcessing, setIsProcessing] = useState(false);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [isFetchingIntent, setIsFetchingIntent] = useState(false);
-
-  const isGolf = seller?.type?.toLowerCase().includes('golf');
-  const isBowling = seller?.type?.toLowerCase().includes('bowling');
 
   const tax = subtotal * (taxRate / 100);
   const finalTotal = subtotal + solutionFee + tax + tip;
@@ -370,7 +373,7 @@ function CheckoutDrawerContent({
 
         <OrderSummary 
           items={activeOrderItems} 
-          onUpdateItem={() => {}} // Disabled in drawer for focus
+          onUpdateItem={() => {}} 
           onRemoveItem={() => {}}
         />
         
@@ -430,21 +433,13 @@ function CheckoutDrawerContent({
                 />
               </Elements>
             ) : (
-              <div className="p-5 sm:p-6 border-2 border-slate-100 rounded-[2rem] bg-slate-50/50 animate-in fade-in duration-500">
-                <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary mb-4 px-1 flex items-center gap-2">
-                   <User className="h-3 w-3" /> Contact Details
-                </h3>
-                <PatronContactForm 
-                  email={patronEmail} setEmail={setPatronEmail}
-                  name={patronName} setName={setPatronName}
-                  phone={patronPhone} setPhone={setPatronPhone}
-                />
-                {!isContactInfoValid && (
-                  <div className="bg-amber-50 p-3 rounded-xl border border-amber-100 flex items-center gap-2">
-                    <Info className="h-3 w-3 text-amber-600" />
-                    <p className="text-[8px] font-black uppercase text-amber-700">All fields required for SMS notifications</p>
-                  </div>
-                )}
+              <div className="p-4 sm:p-5 border-2 border-slate-100 rounded-[2rem] bg-slate-50/50 animate-in fade-in duration-500 space-y-4">
+                 <p className="text-[9px] font-black uppercase text-center text-primary tracking-widest px-4">Complete details to enable secure checkout</p>
+                 <PatronContactForm 
+                    email={patronEmail} setEmail={setPatronEmail}
+                    name={patronName} setName={setPatronName}
+                    phone={patronPhone} setPhone={setPatronPhone}
+                  />
               </div>
             )
           )}
@@ -462,7 +457,7 @@ function CheckoutDrawerContent({
                 />
               </div>
               <div className="fixed bottom-7 left-0 right-0 p-4 bg-white/80 backdrop-blur-md border-t z-50">
-                <div className="max-w-xl mx-auto">
+                <div className="max-w-xl mx-auto px-2">
                   <Button 
                     size="lg" 
                     className="w-full h-14 font-black uppercase tracking-widest gap-2 shadow-xl" 
@@ -662,7 +657,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
       <Sheet open={isCartOpen} onOpenChange={setIsCartOpen}>
         {totalItems > 0 && (
           <div className="fixed bottom-7 left-0 right-0 p-4 bg-white/80 backdrop-blur-md border-t z-40">
-            <div className="max-w-xl mx-auto">
+            <div className="max-w-xl mx-auto px-2">
               <SheetTrigger asChild>
                 <Button size="lg" className="w-full h-14 font-black uppercase tracking-widest shadow-xl flex justify-between px-6 sm:px-8">
                   <div className="flex items-center gap-2 sm:gap-3"><span>REVIEW ORDER</span><span className="bg-white/20 text-[10px] px-2 py-0.5 rounded-full">{totalItems} ITEMS</span></div>
@@ -696,3 +691,4 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
     </div>
   );
 }
+
