@@ -1674,7 +1674,7 @@ export default function SolutionAdminPage() {
                         )} />
                         <FormField control={maintenanceForm.control} name="solutionFeePercent" render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="text-[9px] font-black uppercase tracking-widest">Koop Percent (%)</Label>
+                            <FormLabel className="text-[9px] font-black uppercase tracking-widest">Koop Percent (%)</FormLabel>
                             <FormControl><Input {...field} type="number" step="0.1" className="h-10 border-2 font-bold" /></FormControl>
                             <FormDescription className="text-[7px] font-bold">Koop's volume cut.</FormDescription>
                           </FormItem>
@@ -1715,4 +1715,3 @@ export default function SolutionAdminPage() {
     </div>
   );
 }
-
