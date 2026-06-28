@@ -13,6 +13,7 @@ import {
 } from 'firebase/auth';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { Loader2, ShieldCheck, Mail, Lock, User, LogOut, CheckCircle2, LogIn, ArrowRight, Copy, Zap, Target, Store } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { StylizedKoopLogo } from '@/components/header';
@@ -152,8 +153,10 @@ export default function LoginPage() {
     <div className="flex items-center justify-center min-h-[calc(100vh-4rem)] bg-muted/30 p-4">
       <Card className="w-full max-w-md mx-auto shadow-2xl border-2">
         <CardHeader className="text-center pb-8 border-b bg-muted/10">
-          <div className="flex justify-center items-center mb-4">
-            <StylizedKoopLogo size="lg" colorClass="text-[#213147]" />
+          <div className="flex justify-center mb-4">
+            <Link href="/" className="bg-[#213147] p-5 rounded-2xl shadow-xl transition-all hover:scale-105 active:scale-95 group">
+              <StylizedKoopLogo size="lg" colorClass="text-white" />
+            </Link>
           </div>
           <CardTitle className="font-headline text-xl font-black uppercase tracking-[0.2em] text-[#213147]/60">
             INTERNAL GATEWAY
