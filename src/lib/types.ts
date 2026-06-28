@@ -22,6 +22,7 @@ export interface SolutionConfig {
   logoUrl?: string;
   defaultThresholds?: Record<string, { warning: number; max: number }>;
   mapUpdateSettings?: Record<string, MapUpdateSettings>;
+  dailyResetHour?: number; // 0-23
   gpsFreshnessThresholds?: {
     hot: number;
     warm: number;

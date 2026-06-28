@@ -1,3 +1,4 @@
+
 'use client';
 
 import { collection, query, where, doc, updateDoc, serverTimestamp, setDoc } from 'firebase/firestore';
@@ -43,13 +44,23 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
   const initialLoadRef = useRef(true);
   const lastBroadcastRef = useRef<{ lat: number; lng: number; time: number } | null>(null);
 
+  const primarySellerRef = useMemoFirebase(() => {
+    if (!firestore || !sellerId) return null;
+    return doc(firestore, 'sellers', sellerId);
+  }, [firestore, sellerId]);
+  const { data: primarySeller, isLoading: isPrimaryLoading } = useDoc<Seller>(primarySellerRef);
+
+  const configRef = useMemoFirebase(() => (firestore ? doc(firestore, 'solution', 'config') : null), [firestore]);
+  const { data: solutionConfig } = useDoc<SolutionConfig>(configRef);
+
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const storedId = localStorage.getItem('koop_staff_id');
       const sessionStart = localStorage.getItem('koop_staff_session_start');
+      const resetHour = solutionConfig?.dailyResetHour ?? 4;
       
       // DAILY OPERATIONAL RESET CHECK
-      if (sessionStart && isStaffSessionStale(new Date(parseInt(sessionStart, 10)))) {
+      if (sessionStart && isStaffSessionStale(new Date(parseInt(sessionStart, 10)), resetHour)) {
         localStorage.removeItem('koop_staff_id');
         localStorage.removeItem('koop_staff_name');
         localStorage.removeItem('koop_staff_role');
@@ -60,16 +71,7 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
         setCurrentStaffId(storedId || undefined);
       }
     }
-  }, [sellerId, router, toast]);
-
-  const primarySellerRef = useMemoFirebase(() => {
-    if (!firestore || !sellerId) return null;
-    return doc(firestore, 'sellers', sellerId);
-  }, [firestore, sellerId]);
-  const { data: primarySeller, isLoading: isPrimaryLoading } = useDoc<Seller>(primarySellerRef);
-
-  const configRef = useMemoFirebase(() => (firestore ? doc(firestore, 'solution', 'config') : null), [firestore]);
-  const { data: solutionConfig } = useDoc<SolutionConfig>(configRef);
+  }, [sellerId, router, toast, solutionConfig?.dailyResetHour]);
 
   const staffQuery = useMemoFirebase(() => {
     if (!firestore || !sellerId) return null;

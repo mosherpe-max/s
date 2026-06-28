@@ -1,3 +1,4 @@
+
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
 
@@ -64,20 +65,20 @@ export function getNumericOrderId(id: string) {
 }
 
 /**
- * Returns the most recent 4:00 AM EST date.
+ * Returns the most recent occurrence of the specified reset hour (local time zone).
+ * Defaults to 4:00 AM EST for Cloud Function consistency.
  */
-export function getMostRecent4AmEst(): Date {
+export function getMostRecentResetTime(resetHour: number = 4): Date {
   const now = new Date();
   
-  // Convert current time to a string in EST to find the current date in New York
+  // Calculate relative to solution timezone (EST)
   const estDateStr = now.toLocaleString("en-US", { timeZone: "America/New_York" });
   const estNow = new Date(estDateStr);
   
-  // Create a 4:00 AM marker for "today" in EST
   const resetTime = new Date(estNow);
-  resetTime.setHours(4, 0, 0, 0);
+  resetTime.setHours(resetHour, 0, 0, 0);
   
-  // If we haven't reached 4 AM EST today yet, the most recent reset was 4 AM yesterday
+  // If we haven't reached the reset hour today yet, the most recent reset was yesterday
   if (estNow < resetTime) {
     resetTime.setDate(resetTime.getDate() - 1);
   }
@@ -86,12 +87,11 @@ export function getMostRecent4AmEst(): Date {
 }
 
 /**
- * Checks if a timestamp is before the most recent 4:00 AM EST reset.
- * If no timestamp is provided, we assume the session is not stale (e.g. just starting).
+ * Checks if a timestamp is before the most recent daily reset.
  */
-export function isStaffSessionStale(lastActive: Date | null | undefined): boolean {
+export function isStaffSessionStale(lastActive: Date | null | undefined, resetHour: number = 4): boolean {
   if (!lastActive) return false;
-  const threshold = getMostRecent4AmEst();
+  const threshold = getMostRecentResetTime(resetHour);
   return lastActive < threshold;
 }
 

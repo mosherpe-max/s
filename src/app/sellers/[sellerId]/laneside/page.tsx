@@ -1,3 +1,4 @@
+
 'use client';
 
 import { collection, query, where, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
@@ -6,7 +7,7 @@ import { useEffect, useState, useMemo, useRef, use } from 'react';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { OrderCard } from '@/components/order-card';
-import type { Order, Seller } from '@/lib/types';
+import type { Order, Seller, SolutionConfig } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
@@ -27,13 +28,23 @@ export default function LaneSideServerDashboardPage({ params }: { params: Promis
   const [currentStaffId, setCurrentStaffId] = useState<string | undefined>();
   const lastOrderIdsRef = useRef<Set<string>>(new Set());
 
+  const primarySellerRef = useMemoFirebase(() => {
+    if (!firestore || !sellerId) return null;
+    return doc(firestore, 'sellers', sellerId);
+  }, [firestore, sellerId]);
+  const { data: primarySeller, isLoading: isPrimaryLoading } = useDoc<Seller>(primarySellerRef);
+
+  const configRef = useMemoFirebase(() => (firestore ? doc(firestore, 'solution', 'config') : null), [firestore]);
+  const { data: solutionConfig } = useDoc<SolutionConfig>(configRef);
+
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const storedId = localStorage.getItem('koop_staff_id');
       const sessionStart = localStorage.getItem('koop_staff_session_start');
+      const resetHour = solutionConfig?.dailyResetHour ?? 4;
       
       // DAILY OPERATIONAL RESET CHECK
-      if (sessionStart && isStaffSessionStale(new Date(parseInt(sessionStart, 10)))) {
+      if (sessionStart && isStaffSessionStale(new Date(parseInt(sessionStart, 10)), resetHour)) {
         localStorage.removeItem('koop_staff_id');
         localStorage.removeItem('koop_staff_name');
         localStorage.removeItem('koop_staff_role');
@@ -44,13 +55,7 @@ export default function LaneSideServerDashboardPage({ params }: { params: Promis
         setCurrentStaffId(storedId || undefined);
       }
     }
-  }, [sellerId, router, toast]);
-
-  const primarySellerRef = useMemoFirebase(() => {
-    if (!firestore || !sellerId) return null;
-    return doc(firestore, 'sellers', sellerId);
-  }, [firestore, sellerId]);
-  const { data: primarySeller, isLoading: isPrimaryLoading } = useDoc<Seller>(primarySellerRef);
+  }, [sellerId, router, toast, solutionConfig?.dailyResetHour]);
 
   const isServerActive = primarySeller?.lanedeliveryActive === true;
   const isAdminSession = currentStaffId?.startsWith('admin-');
@@ -162,7 +167,7 @@ export default function LaneSideServerDashboardPage({ params }: { params: Promis
               ) : lanesideOrders.length === 0 ? (
                 <div className="col-span-full py-40 text-center text-muted-foreground opacity-40"><Package className="h-16 w-16 mx-auto mb-4" /><p className="text-[10px] font-black uppercase tracking-[0.2em]">No active lane deliveries</p></div>
               ) : (
-                lanesideOrders.map((order, index) => (<OrderCard key={order.id} order={order} orderNumber={index + 1} now={now} onUpdateStatus={handleUpdateOrderStatus} onAttach={handleAttachOrder} currentStaffId={currentStaffId} thresholds={primarySeller?.orderThresholds?.[order.menuType]} />))
+                lanesideOrders.map((order, index) => (<OrderCard key={order.id} order={order} orderNumber={index + 1} now={now} onUpdateStatus={handleUpdateOrderStatus} onAttach={handleAttachOrder} thresholds={primarySeller?.orderThresholds?.[order.menuType]} />))
               )}
             </div>
           </ScrollArea>

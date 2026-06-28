@@ -1,3 +1,4 @@
+
 import { onRequest, onCall, HttpsError } from "firebase-functions/v2/https";
 import { onDocumentWritten } from "firebase-functions/v2/firestore";
 import { onSchedule } from "firebase-functions/v2/scheduler";
@@ -127,15 +128,30 @@ export const createPaymentIntent = onCall({
 
 /**
  * dailyOperationalReset
- * Scheduled script that runs daily at 4 AM EST.
+ * Scheduled script that runs HOURLY to check if it's the admin-defined reset hour.
  * Shuts down all active service channels at all venues.
  */
 export const dailyOperationalReset = onSchedule({
-  schedule: "0 4 * * *",
+  schedule: "0 * * * *", // Every hour on the hour
   timeZone: "America/New_York",
   region: 'us-central1'
 }, async (event) => {
-  logger.info("[dailyOperationalReset] Starting operational shutdown sequence...");
+  // 1. Fetch Solution Config to find the reset hour
+  const configRef = db.collection('solution').doc('config');
+  const configSnap = await configRef.get();
+  
+  const resetHour = configSnap.exists ? (configSnap.data()?.dailyResetHour ?? 4) : 4;
+  
+  // 2. Determine Current Hour in Solution Timezone (EST/EDT)
+  const nowInEst = new Date(new Date().toLocaleString("en-US", { timeZone: "America/New_York" }));
+  const currentHour = nowInEst.getHours();
+
+  if (currentHour !== resetHour) {
+    logger.info(`[dailyOperationalReset] Current hour (${currentHour}) is not the target reset hour (${resetHour}). Skipping.`);
+    return;
+  }
+
+  logger.info(`[dailyOperationalReset] Targeted reset hour (${resetHour}) reached. Starting operational shutdown sequence...`);
   
   const sellersRef = db.collection('sellers');
   const snapshot = await sellersRef.where('status', '==', 'Active').get();

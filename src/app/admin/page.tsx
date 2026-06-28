@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
@@ -279,6 +280,7 @@ export default function SolutionAdminPage() {
   const [mapSettings, setMapSettings] = useState<Record<string, MapUpdateSettings>>(SYSTEM_DEFAULT_MAP_SETTINGS);
   const [gpsFreshness, setGpsFreshness] = useState(SYSTEM_DEFAULT_GPS_THRESHOLDS);
   const [globalEnabledModes, setGlobalEnabledModes] = useState<string[]>(SERVICE_MODES);
+  const [dailyResetHour, setDailyResetHour] = useState<number>(4);
   const [isSavingSystemConfig, setIsSavingSystemConfig] = useState(false);
 
   // Logo Upload State
@@ -324,6 +326,9 @@ export default function SolutionAdminPage() {
     }
     if (config?.enabledModes) {
       setGlobalEnabledModes(config.enabledModes);
+    }
+    if (config?.dailyResetHour !== undefined) {
+      setDailyResetHour(config.dailyResetHour);
     }
   }, [config]);
 
@@ -645,6 +650,7 @@ export default function SolutionAdminPage() {
       mapUpdateSettings: mapSettings,
       gpsFreshnessThresholds: gpsFreshness,
       enabledModes: globalEnabledModes,
+      dailyResetHour: dailyResetHour,
       updatedAt: serverTimestamp()
     };
     setDoc(solutionDocRef, updateData, { merge: true }).then(() => {
@@ -817,6 +823,11 @@ export default function SolutionAdminPage() {
       ]
     }
   ];
+
+  const resetHours = Array.from({ length: 24 }, (_, i) => ({
+    label: i === 0 ? '12 AM (Midnight)' : i === 12 ? '12 PM (Noon)' : i > 12 ? `${i - 12} PM` : `${i} AM`,
+    value: i
+  }));
 
   return (
     <div className="flex flex-col h-screen bg-[#F8FAFC] overflow-hidden">
@@ -1216,6 +1227,42 @@ export default function SolutionAdminPage() {
                               </div>
                             );
                           })}
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    {/* OPERATIONAL HEARTBEAT */}
+                    <Card className="border-2 shadow-sm overflow-hidden text-left">
+                      <CardHeader className="border-b bg-primary/5 flex flex-row items-center gap-3 text-left">
+                        <HeartPulse className="h-5 w-5 text-primary" />
+                        <div>
+                          <CardTitle className="font-black uppercase tracking-tight text-sm">Operational Heartbeat</CardTitle>
+                          <CardDescription className="text-[10px] font-bold uppercase">Automated shift reset synchronization</CardDescription>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="p-6 space-y-6">
+                        <div className="space-y-4">
+                          <div className="space-y-2">
+                             <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest px-1">Daily Reset Hour (EST)</Label>
+                             <Select 
+                               value={dailyResetHour.toString()} 
+                               onValueChange={(val) => setDailyResetHour(parseInt(val, 10))}
+                             >
+                               <SelectTrigger className="h-12 border-2 font-bold text-sm bg-white">
+                                 <SelectValue placeholder="Select hour" />
+                               </SelectTrigger>
+                               <SelectContent>
+                                 {resetHours.map(hour => (
+                                   <SelectItem key={hour.value} value={hour.value.toString()} className="font-bold">
+                                     {hour.label}
+                                   </SelectItem>
+                                 ))}
+                               </SelectContent>
+                             </Select>
+                             <p className="text-[9px] font-bold text-muted-foreground uppercase leading-relaxed px-1">
+                               All staff members will be logged out and venue statuses will reset at this hour daily.
+                             </p>
+                          </div>
                         </div>
                       </CardContent>
                     </Card>
