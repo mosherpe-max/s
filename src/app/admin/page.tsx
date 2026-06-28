@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
@@ -269,6 +268,7 @@ export default function SolutionAdminPage() {
   const [isMounted, setIsMounted] = useState(false);
   const [baseUrl, setBaseUrl] = useState('');
   const [analyticsRange, setAnalyticsRange] = useState<'Today' | 'MTD' | 'YTD'>('Today');
+  const [greeting, setGreeting] = useState('Hello');
   
   const [selectedSeller, setSelectedSeller] = useState<Seller | null>(null);
   const [isVenueDetailOpen, setIsVenueDetailOpen] = useState(false);
@@ -296,6 +296,11 @@ export default function SolutionAdminPage() {
     setIsMounted(true);
     if (typeof window !== 'undefined') {
       setBaseUrl(window.location.origin);
+      
+      const hour = new Date().getHours();
+      if (hour < 12) setGreeting('Good Morning');
+      else if (hour < 18) setGreeting('Good Afternoon');
+      else setGreeting('Good Evening');
     }
   }, []);
 
@@ -864,7 +869,7 @@ export default function SolutionAdminPage() {
 
   return (
     <div className="flex flex-col h-screen bg-[#F8FAFC] overflow-hidden">
-      <header className="h-16 bg-white border-b-2 flex items-center justify-between px-4 sm:px-8 shrink-0 z-30 shadow-sm relative">
+      <header className="h-16 bg-white border-b-2 flex items-center justify-between px-4 sm:px-8 shrink-0 z-30 shadow-sm relative text-left">
         <div className="flex items-center gap-3 sm:gap-4">
           <StylizedKoopLogo size="sm" colorClass="text-[#213147]" />
           <div className="h-6 w-px bg-slate-200 hidden sm:block" />
@@ -872,7 +877,7 @@ export default function SolutionAdminPage() {
             <h2 className="text-lg sm:text-xl font-black font-headline uppercase tracking-tight text-[#213147]">
               {NAV_ITEMS.find(n => n.id === activeNav)?.label}
             </h2>
-            <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">Solution Command Console</p>
+            <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">{greeting}, {user?.email}</p>
           </div>
         </div>
         
@@ -1055,7 +1060,7 @@ export default function SolutionAdminPage() {
                     </Button>
                   </div>
                   
-                  <div className="border-2 rounded-2xl overflow-hidden bg-white shadow-sm">
+                  <div className="border-2 rounded-2xl overflow-hidden bg-white shadow-sm text-left">
                     <div className="overflow-x-auto no-scrollbar">
                       <Table className="min-w-[700px] md:min-w-full">
                         <TableHeader className="bg-slate-50 border-b">
@@ -1179,7 +1184,7 @@ export default function SolutionAdminPage() {
                             </div>
                           </div>
 
-                          <div className="space-y-3">
+                          <div className="space-y-3 text-left">
                             <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground px-1">Staff Access Point</p>
                             <div className="grid grid-cols-1 gap-2">
                               {venue.staffViews.map((view) => (
@@ -1234,7 +1239,7 @@ export default function SolutionAdminPage() {
                       <CardHeader className="border-b bg-[#213147] text-white flex flex-row items-center justify-between text-left">
                         <div className="flex items-center gap-3">
                           <ShieldAlert className="h-5 w-5 text-primary" />
-                          <div>
+                          <div className="text-left">
                             <CardTitle className="font-black uppercase tracking-tight text-sm">Global Service Authorization</CardTitle>
                             <CardDescription className="text-[10px] font-bold uppercase text-white/50">Restrict specific channels across the entire solution</CardDescription>
                           </div>
@@ -1281,12 +1286,12 @@ export default function SolutionAdminPage() {
                     <Card className="border-2 shadow-sm overflow-hidden text-left">
                       <CardHeader className="border-b bg-primary/5 flex flex-row items-center gap-3 text-left">
                         <HeartPulse className="h-5 w-5 text-primary" />
-                        <div>
+                        <div className="text-left">
                           <CardTitle className="font-black uppercase tracking-tight text-sm">Operational Heartbeat</CardTitle>
                           <CardDescription className="text-[10px] font-bold uppercase">Automated shift reset synchronization</CardDescription>
                         </div>
                       </CardHeader>
-                      <CardContent className="p-6 space-y-6">
+                      <CardContent className="p-6 space-y-6 text-left">
                         <div className="space-y-4">
                           <div className="space-y-2">
                              <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest px-1">Daily Reset Hour (EST)</Label>
@@ -1317,14 +1322,14 @@ export default function SolutionAdminPage() {
                     <Card className="border-2 shadow-sm overflow-hidden text-left">
                       <CardHeader className="border-b bg-primary/5 flex flex-row items-center gap-3 text-left">
                         <MessageSquare className="h-5 w-5 text-primary" />
-                        <div>
+                        <div className="text-left">
                           <CardTitle className="font-black uppercase tracking-tight text-sm">Communication Protocol</CardTitle>
                           <CardDescription className="text-[10px] font-bold uppercase">Automated notification management</CardDescription>
                         </div>
                       </CardHeader>
-                      <CardContent className="p-6 space-y-6">
+                      <CardContent className="p-6 space-y-6 text-left">
                          <div className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border-2">
-                            <div className="space-y-0.5">
+                            <div className="space-y-0.5 text-left">
                                <p className="text-[11px] font-black uppercase text-[#213147]">Patron SMS Updates</p>
                                <p className="text-[8px] font-bold text-muted-foreground uppercase">Enable Twilio automated text messages</p>
                             </div>
@@ -1372,12 +1377,12 @@ export default function SolutionAdminPage() {
                     <Card className="border-2 shadow-sm overflow-hidden text-left">
                       <CardHeader className="border-b bg-primary/5 flex flex-row items-center gap-3 text-left">
                         <Satellite className="h-5 w-5 text-primary" />
-                        <div>
+                        <div className="text-left">
                           <CardTitle className="font-black uppercase tracking-tight text-sm">GPS Freshness Protocol</CardTitle>
                           <CardDescription className="text-[10px] font-bold uppercase">Signal Health Thresholds (Seconds)</CardDescription>
                         </div>
                       </CardHeader>
-                      <CardContent className="p-6 space-y-6">
+                      <CardContent className="p-6 space-y-6 text-left">
                         <div className="grid grid-cols-3 gap-4">
                           <div className="space-y-1.5">
                             <Label className="text-[8px] font-black uppercase text-green-600 tracking-widest flex items-center gap-1 text-center justify-center">
@@ -1425,12 +1430,12 @@ export default function SolutionAdminPage() {
                     <Card className="border-2 shadow-sm overflow-hidden text-left">
                       <CardHeader className="border-b bg-primary/5 flex flex-row items-center gap-3 text-left">
                         <Timer className="h-5 w-5 text-primary" />
-                        <div>
+                        <div className="text-left">
                           <CardTitle className="font-black uppercase tracking-tight text-sm">Global Order Duration Thresholds</CardTitle>
                           <CardDescription className="text-[10px] font-bold uppercase">Initial windows for new establishments</CardDescription>
                         </div>
                       </CardHeader>
-                      <CardContent className="p-6 space-y-6">
+                      <CardContent className="p-6 space-y-6 text-left">
                         <div className="space-y-4">
                           {SERVICE_MODES.map(mode => {
                             const thresholds = systemThresholds[mode] || { warning: 15, max: 20 };
@@ -1474,7 +1479,7 @@ export default function SolutionAdminPage() {
                     <Card className="border-2 shadow-sm overflow-hidden lg:col-span-2 text-left">
                       <CardHeader className="border-b bg-[#213147] text-white flex flex-row items-center gap-3 text-left">
                         <Satellite className="h-5 w-5 text-primary" />
-                        <div>
+                        <div className="text-left">
                           <CardTitle className="font-black uppercase tracking-tight text-sm">Operational Sync Protocols</CardTitle>
                           <CardDescription className="text-[10px] font-bold uppercase text-white/50">Map behavior and interface refresh logic</CardDescription>
                         </div>
@@ -1805,7 +1810,7 @@ export default function SolutionAdminPage() {
                     <div className="flex items-center justify-between p-4 bg-amber-50 rounded-2xl border-2 border-amber-100 text-left">
                       <div className="flex items-center gap-3">
                         <Star className="h-5 w-5 text-amber-500 fill-current" />
-                        <div>
+                        <div className="text-left">
                           <p className="text-[10px] font-black uppercase text-amber-800">Founding Partner</p>
                           <p className="text-[8px] font-bold text-amber-600 uppercase">Displays elite badge across patron interface</p>
                         </div>

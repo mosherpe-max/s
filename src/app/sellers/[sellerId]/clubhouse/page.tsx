@@ -1,4 +1,3 @@
-
 'use client';
 
 import { collection, query, where, doc, updateDoc, serverTimestamp, setDoc, deleteDoc } from 'firebase/firestore';
@@ -34,6 +33,9 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
   const [sellerLocation, setSellerLocation] = useState<LatLng | null>(null);
   const [fitTrigger, setFitTrigger] = useState<number>(0);
   const [currentStaffId, setCurrentStaffId] = useState<string | undefined>();
+  const [currentStaffName, setCurrentStaffName] = useState<string>('');
+  const [greeting, setGreeting] = useState('Hello');
+
   const lastOrderIdsRef = useRef<Set<string>>(new Set());
   const lastBroadcastRef = useRef<{ lat: number; lng: number; time: number } | null>(null);
 
@@ -49,6 +51,7 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const storedId = localStorage.getItem('koop_staff_id');
+      const storedName = localStorage.getItem('koop_staff_name');
       const sessionStart = localStorage.getItem('koop_staff_session_start');
       const resetHour = solutionConfig?.dailyResetHour ?? 4;
       
@@ -62,7 +65,13 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
         toast({ title: "Shift Reset", description: "Daily operational reset performed. Please re-enter PIN." });
       } else {
         setCurrentStaffId(storedId || undefined);
+        setCurrentStaffName(storedName || '');
       }
+
+      const hour = new Date().getHours();
+      if (hour < 12) setGreeting('Good Morning');
+      else if (hour < 18) setGreeting('Good Afternoon');
+      else setGreeting('Good Evening');
     }
   }, [sellerId, router, toast, solutionConfig?.dailyResetHour]);
 
@@ -253,7 +262,7 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
 
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-muted/20 text-left">
-      <header className="flex-shrink-0 px-4 h-16 flex items-center justify-between border-b-2 border-[#E50000] bg-[#213147] z-20 shadow-sm">
+      <header className="flex-shrink-0 px-4 h-16 flex items-center justify-between border-b-2 border-[#E50000] bg-[#213147] z-20 shadow-sm text-left">
         <div className="flex items-center gap-4">
           {isAdminSession && (
             <div className="flex items-center gap-2">
@@ -265,10 +274,10 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
           )}
           <div className="flex flex-col min-w-0">
             <div className="flex items-center gap-2">
-              <h1 className="font-headline text-sm font-bold text-white uppercase tracking-tight leading-none">CLUBHOUSE PORTAL</h1>
+              <h1 className="font-headline text-sm font-bold text-white uppercase tracking-tight leading-none mb-0.5">CLUBHOUSE PORTAL</h1>
               {isAdminSession && <Badge className="bg-amber-500 text-white border-0 text-[7px] font-black uppercase h-3.5 px-1 animate-pulse">Impersonating</Badge>}
             </div>
-            <Badge variant="outline" className="h-4 px-1.5 text-[8px] bg-white/5 text-white border-white/10 uppercase mt-1">{primarySeller?.courseName || 'Loading...'}</Badge>
+            <p className="text-[10px] font-bold text-white/50 uppercase tracking-widest leading-none">{greeting}, {currentStaffName}</p>
           </div>
         </div>
         <div className="flex items-center space-x-3">
