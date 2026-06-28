@@ -49,7 +49,7 @@ import {
   HeartPulse,
   Database,
   RefreshCw,
-  Image as LucideImage,
+  LucideImage,
   Upload,
   Trash2,
   Menu,
@@ -61,7 +61,6 @@ import {
   Printer,
   Copy,
   Smartphone,
-  SmartphoneNfc,
   Truck,
   PlayCircle,
   Lock,
@@ -361,7 +360,7 @@ export default function SolutionAdminPage() {
             isSameDay(o.createdAt.toDate(), now)
           );
           entry[`${mode}_total`] = Math.round(matching.reduce((sum, o) => sum + o.total, 0));
-          entry[`${mode}_fees`] = Math.round(matching.reduce((sum, o) => sum + o.serviceFee, 0));
+          entry[`${mode}_fees`] = Math.round(matching.reduce((sum, o) => sum + (o.serviceFee || 0), 0));
         });
         return entry;
       });
@@ -377,7 +376,7 @@ export default function SolutionAdminPage() {
             isSameDay(o.createdAt.toDate(), day)
           );
           entry[`${mode}_total`] = Math.round(matching.reduce((sum, o) => sum + o.total, 0));
-          entry[`${mode}_fees`] = Math.round(matching.reduce((sum, o) => sum + o.serviceFee, 0));
+          entry[`${mode}_fees`] = Math.round(matching.reduce((sum, o) => sum + (o.serviceFee || 0), 0));
         });
         return entry;
       });
@@ -395,7 +394,7 @@ export default function SolutionAdminPage() {
             isSameYear(o.createdAt.toDate(), now)
           );
           entry[`${mode}_total`] = Math.round(matching.reduce((sum, o) => sum + o.total, 0));
-          entry[`${mode}_fees`] = Math.round(matching.reduce((sum, o) => sum + o.serviceFee, 0));
+          entry[`${mode}_fees`] = Math.round(matching.reduce((sum, o) => sum + (o.serviceFee || 0), 0));
         });
         return entry;
       });
@@ -1675,7 +1674,7 @@ export default function SolutionAdminPage() {
                         )} />
                         <FormField control={maintenanceForm.control} name="solutionFeePercent" render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="text-[9px] font-black uppercase tracking-widest">Koop Percent (%)</FormLabel>
+                            <FormLabel className="text-[9px] font-black uppercase tracking-widest">Koop Percent (%)</Label>
                             <FormControl><Input {...field} type="number" step="0.1" className="h-10 border-2 font-bold" /></FormControl>
                             <FormDescription className="text-[7px] font-bold">Koop's volume cut.</FormDescription>
                           </FormItem>
@@ -1716,3 +1715,4 @@ export default function SolutionAdminPage() {
     </div>
   );
 }
+
