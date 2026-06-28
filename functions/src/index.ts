@@ -254,6 +254,16 @@ export const onGuestOrderStatusUpdate = onDocumentWritten({
 
   if (!after || !after.exists) return;
 
+  // 1. Check Global SMS Gate
+  const configRef = db.collection('solution').doc('config');
+  const configSnap = await configRef.get();
+  const smsEnabled = configSnap.exists ? (configSnap.data()?.smsNotificationsEnabled ?? true) : true;
+
+  if (!smsEnabled) {
+    logger.info(`[onGuestOrderStatusUpdate] Global SMS updates are disabled. Skipping notification for order ${orderId}.`);
+    return;
+  }
+
   const afterData = after.data();
   const customerPhone = afterData?.customerPhone;
   const status = afterData?.status;

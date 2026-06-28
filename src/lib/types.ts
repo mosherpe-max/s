@@ -23,6 +23,7 @@ export interface SolutionConfig {
   defaultThresholds?: Record<string, { warning: number; max: number }>;
   mapUpdateSettings?: Record<string, MapUpdateSettings>;
   dailyResetHour?: number; // 0-23
+  smsNotificationsEnabled?: boolean;
   gpsFreshnessThresholds?: {
     hot: number;
     warm: number;

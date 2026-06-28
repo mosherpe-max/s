@@ -79,7 +79,8 @@ import {
   AlertTriangle,
   Sparkles,
   LayoutList,
-  UserCog
+  UserCog,
+  MessageSquare
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -281,6 +282,7 @@ export default function SolutionAdminPage() {
   const [gpsFreshness, setGpsFreshness] = useState(SYSTEM_DEFAULT_GPS_THRESHOLDS);
   const [globalEnabledModes, setGlobalEnabledModes] = useState<string[]>(SERVICE_MODES);
   const [dailyResetHour, setDailyResetHour] = useState<number>(4);
+  const [smsEnabled, setSmsEnabled] = useState<boolean>(true);
   const [isSavingSystemConfig, setIsSavingSystemConfig] = useState(false);
 
   // Logo Upload State
@@ -329,6 +331,9 @@ export default function SolutionAdminPage() {
     }
     if (config?.dailyResetHour !== undefined) {
       setDailyResetHour(config.dailyResetHour);
+    }
+    if (config?.smsNotificationsEnabled !== undefined) {
+      setSmsEnabled(config.smsNotificationsEnabled);
     }
   }, [config]);
 
@@ -651,6 +656,7 @@ export default function SolutionAdminPage() {
       gpsFreshnessThresholds: gpsFreshness,
       enabledModes: globalEnabledModes,
       dailyResetHour: dailyResetHour,
+      smsNotificationsEnabled: smsEnabled,
       updatedAt: serverTimestamp()
     };
     setDoc(solutionDocRef, updateData, { merge: true }).then(() => {
@@ -1264,6 +1270,33 @@ export default function SolutionAdminPage() {
                              </p>
                           </div>
                         </div>
+                      </CardContent>
+                    </Card>
+
+                    {/* COMMUNICATION PROTOCOL */}
+                    <Card className="border-2 shadow-sm overflow-hidden text-left">
+                      <CardHeader className="border-b bg-primary/5 flex flex-row items-center gap-3 text-left">
+                        <MessageSquare className="h-5 w-5 text-primary" />
+                        <div>
+                          <CardTitle className="font-black uppercase tracking-tight text-sm">Communication Protocol</CardTitle>
+                          <CardDescription className="text-[10px] font-bold uppercase">Automated notification management</CardDescription>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="p-6 space-y-6">
+                         <div className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border-2">
+                            <div className="space-y-0.5">
+                               <p className="text-[11px] font-black uppercase text-[#213147]">Patron SMS Updates</p>
+                               <p className="text-[8px] font-bold text-muted-foreground uppercase">Enable Twilio automated text messages</p>
+                            </div>
+                            <Switch 
+                              checked={smsEnabled} 
+                              onCheckedChange={setSmsEnabled} 
+                              className="data-[state=checked]:bg-green-600"
+                            />
+                         </div>
+                         <p className="text-[9px] font-bold text-muted-foreground uppercase leading-relaxed px-1 italic">
+                           If disabled, patrons will not receive text updates. They must rely on the live tracking screen for status.
+                         </p>
                       </CardContent>
                     </Card>
 

@@ -51,6 +51,7 @@
         "defaultThresholds": { "type": "object" },
         "mapUpdateSettings": { "type": "object" },
         "dailyResetHour": { "type": "number", "description": "The hour (0-23) at which all venue sessions are reset." },
+        "smsNotificationsEnabled": { "type": "boolean", "description": "Global toggle for Twilio SMS order updates." },
         "gpsFreshnessThresholds": {
           "type": "object",
           "properties": {
