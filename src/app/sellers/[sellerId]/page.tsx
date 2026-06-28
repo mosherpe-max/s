@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useMemo, useEffect, use } from 'react';
@@ -654,9 +655,26 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
     });
   };
 
+  /**
+   * handleLogout
+   * Fully terminates the administrator session and releases the device.
+   * Purges all local storage state to prevent data leakage on shared hardware.
+   */
   const handleLogout = async () => {
     if (!auth) return;
-    try { await signOut(auth); router.push('/login'); } catch (error: any) { toast({ variant: "destructive", title: "Logout Failed", description: error.message }); }
+    try {
+      // 1. Purge all platform-specific state
+      const keysToRemove = Object.keys(localStorage).filter(k => k.startsWith('koop_'));
+      keysToRemove.forEach(k => localStorage.removeItem(k));
+      
+      // 2. Terminate Auth session
+      await signOut(auth);
+      
+      toast({ title: "Session Terminated", description: "Device released and returned to secure baseline." });
+      router.push('/login');
+    } catch (error: any) {
+      toast({ variant: "destructive", title: "Logout Failed", description: error.message });
+    }
   };
 
   const sensors = useSensors(
@@ -814,7 +832,10 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
               </SheetContent>
             </Sheet>
           )}
-          <button onClick={handleLogout} className="p-2 text-muted-foreground hover:text-destructive transition-colors"><LogOut className="h-5 w-5" /></button>
+          <button onClick={handleLogout} title="Sign Out & Release Device" className="p-2 text-muted-foreground hover:text-destructive transition-colors flex items-center gap-2">
+            <span className="text-[10px] font-black uppercase tracking-widest hidden sm:inline">Release Device</span>
+            <LogOut className="h-5 w-5" />
+          </button>
         </div>
       </header>
 
@@ -902,7 +923,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                 <div className="space-y-6 animate-in fade-in duration-500">
                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b-2 pb-4 text-left"><div className="space-y-1"><h3 className="font-headline font-black text-2xl text-[#213147] uppercase leading-tight">Performance Analytics</h3><p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Historical revenue trends and channel distribution</p></div></div>
                   <Card className="border-2 shadow-lg overflow-hidden bg-white text-left">
-                    <CardHeader className="bg-slate-50/50 border-b flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4"><div className="space-y-0.5 text-left"><CardTitle className="text-xs font-black uppercase tracking-widest text-[#213147]">Revenue Distribution</CardTitle><CardDescription className="text-[8px] font-bold uppercase">Toggle range for deeper historical analysis</CardDescription></div><div className="flex bg-slate-100 p-0.5 rounded-lg border-2">{['Today', 'MTD', 'YTD'].map((r) => (<button key={r} onClick={() => setAnalyticsRange(r as any)} className={cn("px-4 py-1.5 text-[9px] font-black uppercase tracking-tighter rounded-md transition-all", analyticsRange === r ? "bg-white text-[#213147] shadow-sm" : "text-slate-400 hover:text-slate-600")}>{r}</button>))}</div></CardHeader>
+                    <CardHeader className="bg-slate-50/50 border-b flex flex-row sm:flex-row justify-between items-start sm:items-center gap-4"><div className="space-y-0.5 text-left"><CardTitle className="text-xs font-black uppercase tracking-widest text-[#213147]">Revenue Distribution</CardTitle><CardDescription className="text-[8px] font-bold uppercase">Toggle range for deeper historical analysis</CardDescription></div><div className="flex bg-slate-100 p-0.5 rounded-lg border-2">{['Today', 'MTD', 'YTD'].map((r) => (<button key={r} onClick={() => setAnalyticsRange(r as any)} className={cn("px-4 py-1.5 text-[9px] font-black uppercase tracking-tighter rounded-md transition-all", analyticsRange === r ? "bg-white text-[#213147] shadow-sm" : "text-slate-400 hover:text-slate-600")}>{r}</button>))}</div></CardHeader>
                     <CardContent className="pt-10 h-[450px]">
                       <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={analyticsData}>
@@ -967,7 +988,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
 
               {activeNav === 'service' && (
                 <div className="space-y-8 animate-in fade-in duration-500">
-                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b-2 pb-4 text-left"><div className="space-y-1"><h3 className="font-headline font-black text-2xl text-[#213147] uppercase leading-tight">Service Mode Menu Builder</h3><p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Construct specific menus for each active channel</p></div><div className="w-full sm:w-64"><Select value={configMode} onValueChange={setConfigMode}><SelectTrigger className="h-12 border-2 font-black uppercase text-[10px] tracking-widest bg-white"><Zap className="h-4 w-4 text-primary mr-2" /><SelectValue /></SelectTrigger><SelectContent>{seller?.menuTypes?.map(m => <SelectItem key={m} value={m} className="font-bold uppercase text-[10px] tracking-widest">{m}</SelectItem>)}</SelectContent></Select></div></div>
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b-2 pb-4 text-left"><div className="space-y-1"><h3 className="font-headline font-black text-2xl text-[#213147] uppercase leading-tight">Service Mode Menu Builder</h3><p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Construct specific menus for each active channel</p></div><div className="w-full sm:w-64"><Select value={configMode} onValueChange={setConfigMode}><SelectTrigger className="h-12 border-2 font-black uppercase text-[10px] tracking-widest bg-white"><Zap className="h-4 w-4 text-primary mr-2" /><SelectValue /></SelectTrigger><SelectContent>{seller?.menuTypes?.map(m => <SelectItem key={m} value={m} className="font-bold uppercase text-[10px] tracking-widest">{m}</SelectItem>)}</Select></div></div>
                   <div className="grid grid-cols-1 gap-12 text-left">
                     <div className="space-y-4"><div className="flex items-center gap-3 border-b-2 pb-2 px-1"><div className="p-1.5 bg-indigo-50 rounded-lg text-indigo-600"><LayoutList className="h-4 w-4" /></div><div className="space-y-0.5 text-left"><h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-[#213147]">Category Visibility & Sorting</h4><p className="text-[8px] font-bold text-muted-foreground uppercase">Enable categories and drag to define patron scroll order.</p></div></div><DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(e) => handleDragEnd(e, 'layout')}><SortableContext items={seller?.categoryVisibility?.[configMode] || categories.filter(c => c !== 'Featured')} strategy={verticalListSortingStrategy}><div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">{(seller?.categoryVisibility?.[configMode] || categories.filter(c => c !== 'Featured')).map(cat => (<SortableCategory key={`cat-sort-${cat}`} id={cat} category={cat} isVisible={true} onToggleVisibility={handleToggleCategoryVisibility} />))}{categories.filter(c => c !== 'Featured' && !(seller?.categoryVisibility?.[configMode] || []).includes(c)).map(cat => (<div key={`cat-hidden-${cat}`} className="bg-slate-50 border-2 border-dashed rounded-xl p-3 flex items-center justify-between opacity-60"><span className="text-[10px] font-black uppercase text-slate-400">{cat}</span><Switch checked={false} onCheckedChange={() => handleToggleCategoryVisibility(cat)} className="scale-75" /></div>))}</div></SortableContext></DndContext></div>
                     <div className="space-y-12">

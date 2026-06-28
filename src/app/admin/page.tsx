@@ -632,10 +632,22 @@ export default function SolutionAdminPage() {
     }
   };
 
+  /**
+   * handleLogout
+   * Fully terminates the administrator session and releases the device.
+   * Purges all local storage state to prevent data leakage on shared hardware.
+   */
   const handleLogout = async () => {
     if (!auth) return;
     try {
+      // 1. Purge all platform-specific state
+      const keysToRemove = Object.keys(localStorage).filter(k => k.startsWith('koop_'));
+      keysToRemove.forEach(k => localStorage.removeItem(k));
+      
+      // 2. Terminate Auth session
       await signOut(auth);
+      
+      toast({ title: "Session Terminated", description: "Device released and returned to secure baseline." });
       router.push('/login');
     } catch (error: any) {
       toast({ variant: "destructive", title: "Logout Failed", description: error.message });
@@ -881,7 +893,8 @@ export default function SolutionAdminPage() {
               </SheetContent>
             </Sheet>
           )}
-          <button onClick={handleLogout} className="p-2 text-muted-foreground hover:text-destructive transition-colors">
+          <button onClick={handleLogout} title="Sign Out & Release Device" className="p-2 text-muted-foreground hover:text-destructive transition-colors flex items-center gap-2">
+            <span className="text-[10px] font-black uppercase tracking-widest hidden sm:inline">Release Device</span>
             <LogOut className="h-5 w-5" />
           </button>
         </div>
@@ -1394,7 +1407,7 @@ export default function SolutionAdminPage() {
                           </div>
                           <div className="space-y-1.5">
                             <Label className="text-[8px] font-black uppercase text-red-600 tracking-widest flex items-center gap-1 text-center justify-center">
-                              <Flame className="h-2 w-2" /> Cold (Bad)
+                              <AlertTriangle className="h-2 w-2" /> Cold (Bad)
                             </Label>
                             <input 
                               type="number" 
