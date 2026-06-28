@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useMemo, useEffect, use } from 'react';
@@ -902,6 +901,8 @@ export default function SolutionAdminPage({ params }: { params: Promise<{ seller
     <div className="flex flex-col h-screen bg-[#F8FAFC] overflow-hidden">
       <header className="h-20 bg-white border-b-2 flex items-center justify-between px-4 sm:px-8 shrink-0 z-30 shadow-sm relative">
         <div className="flex items-center gap-3 text-left">
+          <StylizedKoopLogo size="sm" colorClass="text-[#213147]" />
+          <div className="h-8 w-px bg-slate-200 hidden sm:block mx-1" />
           <div className="flex flex-col">
             <h1 className="text-sm font-black text-[#213147] uppercase tracking-tight leading-none mb-1">
               {seller?.courseName}
@@ -2073,4 +2074,3 @@ export default function SolutionAdminPage({ params }: { params: Promise<{ seller
     </div>
   );
 }
-

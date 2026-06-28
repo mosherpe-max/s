@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
@@ -823,6 +822,8 @@ export default function SolutionAdminPage() {
     <div className="flex flex-col h-screen bg-[#F8FAFC] overflow-hidden">
       <header className="h-16 bg-white border-b-2 flex items-center justify-between px-4 sm:px-8 shrink-0 z-30 shadow-sm relative">
         <div className="flex items-center gap-3 sm:gap-4">
+          <StylizedKoopLogo size="sm" colorClass="text-[#213147]" />
+          <div className="h-6 w-px bg-slate-200 hidden sm:block" />
           <div className="flex flex-col">
             <h2 className="text-lg sm:text-xl font-black font-headline uppercase tracking-tight text-[#213147]">
               {NAV_ITEMS.find(n => n.id === activeNav)?.label}
