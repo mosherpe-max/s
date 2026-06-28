@@ -78,7 +78,8 @@ import {
   CloudSun,
   AlertTriangle,
   Sparkles,
-  LayoutList
+  LayoutList,
+  UserCog
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -756,9 +757,9 @@ export default function SolutionAdminPage() {
                 <div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-black text-xs">
                   {user?.email?.charAt(0).toUpperCase() || 'P'}
                 </div>
-                <div className="flex flex-col min-w-0">
-                  <span className="text-[10px] font-black text-white truncate uppercase tracking-tight">Solution Admin</span>
-                  <span className="text-[8px] font-bold text-slate-400 truncate uppercase">{user?.email}</span>
+                <div className="flex items-col min-w-0">
+                  <span className="text-[10px] font-black text-white truncate uppercase tracking-tight text-left">Solution Admin</span>
+                  <span className="text-[8px] font-bold text-slate-400 truncate uppercase text-left">{user?.email}</span>
                 </div>
               </div>
             </div>
@@ -824,7 +825,7 @@ export default function SolutionAdminPage() {
         <div className="flex items-center gap-3 sm:gap-4">
           <StylizedKoopLogo size="sm" colorClass="text-[#213147]" />
           <div className="h-6 w-px bg-slate-200 hidden sm:block" />
-          <div className="flex flex-col">
+          <div className="flex flex-col text-left">
             <h2 className="text-lg sm:text-xl font-black font-headline uppercase tracking-tight text-[#213147]">
               {NAV_ITEMS.find(n => n.id === activeNav)?.label}
             </h2>
@@ -875,9 +876,9 @@ export default function SolutionAdminPage() {
                     <KPICard label="Fee Revenue" value={`$${metrics?.fees.mtd.toLocaleString()}`} sub="Solution cut" icon={BarChart3} colorClass="bg-amber-500" />
                   </div>
 
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 text-left">
                     <Card className="border-2 shadow-sm overflow-hidden">
-                      <CardHeader className="bg-slate-50/50 border-b">
+                      <CardHeader className="bg-slate-50/50 border-b text-left">
                         <CardTitle className="text-xs font-black uppercase tracking-widest text-[#213147]">Today's Solution GMV</CardTitle>
                         <CardDescription className="text-[8px] font-bold uppercase">Consolidated gross sales across all venues</CardDescription>
                       </CardHeader>
@@ -898,7 +899,7 @@ export default function SolutionAdminPage() {
                     </Card>
 
                     <Card className="border-2 shadow-sm overflow-hidden">
-                      <CardHeader className="bg-slate-50/50 border-b">
+                      <CardHeader className="bg-slate-50/50 border-b text-left">
                         <CardTitle className="text-xs font-black uppercase tracking-widest text-[#213147]">Today's Koop Revenue</CardTitle>
                         <CardDescription className="text-[8px] font-bold uppercase">Consolidated collected convenience fees</CardDescription>
                       </CardHeader>
@@ -923,7 +924,7 @@ export default function SolutionAdminPage() {
 
               {activeNav === 'analytics' && (
                 <div className="space-y-8 animate-in fade-in duration-500">
-                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b-2 pb-4">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b-2 pb-4 text-left">
                     <div className="space-y-1">
                       <h3 className="font-headline font-black text-2xl text-[#213147] uppercase leading-tight">Global Solution Analytics</h3>
                       <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Historical performance distribution across all partners</p>
@@ -944,9 +945,9 @@ export default function SolutionAdminPage() {
                     </div>
                   </div>
 
-                  <div className="space-y-10">
+                  <div className="space-y-10 text-left">
                     <Card className="border-2 shadow-lg overflow-hidden bg-white">
-                      <CardHeader className="bg-slate-50/50 border-b">
+                      <CardHeader className="bg-slate-50/50 border-b text-left">
                         <CardTitle className="text-xs font-black uppercase tracking-widest text-[#213147]">Consolidated Solution GMV</CardTitle>
                         <CardDescription className="text-[8px] font-bold uppercase">Total gross volume ({analyticsRange})</CardDescription>
                       </CardHeader>
@@ -967,7 +968,7 @@ export default function SolutionAdminPage() {
                     </Card>
 
                     <Card className="border-2 shadow-lg overflow-hidden bg-white">
-                      <CardHeader className="bg-slate-50/50 border-b">
+                      <CardHeader className="bg-slate-50/50 border-b text-left">
                         <CardTitle className="text-xs font-black uppercase tracking-widest text-[#213147]">Solution Fee Revenue</CardTitle>
                         <CardDescription className="text-[8px] font-bold uppercase">Total collected fees ({analyticsRange})</CardDescription>
                       </CardHeader>
@@ -1025,7 +1026,7 @@ export default function SolutionAdminPage() {
                         <TableBody>
                           {sellers?.filter(s => s.courseName.toLowerCase().includes(searchTerm.toLowerCase())).map((venue) => (
                             <TableRow key={venue.id} className="group hover:bg-slate-50/50">
-                              <TableCell className="py-4">
+                              <TableCell className="py-4 text-left">
                                 <div className="flex items-center gap-2">
                                   <span className="font-black text-sm uppercase text-[#213147]">{venue.courseName}</span>
                                   {venue.isFoundingPartner && (
@@ -1036,9 +1037,9 @@ export default function SolutionAdminPage() {
                                   )}
                                 </div>
                               </TableCell>
-                              <TableCell className="text-[10px] font-bold text-muted-foreground uppercase">{venue.type}</TableCell>
-                              <TableCell className="text-[10px] font-medium hidden sm:table-cell">{venue.contactName}</TableCell>
-                              <TableCell><Badge className={cn(venue.status === 'Active' ? 'bg-green-600' : 'bg-slate-300')}>{venue.status}</Badge></TableCell>
+                              <TableCell className="text-[10px] font-bold text-muted-foreground uppercase text-left">{venue.type}</TableCell>
+                              <TableCell className="text-[10px] font-medium hidden sm:table-cell text-left">{venue.contactName}</TableCell>
+                              <TableCell className="text-left"><Badge className={cn(venue.status === 'Active' ? 'bg-green-600' : 'bg-slate-300')}>{venue.status}</Badge></TableCell>
                               <TableCell className="text-right pr-6">
                                 <div className="flex justify-end gap-2">
                                   <Button 
@@ -1053,10 +1054,10 @@ export default function SolutionAdminPage() {
                                     variant="ghost" 
                                     size="sm" 
                                     asChild
-                                    className="text-[10px] font-black uppercase gap-1.5 h-8"
+                                    className="text-[10px] font-black uppercase gap-1.5 h-8 hover:bg-amber-50 hover:text-amber-700 transition-colors"
                                   >
                                     <Link href={`/sellers/${venue.id}`}>
-                                      <ExternalLink className="h-3 w-3" /> Terminal
+                                      <UserCog className="h-3 w-3 text-amber-600" /> Impersonate
                                     </Link>
                                   </Button>
                                 </div>
@@ -1073,7 +1074,7 @@ export default function SolutionAdminPage() {
               {activeNav === 'demos' && (
                 <div className="space-y-8 animate-in fade-in duration-500">
                   <div className="flex justify-between items-center bg-white p-6 rounded-[2rem] border-2 shadow-sm">
-                     <div className="flex items-center gap-4">
+                     <div className="flex items-center gap-4 text-left">
                         <div className="bg-amber-50 p-3 rounded-2xl"><Sparkles className="h-6 w-6 text-amber-500" /></div>
                         <div>
                            <h3 className="font-headline font-black text-lg uppercase text-[#213147]">Demo System Control</h3>
@@ -1090,14 +1091,14 @@ export default function SolutionAdminPage() {
                      </Button>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 text-left">
                     {demoVenues.map((venue) => (
-                      <Card key={venue.id} className="group hover:border-indigo-500 transition-all border-2 shadow-sm overflow-hidden flex flex-col h-full">
+                      <Card key={venue.id} className="group hover:border-indigo-500 transition-all border-2 shadow-sm overflow-hidden flex flex-col h-full bg-white">
                         <div className={cn("h-24 bg-gradient-to-br p-6 flex items-end relative", venue.gradient)}>
                           {venue.icon}
                           <Badge className="bg-white/20 text-white border-white/30 backdrop-blur-md uppercase text-[9px] font-black">{venue.type}</Badge>
                         </div>
-                        <CardHeader className="pt-4 space-y-1">
+                        <CardHeader className="pt-4 space-y-1 text-left">
                           <CardTitle className="text-lg font-black uppercase">{venue.title}</CardTitle>
                           <CardDescription className="text-xs">{venue.sub}</CardDescription>
                         </CardHeader>
@@ -1182,11 +1183,11 @@ export default function SolutionAdminPage() {
 
               {activeNav === 'system' && (
                 <div className="space-y-8 animate-in fade-in duration-500">
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 text-left">
                     
                     {/* GLOBAL SERVICE AUTHORIZATION */}
                     <Card className="border-2 shadow-sm overflow-hidden lg:col-span-2">
-                      <CardHeader className="border-b bg-[#213147] text-white flex flex-row items-center gap-3">
+                      <CardHeader className="border-b bg-[#213147] text-white flex flex-row items-center gap-3 text-left">
                         <ShieldAlert className="h-5 w-5 text-primary" />
                         <div>
                           <CardTitle className="font-black uppercase tracking-tight text-sm">Global Service Authorization</CardTitle>
@@ -1220,8 +1221,8 @@ export default function SolutionAdminPage() {
                       </CardContent>
                     </Card>
 
-                    <Card className="border-2 shadow-sm overflow-hidden">
-                      <CardHeader className="border-b bg-primary/5">
+                    <Card className="border-2 shadow-sm overflow-hidden text-left">
+                      <CardHeader className="border-b bg-primary/5 text-left">
                         <CardTitle className="font-black uppercase tracking-tight text-sm">Solution Branding</CardTitle>
                         <CardDescription className="text-[10px] font-bold uppercase">Master logo across all venue portals</CardDescription>
                       </CardHeader>
@@ -1249,8 +1250,8 @@ export default function SolutionAdminPage() {
                       </CardContent>
                     </Card>
 
-                    <Card className="border-2 shadow-sm overflow-hidden">
-                      <CardHeader className="border-b bg-primary/5 flex flex-row items-center gap-3">
+                    <Card className="border-2 shadow-sm overflow-hidden text-left">
+                      <CardHeader className="border-b bg-primary/5 flex flex-row items-center gap-3 text-left">
                         <Satellite className="h-5 w-5 text-primary" />
                         <div>
                           <CardTitle className="font-black uppercase tracking-tight text-sm">GPS Freshness Protocol</CardTitle>
@@ -1302,8 +1303,8 @@ export default function SolutionAdminPage() {
                       </CardContent>
                     </Card>
 
-                    <Card className="border-2 shadow-sm overflow-hidden">
-                      <CardHeader className="border-b bg-primary/5 flex flex-row items-center gap-3">
+                    <Card className="border-2 shadow-sm overflow-hidden text-left">
+                      <CardHeader className="border-b bg-primary/5 flex flex-row items-center gap-3 text-left">
                         <Timer className="h-5 w-5 text-primary" />
                         <div>
                           <CardTitle className="font-black uppercase tracking-tight text-sm">Global Order Duration Thresholds</CardTitle>
@@ -1351,8 +1352,8 @@ export default function SolutionAdminPage() {
                       </CardContent>
                     </Card>
 
-                    <Card className="border-2 shadow-sm overflow-hidden lg:col-span-2">
-                      <CardHeader className="border-b bg-[#213147] text-white flex flex-row items-center gap-3">
+                    <Card className="border-2 shadow-sm overflow-hidden lg:col-span-2 text-left">
+                      <CardHeader className="border-b bg-[#213147] text-white flex flex-row items-center gap-3 text-left">
                         <Satellite className="h-5 w-5 text-primary" />
                         <div>
                           <CardTitle className="font-black uppercase tracking-tight text-sm">Operational Sync Protocols</CardTitle>
@@ -1432,11 +1433,11 @@ export default function SolutionAdminPage() {
       <Dialog open={isAddVenueOpen} onOpenChange={setIsAddVenueOpen}>
         <DialogContent className="sm:max-w-[700px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
           <DialogHeader className="p-8 bg-[#213147] text-white">
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 text-left">
               <div className="bg-primary/20 p-3 rounded-2xl shrink-0">
                 <Store className="h-6 w-6 text-primary" />
               </div>
-              <div>
+              <div className="text-left">
                 <DialogTitle className="font-headline font-black uppercase tracking-tight text-white text-2xl leading-none">Venue Registration</DialogTitle>
                 <DialogDescription className="text-white/40 text-[10px] font-bold uppercase tracking-widest mt-1">Provision a new business registry and operational terminal</DialogDescription>
               </div>
@@ -1480,7 +1481,7 @@ export default function SolutionAdminPage() {
 
                   <FormField control={registrationForm.control} name="menuTypes" render={({ field }) => (
                     <FormItem className="space-y-4">
-                      <div className="flex items-center gap-2 border-b-2 pb-2">
+                      <div className="flex items-center gap-2 border-b-2 pb-2 text-left">
                         <Zap className="h-4 w-4 text-primary" />
                         <h4 className="text-[10px] font-black uppercase tracking-widest">Authorized Service Modes</h4>
                       </div>
@@ -1507,7 +1508,7 @@ export default function SolutionAdminPage() {
                     </FormItem>
                   )} />
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-4 border-t">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-4 border-t text-left">
                     <FormField control={registrationForm.control} name="contactName" render={({ field }) => (
                       <FormItem>
                         <FormLabel className="text-[10px] font-black uppercase tracking-widest">Primary Contact</FormLabel>
@@ -1525,7 +1526,7 @@ export default function SolutionAdminPage() {
                   </div>
 
                   <FormField control={registrationForm.control} name="ownerUid" render={({ field }) => (
-                    <FormItem className="bg-primary/5 p-4 rounded-2xl border-2 border-primary/10">
+                    <FormItem className="bg-primary/5 p-4 rounded-2xl border-2 border-primary/10 text-left">
                       <FormLabel className="text-[10px] font-black uppercase text-primary tracking-widest">Initial Manager Identity (Auth UID)</FormLabel>
                       <div className="flex gap-2">
                         <FormControl><Input {...field} placeholder="Firebase Auth UID" className="h-11 border-2 font-mono text-[10px]" /></FormControl>
@@ -1550,11 +1551,11 @@ export default function SolutionAdminPage() {
       <Dialog open={isVenueDetailOpen} onOpenChange={setIsVenueDetailOpen}>
         <DialogContent className="sm:max-w-[700px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
           <DialogHeader className="p-8 bg-[#213147] text-white">
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 text-left">
               <div className="bg-primary/20 p-3 rounded-2xl shrink-0">
                 <Settings2 className="h-6 w-6 text-primary" />
               </div>
-              <div>
+              <div className="text-left">
                 <DialogTitle className="font-headline font-black uppercase tracking-tight text-white text-xl leading-none">Venue Maintenance</DialogTitle>
                 <DialogDescription className="text-white/40 text-[9px] font-bold uppercase tracking-widest mt-1 text-left">
                   Adjust solution registry and financial settings for {selectedSeller?.courseName}
@@ -1563,7 +1564,7 @@ export default function SolutionAdminPage() {
             </div>
           </DialogHeader>
           <ScrollArea className="max-h-[70vh]">
-            <div className="p-8">
+            <div className="p-8 text-left">
               {!selectedSeller ? (
                 <div className="flex flex-col items-center justify-center py-20 gap-4">
                   <Loader2 className="h-10 w-10 animate-spin text-primary" />
@@ -1572,7 +1573,7 @@ export default function SolutionAdminPage() {
               ) : (
                 <Form {...maintenanceForm}>
                   <form onSubmit={maintenanceForm.handleSubmit(handleSaveVenueMaintenance)} className="space-y-10">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-left">
                       <FormField control={maintenanceForm.control} name="name" render={({ field }) => (
                         <FormItem>
                           <FormLabel className="text-[10px] font-black uppercase tracking-widest">Public Name</FormLabel>
@@ -1589,8 +1590,8 @@ export default function SolutionAdminPage() {
                       )} />
                     </div>
 
-                    <div className="space-y-6 bg-slate-50 p-6 rounded-3xl border-2">
-                      <div className="flex items-center gap-2 border-b pb-2">
+                    <div className="space-y-6 bg-slate-50 p-6 rounded-3xl border-2 text-left">
+                      <div className="flex items-center gap-2 border-b pb-2 text-left">
                         <LayoutList className="h-4 w-4 text-indigo-600" />
                         <h4 className="text-[10px] font-black uppercase tracking-widest text-indigo-600">Service Configuration</h4>
                       </div>
@@ -1632,13 +1633,13 @@ export default function SolutionAdminPage() {
                       )}
                     </div>
 
-                    <div className="space-y-6">
-                      <div className="flex items-center gap-2 border-b-2 pb-2">
+                    <div className="space-y-6 text-left">
+                      <div className="flex items-center gap-2 border-b-2 pb-2 text-left">
                          <CreditCard className="h-4 w-4 text-indigo-600" />
                          <h4 className="text-[10px] font-black uppercase tracking-widest text-indigo-600">Financial Integration</h4>
                       </div>
                       
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-left">
                          <FormField control={maintenanceForm.control} name="stripeConnectId" render={({ field }) => (
                            <FormItem>
                              <FormLabel className="text-[10px] font-black uppercase tracking-widest">Stripe Connect ID</FormLabel>
@@ -1657,7 +1658,7 @@ export default function SolutionAdminPage() {
                          )} />
                       </div>
 
-                      <div className="grid grid-cols-3 gap-4">
+                      <div className="grid grid-cols-3 gap-4 text-left">
                         <FormField control={maintenanceForm.control} name="patronConvenienceFee" render={({ field }) => (
                           <FormItem>
                             <FormLabel className="text-[9px] font-black uppercase tracking-widest">Patron Fee (Cents)</FormLabel>
@@ -1682,7 +1683,7 @@ export default function SolutionAdminPage() {
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between p-4 bg-amber-50 rounded-2xl border-2 border-amber-100">
+                    <div className="flex items-center justify-between p-4 bg-amber-50 rounded-2xl border-2 border-amber-100 text-left">
                       <div className="flex items-center gap-3">
                         <Star className="h-5 w-5 text-amber-500 fill-current" />
                         <div>
@@ -1697,7 +1698,7 @@ export default function SolutionAdminPage() {
                       )} />
                     </div>
 
-                    <div className="flex flex-col sm:flex-row gap-3">
+                    <div className="flex flex-col sm:flex-row gap-3 pt-4">
                       <Button type="submit" disabled={isProcessingSave} className="flex-1 h-14 bg-[#213147] hover:bg-black font-black uppercase tracking-widest text-[11px] gap-2 shadow-xl">
                         {isProcessingSave ? <Loader2 className="h-5 w-5 animate-spin" /> : <Save className="h-5 w-5" />} Commit Changes
                       </Button>

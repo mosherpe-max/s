@@ -60,6 +60,8 @@ import {
   Star,
   LayoutList,
   Wand2,
+  UserCog,
+  ShieldAlert,
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -243,7 +245,7 @@ function KPICard({ label, value, sub, icon: Icon, colorClass, highlight = false 
           <Icon className="h-2.5 w-2.5" /> {label}
         </CardDescription>
       </CardHeader>
-      <CardContent className="pb-3 px-3 sm:px-4">
+      <CardContent className="pb-3 px-3 sm:px-4 text-left">
         <div className="text-xl sm:text-2xl lg:text-3xl font-black font-headline tracking-tighter text-[#213147] mb-0.5">{value}</div>
         <p className="text-[8px] sm:text-[10px] font-bold text-muted-foreground uppercase leading-none">{sub}</p>
       </CardContent>
@@ -427,7 +429,7 @@ export default function SolutionAdminPage({ params }: { params: Promise<{ seller
     }
   }, [seller]);
 
-  // ANALYTICS PROCESSING ENGINE - Defined before useMemo blocks
+  // ANALYTICS PROCESSING ENGINE
   const getChartDataForRange = (range: 'Today' | 'MTD' | 'YTD') => {
     if (!orders || !seller) return [];
     const modes = seller.menuTypes || [];
@@ -907,12 +909,26 @@ export default function SolutionAdminPage({ params }: { params: Promise<{ seller
             <h1 className="text-sm font-black text-[#213147] uppercase tracking-tight leading-none mb-1">
               {seller?.courseName}
             </h1>
-            <h2 className="text-[10px] font-bold uppercase tracking-widest text-primary leading-none">
-              {NAV_ITEMS.find(n => n.id === activeNav)?.label}
-            </h2>
+            <div className="flex items-center gap-2">
+              <h2 className="text-[10px] font-bold uppercase tracking-widest text-primary leading-none">
+                {NAV_ITEMS.find(n => n.id === activeNav)?.label}
+              </h2>
+              {isSuperAdmin && (
+                <Badge variant="outline" className="h-4 px-1.5 bg-amber-500 text-white border-0 font-black uppercase text-[7px] animate-pulse">
+                  Impersonation Active
+                </Badge>
+              )}
+            </div>
           </div>
         </div>
         <div className="flex items-center gap-4">
+          {isSuperAdmin && (
+            <Button variant="outline" size="sm" asChild className="h-9 text-[10px] font-black uppercase tracking-widest border-amber-200 bg-amber-50 text-amber-600 hover:bg-amber-100 gap-2">
+              <Link href="/admin">
+                <ShieldAlert className="h-3.5 w-3.5" /> Return to Global Admin
+              </Link>
+            </Button>
+          )}
           <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-green-50 text-green-600 border border-green-100 rounded-full">
             <div className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
             <span className="text-[9px] font-black uppercase tracking-widest">Live Sync Online</span>
@@ -951,13 +967,13 @@ export default function SolutionAdminPage({ params }: { params: Promise<{ seller
                     <CardHeader className="border-b bg-[#213147] text-white flex flex-row items-center justify-between py-4">
                       <div className="flex items-center gap-3">
                         <div className="bg-primary/20 p-2 rounded-xl"><Power className="h-5 w-5 text-primary" /></div>
-                        <div>
+                        <div className="text-left">
                           <CardTitle className="text-xs font-black uppercase tracking-widest text-white leading-none">Service Command Center</CardTitle>
                           <CardDescription className="text-[8px] font-bold uppercase text-white/40 mt-1">Real-time channel authorization</CardDescription>
                         </div>
                       </div>
                     </CardHeader>
-                    <CardContent className="p-4 sm:p-6">
+                    <CardContent className="p-4 sm:p-6 text-left">
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                         {seller?.menuTypes?.map(mode => {
                           const fieldMap: Record<string, keyof Seller> = { 
@@ -1038,7 +1054,7 @@ export default function SolutionAdminPage({ params }: { params: Promise<{ seller
                   </div>
 
                   <Card className="border-2 shadow-sm overflow-hidden">
-                    <CardHeader className="bg-slate-50/50 border-b">
+                    <CardHeader className="bg-slate-50/50 border-b text-left">
                       <CardTitle className="text-xs font-black uppercase tracking-widest text-[#213147]">Today's Revenue Velocity</CardTitle>
                       <CardDescription className="text-[8px] font-bold uppercase text-muted-foreground">Hourly distribution across authorized channels</CardDescription>
                     </CardHeader>
@@ -1062,16 +1078,16 @@ export default function SolutionAdminPage({ params }: { params: Promise<{ seller
 
               {activeNav === 'analytics' && (
                 <div className="space-y-6 animate-in fade-in duration-500">
-                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b-2 pb-4">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b-2 pb-4 text-left">
                     <div className="space-y-1">
                       <h3 className="font-headline font-black text-2xl text-[#213147] uppercase leading-tight">Performance Analytics</h3>
                       <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Historical revenue trends and channel distribution</p>
                     </div>
                   </div>
 
-                  <Card className="border-2 shadow-lg overflow-hidden bg-white">
+                  <Card className="border-2 shadow-lg overflow-hidden bg-white text-left">
                     <CardHeader className="bg-slate-50/50 border-b flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                      <div className="space-y-0.5">
+                      <div className="space-y-0.5 text-left">
                         <CardTitle className="text-xs font-black uppercase tracking-widest text-[#213147]">Revenue Distribution</CardTitle>
                         <CardDescription className="text-[8px] font-bold uppercase">Toggle range for deeper historical analysis</CardDescription>
                       </div>
@@ -1104,7 +1120,7 @@ export default function SolutionAdminPage({ params }: { params: Promise<{ seller
                         </BarChart>
                       </ResponsiveContainer>
                     </CardContent>
-                    <CardFooter className="bg-slate-50 border-t py-4">
+                    <CardFooter className="bg-slate-50 border-t py-4 text-left">
                        <p className="text-[9px] font-bold uppercase text-muted-foreground tracking-widest">
                          Reporting Currency: USD • Last Updated: {format(new Date(now), 'h:mm a')}
                        </p>
@@ -1114,137 +1130,137 @@ export default function SolutionAdminPage({ params }: { params: Promise<{ seller
               )}
 
               {activeNav === 'orders' && (
-                 <div className="space-y-6 animate-in fade-in duration-500">
-                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b-2 pb-4">
-                      <div className="space-y-1">
-                        <h3 className="font-headline font-black text-2xl text-[#213147] uppercase leading-tight">Order Audit Log</h3>
-                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Transaction level oversight & reporting</p>
+                <div className="space-y-6 animate-in fade-in duration-500">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b-2 pb-4 text-left">
+                    <div className="space-y-1">
+                      <h3 className="font-headline font-black text-2xl text-[#213147] uppercase leading-tight">Order Audit Log</h3>
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Transaction level oversight & reporting</p>
+                    </div>
+                  </div>
+
+                  <Card className="border-2 shadow-sm p-4 bg-white text-left">
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                      <div className="space-y-1.5">
+                        <Label className="text-[9px] font-black uppercase text-muted-foreground tracking-widest px-1">Date Range</Label>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button variant="outline" className="w-full h-11 border-2 justify-start font-bold text-xs gap-2">
+                              <CalendarDays className="h-4 w-4 text-primary" />
+                              {orderDateRange?.from ? (
+                                orderDateRange.to ? (
+                                  <>{format(orderDateRange.from, 'MMM d')} - {format(orderDateRange.to, 'MMM d, yyyy')}</>
+                                ) : (
+                                  format(orderDateRange.from, 'MMM d, yyyy')
+                                )
+                              ) : (
+                                <span>Pick a date</span>
+                              )}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0 rounded-2xl border-2" align="start">
+                            <Calendar
+                              initialFocus
+                              mode="range"
+                              defaultMonth={orderDateRange?.from}
+                              selected={orderDateRange}
+                              onSelect={setOrderDateRange}
+                              numberOfMonths={2}
+                              classNames={{
+                                range_start: "bg-primary text-primary-foreground rounded-l-md",
+                                range_end: "bg-primary text-primary-foreground rounded-r-md",
+                                range_middle: "bg-primary/10 text-primary",
+                                selected: "bg-primary text-primary-foreground"
+                              }}
+                            />
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <Label className="text-[9px] font-black uppercase text-muted-foreground tracking-widest px-1">Service Mode</Label>
+                        <Select value={orderModeFilter} onValueChange={setOrderModeFilter}>
+                          <SelectTrigger className="h-11 border-2 font-bold text-xs">
+                            <SelectValue placeholder="All Modes" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="All" className="text-xs font-bold uppercase">All Modes</SelectItem>
+                            {seller?.menuTypes?.map(m => <SelectItem key={m} value={m} className="text-xs font-bold uppercase">{m}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="md:col-span-2 space-y-1.5">
+                        <Label className="text-[9px] font-black uppercase text-muted-foreground tracking-widest px-1">Search Tickets</Label>
+                        <div className="relative">
+                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                          <Input 
+                            placeholder="Order ID or Patron Name..." 
+                            className="h-11 pl-10 border-2 font-bold text-xs" 
+                            value={orderSearchTerm}
+                            onChange={(e) => setOrderSearchTerm(e.target.value)}
+                          />
+                        </div>
                       </div>
                     </div>
+                  </Card>
 
-                    <Card className="border-2 shadow-sm p-4 bg-white">
-                       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                          <div className="space-y-1.5">
-                             <Label className="text-[9px] font-black uppercase text-muted-foreground tracking-widest px-1">Date Range</Label>
-                             <Popover>
-                                <PopoverTrigger asChild>
-                                   <Button variant="outline" className="w-full h-11 border-2 justify-start font-bold text-xs gap-2">
-                                      <CalendarDays className="h-4 w-4 text-primary" />
-                                      {orderDateRange?.from ? (
-                                        orderDateRange.to ? (
-                                          <>{format(orderDateRange.from, 'MMM d')} - {format(orderDateRange.to, 'MMM d, yyyy')}</>
-                                        ) : (
-                                          format(orderDateRange.from, 'MMM d, yyyy')
-                                        )
-                                      ) : (
-                                        <span>Pick a date</span>
-                                      )}
-                                   </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0 rounded-2xl border-2" align="start">
-                                   <Calendar
-                                      initialFocus
-                                      mode="range"
-                                      defaultMonth={orderDateRange?.from}
-                                      selected={orderDateRange}
-                                      onSelect={setOrderDateRange}
-                                      numberOfMonths={2}
-                                      classNames={{
-                                        range_start: "bg-primary text-primary-foreground rounded-l-md",
-                                        range_end: "bg-primary text-primary-foreground rounded-r-md",
-                                        range_middle: "bg-primary/10 text-primary",
-                                        selected: "bg-primary text-primary-foreground"
-                                      }}
-                                   />
-                                </PopoverContent>
-                             </Popover>
-                          </div>
-
-                          <div className="space-y-1.5">
-                             <Label className="text-[9px] font-black uppercase text-muted-foreground tracking-widest px-1">Service Mode</Label>
-                             <Select value={orderModeFilter} onValueChange={setOrderModeFilter}>
-                                <SelectTrigger className="h-11 border-2 font-bold text-xs">
-                                   <SelectValue placeholder="All Modes" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                   <SelectItem value="All" className="text-xs font-bold uppercase">All Modes</SelectItem>
-                                   {seller?.menuTypes?.map(m => <SelectItem key={m} value={m} className="text-xs font-bold uppercase">{m}</SelectItem>)}
-                                </SelectContent>
-                             </Select>
-                          </div>
-
-                          <div className="md:col-span-2 space-y-1.5">
-                             <Label className="text-[9px] font-black uppercase text-muted-foreground tracking-widest px-1">Search Tickets</Label>
-                             <div className="relative">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                <Input 
-                                   placeholder="Order ID or Patron Name..." 
-                                   className="h-11 pl-10 border-2 font-bold text-xs" 
-                                   value={orderSearchTerm}
-                                   onChange={(e) => setOrderSearchTerm(e.target.value)}
-                                />
-                             </div>
-                          </div>
-                       </div>
-                    </Card>
-
-                    <Card className="border-2 shadow-sm overflow-hidden">
-                       <div className="overflow-x-auto no-scrollbar">
-                          <Table className="min-w-[800px]">
-                            <TableHeader className="bg-slate-50 border-b">
-                              <TableRow>
-                                <TableHead className="text-[9px] font-black uppercase tracking-widest px-3">Order ID</TableHead>
-                                <TableHead className="text-[9px] font-black uppercase tracking-widest px-3">Timestamp</TableHead>
-                                <TableHead className="text-[9px] font-black uppercase tracking-widest px-3">Patron</TableHead>
-                                <TableHead className="text-[9px] font-black uppercase tracking-widest px-3">Mode</TableHead>
-                                <TableHead className="text-[9px] font-black uppercase tracking-widest px-3">Total</TableHead>
-                                <TableHead className="text-[9px] font-black uppercase tracking-widest px-3">Status</TableHead>
-                                <TableHead className="text-right text-[9px] font-black uppercase tracking-widest px-4">Actions</TableHead>
-                              </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                              {filteredOrderHistory.length === 0 ? (
-                                <TableRow>
-                                  <TableCell colSpan={7} className="h-40 text-center text-muted-foreground font-bold uppercase text-[10px] opacity-40">
-                                     No matching orders found in this range
-                                  </TableCell>
-                                </TableRow>
-                              ) : filteredOrderHistory.map((o) => (
-                                <TableRow key={o.id} className="group">
-                                  <TableCell className="font-mono text-[10px] font-black px-3 text-left">#{getNumericOrderId(o.id)}</TableCell>
-                                  <TableCell className="text-[10px] font-bold text-slate-500 uppercase px-3 text-left">{o.createdAt && typeof o.createdAt.toDate === 'function' ? format(o.createdAt.toDate(), 'MMM d, h:mm a') : 'N/A'}</TableCell>
-                                  <TableCell className="text-[10px] font-black text-[#213147] uppercase truncate max-w-[120px] px-3 text-left">{o.customerName}</TableCell>
-                                  <TableCell className="px-3 text-left"><Badge variant="outline" className="text-[8px] font-black uppercase whitespace-nowrap">{o.menuType}</Badge></TableCell>
-                                  <TableCell className="font-mono text-[10px] font-black text-primary px-3 text-left">${(o.total || 0).toFixed(2)}</TableCell>
-                                  <TableCell className="px-3 text-left">
-                                    <Badge className={cn("text-[8px] font-black uppercase border-0 whitespace-nowrap", o.status === 'Delivered' ? 'bg-green-600' : 'bg-slate-400')}>
-                                      {o.status}
-                                    </Badge>
-                                  </TableCell>
-                                  <TableCell className="text-right px-4">
-                                    <Button variant="outline" size="sm" className="h-8 text-[9px] font-black uppercase border-2 gap-1.5" onClick={() => handleUpdateStatus(o.id, o.status)} disabled={o.status === 'Delivered' || o.status === 'Cancelled'}>
-                                      Advance <ChevronRight className="h-3 w-3" />
-                                    </Button>
-                                  </TableCell>
-                                </TableRow>
-                              ))}
-                            </TableBody>
-                          </Table>
-                       </div>
-                    </Card>
-                 </div>
+                  <Card className="border-2 shadow-sm overflow-hidden text-left">
+                    <div className="overflow-x-auto no-scrollbar">
+                      <Table className="min-w-[800px]">
+                        <TableHeader className="bg-slate-50 border-b">
+                          <TableRow>
+                            <TableHead className="text-[9px] font-black uppercase tracking-widest px-3">Order ID</TableHead>
+                            <TableHead className="text-[9px] font-black uppercase tracking-widest px-3">Timestamp</TableHead>
+                            <TableHead className="text-[9px] font-black uppercase tracking-widest px-3">Patron</TableHead>
+                            <TableHead className="text-[9px] font-black uppercase tracking-widest px-3">Mode</TableHead>
+                            <TableHead className="text-[9px] font-black uppercase tracking-widest px-3">Total</TableHead>
+                            <TableHead className="text-[9px] font-black uppercase tracking-widest px-3">Status</TableHead>
+                            <TableHead className="text-right text-[9px] font-black uppercase tracking-widest px-4">Actions</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {filteredOrderHistory.length === 0 ? (
+                            <TableRow>
+                              <TableCell colSpan={7} className="h-40 text-center text-muted-foreground font-bold uppercase text-[10px] opacity-40">
+                                No matching orders found in this range
+                              </TableCell>
+                            </TableRow>
+                          ) : filteredOrderHistory.map((o) => (
+                            <TableRow key={o.id} className="group">
+                              <TableCell className="font-mono text-[10px] font-black px-3 text-left">#{getNumericOrderId(o.id)}</TableCell>
+                              <TableCell className="text-[10px] font-bold text-slate-500 uppercase px-3 text-left">{o.createdAt && typeof o.createdAt.toDate === 'function' ? format(o.createdAt.toDate(), 'MMM d, h:mm a') : 'N/A'}</TableCell>
+                              <TableCell className="text-[10px] font-black text-[#213147] uppercase truncate max-w-[120px] px-3 text-left">{o.customerName}</TableCell>
+                              <TableCell className="px-3 text-left"><Badge variant="outline" className="text-[8px] font-black uppercase whitespace-nowrap">{o.menuType}</Badge></TableCell>
+                              <TableCell className="font-mono text-[10px] font-black text-primary px-3 text-left">${(o.total || 0).toFixed(2)}</TableCell>
+                              <TableCell className="px-3 text-left">
+                                <Badge className={cn("text-[8px] font-black uppercase border-0 whitespace-nowrap", o.status === 'Delivered' ? 'bg-green-600' : 'bg-slate-400')}>
+                                  {o.status}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-right px-4">
+                                <Button variant="outline" size="sm" className="h-8 text-[9px] font-black uppercase border-2 gap-1.5" onClick={() => handleUpdateStatus(o.id, o.status)} disabled={o.status === 'Delivered' || o.status === 'Cancelled'}>
+                                  Advance <ChevronRight className="h-3 w-3" />
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </Card>
+                </div>
               )}
 
               {activeNav === 'menu' && (
                 <div className="space-y-6 animate-in fade-in duration-500">
-                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b-2 pb-4">
-                    <div className="space-y-1">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b-2 pb-4 text-left">
+                    <div className="space-y-1 text-left">
                       <h3 className="font-headline font-black text-2xl text-[#213147] uppercase leading-tight">Master Menu Library</h3>
                       <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Global items available for all service modes</p>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 text-left">
                     {categories.filter(c => c !== 'Featured').map(cat => {
                       const items = menuItems?.filter(i => i.category === cat);
                       return (
@@ -1282,8 +1298,8 @@ export default function SolutionAdminPage({ params }: { params: Promise<{ seller
                             ) : items.map(item => (
                               <Card key={item.id} className={cn("border-2 shadow-sm group transition-all", item.isAvailable ? "bg-white" : "bg-red-50 border-red-100")}>
                                 <CardContent className="p-3.5 flex flex-col gap-3 text-left">
-                                  <div className="flex items-start justify-between gap-3">
-                                    <div className="flex-1 min-w-0">
+                                  <div className="flex items-start justify-between gap-3 text-left">
+                                    <div className="flex-1 min-w-0 text-left">
                                       <div className="flex items-center gap-2">
                                         <p className="font-black text-[11px] uppercase text-[#213147] truncate">{item.name}</p>
                                         {!item.isAvailable && <Badge variant="destructive" className="h-3.5 px-1 text-[7px] font-black uppercase border-0">86'D</Badge>}
@@ -1305,7 +1321,7 @@ export default function SolutionAdminPage({ params }: { params: Promise<{ seller
                                     </div>
                                   </div>
                                   
-                                  <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+                                  <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-left">
                                      <div className="flex items-center gap-2">
                                         <Switch 
                                           checked={!!(item.isAvailable)} 
@@ -1333,7 +1349,7 @@ export default function SolutionAdminPage({ params }: { params: Promise<{ seller
 
               {activeNav === 'modifiers' && (
                 <div className="space-y-6 animate-in fade-in duration-500">
-                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b-2 pb-4">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b-2 pb-4 text-left">
                     <div className="space-y-1">
                       <h3 className="font-headline font-black text-2xl text-[#213147] uppercase leading-tight">Modifier Groups</h3>
                       <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Reusable sets of customizations and add-ons</p>
@@ -1349,11 +1365,11 @@ export default function SolutionAdminPage({ params }: { params: Promise<{ seller
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 text-left">
                     {modifierGroups?.map(group => (
-                      <Card key={group.id} className="border-2 shadow-sm group hover:border-indigo-200 transition-all bg-white">
+                      <Card key={group.id} className="border-2 shadow-sm group hover:border-indigo-200 transition-all bg-white text-left">
                         <CardHeader className="p-4 border-b bg-slate-50/50 flex flex-row items-center justify-between space-y-0 text-left">
-                           <div className="space-y-0.5">
+                           <div className="space-y-0.5 text-left">
                               <p className="font-black text-xs uppercase text-[#213147]">{group.name}</p>
                               <p className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest">
                                 {group.minSelection > 0 ? `Required (${group.minSelection})` : 'Optional'} · Max {group.maxSelection}
@@ -1368,7 +1384,7 @@ export default function SolutionAdminPage({ params }: { params: Promise<{ seller
                               <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleDeleteModifierGroup(group.id)}><Trash2 className="h-4 w-4" /></Button>
                            </div>
                         </CardHeader>
-                        <CardContent className="p-4">
+                        <CardContent className="p-4 text-left">
                            <div className="flex flex-wrap gap-1.5">
                               {group.options.map((opt, idx) => (
                                 <Badge key={`${group.id}-opt-${idx}`} variant="outline" className={cn("text-[8px] font-bold uppercase px-1.5 py-0.5 h-auto", !opt.isAvailable && "opacity-40 line-through")}>
@@ -1385,7 +1401,7 @@ export default function SolutionAdminPage({ params }: { params: Promise<{ seller
 
               {activeNav === 'service' && (
                 <div className="space-y-8 animate-in fade-in duration-500">
-                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b-2 pb-4">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b-2 pb-4 text-left">
                     <div className="space-y-1">
                       <h3 className="font-headline font-black text-2xl text-[#213147] uppercase leading-tight">Service Mode Menu Builder</h3>
                       <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Construct specific menus for each active channel</p>
@@ -1407,7 +1423,7 @@ export default function SolutionAdminPage({ params }: { params: Promise<{ seller
                     <div className="space-y-4">
                       <div className="flex items-center gap-3 border-b-2 pb-2 px-1">
                           <div className="p-1.5 bg-indigo-50 rounded-lg text-indigo-600"><LayoutList className="h-4 w-4" /></div>
-                          <div className="space-y-0.5">
+                          <div className="space-y-0.5 text-left">
                             <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-[#213147]">Category Visibility & Sorting</h4>
                             <p className="text-[8px] font-bold text-muted-foreground uppercase">Enable categories and drag to define patron scroll order.</p>
                           </div>
@@ -1441,7 +1457,7 @@ export default function SolutionAdminPage({ params }: { params: Promise<{ seller
 
                     <div className="space-y-12">
                        <div className="space-y-4 bg-amber-50/30 p-6 rounded-[2rem] border-2 border-amber-100/50">
-                          <div className="flex items-center gap-2 border-b-2 border-amber-100 pb-2 px-1">
+                          <div className="flex items-center gap-2 border-b-2 border-amber-100 pb-2 px-1 text-left">
                              <Star className="h-4 w-4 text-amber-500 fill-current" />
                              <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-amber-800">Featured Highlight Items</h4>
                           </div>
@@ -1577,7 +1593,7 @@ export default function SolutionAdminPage({ params }: { params: Promise<{ seller
 
               {activeNav === 'staff' && (
                 <div className="space-y-6 animate-in fade-in duration-500">
-                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 text-left">
                     <div className="space-y-1">
                       <h3 className="font-headline font-black text-2xl text-[#213147] uppercase leading-tight">Manage Personnel</h3>
                       <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Shift management & access tokens</p>
@@ -1587,7 +1603,7 @@ export default function SolutionAdminPage({ params }: { params: Promise<{ seller
                     </Button>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-left">
                     {staff?.map((s) => (
                       <Card key={s.id} className={cn("border-2 shadow-sm group transition-all", s.isActive ? "bg-white" : "bg-slate-50 border-slate-100 opacity-60")}>
                         <CardHeader className="p-4 border-b flex flex-row items-center justify-between space-y-0 text-left">
@@ -1601,7 +1617,7 @@ export default function SolutionAdminPage({ params }: { params: Promise<{ seller
                             </div>
                           </div>
                         </CardHeader>
-                        <CardContent className="p-4 flex items-center justify-between">
+                        <CardContent className="p-4 flex items-center justify-between text-left">
                           <div className="flex flex-col gap-1 text-left">
                              <span className="text-[8px] font-black uppercase text-muted-foreground tracking-widest">Access Key</span>
                              <span className="font-mono text-[10px] font-bold text-[#213147]">{s.pin}</span>
@@ -1624,7 +1640,7 @@ export default function SolutionAdminPage({ params }: { params: Promise<{ seller
                     <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Promotion assets for your establishment</p>
                   </div>
 
-                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 text-left">
                     <Card className="lg:col-span-1 border-2 shadow-sm overflow-hidden h-fit">
                       <CardHeader className="bg-slate-50/50 border-b text-left">
                         <CardTitle className="text-xs font-black uppercase tracking-widest text-[#213147]">Venue QR Code</CardTitle>
@@ -1660,7 +1676,7 @@ export default function SolutionAdminPage({ params }: { params: Promise<{ seller
                     <div className="lg:col-span-2 space-y-8">
                       <div className="flex items-center gap-3 border-b-2 pb-4 px-1 text-left">
                         <div className="p-2 bg-primary/10 rounded-xl text-primary"><MapIcon className="h-5 w-5" /></div>
-                        <div className="space-y-0.5">
+                        <div className="space-y-0.5 text-left">
                            <h4 className="font-headline font-black text-lg text-[#213147] uppercase leading-tight">Print Collateral</h4>
                            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Establishment-specific signage templates</p>
                         </div>
@@ -1724,19 +1740,19 @@ export default function SolutionAdminPage({ params }: { params: Promise<{ seller
 
               {activeNav === 'settings' && (
                 <div className="space-y-10 animate-in fade-in duration-500 text-left">
-                  <form onSubmit={handleUpdateVenueSettings} className="space-y-10">
+                  <form onSubmit={handleUpdateVenueSettings} className="space-y-10 text-left">
                   <div className="space-y-6">
-                    <div className="flex items-center gap-3 border-b-2 pb-4">
+                    <div className="flex items-center gap-3 border-b-2 pb-4 text-left">
                       <div className="p-2 bg-indigo-50 rounded-xl text-indigo-600"><Building className="h-5 w-5" /></div>
-                      <div className="space-y-0.5">
+                      <div className="space-y-0.5 text-left">
                         <h3 className="font-headline font-black text-2xl text-[#213147] uppercase leading-tight">General Identity</h3>
                         <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Branding and menu presentation</p>
                       </div>
                     </div>
                     
                     <Card className="border-2 shadow-sm overflow-hidden text-left">
-                      <CardContent className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="space-y-2">
+                      <CardContent className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6 text-left">
+                        <div className="space-y-2 text-left">
                           <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Public Venue Name</Label>
                           <Input 
                             value={venueName}
@@ -1745,7 +1761,7 @@ export default function SolutionAdminPage({ params }: { params: Promise<{ seller
                             className="h-12 border-2 font-bold focus-visible:ring-primary"
                           />
                         </div>
-                        <div className="space-y-2">
+                        <div className="space-y-2 text-left">
                           <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Tax Rate (%)</Label>
                           <Input 
                             type="number"
@@ -1760,9 +1776,9 @@ export default function SolutionAdminPage({ params }: { params: Promise<{ seller
                   </div>
 
                   <div className="space-y-6">
-                    <div className="flex items-center gap-3 border-b-2 pb-4">
+                    <div className="flex items-center gap-3 border-b-2 pb-4 text-left">
                       <div className="p-2 bg-primary/10 rounded-xl text-primary"><Timer className="h-5 w-5" /></div>
-                      <div className="space-y-0.5">
+                      <div className="space-y-0.5 text-left">
                         <h3 className="font-headline font-black text-2xl text-[#213147] uppercase leading-tight">Operational Thresholds</h3>
                         <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Timing protocols for order fulfillment</p>
                       </div>
@@ -1772,16 +1788,16 @@ export default function SolutionAdminPage({ params }: { params: Promise<{ seller
                       {(seller?.menuTypes || []).map(mode => {
                         const thresholds = venueThresholds[mode] || DEFAULT_THRESHOLDS[mode] || { warning: 15, max: 20 };
                         return (
-                          <Card key={mode} className="border-2 shadow-sm overflow-hidden group">
+                          <Card key={mode} className="border-2 shadow-sm overflow-hidden group text-left">
                             <CardHeader className="bg-slate-50/50 border-b flex flex-row items-center justify-between py-3 text-left">
                               <div className="flex items-center gap-2">
                                 <div className="w-1.5 h-1.5 rounded-full bg-primary" />
                                 <span className="text-[11px] font-black uppercase text-[#213147]">{mode}</span>
                               </div>
                             </CardHeader>
-                            <CardContent className="p-6 space-y-6">
-                              <div className="grid grid-cols-2 gap-6">
-                                <div className="space-y-2">
+                            <CardContent className="p-6 space-y-6 text-left">
+                              <div className="grid grid-cols-2 gap-6 text-left">
+                                <div className="space-y-2 text-left">
                                   <Label className="text-[10px] font-black uppercase text-amber-600 tracking-widest">Warning (Min)</Label>
                                   <Input 
                                     type="number"
@@ -1794,7 +1810,7 @@ export default function SolutionAdminPage({ params }: { params: Promise<{ seller
                                     className="h-11 border-2 font-bold focus-visible:ring-amber-500"
                                   />
                                 </div>
-                                <div className="space-y-2">
+                                <div className="space-y-2 text-left">
                                   <Label className="text-[10px] font-black uppercase text-red-600 tracking-widest">Max Window (Min)</Label>
                                   <Input 
                                     type="number"
@@ -1834,7 +1850,7 @@ export default function SolutionAdminPage({ params }: { params: Promise<{ seller
       <Dialog open={isStaffFormOpen} onOpenChange={setIsStaffFormOpen}>
         <DialogContent className="sm:max-w-[425px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
           <DialogHeader className="p-8 bg-[#213147] text-white">
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 text-left">
               <div className="bg-primary/20 p-3 rounded-2xl shrink-0"><Users className="h-6 w-6 text-primary" /></div>
               <div className="text-left">
                 <DialogTitle className="font-headline font-black uppercase tracking-tight text-white text-xl">{editingStaff ? 'Modify Identity' : 'Provision Staff'}</DialogTitle>
@@ -1891,7 +1907,7 @@ export default function SolutionAdminPage({ params }: { params: Promise<{ seller
       <Dialog open={isItemFormOpen} onOpenChange={setIsItemFormOpen}>
         <DialogContent className="sm:max-w-[500px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
           <DialogHeader className="p-8 bg-[#213147] text-white">
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 text-left">
               <div className="bg-primary/20 p-3 rounded-2xl shrink-0"><UtensilsCrossed className="h-6 w-6 text-primary" /></div>
               <div className="text-left">
                 <DialogTitle className="font-headline font-black uppercase tracking-tight text-white text-xl">{editingItem ? 'Modify Item' : 'New Menu Item'}</DialogTitle>
@@ -1985,7 +2001,7 @@ export default function SolutionAdminPage({ params }: { params: Promise<{ seller
       <Dialog open={isModifierGroupFormOpen} onOpenChange={setIsModifierGroupFormOpen}>
         <DialogContent className="sm:max-w-[500px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
           <DialogHeader className="p-8 bg-indigo-600 text-white">
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 text-left">
               <div className="bg-white/20 p-3 rounded-2xl shrink-0"><Tags className="h-6 w-6 text-white" /></div>
               <div className="text-left">
                 <DialogTitle className="font-headline font-black uppercase tracking-tight text-white text-xl">{editingModifierGroup ? 'Modify Modifier Set' : 'New Modifier Set'}</DialogTitle>
@@ -2018,7 +2034,7 @@ export default function SolutionAdminPage({ params }: { params: Promise<{ seller
                     )} />
                     <FormField control={modifierGroupForm.control} name="maxSelection" render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-[10px] font-black uppercase tracking-widest">Max Choice</FormLabel>
+                        <FormLabel className="text-[10px] font-black uppercase tracking-widest">Max Choice</Label>
                         <FormControl><Input {...field} type="number" className="h-11 border-2 font-bold" /></FormControl>
                         <FormDescription className="text-[7px] font-bold uppercase">Limit selections</FormDescription>
                       </FormItem>

@@ -1,4 +1,3 @@
-
 'use client';
 
 import { collection, query, where, doc, updateDoc, serverTimestamp, setDoc } from 'firebase/firestore';
@@ -13,14 +12,15 @@ import { mockSellerLocation } from '@/lib/data';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
-import { Focus, Package, LogOut, Truck, ChevronLeft, LayoutDashboard } from 'lucide-react';
+import { Focus, Package, LogOut, Truck, ChevronLeft, LayoutDashboard, ShieldAlert } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { isToday } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
-import { calculateDistance, getSignalColor } from '@/lib/utils';
+import { calculateDistance, getSignalColor, SUPER_ADMIN_ID } from '@/lib/utils';
+import Link from 'next/link';
 
 type LatLng = {
   latitude: number;
@@ -73,6 +73,7 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
 
   const isBevCartActive = primarySeller?.bevcartActive === true;
   const isAdminSession = currentStaffId?.startsWith('admin-');
+  const isSuperAdmin = user?.uid === SUPER_ADMIN_ID || user?.email === 'mosherpe@gmail.com';
 
   const handleToggleActive = (checked: boolean) => {
     if (!firestore || !sellerId || !user) return;
@@ -318,17 +319,38 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
       <header className="flex-shrink-0 px-4 h-16 flex items-center justify-between border-b-2 border-[#E50000] bg-[#213147] z-20 shadow-sm">
         <div className="flex items-center gap-4">
           {isAdminSession && (
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="h-8 text-[9px] font-black uppercase tracking-widest border-primary/30 bg-primary/10 text-primary hover:bg-primary hover:text-white"
-              onClick={() => router.push(`/sellers/${sellerId}`)}
-            >
-              <ChevronLeft className="h-3 w-3 mr-1" /> Admin
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="h-8 text-[9px] font-black uppercase tracking-widest border-primary/30 bg-primary/10 text-primary hover:bg-primary hover:text-white"
+                onClick={() => router.push(`/sellers/${sellerId}`)}
+              >
+                <ChevronLeft className="h-3 w-3 mr-1" /> Admin
+              </Button>
+              {isSuperAdmin && (
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  asChild
+                  className="h-8 text-[9px] font-black uppercase tracking-widest border-amber-200 bg-amber-50 text-amber-600 hover:bg-amber-100"
+                >
+                  <Link href="/admin">
+                    <ShieldAlert className="h-3 w-3 mr-1" /> Solution Admin
+                  </Link>
+                </Button>
+              )}
+            </div>
           )}
           <div className="flex flex-col min-w-0">
-            <h1 className="font-headline text-sm font-bold text-white uppercase tracking-tight leading-none">BEVCART PORTAL</h1>
+            <div className="flex items-center gap-2">
+              <h1 className="font-headline text-sm font-bold text-white uppercase tracking-tight leading-none">BEVCART PORTAL</h1>
+              {isAdminSession && (
+                <Badge className="bg-amber-500 text-white border-0 text-[7px] font-black uppercase h-3.5 px-1 animate-pulse">
+                  Impersonating
+                </Badge>
+              )}
+            </div>
             <Badge variant="outline" className="h-4 px-1.5 text-[8px] bg-white/5 text-white border-white/10 uppercase mt-1">
               {primarySeller?.courseName || 'Loading...'}
             </Badge>
@@ -378,7 +400,7 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
             <span>Active Orders</span>
             <span className="bg-[#213147] text-white text-[10px] font-black rounded-full px-2 py-0.5">{driverOrders.length}</span>
           </h2>
-          <ScrollArea className="flex-1 px-2">
+          <ScrollArea className="flex-1 px-2 text-left">
             <div className="py-2.5 space-y-3">
               {isLoading ? <Skeleton className="h-40 w-full" /> : driverOrders.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-20 text-muted-foreground opacity-40 text-center">

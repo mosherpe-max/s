@@ -1,4 +1,3 @@
-
 'use client';
 
 import { collection, query, where, doc, updateDoc, serverTimestamp, setDoc } from 'firebase/firestore';
@@ -10,12 +9,13 @@ import type { Order, Seller, StaffMember, SolutionConfig } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
-import { Package, LogOut, Building, LayoutList, Focus, ChevronLeft } from 'lucide-react';
+import { Package, LogOut, Building, LayoutList, Focus, ChevronLeft, ShieldAlert } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { useRouter } from 'next/navigation';
 import { MapView } from '@/components/map-view';
-import { cn, calculateDistance, getSignalColor } from '@/lib/utils';
+import { cn, calculateDistance, getSignalColor, SUPER_ADMIN_ID } from '@/lib/utils';
+import Link from 'next/link';
 
 type LatLng = {
   latitude: number;
@@ -60,6 +60,7 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
   const isGolf = primarySeller?.type?.toLowerCase().includes('golf');
   const isClubhouseActive = primarySeller?.clubhouseActive === true;
   const isAdminSession = currentStaffId?.startsWith('admin-');
+  const isSuperAdmin = user?.uid === SUPER_ADMIN_ID || user?.email === 'mosherpe@gmail.com';
 
   const broadcastLocation = (lat: number, lng: number) => {
     if (!firestore || !sellerId || !user) return;
@@ -262,17 +263,38 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
       <header className="flex-shrink-0 px-4 h-16 flex items-center justify-between border-b-2 border-[#E50000] bg-[#213147] z-20 shadow-sm">
         <div className="flex items-center gap-4">
           {isAdminSession && (
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="h-8 text-[9px] font-black uppercase tracking-widest border-primary/30 bg-primary/10 text-primary hover:bg-primary hover:text-white"
-              onClick={() => router.push(`/sellers/${sellerId}`)}
-            >
-              <ChevronLeft className="h-3 w-3 mr-1" /> Admin
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="h-8 text-[9px] font-black uppercase tracking-widest border-primary/30 bg-primary/10 text-primary hover:bg-primary hover:text-white"
+                onClick={() => router.push(`/sellers/${sellerId}`)}
+              >
+                <ChevronLeft className="h-3 w-3 mr-1" /> Admin
+              </Button>
+              {isSuperAdmin && (
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  asChild
+                  className="h-8 text-[9px] font-black uppercase tracking-widest border-amber-200 bg-amber-50 text-amber-600 hover:bg-amber-100"
+                >
+                  <Link href="/admin">
+                    <ShieldAlert className="h-3 w-3 mr-1" /> Solution Admin
+                  </Link>
+                </Button>
+              )}
+            </div>
           )}
           <div className="flex flex-col min-w-0">
-            <h1 className="font-headline text-sm font-bold text-white uppercase tracking-tight leading-none">CLUBHOUSE PORTAL</h1>
+            <div className="flex items-center gap-2">
+              <h1 className="font-headline text-sm font-bold text-white uppercase tracking-tight leading-none">CLUBHOUSE PORTAL</h1>
+              {isAdminSession && (
+                <Badge className="bg-amber-500 text-white border-0 text-[7px] font-black uppercase h-3.5 px-1 animate-pulse">
+                  Impersonating
+                </Badge>
+              )}
+            </div>
             <Badge variant="outline" className="h-4 px-1.5 text-[8px] bg-white/5 text-white border-white/10 uppercase mt-1">
               {primarySeller?.courseName || 'Loading...'}
             </Badge>
@@ -322,7 +344,7 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
             </div>
             <Badge className="bg-[#213147] text-white font-black border-0">{clubhouseOrders.length}</Badge>
           </h2>
-          <ScrollArea className="flex-1 px-2">
+          <ScrollArea className="flex-1 px-2 text-left">
             <div className={cn(
               "py-2.5 gap-3",
               isGolf ? "space-y-3" : "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 p-4"
