@@ -237,6 +237,7 @@ function CheckoutDrawerContent({
   const [paymentMethod, setPaymentMethod] = useState<'Pay at Delivery' | 'Stripe' | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [customerSessionClientSecret, setCustomerSessionClientSecret] = useState<string | null>(null);
   const [isFetchingIntent, setIsFetchingIntent] = useState(false);
 
   const tax = subtotal * (taxRate / 100);
@@ -268,9 +269,12 @@ function CheckoutDrawerContent({
             patronEmail
           });
           
-          const data = result.data as { clientSecret: string };
+          const data = result.data as { clientSecret: string; customerSessionClientSecret?: string };
           if (data?.clientSecret) {
             setClientSecret(data.clientSecret);
+            if (data.customerSessionClientSecret) {
+              setCustomerSessionClientSecret(data.customerSessionClientSecret);
+            }
           } else {
             throw new Error("Secure gateway could not be initialized.");
           }
@@ -420,7 +424,7 @@ function CheckoutDrawerContent({
                 <p className="text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground">Initializing Secure Feed...</p>
               </div>
             ) : clientSecret ? (
-              <Elements stripe={stripePromise} options={{ clientSecret }}>
+              <Elements stripe={stripePromise} options={{ clientSecret, customerSessionClientSecret: customerSessionClientSecret || undefined }}>
                 <StripeActionArea 
                   clientSecret={clientSecret} 
                   isProcessing={isProcessing} 
@@ -691,4 +695,3 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
     </div>
   );
 }
-

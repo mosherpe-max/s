@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
-import { PaymentElement, LinkAuthenticationElement, useStripe, useElements } from '@stripe/react-stripe-js';
-import { Lock, ShieldCheck, User, Smartphone } from 'lucide-react';
+import { PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
+import { Lock, ShieldCheck, User, Smartphone, Mail } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 
@@ -18,7 +18,8 @@ interface StripeCheckoutFormProps {
 
 /**
  * Integrated Stripe Checkout Form.
- * Combines Link (for email & info saving) with native fields for Name and Mobile.
+ * Refactored to support Customer Sessions (native card reuse).
+ * Removed LinkAuthenticationElement as CustomerSession handles redisplay natively.
  */
 export function StripeCheckoutForm({ 
   onReadyStateChange, 
@@ -35,9 +36,7 @@ export function StripeCheckoutForm({
   const [isLoaded, setIsLoaded] = useState(false);
 
   const handleChange = (event: any) => {
-    // We consider the form "ready" for submission when card details are valid
-    // and we have our required custom fields.
-    const isContactValid = patronName.length >= 2 && patronPhone.replace(/\D/g, '').length >= 10;
+    const isContactValid = patronName.length >= 2 && patronPhone.replace(/\D/g, '').length >= 10 && patronEmail.includes('@');
     onReadyStateChange(event.complete && isContactValid);
     
     if (event.error) {
@@ -62,12 +61,19 @@ export function StripeCheckoutForm({
         "bg-white p-4 sm:p-5 rounded-2xl border-2 transition-all duration-300 space-y-4",
         error ? "border-destructive/50 ring-4 ring-destructive/10" : "border-slate-100 shadow-sm"
       )}>
-        {/* 1. EMAIL & OPT-IN (STRIPE LINK) */}
-        <div className="space-y-1">
-          <LinkAuthenticationElement 
-            options={{ defaultValues: { email: patronEmail } }}
-            onChange={(e: any) => setPatronEmail(e.value.email)} 
-          />
+        {/* 1. EMAIL */}
+        <div className="space-y-2">
+          <label className="text-[11px] font-black uppercase tracking-widest text-slate-500 px-1">Email Address</label>
+          <div className="relative">
+            <Mail className="absolute left-3 top-3 h-4 w-4 text-slate-300" />
+            <Input 
+              type="email"
+              placeholder="receipt@example.com" 
+              value={patronEmail} 
+              onChange={(e) => setPatronEmail(e.target.value)} 
+              className="pl-10 h-11 border-slate-200 bg-white rounded-lg font-bold focus-visible:ring-primary focus-visible:border-primary"
+            />
+          </div>
         </div>
 
         {/* 2. FULL NAME */}
@@ -101,9 +107,9 @@ export function StripeCheckoutForm({
 
         <div className="h-px bg-slate-100 my-4" />
 
-        {/* 4. CARD DETAILS (Number, Expiry, CVV, Zip) */}
+        {/* 4. CARD DETAILS (Customer Session native display) */}
         <div className="space-y-2">
-           <label className="text-[11px] font-black uppercase tracking-widest text-slate-500 px-1">Card Information</label>
+           <label className="text-[11px] font-black uppercase tracking-widest text-slate-500 px-1">Payment Method</label>
            <PaymentElement 
              onReady={() => setIsLoaded(true)}
              onChange={handleChange}

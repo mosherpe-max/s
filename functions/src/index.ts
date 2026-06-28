@@ -1,6 +1,6 @@
-
 import { onRequest, onCall, HttpsError } from "firebase-functions/v2/https";
 import { onDocumentWritten } from "firebase-functions/v2/firestore";
+import { onSchedule } from "firebase-functions/v2/scheduler";
 import * as logger from "firebase-functions/logger";
 import { initializeApp } from "firebase-admin/app";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
@@ -16,12 +16,14 @@ const db = getFirestore();
 /**
  * createPaymentIntent
  * Securely generates a Stripe Client Secret for the patron checkout.
+ * Refactored to support Customer Sessions for card reuse.
  */
 export const createPaymentIntent = onCall({
   secrets: ["STRIPE_SECRET_KEY"],
   region: 'us-central1',
 }, async (request) => {
   const { amount, sellerId, patronName, patronPhone, patronEmail } = request.data;
+  const buyerUid = request.auth?.uid;
 
   // 1. Validation
   if (!amount || amount <= 0) {
@@ -45,23 +47,65 @@ export const createPaymentIntent = onCall({
   });
 
   try {
-    logger.info(`[createPaymentIntent] Creating intent for $${amount} (Venue: ${sellerId})`);
+    let stripeCustomerId: string | undefined;
+
+    // 3. Customer Session Logic (Card Reuse)
+    if (buyerUid) {
+      const userRef = db.collection('users').doc(buyerUid);
+      const userDoc = await userRef.get();
+      
+      if (userDoc.exists && userDoc.data()?.stripeCustomerId) {
+        stripeCustomerId = userDoc.data()?.stripeCustomerId;
+      } else {
+        // Create new customer in Stripe
+        const customer = await stripe.customers.create({
+          email: patronEmail,
+          name: patronName,
+          phone: patronPhone,
+          metadata: { buyerUid }
+        });
+        stripeCustomerId = customer.id;
+        await userRef.set({ stripeCustomerId }, { merge: true });
+      }
+    }
+
+    logger.info(`[createPaymentIntent] Creating intent for $${amount} (Venue: ${sellerId}, Customer: ${stripeCustomerId || 'Anonymous'})`);
     
-    // 3. Create Intent
+    // 4. Create Intent
     const paymentIntent = await stripe.paymentIntents.create({
       amount: Math.round(amount * 100), // Convert dollars to cents
       currency: 'usd',
+      customer: stripeCustomerId,
+      setup_future_usage: stripeCustomerId ? 'off_session' : undefined,
       automatic_payment_methods: {
         enabled: true,
       },
       metadata: {
         sellerId,
-        buyerUid: request.auth?.uid || 'anonymous',
+        buyerUid: buyerUid || 'anonymous',
         customerName: patronName || 'Guest',
         customerPhone: patronPhone || '',
         customerEmail: patronEmail || ''
       }
     });
+
+    // 5. Create Customer Session for returning users
+    let customerSessionClientSecret: string | undefined;
+    if (stripeCustomerId) {
+      const customerSession = await stripe.customerSessions.create({
+        customer: stripeCustomerId,
+        components: {
+          payment_element: {
+            enabled: true,
+            features: {
+              payment_method_save: 'always',
+              payment_method_redisplay: 'always'
+            }
+          }
+        }
+      });
+      customerSessionClientSecret = customerSession.client_secret;
+    }
 
     if (!paymentIntent.client_secret) {
       throw new Error("Stripe failed to generate a client secret.");
@@ -69,6 +113,7 @@ export const createPaymentIntent = onCall({
 
     return {
       clientSecret: paymentIntent.client_secret,
+      customerSessionClientSecret
     };
   } catch (err: any) {
     logger.error(`[createPaymentIntent] Stripe API Error:`, {
@@ -78,6 +123,41 @@ export const createPaymentIntent = onCall({
     });
     throw new HttpsError('internal', err.message || 'Unable to initialize secure payment environment.');
   }
+});
+
+/**
+ * dailyOperationalReset
+ * Scheduled script that runs daily at 4 AM EST.
+ * Shuts down all active service channels at all venues.
+ */
+export const dailyOperationalReset = onSchedule({
+  schedule: "0 4 * * *",
+  timeZone: "America/New_York",
+  region: 'us-central1'
+}, async (event) => {
+  logger.info("[dailyOperationalReset] Starting operational shutdown sequence...");
+  
+  const sellersRef = db.collection('sellers');
+  const snapshot = await sellersRef.where('status', '==', 'Active').get();
+  
+  if (snapshot.empty) {
+    logger.info("[dailyOperationalReset] No active venues to reset.");
+    return;
+  }
+
+  const batch = db.batch();
+  snapshot.docs.forEach(doc => {
+    batch.update(doc.ref, {
+      bevcartActive: false,
+      clubhouseActive: false,
+      lanedeliveryActive: false,
+      takeoutActive: false,
+      lastActive: FieldValue.serverTimestamp()
+    });
+  });
+
+  await batch.commit();
+  logger.info(`[dailyOperationalReset] Successfully reset operational status for ${snapshot.size} venues.`);
 });
 
 /**
@@ -146,10 +226,6 @@ export const handleStripeWebhook = onRequest({
  * onGuestOrderStatusUpdate
  * Triggers on any creation or update to an order document.
  * Manages patron SMS notifications via Twilio.
- * 
- * NOTE: Per user request, texts are ONLY sent when:
- * 1. Order Received (Initial creation)
- * 2. Out for Delivery (Transition to 'Out for Delivery')
  */
 export const onGuestOrderStatusUpdate = onDocumentWritten({
   document: "orders/{orderId}",
@@ -183,7 +259,6 @@ export const onGuestOrderStatusUpdate = onDocumentWritten({
   const client = twilio(accountSid, authToken);
   let messageBody = "";
   
-  // Clean clean absolute tracking link
   const trackingLink = `https://koop.app/orders/${orderId}`;
 
   if (!before || !before.exists) {
@@ -201,13 +276,11 @@ export const onGuestOrderStatusUpdate = onDocumentWritten({
         // RULE 2: DISPATCH (Out for Delivery)
         messageBody = `Your order is out for delivery! A runner is on the way. Track live: ${trackingLink}`;
       }
-      // Other statuses (Preparing, Delivered, Cancelled) do not trigger SMS per user request.
     }
   }
 
   if (messageBody) {
     try {
-      // Robust US phone formatting
       const cleanPhone = customerPhone.replace(/\D/g, '');
       const to = cleanPhone.length === 10 ? `+1${cleanPhone}` : `+${cleanPhone}`;
       
@@ -216,7 +289,7 @@ export const onGuestOrderStatusUpdate = onDocumentWritten({
         from: fromNumber,
         to: to
       });
-      logger.info(`[onGuestOrderStatusUpdate] SMS successfully dispatched to ${to} for order ${orderId} (New Status: ${status})`);
+      logger.info(`[onGuestOrderStatusUpdate] SMS sent to ${to} for order ${orderId}`);
     } catch (error: any) {
       logger.error(`[onGuestOrderStatusUpdate] Twilio dispatch failed for ${orderId}: ${error.message}`);
     }

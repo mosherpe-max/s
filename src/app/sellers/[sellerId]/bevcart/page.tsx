@@ -19,7 +19,7 @@ import { isToday } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
-import { calculateDistance, getSignalColor, SUPER_ADMIN_ID } from '@/lib/utils';
+import { calculateDistance, getSignalColor, SUPER_ADMIN_ID, isStaffSessionStale } from '@/lib/utils';
 import Link from 'next/link';
 
 type LatLng = {
@@ -45,9 +45,22 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      setCurrentStaffId(localStorage.getItem('koop_staff_id') || undefined);
+      const storedId = localStorage.getItem('koop_staff_id');
+      const sessionStart = localStorage.getItem('koop_staff_session_start');
+      
+      // DAILY OPERATIONAL RESET CHECK
+      if (sessionStart && isStaffSessionStale(new Date(parseInt(sessionStart, 10)))) {
+        localStorage.removeItem('koop_staff_id');
+        localStorage.removeItem('koop_staff_name');
+        localStorage.removeItem('koop_staff_role');
+        localStorage.removeItem('koop_staff_session_start');
+        router.push(`/sellers/${sellerId}/staff-login`);
+        toast({ title: "Shift Reset", description: "Daily operational reset performed. Please re-enter PIN." });
+      } else {
+        setCurrentStaffId(storedId || undefined);
+      }
     }
-  }, []);
+  }, [sellerId, router, toast]);
 
   const primarySellerRef = useMemoFirebase(() => {
     if (!firestore || !sellerId) return null;
@@ -142,45 +155,30 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
   const broadcastLocation = (lat: number, lng: number) => {
     if (!firestore || !sellerId || !user) return;
     
-    // THROTTLE & JITTER FILTER: Check distance from last broadcast and time elapsed
+    // THROTTLE & JITTER FILTER
     const nowTime = Date.now();
     const syncInterval = (solutionConfig?.mapUpdateSettings?.['Beverage Cart']?.frequencySeconds || 15) * 1000;
     
     if (lastBroadcastRef.current) {
       const distance = calculateDistance(lat, lng, lastBroadcastRef.current.lat, lastBroadcastRef.current.lng);
       const timeElapsed = nowTime - lastBroadcastRef.current.time;
-      
-      // AGGRESSIVE JITTER FILTER: Ignore movements < 5 meters unless 1 minute has passed (heartbeat)
       if (distance < 5 && timeElapsed < 60000) return;
-      
-      // Throttle broadcast frequency based on system config (default 15s)
       if (timeElapsed < syncInterval) return;
     }
 
     lastBroadcastRef.current = { lat, lng, time: nowTime };
     
-    // 1. Update individual staff doc (for multi-driver visualization)
     if (currentStaffId) {
       const staffRef = doc(firestore, 'sellers', sellerId, 'staff', currentStaffId);
-      const staffData = {
-        latitude: lat,
-        longitude: lng,
-        lastActive: serverTimestamp()
-      };
+      const staffData = { latitude: lat, longitude: lng, lastActive: serverTimestamp() };
       setDoc(staffRef, staffData, { merge: true }).catch(() => {});
     }
 
-    // 2. Update venue primary doc (for bilateral patron tracking)
     const sellerDocRef = doc(firestore, 'sellers', sellerId);
-    const venueData = {
-      latitude: lat,
-      longitude: lng,
-      lastActive: serverTimestamp()
-    };
+    const venueData = { latitude: lat, longitude: lng, lastActive: serverTimestamp() };
     updateDoc(sellerDocRef, venueData).catch(() => {});
   };
 
-  // BROADCAST CURRENT LOCATION ON MOUNT
   useEffect(() => {
     if (navigator.geolocation && firestore && sellerId && user) {
       navigator.geolocation.getCurrentPosition((p) => {
@@ -198,19 +196,14 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
         (p) => {
           const lat = p.coords.latitude;
           const lng = p.coords.longitude;
-          
-          // ALWAYS update local state immediately for snappy UI feel, but FILTER NOISE
           setSellerLocation(prev => {
             if (!prev) return { latitude: lat, longitude: lng };
             const dist = calculateDistance(lat, lng, prev.latitude, prev.longitude);
-            // Don't update local marker for movements < 5 meters (prevents stationary dancing)
             return dist > 5 ? { latitude: lat, longitude: lng } : prev;
           });
-          
           broadcastLocation(lat, lng);
         },
         null,
-        // Configured maximumAge to instruct device to throttle sensor activity
         { enableHighAccuracy: true, timeout: 10000, maximumAge: 5000 }
       );
       return () => navigator.geolocation.clearWatch(watchId);
@@ -224,12 +217,7 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
     
     if (nextIdx < stages.length) {
       const nextStatus = stages[nextIdx];
-      
-      const updateData: any = { 
-        status: nextStatus, 
-        deliveredAt: nextStatus === 'Delivered' ? serverTimestamp() : null 
-      };
-
+      const updateData: any = { status: nextStatus, deliveredAt: nextStatus === 'Delivered' ? serverTimestamp() : null };
       if (nextStatus === 'Preparing') {
         const staffId = localStorage.getItem('koop_staff_id');
         const staffName = localStorage.getItem('koop_staff_name');
@@ -238,14 +226,9 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
           updateData.assignedStaffName = staffName;
         }
       }
-
       const orderRef = doc(firestore, 'orders', orderId);
       updateDoc(orderRef, updateData).catch(async (error) => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-          path: orderRef.path,
-          operation: 'update',
-          requestResourceData: updateData,
-        } satisfies SecurityRuleContext));
+        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: orderRef.path, operation: 'update', requestResourceData: updateData } satisfies SecurityRuleContext));
       });
     }
   };
@@ -255,22 +238,10 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
     const staffId = localStorage.getItem('koop_staff_id');
     const staffName = localStorage.getItem('koop_staff_name');
     if (!staffId || !staffName) return;
-
     const orderRef = doc(firestore, 'orders', orderId);
-    const updateData = {
-      assignedStaffId: staffId,
-      assignedStaffName: staffName,
-      updatedAt: serverTimestamp()
-    };
-
-    updateDoc(orderRef, updateData).then(() => {
-      toast({ title: "Order Attached", description: `You are now the active driver for this ticket.` });
-    }).catch(async (error) => {
-      errorEmitter.emit('permission-error', new FirestorePermissionError({
-        path: orderRef.path,
-        operation: 'update',
-        requestResourceData: updateData,
-      } satisfies SecurityRuleContext));
+    const updateData = { assignedStaffId: staffId, assignedStaffName: staffName, updatedAt: serverTimestamp() };
+    updateDoc(orderRef, updateData).catch(async (error) => {
+      errorEmitter.emit('permission-error', new FirestorePermissionError({ path: orderRef.path, operation: 'update', requestResourceData: updateData } satisfies SecurityRuleContext));
     });
   };
 
@@ -279,14 +250,7 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
     return driverOrders.map(o => {
       const lastGps = o.lastGpsUpdate?.toDate();
       const color = getSignalColor(lastGps, solutionConfig?.gpsFreshnessThresholds);
-      
-      return { 
-        id: o.id, 
-        name: o.customerName, 
-        location: o.deliveryLocation, 
-        colorOverride: color,
-        colorClass: o.status === 'Out for Delivery' ? "bg-blue-600" : "bg-green-600" 
-      };
+      return { id: o.id, name: o.customerName, location: o.deliveryLocation, colorOverride: color, colorClass: o.status === 'Out for Delivery' ? "bg-blue-600" : "bg-green-600" };
     });
   }, [driverOrders, now, solutionConfig]);
 
@@ -296,23 +260,16 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
       .filter(s => s.id !== currentStaffId && s.latitude && s.longitude && s.lastActive)
       .map(s => {
         const color = getSignalColor(s.lastActive?.toDate(), solutionConfig?.gpsFreshnessThresholds);
-        return {
-          id: s.id,
-          name: s.name,
-          location: { latitude: s.latitude!, longitude: s.longitude! },
-          type: s.role === 'Driver' || s.role === 'Staff' ? 'Beverage Cart' : 'Clubhouse',
-          colorOverride: color
-        };
+        return { id: s.id, name: s.name, location: { latitude: s.latitude!, longitude: s.longitude! }, type: s.role === 'Driver' || s.role === 'Staff' ? 'Beverage Cart' : 'Clubhouse', colorOverride: color };
       });
   }, [allStaff, currentStaffId, solutionConfig]);
 
-  const isLoading = areActiveOrdersLoading || isPrimaryLoading;
-
-  // Driver Signal Strength Indicator
   const signalColor = useMemo(() => {
     const lastActive = primarySeller?.lastActive?.toDate();
     return getSignalColor(lastActive, solutionConfig?.gpsFreshnessThresholds);
   }, [primarySeller?.lastActive, solutionConfig]);
+
+  const isLoading = areActiveOrdersLoading || isPrimaryLoading;
 
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-muted/20 text-left">
@@ -320,40 +277,18 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
         <div className="flex items-center gap-4">
           {isAdminSession && (
             <div className="flex items-center gap-2">
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="h-8 text-[9px] font-black uppercase tracking-widest border-primary/30 bg-primary/10 text-primary hover:bg-primary hover:text-white"
-                onClick={() => router.push(`/sellers/${sellerId}`)}
-              >
-                <ChevronLeft className="h-3 w-3 mr-1" /> Admin
-              </Button>
+              <Button variant="outline" size="sm" className="h-8 text-[9px] font-black uppercase tracking-widest border-primary/30 bg-primary/10 text-primary hover:bg-primary hover:text-white" onClick={() => router.push(`/sellers/${sellerId}`)}><ChevronLeft className="h-3 w-3 mr-1" /> Admin</Button>
               {isSuperAdmin && (
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  asChild
-                  className="h-8 text-[9px] font-black uppercase tracking-widest border-amber-200 bg-amber-50 text-amber-600 hover:bg-amber-100"
-                >
-                  <Link href="/admin">
-                    <ShieldAlert className="h-3 w-3 mr-1" /> Solution Admin
-                  </Link>
-                </Button>
+                <Button variant="outline" size="sm" asChild className="h-8 text-[9px] font-black uppercase tracking-widest border-amber-200 bg-amber-50 text-amber-600 hover:bg-amber-100"><Link href="/admin"><ShieldAlert className="h-3 w-3 mr-1" /> Solution Admin</Link></Button>
               )}
             </div>
           )}
           <div className="flex flex-col min-w-0">
             <div className="flex items-center gap-2">
               <h1 className="font-headline text-sm font-bold text-white uppercase tracking-tight leading-none">BEVCART PORTAL</h1>
-              {isAdminSession && (
-                <Badge className="bg-amber-500 text-white border-0 text-[7px] font-black uppercase h-3.5 px-1 animate-pulse">
-                  Impersonating
-                </Badge>
-              )}
+              {isAdminSession && <Badge className="bg-amber-500 text-white border-0 text-[7px] font-black uppercase h-3.5 px-1 animate-pulse">Impersonating</Badge>}
             </div>
-            <Badge variant="outline" className="h-4 px-1.5 text-[8px] bg-white/5 text-white border-white/10 uppercase mt-1">
-              {primarySeller?.courseName || 'Loading...'}
-            </Badge>
+            <Badge variant="outline" className="h-4 px-1.5 text-[8px] bg-white/5 text-white border-white/10 uppercase mt-1">{primarySeller?.courseName || 'Loading...'}</Badge>
           </div>
         </div>
         <div className="flex items-center space-x-3">
