@@ -2,7 +2,7 @@
 'use client';
 
 import React, { useState, useEffect, use } from 'react';
-import { collection, query, where, getDocs, doc } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { signInAnonymously } from 'firebase/auth';
 import { useFirestore, useDoc, useMemoFirebase, useAuth } from '@/firebase';
 import { useRouter } from 'next/navigation';
@@ -90,8 +90,25 @@ export default function StaffLoginPage({ params }: { params: Promise<{ sellerId:
     }
   };
 
-  const handleRoleSelect = (menuType: string) => {
-    if (!authenticatedStaff) return;
+  const handleRoleSelect = async (menuType: string) => {
+    if (!authenticatedStaff || !firestore || !sellerId) return;
+
+    // ACTIVATE SERVICE MODE ON SELLER DOCUMENT
+    // This is the final step to making the venue available to patrons
+    const fieldMap: Record<string, string> = {
+      'Beverage Cart': 'bevcartActive',
+      'Clubhouse': 'clubhouseActive',
+      'Lane Delivery': 'lanedeliveryActive',
+      'Take Out': 'takeoutActive'
+    };
+    
+    const modeField = fieldMap[menuType];
+    if (modeField) {
+      await updateDoc(doc(firestore, 'sellers', sellerId), {
+        [modeField]: true,
+        updatedAt: serverTimestamp()
+      }).catch(() => {});
+    }
 
     // Persist session
     localStorage.setItem('koop_staff_id', authenticatedStaff.id);
@@ -116,20 +133,15 @@ export default function StaffLoginPage({ params }: { params: Promise<{ sellerId:
     }, 800);
   };
 
-  // Determine which roles/modes are currently ACTIVE at the venue
-  const activeServiceModes = React.useMemo(() => {
+  // Determine which roles/modes are currently AUTHORIZED at the venue
+  // Note: We show all authorized modes, even if inactive, because login IS the activation trigger
+  const authorizedServiceModes = React.useMemo(() => {
     if (!seller) return [];
-    const modes = [];
-    if (seller.bevcartActive) modes.push('Beverage Cart');
-    if (seller.clubhouseActive) modes.push('Clubhouse');
-    if (seller.lanedeliveryActive) modes.push('Lane Delivery');
-    // Take Out is typically handled in the Clubhouse interface
-    if (seller.takeoutActive && !modes.includes('Clubhouse')) modes.push('Take Out');
-    return modes;
+    return seller.menuTypes || [];
   }, [seller]);
 
   return (
-    <div className="min-h-screen bg-muted/30 flex flex-col items-center justify-center p-4">
+    <div className="min-h-screen bg-muted/30 flex flex-col items-center justify-center p-4 text-left">
       <Card className="w-full max-w-md shadow-2xl border-2 rounded-[2.5rem] overflow-hidden">
         <CardHeader className="text-center pb-8 bg-[#213147] text-white pt-10 relative">
           <div className="absolute top-4 left-1/2 -translate-x-1/2 opacity-20">
@@ -146,7 +158,7 @@ export default function StaffLoginPage({ params }: { params: Promise<{ sellerId:
           </div>
         </CardHeader>
 
-        <CardContent className="pt-10 pb-12 px-8">
+        <CardContent className="pt-10 pb-12 px-8 text-left">
           {!authenticatedStaff ? (
             <div className="space-y-10">
               {/* PIN Indicators */}
@@ -205,7 +217,7 @@ export default function StaffLoginPage({ params }: { params: Promise<{ sellerId:
               </div>
             </div>
           ) : (
-            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 text-left">
               <div className="text-center space-y-2 mb-8">
                 <div className="bg-green-500/10 p-3 rounded-full inline-block mb-2">
                   <User className="h-8 w-8 text-green-600" />
@@ -215,8 +227,8 @@ export default function StaffLoginPage({ params }: { params: Promise<{ sellerId:
               </div>
 
               <div className="grid grid-cols-1 gap-3">
-                {activeServiceModes.length > 0 ? (
-                  activeServiceModes.map((type) => {
+                {authorizedServiceModes.length > 0 ? (
+                  authorizedServiceModes.map((type) => {
                     const Icon = roleIcons[type] || Building;
                     return (
                       <Button
@@ -230,7 +242,7 @@ export default function StaffLoginPage({ params }: { params: Promise<{ sellerId:
                         </div>
                         <div className="text-left">
                           <p className="text-xs font-black uppercase tracking-widest">{type}</p>
-                          <p className="text-[9px] font-bold text-muted-foreground uppercase">Enter Live Dashboard</p>
+                          <p className="text-[9px] font-bold text-muted-foreground uppercase">Activate & Enter Dashboard</p>
                         </div>
                         <ChevronRight className="ml-auto h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
                       </Button>
@@ -239,8 +251,8 @@ export default function StaffLoginPage({ params }: { params: Promise<{ sellerId:
                 ) : (
                   <div className="p-8 text-center border-2 border-dashed rounded-2xl bg-slate-50 space-y-3">
                     <AlertTriangle className="h-8 w-8 text-amber-500 mx-auto" />
-                    <p className="text-[10px] font-black uppercase tracking-widest text-amber-700">No Service Modes Active</p>
-                    <p className="text-[10px] text-muted-foreground uppercase leading-relaxed">Please ask a manager to enable service channels in the Admin Terminal.</p>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-amber-700">No Authorized Modes</p>
+                    <p className="text-[10px] text-muted-foreground uppercase leading-relaxed">Please ask a manager to configure service channels in the Venue Admin.</p>
                   </div>
                 )}
               </div>

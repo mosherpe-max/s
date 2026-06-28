@@ -80,7 +80,8 @@ import {
   Sparkles,
   LayoutList,
   UserCog,
-  MessageSquare
+  MessageSquare,
+  Eraser
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -137,7 +138,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
-import { seedAllDemoData } from '@/lib/seed-data';
+import { seedAllDemoData, resetAllVenueOperationalStatus } from '@/lib/seed-data';
 import {
   Select,
   SelectContent,
@@ -274,6 +275,7 @@ export default function SolutionAdminPage() {
   const [isAddVenueOpen, setIsAddVenueOpen] = useState(false);
   const [isProcessingSave, setIsProcessingSave] = useState(false);
   const [isResettingDemos, setIsResettingDemos] = useState(false);
+  const [isResettingOps, setIsResettingOps] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
   // --- SOLUTION CONFIG STATE ---
@@ -617,6 +619,19 @@ export default function SolutionAdminPage() {
     }
   };
 
+  const handleResetOperationalStatus = async () => {
+    if (!firestore) return;
+    setIsResettingOps(true);
+    try {
+      await resetAllVenueOperationalStatus(firestore);
+      toast({ title: "Operational Baseline Restored", description: "All venues have been taken offline. Staff must log in to reactivate service modes." });
+    } catch (e) {
+      toast({ variant: "destructive", title: "Reset Failed", description: "Authorization required for global operational reset." });
+    } finally {
+      setIsResettingOps(false);
+    }
+  };
+
   const handleLogout = async () => {
     if (!auth) return;
     try {
@@ -768,7 +783,7 @@ export default function SolutionAdminPage() {
                 <div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-black text-xs">
                   {user?.email?.charAt(0).toUpperCase() || 'P'}
                 </div>
-                <div className="flex items-col min-w-0">
+                <div className="flex flex-col min-w-0">
                   <span className="text-[10px] font-black text-white truncate uppercase tracking-tight text-left">Solution Admin</span>
                   <span className="text-[8px] font-bold text-slate-400 truncate uppercase text-left">{user?.email}</span>
                 </div>
@@ -1203,12 +1218,24 @@ export default function SolutionAdminPage() {
                     
                     {/* GLOBAL SERVICE AUTHORIZATION */}
                     <Card className="border-2 shadow-sm overflow-hidden lg:col-span-2">
-                      <CardHeader className="border-b bg-[#213147] text-white flex flex-row items-center gap-3 text-left">
-                        <ShieldAlert className="h-5 w-5 text-primary" />
-                        <div>
-                          <CardTitle className="font-black uppercase tracking-tight text-sm">Global Service Authorization</CardTitle>
-                          <CardDescription className="text-[10px] font-bold uppercase text-white/50">Restrict specific channels across the entire solution</CardDescription>
+                      <CardHeader className="border-b bg-[#213147] text-white flex flex-row items-center justify-between text-left">
+                        <div className="flex items-center gap-3">
+                          <ShieldAlert className="h-5 w-5 text-primary" />
+                          <div>
+                            <CardTitle className="font-black uppercase tracking-tight text-sm">Global Service Authorization</CardTitle>
+                            <CardDescription className="text-[10px] font-bold uppercase text-white/50">Restrict specific channels across the entire solution</CardDescription>
+                          </div>
                         </div>
+                        <Button 
+                          variant="destructive" 
+                          size="sm" 
+                          onClick={handleResetOperationalStatus}
+                          disabled={isResettingOps}
+                          className="font-black uppercase tracking-widest text-[9px] gap-2 h-9 px-4 shadow-xl"
+                        >
+                          {isResettingOps ? <Loader2 className="h-3 w-3 animate-spin" /> : <Eraser className="h-3 w-3" />}
+                          Force Global Baseline Reset
+                        </Button>
                       </CardHeader>
                       <CardContent className="p-6">
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">

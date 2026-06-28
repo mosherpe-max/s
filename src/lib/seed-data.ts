@@ -233,3 +233,40 @@ export async function seedAllDemoData(db: Firestore) {
   await seedVenueItems(db, 'demo-bowling-alley', bowlingAlleyItems);
   await seedVenueModifiers(db, 'demo-bowling-alley', 'Bowling Center');
 }
+
+/**
+ * Deep operational reset for the entire platform.
+ * Returns all venues to a fresh baseline.
+ */
+export async function resetAllVenueOperationalStatus(db: Firestore) {
+  const sellersRef = collection(db, 'sellers');
+  const snapshot = await getDocs(sellersRef);
+  const batch = writeBatch(db);
+
+  for (const sellerDoc of snapshot.docs) {
+    // 1. Clear Seller Operational Flags
+    batch.update(sellerDoc.ref, {
+      bevcartActive: false,
+      clubhouseActive: false,
+      lanedeliveryActive: false,
+      takeoutActive: false,
+      latitude: 0,
+      longitude: 0,
+      lastActive: null,
+      updatedAt: serverTimestamp()
+    });
+
+    // 2. Purge Live Staff Signals
+    const staffRef = collection(db, 'sellers', sellerDoc.id, 'staff');
+    const staffSnap = await getDocs(staffRef);
+    staffSnap.forEach(sDoc => {
+      batch.update(sDoc.ref, {
+        latitude: null,
+        longitude: null,
+        lastActive: null
+      });
+    });
+  }
+
+  await batch.commit();
+}
