@@ -177,71 +177,11 @@ export const dailyOperationalReset = onSchedule({
 });
 
 /**
- * handleStripeWebhook
- * Secure HTTP endpoint for Stripe event ingestion.
- */
-export const handleStripeWebhook = onRequest({
-  secrets: ["STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET"],
-  region: 'us-central1',
-}, async (req, res) => {
-  const signature = req.headers['stripe-signature'];
-  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
-  const apiKey = process.env.STRIPE_SECRET_KEY;
-
-  if (!signature || !webhookSecret || !apiKey) {
-    logger.error("[handleStripeWebhook] Missing signature or secret configuration.");
-    res.status(400).send("Webhook Error: Missing configuration");
-    return;
-  }
-
-  const stripe = new Stripe(apiKey);
-  let event: Stripe.Event;
-
-  try {
-    event = stripe.webhooks.constructEvent(req.rawBody, signature, webhookSecret);
-  } catch (err: any) {
-    logger.error(`[handleStripeWebhook] Signature verification failed: ${err.message}`);
-    res.status(400).send(`Webhook Error: ${err.message}`);
-    return;
-  }
-
-  // Handle successful payments from the PaymentElement flow
-  if (event.type === 'payment_intent.succeeded') {
-    const paymentIntent = event.data.object as Stripe.PaymentIntent;
-    const metadata = paymentIntent.metadata || {};
-
-    logger.info(`[handleStripeWebhook] Processing successful PaymentIntent: ${paymentIntent.id}`);
-
-    try {
-      const orderData = {
-        customerName: metadata.customerName || 'Guest Patron',
-        customerPhone: metadata.customerPhone || null,
-        customerEmail: metadata.customerEmail || null,
-        status: "received",
-        sellerId: metadata.sellerId || null,
-        buyerProfileId: metadata.buyerUid || null,
-        stripePaymentIntentId: paymentIntent.id,
-        total: (paymentIntent.amount || 0) / 100,
-        createdAt: FieldValue.serverTimestamp(),
-        updatedAt: FieldValue.serverTimestamp(),
-      };
-
-      const orderRef = await db.collection('orders').add(orderData);
-      logger.info(`[handleStripeWebhook] Successfully created order ${orderRef.id} for PI ${paymentIntent.id}`);
-    } catch (err: any) {
-      logger.error(`[handleStripeWebhook] Firestore ingestion failed: ${err.message}`);
-      res.status(500).send("Internal Server Error during Firestore write");
-      return;
-    }
-  }
-
-  res.status(200).send({ received: true });
-});
-
-/**
  * onGuestOrderStatusUpdate
  * Triggers on any creation or update to an order document.
  * Manages patron SMS notifications via Twilio.
+ * 
+ * SMS triggers restricted to: Initial Receipt and Dispatch (Out for Delivery).
  */
 export const onGuestOrderStatusUpdate = onDocumentWritten({
   document: "orders/{orderId}",
@@ -320,4 +260,57 @@ export const onGuestOrderStatusUpdate = onDocumentWritten({
       logger.error(`[onGuestOrderStatusUpdate] Twilio dispatch failed for ${orderId}: ${error.message}`);
     }
   }
+});
+
+export const handleStripeWebhook = onRequest({
+  secrets: ["STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET"],
+  region: 'us-central1',
+}, async (req, res) => {
+  const signature = req.headers['stripe-signature'];
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  const apiKey = process.env.STRIPE_SECRET_KEY;
+
+  if (!signature || !webhookSecret || !apiKey) {
+    logger.error("[handleStripeWebhook] Missing signature or secret configuration.");
+    res.status(400).send("Webhook Error: Missing configuration");
+    return;
+  }
+
+  const stripe = new Stripe(apiKey);
+  let event: Stripe.Event;
+
+  try {
+    event = stripe.webhooks.constructEvent(req.rawBody, signature, webhookSecret);
+  } catch (err: any) {
+    logger.error(`[handleStripeWebhook] Signature verification failed: ${err.message}`);
+    res.status(400).send(`Webhook Error: ${err.message}`);
+    return;
+  }
+
+  if (event.type === 'payment_intent.succeeded') {
+    const paymentIntent = event.data.object as Stripe.PaymentIntent;
+    const metadata = paymentIntent.metadata || {};
+
+    try {
+      const orderData = {
+        customerName: metadata.customerName || 'Guest Patron',
+        customerPhone: metadata.customerPhone || null,
+        customerEmail: metadata.customerEmail || null,
+        status: "received",
+        sellerId: metadata.sellerId || null,
+        buyerProfileId: metadata.buyerUid || null,
+        stripePaymentIntentId: paymentIntent.id,
+        total: (paymentIntent.amount || 0) / 100,
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      };
+      await db.collection('orders').add(orderData);
+    } catch (err: any) {
+      logger.error(`[handleStripeWebhook] Firestore ingestion failed: ${err.message}`);
+      res.status(500).send("Internal Server Error during Firestore write");
+      return;
+    }
+  }
+
+  res.status(200).send({ received: true });
 });

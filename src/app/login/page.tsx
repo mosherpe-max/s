@@ -154,7 +154,11 @@ export default function LoginPage() {
       <Card className="w-full max-w-md mx-auto shadow-2xl border-2">
         <CardHeader className="text-center pb-8 border-b bg-muted/10">
           <div className="flex justify-center mb-4">
-            <Link href="/" className="bg-[#213147] p-5 rounded-2xl shadow-xl transition-all hover:scale-105 active:scale-95 group">
+            <Link 
+              href="/" 
+              title="Return to Koop Home"
+              className="bg-[#213147] p-5 rounded-2xl shadow-xl transition-all hover:scale-105 active:scale-95 group border-2 border-white/5"
+            >
               <StylizedKoopLogo size="lg" colorClass="text-white" />
             </Link>
           </div>
