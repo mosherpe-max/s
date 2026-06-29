@@ -2,7 +2,7 @@
 
 import { Button } from '@/components/ui/button';
 import type { OrderItem, MenuItem, Category } from '@/lib/types';
-import { Image as LucideImage, Plus, Minus, Star } from 'lucide-react';
+import { Image as LucideImage, Plus, Minus, Star, Settings2 } from 'lucide-react';
 import { categoryIcons } from './icons';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
@@ -15,8 +15,6 @@ interface BuyerMenuProps {
   currentCategories: Category[];
   accentColor?: string;
   selectedMenuType?: string;
-  categoryImageVisibility?: Category[];
-  categoryModifierEnabled?: Category[];
 }
 
 export function BuyerMenu({ 
@@ -26,14 +24,14 @@ export function BuyerMenu({
   currentCategories, 
   menuItems, 
   accentColor, 
-  selectedMenuType, 
-  categoryModifierEnabled = []
+  selectedMenuType
 }: BuyerMenuProps) {
   
   const handleQuantityChange = (item: MenuItem, change: number) => {
-    const isModifierEnabled = categoryModifierEnabled.includes(item.category);
+    const hasModifiers = item.modifierGroupIds && item.modifierGroupIds.length > 0;
     
-    if (isModifierEnabled && change > 0) {
+    // If the item has modifiers and we are adding, we MUST open the modifier selector
+    if (hasModifiers && change > 0) {
       onOpenModifiers(item);
       return;
     }
@@ -53,7 +51,6 @@ export function BuyerMenu({
     <div className="space-y-10">
       {currentCategories.map((category) => {
         const CategoryIcon = categoryIcons[category];
-        const isModifierEnabled = categoryModifierEnabled.includes(category);
         
         // Filter and sort items for this category/mode
         const itemsInCategory = menuItems
@@ -89,8 +86,7 @@ export function BuyerMenu({
                 <CategoryIcon className="w-4 h-4 text-primary" style={accentColor ? { color: accentColor } : {}} />
               )}
               <h2 className={cn(
-                "font-headline text-[13px] font-black uppercase tracking-[0.1em]",
-                category === 'Featured' ? "text-[#213147]" : "text-[#213147]"
+                "font-headline text-[13px] font-black uppercase tracking-[0.1em] text-[#213147]"
               )}>{category}</h2>
             </div>
             
@@ -98,6 +94,7 @@ export function BuyerMenu({
               {itemsInCategory.map((item) => {
                 const relevantCartItems = orderItems.filter(i => i.id === item.id);
                 const totalQuantity = relevantCartItems.reduce((acc, i) => acc + i.quantity, 0);
+                const hasModifiers = item.modifierGroupIds && item.modifierGroupIds.length > 0;
                 
                 return (
                   <div 
@@ -119,6 +116,11 @@ export function BuyerMenu({
                           <LucideImage className="w-8 h-8" />
                         </div>
                       )}
+                      {hasModifiers && (
+                        <div className="absolute top-2 right-2 bg-white/90 backdrop-blur-sm p-1.5 rounded-lg border shadow-sm">
+                          <Settings2 className="h-3 w-3 text-[#213147]" />
+                        </div>
+                      )}
                     </div>
 
                     {/* Content Area */}
@@ -133,21 +135,31 @@ export function BuyerMenu({
                       )}
                       
                       <div className="mt-auto pt-4 flex items-center justify-between">
-                        <span className="font-mono text-sm font-black text-primary">
-                          ${item.price.toFixed(2)}{isModifierEnabled && '+'}
-                        </span>
+                        <div className="flex flex-col">
+                          <span className="font-mono text-sm font-black text-primary leading-none">
+                            ${item.price.toFixed(2)}
+                          </span>
+                          {hasModifiers && (
+                            <span className="text-[7px] font-black text-muted-foreground uppercase tracking-widest mt-1">Options Available</span>
+                          )}
+                        </div>
 
                         {/* Controls */}
                         <div className="flex items-center gap-1 shrink-0">
-                          {isModifierEnabled ? (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleQuantityChange(item, 1)}
-                              className="h-10 w-10 rounded-xl hover:bg-primary/10 text-primary border-2 border-primary/10"
-                            >
-                              <Plus className="h-5 w-5" />
-                            </Button>
+                          {hasModifiers ? (
+                            <div className="flex items-center gap-1 bg-muted/30 p-1 rounded-xl border border-muted">
+                              {totalQuantity > 0 && (
+                                <span className="text-xs font-black w-6 text-center text-[#213147]">{totalQuantity}</span>
+                              )}
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => onOpenModifiers(item)}
+                                className="h-9 w-9 rounded-lg transition-colors text-primary bg-white shadow-sm hover:bg-white"
+                              >
+                                <Plus className="h-5 w-5" />
+                              </Button>
+                            </div>
                           ) : (
                             <div className="flex items-center gap-1 bg-muted/30 p-1 rounded-xl border border-muted min-h-[48px]">
                               {totalQuantity > 0 ? (

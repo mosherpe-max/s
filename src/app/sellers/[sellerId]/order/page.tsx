@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, use, useEffect, useMemo, useRef } from 'react';
+import { useState, use, useEffect, useMemo } from 'react';
 import { collection, doc, addDoc, serverTimestamp } from 'firebase/firestore';
 import { signInAnonymously } from 'firebase/auth';
 import { useFirestore, useCollection, useMemoFirebase, useDoc, useAuth, useUser, useFirebase } from '@/firebase';
@@ -10,6 +10,7 @@ import { BuyerMenu } from '@/components/buyer-menu';
 import { OrderSummary } from '@/components/order-summary';
 import { PricingBreakdown } from '@/components/pricing-breakdown';
 import { TipSelector } from '@/components/tip-selector';
+import { ModifierSelector } from '@/components/modifier-selector';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
@@ -38,7 +39,8 @@ import {
   Zap,
   User,
   Smartphone,
-  Mail
+  Mail,
+  X
 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useCart } from '@/lib/cart-context';
@@ -494,6 +496,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
   const selectedMenuType = menuTypeFromUrl || '';
   const [locationValue, setLocationValue] = useState<string>('');
   const [activeCategory, setActiveCategory] = useState<string>('Featured');
+  const [customizingItem, setCustomizingItem] = useState<MenuItem | null>(null);
 
   const configRef = useMemoFirebase(() => (firestore ? doc(firestore, 'solution', 'config') : null), [firestore]);
   const { data: solutionConfig, isLoading: isConfigLoading } = useDoc<SolutionConfig>(configRef);
@@ -559,8 +562,8 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
 
   const activeOrderItems = useMemo(() => orderItems.filter((item) => item.quantity > 0), [orderItems]);
   const subtotal = useMemo(() => activeOrderItems.reduce((acc, item) => {
-    const unitPrice = item.price + (item.selectedModifiers ? Object.values(item.selectedModifiers).flat().reduce((s, m) => s + m.price, 0) : 0);
-    return acc + unitPrice * item.quantity;
+    const modsPrice = item.selectedModifiers ? Object.values(item.selectedModifiers).flat().reduce((s, m) => s + m.priceAdjustment, 0) : 0;
+    return acc + (item.price + modsPrice) * item.quantity;
   }, 0), [activeOrderItems]);
   
   const taxRate = seller?.taxRate ?? 6.0;
@@ -572,7 +575,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
 
   const filteredMenuItems = useMemo(() => {
     if (!menuItems || !selectedMenuType) return [];
-    return menuItems.filter(item => item.availableOn?.includes(selectedMenuType) || item.featuredOn?.includes(selectedMenuType));
+    return menuItems.filter(item => item.isAvailable !== false && (item.availableOn?.includes(selectedMenuType) || item.featuredOn?.includes(selectedMenuType)));
   }, [menuItems, selectedMenuType]);
 
   const currentCategories = useMemo(() => {
@@ -601,6 +604,11 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
     }
   };
 
+  const handleConfirmModifiers = (orderItem: OrderItem) => {
+    updateItem(orderItem);
+    setCustomizingItem(null);
+  };
+
   const isLoading = isSellerLoading || areItemsLoading || isVenueLoading || (isConfigLoading && !solutionConfig);
 
   if (isLoading) {
@@ -614,7 +622,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
 
   return (
     <div className="flex flex-col min-h-screen bg-[#F0F0F0] overflow-x-hidden">
-      <header className="relative w-full min-h-[22vh] flex flex-col bg-[#213147] overflow-hidden shrink-0 pt-8 pb-8 px-6">
+      <header className="relative w-full min-h-[22vh] flex flex-col bg-[#213147] overflow-hidden shrink-0 pt-8 pb-8 px-6 text-left">
         <div className="absolute inset-0 z-0 opacity-10 pointer-events-none">
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full border-[30px] border-white" />
         </div>
@@ -653,13 +661,41 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
           </div>
 
           <main className="flex-1 px-4 pt-8 pb-32 max-w-2xl mx-auto w-full">
-            <BuyerMenu orderItems={orderItems} onUpdateItem={updateItem} onOpenModifiers={() => {}} currentCategories={currentCategories} menuItems={filteredMenuItems} selectedMenuType={selectedMenuType} />
+            <BuyerMenu 
+              orderItems={orderItems} 
+              onUpdateItem={updateItem} 
+              onOpenModifiers={setCustomizingItem} 
+              currentCategories={currentCategories} 
+              menuItems={filteredMenuItems} 
+              selectedMenuType={selectedMenuType} 
+            />
           </main>
         </>
       )}
 
+      {/* Item Customization Sheet */}
+      <Sheet open={!!customizingItem} onOpenChange={(o) => !o && setCustomizingItem(null)}>
+        <SheetContent side="bottom" className="rounded-t-[2.5rem] h-[90vh] flex flex-col p-0 overflow-hidden outline-none">
+          <SheetHeader className="px-6 py-5 border-b bg-[#213147] text-white shrink-0 text-left">
+            <div className="max-w-xl mx-auto w-full flex flex-col items-start relative pr-10">
+              <SheetTitle className="font-headline font-black uppercase tracking-tight text-white text-xl">Customize Item</SheetTitle>
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/50">{customizingItem?.name}</p>
+              <SheetClose className="absolute right-0 top-0 text-white/40 hover:text-white"><X className="h-6 w-6" /></SheetClose>
+            </div>
+          </SheetHeader>
+          {customizingItem && (
+            <ModifierSelector 
+              item={customizingItem} 
+              onConfirm={handleConfirmModifiers} 
+              onCancel={() => setCustomizingItem(null)} 
+            />
+          )}
+        </SheetContent>
+      </Sheet>
+
+      {/* Cart Summary Sheet */}
       <Sheet open={isCartOpen} onOpenChange={setIsCartOpen}>
-        {totalItems > 0 && (
+        {totalItems > 0 && !customizingItem && (
           <div className="fixed bottom-7 left-0 right-0 p-4 bg-white/80 backdrop-blur-md border-t z-40">
             <div className="max-w-xl mx-auto px-2">
               <SheetTrigger asChild>
@@ -671,11 +707,12 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
             </div>
           </div>
         )}
-        <SheetContent side="bottom" className="rounded-t-[2rem] h-[90vh] flex flex-col p-0 overflow-hidden outline-none">
-          <SheetHeader className="px-6 py-5 border-b bg-[#213147] text-white shrink-0">
-            <div className="max-w-xl mx-auto w-full flex flex-col items-start pr-10">
+        <SheetContent side="bottom" className="rounded-t-[2.5rem] h-[90vh] flex flex-col p-0 overflow-hidden outline-none">
+          <SheetHeader className="px-6 py-5 border-b bg-[#213147] text-white shrink-0 text-left">
+            <div className="max-w-xl mx-auto w-full flex flex-col items-start pr-10 relative">
               <div className="flex items-center gap-3 mb-1"><SheetTitle className="font-headline font-black uppercase tracking-tight text-white text-xl">Checkout</SheetTitle><Badge variant="outline" className="text-[9px] font-black border-primary/40 bg-primary/10 text-primary uppercase h-5">{selectedMenuType}</Badge></div>
               <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/50">{seller?.courseName}</p>
+              <SheetClose className="absolute right-0 top-1 text-white/40 hover:text-white"><X className="h-6 w-6" /></SheetClose>
             </div>
           </SheetHeader>
           <CheckoutDrawerContent 
