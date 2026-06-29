@@ -255,13 +255,13 @@ function KPICard({ label, value, sub, icon: Icon, colorClass, highlight = false 
 }
 
 function SortableItem({ id, item, isFeatured, onToggleFeatured, onRemoveFromMode, onEdit }: { 
-  id: string, 
-  item: MenuItem, 
-  activeMode: string, 
-  isFeatured: boolean, 
-  onToggleFeatured: (id: string, current: string[]) => void,
-  onRemoveFromMode: (id: string) => void,
-  onEdit: (item: MenuItem) => void
+  id: string; 
+  item: MenuItem; 
+  activeMode: string; 
+  isFeatured: boolean; 
+  onToggleFeatured: (id: string, current: string[]) => void;
+  onRemoveFromMode: (id: string) => void;
+  onEdit: (item: MenuItem) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
   
@@ -309,7 +309,7 @@ function SortableItem({ id, item, isFeatured, onToggleFeatured, onRemoveFromMode
   );
 }
 
-function SortableCategory({ id, category, isVisible, onToggleVisibility }: { id: string, category: string, isVisible: boolean, onToggleVisibility: (cat: string) => void }) {
+function SortableCategory({ id, category, isVisible, onToggleVisibility }: { id: string; category: string; isVisible: boolean; onToggleVisibility: (cat: string) => void }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
   
   const style = {
@@ -986,19 +986,138 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
 
               {activeNav === 'service' && (
                 <div className="space-y-8 animate-in fade-in duration-500">
-                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b-2 pb-4 text-left"><div className="space-y-1"><h3 className="font-headline font-black text-2xl text-[#213147] uppercase leading-tight">Service Mode Menu Builder</h3><p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Construct specific menus for each active channel</p></div><div className="w-full sm:w-64"><Select value={configMode} onValueChange={setConfigMode}><SelectTrigger className="h-12 border-2 font-black uppercase text-[10px] tracking-widest bg-white"><Zap className="h-4 w-4 text-primary mr-2" /><SelectValue /></SelectTrigger><SelectContent>{seller?.menuTypes?.map(m => <SelectItem key={m} value={m} className="font-bold uppercase text-[10px] tracking-widest">{m}</SelectItem>)}</Select></div></div>
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b-2 pb-4 text-left">
+                    <div className="space-y-1 text-left">
+                      <h3 className="font-headline font-black text-2xl text-[#213147] uppercase leading-tight">Service Mode Menu Builder</h3>
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Construct specific menus for each active channel</p>
+                    </div>
+                    <div className="w-full sm:w-64">
+                      <Select value={configMode} onValueChange={setConfigMode}>
+                        <SelectTrigger className="h-12 border-2 font-black uppercase text-[10px] tracking-widest bg-white">
+                          <Zap className="h-4 w-4 text-primary mr-2" />
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {seller?.menuTypes?.map(m => (
+                            <SelectItem key={m} value={m} className="font-bold uppercase text-[10px] tracking-widest">{m}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
                   <div className="grid grid-cols-1 gap-12 text-left">
-                    <div className="space-y-4"><div className="flex items-center gap-3 border-b-2 pb-2 px-1 text-left"><div className="p-1.5 bg-indigo-50 rounded-lg text-indigo-600"><LayoutList className="h-4 w-4" /></div><div className="space-y-0.5 text-left"><h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-[#213147]">Category Visibility & Sorting</h4><p className="text-[8px] font-bold text-muted-foreground uppercase">Enable categories and drag to define patron scroll order.</p></div></div><DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(e) => handleDragEnd(e, 'layout')}><SortableContext items={seller?.categoryVisibility?.[configMode] || categories.filter(c => c !== 'Featured')} strategy={verticalListSortingStrategy}><div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">{(seller?.categoryVisibility?.[configMode] || categories.filter(c => c !== 'Featured')).map(cat => (<SortableCategory key={`cat-sort-${cat}`} id={cat} category={cat} isVisible={true} onToggleVisibility={handleToggleCategoryVisibility} />))}{categories.filter(c => c !== 'Featured' && !(seller?.categoryVisibility?.[configMode] || []).includes(c)).map(cat => (<div key={`cat-hidden-${cat}`} className="bg-slate-50 border-2 border-dashed rounded-xl p-3 flex items-center justify-between opacity-60"><span className="text-[10px] font-black uppercase text-slate-400">{cat}</span><Switch checked={false} onCheckedChange={() => handleToggleCategoryVisibility(cat)} className="scale-75" /></div>))}</div></SortableContext></DndContext></div>
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-3 border-b-2 pb-2 px-1 text-left">
+                        <div className="p-1.5 bg-indigo-50 rounded-lg text-indigo-600"><LayoutList className="h-4 w-4" /></div>
+                        <div className="space-y-0.5 text-left">
+                          <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-[#213147]">Category Visibility & Sorting</h4>
+                          <p className="text-[8px] font-bold text-muted-foreground uppercase">Enable categories and drag to define patron scroll order.</p>
+                        </div>
+                      </div>
+                      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(e) => handleDragEnd(e, 'layout')}>
+                        <SortableContext items={seller?.categoryVisibility?.[configMode] || categories.filter(c => c !== 'Featured')} strategy={verticalListSortingStrategy}>
+                          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+                            {(seller?.categoryVisibility?.[configMode] || categories.filter(c => c !== 'Featured')).map(cat => (
+                              <SortableCategory key={`cat-sort-${cat}`} id={cat} category={cat} isVisible={true} onToggleVisibility={handleToggleCategoryVisibility} />
+                            ))}
+                            {categories.filter(c => c !== 'Featured' && !(seller?.categoryVisibility?.[configMode] || []).includes(c)).map(cat => (
+                              <div key={`cat-hidden-${cat}`} className="bg-slate-50 border-2 border-dashed rounded-xl p-3 flex items-center justify-between opacity-60">
+                                <span className="text-[10px] font-black uppercase text-slate-400">{cat}</span>
+                                <Switch checked={false} onCheckedChange={() => handleToggleCategoryVisibility(cat)} className="scale-75" />
+                              </div>
+                            ))}
+                          </div>
+                        </SortableContext>
+                      </DndContext>
+                    </div>
+
                     <div className="space-y-12">
-                       <div className="space-y-4 bg-amber-50/30 p-6 rounded-[2rem] border-2 border-amber-100/50"><div className="flex items-center gap-2 border-b-2 border-amber-100 pb-2 px-1 text-left"><Star className="h-4 w-4 text-amber-500 fill-current" /><h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-amber-800">Featured Highlight Items</h4></div><DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(e) => handleDragEnd(e, 'featured')}><SortableContext items={menuItems?.filter(i => i.featuredOn?.includes(configMode)).sort((a, b) => (a.featuredRanks?.[configMode] || 0) - (b.featuredRanks?.[configMode] || 0)).map(i => i.id) || []} strategy={verticalListSortingStrategy}><div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">{menuItems?.filter(i => i.featuredOn?.includes(configMode)).sort((a, b) => (a.featuredRanks?.[configMode] || 0) - (b.featuredRanks?.[configMode] || 0)).map(item => (<SortableItem key={item.id} id={item.id} item={item} activeMode={configMode} isFeatured={true} onToggleFeatured={handleToggleItemFeatured} onRemoveFromMode={() => handleToggleItemAvailability(item.id, item.availableOn || [])} onEdit={(it) => { setEditingItem(it); itemForm.reset(it); setIsItemFormOpen(true); }} />))}{menuItems?.filter(i => i.featuredOn?.includes(configMode)).length === 0 && <div className="col-span-full py-8 text-center border-2 border-dashed rounded-2xl opacity-40 bg-white"><p className="text-[10px] font-black uppercase tracking-widest text-amber-800/50 text-center">No Featured items</p></div>}</div></SortableContext></DndContext></div>
-                       {categories.filter(c => c !== 'Featured').map(cat => {
-                         const allItemsInCat = menuItems?.filter(i => i.category === cat) || [];
-                         const activeInMode = allItemsInCat.filter(i => i.availableOn?.includes(configMode)).sort((a, b) => (a.menuRanks?.[configMode] || 0) - (b.menuRanks?.[configMode] || 0));
-                         const remainingInLibrary = allItemsInCat.filter(i => !i.availableOn?.includes(configMode));
-                         return (
-                           <div key={`mode-cat-${cat}`} className="space-y-6"><div className="flex items-center justify-between border-b-2 pb-2 px-1 text-left"><div className="flex items-center gap-3"><Badge variant="secondary" className="h-6 px-3 text-[10px] font-black uppercase tracking-widest bg-[#213147] text-white border-0">{cat}</Badge><div className="flex items-center gap-2"><Switch checked={(seller?.categoryVisibility?.[configMode] || []).includes(cat)} onCheckedChange={() => handleToggleCategoryVisibility(cat)} className="scale-75" /><span className="text-[9px] font-black uppercase text-muted-foreground">Category Visible</span></div></div><Button variant="ghost" size="sm" className="h-8 text-[9px] font-black uppercase gap-1.5 bg-slate-100 hover:bg-primary hover:text-white transition-all rounded-full" onClick={() => { setEditingItem(null); itemForm.reset({ name: '', description: '', price: 0, category: cat as any, isAvailable: true, availableOn: [configMode], featuredOn: [], modifierGroupIds: [] }); setIsItemFormOpen(true); }}><Plus className="h-3 w-3" /> Add Master Item</Button></div><div className="grid grid-cols-1 md:grid-cols-4 gap-8 text-left"><div className="md:col-span-3 space-y-3"><div className="flex items-center gap-2 px-1 mb-2"><CheckCircle2 className="h-3.5 w-3.5 text-green-600" /><span className="text-[10px] font-black uppercase tracking-widest text-green-700">Active on {configMode}</span></div><DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(e) => handleDragEnd(e, 'category', cat)}><SortableContext items={activeInMode.map(i => i.id)} strategy={verticalListSortingStrategy}><div className="grid grid-cols-1 sm:grid-cols-2 gap-3">{activeInMode.map(item => (<SortableItem key={`active-item-${item.id}`} id={item.id} item={item} activeMode={configMode} isFeatured={item.featuredOn?.includes(configMode) || false} onToggleFeatured={handleToggleItemFeatured} onRemoveFromMode={() => handleToggleItemAvailability(item.id, item.availableOn || [])} onEdit={(it) => { setEditingItem(it); itemForm.reset(it); setIsItemFormOpen(true); }} />))}{activeInMode.length === 0 && <div className="col-span-full py-10 text-center border-2 border-dashed rounded-2xl opacity-30 bg-slate-50"><p className="text-[9px] font-black uppercase tracking-[0.2em] text-center">No items authorized</p></div>}</div></SortableContext></DndContext></div><div className="md:col-span-1 space-y-3"><div className="flex items-center gap-2 px-1 mb-2"><Library className="h-3.5 w-3.5 text-indigo-600" /><span className="text-[10px] font-black uppercase tracking-widest text-indigo-700">From Master Library</span></div><ScrollArea className="h-[250px] border-2 rounded-2xl bg-slate-50/50 p-2"><div className="space-y-2 text-left">{remainingInLibrary.map(item => (<div key={`lib-item-${item.id}`} className="bg-white border-2 rounded-xl p-2.5 flex items-center justify-between gap-2 shadow-sm group"><div className="min-w-0 flex-1 text-left"><p className="text-[10px] font-black uppercase text-[#213147] truncate">{item.name}</p><p className="text-[8px] font-bold text-muted-foreground uppercase">${item.price.toFixed(2)}</p></div><div className="flex items-center gap-1"><Button variant="ghost" size="icon" className="h-7 w-7 text-indigo-600" onClick={() => handleToggleItemAvailability(item.id, item.availableOn || [])}><Plus className="h-3.5 w-3.5" /></Button><Button variant="ghost" size="icon" className="h-7 w-7 text-destructive opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => handleDeleteItem(item.id)}><Trash2 className="h-3.5 w-3.5" /></Button></div></div>))}{remainingInLibrary.length === 0 && <div className="py-8 text-center opacity-30"><p className="text-[8px] font-black uppercase tracking-widest text-center">Library empty</p></div>}</div></ScrollArea></div></div></div>
-                         );
-                       })}
+                      <div className="space-y-4 bg-amber-50/30 p-6 rounded-[2rem] border-2 border-amber-100/50">
+                        <div className="flex items-center gap-2 border-b-2 border-amber-100 pb-2 px-1 text-left">
+                          <Star className="h-4 w-4 text-amber-500 fill-current" />
+                          <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-amber-800">Featured Highlight Items</h4>
+                        </div>
+                        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(e) => handleDragEnd(e, 'featured')}>
+                          <SortableContext items={menuItems?.filter(i => i.featuredOn?.includes(configMode)).sort((a, b) => (a.featuredRanks?.[configMode] || 0) - (b.featuredRanks?.[configMode] || 0)).map(i => i.id) || []} strategy={verticalListSortingStrategy}>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                              {menuItems?.filter(i => i.featuredOn?.includes(configMode)).sort((a, b) => (a.featuredRanks?.[configMode] || 0) - (b.featuredRanks?.[configMode] || 0)).map(item => (
+                                <SortableItem key={item.id} id={item.id} item={item} activeMode={configMode} isFeatured={true} onToggleFeatured={handleToggleItemFeatured} onRemoveFromMode={() => handleToggleItemAvailability(item.id, item.availableOn || [])} onEdit={(it) => { setEditingItem(it); itemForm.reset(it); setIsItemFormOpen(true); }} />
+                              ))}
+                              {menuItems?.filter(i => i.featuredOn?.includes(configMode)).length === 0 && (
+                                <div className="col-span-full py-8 text-center border-2 border-dashed rounded-2xl opacity-40 bg-white">
+                                  <p className="text-[10px] font-black uppercase tracking-widest text-amber-800/50 text-center">No Featured items</p>
+                                </div>
+                              )}
+                            </div>
+                          </SortableContext>
+                        </DndContext>
+                      </div>
+
+                      {categories.filter(c => c !== 'Featured').map(cat => {
+                        const allItemsInCat = menuItems?.filter(i => i.category === cat) || [];
+                        const activeInMode = allItemsInCat.filter(i => i.availableOn?.includes(configMode)).sort((a, b) => (a.menuRanks?.[configMode] || 0) - (b.menuRanks?.[configMode] || 0));
+                        const remainingInLibrary = allItemsInCat.filter(i => !i.availableOn?.includes(configMode));
+                        return (
+                          <div key={`mode-cat-${cat}`} className="space-y-6 text-left">
+                            <div className="flex items-center justify-between border-b-2 pb-2 px-1 text-left">
+                              <div className="flex items-center gap-3">
+                                <Badge variant="secondary" className="h-6 px-3 text-[10px] font-black uppercase tracking-widest bg-[#213147] text-white border-0">{cat}</Badge>
+                                <div className="flex items-center gap-2">
+                                  <Switch checked={(seller?.categoryVisibility?.[configMode] || []).includes(cat)} onCheckedChange={() => handleToggleCategoryVisibility(cat)} className="scale-75" />
+                                  <span className="text-[9px] font-black uppercase text-muted-foreground">Category Visible</span>
+                                </div>
+                              </div>
+                              <Button variant="ghost" size="sm" className="h-8 text-[9px] font-black uppercase gap-1.5 bg-slate-100 hover:bg-primary hover:text-white transition-all rounded-full" onClick={() => { setEditingItem(null); itemForm.reset({ name: '', description: '', price: 0, category: cat as any, isAvailable: true, availableOn: [configMode], featuredOn: [], modifierGroupIds: [] }); setIsItemFormOpen(true); }}>
+                                <Plus className="h-3 w-3" /> Add Master Item
+                              </Button>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-4 gap-8 text-left">
+                              <div className="md:col-span-3 space-y-3">
+                                <div className="flex items-center gap-2 px-1 mb-2"><CheckCircle2 className="h-3.5 w-3.5 text-green-600" /><span className="text-[10px] font-black uppercase tracking-widest text-green-700">Active on {configMode}</span></div>
+                                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(e) => handleDragEnd(e, 'category', cat)}>
+                                  <SortableContext items={activeInMode.map(i => i.id)} strategy={verticalListSortingStrategy}>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                      {activeInMode.map(item => (
+                                        <SortableItem key={`active-item-${item.id}`} id={item.id} item={item} activeMode={configMode} isFeatured={item.featuredOn?.includes(configMode) || false} onToggleFeatured={handleToggleItemFeatured} onRemoveFromMode={() => handleToggleItemAvailability(item.id, item.availableOn || [])} onEdit={(it) => { setEditingItem(it); itemForm.reset(it); setIsItemFormOpen(true); }} />
+                                      ))}
+                                      {activeInMode.length === 0 && (
+                                        <div className="col-span-full py-10 text-center border-2 border-dashed rounded-2xl opacity-30 bg-slate-50">
+                                          <p className="text-[9px] font-black uppercase tracking-[0.2em] text-center">No items authorized</p>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </SortableContext>
+                                </DndContext>
+                              </div>
+                              <div className="md:col-span-1 space-y-3">
+                                <div className="flex items-center gap-2 px-1 mb-2"><Library className="h-3.5 w-3.5 text-indigo-600" /><span className="text-[10px] font-black uppercase tracking-widest text-indigo-700">From Master Library</span></div>
+                                <ScrollArea className="h-[250px] border-2 rounded-2xl bg-slate-50/50 p-2">
+                                  <div className="space-y-2 text-left">
+                                    {remainingInLibrary.map(item => (
+                                      <div key={`lib-item-${item.id}`} className="bg-white border-2 rounded-xl p-2.5 flex items-center justify-between gap-2 shadow-sm group">
+                                        <div className="min-w-0 flex-1 text-left">
+                                          <p className="text-[10px] font-black uppercase text-[#213147] truncate">{item.name}</p>
+                                          <p className="text-[8px] font-bold text-muted-foreground uppercase">${item.price.toFixed(2)}</p>
+                                        </div>
+                                        <div className="flex items-center gap-1">
+                                          <Button variant="ghost" size="icon" className="h-7 w-7 text-indigo-600" onClick={() => handleToggleItemAvailability(item.id, item.availableOn || [])}><Plus className="h-3.5 w-3.5" /></Button>
+                                          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => handleDeleteItem(item.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                                        </div>
+                                      </div>
+                                    ))}
+                                    {remainingInLibrary.length === 0 && (
+                                      <div className="py-8 text-center opacity-30">
+                                        <p className="text-[8px] font-black uppercase tracking-widest text-center">Library empty</p>
+                                      </div>
+                                    )}
+                                  </div>
+                                </ScrollArea>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 </div>
@@ -1018,8 +1137,69 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
               {activeNav === 'settings' && (
                 <div className="space-y-10 animate-in fade-in duration-500 text-left">
                   <form onSubmit={handleUpdateVenueSettings} className="space-y-10 text-left">
-                  <div className="space-y-6"><div className="flex items-center gap-3 border-b-2 pb-4 text-left"><div className="p-2 bg-indigo-50 rounded-xl text-indigo-600"><Building className="h-5 w-5" /></div><div className="space-y-0.5 text-left"><h3 className="font-headline font-black text-2xl text-[#213147] uppercase leading-tight">General Identity</h3><p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Branding and menu presentation</p></div></div><Card className="border-2 shadow-sm overflow-hidden text-left"><CardContent className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6 text-left"><div className="space-y-2 text-left"><Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Public Venue Name</Label><Input value={venueName} onChange={(e) => setVenueName(e.target.value)} placeholder="Oak Ridge Country Club" className="h-12 border-2 font-bold focus-visible:ring-primary" /></div><div className="space-y-2 text-left"><Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Tax Rate (%)</Label><Input type="number" step="0.01" value={venueTaxRate || ''} onChange={(e) => setVenueTaxRate(parseFloat(e.target.value) || 0)} className="h-12 border-2 font-bold focus-visible:ring-primary" /></div></CardContent></Card></div>
-                  <div className="space-y-6"><div className="flex items-center gap-3 border-b-2 pb-4 text-left"><div className="p-2 bg-primary/10 rounded-xl text-primary"><Timer className="h-5 w-5" /></div><div className="space-y-0.5 text-left"><h3 className="font-headline font-black text-2xl text-[#213147] uppercase leading-tight">Operational Thresholds</h3><p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Timing protocols for order fulfillment</p></div></div><div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-left">{(seller?.menuTypes || []).map(mode => { const thresholds = venueThresholds[mode] || DEFAULT_THRESHOLDS[mode] || { warning: 15, max: 20 }; return (<Card key={mode} className="border-2 shadow-sm overflow-hidden group text-left"><CardHeader className="bg-slate-50/50 border-b flex flex-row items-center justify-between py-3 text-left"><div className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-primary" /><span className="text-[11px] font-black uppercase text-[#213147]">{mode}</span></div></CardHeader><CardContent className="p-6 space-y-6 text-left"><div className="grid grid-cols-2 gap-6 text-left"><div className="space-y-2 text-left"><Label className="text-[10px] font-black uppercase text-amber-600 tracking-widest">Warning (Min)</Label><Input type="number" min="1" value={thresholds.warning || ''} onChange={(e) => setVenueThresholds(prev => ({ ...prev, [mode]: { ...thresholds, warning: parseInt(e.target.value, 10) || 0 } }))} className="h-11 border-2 font-bold focus-visible:ring-amber-500" /></div><div className="space-y-2 text-left"><Label className="text-[10px] font-black uppercase text-red-600 tracking-widest">Max Window (Min)</Label><Input type="number" min="1" value={thresholds.max || ''} onChange={(e) => setVenueThresholds(prev => ({ ...prev, [mode]: { ...thresholds, max: parseInt(e.target.value, 10) || 0 } }))} className="h-11 border-2 font-bold focus-visible:ring-red-500" /></div></div></CardContent></Card>); })}</div><div className="flex justify-end pt-4"><Button type="submit" disabled={isProcessingSave} className="h-14 px-10 bg-[#213147] hover:bg-black font-black uppercase tracking-widest text-[11px] gap-3 shadow-xl">{isProcessingSave ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}Commit Venue Settings</Button></div></div>
+                    <div className="space-y-6">
+                      <div className="flex items-center gap-3 border-b-2 pb-4 text-left">
+                        <div className="p-2 bg-indigo-50 rounded-xl text-indigo-600"><Building className="h-5 w-5" /></div>
+                        <div className="space-y-0.5 text-left">
+                          <h3 className="font-headline font-black text-2xl text-[#213147] uppercase leading-tight">General Identity</h3>
+                          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Branding and menu presentation</p>
+                        </div>
+                      </div>
+                      <Card className="border-2 shadow-sm overflow-hidden text-left">
+                        <CardContent className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6 text-left">
+                          <div className="space-y-2 text-left">
+                            <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Public Venue Name</Label>
+                            <Input value={venueName} onChange={(e) => setVenueName(e.target.value)} placeholder="Oak Ridge Country Club" className="h-12 border-2 font-bold focus-visible:ring-primary" />
+                          </div>
+                          <div className="space-y-2 text-left">
+                            <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Tax Rate (%)</Label>
+                            <Input type="number" step="0.01" value={venueTaxRate || ''} onChange={(e) => setVenueTaxRate(parseFloat(e.target.value) || 0)} className="h-12 border-2 font-bold focus-visible:ring-primary" />
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </div>
+                    <div className="space-y-6">
+                      <div className="flex items-center gap-3 border-b-2 pb-4 text-left">
+                        <div className="p-2 bg-primary/10 rounded-xl text-primary"><Timer className="h-5 w-5" /></div>
+                        <div className="space-y-0.5 text-left">
+                          <h3 className="font-headline font-black text-2xl text-[#213147] uppercase leading-tight">Operational Thresholds</h3>
+                          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Timing protocols for order fulfillment</p>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-left">
+                        {(seller?.menuTypes || []).map(mode => { 
+                          const thresholds = venueThresholds[mode] || DEFAULT_THRESHOLDS[mode] || { warning: 15, max: 20 }; 
+                          return (
+                            <Card key={mode} className="border-2 shadow-sm overflow-hidden group text-left">
+                              <CardHeader className="bg-slate-50/50 border-b flex flex-row items-center justify-between py-3 text-left">
+                                <div className="flex items-center gap-2">
+                                  <div className="w-1.5 h-1.5 rounded-full bg-primary" />
+                                  <span className="text-[11px] font-black uppercase text-[#213147]">{mode}</span>
+                                </div>
+                              </CardHeader>
+                              <CardContent className="p-6 space-y-6 text-left">
+                                <div className="grid grid-cols-2 gap-6 text-left">
+                                  <div className="space-y-2 text-left">
+                                    <Label className="text-[10px] font-black uppercase text-amber-600 tracking-widest">Warning (Min)</Label>
+                                    <Input type="number" min="1" value={thresholds.warning || ''} onChange={(e) => setVenueThresholds(prev => ({ ...prev, [mode]: { ...thresholds, warning: parseInt(e.target.value, 10) || 0 } }))} className="h-11 border-2 font-bold focus-visible:ring-amber-500" />
+                                  </div>
+                                  <div className="space-y-2 text-left">
+                                    <Label className="text-[10px] font-black uppercase text-red-600 tracking-widest">Max Window (Min)</Label>
+                                    <Input type="number" min="1" value={thresholds.max || ''} onChange={(e) => setVenueThresholds(prev => ({ ...prev, [mode]: { ...thresholds, max: parseInt(e.target.value, 10) || 0 } }))} className="h-11 border-2 font-bold focus-visible:ring-red-500" />
+                                  </div>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          ); 
+                        })}
+                      </div>
+                      <div className="flex justify-end pt-4">
+                        <Button type="submit" disabled={isProcessingSave} className="h-14 px-10 bg-[#213147] hover:bg-black font-black uppercase tracking-widest text-[11px] gap-3 shadow-xl">
+                          {isProcessingSave ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                          Commit Venue Settings
+                        </Button>
+                      </div>
+                    </div>
                   </form>
                 </div>
               )}
@@ -1030,9 +1210,223 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
         </main>
       </div>
 
-      <Dialog open={isStaffFormOpen} onOpenChange={setIsStaffFormOpen}><DialogContent className="sm:max-w-[425px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left"><DialogHeader className="p-8 bg-[#213147] text-white"><div className="flex items-center gap-4 text-left"><div className="bg-primary/20 p-3 rounded-2xl shrink-0"><Users className="h-6 w-6 text-primary" /></div><div className="text-left"><DialogTitle className="font-headline font-black uppercase tracking-tight text-white text-xl">{editingStaff ? 'Modify Identity' : 'Provision Staff'}</DialogTitle><DialogDescription className="text-white/40 text-[9px] font-bold uppercase tracking-widest mt-1 text-left">Set secure terminal access tokens</DialogDescription></div></div></DialogHeader><div className="p-8 text-left"><Form {...staffForm}><form onSubmit={staffForm.handleSubmit(handleSaveStaff)} className="space-y-6"><FormField control={staffForm.control} name="name" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest">Full Name</FormLabel><FormControl><Input {...field} placeholder="Jane Doe" className="h-12 border-2 font-bold" /></FormControl><FormMessage /></FormItem>)} /><div className="grid grid-cols-2 gap-4"><FormField control={staffForm.control} name="role" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest">System Role</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger className="h-12 border-2 font-bold"><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="Staff">General Staff</SelectItem><SelectItem value="Manager">Venue Manager</SelectItem></SelectContent></Select><FormMessage /></FormItem>)} /><FormField control={staffForm.control} name="pin" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest">4-Digit PIN</FormLabel><FormControl><Input {...field} type="password" maxLength={4} placeholder="••••" className="h-12 border-2 font-black text-center text-xl tracking-[1em]" /></FormControl><FormMessage /></FormItem>)} /></div><div className="flex flex-col sm:flex-row gap-3"><Button type="submit" disabled={isProcessingSave} className="flex-1 h-14 bg-[#213147] hover:bg-black font-black uppercase tracking-widest text-[11px] gap-2 shadow-xl">{isProcessingSave ? <Loader2 className="h-5 w-5 animate-spin" /> : <Save className="h-5 w-5" />} Commit Identity</Button><Button type="button" variant="outline" onClick={() => { setIsStaffFormOpen(false); setEditingStaff(null); staffForm.reset(); }} className="h-14 px-8 border-2 font-black uppercase tracking-widest text-[11px]">Discard</Button></div></form></Form></div></DialogContent></Dialog>
-      <Dialog open={isItemFormOpen} onOpenChange={setIsItemFormOpen}><DialogContent className="sm:max-w-[500px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left"><DialogHeader className="p-8 bg-[#213147] text-white"><div className="flex items-center gap-4 text-left"><div className="bg-primary/20 p-3 rounded-2xl shrink-0"><UtensilsCrossed className="h-6 w-6 text-primary" /></div><div className="text-left"><DialogTitle className="font-headline font-black uppercase tracking-tight text-white text-xl">{editingItem ? 'Modify Item' : 'New Menu Item'}</DialogTitle><DialogDescription className="text-white/40 text-[9px] font-bold uppercase tracking-widest mt-1 text-left">Configure digital menu presence</DialogDescription></div></div></DialogHeader><ScrollArea className="max-h-[70vh] text-left"><div className="p-8 text-left"><Form {...itemForm}><form onSubmit={itemForm.handleSubmit(handleSaveItem)} className="space-y-6"><FormField control={itemForm.control} name="name" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest">Item Name</FormLabel><FormControl><Input {...field} placeholder="Classic Burger" className="h-12 border-2 font-bold" /></FormControl><FormMessage /></FormItem>)} /><div className="grid grid-cols-2 gap-4"><FormField control={itemForm.control} name="price" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest">Price ($)</FormLabel><FormControl><Input {...field} type="number" step="0.01" className="h-12 border-2 font-bold" /></FormControl><FormMessage /></FormItem>)} /><FormField control={itemForm.control} name="category" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest">Category</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}><FormControl><SelectTrigger className="h-12 border-2 font-bold"><SelectValue /></SelectTrigger></FormControl><SelectContent>{categories.filter(c => c !== 'Featured').map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</Select><FormMessage /></FormItem>)} /></div><FormField control={itemForm.control} name="description" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest">Description (Optional)</FormLabel><FormControl><Input {...field} placeholder="Chilled 12oz can" className="h-12 border-2 font-bold" /></FormControl><FormMessage /></FormItem>)} /><FormField control={itemForm.control} name="modifierGroupIds" render={({ field }) => (<FormItem className="space-y-3"><FormLabel className="text-[10px] font-black uppercase tracking-widest text-indigo-600">Attached Modifier Sets</FormLabel><div className="grid grid-cols-1 gap-2">{modifierGroups?.map(group => (<div key={group.id} className="flex items-center space-x-3 p-3 bg-slate-50 rounded-xl border-2 hover:bg-white transition-all"><Checkbox checked={field.value?.includes(group.id)} onCheckedChange={(checked) => { const next = checked ? [...(field.value || []), group.id] : field.value?.filter(id => id !== group.id); field.onChange(next); }} /><div className="flex-1 min-w-0 text-left"><p className="text-[10px] font-black uppercase text-[#213147]">{group.name}</p><p className="text-[8px] font-bold text-muted-foreground uppercase">{group.options.length} options</p></div></div>))}</div><FormMessage /></FormItem>)} /><div className="flex flex-col sm:flex-row gap-3"><Button type="submit" disabled={isProcessingSave} className="flex-1 h-14 bg-[#213147] hover:bg-black font-black uppercase tracking-widest text-[11px] gap-2 shadow-xl">{isProcessingSave ? <Loader2 className="h-5 w-5 animate-spin" /> : <Save className="h-5 w-5" />} Commit Item</Button><Button type="button" variant="outline" onClick={() => { setIsItemFormOpen(false); setEditingItem(null); itemForm.reset(); }} className="h-14 px-8 border-2 font-black uppercase tracking-widest text-[11px]">Discard</Button></div></form></Form></div></ScrollArea></DialogContent></Dialog>
-      <Dialog open={isModifierGroupFormOpen} onOpenChange={setIsModifierGroupFormOpen}><DialogContent className="sm:max-w-[500px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left"><DialogHeader className="p-8 bg-indigo-600 text-white"><div className="flex items-center gap-4 text-left"><div className="bg-white/20 p-3 rounded-2xl shrink-0"><Tags className="h-6 w-6 text-white" /></div><div className="text-left"><DialogTitle className="font-headline font-black uppercase tracking-tight text-white text-xl">{editingModifierGroup ? 'Modify Modifier Set' : 'New Modifier Set'}</DialogTitle><DialogDescription className="text-white/40 text-[9px] font-bold uppercase tracking-widest mt-1 text-left">Configure options and add-ons</DialogDescription></div></div></DialogHeader><ScrollArea className="max-h-[70vh] text-left"><div className="p-8 text-left"><Form {...modifierGroupForm}><form onSubmit={modifierGroupForm.handleSubmit(handleSaveModifierGroup)} className="space-y-8"><FormField control={modifierGroupForm.control} name="name" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest">Group Name</FormLabel><FormControl><Input {...field} placeholder="Side Options" className="h-12 border-2 font-bold" /></FormControl><FormDescription className="text-[8px] font-medium uppercase text-muted-foreground">e.g. "Pizza Toppings", "Choice of Dressing"</FormDescription><FormMessage /></FormItem>)} /><div className="grid grid-cols-2 gap-4 p-4 bg-slate-50 rounded-2xl border-2"><FormField control={modifierGroupForm.control} name="minSelection" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest">Min Choice</FormLabel><FormControl><Input {...field} type="number" className="h-11 border-2 font-bold" /></FormControl><FormDescription className="text-[7px] font-bold uppercase">1 = Required</FormDescription></FormItem>)} /><FormField control={modifierGroupForm.control} name="maxSelection" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest">Max Choice</FormLabel><FormControl><Input {...field} type="number" className="h-11 border-2 font-bold" /></FormControl><FormDescription className="text-[7px] font-bold uppercase">Limit selections</FormDescription></FormItem>)} /></div><div className="space-y-4 text-left"><div className="flex items-center justify-between border-b pb-2"><Label className="text-[10px] font-black uppercase tracking-widest text-indigo-600">Option Variations</Label><Button type="button" variant="outline" size="sm" onClick={() => appendOption({ id: Math.random().toString(36).substr(2, 9), name: '', priceAdjustment: 0, isAvailable: true })} className="h-7 text-[8px] font-black uppercase gap-1"><Plus className="h-3 w-3" /> Add Variation</Button></div><div className="space-y-3">{optionFields.map((field, index) => (<div key={field.id} className="grid grid-cols-12 gap-2 items-end bg-white p-3 border-2 rounded-xl group"><div className="col-span-6 space-y-1"><Label className="text-[8px] font-black uppercase text-muted-foreground">Option Name</Label><Input {...modifierGroupForm.register(`options.${index}.name` as const)} placeholder="Extra Bacon" className="h-9 text-xs font-bold border-0 bg-slate-50" /></div><div className="col-span-3 space-y-1"><Label className="text-[8px] font-black uppercase text-muted-foreground">Price (+)</Label><Input {...modifierGroupForm.register(`options.${index}.priceAdjustment` as const)} type="number" step="0.01" className="h-9 text-xs font-bold border-0 bg-slate-50" /></div><div className="col-span-2 flex items-center justify-center pb-2"><FormField control={modifierGroupForm.control} name={`options.${index}.isAvailable`} render={({ field }) => (<Switch checked={field.value} onCheckedChange={field.onChange} className="data-[state=checked]:bg-green-600 scale-75" />)} /></div><div className="col-span-1 flex items-center justify-center pb-1"><Button type="button" variant="ghost" size="icon" onClick={() => removeOption(index)} className="h-8 w-8 text-destructive/40 hover:text-destructive"><X className="h-4 w-4" /></Button></div></div>))}</div></div><div className="flex flex-col sm:flex-row gap-3 pt-4 text-left"><Button type="submit" disabled={isProcessingSave} className="flex-1 h-14 bg-indigo-600 hover:bg-indigo-700 font-black uppercase tracking-widest text-[11px] gap-2 shadow-xl">{isProcessingSave ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Commit Modifier Group</Button><Button type="button" variant="outline" onClick={() => { setIsModifierGroupFormOpen(false); setEditingModifierGroup(null); modifierGroupForm.reset(); }} className="h-14 px-8 border-2 font-black uppercase tracking-widest text-[11px]">Discard</Button></div></form></Form></div></ScrollArea></DialogContent></Dialog>
+      <Dialog open={isStaffFormOpen} onOpenChange={setIsStaffFormOpen}>
+        <DialogContent className="sm:max-w-[425px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
+          <DialogHeader className="p-8 bg-[#213147] text-white">
+            <div className="flex items-center gap-4 text-left">
+              <div className="bg-primary/20 p-3 rounded-2xl shrink-0"><Users className="h-6 w-6 text-primary" /></div>
+              <div className="text-left">
+                <DialogTitle className="font-headline font-black uppercase tracking-tight text-white text-xl">{editingStaff ? 'Modify Identity' : 'Provision Staff'}</DialogTitle>
+                <DialogDescription className="text-white/40 text-[9px] font-bold uppercase tracking-widest mt-1 text-left">Set secure terminal access tokens</DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+          <div className="p-8 text-left">
+            <Form {...staffForm}>
+              <form onSubmit={staffForm.handleSubmit(handleSaveStaff)} className="space-y-6">
+                <FormField control={staffForm.control} name="name" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-[10px] font-black uppercase tracking-widest">Full Name</FormLabel>
+                    <FormControl><Input {...field} placeholder="Jane Doe" className="h-12 border-2 font-bold" /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField control={staffForm.control} name="role" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-[10px] font-black uppercase tracking-widest">System Role</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl><SelectTrigger className="h-12 border-2 font-bold"><SelectValue /></SelectTrigger></FormControl>
+                        <SelectContent>
+                          <SelectItem value="Staff">General Staff</SelectItem>
+                          <SelectItem value="Manager">Venue Manager</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                  <FormField control={staffForm.control} name="pin" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-[10px] font-black uppercase tracking-widest">4-Digit PIN</FormLabel>
+                      <FormControl><Input {...field} type="password" maxLength={4} placeholder="••••" className="h-12 border-2 font-black text-center text-xl tracking-[1em]" /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                </div>
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <Button type="submit" disabled={isProcessingSave} className="flex-1 h-14 bg-[#213147] hover:bg-black font-black uppercase tracking-widest text-[11px] gap-2 shadow-xl">
+                    {isProcessingSave ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Commit Identity
+                  </Button>
+                  <Button type="button" variant="outline" onClick={() => { setIsStaffFormOpen(false); setEditingStaff(null); staffForm.reset(); }} className="h-14 px-8 border-2 font-black uppercase tracking-widest text-[11px]">Discard</Button>
+                </div>
+              </form>
+            </Form>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isItemFormOpen} onOpenChange={setIsItemFormOpen}>
+        <DialogContent className="sm:max-w-[500px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
+          <DialogHeader className="p-8 bg-[#213147] text-white">
+            <div className="flex items-center gap-4 text-left">
+              <div className="bg-primary/20 p-3 rounded-2xl shrink-0"><UtensilsCrossed className="h-6 w-6 text-primary" /></div>
+              <div className="text-left">
+                <DialogTitle className="font-headline font-black uppercase tracking-tight text-white text-xl">{editingItem ? 'Modify Item' : 'New Menu Item'}</DialogTitle>
+                <DialogDescription className="text-white/40 text-[9px] font-bold uppercase tracking-widest mt-1 text-left">Configure digital menu presence</DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+          <ScrollArea className="max-h-[70vh] text-left">
+            <div className="p-8 text-left">
+              <Form {...itemForm}>
+                <form onSubmit={itemForm.handleSubmit(handleSaveItem)} className="space-y-6">
+                  <FormField control={itemForm.control} name="name" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-[10px] font-black uppercase tracking-widest">Item Name</FormLabel>
+                      <FormControl><Input {...field} placeholder="Classic Burger" className="h-12 border-2 font-bold" /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField control={itemForm.control} name="price" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-[10px] font-black uppercase tracking-widest">Price ($)</FormLabel>
+                        <FormControl><Input {...field} type="number" step="0.01" className="h-12 border-2 font-bold" /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                    <FormField control={itemForm.control} name="category" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-[10px] font-black uppercase tracking-widest">Category</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
+                          <FormControl><SelectTrigger className="h-12 border-2 font-bold"><SelectValue /></SelectTrigger></FormControl>
+                          <SelectContent>
+                            {categories.filter(c => c !== 'Featured').map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                  </div>
+                  <FormField control={itemForm.control} name="description" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-[10px] font-black uppercase tracking-widest">Description (Optional)</FormLabel>
+                      <FormControl><Input {...field} placeholder="Chilled 12oz can" className="h-12 border-2 font-bold" /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                  <FormField control={itemForm.control} name="modifierGroupIds" render={({ field }) => (
+                    <FormItem className="space-y-3">
+                      <FormLabel className="text-[10px] font-black uppercase tracking-widest text-indigo-600">Attached Modifier Sets</FormLabel>
+                      <div className="grid grid-cols-1 gap-2">
+                        {modifierGroups?.map(group => (
+                          <div key={group.id} className="flex items-center space-x-3 p-3 bg-slate-50 rounded-xl border-2 hover:bg-white transition-all">
+                            <Checkbox checked={field.value?.includes(group.id)} onCheckedChange={(checked) => { 
+                              const next = checked ? [...(field.value || []), group.id] : field.value?.filter(id => id !== group.id); 
+                              field.onChange(next); 
+                            }} />
+                            <div className="flex-1 min-w-0 text-left">
+                              <p className="text-[10px] font-black uppercase text-[#213147]">{group.name}</p>
+                              <p className="text-[8px] font-bold text-muted-foreground uppercase">{group.options.length} options</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <Button type="submit" disabled={isProcessingSave} className="flex-1 h-14 bg-[#213147] hover:bg-black font-black uppercase tracking-widest text-[11px] gap-2 shadow-xl">
+                      {isProcessingSave ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Commit Item
+                    </Button>
+                    <Button type="button" variant="outline" onClick={() => { setIsItemFormOpen(false); setEditingItem(null); itemForm.reset(); }} className="h-14 px-8 border-2 font-black uppercase tracking-widest text-[11px]">Discard</Button>
+                  </div>
+                </form>
+              </Form>
+            </div>
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isModifierGroupFormOpen} onOpenChange={setIsModifierGroupFormOpen}>
+        <DialogContent className="sm:max-w-[500px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
+          <DialogHeader className="p-8 bg-indigo-600 text-white">
+            <div className="flex items-center gap-4 text-left">
+              <div className="bg-white/20 p-3 rounded-2xl shrink-0"><Tags className="h-6 w-6 text-white" /></div>
+              <div className="text-left">
+                <DialogTitle className="font-headline font-black uppercase tracking-tight text-white text-xl">{editingModifierGroup ? 'Modify Modifier Set' : 'New Modifier Set'}</DialogTitle>
+                <DialogDescription className="text-white/40 text-[9px] font-bold uppercase tracking-widest mt-1 text-left">Configure options and add-ons</DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+          <ScrollArea className="max-h-[70vh] text-left">
+            <div className="p-8 text-left">
+              <Form {...modifierGroupForm}>
+                <form onSubmit={modifierGroupForm.handleSubmit(handleSaveModifierGroup)} className="space-y-8">
+                  <FormField control={modifierGroupForm.control} name="name" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-[10px] font-black uppercase tracking-widest">Group Name</FormLabel>
+                      <FormControl><Input {...field} placeholder="Side Options" className="h-12 border-2 font-bold" /></FormControl>
+                      <FormDescription className="text-[8px] font-medium uppercase text-muted-foreground">e.g. "Pizza Toppings", "Choice of Dressing"</FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                  <div className="grid grid-cols-2 gap-4 p-4 bg-slate-50 rounded-2xl border-2">
+                    <FormField control={modifierGroupForm.control} name="minSelection" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-[10px] font-black uppercase tracking-widest">Min Choice</FormLabel>
+                        <FormControl><Input {...field} type="number" className="h-11 border-2 font-bold" /></FormControl>
+                        <FormDescription className="text-[7px] font-bold uppercase">1 = Required</FormDescription>
+                      </FormItem>
+                    )} />
+                    <FormField control={modifierGroupForm.control} name="maxSelection" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-[10px] font-black uppercase tracking-widest">Max Choice</FormLabel>
+                        <FormControl><Input {...field} type="number" className="h-11 border-2 font-bold" /></FormControl>
+                        <FormDescription className="text-[7px] font-bold uppercase">Limit selections</FormDescription>
+                      </FormItem>
+                    )} />
+                  </div>
+                  <div className="space-y-4 text-left">
+                    <div className="flex items-center justify-between border-b pb-2">
+                      <Label className="text-[10px] font-black uppercase tracking-widest text-indigo-600">Option Variations</Label>
+                      <Button type="button" variant="outline" size="sm" onClick={() => appendOption({ id: Math.random().toString(36).substr(2, 9), name: '', priceAdjustment: 0, isAvailable: true })} className="h-7 text-[8px] font-black uppercase gap-1"><Plus className="h-3 w-3" /> Add Variation</Button>
+                    </div>
+                    <div className="space-y-3">
+                      {optionFields.map((field, index) => (
+                        <div key={field.id} className="grid grid-cols-12 gap-2 items-end bg-white p-3 border-2 rounded-xl group">
+                          <div className="col-span-6 space-y-1">
+                            <Label className="text-[8px] font-black uppercase text-muted-foreground">Option Name</Label>
+                            <Input {...modifierGroupForm.register(`options.${index}.name` as const)} placeholder="Extra Bacon" className="h-9 text-xs font-bold border-0 bg-slate-50" />
+                          </div>
+                          <div className="col-span-3 space-y-1">
+                            <Label className="text-[8px] font-black uppercase text-muted-foreground">Price (+)</Label>
+                            <Input {...modifierGroupForm.register(`options.${index}.priceAdjustment` as const)} type="number" step="0.01" className="h-9 text-xs font-bold border-0 bg-slate-50" />
+                          </div>
+                          <div className="col-span-2 flex items-center justify-center pb-2">
+                            <FormField control={modifierGroupForm.control} name={`options.${index}.isAvailable`} render={({ field }) => (
+                              <Switch checked={field.value} onCheckedChange={field.onChange} className="data-[state=checked]:bg-green-600 scale-75" />
+                            )} />
+                          </div>
+                          <div className="col-span-1 flex items-center justify-center pb-1">
+                            <Button type="button" variant="ghost" size="icon" onClick={() => removeOption(index)} className="h-8 w-8 text-destructive/40 hover:text-destructive"><X className="h-4 w-4" /></Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="flex flex-col sm:flex-row gap-3 pt-4 text-left">
+                    <Button type="submit" disabled={isProcessingSave} className="flex-1 h-14 bg-indigo-600 hover:bg-indigo-700 font-black uppercase tracking-widest text-[11px] gap-2 shadow-xl">
+                      {isProcessingSave ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Commit Modifier Group
+                    </Button>
+                    <Button type="button" variant="outline" onClick={() => { setIsModifierGroupFormOpen(false); setEditingModifierGroup(null); modifierGroupForm.reset(); }} className="h-14 px-8 border-2 font-black uppercase tracking-widest text-[11px]">Discard</Button>
+                  </div>
+                </form>
+              </Form>
+            </div>
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
