@@ -21,7 +21,8 @@ interface StripeCheckoutFormProps {
 
 /**
  * Integrated Stripe Checkout Form.
- * Combines Contact Collection with the Secure Payment Element.
+ * Unifies Patron Identity with the Secure Payment Element.
+ * Redundant Stripe-native billing fields are suppressed for a seamless "one-step" feel.
  */
 export function StripeCheckoutForm({ 
   onReadyStateChange, 
@@ -50,12 +51,6 @@ export function StripeCheckoutForm({
     }
   };
 
-  // Re-validate when contact info changes
-  useEffect(() => {
-    // Check if the payment element itself is complete (if it's mounted)
-    // For now, we rely on the PaymentElement's internal onChange
-  }, [patronName, patronPhone, patronEmail]);
-
   return (
     <div className="space-y-5 animate-in fade-in slide-in-from-top-2 duration-500 text-left">
       <div className="flex items-center justify-between px-1">
@@ -71,84 +66,93 @@ export function StripeCheckoutForm({
         "bg-white p-4 sm:p-5 rounded-2xl border-2 transition-all duration-300 space-y-4",
         error ? "border-destructive/50 ring-4 ring-destructive/10" : "border-slate-100 shadow-sm"
       )}>
-        {/* 1. EMAIL */}
-        <div className="space-y-2">
-          <label className="text-[11px] font-black uppercase tracking-widest text-slate-500 px-1">Email Address</label>
-          <div className="relative">
-            <Mail className="absolute left-3 top-3 h-4 w-4 text-slate-300" />
-            <Input 
-              type="email"
-              placeholder="receipt@example.com" 
-              value={patronEmail} 
-              onChange={(e) => setPatronEmail(e.target.value)} 
-              className="pl-10 h-11 border-slate-200 bg-white rounded-lg font-bold focus-visible:ring-primary focus-visible:border-primary"
-            />
+        {/* 1. IDENTITY SECTION */}
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <label className="text-[11px] font-black uppercase tracking-widest text-slate-500 px-1">Email Address</label>
+            <div className="relative">
+              <Mail className="absolute left-3 top-3 h-4 w-4 text-slate-300" />
+              <Input 
+                type="email"
+                placeholder="receipt@example.com" 
+                value={patronEmail} 
+                onChange={(e) => setPatronEmail(e.target.value)} 
+                className="pl-10 h-11 border-slate-200 bg-white rounded-lg font-bold focus-visible:ring-primary focus-visible:border-primary"
+              />
+            </div>
           </div>
-        </div>
 
-        {/* 2. FULL NAME */}
-        <div className="space-y-2">
-          <label className="text-[11px] font-black uppercase tracking-widest text-slate-500 px-1">Full Name</label>
-          <div className="relative">
-            <User className="absolute left-3 top-3 h-4 w-4 text-slate-300" />
-            <Input 
-              placeholder="Name for delivery" 
-              value={patronName} 
-              onChange={(e) => setPatronName(e.target.value)} 
-              className="pl-10 h-11 border-slate-200 bg-white rounded-lg font-bold focus-visible:ring-primary focus-visible:border-primary"
-            />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label className="text-[11px] font-black uppercase tracking-widest text-slate-500 px-1">Full Name</label>
+              <div className="relative">
+                <User className="absolute left-3 top-3 h-4 w-4 text-slate-300" />
+                <Input 
+                  placeholder="Delivery Name" 
+                  value={patronName} 
+                  onChange={(e) => setPatronName(e.target.value)} 
+                  className="pl-10 h-11 border-slate-200 bg-white rounded-lg font-bold focus-visible:ring-primary focus-visible:border-primary"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-[11px] font-black uppercase tracking-widest text-slate-500 px-1">Mobile Number</label>
+              <div className="relative">
+                <Smartphone className="absolute left-3 top-3 h-4 w-4 text-slate-300" />
+                <Input 
+                  placeholder="(555) 000-0000" 
+                  type="tel"
+                  value={patronPhone} 
+                  onChange={(e) => setPatronPhone(e.target.value)} 
+                  className="pl-10 h-11 border-slate-200 bg-white rounded-lg font-bold focus-visible:ring-primary focus-visible:border-primary"
+                />
+              </div>
+            </div>
           </div>
-        </div>
 
-        {/* 3. MOBILE NUMBER */}
-        <div className="space-y-2">
-          <label className="text-[11px] font-black uppercase tracking-widest text-slate-500 px-1">Mobile Number</label>
-          <div className="relative">
-            <Smartphone className="absolute left-3 top-3 h-4 w-4 text-slate-300" />
-            <Input 
-              placeholder="For status updates" 
-              type="tel"
-              value={patronPhone} 
-              onChange={(e) => setPatronPhone(e.target.value)} 
-              className="pl-10 h-11 border-slate-200 bg-white rounded-lg font-bold focus-visible:ring-primary focus-visible:border-primary"
+          {/* 2. OPT-IN FOR FAST CHECKOUT */}
+          <div 
+            className="flex items-center space-x-3 p-3 bg-primary/5 rounded-xl border-2 border-primary/10 cursor-pointer group"
+            onClick={() => setSaveInfo(!saveInfo)}
+          >
+            <Checkbox 
+              id="save-info" 
+              checked={saveInfo} 
+              onCheckedChange={(val) => setSaveInfo(!!val)}
+              className="h-5 w-5 data-[state=checked]:bg-primary"
             />
+            <div className="flex-1 text-left">
+              <label htmlFor="save-info" className="text-[10px] font-black uppercase text-[#213147] cursor-pointer block leading-none">
+                Save for faster checkout
+              </label>
+              <p className="text-[8px] font-bold text-muted-foreground uppercase mt-1">
+                Securely store card details for your next visit
+              </p>
+            </div>
           </div>
         </div>
 
         <div className="h-px bg-slate-100 my-2" />
 
-        {/* OPT-IN FOR FAST CHECKOUT */}
-        <div 
-          className="flex items-center space-x-3 p-3 bg-primary/5 rounded-xl border-2 border-primary/10 cursor-pointer group"
-          onClick={() => setSaveInfo(!saveInfo)}
-        >
-          <Checkbox 
-            id="save-info" 
-            checked={saveInfo} 
-            onCheckedChange={(val) => setSaveInfo(!!val)}
-            className="h-5 w-5 data-[state=checked]:bg-primary"
-          />
-          <div className="flex-1 text-left">
-            <label htmlFor="save-info" className="text-[10px] font-black uppercase text-[#213147] cursor-pointer block leading-none">
-              Save for faster checkout
-            </label>
-            <p className="text-[8px] font-bold text-muted-foreground uppercase mt-1">
-              Securely store payment info with Koop
-            </p>
-          </div>
-        </div>
-
-        <div className="h-px bg-slate-100 my-2" />
-
-        {/* 4. CARD DETAILS */}
+        {/* 3. SECURE CARD ELEMENT */}
         <div className="space-y-2">
-           <label className="text-[11px] font-black uppercase tracking-widest text-slate-500 px-1">Secure Payment</label>
+           <label className="text-[11px] font-black uppercase tracking-widest text-slate-500 px-1">Payment Details</label>
            <PaymentElement 
              onReady={() => setIsElementLoaded(true)}
              onChange={handleChange}
              options={{
                layout: 'tabs',
-               business: { name: 'KOOP' }
+               business: { name: 'KOOP' },
+               // Suppress redundant billing fields since we collect them above
+               fields: {
+                 billingDetails: {
+                   name: 'never',
+                   email: 'never',
+                   phone: 'never',
+                   address: 'never'
+                 }
+               }
              }}
            />
         </div>

@@ -106,7 +106,8 @@ export const createPaymentIntent = onCall({
           payment_element: {
             enabled: true,
             features: {
-              payment_method_save: 'always',
+              // We handle the "Save Info" checkbox in our own UI to maintain one unified step
+              payment_method_save: 'disabled', 
               payment_method_redisplay: 'always'
             }
           }
