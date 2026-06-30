@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { createContext, useContext, useState, useMemo } from 'react';
@@ -32,7 +31,7 @@ export function CartProvider({ children, serviceFee = 0 }: { children: React.Rea
     activeItems.reduce((acc, item) => {
       const basePrice = item.price;
       const modifiersPrice = item.selectedModifiers ? 
-        Object.values(item.selectedModifiers).flat().reduce((sum, mod) => sum + mod.price, 0) : 0;
+        Object.values(item.selectedModifiers).flat().reduce((sum, mod) => sum + mod.priceAdjustment, 0) : 0;
       return acc + (basePrice + modifiersPrice) * item.quantity;
     }, 0), 
   [activeItems]);

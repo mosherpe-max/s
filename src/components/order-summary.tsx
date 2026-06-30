@@ -43,7 +43,7 @@ export function OrderSummary({
             Object.values(item.selectedModifiers).flat().map(m => m.name).join(' · ') : '';
           
           const unitPriceWithMods = item.price + (item.selectedModifiers ? 
-            Object.values(item.selectedModifiers).flat().reduce((s, m) => s + m.price, 0) : 0);
+            Object.values(item.selectedModifiers).flat().reduce((s, m) => s + m.priceAdjustment, 0) : 0);
 
           return (
             <div key={item.cartId} className="p-3 sm:p-4 flex items-center gap-3 bg-white hover:bg-muted/5 transition-colors">
