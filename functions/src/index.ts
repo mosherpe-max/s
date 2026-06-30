@@ -1,4 +1,3 @@
-
 import { onRequest, onCall, HttpsError } from "firebase-functions/v2/https";
 import { onDocumentWritten } from "firebase-functions/v2/firestore";
 import { onSchedule } from "firebase-functions/v2/scheduler";
@@ -17,13 +16,13 @@ const db = getFirestore();
 /**
  * createPaymentIntent
  * Securely generates a Stripe Client Secret for the patron checkout.
- * Refactored to support Customer Sessions for card reuse.
+ * Refactored to support Customer Sessions for card reuse and integrated contact collection.
  */
 export const createPaymentIntent = onCall({
   secrets: ["STRIPE_SECRET_KEY"],
   region: 'us-central1',
 }, async (request) => {
-  const { amount, sellerId, patronName, patronPhone, patronEmail } = request.data;
+  const { amount, sellerId, patronName, patronPhone, patronEmail, saveInfo } = request.data;
   const buyerUid = request.auth?.uid;
 
   // 1. Validation
@@ -50,22 +49,29 @@ export const createPaymentIntent = onCall({
   try {
     let stripeCustomerId: string | undefined;
 
-    // 3. Customer Session Logic (Card Reuse)
+    // 3. Customer Session Logic (Native Card Reuse)
     if (buyerUid) {
       const userRef = db.collection('users').doc(buyerUid);
       const userDoc = await userRef.get();
       
+      // Use email as key to find existing stripe customer or create new
       if (userDoc.exists && userDoc.data()?.stripeCustomerId) {
         stripeCustomerId = userDoc.data()?.stripeCustomerId;
       } else {
-        // Create new customer in Stripe
-        const customer = await stripe.customers.create({
-          email: patronEmail,
-          name: patronName,
-          phone: patronPhone,
-          metadata: { buyerUid }
-        });
-        stripeCustomerId = customer.id;
+        // Look up by email to avoid duplicates
+        const existingCustomers = await stripe.customers.list({ email: patronEmail, limit: 1 });
+        if (existingCustomers.data.length > 0) {
+          stripeCustomerId = existingCustomers.data[0].id;
+        } else {
+          // Create new customer in Stripe
+          const customer = await stripe.customers.create({
+            email: patronEmail,
+            name: patronName,
+            phone: patronPhone,
+            metadata: { buyerUid }
+          });
+          stripeCustomerId = customer.id;
+        }
         await userRef.set({ stripeCustomerId }, { merge: true });
       }
     }
@@ -77,7 +83,8 @@ export const createPaymentIntent = onCall({
       amount: Math.round(amount * 100), // Convert dollars to cents
       currency: 'usd',
       customer: stripeCustomerId,
-      setup_future_usage: stripeCustomerId ? 'off_session' : undefined,
+      // Flag for reuse if user opted in or if we already have a customer profile
+      setup_future_usage: saveInfo || stripeCustomerId ? 'off_session' : undefined,
       automatic_payment_methods: {
         enabled: true,
       },
@@ -90,7 +97,7 @@ export const createPaymentIntent = onCall({
       }
     });
 
-    // 5. Create Customer Session for returning users
+    // 5. Create Customer Session for returning users to natively show saved cards
     let customerSessionClientSecret: string | undefined;
     if (stripeCustomerId) {
       const customerSession = await stripe.customerSessions.create({
@@ -180,8 +187,6 @@ export const dailyOperationalReset = onSchedule({
  * onGuestOrderStatusUpdate
  * Triggers on any creation or update to an order document.
  * Manages patron SMS notifications via Twilio.
- * 
- * SMS triggers restricted to: Initial Receipt and Dispatch (Out for Delivery).
  */
 export const onGuestOrderStatusUpdate = onDocumentWritten({
   document: "orders/{orderId}",
@@ -262,6 +267,10 @@ export const onGuestOrderStatusUpdate = onDocumentWritten({
   }
 });
 
+/**
+ * handleStripeWebhook
+ * Secure HTTP endpoint for Stripe event ingestion.
+ */
 export const handleStripeWebhook = onRequest({
   secrets: ["STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET"],
   region: 'us-central1',

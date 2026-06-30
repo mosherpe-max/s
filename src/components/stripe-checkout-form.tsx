@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
-import { Lock, ShieldCheck, User, Smartphone, Mail } from 'lucide-react';
+import { Lock, ShieldCheck, User, Smartphone, Mail, CheckCircle2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
 
 interface StripeCheckoutFormProps {
   onReadyStateChange: (ready: boolean) => void;
@@ -14,12 +15,13 @@ interface StripeCheckoutFormProps {
   setPatronPhone: (val: string) => void;
   patronEmail: string;
   setPatronEmail: (val: string) => void;
+  saveInfo: boolean;
+  setSaveInfo: (val: boolean) => void;
 }
 
 /**
  * Integrated Stripe Checkout Form.
- * Refactored to support Customer Sessions (native card reuse).
- * Removed LinkAuthenticationElement as CustomerSession handles redisplay natively.
+ * Combines Contact Collection with the Secure Payment Element.
  */
 export function StripeCheckoutForm({ 
   onReadyStateChange, 
@@ -28,12 +30,14 @@ export function StripeCheckoutForm({
   patronPhone, 
   setPatronPhone,
   patronEmail,
-  setPatronEmail
+  setPatronEmail,
+  saveInfo,
+  setSaveInfo
 }: StripeCheckoutFormProps) {
   const stripe = useStripe();
   const elements = useElements();
   const [error, setError] = useState<string | null>(null);
-  const [isLoaded, setIsLoaded] = useState(false);
+  const [isElementLoaded, setIsElementLoaded] = useState(false);
 
   const handleChange = (event: any) => {
     const isContactValid = patronName.length >= 2 && patronPhone.replace(/\D/g, '').length >= 10 && patronEmail.includes('@');
@@ -46,14 +50,20 @@ export function StripeCheckoutForm({
     }
   };
 
+  // Re-validate when contact info changes
+  useEffect(() => {
+    // Check if the payment element itself is complete (if it's mounted)
+    // For now, we rely on the PaymentElement's internal onChange
+  }, [patronName, patronPhone, patronEmail]);
+
   return (
-    <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-500 text-left">
+    <div className="space-y-5 animate-in fade-in slide-in-from-top-2 duration-500 text-left">
       <div className="flex items-center justify-between px-1">
         <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
-          Secure Payment
+          Patron Information
         </label>
         <span className="flex items-center gap-1 text-[8px] font-bold text-green-600 uppercase tracking-tighter">
-          <ShieldCheck className="h-2.5 w-2.5" /> PCI Compliant
+          <ShieldCheck className="h-2.5 w-2.5" /> Secure Checkout
         </span>
       </div>
       
@@ -105,17 +115,40 @@ export function StripeCheckoutForm({
           </div>
         </div>
 
-        <div className="h-px bg-slate-100 my-4" />
+        <div className="h-px bg-slate-100 my-2" />
 
-        {/* 4. CARD DETAILS (Customer Session native display) */}
+        {/* OPT-IN FOR FAST CHECKOUT */}
+        <div 
+          className="flex items-center space-x-3 p-3 bg-primary/5 rounded-xl border-2 border-primary/10 cursor-pointer group"
+          onClick={() => setSaveInfo(!saveInfo)}
+        >
+          <Checkbox 
+            id="save-info" 
+            checked={saveInfo} 
+            onCheckedChange={(val) => setSaveInfo(!!val)}
+            className="h-5 w-5 data-[state=checked]:bg-primary"
+          />
+          <div className="flex-1 text-left">
+            <label htmlFor="save-info" className="text-[10px] font-black uppercase text-[#213147] cursor-pointer block leading-none">
+              Save for faster checkout
+            </label>
+            <p className="text-[8px] font-bold text-muted-foreground uppercase mt-1">
+              Securely store payment info with Koop
+            </p>
+          </div>
+        </div>
+
+        <div className="h-px bg-slate-100 my-2" />
+
+        {/* 4. CARD DETAILS */}
         <div className="space-y-2">
-           <label className="text-[11px] font-black uppercase tracking-widest text-slate-500 px-1">Payment Method</label>
+           <label className="text-[11px] font-black uppercase tracking-widest text-slate-500 px-1">Secure Payment</label>
            <PaymentElement 
-             onReady={() => setIsLoaded(true)}
+             onReady={() => setIsElementLoaded(true)}
              onChange={handleChange}
              options={{
                layout: 'tabs',
-               business: { name: 'KOOP Delivery' }
+               business: { name: 'KOOP' }
              }}
            />
         </div>
@@ -128,7 +161,7 @@ export function StripeCheckoutForm({
       )}
 
       <div className="flex items-center justify-center gap-2 text-[9px] font-bold text-muted-foreground uppercase py-2">
-        <Lock className="h-2.5 w-2.5" /> Secured by Stripe
+        <Lock className="h-2.5 w-2.5" /> PCI Compliant Encryption
       </div>
     </div>
   );

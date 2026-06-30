@@ -84,51 +84,17 @@ function CheckoutBrandingBar() {
   );
 }
 
-function PatronContactForm({ email, setEmail, name, setName, phone, setPhone }: any) {
-  return (
-    <div className="space-y-3 mb-6 text-left">
-      <div className="relative">
-        <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-        <Input 
-          placeholder="Email Address" 
-          type="email"
-          value={email} 
-          onChange={(e) => setEmail(e.target.value)} 
-          className="pl-10 h-12 border-2 border-slate-100 rounded-xl font-bold focus-visible:ring-primary"
-        />
-      </div>
-      <div className="relative">
-        <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-        <Input 
-          placeholder="Full Name" 
-          value={name} 
-          onChange={(e) => setName(e.target.value)} 
-          className="pl-10 h-12 border-2 border-slate-100 rounded-xl font-bold focus-visible:ring-primary"
-        />
-      </div>
-      <div className="relative">
-        <Smartphone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-        <Input 
-          placeholder="Mobile Number" 
-          type="tel"
-          value={phone} 
-          onChange={(e) => setPhone(e.target.value)} 
-          className="pl-10 h-12 border-2 border-slate-100 rounded-xl font-bold focus-visible:ring-primary"
-        />
-      </div>
-    </div>
-  );
-}
-
 function StripeActionArea({ 
   clientSecret, 
+  customerSessionClientSecret,
   isProcessing, 
   setIsProcessing, 
   onOrderComplete,
   orderData,
   patronEmail, setPatronEmail,
   patronName, setPatronName,
-  patronPhone, setPatronPhone
+  patronPhone, setPatronPhone,
+  saveInfo, setSaveInfo
 }: any) {
   const stripe = useStripe();
   const elements = useElements();
@@ -193,6 +159,8 @@ function StripeActionArea({
           setPatronPhone={setPatronPhone}
           patronEmail={patronEmail}
           setPatronEmail={setPatronEmail}
+          saveInfo={saveInfo}
+          setSaveInfo={setSaveInfo}
         />
       </div>
 
@@ -235,6 +203,7 @@ function CheckoutDrawerContent({
   const [patronEmail, setPatronEmail] = useState('');
   const [patronName, setPatronName] = useState('');
   const [patronPhone, setPatronPhone] = useState('');
+  const [saveInfo, setSaveInfo] = useState(true);
   const [tip, setTip] = useState(0);
   const [paymentMethod, setPaymentMethod] = useState<'Pay at Delivery' | 'Stripe' | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -248,6 +217,7 @@ function CheckoutDrawerContent({
 
   const isContactInfoValid = patronName.length >= 2 && patronPhone.replace(/\D/g, '').length >= 10 && patronEmail.includes('@');
 
+  // TRIGGER INTENT FETCH ONCE MINIMUM INFO IS ENTERED
   useEffect(() => {
     if (paymentMethod === 'Stripe' && !clientSecret && !isFetchingIntent && baseTotalForBackend > 0 && isContactInfoValid) {
       const fetchIntent = async () => {
@@ -268,7 +238,8 @@ function CheckoutDrawerContent({
             sellerId,
             patronName,
             patronPhone: patronPhone.replace(/\D/g, ''),
-            patronEmail
+            patronEmail,
+            saveInfo // Signal backend to setup future usage
           });
           
           const data = result.data as { clientSecret: string; customerSessionClientSecret?: string };
@@ -293,7 +264,7 @@ function CheckoutDrawerContent({
       };
       fetchIntent();
     }
-  }, [paymentMethod, baseTotalForBackend, sellerId, firebaseApp, clientSecret, isFetchingIntent, toast, user, auth, isContactInfoValid, patronName, patronPhone, patronEmail]);
+  }, [paymentMethod, baseTotalForBackend, sellerId, firebaseApp, clientSecret, isFetchingIntent, toast, user, auth, isContactInfoValid, patronName, patronPhone, patronEmail, saveInfo]);
 
   const handleManualOrder = async () => {
     if (!firestore || activeOrderItems.length === 0) return;
@@ -401,7 +372,7 @@ function CheckoutDrawerContent({
         <PricingBreakdown subtotal={subtotal} serviceFee={solutionFee} tax={tax} tip={tip} taxRate={taxRate} />
 
         <div className="space-y-4">
-          <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground px-1">PAYMENT METHOD</h3>
+          <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground px-1">CHECKOUT</h3>
           <RadioGroup value={paymentMethod || ''} onValueChange={(v: any) => setPaymentMethod(v)} className="grid grid-cols-1 gap-3">
             <div className={cn("flex items-center justify-between p-4 rounded-2xl border-2 transition-all cursor-pointer", paymentMethod === 'Stripe' ? "border-primary bg-primary/5 shadow-md" : "border-slate-100 hover:border-slate-200")} onClick={() => setPaymentMethod('Stripe')}>
               <div className="flex items-center gap-4">
@@ -410,10 +381,11 @@ function CheckoutDrawerContent({
               </div>
               {paymentMethod === 'Stripe' && <Check className="h-4 w-4 text-primary" />}
             </div>
-            <div className={cn("flex items-center justify-between p-4 rounded-2xl border-2 transition-all cursor-pointer", paymentMethod === 'Pay at Delivery' ? "border-primary bg-primary/5 shadow-md" : "border-slate-100 hover:border-slate-200")} onClick={() => setPaymentMethod('Pay at Delivery')}>
+            {/* Pay at Delivery Prototype */}
+            <div className={cn("flex items-center justify-between p-4 rounded-2xl border-2 transition-all cursor-pointer opacity-60", paymentMethod === 'Pay at Delivery' ? "border-primary bg-primary/5" : "border-slate-100")} onClick={() => setPaymentMethod('Pay at Delivery')}>
               <div className="flex items-center gap-4">
                 <div className={cn("p-2 rounded-lg", paymentMethod === 'Pay at Delivery' ? "bg-primary text-white" : "bg-slate-100 text-slate-400")}><Banknote className="h-5 w-5" /></div>
-                <div className="text-left"><p className="text-xs font-black uppercase tracking-tight text-[#213147]">Pay at Delivery</p><p className="text-[9px] font-bold text-muted-foreground uppercase">Cash or Card on-site</p></div>
+                <div className="text-left"><p className="text-xs font-black uppercase tracking-tight text-[#213147]">Pay at Delivery</p><p className="text-[9px] font-bold text-muted-foreground uppercase">Prototype Only</p></div>
               </div>
               {paymentMethod === 'Pay at Delivery' && <Check className="h-4 w-4 text-primary" />}
             </div>
@@ -429,6 +401,7 @@ function CheckoutDrawerContent({
               <Elements stripe={stripePromise} options={{ clientSecret, customerSessionClientSecret: customerSessionClientSecret || undefined }}>
                 <StripeActionArea 
                   clientSecret={clientSecret} 
+                  customerSessionClientSecret={customerSessionClientSecret}
                   isProcessing={isProcessing} 
                   setIsProcessing={setIsProcessing} 
                   onOrderComplete={onOrderComplete} 
@@ -436,16 +409,49 @@ function CheckoutDrawerContent({
                   patronEmail={patronEmail} setPatronEmail={setPatronEmail}
                   patronName={patronName} setPatronName={setPatronName}
                   patronPhone={patronPhone} setPatronPhone={setPatronPhone}
+                  saveInfo={saveInfo} setSaveInfo={setSaveInfo}
                 />
               </Elements>
             ) : (
-              <div className="p-4 sm:p-5 border-2 border-slate-100 rounded-[2rem] bg-slate-50/50 animate-in fade-in duration-500 space-y-4">
-                 <p className="text-[9px] font-black uppercase text-center text-primary tracking-widest px-4">Complete details to enable secure checkout</p>
-                 <PatronContactForm 
-                    email={patronEmail} setEmail={setPatronEmail}
-                    name={patronName} setName={setPatronName}
-                    phone={patronPhone} setPhone={setPatronPhone}
-                  />
+              <div className="p-5 sm:p-6 border-2 border-slate-100 rounded-[2rem] bg-slate-50/50 animate-in fade-in duration-500 space-y-4">
+                 <div className="flex items-center justify-center gap-2 mb-2">
+                    <User className="h-4 w-4 text-primary" />
+                    <p className="text-[10px] font-black uppercase text-primary tracking-widest">Patron Details</p>
+                 </div>
+                 <div className="space-y-3 text-left">
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Input 
+                      placeholder="Email Address" 
+                      type="email"
+                      value={patronEmail} 
+                      onChange={(e) => setPatronEmail(e.target.value)} 
+                      className="pl-10 h-12 border-2 border-white bg-white rounded-xl font-bold focus-visible:ring-primary"
+                    />
+                  </div>
+                  <div className="relative">
+                    <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Input 
+                      placeholder="Full Name" 
+                      value={patronName} 
+                      onChange={(e) => setPatronName(e.target.value)} 
+                      className="pl-10 h-12 border-2 border-white bg-white rounded-xl font-bold focus-visible:ring-primary"
+                    />
+                  </div>
+                  <div className="relative">
+                    <Smartphone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Input 
+                      placeholder="Mobile Number" 
+                      type="tel"
+                      value={patronPhone} 
+                      onChange={(e) => setPatronPhone(e.target.value)} 
+                      className="pl-10 h-12 border-2 border-white bg-white rounded-xl font-bold focus-visible:ring-primary"
+                    />
+                  </div>
+                </div>
+                <p className="text-[8px] font-bold text-muted-foreground text-center uppercase px-4 leading-relaxed">
+                  Enter details to enable secure digital payment element
+                </p>
               </div>
             )
           )}
@@ -456,11 +462,37 @@ function CheckoutDrawerContent({
                 <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary mb-4 px-1 flex items-center gap-2">
                    <User className="h-3 w-3" /> Contact Details
                 </h3>
-                <PatronContactForm 
-                  email={patronEmail} setEmail={setPatronEmail}
-                  name={patronName} setName={setPatronName}
-                  phone={patronPhone} setPhone={setPatronPhone}
-                />
+                <div className="space-y-3 text-left">
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Input 
+                      placeholder="Email Address" 
+                      type="email"
+                      value={patronEmail} 
+                      onChange={(e) => setPatronEmail(e.target.value)} 
+                      className="pl-10 h-12 border-2 border-white bg-white rounded-xl font-bold focus-visible:ring-primary"
+                    />
+                  </div>
+                  <div className="relative">
+                    <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Input 
+                      placeholder="Full Name" 
+                      value={patronName} 
+                      onChange={(e) => setPatronName(e.target.value)} 
+                      className="pl-10 h-12 border-2 border-white bg-white rounded-xl font-bold focus-visible:ring-primary"
+                    />
+                  </div>
+                  <div className="relative">
+                    <Smartphone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Input 
+                      placeholder="Mobile Number" 
+                      type="tel"
+                      value={patronPhone} 
+                      onChange={(e) => setPatronPhone(e.target.value)} 
+                      className="pl-10 h-12 border-2 border-white bg-white rounded-xl font-bold focus-visible:ring-primary"
+                    />
+                  </div>
+                </div>
               </div>
               <div className="fixed bottom-7 left-0 right-0 p-4 bg-white/80 backdrop-blur-md border-t z-50">
                 <div className="max-w-xl mx-auto px-2">
