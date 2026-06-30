@@ -23,6 +23,7 @@ interface StripeCheckoutFormProps {
  * Integrated Stripe Checkout Form.
  * Unifies Patron Identity with the Secure Payment Element.
  * Redundant Stripe-native billing fields are suppressed for a seamless "one-step" feel.
+ * Restores ZIP code (Postal Code) collection within the secure element.
  */
 export function StripeCheckoutForm({ 
   onReadyStateChange, 
@@ -144,13 +145,20 @@ export function StripeCheckoutForm({
              options={{
                layout: 'tabs',
                business: { name: 'KOOP' },
+               // Hide the native Stripe checkbox because we handle consent in our own UI above
+               features: {
+                 paymentMethodSave: 'disabled'
+               },
                // Suppress redundant billing fields since we collect them above
+               // We set postalCode to 'auto' to ensure ZIP is collected for AVS verification
                fields: {
                  billingDetails: {
                    name: 'never',
                    email: 'never',
                    phone: 'never',
-                   address: 'never'
+                   address: {
+                     postalCode: 'auto'
+                   }
                  }
                }
              }}

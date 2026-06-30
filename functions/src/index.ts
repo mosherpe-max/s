@@ -83,8 +83,9 @@ export const createPaymentIntent = onCall({
       amount: Math.round(amount * 100), // Convert dollars to cents
       currency: 'usd',
       customer: stripeCustomerId,
-      // Flag for reuse if user opted in or if we already have a customer profile
-      setup_future_usage: saveInfo || stripeCustomerId ? 'off_session' : undefined,
+      // Flag for reuse if user opted in.
+      // Note: We hide the native Stripe checkbox in the UI, so consent is handled by the Koop toggle.
+      setup_future_usage: saveInfo ? 'off_session' : undefined,
       automatic_payment_methods: {
         enabled: true,
       },
