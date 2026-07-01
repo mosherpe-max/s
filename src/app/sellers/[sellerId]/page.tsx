@@ -1016,7 +1016,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                       </div>
                       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(e) => handleDragEnd(e, 'layout')}>
                         <SortableContext items={seller?.categoryVisibility?.[configMode] || categories.filter(c => c !== 'Featured')} strategy={verticalListSortingStrategy}>
-                          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+                          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
                             {(seller?.categoryVisibility?.[configMode] || categories.filter(c => c !== 'Featured')).map(cat => (
                               <SortableCategory key={`cat-sort-${cat}`} id={cat} category={cat} isVisible={true} onToggleVisibility={handleToggleCategoryVisibility} />
                             ))}
@@ -1032,14 +1032,14 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                     </div>
 
                     <div className="space-y-12">
-                      <div className="space-y-4 bg-amber-50/30 p-6 rounded-[2rem] border-2 border-amber-100/50">
+                      <div className="space-y-4 bg-amber-50/30 p-4 sm:p-6 rounded-[2rem] border-2 border-amber-100/50">
                         <div className="flex items-center gap-2 border-b-2 border-amber-100 pb-2 px-1 text-left">
                           <Star className="h-4 w-4 text-amber-500 fill-current" />
                           <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-amber-800">Featured Highlight Items</h4>
                         </div>
                         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(e) => handleDragEnd(e, 'featured')}>
                           <SortableContext items={menuItems?.filter(i => i.featuredOn?.includes(configMode)).sort((a, b) => (a.featuredRanks?.[configMode] || 0) - (b.featuredRanks?.[configMode] || 0)).map(i => i.id) || []} strategy={verticalListSortingStrategy}>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                               {menuItems?.filter(i => i.featuredOn?.includes(configMode)).sort((a, b) => (a.featuredRanks?.[configMode] || 0) - (b.featuredRanks?.[configMode] || 0)).map(item => (
                                 <SortableItem key={item.id} id={item.id} item={item} activeMode={configMode} isFeatured={true} onToggleFeatured={handleToggleItemFeatured} onRemoveFromMode={() => handleToggleItemAvailability(item.id, item.availableOn || [])} onEdit={(it) => { setEditingItem(it); itemForm.reset(it); setIsItemFormOpen(true); }} />
                               ))}
@@ -1058,7 +1058,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                         const activeInMode = allItemsInCat.filter(i => i.availableOn?.includes(configMode)).sort((a, b) => (a.menuRanks?.[configMode] || 0) - (b.menuRanks?.[configMode] || 0));
                         const remainingInLibrary = allItemsInCat.filter(i => !i.availableOn?.includes(configMode));
                         return (
-                          <div key={`mode-cat-${cat}`} className="space-y-6 text-left">
+                          <div key={`mode-cat-${cat}`} className="space-y-4 sm:space-y-6 text-left">
                             <div className="flex items-center justify-between border-b-2 pb-2 px-1 text-left">
                               <div className="flex items-center gap-3">
                                 <Badge variant="secondary" className="h-6 px-3 text-[10px] font-black uppercase tracking-widest bg-[#213147] text-white border-0">{cat}</Badge>
@@ -1071,8 +1071,8 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                                 <Plus className="h-3 w-3" /> Add Master Item
                               </Button>
                             </div>
-                            <div className="grid grid-cols-1 md:grid-cols-4 gap-8 text-left">
-                              <div className="md:col-span-3 space-y-3">
+                            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 sm:gap-8 text-left">
+                              <div className="lg:col-span-3 space-y-3">
                                 <div className="flex items-center gap-2 px-1 mb-2"><CheckCircle2 className="h-3.5 w-3.5 text-green-600" /><span className="text-[10px] font-black uppercase tracking-widest text-green-700">Active on {configMode}</span></div>
                                 <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(e) => handleDragEnd(e, 'category', cat)}>
                                   <SortableContext items={activeInMode.map(i => i.id)} strategy={verticalListSortingStrategy}>
@@ -1089,9 +1089,9 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                                   </SortableContext>
                                 </DndContext>
                               </div>
-                              <div className="md:col-span-1 space-y-3">
+                              <div className="lg:col-span-1 space-y-3">
                                 <div className="flex items-center gap-2 px-1 mb-2"><Library className="h-3.5 w-3.5 text-indigo-600" /><span className="text-[10px] font-black uppercase tracking-widest text-indigo-700">From Master Library</span></div>
-                                <ScrollArea className="h-[250px] border-2 rounded-2xl bg-slate-50/50 p-2">
+                                <ScrollArea className="h-[250px] lg:h-[400px] border-2 rounded-2xl bg-slate-50/50 p-2">
                                   <div className="space-y-2 text-left">
                                     {remainingInLibrary.map(item => (
                                       <div key={`lib-item-${item.id}`} className="bg-white border-2 rounded-xl p-2.5 flex items-center justify-between gap-2 shadow-sm group">
