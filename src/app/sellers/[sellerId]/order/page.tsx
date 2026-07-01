@@ -211,15 +211,28 @@ function CheckoutDrawerContent({
   const [customerSessionClientSecret, setCustomerSessionClientSecret] = useState<string | null>(null);
   const [isFetchingIntent, setIsFetchingIntent] = useState(false);
 
+  // Track critical intent dependencies to force re-fetch if they change
+  const intentConfigString = `${baseTotalForBackend}-${saveInfo}-${patronEmail}`;
+  const [lastIntentConfig, setLastIntentConfig] = useState('');
+
   const tax = subtotal * (taxRate / 100);
   const finalTotal = subtotal + solutionFee + tax + tip;
   const baseTotalForBackend = subtotal + tax + tip;
 
   const isContactInfoValid = patronName.length >= 2 && patronPhone.replace(/\D/g, '').length >= 10 && patronEmail.includes('@');
 
-  // TRIGGER INTENT FETCH ONCE MINIMUM INFO IS ENTERED
+  // TRIGGER INTENT FETCH ONCE MINIMUM INFO IS ENTERED OR CRITICAL CONFIG CHANGES
   useEffect(() => {
-    if (paymentMethod === 'Stripe' && !clientSecret && !isFetchingIntent && baseTotalForBackend > 0 && isContactInfoValid) {
+    if (paymentMethod === 'Stripe' && !isFetchingIntent && baseTotalForBackend > 0 && isContactInfoValid) {
+      // If config changed (e.g. saveInfo toggled), reset and re-fetch
+      if (intentConfigString !== lastIntentConfig) {
+        setClientSecret(null);
+        setLastIntentConfig(intentConfigString);
+        return; // Re-run effect with clientSecret null
+      }
+
+      if (clientSecret) return; // Already have a valid intent for this config
+
       const fetchIntent = async () => {
         setIsFetchingIntent(true);
         try {
@@ -264,7 +277,7 @@ function CheckoutDrawerContent({
       };
       fetchIntent();
     }
-  }, [paymentMethod, baseTotalForBackend, sellerId, firebaseApp, clientSecret, isFetchingIntent, toast, user, auth, isContactInfoValid, patronName, patronPhone, patronEmail, saveInfo]);
+  }, [paymentMethod, baseTotalForBackend, sellerId, firebaseApp, clientSecret, isFetchingIntent, toast, user, auth, isContactInfoValid, patronName, patronPhone, patronEmail, saveInfo, intentConfigString, lastIntentConfig]);
 
   const handleManualOrder = async () => {
     if (!firestore || activeOrderItems.length === 0) return;

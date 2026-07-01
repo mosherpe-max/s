@@ -62,8 +62,8 @@ export const createPaymentIntent = onCall({
         const existingCustomers = await stripe.customers.list({ email: patronEmail, limit: 1 });
         if (existingCustomers.data.length > 0) {
           stripeCustomerId = existingCustomers.data[0].id;
-        } else {
-          // Create new customer in Stripe
+        } else if (saveInfo) {
+          // Only create a persistent customer in Stripe if they opted to save info
           const customer = await stripe.customers.create({
             email: patronEmail,
             name: patronName,
@@ -72,11 +72,14 @@ export const createPaymentIntent = onCall({
           });
           stripeCustomerId = customer.id;
         }
-        await userRef.set({ stripeCustomerId }, { merge: true });
+        
+        if (stripeCustomerId) {
+          await userRef.set({ stripeCustomerId }, { merge: true });
+        }
       }
     }
 
-    logger.info(`[createPaymentIntent] Creating intent for $${amount} (Venue: ${sellerId}, Customer: ${stripeCustomerId || 'Anonymous'})`);
+    logger.info(`[createPaymentIntent] Creating intent for $${amount} (Venue: ${sellerId}, Customer: ${stripeCustomerId || 'Anonymous'}, SaveInfo: ${saveInfo})`);
     
     // 4. Create Intent
     const paymentIntent = await stripe.paymentIntents.create({
