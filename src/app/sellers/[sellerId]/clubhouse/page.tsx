@@ -35,6 +35,7 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
   const [currentStaffId, setCurrentStaffId] = useState<string | undefined>();
   const [currentStaffName, setCurrentStaffName] = useState<string>('');
   const [greeting, setGreeting] = useState('Hello');
+  const [isExiting, setIsExiting] = useState(false);
 
   const lastOrderIdsRef = useRef<Set<string>>(new Set());
   const lastBroadcastRef = useRef<{ lat: number; lng: number; time: number } | null>(null);
@@ -55,7 +56,6 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
       const sessionStart = localStorage.getItem('koop_staff_session_start');
       const resetHour = solutionConfig?.dailyResetHour ?? 4;
       
-      // DAILY OPERATIONAL RESET CHECK
       if (sessionStart && isStaffSessionStale(new Date(parseInt(sessionStart, 10)), resetHour)) {
         localStorage.removeItem('koop_staff_id');
         localStorage.removeItem('koop_staff_name');
@@ -87,7 +87,8 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
   const isSuperAdmin = user?.uid === SUPER_ADMIN_ID || user?.email === 'mosherpe@gmail.com';
 
   const broadcastLocation = (lat: number, lng: number) => {
-    if (!firestore || !sellerId || !user) return;
+    // SECURITY GATE: Prevent "ghost" re-creation of staff document after exit button pressed
+    if (!firestore || !sellerId || !user || isExiting) return;
     
     const nowTime = Date.now();
     const syncInterval = (solutionConfig?.mapUpdateSettings?.['Clubhouse']?.frequencySeconds || 15) * 1000;
@@ -110,7 +111,7 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
   };
 
   useEffect(() => {
-    if (isGolf && navigator.geolocation && firestore && sellerId && user) {
+    if (isGolf && navigator.geolocation && firestore && sellerId && user && !isExiting) {
       navigator.geolocation.getCurrentPosition((p) => {
         const lat = p.coords.latitude;
         const lng = p.coords.longitude;
@@ -118,12 +119,13 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
         broadcastLocation(lat, lng);
       }, null, { enableHighAccuracy: true });
     }
-  }, [isGolf, firestore, sellerId, user, currentStaffId, solutionConfig]);
+  }, [isGolf, firestore, sellerId, user, currentStaffId, solutionConfig, isExiting]);
 
   useEffect(() => {
-    if (isGolf && navigator.geolocation && firestore && sellerId && user) {
+    if (isGolf && navigator.geolocation && firestore && sellerId && user && !isExiting) {
       const watchId = navigator.geolocation.watchPosition(
         (p) => {
+          if (isExiting) return;
           const lat = p.coords.latitude;
           const lng = p.coords.longitude;
           setSellerLocation(prev => {
@@ -138,7 +140,7 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
       );
       return () => navigator.geolocation.clearWatch(watchId);
     }
-  }, [isGolf, firestore, sellerId, user, currentStaffId, solutionConfig]);
+  }, [isGolf, firestore, sellerId, user, currentStaffId, solutionConfig, isExiting]);
 
   const handleToggleActive = (checked: boolean) => {
     if (!firestore || !sellerId || !user) return;
@@ -146,20 +148,26 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
   };
 
   const handleExitTerminal = async (target: 'admin' | 'root') => {
+    // 1. Immediately block all outgoing GPS broadcasts
+    setIsExiting(true);
+
     if (currentStaffId && firestore && sellerId) {
       const staffRef = doc(firestore, 'sellers', sellerId, 'staff', currentStaffId);
-      // Immediately invalidate signal on maps
+      
+      // 2. Invalidate signal on maps explicitly
       await updateDoc(staffRef, { 
         lastActive: new Date(0), 
         latitude: null, 
         longitude: null 
       }).catch(() => {});
       
+      // 3. Clean up the temporary admin staff document
       if (isAdminSession) {
         await deleteDoc(staffRef).catch(() => {});
       }
     }
 
+    // 4. Purge local session tokens
     localStorage.removeItem('koop_staff_id');
     localStorage.removeItem('koop_staff_name');
     localStorage.removeItem('koop_staff_role');
@@ -266,7 +274,7 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
         <div className="flex items-center gap-4">
           {isAdminSession && (
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" className="h-8 text-[9px] font-black uppercase tracking-widest border-primary/30 bg-primary/10 text-primary hover:bg-primary hover:text-white" onClick={() => handleExitTerminal('admin')}><ChevronLeft className="h-3 w-3 mr-1" /> Exit Terminal</Button>
+              <Button variant="outline" size="sm" className="h-8 text-[9px] font-black uppercase tracking-widest border-primary/30 bg-primary/10 text-primary hover:bg-primary hover:text-white" onClick={() => handleExitTerminal('admin')} disabled={isExiting}><ChevronLeft className="h-3 w-3 mr-1" /> {isExiting ? 'Closing...' : 'Exit Terminal'}</Button>
               {isSuperAdmin && (
                 <Button variant="outline" size="sm" asChild className="h-8 text-[9px] font-black uppercase tracking-widest border-amber-200 bg-amber-50 text-amber-600 hover:bg-amber-100"><Link href="/admin"><ShieldAlert className="h-3 w-3 mr-1" /> Solution Admin</Link></Button>
               )}
@@ -288,7 +296,7 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
             </Badge>
           )}
           <Switch checked={isClubhouseActive} onCheckedChange={handleToggleActive} className="data-[state=checked]:bg-green-600" />
-          <Button variant="ghost" size="icon" onClick={() => handleExitTerminal('root')} className="text-white/40 hover:text-white"><LogOut className="h-4 w-4" /></Button>
+          <Button variant="ghost" size="icon" onClick={() => handleExitTerminal('root')} className="text-white/40 hover:text-white" disabled={isExiting}><LogOut className="h-4 w-4" /></Button>
         </div>
       </header>
 
