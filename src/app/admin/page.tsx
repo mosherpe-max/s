@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { 
   Store, 
@@ -161,15 +161,6 @@ import {
   Legend
 } from 'recharts';
 
-const SERVICE_MODES = ['Beverage Cart', 'Clubhouse', 'Lane Delivery', 'Take Out'];
-
-const MODE_COLORS: Record<string, string> = {
-  'Beverage Cart': '#E50000',
-  'Clubhouse': '#213147',
-  'Lane Delivery': '#7C3AED',
-  'Take Out': '#F59E0B'
-};
-
 const starterModifierSchema = z.object({
   name: z.string().min(2, 'Group name required'),
   venueType: z.array(z.string()).min(1, 'Select at least one venue type'),
@@ -244,7 +235,6 @@ export default function SolutionAdminPage() {
 
   const [activeNav, setActiveNav] = useState('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [analyticsRange, setAnalyticsRange] = useState<'Today' | 'MTD' | 'YTD'>('Today');
   
   const [libraryTab, setLibraryTab] = useState<'modifiers' | 'items'>('modifiers');
   const [isLibraryFormOpen, setIsLibraryFormOpen] = useState(false);
@@ -309,7 +299,7 @@ export default function SolutionAdminPage() {
       toast({ title: "Libraries Initialized", description: "All templates provisioned." });
     } catch (e: any) { 
       console.error(e);
-      toast({ variant: "destructive", title: "Setup Failed" }); 
+      toast({ variant: "destructive", title: "Setup Failed", description: e.message }); 
     } finally { setIsInitializingLibrary(false); }
   };
 

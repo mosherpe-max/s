@@ -216,9 +216,8 @@ function NavButton({ id, label, icon: Icon, active, onClick, sidebarOpen }: {
   return (
     <button
       onClick={() => onClick(id)}
-      title={!sidebarOpen ? label : undefined}
       className={cn(
-        "flex items-center gap-3 w-full px-4 py-4 sm:py-3 rounded-xl transition-all duration-200 group relative text-left",
+        "flex items-center gap-3 w-full px-4 py-3 rounded-xl transition-all duration-200 group relative text-left",
         active 
           ? "bg-primary/10 text-primary" 
           : "text-slate-400 hover:bg-white/5 hover:text-white"
@@ -241,46 +240,16 @@ function KPICard({ label, value, sub, icon: Icon, colorClass, highlight = false 
   return (
     <Card className={cn("border-2 shadow-sm overflow-hidden relative h-full transition-all", highlight ? "border-primary/20 ring-4 ring-primary/5" : "")}>
       <div className={cn("absolute top-0 left-0 bottom-0 w-1.5", colorClass)} />
-      <CardHeader className="pb-1 pt-3 px-3 sm:px-4">
-        <CardDescription className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
+      <CardHeader className="pb-1 pt-3 px-4">
+        <CardDescription className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
           <Icon className="h-2.5 w-2.5" /> {label}
         </CardDescription>
       </CardHeader>
-      <CardContent className="pb-3 px-3 sm:px-4 text-left">
+      <CardContent className="pb-3 px-4 text-left">
         <div className="text-xl sm:text-2xl lg:text-3xl font-black font-headline tracking-tighter text-[#213147] mb-0.5">{value}</div>
-        <p className="text-[8px] sm:text-[10px] font-bold text-muted-foreground uppercase leading-none">{sub}</p>
+        <p className="text-[10px] font-bold text-muted-foreground uppercase leading-none">{sub}</p>
       </CardContent>
     </Card>
-  );
-}
-
-function SortableItem({ id, item, isFeatured, onToggleFeatured, onRemoveFromMode, onEdit }: { 
-  id: string; 
-  item: MenuItem; 
-  activeMode: string; 
-  isFeatured: boolean; 
-  onToggleFeatured: (id: string, current: string[]) => void;
-  onRemoveFromMode: (id: string) => void;
-  onEdit: (item: MenuItem) => void;
-}) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
-  
-  const style = { transform: CSS.Transform.toString(transform), transition, zIndex: isDragging ? 50 : undefined };
-
-  return (
-    <div ref={setNodeRef} style={style} className={cn("bg-white border-2 rounded-xl p-3 flex items-center gap-3 transition-all", isDragging ? "shadow-2xl border-primary/50 scale-105" : "hover:border-slate-300 shadow-sm")}>
-      <button {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing p-1 text-slate-300 hover:text-slate-600 transition-colors"><GripVertical className="h-4 w-4" /></button>
-      <div className="flex-1 min-w-0 text-left"><p className="text-[11px] font-black uppercase text-[#213147] truncate leading-none mb-1">{item.name}</p><p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">${item.price.toFixed(2)}</p></div>
-      <div className="flex items-center gap-1"><button onClick={() => onToggleFeatured(item.id, item.featuredOn || [])} className={cn("p-2 rounded-lg transition-all active:scale-95", isFeatured ? "bg-amber-100 text-amber-600" : "bg-slate-50 text-slate-300 hover:text-slate-400")} title={isFeatured ? "Remove from Featured" : "Add to Featured"}><Star className={cn("h-4 w-4", isFeatured && "fill-current")} /></button><Button variant="ghost" size="icon" className="h-8 w-8 text-indigo-600" onClick={() => onEdit(item)}><Edit className="h-3.5 w-3.5" /></Button><Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-red-50" onClick={() => onRemoveFromMode(item.id)} title="Remove from Mode"><X className="h-4 w-4" /></Button></div>
-    </div>
-  );
-}
-
-function SortableCategory({ id, category, isVisible, onToggleVisibility }: { id: string; category: string; isVisible: boolean; onToggleVisibility: (cat: string) => void }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
-  const style = { transform: CSS.Transform.toString(transform), transition, zIndex: isDragging ? 50 : undefined };
-  return (
-    <div ref={setNodeRef} style={style} className={cn("bg-white border-2 rounded-xl p-3 flex items-center gap-3 transition-all", isDragging ? "shadow-2xl border-primary/50 scale-105" : "hover:border-slate-300 shadow-sm", !isVisible && "opacity-50 grayscale bg-slate-50")}><button {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing p-1 text-slate-300 hover:text-slate-600 transition-colors"><GripVertical className="h-4 w-4" /></button><div className="flex-1 min-w-0 text-left"><p className="text-[11px] font-black uppercase text-[#213147] truncate leading-none">{category}</p></div><Switch checked={isVisible} onCheckedChange={() => onToggleVisibility(category)} className="data-[state=checked]:bg-primary" /></div>
   );
 }
 
@@ -298,13 +267,8 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isMounted, setIsMounted] = useState(false);
   const [dashboardFilter, setDashboardFilter] = useState('All');
-  const [analyticsRange, setAnalyticsRange] = useState<'Today' | 'MTD' | 'YTD'>('Today');
   const [now, setNow] = useState<number>(Date.now());
   const [greeting, setGreeting] = useState('Hello');
-
-  const [orderDateRange, setOrderDateRange] = useState<DateRange | undefined>({ from: startOfDay(new Date()), to: endOfDay(new Date()) });
-  const [orderModeFilter, setOrderModeFilter] = useState<string>('All');
-  const [orderSearchTerm, setOrderSearchTerm] = useState<string>('');
 
   const [isStaffFormOpen, setIsStaffFormOpen] = useState(false);
   const [editingStaff, setEditingStaff] = useState<StaffMember | null>(null);
@@ -321,10 +285,6 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
   
   const [isStarterItemsConfirmOpen, setIsStarterItemsConfirmOpen] = useState(false);
   const [isApplyingStarterItems, setIsApplyingStarterItems] = useState(false);
-
-  const [venueThresholds, setVenueThresholds] = useState<Record<string, { warning: number; max: number }>>({});
-  const [venueName, setVenueName] = useState('');
-  const [venueTaxRate, setVenueTaxRate] = useState(0);
 
   useEffect(() => { setIsMounted(true); const interval = setInterval(() => setNow(Date.now()), 30000); const hour = new Date().getHours(); if (hour < 12) setGreeting('Good Morning'); else if (hour < 18) setGreeting('Good Afternoon'); else setGreeting('Good Evening'); return () => clearInterval(interval); }, []);
 
@@ -352,9 +312,25 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
   const isSuperAdmin = user?.uid === SUPER_ADMIN_ID || user?.email === 'mosherpe@gmail.com';
   const isAuthorized = !!user && (isSuperAdmin || (sellerRole?.sellerId === sellerId) || (venueData?.ownerUid === user?.uid));
 
-  useEffect(() => { if (seller) { setVenueName(seller.courseName || ''); setVenueTaxRate(seller.taxRate || 0); setVenueThresholds({ ...DEFAULT_THRESHOLDS, ...(seller.orderThresholds || {}) }); if (seller.menuTypes && seller.menuTypes.length > 0 && !seller.menuTypes.includes(configMode)) { setConfigMode(seller.menuTypes[0]); } const detectedType = seller.type?.toLowerCase().includes('bowling') ? 'bowling' : 'golf'; setStarterVenueType(detectedType); } }, [seller]);
+  useEffect(() => { 
+    if (seller) { 
+      if (seller.menuTypes && seller.menuTypes.length > 0 && !seller.menuTypes.includes(configMode)) { 
+        setConfigMode(seller.menuTypes[0]); 
+      } 
+      const detectedType = seller.type?.toLowerCase().includes('bowling') ? 'bowling' : 'golf'; 
+      setStarterVenueType(detectedType); 
+    } 
+  }, [seller]);
 
-  const stats = useMemo(() => { if (!orders) return null; const filteredOrders = dashboardFilter === 'All' ? orders : orders.filter(o => o.menuType === dashboardFilter); const today = filteredOrders.filter(o => o.createdAt && typeof o.createdAt.toDate === 'function' && isToday(o.createdAt.toDate())); const revenue = today.reduce((acc, o) => acc + (o.total || 0), 0); const avg = today.length > 0 ? (revenue / today.length).toFixed(2) : '0.00'; const overdueCount = filteredOrders.filter(o => o.status !== 'Delivered' && o.status !== 'Cancelled' && o.createdAt && typeof o.createdAt.toDate === 'function' && differenceInMinutes(new Date(), o.createdAt.toDate()) >= (seller?.orderThresholds?.[o.menuType]?.max || DEFAULT_THRESHOLDS[o.menuType]?.max || 20)).length; return { revenue: revenue.toFixed(2), active: filteredOrders.filter(o => o.status !== 'Delivered' && o.status !== 'Cancelled').length, volume: today.length, avg, overdue: overdueCount }; }, [orders, dashboardFilter, seller]);
+  const stats = useMemo(() => { 
+    if (!orders) return null; 
+    const filteredOrders = dashboardFilter === 'All' ? orders : orders.filter(o => o.menuType === dashboardFilter); 
+    const today = filteredOrders.filter(o => o.createdAt && typeof o.createdAt.toDate === 'function' && isToday(o.createdAt.toDate())); 
+    const revenue = today.reduce((acc, o) => acc + (o.total || 0), 0); 
+    const avg = today.length > 0 ? (revenue / today.length).toFixed(2) : '0.00'; 
+    const activeCount = filteredOrders.filter(o => o.status !== 'Delivered' && o.status !== 'Cancelled').length;
+    return { revenue: revenue.toFixed(2), active: activeCount, volume: today.length, avg }; 
+  }, [orders, dashboardFilter]);
 
   const handleApplyStarterMenu = async () => {
     if (!firebaseApp || !sellerId || !starterVenueType) return;
@@ -435,9 +411,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
   const modifierGroupForm = useForm<ModifierGroupFormData>({ resolver: zodResolver(modifierGroupSchema), defaultValues: { name: '', minSelection: 0, maxSelection: 1, options: [{ id: Math.random().toString(36).substr(2, 9), name: '', priceAdjustment: 0, isAvailable: true }] } });
   const { fields: optionFields, append: appendOption, remove: removeOption } = useFieldArray({ control: modifierGroupForm.control, name: "options" });
 
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
-
-  const NAV_ITEMS = [ { id: "dashboard", label: "Dashboard", icon: LayoutDashboard }, { id: "analytics", label: "Analytics", icon: BarChart3 }, { id: "orders", label: "Orders", icon: ClipboardList }, { id: "menu", label: "Menu Items", icon: UtensilsCrossed }, { id: "modifiers", label: "Modifiers", icon: Tags }, { id: "service", label: "Service Modes", icon: Zap }, { id: "staff", label: "Staff", icon: Users }, { id: "settings", label: "Settings", icon: SettingsIcon }, { id: "marketing", label: "Marketing", icon: Smartphone } ];
+  const NAV_ITEMS = [ { id: "dashboard", label: "Dashboard", icon: LayoutDashboard }, { id: "analytics", label: "Analytics", icon: BarChart3 }, { id: "orders", label: "Orders", icon: ClipboardList }, { id: "menu", label: "Menu Items", icon: UtensilsCrossed }, { id: "modifiers", label: "Modifiers", icon: Tags }, { id: "service", label: "Service Modes", icon: Zap }, { id: "staff", label: "Staff", icon: Users }, { id: "settings", label: "Settings", icon: SettingsIcon } ];
   const SERVICE_MODE_ICONS: Record<string, any> = { 'Beverage Cart': Truck, 'Clubhouse': Building, 'Lane Delivery': Users, 'Take Out': ShoppingBag };
 
   const handleLogout = async () => { if (!auth) return; await signOut(auth); router.push('/login'); };
