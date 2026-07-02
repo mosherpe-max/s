@@ -14,7 +14,7 @@ import {
   getDocs,
   deleteDoc,
 } from 'firebase/firestore';
-import { useFirestore, useDoc, useCollection, useMemoFirebase, useUser, useAuth } from '@/firebase';
+import { useFirestore, useDoc, useCollection, useMemoFirebase, useUser, useAuth, useFirebase } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { 
@@ -63,6 +63,7 @@ import {
   Wand2,
   UserCog,
   ShieldAlert,
+  AlertTriangle,
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -112,6 +113,7 @@ import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 import {
   Sheet,
   SheetContent,
@@ -156,7 +158,6 @@ import type { MenuItem, Seller, Order, StaffMember, Venue, SellerAdminRole, Modi
 import { categories } from '@/lib/types';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
-import { seedVenueModifiers } from '@/lib/seed-data';
 import { signOut } from 'firebase/auth';
 
 const DEFAULT_THRESHOLDS: Record<string, { warning: number; max: number }> = {
@@ -336,7 +337,7 @@ function SortableCategory({ id, category, isVisible, onToggleVisibility }: { id:
       </div>
       <Switch 
         checked={isVisible} 
-        onToggle={() => onToggleVisibility(category)} 
+        onCheckedChange={() => onToggleVisibility(category)} 
         className="data-[state=checked]:bg-primary"
       />
     </div>
@@ -345,6 +346,7 @@ function SortableCategory({ id, category, isVisible, onToggleVisibility }: { id:
 
 export default function VenueAdminPage({ params }: { params: Promise<{ sellerId: string }> }) {
   const { sellerId } = use(params);
+  const { firebaseApp } = useFirebase();
   const firestore = useFirestore();
   const auth = useAuth();
   const { user, isUserLoading } = useUser();
@@ -375,8 +377,12 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
   const [isModifierGroupFormOpen, setIsModifierGroupFormOpen] = useState(false);
   const [editingModifierGroup, setEditingModifierGroup] = useState<ModifierGroup | null>(null);
   const [isProcessingSave, setIsProcessingSave] = useState(false);
-  const [isSeeding, setIsSeeding] = useState(false);
   const [configMode, setConfigMode] = useState<string>('Beverage Cart');
+
+  // STARTER MENU STATE
+  const [isStarterMenuConfirmOpen, setIsStarterMenuConfirmOpen] = useState(false);
+  const [isApplyingStarter, setIsApplyingStarter] = useState(false);
+  const [starterVenueType, setStarterVenueType] = useState<string>('');
 
   const [venueThresholds, setVenueThresholds] = useState<Record<string, { warning: number; max: number }>>({});
   const [venueName, setVenueName] = useState('');
@@ -434,6 +440,9 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
       if (seller.menuTypes && seller.menuTypes.length > 0 && !seller.menuTypes.includes(configMode)) {
         setConfigMode(seller.menuTypes[0]);
       }
+      // Set default starter venue type based on profile
+      const detectedType = seller.type?.toLowerCase().includes('bowling') ? 'bowling' : 'golf';
+      setStarterVenueType(detectedType);
     }
   }, [seller]);
 
@@ -592,16 +601,28 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
     deleteDoc(doc(firestore, 'modifier_groups', id)).then(() => { toast({ title: "Modifier Group Deleted" }); });
   };
 
-  const handleSeedPresets = async () => {
-    if (!firestore || !seller || !sellerId) return;
-    setIsSeeding(true);
+  const handleApplyStarterMenu = async () => {
+    if (!firebaseApp || !sellerId || !starterVenueType) return;
+    setIsApplyingStarter(true);
     try {
-      await seedVenueModifiers(firestore, sellerId, seller.type);
-      toast({ title: "Industry Presets Applied", description: "Standard modifier groups have been added and linked to items from the master library." });
-    } catch (error) {
-      toast({ variant: "destructive", title: "Seeding Failed", description: "Could not provision industry presets." });
+      const functions = getFunctions(firebaseApp, 'us-central1');
+      const applyStarter = httpsCallable(functions, 'applyStarterMenu');
+      const result = await applyStarter({ venueId: sellerId, venueType: starterVenueType });
+      const data = result.data as { totalCreated: number; byCategory: Record<string, number> };
+      
+      toast({ 
+        title: "Starter Menu Applied", 
+        description: `Successfully provisioned ${data.totalCreated} standard modifier sets across food and beverage categories.` 
+      });
+      setIsStarterMenuConfirmOpen(false);
+    } catch (error: any) {
+      toast({ 
+        variant: "destructive", 
+        title: "Provisioning Failed", 
+        description: error.message || "Could not apply starter library." 
+      });
     } finally {
-      setIsSeeding(false);
+      setIsApplyingStarter(false);
     }
   };
 
@@ -979,8 +1000,71 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
 
               {activeNav === 'modifiers' && (
                 <div className="space-y-6 animate-in fade-in duration-500">
-                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b-2 pb-4 text-left"><div className="space-y-1"><h3 className="font-headline font-black text-2xl text-[#213147] uppercase leading-tight">Modifier Groups</h3><p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Reusable sets of customizations and add-ons</p></div><div className="flex gap-3 w-full sm:w-auto"><Button onClick={handleSeedPresets} disabled={isSeeding} variant="outline" className="flex-1 sm:flex-initial h-12 border-2 font-black uppercase text-[10px] tracking-widest gap-2">{isSeeding ? <Loader2 className="h-4 w-4 animate-spin" /> : <Library className="h-4 w-4 text-primary" />}Seed Library Templates</Button><Button onClick={() => { setEditingModifierGroup(null); modifierGroupForm.reset({ name: '', minSelection: 0, maxSelection: 1, options: [{ id: Math.random().toString(36).substr(2, 9), name: '', priceAdjustment: 0, isAvailable: true }] }); setIsModifierGroupFormOpen(true); }} className="flex-1 sm:flex-initial bg-indigo-600 hover:bg-indigo-700 h-12 px-6 rounded-xl font-black uppercase text-[10px] tracking-widest gap-2 shadow-xl"><Plus className="h-4 w-4" /> Define New Set</Button></div></div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 text-left">{modifierGroups?.map(group => (<Card key={group.id} className="border-2 shadow-sm group hover:border-indigo-200 transition-all bg-white text-left"><CardHeader className="p-4 border-b bg-slate-50/50 flex flex-row items-center justify-between space-y-0 text-left"><div className="space-y-0.5 text-left"><p className="font-black text-xs uppercase text-[#213147]">{group.name}</p><p className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest">{group.minSelection > 0 ? `Required (${group.minSelection})` : 'Optional'} · Max {group.maxSelection}</p></div><div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"><Button variant="ghost" size="icon" className="h-8 w-8 text-indigo-600" onClick={() => { setEditingModifierGroup(group); modifierGroupForm.reset(group); setIsModifierGroupFormOpen(true); }}><Edit className="h-4 w-4" /></Button><Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleDeleteModifierGroup(group.id)}><Trash2 className="h-4 w-4" /></Button></div></CardHeader><CardContent className="p-4 text-left"><div className="flex flex-wrap gap-1.5">{group.options.map((opt, idx) => (<Badge key={`${group.id}-opt-${idx}`} variant="outline" className={cn("text-[8px] font-bold uppercase px-1.5 py-0.5 h-auto", !opt.isAvailable && "opacity-40 line-through")}>{opt.name} {opt.priceAdjustment > 0 && `(+$${opt.priceAdjustment.toFixed(2)})`}</Badge>))}</div></CardContent></Card>))}</div>
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b-2 pb-4 text-left">
+                    <div className="space-y-1">
+                      <h3 className="font-headline font-black text-2xl text-[#213147] uppercase leading-tight">Modifier Groups</h3>
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Reusable sets of customizations and add-ons</p>
+                    </div>
+                    <div className="flex gap-3 w-full sm:w-auto">
+                      <Button 
+                        onClick={() => setIsStarterMenuConfirmOpen(true)} 
+                        disabled={isApplyingStarter} 
+                        variant="outline" 
+                        className="flex-1 sm:flex-initial h-12 border-2 font-black uppercase text-[10px] tracking-widest gap-2 shadow-sm hover:bg-indigo-50"
+                      >
+                        {isApplyingStarter ? <Loader2 className="h-4 w-4 animate-spin" /> : <Library className="h-4 w-4 text-indigo-600" />}
+                        Apply Starter Menu
+                      </Button>
+                      <Button 
+                        onClick={() => { 
+                          setEditingModifierGroup(null); 
+                          modifierGroupForm.reset({ name: '', minSelection: 0, maxSelection: 1, options: [{ id: Math.random().toString(36).substr(2, 9), name: '', priceAdjustment: 0, isAvailable: true }] }); 
+                          setIsModifierGroupFormOpen(true); 
+                        }} 
+                        className="flex-1 sm:flex-initial bg-indigo-600 hover:bg-indigo-700 h-12 px-6 rounded-xl font-black uppercase text-[10px] tracking-widest gap-2 shadow-xl"
+                      >
+                        <Plus className="h-4 w-4" /> Define New Set
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 text-left">
+                    {modifierGroups?.map(group => (
+                      <Card key={group.id} className="border-2 shadow-sm group hover:border-indigo-200 transition-all bg-white text-left">
+                        <CardHeader className="p-4 border-b bg-slate-50/50 flex flex-row items-center justify-between space-y-0 text-left">
+                          <div className="space-y-0.5 text-left">
+                            <p className="font-black text-xs uppercase text-[#213147]">{group.name}</p>
+                            <p className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest">
+                              {group.minSelection > 0 ? `Required (${group.minSelection})` : 'Optional'} · Max {group.maxSelection}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-indigo-600" onClick={() => { setEditingModifierGroup(group); modifierGroupForm.reset(group); setIsModifierGroupFormOpen(true); }}>
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleDeleteModifierGroup(group.id)}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </CardHeader>
+                        <CardContent className="p-4 text-left">
+                          <div className="flex flex-wrap gap-1.5">
+                            {group.options.map((opt, idx) => (
+                              <Badge key={`${group.id}-opt-${idx}`} variant="outline" className={cn("text-[8px] font-bold uppercase px-1.5 py-0.5 h-auto", !opt.isAvailable && "opacity-40 line-through")}>
+                                {opt.name} {opt.priceAdjustment > 0 && `(+$${opt.priceAdjustment.toFixed(2)})`}
+                              </Badge>
+                            ))}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                    {modifierGroups?.length === 0 && (
+                      <div className="col-span-full py-20 text-center border-2 border-dashed rounded-3xl bg-white opacity-40">
+                        <Tags className="h-12 w-12 mx-auto mb-4 text-slate-300" />
+                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">No modifiers defined</p>
+                        <Button variant="link" className="mt-2 text-indigo-600 font-bold uppercase text-[9px]" onClick={() => setIsStarterMenuConfirmOpen(true)}>Use standard industry templates</Button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
 
@@ -1024,7 +1108,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                             {categories.filter(c => c !== 'Featured' && !(seller?.categoryVisibility?.[configMode] || []).includes(c)).map(cat => (
                               <div key={`cat-hidden-${cat}`} className="bg-slate-50 border-2 border-dashed rounded-xl p-3 flex items-center justify-between opacity-60">
                                 <span className="text-[10px] font-black uppercase text-slate-400">{cat}</span>
-                                <Switch checked={false} onToggle={() => handleToggleCategoryVisibility(cat)} className="scale-75" />
+                                <Switch checked={false} onCheckedChange={() => handleToggleCategoryVisibility(cat)} className="scale-75" />
                               </div>
                             ))}
                           </div>
@@ -1064,7 +1148,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                               <div className="flex items-center gap-3">
                                 <Badge variant="secondary" className="h-6 px-3 text-[10px] font-black uppercase tracking-widest bg-[#213147] text-white border-0">{cat}</Badge>
                                 <div className="flex items-center gap-2">
-                                  <Switch checked={(seller?.categoryVisibility?.[configMode] || []).includes(cat)} onToggle={() => handleToggleCategoryVisibility(cat)} className="scale-75" />
+                                  <Switch checked={(seller?.categoryVisibility?.[configMode] || []).includes(cat)} onCheckedChange={() => handleToggleCategoryVisibility(cat)} className="scale-75" />
                                   <span className="text-[9px] font-black uppercase text-muted-foreground">Category Visible</span>
                                 </div>
                               </div>
@@ -1209,6 +1293,60 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
           </ScrollArea>
         </main>
       </div>
+
+      {/* Confirmation Dialog for Starter Menu */}
+      <Dialog open={isStarterMenuConfirmOpen} onOpenChange={setIsStarterMenuConfirmOpen}>
+        <DialogContent className="sm:max-w-[425px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
+          <DialogHeader className="p-8 bg-indigo-600 text-white">
+            <div className="flex items-center gap-4 text-left">
+              <div className="bg-white/20 p-3 rounded-2xl shrink-0"><Library className="h-6 w-6 text-white" /></div>
+              <div className="text-left">
+                <DialogTitle className="font-headline font-black uppercase tracking-tight text-white text-xl">Apply Starter Menu</DialogTitle>
+                <DialogDescription className="text-white/40 text-[9px] font-bold uppercase tracking-widest mt-1">One-click modifier provisioning</DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+          <div className="p-8 space-y-6 text-left">
+            <div className="bg-indigo-50 p-4 rounded-2xl border-2 border-indigo-100 flex items-start gap-4">
+               <div className="bg-white p-2 rounded-lg text-indigo-600 shadow-sm shrink-0"><CheckCircle2 className="h-5 w-5" /></div>
+               <p className="text-[11px] font-bold text-indigo-900 leading-relaxed uppercase">
+                 This will add industry-standard modifier sets (Sides, Doneness, Toppings, etc.) to this venue's library. Existing modifiers will not be affected.
+               </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground px-1">Library Template Set</Label>
+              <Select value={starterVenueType} onValueChange={setStarterVenueType}>
+                <SelectTrigger className="h-12 border-2 font-bold bg-slate-50">
+                  <SelectValue placeholder="Select venue type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="golf" className="font-bold">GOLF COURSE (F&B / Cart)</SelectItem>
+                  <SelectItem value="bowling" className="font-bold">BOWLING CENTER (Laneside)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex flex-col gap-3">
+              <Button 
+                onClick={handleApplyStarterMenu} 
+                disabled={isApplyingStarter || !starterVenueType}
+                className="h-14 bg-indigo-600 hover:bg-indigo-700 font-black uppercase tracking-widest text-[11px] gap-2 shadow-xl"
+              >
+                {isApplyingStarter ? <Loader2 className="h-5 w-5 animate-spin" /> : <Wand2 className="h-5 w-5" />} 
+                {isApplyingStarter ? "Provisioning..." : "Confirm & Apply Templates"}
+              </Button>
+              <Button 
+                variant="outline" 
+                onClick={() => setIsStarterMenuConfirmOpen(false)} 
+                className="h-12 border-2 font-black uppercase tracking-widest text-[11px]"
+              >
+                Discard
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={isStaffFormOpen} onOpenChange={setIsStaffFormOpen}>
         <DialogContent className="sm:max-w-[425px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
@@ -1405,7 +1543,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                           </div>
                           <div className="col-span-2 flex items-center justify-center pb-2">
                             <FormField control={modifierGroupForm.control} name={`options.${index}.isAvailable`} render={({ field }) => (
-                              <Switch checked={field.value} onToggle={() => field.onChange(!field.value)} className="data-[state=checked]:bg-green-600 scale-75" />
+                              <Switch checked={field.value} onCheckedChange={() => field.onChange(!field.value)} className="data-[state=checked]:bg-green-600 scale-75" />
                             )} />
                           </div>
                           <div className="col-span-1 flex items-center justify-center pb-1">
