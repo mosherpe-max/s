@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
@@ -1448,7 +1447,7 @@ export default function SolutionAdminPage() {
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
                                    <div className="space-y-1.5">
-                                      <FormLabel className="text-[8px] font-black uppercase text-amber-600 tracking-widest">Warning (Min)</FormLabel>
+                                      <Label className="text-[8px] font-black uppercase text-amber-600 tracking-widest">Warning (Min)</Label>
                                       <Input 
                                         type="number" 
                                         min="0"
@@ -1459,7 +1458,7 @@ export default function SolutionAdminPage() {
                                       />
                                    </div>
                                    <div className="space-y-1.5">
-                                      <FormLabel className="text-[8px] font-black uppercase text-red-600 tracking-widest">Max Window (Min)</FormLabel>
+                                      <Label className="text-[8px] font-black uppercase text-red-600 tracking-widest">Max Window (Min)</Label>
                                       <Input 
                                         type="number" 
                                         min="0"
