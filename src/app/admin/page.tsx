@@ -22,7 +22,7 @@ import {
   Activity,
   Briefcase,
   Database,
-  LucideImage,
+  Image as LucideImage,
   Trash2,
   Menu,
   Smartphone,
@@ -48,7 +48,8 @@ import {
   Globe,
   BellRing,
   ShieldCheck,
-  Mail
+  Mail,
+  Clock
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -458,7 +459,7 @@ export default function SolutionAdminPage() {
                   <Tabs value={libraryTab} onValueChange={(v: any) => setLibraryTab(v)} className="space-y-6">
                     <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
                       <TabsList className="bg-slate-100 p-1 rounded-xl h-11"><TabsTrigger value="modifiers" className="text-[10px] font-black uppercase tracking-widest px-8">Modifier Sets</TabsTrigger><TabsTrigger value="items" className="text-[10px] font-black uppercase tracking-widest px-8">Menu Items</TabsTrigger></TabsList>
-                      <div className="flex bg-white p-2 px-3 rounded-xl border-2 shadow-sm gap-3 items-center w-full max-w-sm"><Search className="h-4 w-4 text-muted-foreground shrink-0" /><Input placeholder="Search library..." value={librarySearchTerm} onChange={(e) => setLibrarySearchTerm(e.target.value)} className="border-0 shadow-none text-xs font-medium p-0 h-auto" /></div>
+                      <div className="flex bg-white p-2 px-3 rounded-xl border-2 shadow-sm gap-3 items-center w-full max-sm:max-w-none max-w-sm"><Search className="h-4 w-4 text-muted-foreground shrink-0" /><Input placeholder="Search library..." value={librarySearchTerm} onChange={(e) => setLibrarySearchTerm(e.target.value)} className="border-0 shadow-none text-xs font-medium p-0 h-auto" /></div>
                     </div>
 
                     <TabsContent value="modifiers" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -682,4 +683,3 @@ export default function SolutionAdminPage() {
     </div>
   );
 }
-
