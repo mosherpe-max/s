@@ -15,7 +15,7 @@ import {
 } from 'firebase/firestore';
 import { useFirestore, useDoc, useCollection, useMemoFirebase, useUser, useAuth, useFirebase } from '@/firebase';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { 
   LayoutDashboard,
   ClipboardList,
@@ -54,7 +54,15 @@ import {
   CheckCircle2,
   AlertTriangle,
   Smartphone,
-  Download
+  Download,
+  Calendar as CalendarIcon,
+  QrCode,
+  FileText,
+  Image as LucideImage,
+  Share2,
+  Presentation,
+  Filter,
+  X
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -87,7 +95,7 @@ import {
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { cn, SUPER_ADMIN_ID } from '@/lib/utils';
-import { isToday, format, subDays } from 'date-fns';
+import { isToday, format, subDays, startOfDay, endOfDay, isWithinInterval } from 'date-fns';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
@@ -108,7 +116,10 @@ import {
   Tooltip as ChartTooltip,
   Cell,
   PieChart,
-  Pie
+  Pie,
+  BarChart,
+  Bar,
+  CartesianGrid
 } from 'recharts';
 
 // --- SCHEMAS ---
@@ -201,6 +212,10 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
   const [activeNav, setActiveNav] = useState('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   
+  // Filtering & Search
+  const [orderSearchTerm, setSearchTerm] = useState('');
+  const [orderDateRange, setOrderDateRange] = useState<'today' | '7days' | '30days' | 'all'>('today');
+
   // Dialog States
   const [isStaffFormOpen, setIsStaffFormOpen] = useState(false);
   const [editingStaff, setEditingStaff] = useState<StaffMember | null>(null);
@@ -290,6 +305,36 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
       staffOn: staffList?.filter(s => s.lastActive && isToday(s.lastActive.toDate())).length || 0
     }; 
   }, [orders, staffList]);
+
+  const filteredOrders = useMemo(() => {
+    if (!orders) return [];
+    let list = orders;
+
+    // Apply Search
+    if (orderSearchTerm) {
+      const s = orderSearchTerm.toLowerCase();
+      list = list.filter(o => 
+        o.customerName.toLowerCase().includes(s) || 
+        o.id.toLowerCase().includes(s) ||
+        o.customerPhone.includes(s)
+      );
+    }
+
+    // Apply Date Filter
+    if (orderDateRange !== 'all') {
+      const now = new Date();
+      list = list.filter(o => {
+        if (!o.createdAt) return false;
+        const d = o.createdAt.toDate();
+        if (orderDateRange === 'today') return isToday(d);
+        if (orderDateRange === '7days') return d >= subDays(now, 7);
+        if (orderDateRange === '30days') return d >= subDays(now, 30);
+        return true;
+      });
+    }
+
+    return [...list].sort((a, b) => (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0));
+  }, [orders, orderSearchTerm, orderDateRange]);
 
   // --- ACTIONS ---
 
@@ -387,6 +432,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
     { id: "menu", label: "Menu Items", icon: UtensilsCrossed },
     { id: "modifiers", label: "Modifiers", icon: Tags },
     { id: "staff", label: "Staff", icon: Users },
+    { id: "marketing", label: "Marketing", icon: MegaphoneIcon },
     { id: "settings", label: "Settings", icon: SettingsIcon }
   ];
 
@@ -408,12 +454,14 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
     </nav>
   );
 
+  const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
+
   return (
     <div className="flex flex-col h-screen bg-[#F8FAFC] overflow-hidden text-left">
-      <header className="h-16 bg-white border-b-2 flex items-center justify-between px-8 shrink-0 z-30 shadow-sm relative">
+      <header className="h-16 bg-white border-b-2 flex items-center justify-between px-8 shrink-0 z-30 shadow-sm relative text-left">
         <div className="flex items-center gap-4">
           <StylizedKoopLogo size="sm" colorClass="text-[#213147]" />
-          <div className="flex flex-col">
+          <div className="flex flex-col text-left">
             <h1 className="text-sm font-black text-[#213147] uppercase tracking-tight leading-none mb-1">{seller?.courseName}</h1>
             <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">Establishment Control</p>
           </div>
@@ -541,23 +589,19 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                       <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
                         <TrendingUp className="h-3 w-3 text-primary" /> Revenue Trend (Last 7 Days)
                       </h4>
-                      <div className="h-[250px] w-full">
+                      <div className="h-[300px] w-full">
                         <ResponsiveContainer width="100%" height="100%">
-                          <AreaChart data={analyticsData.dailyRevenue}>
-                            <defs>
-                              <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor="#E50000" stopOpacity={0.1}/>
-                                <stop offset="95%" stopColor="#E50000" stopOpacity={0}/>
-                              </linearGradient>
-                            </defs>
+                          <BarChart data={analyticsData.dailyRevenue}>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                             <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 10, fontWeight: 700}} dy={10} />
-                            <YAxis hide />
+                            <YAxis axisLine={false} tickLine={false} tick={{fontSize: 10, fontWeight: 700}} />
                             <ChartTooltip 
+                              cursor={{fill: '#f8fafc'}}
                               contentStyle={{ borderRadius: '1rem', border: '2px solid #f1f5f9', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
                               labelStyle={{ fontWeight: 900, fontSize: '10px', textTransform: 'uppercase', marginBottom: '4px' }}
                             />
-                            <Area type="monotone" dataKey="total" stroke="#E50000" strokeWidth={3} fillOpacity={1} fill="url(#colorTotal)" />
-                          </AreaChart>
+                            <Bar dataKey="total" fill="#E50000" radius={[4, 4, 0, 0]} barSize={40} />
+                          </BarChart>
                         </ResponsiveContainer>
                       </div>
                     </Card>
@@ -580,13 +624,13 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
 
                        <Card className="border-2 shadow-sm p-6 space-y-6">
                          <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Order Distribution</h4>
-                         <div className="h-[140px] flex items-center justify-center">
+                         <div className="h-[180px] flex items-center justify-center">
                             <ResponsiveContainer width="100%" height="100%">
                               <PieChart>
                                 <Pie 
                                   data={analyticsData.channelSplit} 
-                                  innerRadius={40} 
-                                  outerRadius={60} 
+                                  innerRadius={50} 
+                                  outerRadius={75} 
                                   paddingAngle={5} 
                                   dataKey="value"
                                 >
@@ -614,16 +658,36 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
 
               {activeNav === 'orders' && (
                 <div className="space-y-8 animate-in fade-in duration-500">
-                  <div className="flex justify-between items-center border-b-2 pb-6">
+                  <div className="flex flex-col md:flex-row md:items-center justify-between border-b-2 pb-6 gap-4">
                     <div className="space-y-1">
-                      <h3 className="font-headline font-black text-2xl text-[#213147] uppercase">Tickets Queue</h3>
-                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Master log of establishment orders</p>
+                      <h3 className="font-headline font-black text-2xl text-[#213147] uppercase">Fulfillment Log</h3>
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Monitor establishment queue and historical data</p>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2 items-center">
                        <div className="relative">
                          <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                         <Input placeholder="Search orders..." className="pl-10 h-10 border-2 rounded-xl text-xs w-64" />
+                         <Input 
+                            placeholder="Search orders..." 
+                            className="pl-10 h-10 border-2 rounded-xl text-xs w-64" 
+                            value={orderSearchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                         />
                        </div>
+                       <Select value={orderDateRange} onValueChange={(v: any) => setOrderDateRange(v)}>
+                          <SelectTrigger className="h-10 border-2 rounded-xl w-40 text-[10px] font-black uppercase tracking-widest">
+                            <CalendarIcon className="h-3 w-3 mr-2" />
+                            <SelectValue placeholder="Date Range" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="today" className="text-xs">Today</SelectItem>
+                            <SelectItem value="7days" className="text-xs">Last 7 Days</SelectItem>
+                            <SelectItem value="30days" className="text-xs">Last 30 Days</SelectItem>
+                            <SelectItem value="all" className="text-xs">All History</SelectItem>
+                          </SelectContent>
+                       </Select>
+                       <Button variant="outline" size="icon" className="h-10 w-10 border-2 rounded-xl" onClick={() => { setSearchTerm(''); setOrderDateRange('today'); }}>
+                          <X className="h-4 w-4" />
+                       </Button>
                     </div>
                   </div>
 
@@ -640,11 +704,18 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {orders?.sort((a,b) => (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0)).map(o => (
+                        {filteredOrders.length === 0 ? (
+                          <TableRow>
+                            <TableCell colSpan={6} className="h-64 text-center py-20 text-muted-foreground">
+                               <Package className="h-10 w-10 mx-auto mb-4 opacity-20" />
+                               <p className="text-[10px] font-black uppercase tracking-widest">No matching orders found</p>
+                            </TableCell>
+                          </TableRow>
+                        ) : filteredOrders.map(o => (
                           <TableRow key={o.id} className="group">
                             <TableCell className="px-8 py-5">
                               <p className="font-mono font-black text-xs">#{o.id.slice(-5).toUpperCase()}</p>
-                              <p className="text-[9px] text-muted-foreground uppercase mt-0.5">{o.createdAt ? format(o.createdAt.toDate(), 'h:mm a') : 'Now'}</p>
+                              <p className="text-[9px] text-muted-foreground uppercase mt-0.5">{o.createdAt ? format(o.createdAt.toDate(), 'MMM d, h:mm a') : 'Now'}</p>
                             </TableCell>
                             <TableCell>
                               <p className="font-bold text-sm text-[#213147]">{o.customerName}</p>
@@ -792,7 +863,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                         </CardHeader>
                         <CardContent className="p-6 pt-0 space-y-4">
                            <div className="bg-slate-50 p-4 rounded-2xl border-2 border-slate-100 flex items-center justify-between">
-                              <div className="space-y-0.5">
+                              <div className="space-y-0.5 text-left">
                                  <p className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">Secure PIN</p>
                                  <p className="text-sm font-black font-mono tracking-[0.3em]">{s.pin}</p>
                               </div>
@@ -811,6 +882,77 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                         </CardContent>
                       </Card>
                     ))}
+                  </div>
+                </div>
+              )}
+
+              {activeNav === 'marketing' && (
+                <div className="space-y-8 animate-in fade-in duration-500">
+                  <div className="flex justify-between items-center border-b-2 pb-6">
+                    <div className="space-y-1">
+                      <h3 className="font-headline font-black text-2xl text-[#213147] uppercase">Growth & Collateral</h3>
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Resources to drive more patron orders</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <Card className="lg:col-span-2 border-2 shadow-sm p-8">
+                       <div className="space-y-8">
+                          <div className="flex items-center gap-4">
+                            <div className="bg-indigo-50 p-4 rounded-[2rem] text-indigo-600 border-2 border-indigo-100">
+                               <QrCode className="h-8 w-8" />
+                            </div>
+                            <div className="text-left">
+                               <h4 className="font-headline font-black text-xl text-[#213147] uppercase leading-none mb-2">QR Terminal</h4>
+                               <p className="text-xs text-muted-foreground">Download location-aware QR codes for placement at lanes or on carts.</p>
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                             {['Beverage Cart', 'Clubhouse', 'Lane Delivery', 'Take Out'].filter(m => seller?.menuTypes?.includes(m)).map(mode => (
+                               <div key={mode} className="p-6 bg-slate-50 border-2 rounded-[2rem] flex flex-col items-center gap-4 group hover:border-primary transition-all">
+                                  <div className="bg-white p-3 rounded-2xl border-2 shadow-sm group-hover:scale-105 transition-transform">
+                                    <img 
+                                      src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${baseUrl}/sellers/${sellerId}/order?menuType=${encodeURIComponent(mode)}`}
+                                      alt={`${mode} QR`}
+                                      className="w-24 h-24"
+                                    />
+                                  </div>
+                                  <div className="text-center">
+                                     <p className="text-[10px] font-black uppercase text-[#213147]">{mode}</p>
+                                     <Button variant="ghost" size="sm" className="h-8 mt-2 text-[8px] font-black uppercase tracking-widest text-primary gap-1">
+                                        <Download className="h-3 w-3" /> Download
+                                     </Button>
+                                  </div>
+                               </div>
+                             ))}
+                          </div>
+                       </div>
+                    </Card>
+
+                    <div className="space-y-4">
+                       <Card className="border-2 p-6 space-y-4">
+                          <div className="bg-blue-50 p-3 rounded-2xl w-fit text-blue-600"><FileText className="h-6 w-6" /></div>
+                          <div className="text-left">
+                            <p className="font-black text-xs uppercase text-[#213147]">Starter Poster Pack</p>
+                            <p className="text-[9px] font-bold text-muted-foreground uppercase mt-1">Print-ready PDF designs</p>
+                          </div>
+                          <Button className="w-full h-10 rounded-xl bg-[#213147] font-black text-[9px] uppercase tracking-widest gap-2">
+                             <Download className="h-3 w-3" /> Get Assets
+                          </Button>
+                       </Card>
+
+                       <Card className="border-2 p-6 space-y-4">
+                          <div className="bg-green-50 p-3 rounded-2xl w-fit text-green-600"><LucideImage className="h-6 w-6" /></div>
+                          <div className="text-left">
+                            <p className="font-black text-xs uppercase text-[#213147]">Social Graphics Kit</p>
+                            <p className="text-[9px] font-bold text-muted-foreground uppercase mt-1">Optimized for IG/FB Stories</p>
+                          </div>
+                          <Button className="w-full h-10 rounded-xl bg-[#213147] font-black text-[9px] uppercase tracking-widest gap-2">
+                             <Download className="h-3 w-3" /> Get Assets
+                          </Button>
+                       </Card>
+                    </div>
                   </div>
                 </div>
               )}
@@ -840,12 +982,12 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                             <Building className="h-4 w-4" /> Core Identity
                          </h4>
                          <div className="grid gap-6">
-                            <div className="space-y-2">
+                            <div className="space-y-2 text-left">
                               <Label className="text-[10px] font-black uppercase">Official Establishment Name</Label>
                               <Input defaultValue={seller?.courseName} onChange={(e) => updateDoc(doc(firestore!, 'sellers', sellerId), { courseName: e.target.value })} className="h-12 border-2 font-bold focus-visible:ring-primary" />
                             </div>
                             <div className="grid grid-cols-2 gap-6">
-                               <div className="space-y-2">
+                               <div className="space-y-2 text-left">
                                   <Label className="text-[10px] font-black uppercase">Establishment Type</Label>
                                   <Select defaultValue={seller?.type} onValueChange={(v) => updateDoc(doc(firestore!, 'sellers', sellerId), { type: v })}>
                                     <SelectTrigger className="h-12 border-2 font-bold"><SelectValue /></SelectTrigger>
@@ -857,7 +999,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                                     </SelectContent>
                                   </Select>
                                </div>
-                               <div className="space-y-2">
+                               <div className="space-y-2 text-left">
                                   <Label className="text-[10px] font-black uppercase">Current Status</Label>
                                   <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border-2 h-12">
                                     <Switch checked={seller?.status === 'Active'} onCheckedChange={(v) => updateDoc(doc(firestore!, 'sellers', sellerId), { status: v ? 'Active' : 'Inactive' })} />
@@ -874,14 +1016,14 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                           <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
                              <MapPin className="h-4 w-4" /> Logistics Base
                           </h4>
-                          <div className="space-y-2">
+                          <div className="space-y-2 text-left">
                             <Label className="text-[10px] font-black uppercase">Street Address</Label>
                             <Input defaultValue={seller?.streetAddress} className="h-12 border-2 font-bold" />
                           </div>
                           <div className="grid grid-cols-3 gap-4">
-                             <div className="col-span-1 space-y-2"><Label className="text-[10px] font-black uppercase">City</Label><Input defaultValue={seller?.city} className="h-12 border-2 font-bold" /></div>
-                             <div className="col-span-1 space-y-2"><Label className="text-[10px] font-black uppercase">State</Label><Input defaultValue={seller?.state} className="h-12 border-2 font-bold" /></div>
-                             <div className="col-span-1 space-y-2"><Label className="text-[10px] font-black uppercase">Zip</Label><Input defaultValue={seller?.zip} className="h-12 border-2 font-bold" /></div>
+                             <div className="col-span-1 space-y-2 text-left"><Label className="text-[10px] font-black uppercase">City</Label><Input defaultValue={seller?.city} className="h-12 border-2 font-bold" /></div>
+                             <div className="col-span-1 space-y-2 text-left"><Label className="text-[10px] font-black uppercase">State</Label><Input defaultValue={seller?.state} className="h-12 border-2 font-bold" /></div>
+                             <div className="col-span-1 space-y-2 text-left"><Label className="text-[10px] font-black uppercase">Zip</Label><Input defaultValue={seller?.zip} className="h-12 border-2 font-bold" /></div>
                           </div>
                        </div>
                     </Card>
@@ -892,14 +1034,14 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                             <DollarSign className="h-4 w-4" /> Financials & Payouts
                          </h4>
                          <div className="grid grid-cols-2 gap-6">
-                            <div className="space-y-2">
+                            <div className="space-y-2 text-left">
                                <Label className="text-[10px] font-black uppercase">Local Tax Rate (%)</Label>
                                <div className="relative">
                                   <Input type="number" defaultValue={seller?.taxRate} onChange={(e) => updateDoc(doc(firestore!, 'sellers', sellerId), { taxRate: parseFloat(e.target.value) })} className="h-12 border-2 font-bold pr-10" />
                                   <span className="absolute right-4 top-3.5 text-xs font-black text-slate-300">%</span>
                                </div>
                             </div>
-                            <div className="space-y-2">
+                            <div className="space-y-2 text-left">
                                <Label className="text-[10px] font-black uppercase">Master Service Fee ($)</Label>
                                <div className="relative">
                                   <span className="absolute left-4 top-3.5 text-xs font-black text-slate-300">$</span>
@@ -908,7 +1050,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                             </div>
                          </div>
                          <div className="p-6 bg-slate-50 border-2 rounded-2xl flex items-center justify-between gap-6">
-                            <div className="space-y-1">
+                            <div className="space-y-1 text-left">
                                <p className="text-[11px] font-black uppercase text-[#213147]">Stripe Connect Status</p>
                                <p className="text-[9px] font-bold text-muted-foreground uppercase leading-relaxed">Integrated for direct F&B revenue distribution</p>
                             </div>
@@ -923,14 +1065,14 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                              <Mail className="h-4 w-4" /> Key Personnel
                           </h4>
                           <div className="grid gap-4">
-                            <div className="space-y-2">
+                            <div className="space-y-2 text-left">
                               <Label className="text-[10px] font-black uppercase">Manager Primary Contact</Label>
                               <div className="relative">
                                 <Users className="absolute left-4 top-3.5 h-5 w-5 text-slate-300" />
                                 <Input defaultValue={seller?.contactName} className="h-12 border-2 font-bold pl-12" />
                               </div>
                             </div>
-                            <div className="space-y-2">
+                            <div className="space-y-2 text-left">
                               <Label className="text-[10px] font-black uppercase">Operational Alert Email</Label>
                               <div className="relative">
                                 <Mail className="absolute left-4 top-3.5 h-5 w-5 text-slate-300" />
@@ -1003,7 +1145,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                 <FormItem><FormLabel className="text-[10px] font-black uppercase">Category</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger className="h-12 border-2 font-bold"><SelectValue /></SelectTrigger></FormControl><SelectContent>{categories.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent></Select></FormItem>
               )} />
             </div>
-            <div className="space-y-4 pt-4 border-t">
+            <div className="space-y-4 pt-4 border-t text-left">
               <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground px-1">Service Channels</Label>
               <div className="grid grid-cols-2 gap-3">
                  {['Beverage Cart', 'Clubhouse', 'Lane Delivery', 'Take Out'].map(mode => (
@@ -1079,7 +1221,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
       {/* Confirmation Modals */}
       <Dialog open={isStarterMenuConfirmOpen} onOpenChange={setIsStarterMenuConfirmOpen}>
         <DialogContent className="sm:max-w-[425px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl">
-          <DialogHeader className="p-8 bg-indigo-600 text-white">
+          <DialogHeader className="p-8 bg-indigo-600 text-white text-left">
             <DialogTitle className="font-headline font-black uppercase tracking-tight text-white text-xl">Apply Starter Modifiers</DialogTitle>
           </DialogHeader>
           <div className="p-8 space-y-6 text-left">
@@ -1093,7 +1235,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
 
       <Dialog open={isStarterItemsConfirmOpen} onOpenChange={setIsStarterItemsConfirmOpen}>
         <DialogContent className="sm:max-w-[425px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl">
-          <DialogHeader className="p-8 bg-indigo-600 text-white">
+          <DialogHeader className="p-8 bg-indigo-600 text-white text-left">
             <DialogTitle className="font-headline font-black uppercase tracking-tight text-white text-xl">Apply Starter Menu</DialogTitle>
           </DialogHeader>
           <div className="p-8 space-y-6 text-left">
@@ -1121,5 +1263,25 @@ function Checkbox({ checked, onCheckedChange }: { checked: boolean, onCheckedCha
     >
       {checked && <CheckCircle2 className="h-3 w-3" />}
     </button>
+  );
+}
+
+function MegaphoneIcon(props: any) {
+  return (
+    <svg
+      {...props}
+      xmlns="http://www.w3.org/2000/svg"
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="m3 11 18-5v12L3 14v-3z" />
+      <path d="M11.6 16.8a3 3 0 1 1-5.8-1.6" />
+    </svg>
   );
 }
