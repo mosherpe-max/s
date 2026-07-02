@@ -80,7 +80,10 @@ import {
   LayoutList,
   UserCog,
   MessageSquare,
-  Eraser
+  Eraser,
+  Library,
+  Tags,
+  X
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -113,7 +116,7 @@ import { useRouter } from 'next/navigation';
 import { useFirestore, useCollection, useMemoFirebase, useAuth, useDoc, useUser } from '@/firebase';
 import { signOut } from 'firebase/auth';
 import { collection, query, limit, doc, setDoc, serverTimestamp, where, orderBy, updateDoc, writeBatch, deleteDoc } from 'firebase/firestore';
-import type { Seller, SolutionConfig, Order, Venue, MapUpdateSettings } from '@/lib/types';
+import type { Seller, SolutionConfig, Order, Venue, MapUpdateSettings, StarterModifierGroup } from '@/lib/types';
 import { sellerTypes } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { cn, getNumericOrderId, SUPER_ADMIN_ID } from '@/lib/utils';
@@ -133,7 +136,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import Link from 'next/link';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
-import { useForm } from 'react-hook-form';
+import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
@@ -210,6 +213,21 @@ const venueMaintenanceSchema = z.object({
 
 type VenueMaintenanceData = z.infer<typeof venueMaintenanceSchema>;
 
+const starterModifierSchema = z.object({
+  name: z.string().min(2, 'Group name required'),
+  venueType: z.array(z.string()).min(1, 'Select at least one venue type'),
+  category: z.enum(['food', 'beverage', 'universal']),
+  selectionType: z.enum(['single', 'multi']),
+  required: z.boolean().default(false),
+  sortOrder: z.coerce.number().default(0),
+  options: z.array(z.object({
+    label: z.string().min(1, 'Label required'),
+    priceModifier: z.coerce.number().min(0)
+  })).min(1, 'At least one option required')
+});
+
+type StarterModifierFormData = z.infer<typeof starterModifierSchema>;
+
 function NavButton({ id, label, icon: Icon, active, onClick, sidebarOpen }: { 
   id: string, label: string, icon: any, active: boolean, onClick: (id: string) => void, sidebarOpen: boolean 
 }) {
@@ -273,6 +291,8 @@ export default function SolutionAdminPage() {
   const [selectedSeller, setSelectedSeller] = useState<Seller | null>(null);
   const [isVenueDetailOpen, setIsVenueDetailOpen] = useState(false);
   const [isAddVenueOpen, setIsAddVenueOpen] = useState(false);
+  const [isLibraryFormOpen, setIsLibraryFormOpen] = useState(false);
+  const [editingLibraryItem, setEditingLibraryItem] = useState<StarterModifierGroup | null>(null);
   const [isProcessingSave, setIsProcessingSave] = useState(false);
   const [isResettingDemos, setIsResettingDemos] = useState(false);
   const [isResettingOps, setIsResettingOps] = useState(false);
@@ -354,8 +374,14 @@ export default function SolutionAdminPage() {
     return query(collection(firestore, 'orders'), limit(1000), orderBy('createdAt', 'desc'));
   }, [firestore, user]);
 
+  const libraryQuery = useMemoFirebase(() => {
+    if (!firestore || !user) return null;
+    return query(collection(firestore, 'starter_modifier_library'), orderBy('sortOrder', 'asc'));
+  }, [firestore, user]);
+
   const { data: sellers } = useCollection<Seller>(sellersQuery);
   const { data: orders } = useCollection<Order>(ordersQuery);
+  const { data: libraryItems } = useCollection<StarterModifierGroup>(libraryQuery);
 
   // ANALYTICS PROCESSING ENGINE
   const getKoopAnalyticsData = (range: 'Today' | 'MTD' | 'YTD') => {
@@ -472,6 +498,24 @@ export default function SolutionAdminPage() {
     }
   });
 
+  const libraryForm = useForm<StarterModifierFormData>({
+    resolver: zodResolver(starterModifierSchema),
+    defaultValues: {
+      name: '',
+      venueType: ['golf', 'bowling'],
+      category: 'food',
+      selectionType: 'single',
+      required: false,
+      sortOrder: 0,
+      options: [{ label: '', priceModifier: 0 }]
+    }
+  });
+
+  const { fields: optionFields, append: appendOption, remove: removeOption } = useFieldArray({
+    control: libraryForm.control,
+    name: "options"
+  });
+
   useEffect(() => {
     if (selectedSeller && isVenueDetailOpen) {
       maintenanceForm.reset({
@@ -488,6 +532,20 @@ export default function SolutionAdminPage() {
       });
     }
   }, [selectedVenueData, selectedSeller, maintenanceForm, isVenueDetailOpen]);
+
+  useEffect(() => {
+    if (editingLibraryItem && isLibraryFormOpen) {
+      libraryForm.reset({
+        name: editingLibraryItem.name,
+        venueType: editingLibraryItem.venueType,
+        category: editingLibraryItem.category as any,
+        selectionType: editingLibraryItem.selectionType,
+        required: editingLibraryItem.required,
+        sortOrder: editingLibraryItem.sortOrder,
+        options: editingLibraryItem.options
+      });
+    }
+  }, [editingLibraryItem, isLibraryFormOpen, libraryForm]);
 
   const handleCreateVenue = async (data: VenueRegistrationData) => {
     if (!firestore) return;
@@ -611,6 +669,36 @@ export default function SolutionAdminPage() {
     });
   };
 
+  const handleSaveLibraryItem = async (data: StarterModifierFormData) => {
+    if (!firestore) return;
+    setIsProcessingSave(true);
+    
+    const id = editingLibraryItem?.id || data.name.toLowerCase().replace(/\s+/g, '-');
+    const libraryRef = doc(firestore, 'starter_modifier_library', id);
+    
+    setDoc(libraryRef, data, { merge: true }).then(() => {
+      toast({ title: editingLibraryItem ? "Template Updated" : "Template Created" });
+      setIsLibraryFormOpen(false);
+      setEditingLibraryItem(null);
+      libraryForm.reset();
+    }).catch(async (error) => {
+      errorEmitter.emit('permission-error', new FirestorePermissionError({
+        path: libraryRef.path,
+        operation: 'write',
+        requestResourceData: data,
+      } satisfies SecurityRuleContext));
+    }).finally(() => {
+      setIsProcessingSave(false);
+    });
+  };
+
+  const handleDeleteLibraryItem = async (id: string) => {
+    if (!firestore) return;
+    deleteDoc(doc(firestore, 'starter_modifier_library', id)).then(() => {
+      toast({ title: "Template Removed" });
+    });
+  };
+
   const handleResetDemos = async () => {
     if (!firestore) return;
     setIsResettingDemos(true);
@@ -637,21 +725,12 @@ export default function SolutionAdminPage() {
     }
   };
 
-  /**
-   * handleLogout
-   * Fully terminates the administrator session and releases the device.
-   * Purges all local storage state to prevent data leakage on shared hardware.
-   */
   const handleLogout = async () => {
     if (!auth) return;
     try {
-      // 1. Purge all platform-specific state
       const keysToRemove = Object.keys(localStorage).filter(k => k.startsWith('koop_'));
       keysToRemove.forEach(k => localStorage.removeItem(k));
-      
-      // 2. Terminate Auth session
       await signOut(auth);
-      
       toast({ title: "Session Terminated", description: "Device released and returned to secure baseline." });
       router.push('/login');
     } catch (error: any) {
@@ -769,6 +848,7 @@ export default function SolutionAdminPage() {
     { id: "dashboard", label: "Global Overview", icon: LayoutDashboard },
     { id: "analytics", label: "Global Analytics", icon: BarChart3 },
     { id: "venues", label: "Venue Management", icon: Store },
+    { id: "library", label: "Global Library", icon: Library },
     { id: "demos", label: "Sales Demos", icon: Zap },
     { id: "system", label: "System Control", icon: Settings2 },
   ];
@@ -1007,7 +1087,7 @@ export default function SolutionAdminPage() {
                             <XAxis dataKey="time" axisLine={false} tickLine={false} fontSize={10} fontWeight="bold" />
                             <YAxis axisLine={false} tickLine={false} fontSize={10} fontWeight="bold" />
                             <Tooltip cursor={{ fill: 'transparent' }} contentStyle={{ fontSize: '10px', borderRadius: '12px', border: '2px solid #E2E8F0' }} />
-                            <Legend verticalAlign="top" align="right" iconType="circle" wrapperStyle={{ fontSize: '9px', fontWeights: 'bold', textTransform: 'uppercase' }} />
+                            <Legend verticalAlign="top" align="right" iconType="circle" wrapperStyle={{ fontSize: '9px', fontWeight: 'bold', textTransform: 'uppercase' }} />
                             {SERVICE_MODES.map(mode => (
                               <Bar key={`${mode}_total`} name={mode} dataKey={`${mode}_total`} stackId="a" fill={MODE_COLORS[mode] || '#64748B'} />
                             ))}
@@ -1116,6 +1196,73 @@ export default function SolutionAdminPage() {
                         </TableBody>
                       </Table>
                     </div>
+                  </div>
+                </div>
+              )}
+
+              {activeNav === 'library' && (
+                <div className="space-y-8 animate-in fade-in duration-500">
+                  <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between border-b-2 pb-6 text-left">
+                    <div className="space-y-1">
+                      <h3 className="font-headline font-black text-2xl text-[#213147] uppercase leading-tight">Global Starter Library</h3>
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Master modifier templates for industry-standard provisioning</p>
+                    </div>
+                    <Button 
+                      onClick={() => { setEditingLibraryItem(null); libraryForm.reset({ name: '', venueType: ['golf', 'bowling'], category: 'food', selectionType: 'single', required: false, sortOrder: 0, options: [{ label: '', priceModifier: 0 }] }); setIsLibraryFormOpen(true); }} 
+                      className="bg-indigo-600 hover:bg-indigo-700 h-12 px-6 rounded-xl font-black uppercase text-[10px] tracking-widest gap-2 shadow-xl shadow-indigo-600/20"
+                    >
+                      <Plus className="h-4 w-4" /> Add Modifier Template
+                    </Button>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 text-left">
+                    {['universal', 'food', 'beverage'].map(cat => {
+                      const items = libraryItems?.filter(i => i.category === cat) || [];
+                      if (items.length === 0) return null;
+                      return (
+                        <div key={cat} className="space-y-4">
+                          <div className="flex items-center gap-2 border-b-2 pb-2 px-1">
+                            <Badge variant="secondary" className="h-6 px-3 text-[10px] font-black uppercase tracking-widest bg-[#213147] text-white border-0">{cat}</Badge>
+                          </div>
+                          <div className="space-y-4">
+                            {items.map(item => (
+                              <Card key={item.id} className="border-2 shadow-sm group hover:border-indigo-200 transition-all bg-white text-left">
+                                <CardHeader className="p-4 border-b bg-slate-50/50 flex flex-row items-center justify-between space-y-0">
+                                  <div className="space-y-0.5 text-left">
+                                    <p className="font-black text-xs uppercase text-[#213147]">{item.name}</p>
+                                    <div className="flex flex-wrap gap-1 mt-1">
+                                      {item.venueType.map(vt => (
+                                        <Badge key={vt} variant="outline" className="text-[7px] font-black uppercase h-3.5 px-1 bg-white border-slate-200">{vt}</Badge>
+                                      ))}
+                                      <Badge variant="outline" className={cn("text-[7px] font-black uppercase h-3.5 px-1 border-0", item.required ? "bg-red-50 text-red-600" : "bg-slate-100 text-slate-400")}>
+                                        {item.required ? 'Required' : 'Optional'}
+                                      </Badge>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-indigo-600" onClick={() => { setEditingLibraryItem(item); setIsLibraryFormOpen(true); }}>
+                                      <Edit className="h-4 w-4" />
+                                    </Button>
+                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleDeleteLibraryItem(item.id!)}>
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                </CardHeader>
+                                <CardContent className="p-4 text-left">
+                                  <div className="flex flex-wrap gap-1.5">
+                                    {item.options.map((opt, idx) => (
+                                      <Badge key={`${item.id}-opt-${idx}`} variant="outline" className="text-[8px] font-bold uppercase px-1.5 py-0.5 h-auto">
+                                        {opt.label} {opt.priceModifier > 0 && `(+$${opt.priceModifier.toFixed(2)})`}
+                                      </Badge>
+                                    ))}
+                                  </div>
+                                </CardContent>
+                              </Card>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -1554,6 +1701,140 @@ export default function SolutionAdminPage() {
         </main>
       </div>
 
+      {/* Global Library Form Dialog */}
+      <Dialog open={isLibraryFormOpen} onOpenChange={setIsLibraryFormOpen}>
+        <DialogContent className="sm:max-w-[600px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
+          <DialogHeader className="p-8 bg-indigo-600 text-white">
+            <div className="flex items-center gap-4 text-left">
+              <div className="bg-white/20 p-3 rounded-2xl shrink-0">
+                <Library className="h-6 w-6 text-white" />
+              </div>
+              <div className="text-left">
+                <DialogTitle className="font-headline font-black uppercase tracking-tight text-white text-xl">
+                  {editingLibraryItem ? 'Modify Template' : 'Add Modifier Template'}
+                </DialogTitle>
+                <DialogDescription className="text-white/40 text-[9px] font-bold uppercase tracking-widest mt-1">
+                  Global industrial modifier template definition
+                </DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+          <ScrollArea className="max-h-[70vh]">
+            <div className="p-8 text-left">
+              <Form {...libraryForm}>
+                <form onSubmit={libraryForm.handleSubmit(handleSaveLibraryItem)} className="space-y-8">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-left">
+                    <FormField control={libraryForm.control} name="name" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-[10px] font-black uppercase tracking-widest">Template Name</FormLabel>
+                        <FormControl><Input {...field} placeholder="Side Options" className="h-12 border-2 font-bold" /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                    <FormField control={libraryForm.control} name="category" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-[10px] font-black uppercase tracking-widest">Library Category</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
+                          <FormControl><SelectTrigger className="h-12 border-2 font-bold"><SelectValue /></SelectTrigger></FormControl>
+                          <SelectContent>
+                            <SelectItem value="universal" className="font-bold">UNIVERSAL</SelectItem>
+                            <SelectItem value="food" className="font-bold">FOOD</SelectItem>
+                            <SelectItem value="beverage" className="font-bold">BEVERAGE</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </FormItem>
+                    )} />
+                  </div>
+
+                  <FormField control={libraryForm.control} name="venueType" render={({ field }) => (
+                    <FormItem className="space-y-3">
+                      <FormLabel className="text-[10px] font-black uppercase tracking-widest">Target Establishments</FormLabel>
+                      <div className="flex gap-4">
+                        {['golf', 'bowling'].map(vt => (
+                          <div 
+                            key={vt}
+                            onClick={() => {
+                              const current = field.value || [];
+                              const next = current.includes(vt) ? current.filter(v => v !== vt) : [...current, vt];
+                              field.onChange(next);
+                            }}
+                            className={cn(
+                              "flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all flex-1",
+                              field.value?.includes(vt) ? "border-indigo-600 bg-indigo-50" : "border-slate-100 opacity-60"
+                            )}
+                          >
+                            <Checkbox checked={field.value?.includes(vt)} />
+                            <span className="text-[10px] font-black uppercase text-[#213147]">{vt}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </FormItem>
+                  )} />
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 bg-slate-50 p-6 rounded-3xl border-2">
+                    <FormField control={libraryForm.control} name="selectionType" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-[10px] font-black uppercase tracking-widest">Select Rule</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
+                          <FormControl><SelectTrigger className="h-10 border-2 font-bold text-xs"><SelectValue /></SelectTrigger></FormControl>
+                          <SelectContent>
+                            <SelectItem value="single" className="text-xs">Single</SelectItem>
+                            <SelectItem value="multi" className="text-xs">Multiple</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </FormItem>
+                    )} />
+                    <FormField control={libraryForm.control} name="required" render={({ field }) => (
+                      <FormItem className="flex flex-col justify-center items-center gap-2">
+                        <FormLabel className="text-[10px] font-black uppercase tracking-widest">Required</FormLabel>
+                        <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} className="data-[state=checked]:bg-red-600" /></FormControl>
+                      </FormItem>
+                    )} />
+                    <FormField control={libraryForm.control} name="sortOrder" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-[10px] font-black uppercase tracking-widest">Rank</FormLabel>
+                        <FormControl><Input {...field} type="number" className="h-10 border-2 font-bold" /></FormControl>
+                      </FormItem>
+                    )} />
+                  </div>
+
+                  <div className="space-y-4 text-left">
+                    <div className="flex items-center justify-between border-b pb-2">
+                      <Label className="text-[10px] font-black uppercase tracking-widest text-indigo-600">Option Variations</Label>
+                      <Button type="button" variant="outline" size="sm" onClick={() => appendOption({ label: '', priceModifier: 0 })} className="h-7 text-[8px] font-black uppercase gap-1"><Plus className="h-3 w-3" /> Add Variation</Button>
+                    </div>
+                    <div className="space-y-3">
+                      {optionFields.map((field, index) => (
+                        <div key={field.id} className="grid grid-cols-12 gap-2 items-end bg-white p-3 border-2 rounded-xl group">
+                          <div className="col-span-8 space-y-1">
+                            <Label className="text-[8px] font-black uppercase text-muted-foreground">Option Label</Label>
+                            <Input {...libraryForm.register(`options.${index}.label` as const)} placeholder="e.g. Extra Bacon" className="h-9 text-xs font-bold border-0 bg-slate-50" />
+                          </div>
+                          <div className="col-span-3 space-y-1">
+                            <Label className="text-[8px] font-black uppercase text-muted-foreground">Price (+)</Label>
+                            <Input {...libraryForm.register(`options.${index}.priceModifier` as const)} type="number" step="0.01" className="h-9 text-xs font-bold border-0 bg-slate-50" />
+                          </div>
+                          <div className="col-span-1 flex items-center justify-center pb-1">
+                            <Button type="button" variant="ghost" size="icon" onClick={() => removeOption(index)} className="h-8 w-8 text-destructive/40 hover:text-destructive"><X className="h-4 w-4" /></Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row gap-3 pt-4">
+                    <Button type="submit" disabled={isProcessingSave} className="flex-1 h-14 bg-indigo-600 hover:bg-indigo-700 font-black uppercase tracking-widest text-[11px] gap-2 shadow-xl">
+                      {isProcessingSave ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Commit Template
+                    </Button>
+                    <Button type="button" variant="outline" onClick={() => { setIsLibraryFormOpen(false); setEditingLibraryItem(null); libraryForm.reset(); }} className="h-14 px-8 border-2 font-black uppercase tracking-widest text-[11px]">Discard</Button>
+                  </div>
+                </form>
+              </Form>
+            </div>
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={isAddVenueOpen} onOpenChange={setIsAddVenueOpen}>
         <DialogContent className="sm:max-w-[700px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
           <DialogHeader className="p-8 bg-[#213147] text-white">
@@ -1840,3 +2121,4 @@ export default function SolutionAdminPage() {
     </div>
   );
 }
+
