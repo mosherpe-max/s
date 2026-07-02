@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useMemo, useEffect, use } from 'react';
@@ -407,54 +406,11 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
     setDoc(groupRef, { ...data, id: groupId, sellerId, updatedAt: serverTimestamp(), createdAt: editingModifierGroup?.createdAt || serverTimestamp() }, { merge: true }).then(() => { toast({ title: editingModifierGroup ? 'Modifier Group Updated' : 'Modifier Group Added' }); setIsModifierGroupFormOpen(false); setEditingModifierGroup(null); modifierGroupForm.reset(); }).finally(() => setIsProcessingSave(false));
   };
 
-  const staffForm = useForm<StaffFormData>({ resolver: zodResolver(staffSchema), defaultValues: { name: '', role: 'Staff', pin: '', isActive: true } });
-  const itemForm = useForm<ItemFormData>({ resolver: zodResolver(itemSchema), defaultValues: { name: '', description: '', price: 0, category: 'Other', isAvailable: true, availableOn: [], featuredOn: [], modifierGroupIds: [] } });
-  const modifierGroupForm = useForm<ModifierGroupFormData>({ resolver: zodResolver(modifierGroupSchema), defaultValues: { name: '', minSelection: 0, maxSelection: 1, options: [{ id: Math.random().toString(36).substr(2, 9), name: '', priceAdjustment: 0, isAvailable: true }] } });
-  const { fields: optionFields, append: appendOption, remove: removeOption } = useFieldArray({ control: modifierGroupForm.control, name: "options" });
-
-  const handleDragEnd = async (event: DragEndEvent, listType: 'category' | 'featured' | 'layout', categoryName?: string) => {
-    const { active, over } = event;
-    if (!active || !over || active.id === over.id || !firestore || !sellerId || !menuItems || !seller) return;
-    if (listType === 'layout') {
-      const currentOrder = seller.categoryVisibility?.[configMode] || categories.filter(c => c !== 'Featured');
-      const oldIndex = currentOrder.indexOf(active.id as string);
-      const newIndex = currentOrder.indexOf(over.id as string);
-      const nextOrder = arrayMove(currentOrder, oldIndex, newIndex);
-      updateDoc(doc(firestore, 'sellers', sellerId), { [`categoryVisibility.${configMode}`]: nextOrder });
-      return;
-    }
-    const filteredItems = listType === 'featured' ? menuItems.filter(i => i.featuredOn?.includes(configMode)) : menuItems.filter(i => i.category === categoryName && i.availableOn?.includes(configMode));
-    const oldIndex = filteredItems.findIndex(i => i.id === active.id);
-    const newIndex = filteredItems.findIndex(i => i.id === over.id);
-    const reordered = arrayMove(filteredItems, oldIndex, newIndex);
-    const batch = writeBatch(firestore);
-    reordered.forEach((item, index) => {
-      const itemRef = doc(firestore, 'sellers', sellerId, 'menuItems', item.id);
-      const rankField = listType === 'featured' ? 'featuredRanks' : 'menuRanks';
-      batch.update(itemRef, { [rankField]: { ...(item[rankField] || {}), [configMode]: index + 1 } });
-    });
-    batch.commit().then(() => { toast({ title: "Menu Priorities Synchronized" }); });
-  };
-
-  const handleToggleItemAvailability = (itemId: string, currentOn: string[]) => {
-    if (!firestore || !sellerId) return;
-    const current = currentOn || [];
-    const nextOn = current.includes(configMode) ? current.filter(m => m !== configMode) : [...current, configMode];
-    updateDoc(doc(firestore, 'sellers', sellerId, 'menuItems', itemId), { availableOn: nextOn });
-  };
-
-  const handleToggleItemFeatured = (itemId: string, currentFeatured: string[]) => {
-    if (!firestore || !sellerId) return;
-    const current = currentFeatured || [];
-    const nextFeatured = current.includes(configMode) ? current.filter(m => m !== configMode) : [...current, configMode];
-    updateDoc(doc(firestore, 'sellers', sellerId, 'menuItems', itemId), { featuredOn: nextFeatured });
-  };
-
-  const handleToggleCategoryVisibility = (cat: string) => {
-    if (!firestore || !sellerId || !seller) return;
-    const currentList = seller.categoryVisibility?.[configMode] || categories.filter(c => c !== 'Featured');
-    const nextList = currentList.includes(cat) ? currentList.filter(c => c !== cat) : [...currentList, cat];
-    updateDoc(doc(firestore, 'sellers', sellerId), { [`categoryVisibility.${configMode}`]: nextList });
+  const handleToggleMode = async (mode: string, current: boolean) => {
+    if (!firestore || !sellerId || !user) return;
+    const fieldMap: Record<string, string> = { 'Beverage Cart': 'bevcartActive', 'Clubhouse': 'clubhouseActive', 'Lane Delivery': 'lanedeliveryActive', 'Take Out': 'takeoutActive' };
+    const field = fieldMap[mode];
+    if (field) { updateDoc(doc(firestore, 'sellers', sellerId), { [field] : !current }); }
   };
 
   const handleImpersonate = (mode: string) => {
@@ -474,42 +430,51 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
     }, 500);
   };
 
-  const handleToggleMode = async (mode: string, current: boolean) => {
-    if (!firestore || !sellerId || !user) return;
-    const fieldMap: Record<string, string> = { 'Beverage Cart': 'bevcartActive', 'Clubhouse': 'clubhouseActive', 'Lane Delivery': 'lanedeliveryActive', 'Take Out': 'takeoutActive' };
-    const field = fieldMap[mode];
-    if (field) { updateDoc(doc(firestore, 'sellers', sellerId), { [field] : !current }); }
-  };
+  const staffForm = useForm<StaffFormData>({ resolver: zodResolver(staffSchema), defaultValues: { name: '', role: 'Staff', pin: '', isActive: true } });
+  const itemForm = useForm<ItemFormData>({ resolver: zodResolver(itemSchema), defaultValues: { name: '', description: '', price: 0, category: 'Other', isAvailable: true, availableOn: [], featuredOn: [], modifierGroupIds: [] } });
+  const modifierGroupForm = useForm<ModifierGroupFormData>({ resolver: zodResolver(modifierGroupSchema), defaultValues: { name: '', minSelection: 0, maxSelection: 1, options: [{ id: Math.random().toString(36).substr(2, 9), name: '', priceAdjustment: 0, isAvailable: true }] } });
+  const { fields: optionFields, append: appendOption, remove: removeOption } = useFieldArray({ control: modifierGroupForm.control, name: "options" });
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
 
-  const SideBarContent = ({ forceLabels = false }: { forceLabels?: boolean }) => {
-    const showLabels = forceLabels || sidebarOpen;
-    return (
-      <div className="flex flex-col h-full bg-[#213147] overflow-hidden">
-        <div className="p-6 border-b border-white/5 flex items-center justify-between shrink-0"><StylizedKoopLogo size={showLabels ? "md" : "sm"} /></div>
-        <nav className="flex-1 p-3 space-y-1 overflow-y-auto no-scrollbar min-h-0 text-left">
-          {NAV_ITEMS.map((item) => (<NavButton key={item.id} id={item.id} label={item.label} icon={item.icon} active={activeNav === item.id} onClick={(id) => { setActiveNav(id); if (isMobile) setSidebarOpen(false); }} sidebarOpen={showLabels} />))}
-        </nav>
-        <div className="mt-auto border-t border-white/5 p-4 shrink-0 space-y-4 text-left">
-          {showLabels && (<div className="px-4 py-3 bg-white/5 rounded-xl border border-white/5"><div className="flex items-center gap-3"><div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-black text-xs">{user?.email?.charAt(0).toUpperCase() || 'V'}</div><div className="flex flex-col min-w-0"><span className="text-[10px] font-black text-white truncate uppercase tracking-tight">{seller?.courseName || 'Venue Admin'}</span><span className="text-[8px] font-bold text-slate-400 truncate uppercase">{user?.email}</span></div></div></div>)}
-          {!isMobile && <button onClick={() => setSidebarOpen(!sidebarOpen)} className="w-full flex items-center justify-center p-3 text-slate-400 hover:text-white hover:bg-white/5 rounded-xl transition-all">{sidebarOpen ? <ChevronLeft /> : <ChevronRight />}</button>}
-        </div>
-      </div>
-    );
-  };
-
   const NAV_ITEMS = [ { id: "dashboard", label: "Dashboard", icon: LayoutDashboard }, { id: "analytics", label: "Analytics", icon: BarChart3 }, { id: "orders", label: "Orders", icon: ClipboardList }, { id: "menu", label: "Menu Items", icon: UtensilsCrossed }, { id: "modifiers", label: "Modifiers", icon: Tags }, { id: "service", label: "Service Modes", icon: Zap }, { id: "staff", label: "Staff", icon: Users }, { id: "settings", label: "Settings", icon: SettingsIcon }, { id: "marketing", label: "Marketing", icon: Smartphone } ];
   const SERVICE_MODE_ICONS: Record<string, any> = { 'Beverage Cart': Truck, 'Clubhouse': Building, 'Lane Delivery': Users, 'Take Out': ShoppingBag };
+
+  const handleLogout = async () => { if (!auth) return; await signOut(auth); router.push('/login'); };
 
   if (isUserLoading || isSellerLoading || isVenueLoading || isRoleLoading) return <div className="flex flex-col items-center justify-center h-screen bg-[#213147] text-white"><Loader2 className="h-12 w-12 animate-spin text-primary mb-4" /><p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40">Securing Session...</p></div>;
   if (!isAuthorized) return <div className="flex flex-col items-center justify-center h-screen bg-[#213147] text-white p-8 text-center"><div className="bg-red-500/10 p-6 rounded-[2.5rem] border-2 border-red-500/20 mb-8"><ShieldCheck className="h-16 w-16 text-red-500 mx-auto" /></div><h2 className="font-headline text-3xl font-black uppercase tracking-tight mb-4">Access Restricted</h2><Button asChild className="h-14 bg-red-600 hover:bg-red-700 text-white font-black uppercase tracking-widest px-10 shadow-xl"><Link href="/login">Return to Gateway</Link></Button></div>;
 
   return (
     <div className="flex flex-col h-screen bg-[#F8FAFC] overflow-hidden">
-      <header className="h-20 bg-white border-b-2 flex items-center justify-between px-4 sm:px-8 shrink-0 z-30 shadow-sm relative text-left"><div className="flex items-center gap-3 text-left"><StylizedKoopLogo size="sm" colorClass="text-[#213147]" /><div className="h-8 w-px bg-slate-200 hidden sm:block mx-1" /><div className="flex flex-col"><h1 className="text-sm font-black text-[#213147] uppercase tracking-tight leading-none mb-1">{seller?.courseName}</h1><div className="flex items-center gap-2"><h2 className="text-[10px] font-bold uppercase tracking-widest text-primary leading-none">{greeting}, {user?.email}</h2></div></div></div><div className="flex items-center gap-4">{isSuperAdmin && (<Button variant="outline" size="sm" asChild className="h-9 text-[10px] font-black uppercase tracking-widest border-amber-200 bg-amber-50 text-amber-600 hover:bg-amber-100 gap-2"><Link href="/admin"><ShieldAlert className="h-3.5 w-3.5" /> Return to Global Admin</Link></Button>)}<button onClick={handleLogout} className="p-2 text-muted-foreground hover:text-destructive transition-colors flex items-center gap-2"><span className="text-[10px] font-black uppercase tracking-widest hidden sm:inline">Release Device</span><LogOut className="h-5 w-5" /></button></div></header>
+      <header className="h-20 bg-white border-b-2 flex items-center justify-between px-4 sm:px-8 shrink-0 z-30 shadow-sm relative text-left">
+        <div className="flex items-center gap-3 text-left">
+          <StylizedKoopLogo size="sm" colorClass="text-[#213147]" />
+          <div className="h-8 w-px bg-slate-200 hidden sm:block mx-1" />
+          <div className="flex flex-col">
+            <h1 className="text-sm font-black text-[#213147] uppercase tracking-tight leading-none mb-1">{seller?.courseName}</h1>
+            <div className="flex items-center gap-2">
+              <h2 className="text-[10px] font-bold uppercase tracking-widest text-primary leading-none">{greeting}, {user?.email}</h2>
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center gap-4">
+          {isSuperAdmin && (
+            <Button variant="outline" size="sm" asChild className="h-9 text-[10px] font-black uppercase tracking-widest border-amber-200 bg-amber-50 text-amber-600 hover:bg-amber-100 gap-2">
+              <Link href="/admin"><ShieldAlert className="h-3.5 w-3.5" /> Return to Global Admin</Link>
+            </Button>
+          )}
+          <button onClick={handleLogout} className="p-2 text-muted-foreground hover:text-destructive transition-colors flex items-center gap-2"><span className="text-[10px] font-black uppercase tracking-widest hidden sm:inline">Release Device</span><LogOut className="h-5 w-5" /></button>
+        </div>
+      </header>
 
-      <div className="flex-1 flex overflow-hidden"><aside className={cn("bg-[#213147] hidden md:flex flex-col transition-all duration-300 relative border-r-4 border-primary/20 shrink-0 shadow-2xl z-20", sidebarOpen ? "w-64" : "w-20")}><SideBarContent /></aside>
+      <div className="flex-1 flex overflow-hidden">
+        <aside className={cn("bg-[#213147] hidden md:flex flex-col transition-all duration-300 relative border-r-4 border-primary/20 shrink-0 shadow-2xl z-20", sidebarOpen ? "w-64" : "w-20")}>
+          <div className="p-6 border-b border-white/5 flex items-center justify-between shrink-0"><StylizedKoopLogo size={sidebarOpen ? "md" : "sm"} /></div>
+          <nav className="flex-1 p-3 space-y-1 overflow-y-auto no-scrollbar min-h-0 text-left">
+            {NAV_ITEMS.map((item) => (<NavButton key={item.id} id={item.id} label={item.label} icon={item.icon} active={activeNav === item.id} onClick={(id) => { setActiveNav(id); if (isMobile) setSidebarOpen(false); }} sidebarOpen={sidebarOpen} />))}
+          </nav>
+        </aside>
 
         <main className="flex-1 flex flex-col overflow-hidden relative">
           <ScrollArea className="flex-1 p-4 sm:p-8">
