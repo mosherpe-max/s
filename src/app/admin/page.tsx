@@ -141,7 +141,7 @@ import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
-import { seedAllDemoData, resetAllVenueOperationalStatus } from '@/lib/seed-data';
+import { seedAllDemoData, resetAllVenueOperationalStatus, seedGlobalStarterLibrary } from '@/lib/seed-data';
 import {
   Select,
   SelectContent,
@@ -262,7 +262,7 @@ function KPICard({ label, value, sub, icon: Icon, colorClass, trend }: { label: 
       <div className={cn("absolute top-0 left-0 bottom-0 w-1.5", colorClass)} />
       <CardHeader className="pb-2 pt-5 px-4 sm:px-6">
         <CardDescription className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center justify-between">
-          <span className="flex items-center gap-2"><Icon className="h-3 w-3" /> {label}</span>
+          <span className="flex items-center gap-2"><Icon className="h-3.5 w-3.5" /> {label}</span>
           {trend && <span className="text-green-500 font-bold flex items-center gap-0.5">{trend} <ArrowUpRight className="h-2 w-2" /></span>}
         </CardDescription>
       </CardHeader>
@@ -297,6 +297,7 @@ export default function SolutionAdminPage() {
   const [isProcessingSave, setIsProcessingSave] = useState(false);
   const [isResettingDemos, setIsResettingDemos] = useState(false);
   const [isResettingOps, setIsResettingOps] = useState(false);
+  const [isInitializingLibrary, setIsInitializingLibrary] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [librarySearchTerm, setLibrarySearchTerm] = useState('');
 
@@ -376,9 +377,10 @@ export default function SolutionAdminPage() {
     return query(collection(firestore, 'orders'), limit(1000), orderBy('createdAt', 'desc'));
   }, [firestore, user]);
 
+  // REMOVED orderBy('sortOrder') to prevent Index Requirement errors for new projects
   const libraryQuery = useMemoFirebase(() => {
     if (!firestore || !user) return null;
-    return query(collection(firestore, 'starter_modifier_library'), orderBy('sortOrder', 'asc'));
+    return query(collection(firestore, 'starter_modifier_library'), limit(100));
   }, [firestore, user]);
 
   const { data: sellers } = useCollection<Seller>(sellersQuery);
@@ -714,6 +716,19 @@ export default function SolutionAdminPage() {
     }
   };
 
+  const handleInitializeLibrary = async () => {
+    if (!firestore) return;
+    setIsInitializingLibrary(true);
+    try {
+      await seedGlobalStarterLibrary(firestore);
+      toast({ title: "Master Library Initialized", description: "25+ industry-standard modifier templates have been provisioned." });
+    } catch (e) {
+      toast({ variant: "destructive", title: "Setup Failed", description: "Authorization required to populate master library." });
+    } finally {
+      setIsInitializingLibrary(false);
+    }
+  };
+
   const handleResetOperationalStatus = async () => {
     if (!firestore) return;
     setIsResettingOps(true);
@@ -835,10 +850,15 @@ export default function SolutionAdminPage() {
     }
   }, [user, isUserLoading, router]);
 
-  const libraryCategories = useMemo(() => {
+  const sortedLibraryItems = useMemo(() => {
     if (!libraryItems) return [];
+    return [...libraryItems].sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+  }, [libraryItems]);
+
+  const libraryCategories = useMemo(() => {
+    if (!sortedLibraryItems) return [];
     const cats = new Set<string>();
-    libraryItems.forEach(i => { if (i.category) cats.add(i.category); });
+    sortedLibraryItems.forEach(i => { if (i.category) cats.add(i.category); });
     // Default hierarchy
     const preferred = ['universal', 'food', 'beverage'];
     const sorted = Array.from(cats).sort((a, b) => {
@@ -850,15 +870,15 @@ export default function SolutionAdminPage() {
       return a.localeCompare(b);
     });
     return sorted;
-  }, [libraryItems]);
+  }, [sortedLibraryItems]);
 
   const filteredLibraryItems = useMemo(() => {
-    if (!libraryItems) return [];
-    return libraryItems.filter(item => 
+    if (!sortedLibraryItems) return [];
+    return sortedLibraryItems.filter(item => 
       item.name.toLowerCase().includes(librarySearchTerm.toLowerCase()) ||
       item.category?.toLowerCase().includes(librarySearchTerm.toLowerCase())
     );
-  }, [libraryItems, librarySearchTerm]);
+  }, [sortedLibraryItems, librarySearchTerm]);
 
   if (isUserLoading) {
     return (
@@ -1234,12 +1254,23 @@ export default function SolutionAdminPage() {
                       <h3 className="font-headline font-black text-2xl text-[#213147] uppercase leading-tight">Global Starter Library</h3>
                       <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Master modifier templates for industry-standard provisioning</p>
                     </div>
-                    <Button 
-                      onClick={() => { setEditingLibraryItem(null); libraryForm.reset({ name: '', venueType: ['golf', 'bowling'], category: 'food', selectionType: 'single', required: false, sortOrder: 0, options: [{ label: '', priceModifier: 0 }] }); setIsLibraryFormOpen(true); }} 
-                      className="bg-indigo-600 hover:bg-indigo-700 h-12 px-6 rounded-xl font-black uppercase text-[10px] tracking-widest gap-2 shadow-xl shadow-indigo-600/20"
-                    >
-                      <Plus className="h-4 w-4" /> Add Modifier Template
-                    </Button>
+                    <div className="flex gap-3 w-full sm:w-auto">
+                      <Button 
+                        onClick={handleInitializeLibrary}
+                        disabled={isInitializingLibrary}
+                        variant="outline"
+                        className="bg-white hover:bg-indigo-50 h-12 px-6 rounded-xl font-black uppercase text-[10px] tracking-widest gap-2 shadow-sm border-2 border-indigo-100"
+                      >
+                        {isInitializingLibrary ? <Loader2 className="h-4 w-4 animate-spin" /> : <Database className="h-4 w-4 text-indigo-600" />}
+                        Initialize Master Library
+                      </Button>
+                      <Button 
+                        onClick={() => { setEditingLibraryItem(null); libraryForm.reset({ name: '', venueType: ['golf', 'bowling'], category: 'food', selectionType: 'single', required: false, sortOrder: 0, options: [{ label: '', priceModifier: 0 }] }); setIsLibraryFormOpen(true); }} 
+                        className="bg-indigo-600 hover:bg-indigo-700 h-12 px-6 rounded-xl font-black uppercase text-[10px] tracking-widest gap-2 shadow-xl shadow-indigo-600/20"
+                      >
+                        <Plus className="h-4 w-4" /> Add Modifier Template
+                      </Button>
+                    </div>
                   </div>
 
                   <div className="flex bg-white p-3 sm:p-4 rounded-2xl border-2 shadow-sm gap-4 items-center w-full max-w-md text-left">
@@ -1252,56 +1283,72 @@ export default function SolutionAdminPage() {
                     />
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 text-left">
-                    {libraryCategories.map(cat => {
-                      const items = filteredLibraryItems.filter(i => i.category === cat);
-                      if (items.length === 0) return null;
-                      return (
-                        <div key={cat} className="space-y-4">
-                          <div className="flex items-center gap-2 border-b-2 pb-2 px-1 text-left">
-                            <Badge variant="secondary" className="h-6 px-3 text-[10px] font-black uppercase tracking-widest bg-[#213147] text-white border-0">{cat}</Badge>
-                            <span className="text-[9px] font-bold text-muted-foreground uppercase ml-auto">{items.length} Groups</span>
-                          </div>
-                          <div className="space-y-4 text-left">
-                            {items.map(item => (
-                              <Card key={item.id} className="border-2 shadow-sm group hover:border-indigo-200 transition-all bg-white text-left">
-                                <CardHeader className="p-4 border-b bg-slate-50/50 flex flex-row items-center justify-between space-y-0 text-left">
-                                  <div className="space-y-0.5 text-left">
-                                    <p className="font-black text-xs uppercase text-[#213147]">{item.name}</p>
-                                    <div className="flex flex-wrap gap-1 mt-1">
-                                      {item.venueType.map(vt => (
-                                        <Badge key={vt} variant="outline" className="text-[7px] font-black uppercase h-3.5 px-1 bg-white border-slate-200">{vt}</Badge>
-                                      ))}
-                                      <Badge variant="outline" className={cn("text-[7px] font-black uppercase h-3.5 px-1 border-0", item.required ? "bg-red-50 text-red-600" : "bg-slate-100 text-slate-400")}>
-                                        {item.required ? 'Required' : 'Optional'}
-                                      </Badge>
+                  {sortedLibraryItems.length === 0 ? (
+                    <div className="py-40 text-center border-2 border-dashed rounded-[3rem] bg-white">
+                       <Library className="h-16 w-16 mx-auto mb-6 text-slate-200" />
+                       <h3 className="font-headline font-black text-lg uppercase text-[#213147]">Library Empty</h3>
+                       <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-8">No master templates found in the repository</p>
+                       <Button 
+                        onClick={handleInitializeLibrary}
+                        disabled={isInitializingLibrary}
+                        className="bg-indigo-600 hover:bg-indigo-700 h-14 px-10 rounded-2xl font-black uppercase text-[11px] tracking-widest gap-3 shadow-xl"
+                       >
+                         {isInitializingLibrary ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />}
+                         Populate 25+ Industry Presets
+                       </Button>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 text-left">
+                      {libraryCategories.map(cat => {
+                        const items = filteredLibraryItems.filter(i => i.category === cat);
+                        if (items.length === 0) return null;
+                        return (
+                          <div key={cat} className="space-y-4">
+                            <div className="flex items-center gap-2 border-b-2 pb-2 px-1 text-left">
+                              <Badge variant="secondary" className="h-6 px-3 text-[10px] font-black uppercase tracking-widest bg-[#213147] text-white border-0">{cat}</Badge>
+                              <span className="text-[9px] font-bold text-muted-foreground uppercase ml-auto">{items.length} Groups</span>
+                            </div>
+                            <div className="space-y-4 text-left">
+                              {items.map(item => (
+                                <Card key={item.id} className="border-2 shadow-sm group hover:border-indigo-200 transition-all bg-white text-left">
+                                  <CardHeader className="p-4 border-b bg-slate-50/50 flex flex-row items-center justify-between space-y-0 text-left">
+                                    <div className="space-y-0.5 text-left">
+                                      <p className="font-black text-xs uppercase text-[#213147]">{item.name}</p>
+                                      <div className="flex flex-wrap gap-1 mt-1">
+                                        {item.venueType.map(vt => (
+                                          <Badge key={vt} variant="outline" className="text-[7px] font-black uppercase h-3.5 px-1 bg-white border-slate-200">{vt}</Badge>
+                                        ))}
+                                        <Badge variant="outline" className={cn("text-[7px] font-black uppercase h-3.5 px-1 border-0", item.required ? "bg-red-50 text-red-600" : "bg-slate-100 text-slate-400")}>
+                                          {item.required ? 'Required' : 'Optional'}
+                                        </Badge>
+                                      </div>
                                     </div>
-                                  </div>
-                                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-indigo-600" onClick={() => { setEditingLibraryItem(item); setIsLibraryFormOpen(true); }}>
-                                      <Edit className="h-4 w-4" />
-                                    </Button>
-                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleDeleteLibraryItem(item.id!)}>
-                                      <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                  </div>
-                                </CardHeader>
-                                <CardContent className="p-4 text-left">
-                                  <div className="flex flex-wrap gap-1.5">
-                                    {item.options.map((opt, idx) => (
-                                      <Badge key={`${item.id}-opt-${idx}`} variant="outline" className="text-[8px] font-bold uppercase px-1.5 py-0.5 h-auto">
-                                        {opt.label} {opt.priceModifier > 0 && `(+$${opt.priceModifier.toFixed(2)})`}
-                                      </Badge>
-                                    ))}
-                                  </div>
-                                </CardContent>
-                              </Card>
-                            ))}
+                                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                      <Button variant="ghost" size="icon" className="h-8 w-8 text-indigo-600" onClick={() => { setEditingLibraryItem(item); setIsLibraryFormOpen(true); }}>
+                                        <Edit className="h-4 w-4" />
+                                      </Button>
+                                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleDeleteLibraryItem(item.id!)}>
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    </div>
+                                  </CardHeader>
+                                  <CardContent className="p-4 text-left">
+                                    <div className="flex flex-wrap gap-1.5">
+                                      {item.options.map((opt, idx) => (
+                                        <Badge key={`${item.id}-opt-${idx}`} variant="outline" className="text-[8px] font-bold uppercase px-1.5 py-0.5 h-auto">
+                                          {opt.label} {opt.priceModifier > 0 && `(+$${opt.priceModifier.toFixed(2)})`}
+                                        </Badge>
+                                      ))}
+                                    </div>
+                                  </CardContent>
+                                </Card>
+                              ))}
+                            </div>
                           </div>
-                        </div>
-                      );
-                    })}
-                  </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               )}
 
