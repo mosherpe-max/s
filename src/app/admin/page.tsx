@@ -83,7 +83,8 @@ import {
   Eraser,
   Library,
   Tags,
-  X
+  X,
+  Edit
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -265,7 +266,7 @@ function KPICard({ label, value, sub, icon: Icon, colorClass, trend }: { label: 
           {trend && <span className="text-green-500 font-bold flex items-center gap-0.5">{trend} <ArrowUpRight className="h-2 w-2" /></span>}
         </CardDescription>
       </CardHeader>
-      <CardContent className="pb-5 px-4 sm:px-6">
+      <CardContent className="pb-5 px-4 sm:px-6 text-left">
         <div className="text-2xl sm:text-3xl font-black font-headline tracking-tighter text-[#213147] mb-1">{value}</div>
         <p className="text-[10px] font-bold text-muted-foreground uppercase">{sub}</p>
       </CardContent>
@@ -297,6 +298,7 @@ export default function SolutionAdminPage() {
   const [isResettingDemos, setIsResettingDemos] = useState(false);
   const [isResettingOps, setIsResettingOps] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [librarySearchTerm, setLibrarySearchTerm] = useState('');
 
   // --- SOLUTION CONFIG STATE ---
   const [systemThresholds, setSystemThresholds] = useState<Record<string, { warning: number; max: number }>>(SYSTEM_DEFAULT_THRESHOLDS);
@@ -833,6 +835,31 @@ export default function SolutionAdminPage() {
     }
   }, [user, isUserLoading, router]);
 
+  const libraryCategories = useMemo(() => {
+    if (!libraryItems) return [];
+    const cats = new Set<string>();
+    libraryItems.forEach(i => { if (i.category) cats.add(i.category); });
+    // Default hierarchy
+    const preferred = ['universal', 'food', 'beverage'];
+    const sorted = Array.from(cats).sort((a, b) => {
+      const idxA = preferred.indexOf(a);
+      const idxB = preferred.indexOf(b);
+      if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+      if (idxA !== -1) return -1;
+      if (idxB !== -1) return 1;
+      return a.localeCompare(b);
+    });
+    return sorted;
+  }, [libraryItems]);
+
+  const filteredLibraryItems = useMemo(() => {
+    if (!libraryItems) return [];
+    return libraryItems.filter(item => 
+      item.name.toLowerCase().includes(librarySearchTerm.toLowerCase()) ||
+      item.category?.toLowerCase().includes(librarySearchTerm.toLowerCase())
+    );
+  }, [libraryItems, librarySearchTerm]);
+
   if (isUserLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-[#213147] text-white">
@@ -873,7 +900,7 @@ export default function SolutionAdminPage() {
             />
           ))}
         </nav>
-        <div className="mt-auto border-t border-white/5 p-4 shrink-0 space-y-4">
+        <div className="mt-auto border-t border-white/5 p-4 shrink-0 space-y-4 text-left">
           {showLabels && (
             <div className="px-4 py-3 bg-white/5 rounded-xl border border-white/5">
               <div className="flex items-center gap-3">
@@ -995,7 +1022,7 @@ export default function SolutionAdminPage() {
 
         <main className="flex-1 flex flex-col overflow-hidden relative">
           <ScrollArea className="flex-1 p-4 sm:p-8">
-            <div className="max-w-7xl mx-auto space-y-8 sm:space-y-10 pb-20">
+            <div className="max-w-7xl mx-auto space-y-8 sm:space-y-10 pb-20 text-left">
               {activeNav === 'dashboard' && (
                 <div className="space-y-8 animate-in fade-in duration-500">
                   <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -1027,7 +1054,7 @@ export default function SolutionAdminPage() {
                       </CardContent>
                     </Card>
 
-                    <Card className="border-2 shadow-sm overflow-hidden">
+                    <Card className="border-2 shadow-sm overflow-hidden text-left">
                       <CardHeader className="bg-slate-50/50 border-b text-left">
                         <CardTitle className="text-xs font-black uppercase tracking-widest text-[#213147]">Today's Koop Revenue</CardTitle>
                         <CardDescription className="text-[8px] font-bold uppercase">Consolidated collected convenience fees</CardDescription>
@@ -1052,7 +1079,7 @@ export default function SolutionAdminPage() {
               )}
 
               {activeNav === 'analytics' && (
-                <div className="space-y-8 animate-in fade-in duration-500">
+                <div className="space-y-8 animate-in fade-in duration-500 text-left">
                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b-2 pb-4 text-left">
                     <div className="space-y-1">
                       <h3 className="font-headline font-black text-2xl text-[#213147] uppercase leading-tight">Global Solution Analytics</h3>
@@ -1075,7 +1102,7 @@ export default function SolutionAdminPage() {
                   </div>
 
                   <div className="space-y-10 text-left">
-                    <Card className="border-2 shadow-lg overflow-hidden bg-white">
+                    <Card className="border-2 shadow-lg overflow-hidden bg-white text-left">
                       <CardHeader className="bg-slate-50/50 border-b text-left">
                         <CardTitle className="text-xs font-black uppercase tracking-widest text-[#213147]">Consolidated Solution GMV</CardTitle>
                         <CardDescription className="text-[8px] font-bold uppercase">Total gross volume ({analyticsRange})</CardDescription>
@@ -1096,7 +1123,7 @@ export default function SolutionAdminPage() {
                       </CardContent>
                     </Card>
 
-                    <Card className="border-2 shadow-lg overflow-hidden bg-white">
+                    <Card className="border-2 shadow-lg overflow-hidden bg-white text-left">
                       <CardHeader className="bg-slate-50/50 border-b text-left">
                         <CardTitle className="text-xs font-black uppercase tracking-widest text-[#213147]">Solution Fee Revenue</CardTitle>
                         <CardDescription className="text-[8px] font-bold uppercase">Total collected fees ({analyticsRange})</CardDescription>
@@ -1121,8 +1148,8 @@ export default function SolutionAdminPage() {
               )}
 
               {activeNav === 'venues' && (
-                <div className="space-y-6 animate-in fade-in duration-500">
-                  <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
+                <div className="space-y-6 animate-in fade-in duration-500 text-left">
+                  <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between text-left">
                     <div className="flex-1 flex bg-white p-3 sm:p-4 rounded-2xl border-2 shadow-sm gap-4 items-center w-full min-w-0">
                       <Search className="h-4 w-4 text-muted-foreground ml-1 sm:ml-2 shrink-0" />
                       <Input 
@@ -1201,7 +1228,7 @@ export default function SolutionAdminPage() {
               )}
 
               {activeNav === 'library' && (
-                <div className="space-y-8 animate-in fade-in duration-500">
+                <div className="space-y-8 animate-in fade-in duration-500 text-left">
                   <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between border-b-2 pb-6 text-left">
                     <div className="space-y-1">
                       <h3 className="font-headline font-black text-2xl text-[#213147] uppercase leading-tight">Global Starter Library</h3>
@@ -1215,19 +1242,30 @@ export default function SolutionAdminPage() {
                     </Button>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 text-left">
-                    {['universal', 'food', 'beverage'].map(cat => {
-                      const items = libraryItems?.filter(i => i.category === cat) || [];
+                  <div className="flex bg-white p-3 sm:p-4 rounded-2xl border-2 shadow-sm gap-4 items-center w-full max-w-md text-left">
+                    <Search className="h-4 w-4 text-muted-foreground ml-1 shrink-0" />
+                    <Input 
+                      placeholder="Filter master library..." 
+                      value={librarySearchTerm} 
+                      onChange={(e) => setLibrarySearchTerm(e.target.value)} 
+                      className="border-0 shadow-none focus-visible:ring-0 text-xs sm:text-sm font-medium p-0 h-auto" 
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 text-left">
+                    {libraryCategories.map(cat => {
+                      const items = filteredLibraryItems.filter(i => i.category === cat);
                       if (items.length === 0) return null;
                       return (
                         <div key={cat} className="space-y-4">
-                          <div className="flex items-center gap-2 border-b-2 pb-2 px-1">
+                          <div className="flex items-center gap-2 border-b-2 pb-2 px-1 text-left">
                             <Badge variant="secondary" className="h-6 px-3 text-[10px] font-black uppercase tracking-widest bg-[#213147] text-white border-0">{cat}</Badge>
+                            <span className="text-[9px] font-bold text-muted-foreground uppercase ml-auto">{items.length} Groups</span>
                           </div>
-                          <div className="space-y-4">
+                          <div className="space-y-4 text-left">
                             {items.map(item => (
                               <Card key={item.id} className="border-2 shadow-sm group hover:border-indigo-200 transition-all bg-white text-left">
-                                <CardHeader className="p-4 border-b bg-slate-50/50 flex flex-row items-center justify-between space-y-0">
+                                <CardHeader className="p-4 border-b bg-slate-50/50 flex flex-row items-center justify-between space-y-0 text-left">
                                   <div className="space-y-0.5 text-left">
                                     <p className="font-black text-xs uppercase text-[#213147]">{item.name}</p>
                                     <div className="flex flex-wrap gap-1 mt-1">
@@ -1268,11 +1306,11 @@ export default function SolutionAdminPage() {
               )}
 
               {activeNav === 'demos' && (
-                <div className="space-y-8 animate-in fade-in duration-500">
+                <div className="space-y-8 animate-in fade-in duration-500 text-left">
                   <div className="flex justify-between items-center bg-white p-6 rounded-[2rem] border-2 shadow-sm">
                      <div className="flex items-center gap-4 text-left">
                         <div className="bg-amber-50 p-3 rounded-2xl"><Sparkles className="h-6 w-6 text-amber-500" /></div>
-                        <div>
+                        <div className="text-left">
                            <h3 className="font-headline font-black text-lg uppercase text-[#213147]">Demo System Control</h3>
                            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Provision and reset standardized environments</p>
                         </div>
@@ -1289,7 +1327,7 @@ export default function SolutionAdminPage() {
 
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 text-left">
                     {demoVenues.map((venue) => (
-                      <Card key={venue.id} className="group hover:border-indigo-500 transition-all border-2 shadow-sm overflow-hidden flex flex-col h-full bg-white">
+                      <Card key={venue.id} className="group hover:border-indigo-500 transition-all border-2 shadow-sm overflow-hidden flex flex-col h-full bg-white text-left">
                         <div className={cn("h-24 bg-gradient-to-br p-6 flex items-end relative", venue.gradient)}>
                           {venue.icon}
                           <Badge className="bg-white/20 text-white border-white/30 backdrop-blur-md uppercase text-[9px] font-black">{venue.type}</Badge>
@@ -1298,7 +1336,7 @@ export default function SolutionAdminPage() {
                           <CardTitle className="text-lg font-black uppercase">{venue.title}</CardTitle>
                           <CardDescription className="text-xs">{venue.sub}</CardDescription>
                         </CardHeader>
-                        <CardContent className="flex-1 space-y-6">
+                        <CardContent className="flex-1 space-y-6 text-left">
                           <div className="grid grid-cols-2 gap-4">
                             <div className="flex flex-col items-center gap-3 bg-muted/30 p-3 rounded-2xl border-2 border-dashed">
                               <div className="bg-white p-1.5 rounded-xl border-2 shadow-sm hover:scale-105 transition-transform cursor-pointer">
@@ -1378,11 +1416,11 @@ export default function SolutionAdminPage() {
               )}
 
               {activeNav === 'system' && (
-                <div className="space-y-8 animate-in fade-in duration-500">
+                <div className="space-y-8 animate-in fade-in duration-500 text-left">
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 text-left">
                     
                     {/* GLOBAL SERVICE AUTHORIZATION */}
-                    <Card className="border-2 shadow-sm overflow-hidden lg:col-span-2">
+                    <Card className="border-2 shadow-sm overflow-hidden lg:col-span-2 text-left">
                       <CardHeader className="border-b bg-[#213147] text-white flex flex-row items-center justify-between text-left">
                         <div className="flex items-center gap-3">
                           <ShieldAlert className="h-5 w-5 text-primary" />
@@ -1486,7 +1524,7 @@ export default function SolutionAdminPage() {
                               className="data-[state=checked]:bg-green-600"
                             />
                          </div>
-                         <p className="text-[9px] font-bold text-muted-foreground uppercase leading-relaxed px-1 italic">
+                         <p className="text-[9px] font-bold text-muted-foreground uppercase leading-relaxed px-1 italic text-left">
                            If disabled, patrons will not receive text updates. They must rely on the live tracking screen for status.
                          </p>
                       </CardContent>
@@ -1497,7 +1535,7 @@ export default function SolutionAdminPage() {
                         <CardTitle className="font-black uppercase tracking-tight text-sm">Solution Branding</CardTitle>
                         <CardDescription className="text-[10px] font-bold uppercase">Master logo across all venue portals</CardDescription>
                       </CardHeader>
-                      <CardContent className="p-6 space-y-4">
+                      <CardContent className="p-6 space-y-4 text-left">
                         <div 
                           onClick={() => fileInputRef.current?.click()}
                           className="w-full aspect-[3/1] bg-slate-50 border-2 border-dashed rounded-2xl flex flex-col items-center justify-center cursor-pointer overflow-hidden group hover:border-primary/50 transition-all"
@@ -1587,13 +1625,13 @@ export default function SolutionAdminPage() {
                           {SERVICE_MODES.map(mode => {
                             const thresholds = systemThresholds[mode] || { warning: 15, max: 20 };
                             return (
-                              <div key={mode} className="space-y-3 p-4 bg-slate-50 rounded-2xl border-2">
+                              <div key={mode} className="space-y-3 p-4 bg-slate-50 rounded-2xl border-2 text-left">
                                 <div className="flex items-center justify-between">
                                   <span className="text-[10px] font-black uppercase text-[#213147] tracking-tight">{mode}</span>
                                   <Badge variant="outline" className="text-[8px] font-bold uppercase h-4 px-1">Global Default</Badge>
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
-                                   <div className="space-y-1.5">
+                                   <div className="space-y-1.5 text-left">
                                       <Label className="text-[8px] font-black uppercase text-amber-600 tracking-widest">Warning (Min)</Label>
                                       <Input 
                                         type="number" 
@@ -1604,7 +1642,7 @@ export default function SolutionAdminPage() {
                                         className="h-10 border-2 font-bold focus-visible:ring-amber-400"
                                       />
                                    </div>
-                                   <div className="space-y-1.5">
+                                   <div className="space-y-1.5 text-left">
                                       <Label className="text-[8px] font-black uppercase text-red-600 tracking-widest">Max Window (Min)</Label>
                                       <Input 
                                         type="number" 
@@ -1635,13 +1673,13 @@ export default function SolutionAdminPage() {
                         {['Beverage Cart', 'Clubhouse'].map(mode => {
                           const settings = mapSettings[mode] || SYSTEM_DEFAULT_MAP_SETTINGS[mode];
                           return (
-                            <div key={mode} className="space-y-6">
-                              <div className="flex items-center gap-2 border-b-2 pb-2">
+                            <div key={mode} className="space-y-6 text-left">
+                              <div className="flex items-center gap-2 border-b-2 pb-2 text-left">
                                 <h4 className="font-headline font-black text-xs uppercase text-[#213147]">{mode} Logic</h4>
                               </div>
                               
-                              <div className="space-y-4">
-                                <div className="space-y-2">
+                              <div className="space-y-4 text-left">
+                                <div className="space-y-2 text-left">
                                   <Label className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">Sync Frequency (Seconds)</Label>
                                   <div className="flex items-center gap-3">
                                     <Input 
@@ -1656,7 +1694,7 @@ export default function SolutionAdminPage() {
                                   </div>
                                 </div>
 
-                                <div className="space-y-3">
+                                <div className="space-y-3 text-left">
                                   <Label className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">Tracking Stage Protocol</Label>
                                   <div className="grid grid-cols-2 gap-2">
                                     {['Placed', 'Preparing', 'Out for Delivery', 'Delivered'].map(stage => (
@@ -1681,7 +1719,7 @@ export default function SolutionAdminPage() {
                           );
                         })}
                       </CardContent>
-                      <CardFooter className="bg-slate-50 border-t p-6">
+                      <CardFooter className="bg-slate-50 border-t p-6 text-left">
                         <Button 
                           onClick={handleUpdateSystemDefaults} 
                           disabled={isSavingSystemConfig} 
@@ -1722,7 +1760,7 @@ export default function SolutionAdminPage() {
           <ScrollArea className="max-h-[70vh]">
             <div className="p-8 text-left">
               <Form {...libraryForm}>
-                <form onSubmit={libraryForm.handleSubmit(handleSaveLibraryItem)} className="space-y-8">
+                <form onSubmit={libraryForm.handleSubmit(handleSaveLibraryItem)} className="space-y-8 text-left">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-left">
                     <FormField control={libraryForm.control} name="name" render={({ field }) => (
                       <FormItem>
@@ -1747,7 +1785,7 @@ export default function SolutionAdminPage() {
                   </div>
 
                   <FormField control={libraryForm.control} name="venueType" render={({ field }) => (
-                    <FormItem className="space-y-3">
+                    <FormItem className="space-y-3 text-left">
                       <FormLabel className="text-[10px] font-black uppercase tracking-widest">Target Establishments</FormLabel>
                       <div className="flex gap-4">
                         {['golf', 'bowling'].map(vt => (
@@ -1771,7 +1809,7 @@ export default function SolutionAdminPage() {
                     </FormItem>
                   )} />
 
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 bg-slate-50 p-6 rounded-3xl border-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 bg-slate-50 p-6 rounded-3xl border-2 text-left">
                     <FormField control={libraryForm.control} name="selectionType" render={({ field }) => (
                       <FormItem>
                         <FormLabel className="text-[10px] font-black uppercase tracking-widest">Select Rule</FormLabel>
@@ -1803,14 +1841,14 @@ export default function SolutionAdminPage() {
                       <Label className="text-[10px] font-black uppercase tracking-widest text-indigo-600">Option Variations</Label>
                       <Button type="button" variant="outline" size="sm" onClick={() => appendOption({ label: '', priceModifier: 0 })} className="h-7 text-[8px] font-black uppercase gap-1"><Plus className="h-3 w-3" /> Add Variation</Button>
                     </div>
-                    <div className="space-y-3">
+                    <div className="space-y-3 text-left">
                       {optionFields.map((field, index) => (
-                        <div key={field.id} className="grid grid-cols-12 gap-2 items-end bg-white p-3 border-2 rounded-xl group">
-                          <div className="col-span-8 space-y-1">
+                        <div key={field.id} className="grid grid-cols-12 gap-2 items-end bg-white p-3 border-2 rounded-xl group text-left">
+                          <div className="col-span-8 space-y-1 text-left">
                             <Label className="text-[8px] font-black uppercase text-muted-foreground">Option Label</Label>
                             <Input {...libraryForm.register(`options.${index}.label` as const)} placeholder="e.g. Extra Bacon" className="h-9 text-xs font-bold border-0 bg-slate-50" />
                           </div>
-                          <div className="col-span-3 space-y-1">
+                          <div className="col-span-3 space-y-1 text-left">
                             <Label className="text-[8px] font-black uppercase text-muted-foreground">Price (+)</Label>
                             <Input {...libraryForm.register(`options.${index}.priceModifier` as const)} type="number" step="0.01" className="h-9 text-xs font-bold border-0 bg-slate-50" />
                           </div>
@@ -1822,7 +1860,7 @@ export default function SolutionAdminPage() {
                     </div>
                   </div>
 
-                  <div className="flex flex-col sm:flex-row gap-3 pt-4">
+                  <div className="flex flex-col sm:flex-row gap-3 pt-4 text-left">
                     <Button type="submit" disabled={isProcessingSave} className="flex-1 h-14 bg-indigo-600 hover:bg-indigo-700 font-black uppercase tracking-widest text-[11px] gap-2 shadow-xl">
                       {isProcessingSave ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Commit Template
                     </Button>
@@ -1851,8 +1889,8 @@ export default function SolutionAdminPage() {
           <ScrollArea className="max-h-[70vh]">
             <div className="p-8">
               <Form {...registrationForm}>
-                <form onSubmit={registrationForm.handleSubmit(handleCreateVenue)} className="space-y-8">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <form onSubmit={registrationForm.handleSubmit(handleCreateVenue)} className="space-y-8 text-left">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-left">
                     <FormField control={registrationForm.control} name="name" render={({ field }) => (
                       <FormItem>
                         <FormLabel className="text-[10px] font-black uppercase tracking-widest">Establishment Name</FormLabel>
@@ -1875,7 +1913,7 @@ export default function SolutionAdminPage() {
 
                   {registrationForm.watch('type') === 'Bowling Center' && (
                     <FormField control={registrationForm.control} name="laneCount" render={({ field }) => (
-                      <FormItem className="bg-slate-50 p-4 rounded-2xl border-2">
+                      <FormItem className="bg-slate-50 p-4 rounded-2xl border-2 text-left">
                         <FormLabel className="text-[10px] font-black uppercase tracking-widest">Facility Size (Number of Lanes)</FormLabel>
                         <FormControl><Input {...field} type="number" min="1" className="h-11 border-2 font-bold" /></FormControl>
                         <FormDescription className="text-[8px] font-bold uppercase">This creates a location selector for patrons at checkout.</FormDescription>
@@ -1885,12 +1923,12 @@ export default function SolutionAdminPage() {
                   )}
 
                   <FormField control={registrationForm.control} name="menuTypes" render={({ field }) => (
-                    <FormItem className="space-y-4">
+                    <FormItem className="space-y-4 text-left">
                       <div className="flex items-center gap-2 border-b-2 pb-2 text-left">
                         <Zap className="h-4 w-4 text-primary" />
                         <h4 className="text-[10px] font-black uppercase tracking-widest">Authorized Service Modes</h4>
                       </div>
-                      <div className="grid grid-cols-2 gap-2">
+                      <div className="grid grid-cols-2 gap-2 text-left">
                         {SERVICE_MODES.map((mode) => (
                           <div 
                             key={mode} 
@@ -1971,13 +2009,13 @@ export default function SolutionAdminPage() {
           <ScrollArea className="max-h-[70vh]">
             <div className="p-8 text-left">
               {!selectedSeller ? (
-                <div className="flex flex-col items-center justify-center py-20 gap-4">
+                <div className="flex flex-col items-center justify-center py-20 gap-4 text-left">
                   <Loader2 className="h-10 w-10 animate-spin text-primary" />
                   <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Loading Profiles...</p>
                 </div>
               ) : (
                 <Form {...maintenanceForm}>
-                  <form onSubmit={maintenanceForm.handleSubmit(handleSaveVenueMaintenance)} className="space-y-10">
+                  <form onSubmit={maintenanceForm.handleSubmit(handleSaveVenueMaintenance)} className="space-y-10 text-left">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-left">
                       <FormField control={maintenanceForm.control} name="name" render={({ field }) => (
                         <FormItem>
@@ -2002,9 +2040,9 @@ export default function SolutionAdminPage() {
                       </div>
 
                       <FormField control={maintenanceForm.control} name="menuTypes" render={({ field }) => (
-                        <FormItem className="space-y-4">
+                        <FormItem className="space-y-4 text-left">
                           <FormLabel className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Authorized Channels</FormLabel>
-                          <div className="grid grid-cols-2 gap-2">
+                          <div className="grid grid-cols-2 gap-2 text-left">
                             {SERVICE_MODES.map((mode) => (
                               <div 
                                 key={`maint-mode-${mode}`}
@@ -2029,7 +2067,7 @@ export default function SolutionAdminPage() {
 
                       {selectedSeller?.type === 'Bowling Center' && (
                         <FormField control={maintenanceForm.control} name="laneCount" render={({ field }) => (
-                          <FormItem>
+                          <FormItem className="text-left">
                             <FormLabel className="text-[10px] font-black uppercase tracking-widest">Number of Lanes</FormLabel>
                             <FormControl><Input {...field} type="number" className="h-11 border-2 font-bold" /></FormControl>
                             <FormMessage />
@@ -2103,7 +2141,7 @@ export default function SolutionAdminPage() {
                       )} />
                     </div>
 
-                    <div className="flex flex-col sm:flex-row gap-3 pt-4">
+                    <div className="flex flex-col sm:flex-row gap-3 pt-4 text-left">
                       <Button type="submit" disabled={isProcessingSave} className="flex-1 h-14 bg-[#213147] hover:bg-black font-black uppercase tracking-widest text-[11px] gap-2 shadow-xl">
                         {isProcessingSave ? <Loader2 className="h-5 w-5 animate-spin" /> : <Save className="h-5 w-5" />} Commit Changes
                       </Button>
@@ -2121,4 +2159,3 @@ export default function SolutionAdminPage() {
     </div>
   );
 }
-
