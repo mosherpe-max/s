@@ -135,43 +135,11 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { DateRange } from 'react-day-picker';
 
-import {
-  DndContext,
-  closestCenter,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  DragEndEvent,
-} from '@dnd-kit/core';
-import {
-  arrayMove,
-  SortableContext,
-  sortableKeyboardCoordinates,
-  verticalListSortingStrategy,
-  useSortable,
-} from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
-
 import type { MenuItem, Seller, Order, StaffMember, Venue, SellerAdminRole, ModifierGroup } from '@/lib/types';
 import { categories } from '@/lib/types';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
 import { signOut } from 'firebase/auth';
-
-const DEFAULT_THRESHOLDS: Record<string, { warning: number; max: number }> = {
-  'Beverage Cart': { warning: 10, max: 15 },
-  'Clubhouse': { warning: 15, max: 20 },
-  'Lane Delivery': { warning: 10, max: 15 },
-  'Take Out': { warning: 15, max: 25 }
-};
-
-const MODE_COLORS: Record<string, string> = {
-  'Beverage Cart': '#E50000',
-  'Clubhouse': '#213147',
-  'Lane Delivery': '#7C3AED',
-  'Take Out': '#F59E0B'
-};
 
 const staffSchema = z.object({
   name: z.string().min(2, 'Name required'),

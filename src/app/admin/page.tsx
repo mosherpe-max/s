@@ -279,14 +279,14 @@ export default function SolutionAdminPage() {
   const handleSaveLibraryItem = async (data: StarterModifierFormData) => {
     if (!firestore) return;
     setIsProcessingSave(true);
-    const id = editingLibraryItem?.id || data.name.toLowerCase().replace(/\s+/g, '-');
+    const id = editingLibraryItem?.id || data.name.toLowerCase().replace(/[^a-z0-9]/g, '-');
     setDoc(doc(firestore, 'starter_modifier_library', id), data, { merge: true }).then(() => { toast({ title: "Template Saved" }); setIsLibraryFormOpen(false); }).finally(() => setIsProcessingSave(false));
   };
 
   const handleSaveItemTemplate = async (data: StarterItemFormData) => {
     if (!firestore) return;
     setIsProcessingSave(true);
-    const id = editingItemTemplate?.id || data.name.toLowerCase().replace(/\s+/g, '-');
+    const id = editingItemTemplate?.id || data.name.toLowerCase().replace(/[^a-z0-9]/g, '-');
     setDoc(doc(firestore, 'starter_menu_item_library', id), data, { merge: true }).then(() => { toast({ title: "Item Template Saved" }); setIsItemFormOpen(false); }).finally(() => setIsProcessingSave(false));
   };
 
@@ -298,7 +298,7 @@ export default function SolutionAdminPage() {
       await seedGlobalStarterMenuLibrary(firestore);
       toast({ title: "Libraries Initialized", description: "All templates provisioned." });
     } catch (e: any) { 
-      console.error(e);
+      console.error("Initialization Failed:", e);
       toast({ variant: "destructive", title: "Setup Failed", description: e.message }); 
     } finally { setIsInitializingLibrary(false); }
   };
@@ -319,7 +319,7 @@ export default function SolutionAdminPage() {
   ];
 
   const filteredLibraryItems = (libraryItems || []).filter(item => item.name.toLowerCase().includes(librarySearchTerm.toLowerCase())).sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
-  const filteredItemTemplates = (itemLibrary || []).filter(item => item.name.toLowerCase().includes(librarySearchTerm.toLowerCase()));
+  const filteredItemTemplates = (itemLibrary || []).filter(item => item.name.toLowerCase().includes(librarySearchTerm.toLowerCase())).sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
 
   return (
     <div className="flex flex-col h-screen bg-[#F8FAFC] overflow-hidden">
@@ -359,25 +359,29 @@ export default function SolutionAdminPage() {
                   </div>
 
                   <Tabs value={libraryTab} onValueChange={(v: any) => setLibraryTab(v)} className="space-y-6">
-                    <div className="flex justify-between items-center gap-4">
+                    <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
                       <TabsList className="bg-slate-100 p-1 rounded-xl h-11"><TabsTrigger value="modifiers" className="text-[10px] font-black uppercase tracking-widest px-8">Modifier Sets</TabsTrigger><TabsTrigger value="items" className="text-[10px] font-black uppercase tracking-widest px-8">Menu Items</TabsTrigger></TabsList>
                       <div className="flex bg-white p-2 px-3 rounded-xl border-2 shadow-sm gap-3 items-center w-full max-w-sm"><Search className="h-4 w-4 text-muted-foreground shrink-0" /><Input placeholder="Search library..." value={librarySearchTerm} onChange={(e) => setLibrarySearchTerm(e.target.value)} className="border-0 shadow-none text-xs font-medium p-0 h-auto" /></div>
                     </div>
 
                     <TabsContent value="modifiers" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                      {filteredLibraryItems.map(item => (
+                      {filteredLibraryItems.length === 0 ? (
+                        <div className="col-span-full py-20 text-center border-2 border-dashed rounded-3xl opacity-50 bg-slate-50"><Library className="h-10 w-10 mx-auto mb-4 text-slate-300" /><p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Library Empty. Click Initialize All above.</p></div>
+                      ) : filteredLibraryItems.map(item => (
                         <Card key={item.id} className="border-2 shadow-sm group hover:border-indigo-200 transition-all bg-white">
                           <CardHeader className="p-4 border-b bg-slate-50/50 flex flex-row items-center justify-between space-y-0">
-                            <div className="space-y-0.5"><p className="font-black text-xs uppercase text-[#213147]">{item.name}</p><Badge className="text-[7px] font-black uppercase h-3.5 px-1 border-0 bg-indigo-100 text-indigo-700">{item.category}</Badge></div>
+                            <div className="space-y-0.5"><p className="font-black text-xs uppercase text-[#213147]">{item.name}</p><div className="flex gap-1">{item.venueType.map(v => <Badge key={v} className="text-[6px] font-black uppercase h-3 px-1 border-0 bg-slate-200 text-slate-600">{v}</Badge>)}<Badge className="text-[6px] font-black uppercase h-3 px-1 border-0 bg-indigo-100 text-indigo-700">{item.category}</Badge></div></div>
                             <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"><Button variant="ghost" size="icon" className="h-8 w-8 text-indigo-600" onClick={() => { setEditingLibraryItem(item); setIsLibraryFormOpen(true); }}><Edit className="h-4 w-4" /></Button></div>
                           </CardHeader>
-                          <CardContent className="p-4 flex flex-wrap gap-1.5">{item.options.map((opt, idx) => (<Badge key={idx} variant="outline" className="text-[8px] font-bold uppercase">{opt.label}</Badge>))}</CardContent>
+                          <CardContent className="p-4 flex flex-wrap gap-1.5">{item.options.map((opt, idx) => (<Badge key={idx} variant="outline" className="text-[8px] font-bold uppercase">{opt.label} {opt.priceModifier > 0 && `(+$${opt.priceModifier.toFixed(2)})`}</Badge>))}</CardContent>
                         </Card>
                       ))}
                     </TabsContent>
 
                     <TabsContent value="items" className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                      {filteredItemTemplates.map(item => (
+                       {filteredItemTemplates.length === 0 ? (
+                        <div className="col-span-full py-20 text-center border-2 border-dashed rounded-3xl opacity-50 bg-slate-50"><UtensilsCrossed className="h-10 w-10 mx-auto mb-4 text-slate-300" /><p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Item Library Empty. Click Initialize All above.</p></div>
+                      ) : filteredItemTemplates.map(item => (
                         <Card key={item.id} className="border-2 shadow-sm group hover:border-indigo-200 transition-all bg-white">
                           <CardHeader className="p-4 border-b bg-slate-50/50 flex flex-row items-center justify-between space-y-0">
                             <div className="space-y-1"><Badge className="h-4 px-1 text-[8px] font-black uppercase bg-[#213147] text-white border-0">{item.serviceMode}</Badge><p className="font-black text-xs uppercase text-[#213147] truncate">{item.name}</p></div>
@@ -426,7 +430,7 @@ export default function SolutionAdminPage() {
       {/* Item Template Form */}
       <Dialog open={isItemFormOpen} onOpenChange={setIsItemFormOpen}>
         <DialogContent className="sm:max-w-[600px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
-          <DialogHeader className="p-8 bg-indigo-600 text-white"><div className="flex items-center gap-4 text-left"><div className="bg-white/20 p-3 rounded-2xl shrink-0"><UtensilsCrossed className="h-6 w-6 text-white" /></div><div className="text-left"><DialogTitle className="font-headline font-black uppercase tracking-tight text-white text-xl">Menu Item Template</DialogTitle></div></div></DialogHeader>
+          <DialogHeader className="p-8 bg-[#213147] text-white"><div className="flex items-center gap-4 text-left"><div className="bg-white/20 p-3 rounded-2xl shrink-0"><UtensilsCrossed className="h-6 w-6 text-white" /></div><div className="text-left"><DialogTitle className="font-headline font-black uppercase tracking-tight text-white text-xl">Menu Item Template</DialogTitle></div></div></DialogHeader>
           <ScrollArea className="max-h-[70vh]"><div className="p-8"><Form {...itemTemplateForm}><form onSubmit={itemTemplateForm.handleSubmit(handleSaveItemTemplate)} className="space-y-6">
             <div className="grid grid-cols-2 gap-4">
               <FormField control={itemTemplateForm.control} name="name" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase">Item Name</FormLabel><FormControl><Input {...field} className="h-12 border-2 font-bold" /></FormControl></FormItem>)} />
@@ -437,7 +441,7 @@ export default function SolutionAdminPage() {
               <FormField control={itemTemplateForm.control} name="category" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase">Category</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger className="h-12 border-2 font-bold"><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="alcohol">Alcohol</SelectItem><SelectItem value="beverage">Beverage</SelectItem><SelectItem value="food">Food</SelectItem></SelectContent></Select></FormItem>)} />
             </div>
             <FormField control={itemTemplateForm.control} name="suggestedModifierGroups" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase">Suggested Modifiers (Comma Separated)</FormLabel><FormControl><Input value={field.value.join(', ')} onChange={(e) => field.onChange(e.target.value.split(',').map(s => s.trim()))} className="h-12 border-2 font-bold" /></FormControl></FormItem>)} />
-            <Button type="submit" disabled={isProcessingSave} className="w-full h-14 bg-indigo-600 font-black uppercase tracking-widest text-[11px] gap-2 shadow-xl">{isProcessingSave ? <Loader2 className="animate-spin" /> : <Save className="h-4 w-4" />} Save Master Template</Button>
+            <Button type="submit" disabled={isProcessingSave} className="w-full h-14 bg-[#213147] font-black uppercase tracking-widest text-[11px] gap-2 shadow-xl">{isProcessingSave ? <Loader2 className="animate-spin" /> : <Save className="h-4 w-4" />} Save Master Template</Button>
           </form></Form></div></ScrollArea>
         </DialogContent>
       </Dialog>
