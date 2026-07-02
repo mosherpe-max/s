@@ -40,7 +40,8 @@ import {
   X,
   Edit,
   UtensilsCrossed,
-  LayoutList
+  LayoutList,
+  Power
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -67,7 +68,7 @@ import {
   TabsContent,
   TabsList,
   TabsTrigger,
-} from "@/tabs";
+} from "@/components/ui/tabs";
 import { Switch } from '@/components/ui/switch';
 import { useRouter } from 'next/navigation';
 import { useFirestore, useCollection, useMemoFirebase, useAuth, useDoc, useUser } from '@/firebase';

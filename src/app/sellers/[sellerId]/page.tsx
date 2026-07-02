@@ -61,7 +61,7 @@ import {
   TabsContent,
   TabsList,
   TabsTrigger,
-} from "@/tabs";
+} from "@/components/ui/tabs";
 import { Label } from '@/components/ui/label';
 import { cn, SUPER_ADMIN_ID } from '@/lib/utils';
 import { isToday } from 'date-fns';
