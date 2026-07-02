@@ -43,7 +43,6 @@ import {
   LayoutList,
   Power,
   PanelLeft,
-  ChevronLeft,
   ChevronRightSquare,
   Globe,
   BellRing,
