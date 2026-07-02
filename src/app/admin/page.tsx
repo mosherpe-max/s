@@ -41,7 +41,10 @@ import {
   Edit,
   UtensilsCrossed,
   LayoutList,
-  Power
+  Power,
+  PanelLeft,
+  ChevronLeft,
+  ChevronRightSquare
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -69,6 +72,13 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 import { Switch } from '@/components/ui/switch';
 import { useRouter } from 'next/navigation';
 import { useFirestore, useCollection, useMemoFirebase, useAuth, useDoc, useUser } from '@/firebase';
@@ -122,6 +132,14 @@ const starterItemSchema = z.object({
 
 type StarterItemFormData = z.infer<typeof starterItemSchema>;
 
+const NAV_ITEMS = [
+  { id: "dashboard", label: "Global Overview", icon: LayoutDashboard },
+  { id: "venues", label: "Venue Management", icon: Store },
+  { id: "library", label: "Global Library", icon: Library },
+  { id: "demos", label: "Sales Demos", icon: Zap },
+  { id: "system", label: "System Control", icon: Settings2 },
+];
+
 function NavButton({ id, label, icon: Icon, active, onClick, sidebarOpen }: { 
   id: string, label: string, icon: any, active: boolean, onClick: (id: string) => void, sidebarOpen: boolean 
 }) {
@@ -134,7 +152,7 @@ function NavButton({ id, label, icon: Icon, active, onClick, sidebarOpen }: {
       )}
     >
       <Icon className={cn("h-5 w-5 shrink-0", active ? "text-primary" : "group-hover:text-white")} />
-      {sidebarOpen && <span className={cn("text-xs font-bold uppercase tracking-widest", active ? "text-primary" : "")}>{label}</span>}
+      {sidebarOpen && <span className={cn("text-[10px] font-black uppercase tracking-widest leading-none", active ? "text-primary" : "")}>{label}</span>}
       {active && <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary rounded-r-full" />}
     </button>
   );
@@ -167,6 +185,7 @@ export default function SolutionAdminPage() {
 
   const [activeNav, setActiveNav] = useState('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   
   const [libraryTab, setLibraryTab] = useState<'modifiers' | 'items'>('modifiers');
   const [isLibraryFormOpen, setIsLibraryFormOpen] = useState(false);
@@ -239,40 +258,84 @@ export default function SolutionAdminPage() {
   const handleLogout = async () => { if (!auth) return; await signOut(auth); router.push('/login'); };
 
   const isSuperAdmin = user?.uid === SUPER_ADMIN_ID || user?.email === 'mosherpe@gmail.com';
+  
   if (isUserLoading) return <div className="flex flex-col items-center justify-center min-h-screen bg-[#213147] text-white"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>;
   if (!user || !isSuperAdmin) return null;
-
-  const NAV_ITEMS = [
-    { id: "dashboard", label: "Global Overview", icon: LayoutDashboard },
-    { id: "venues", label: "Venue Management", icon: Store },
-    { id: "library", label: "Global Library", icon: Library },
-    { id: "demos", label: "Sales Demos", icon: Zap },
-    { id: "system", label: "System Control", icon: Settings2 },
-  ];
 
   const filteredLibraryItems = (libraryItems || []).filter(item => item.name.toLowerCase().includes(librarySearchTerm.toLowerCase())).sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
   const filteredItemTemplates = (itemLibrary || []).filter(item => item.name.toLowerCase().includes(librarySearchTerm.toLowerCase())).sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
 
+  const NavContent = () => (
+    <nav className="space-y-1">
+      {NAV_ITEMS.map((item) => (
+        <NavButton 
+          key={item.id} 
+          id={item.id} 
+          label={item.label} 
+          icon={item.icon} 
+          active={activeNav === item.id} 
+          onClick={(id) => { setActiveNav(id); setMobileMenuOpen(false); }} 
+          sidebarOpen={sidebarOpen || isMobile} 
+        />
+      ))}
+    </nav>
+  );
+
   return (
-    <div className="flex flex-col h-screen bg-[#F8FAFC] overflow-hidden">
-      <header className="h-16 bg-white border-b-2 flex items-center justify-between px-8 shrink-0 z-30 shadow-sm relative text-left">
-        <div className="flex items-center gap-4"><StylizedKoopLogo size="sm" colorClass="text-[#213147]" /><div className="flex flex-col text-left"><h2 className="text-xl font-black font-headline uppercase tracking-tight text-[#213147]">{NAV_ITEMS.find(n => n.id === activeNav)?.label}</h2><p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">Koop Platform Control</p></div></div>
-        <button onClick={handleLogout} className="p-2 text-muted-foreground hover:text-destructive transition-colors flex items-center gap-2"><span className="text-[10px] font-black uppercase tracking-widest hidden sm:inline">Release Device</span><LogOut className="h-5 w-5" /></button>
+    <div className="flex flex-col h-screen bg-[#F8FAFC] overflow-hidden text-left">
+      <header className="h-16 bg-white border-b-2 flex items-center justify-between px-8 shrink-0 z-30 shadow-sm relative">
+        <div className="flex items-center gap-4">
+          <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+            <SheetTrigger asChild>
+              <Button variant="ghost" size="icon" className="md:hidden">
+                <Menu className="h-6 w-6 text-[#213147]" />
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="left" className="w-72 bg-[#213147] border-0 p-0 text-white">
+              <SheetHeader className="p-6 border-b border-white/5 text-left">
+                <StylizedKoopLogo size="md" />
+                <SheetTitle className="text-[10px] font-black uppercase tracking-[0.2em] text-primary mt-2">Platform Control</SheetTitle>
+              </SheetHeader>
+              <div className="p-4"><NavContent /></div>
+            </SheetContent>
+          </Sheet>
+          <StylizedKoopLogo size="sm" colorClass="text-[#213147]" />
+          <div className="flex flex-col">
+            <h2 className="text-sm font-black font-headline uppercase tracking-tight text-[#213147]">{NAV_ITEMS.find(n => n.id === activeNav)?.label}</h2>
+            <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-[0.2em]">Solution Operations</p>
+          </div>
+        </div>
+        <button onClick={handleLogout} className="p-2 text-muted-foreground hover:text-destructive transition-colors flex items-center gap-2">
+          <span className="text-[10px] font-black uppercase tracking-widest hidden sm:inline">Release Device</span>
+          <LogOut className="h-5 w-5" />
+        </button>
       </header>
 
       <div className="flex-1 flex overflow-hidden">
         <aside className={cn("bg-[#213147] hidden md:flex flex-col transition-all duration-300 relative border-r-4 border-primary/20 shrink-0", sidebarOpen ? "w-64" : "w-20")}>
-          <div className="p-6 border-b border-white/5"><StylizedKoopLogo size={sidebarOpen ? "md" : "sm"} /></div>
-          <nav className="flex-1 p-3 space-y-1 overflow-y-auto no-scrollbar">
-            {NAV_ITEMS.map((item) => (
-              <NavButton key={item.id} id={item.id} label={item.label} icon={item.icon} active={activeNav === item.id} onClick={setActiveNav} sidebarOpen={sidebarOpen} />
-            ))}
-          </nav>
+          <div className="p-6 border-b border-white/5 flex items-center justify-between">
+            <StylizedKoopLogo size={sidebarOpen ? "md" : "sm"} />
+            {sidebarOpen && (
+              <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(false)} className="text-white/20 hover:text-white">
+                <PanelLeft className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
+          <ScrollArea className="flex-1 p-3">
+             <NavContent />
+          </ScrollArea>
+          {!sidebarOpen && (
+             <div className="p-4 border-t border-white/5 flex justify-center">
+                <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(true)} className="text-white/20 hover:text-white">
+                  <ChevronRightSquare className="h-5 w-5" />
+                </Button>
+             </div>
+          )}
         </aside>
 
         <main className="flex-1 flex flex-col overflow-hidden relative">
           <ScrollArea className="flex-1 p-8">
-            <div className="max-w-7xl mx-auto space-y-8 text-left">
+            <div className="max-w-7xl mx-auto space-y-8 text-left pb-20">
               {activeNav === 'dashboard' && (
                 <div className="space-y-8 animate-in fade-in duration-500">
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
