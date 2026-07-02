@@ -52,7 +52,9 @@ import {
   Search,
   Trash2,
   CheckCircle2,
-  AlertTriangle
+  AlertTriangle,
+  Smartphone,
+  Download
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -83,8 +85,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
 import { cn, SUPER_ADMIN_ID } from '@/lib/utils';
-import { isToday, format, subDays, startOfDay, endOfDay } from 'date-fns';
+import { isToday, format, subDays } from 'date-fns';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
@@ -94,7 +97,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { categories } from '@/lib/types';
-import type { MenuItem, Seller, Order, StaffMember, Venue, SellerAdminRole, ModifierGroup } from '@/lib/types';
+import type { MenuItem, Seller, Order, StaffMember, ModifierGroup } from '@/lib/types';
 import { signOut } from 'firebase/auth';
 import { 
   Area, 
@@ -103,8 +106,6 @@ import {
   XAxis, 
   YAxis, 
   Tooltip as ChartTooltip,
-  BarChart,
-  Bar,
   Cell,
   PieChart,
   Pie
