@@ -7,11 +7,9 @@ import {
   getDocs, 
   query, 
   where,
-  Firestore,
-  deleteDoc,
-  getDoc
+  Firestore
 } from 'firebase/firestore';
-import type { ModifierGroup, MenuItem, ModifierOption, SellerType, StarterModifierGroup, StarterMenuItem } from './types';
+import type { ModifierGroup, MenuItem, StarterModifierGroup, StarterMenuItem } from './types';
 import { publicGolfItems, privateGolfItems, bowlingAlleyItems } from './data';
 
 /**
@@ -693,6 +691,13 @@ const GLOBAL_STARTER_MENU_ITEMS: Omit<StarterMenuItem, 'id'>[] = [
   }
 ];
 
+const generateId = (name: string) => {
+  return name.toLowerCase()
+    .replace(/[^a-z0-9]/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
+};
+
 /**
  * Seeds the global starter modifier library collection.
  */
@@ -701,7 +706,7 @@ export async function seedGlobalStarterLibrary(db: Firestore) {
   const libraryRef = collection(db, 'starter_modifier_library');
 
   GLOBAL_STARTER_LIBRARY.forEach(template => {
-    const id = template.name.toLowerCase().replace(/\s+/g, '-');
+    const id = generateId(template.name);
     const docRef = doc(libraryRef, id);
     batch.set(docRef, template);
   });
@@ -717,7 +722,7 @@ export async function seedGlobalStarterMenuLibrary(db: Firestore) {
   const libraryRef = collection(db, 'starter_menu_item_library');
 
   GLOBAL_STARTER_MENU_ITEMS.forEach(item => {
-    const id = item.name.toLowerCase().replace(/\s+/g, '-');
+    const id = generateId(item.name);
     const docRef = doc(libraryRef, id);
     batch.set(docRef, item);
   });
@@ -779,7 +784,6 @@ export async function seedVenueModifiers(db: Firestore, sellerId: string, venueT
     let updated = false;
 
     const name = item.name.toLowerCase();
-    const cat = (item.category || '').toLowerCase();
     
     if (groupIdsMap['Special Instructions']) { currentGroups.push(groupIdsMap['Special Instructions']); updated = true; }
     if (groupIdsMap['Allergy Flag']) { currentGroups.push(groupIdsMap['Allergy Flag']); updated = true; }

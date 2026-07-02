@@ -10,7 +10,7 @@ service cloud.firestore {
     function isSuperAdmin() {
       return isSignedIn() && (
         request.auth.uid == 'o9vAQy0aFRPSNPoG0ETvjiGt9If1' || 
-        request.auth.token.email.lower() == 'mosherpe@gmail.com'
+        (request.auth.token.email != null && request.auth.token.email.lower() == 'mosherpe@gmail.com')
       );
     }
 
@@ -28,8 +28,13 @@ service cloud.firestore {
       allow write: if isSuperAdmin();
     }
 
-    // Global Starter Modifier Library
+    // Global Starter Libraries
     match /starter_modifier_library/{groupId} {
+      allow read: if true;
+      allow write: if isSuperAdmin();
+    }
+
+    match /starter_menu_item_library/{itemId} {
       allow read: if true;
       allow write: if isSuperAdmin();
     }
