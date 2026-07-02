@@ -341,12 +341,12 @@ export default function SolutionAdminPage() {
                 <StylizedKoopLogo size="md" />
                 <SheetTitle className="text-[10px] font-black uppercase tracking-[0.2em] text-primary mt-2">Platform Control</SheetTitle>
               </SheetHeader>
-              <div className="p-4"><NavContent /></div>
+              <div className="p-4 text-left"><NavContent /></div>
             </SheetContent>
           </Sheet>
           <StylizedKoopLogo size="sm" colorClass="text-[#213147]" />
-          <div className="flex flex-col">
-            <h2 className="text-sm font-black font-headline uppercase tracking-tight text-[#213147]">{NAV_ITEMS.find(n => n.id === activeNav)?.label}</h2>
+          <div className="flex flex-col text-left">
+            <h2 className="text-sm font-black font-headline uppercase tracking-tight text-[#213147] leading-none">{NAV_ITEMS.find(n => n.id === activeNav)?.label}</h2>
             <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-[0.2em]">Solution Operations</p>
           </div>
         </div>
@@ -359,23 +359,14 @@ export default function SolutionAdminPage() {
       <div className="flex-1 flex overflow-hidden">
         <aside className={cn("bg-[#213147] hidden md:flex flex-col transition-all duration-300 relative border-r-4 border-primary/20 shrink-0", sidebarOpen ? "w-64" : "w-20")}>
           <div className="p-6 border-b border-white/5 flex items-center justify-between">
-            <StylizedKoopLogo size={sidebarOpen ? "md" : "sm"} />
-            {sidebarOpen && (
-              <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(false)} className="text-white/20 hover:text-white">
-                <PanelLeft className="h-4 w-4" />
-              </Button>
-            )}
+            {sidebarOpen && <StylizedKoopLogo size="md" />}
+            <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(!sidebarOpen)} className="text-white/20 hover:text-white mx-auto">
+              {sidebarOpen ? <PanelLeft className="h-4 w-4" /> : <ChevronRightSquare className="h-4 w-4" />}
+            </Button>
           </div>
           <ScrollArea className="flex-1 p-3">
              <NavContent />
           </ScrollArea>
-          {!sidebarOpen && (
-             <div className="p-4 border-t border-white/5 flex justify-center">
-                <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(true)} className="text-white/20 hover:text-white">
-                  <ChevronRightSquare className="h-5 w-5" />
-                </Button>
-             </div>
-          )}
         </aside>
 
         <main className="flex-1 flex flex-col overflow-hidden relative">
@@ -465,12 +456,12 @@ export default function SolutionAdminPage() {
                       {filteredLibraryItems.length === 0 ? (
                         <div className="col-span-full py-20 text-center border-2 border-dashed rounded-3xl opacity-50 bg-slate-50"><Library className="h-10 w-10 mx-auto mb-4 text-slate-300" /><p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Library Empty. Click Initialize All above.</p></div>
                       ) : filteredLibraryItems.map(item => (
-                        <Card key={item.id} className="border-2 shadow-sm group hover:border-indigo-200 transition-all bg-white">
+                        <Card key={item.id} className="border-2 shadow-sm group hover:border-indigo-200 transition-all bg-white text-left">
                           <CardHeader className="p-4 border-b bg-slate-50/50 flex flex-row items-center justify-between space-y-0">
-                            <div className="space-y-0.5"><p className="font-black text-xs uppercase text-[#213147]">{item.name}</p><div className="flex gap-1">{item.venueType.map(v => <Badge key={v} className="text-[6px] font-black uppercase h-3 px-1 border-0 bg-slate-200 text-slate-600">{v}</Badge>)}<Badge className="text-[6px] font-black uppercase h-3 px-1 border-0 bg-indigo-100 text-indigo-700">{item.category}</Badge></div></div>
+                            <div className="space-y-0.5 text-left"><p className="font-black text-xs uppercase text-[#213147]">{item.name}</p><div className="flex gap-1">{item.venueType.map(v => <Badge key={v} className="text-[6px] font-black uppercase h-3 px-1 border-0 bg-slate-200 text-slate-600">{v}</Badge>)}<Badge className="text-[6px] font-black uppercase h-3 px-1 border-0 bg-indigo-100 text-indigo-700">{item.category}</Badge></div></div>
                             <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"><Button variant="ghost" size="icon" className="h-8 w-8 text-indigo-600" onClick={() => { setEditingLibraryItem(item); setIsLibraryFormOpen(true); }}><Edit className="h-4 w-4" /></Button></div>
                           </CardHeader>
-                          <CardContent className="p-4 flex flex-wrap gap-1.5">{item.options.map((opt, idx) => (<Badge key={idx} variant="outline" className="text-[8px] font-bold uppercase">{opt.label} {opt.priceModifier > 0 && `(+$${opt.priceModifier.toFixed(2)})`}</Badge>))}</CardContent>
+                          <CardContent className="p-4 flex flex-wrap gap-1.5 text-left">{item.options.map((opt, idx) => (<Badge key={idx} variant="outline" className="text-[8px] font-bold uppercase">{opt.label} {opt.priceModifier > 0 && `(+$${opt.priceModifier.toFixed(2)})`}</Badge>))}</CardContent>
                         </Card>
                       ))}
                     </TabsContent>
@@ -479,12 +470,12 @@ export default function SolutionAdminPage() {
                        {filteredItemTemplates.length === 0 ? (
                         <div className="col-span-full py-20 text-center border-2 border-dashed rounded-3xl opacity-50 bg-slate-50"><UtensilsCrossed className="h-10 w-10 mx-auto mb-4 text-slate-300" /><p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Item Library Empty. Click Initialize All above.</p></div>
                       ) : filteredItemTemplates.map(item => (
-                        <Card key={item.id} className="border-2 shadow-sm group hover:border-indigo-200 transition-all bg-white">
+                        <Card key={item.id} className="border-2 shadow-sm group hover:border-indigo-200 transition-all bg-white text-left">
                           <CardHeader className="p-4 border-b bg-slate-50/50 flex flex-row items-center justify-between space-y-0">
-                            <div className="space-y-1"><Badge className="h-4 px-1 text-[8px] font-black uppercase bg-[#213147] text-white border-0">{item.serviceMode}</Badge><p className="font-black text-xs uppercase text-[#213147] truncate">{item.name}</p></div>
+                            <div className="space-y-1 text-left"><Badge className="h-4 px-1 text-[8px] font-black uppercase bg-[#213147] text-white border-0">{item.serviceMode}</Badge><p className="font-black text-xs uppercase text-[#213147] truncate">{item.name}</p></div>
                             <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"><Button variant="ghost" size="icon" className="h-8 w-8 text-indigo-600" onClick={() => { setEditingItemTemplate(item); setIsItemFormOpen(true); }}><Edit className="h-4 w-4" /></Button></div>
                           </CardHeader>
-                          <CardContent className="p-4 space-y-2"><p className="text-[10px] text-muted-foreground line-clamp-2">{item.description}</p><div className="flex justify-between items-center"><span className="text-xs font-black text-primary">${item.price.toFixed(2)}</span><div className="flex gap-1">{item.suggestedModifierGroups?.slice(0, 2).map(m => (<Badge key={m} className="text-[6px] uppercase px-1 h-3">{m}</Badge>))}</div></div></CardContent>
+                          <CardContent className="p-4 space-y-2 text-left"><p className="text-[10px] text-muted-foreground line-clamp-2">{item.description}</p><div className="flex justify-between items-center"><span className="text-xs font-black text-primary">${item.price.toFixed(2)}</span><div className="flex gap-1">{item.suggestedModifierGroups?.slice(0, 2).map(m => (<Badge key={m} className="text-[6px] uppercase px-1 h-3">{m}</Badge>))}</div></div></CardContent>
                         </Card>
                       ))}
                     </TabsContent>
@@ -498,7 +489,7 @@ export default function SolutionAdminPage() {
                      <h3 className="font-headline font-black text-2xl text-[#213147] uppercase">Sales Demo Control</h3>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <Card className="border-2 p-8 space-y-6">
+                    <Card className="border-2 p-8 space-y-6 text-left">
                       <div className="bg-amber-100 p-4 rounded-3xl w-fit text-amber-700"><AlertTriangle className="h-10 w-10" /></div>
                       <div className="space-y-2">
                         <h4 className="font-headline font-black text-xl uppercase">Full Demo Reseed</h4>
@@ -509,7 +500,7 @@ export default function SolutionAdminPage() {
                       </Button>
                     </Card>
 
-                    <Card className="border-2 p-8 space-y-6">
+                    <Card className="border-2 p-8 space-y-6 text-left">
                       <div className="bg-indigo-100 p-4 rounded-3xl w-fit text-indigo-700"><Timer className="h-10 w-10" /></div>
                       <div className="space-y-2">
                         <h4 className="font-headline font-black text-xl uppercase">Global Operational Reset</h4>
@@ -537,21 +528,21 @@ export default function SolutionAdminPage() {
 
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                     {/* CORE IDENTITY & SUPPORT */}
-                    <Card className="border-2 p-8 space-y-8">
+                    <Card className="border-2 p-8 space-y-8 text-left">
                       <div className="space-y-6">
                         <div className="space-y-3">
                           <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
                              <ShieldCheck className="h-3 w-3" /> Support & Identity
                           </Label>
                           <div className="grid gap-5">
-                            <div className="space-y-1.5">
+                            <div className="space-y-1.5 text-left">
                               <Label htmlFor="supportEmail" className="text-xs font-bold uppercase">Global Support Email</Label>
                               <div className="relative">
                                 <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                                 <Input id="supportEmail" placeholder="support@kooporders.com" value={configData.supportEmail} onChange={(e) => setConfigData({...configData, supportEmail: e.target.value})} className="pl-10 h-12 border-2 font-bold focus-visible:ring-primary" />
                               </div>
                             </div>
-                            <div className="space-y-1.5">
+                            <div className="space-y-1.5 text-left">
                               <Label htmlFor="logoUrl" className="text-xs font-bold uppercase">Master Platform Logo URL</Label>
                               <div className="relative">
                                 <LucideImage className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
@@ -568,7 +559,7 @@ export default function SolutionAdminPage() {
                              <Timer className="h-3 w-3" /> Operational Logic
                           </Label>
                           <div className="flex items-center justify-between p-5 bg-slate-50 rounded-2xl border-2">
-                            <div className="max-w-[200px]">
+                            <div className="max-w-[200px] text-left">
                               <p className="font-bold text-sm">Daily Operational Reset</p>
                               <p className="text-[9px] text-muted-foreground uppercase leading-relaxed font-bold">Hour (0-23) to clear driver sessions automatically</p>
                             </div>
@@ -579,7 +570,7 @@ export default function SolutionAdminPage() {
                           </div>
                           
                           <div className="flex items-center justify-between p-5 bg-slate-50 rounded-2xl border-2">
-                            <div className="max-w-[200px]">
+                            <div className="max-w-[200px] text-left">
                               <p className="font-bold text-sm">SMS Global Switch</p>
                               <p className="text-[9px] text-muted-foreground uppercase leading-relaxed font-bold">Enable Twilio notifications for patrons platform-wide</p>
                             </div>
@@ -593,7 +584,7 @@ export default function SolutionAdminPage() {
                     </Card>
 
                     {/* SIGNAL HEALTH & MODE AUTH */}
-                    <Card className="border-2 p-8 space-y-8">
+                    <Card className="border-2 p-8 space-y-8 text-left">
                        <div className="space-y-6">
                          <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
                             <Satellite className="h-3 w-3" /> Signal Health Thresholds (Seconds)
@@ -655,22 +646,22 @@ export default function SolutionAdminPage() {
       {/* Modifier Template Form */}
       <Dialog open={isLibraryFormOpen} onOpenChange={setIsLibraryFormOpen}>
         <DialogContent className="sm:max-w-[600px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
-          <DialogHeader className="p-8 bg-indigo-600 text-white"><div className="flex items-center gap-4 text-left"><div className="bg-white/20 p-3 rounded-2xl shrink-0"><Tags className="h-6 w-6 text-white" /></div><div className="text-left"><DialogTitle className="font-headline font-black uppercase tracking-tight text-white text-xl">Modifier Set Template</DialogTitle></div></div></DialogHeader>
-          <ScrollArea className="max-h-[70vh]"><div className="p-8"><Form {...libraryForm}><form onSubmit={libraryForm.handleSubmit(handleSaveLibraryItem)} className="space-y-6">
+          <DialogHeader className="p-8 bg-indigo-600 text-white text-left"><div className="flex items-center gap-4 text-left"><div className="bg-white/20 p-3 rounded-2xl shrink-0"><Tags className="h-6 w-6 text-white" /></div><div className="text-left"><DialogTitle className="font-headline font-black uppercase tracking-tight text-white text-xl">Modifier Set Template</DialogTitle></div></div></DialogHeader>
+          <ScrollArea className="max-h-[70vh]"><div className="p-8 text-left"><Form {...libraryForm}><form onSubmit={libraryForm.handleSubmit(handleSaveLibraryItem)} className="space-y-6">
             <div className="grid grid-cols-2 gap-4">
-              <FormField control={libraryForm.control} name="name" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase">Template Name</FormLabel><FormControl><Input {...field} className="h-12 border-2 font-bold" /></FormControl></FormItem>)} />
-              <FormField control={libraryForm.control} name="category" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase">Category</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger className="h-12 border-2 font-bold"><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="food">Food</SelectItem><SelectItem value="beverage">Beverage</SelectItem><SelectItem value="universal">Universal</SelectItem></SelectContent></Select></FormItem>)} />
+              <FormField control={libraryForm.control} name="name" render={({ field }) => (<FormItem className="text-left"><FormLabel className="text-[10px] font-black uppercase">Template Name</FormLabel><FormControl><Input {...field} className="h-12 border-2 font-bold" /></FormControl></FormItem>)} />
+              <FormField control={libraryForm.control} name="category" render={({ field }) => (<FormItem className="text-left"><FormLabel className="text-[10px] font-black uppercase">Category</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger className="h-12 border-2 font-bold"><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="food">Food</SelectItem><SelectItem value="beverage">Beverage</SelectItem><SelectItem value="universal">Universal</SelectItem></SelectContent></Select></FormItem>)} />
             </div>
             <div className="grid grid-cols-2 gap-4">
-               <FormField control={libraryForm.control} name="selectionType" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase">Selection Logic</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger className="h-12 border-2 font-bold"><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="single">Single (Radio)</SelectItem><SelectItem value="multi">Multiple (Checkbox)</SelectItem></SelectContent></Select></FormItem>)} />
+               <FormField control={libraryForm.control} name="selectionType" render={({ field }) => (<FormItem className="text-left"><FormLabel className="text-[10px] font-black uppercase">Selection Logic</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger className="h-12 border-2 font-bold"><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="single">Single (Radio)</SelectItem><SelectItem value="multi">Multiple (Checkbox)</SelectItem></SelectContent></Select></FormItem>)} />
                <FormField control={libraryForm.control} name="required" render={({ field }) => (<FormItem className="flex flex-row items-center justify-between rounded-xl border-2 p-3 space-y-0 h-12"><div className="space-y-0.5"><FormLabel className="text-[10px] font-black uppercase">Required</FormLabel></div><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl></FormItem>)} />
             </div>
             <div className="space-y-3">
               <div className="flex justify-between items-center px-1"><Label className="text-[10px] font-black uppercase text-indigo-600">Template Options</Label><Button type="button" variant="ghost" size="sm" onClick={() => appendOption({ label: '', priceModifier: 0 })} className="text-[9px] font-black uppercase gap-1.5"><Plus className="h-3 w-3" /> Add Option</Button></div>
               {optionFields.map((field, index) => (
                 <div key={field.id} className="flex gap-2 items-start bg-slate-50 p-3 rounded-xl border-2">
-                  <FormField control={libraryForm.control} name={`options.${index}.label`} render={({ field }) => (<FormItem className="flex-1"><FormControl><Input {...field} placeholder="Label" className="h-10 border-2 font-bold bg-white" /></FormControl></FormItem>)} />
-                  <FormField control={libraryForm.control} name={`options.${index}.priceModifier`} render={({ field }) => (<FormItem className="w-24"><FormControl><Input {...field} type="number" step="0.01" placeholder="$0.00" className="h-10 border-2 font-bold bg-white" /></FormControl></FormItem>)} />
+                  <FormField control={libraryForm.control} name={`options.${index}.label`} render={({ field }) => (<FormItem className="flex-1 text-left"><FormControl><Input {...field} placeholder="Label" className="h-10 border-2 font-bold bg-white" /></FormControl></FormItem>)} />
+                  <FormField control={libraryForm.control} name={`options.${index}.priceModifier`} render={({ field }) => (<FormItem className="w-24 text-left"><FormControl><Input {...field} type="number" step="0.01" placeholder="$0.00" className="h-10 border-2 font-bold bg-white" /></FormControl></FormItem>)} />
                   <Button type="button" variant="ghost" size="icon" onClick={() => removeOption(index)} className="h-10 w-10 text-muted-foreground hover:text-destructive"><X className="h-4 w-4" /></Button>
                 </div>
               ))}

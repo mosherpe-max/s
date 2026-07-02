@@ -766,10 +766,10 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
                     {menuItems?.map(item => (
-                      <Card key={item.id} className="border-2 shadow-sm group hover:border-primary/30 transition-all bg-white relative">
+                      <Card key={item.id} className="border-2 shadow-sm group hover:border-primary/30 transition-all bg-white relative text-left">
                         {!item.isAvailable && <div className="absolute top-2 right-2 z-10 bg-red-600 text-white text-[7px] font-black px-1.5 py-0.5 rounded-full uppercase">86'd</div>}
                         <CardHeader className="p-4 border-b bg-slate-50/50 flex flex-row items-start justify-between space-y-0">
-                          <div className="space-y-0.5">
+                          <div className="space-y-0.5 text-left">
                             <p className="font-black text-xs uppercase text-[#213147] truncate max-w-[140px]">{item.name}</p>
                             <p className="text-[10px] font-bold text-primary font-mono">${item.price.toFixed(2)}</p>
                           </div>
@@ -777,7 +777,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                             <Edit className="h-4 w-4" />
                           </Button>
                         </CardHeader>
-                        <CardContent className="p-4 space-y-3">
+                        <CardContent className="p-4 space-y-3 text-left">
                           <p className="text-[10px] text-muted-foreground line-clamp-2 min-h-[2.5em] leading-relaxed">{item.description || 'No description provided.'}</p>
                           <div className="flex flex-wrap gap-1">
                             {item.availableOn?.map(m => (
@@ -809,9 +809,9 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {modifierGroups?.map(group => (
-                      <Card key={group.id} className="border-2 shadow-sm group bg-white">
+                      <Card key={group.id} className="border-2 shadow-sm group bg-white text-left">
                         <CardHeader className="p-5 border-b bg-slate-50/50 flex flex-row items-center justify-between space-y-0">
-                          <div className="space-y-1">
+                          <div className="space-y-1 text-left">
                             <p className="font-black text-xs uppercase text-[#213147]">{group.name}</p>
                             <div className="flex items-center gap-2">
                               <Badge className="text-[7px] font-black bg-indigo-100 text-indigo-700 uppercase h-3.5 px-1">{group.minSelection > 0 ? 'Required' : 'Optional'}</Badge>
@@ -822,7 +822,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                             <Edit className="h-4 w-4" />
                           </Button>
                         </CardHeader>
-                        <CardContent className="p-5 flex flex-wrap gap-2">
+                        <CardContent className="p-5 flex flex-wrap gap-2 text-left">
                           {group.options.map((opt, idx) => (
                             <Badge key={idx} variant="outline" className="text-[9px] font-bold uppercase border-slate-100 bg-white">
                               {opt.name} {opt.priceAdjustment > 0 && <span className="text-primary ml-1">+${opt.priceAdjustment.toFixed(2)}</span>}
@@ -849,7 +849,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
 
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {staffList?.map(s => (
-                      <Card key={s.id} className="border-2 shadow-sm group bg-white overflow-hidden">
+                      <Card key={s.id} className="border-2 shadow-sm group bg-white overflow-hidden text-left">
                         <CardHeader className="p-6 pb-4 flex flex-row items-center gap-4 relative">
                           <div className="bg-slate-100 p-3 rounded-2xl text-slate-400 group-hover:text-indigo-600 transition-colors">
                             <Users className="h-6 w-6" />
@@ -862,7 +862,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                             <Edit className="h-4 w-4" />
                           </Button>
                         </CardHeader>
-                        <CardContent className="p-6 pt-0 space-y-4">
+                        <CardContent className="p-6 pt-0 space-y-4 text-left">
                            <div className="bg-slate-50 p-4 rounded-2xl border-2 border-slate-100 flex items-center justify-between">
                               <div className="space-y-0.5 text-left">
                                  <p className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">Secure PIN</p>
@@ -897,7 +897,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                   </div>
 
                   <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    <Card className="lg:col-span-2 border-2 shadow-sm p-8">
+                    <Card className="lg:col-span-2 border-2 shadow-sm p-8 text-left">
                        <div className="space-y-8">
                           <div className="flex items-center gap-4">
                             <div className="bg-indigo-50 p-4 rounded-[2rem] text-indigo-600 border-2 border-indigo-100">
@@ -932,7 +932,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                     </Card>
 
                     <div className="space-y-4">
-                       <Card className="border-2 p-6 space-y-4">
+                       <Card className="border-2 p-6 space-y-4 text-left">
                           <div className="bg-blue-50 p-3 rounded-2xl w-fit text-blue-600"><FileText className="h-6 w-6" /></div>
                           <div className="text-left">
                             <p className="font-black text-xs uppercase text-[#213147]">Starter Poster Pack</p>
@@ -943,7 +943,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                           </Button>
                        </Card>
 
-                       <Card className="border-2 p-6 space-y-4">
+                       <Card className="border-2 p-6 space-y-4 text-left">
                           <div className="bg-green-50 p-3 rounded-2xl w-fit text-green-600"><LucideImage className="h-6 w-6" /></div>
                           <div className="text-left">
                             <p className="font-black text-xs uppercase text-[#213147]">Social Graphics Kit</p>
@@ -977,7 +977,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                   </div>
 
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    <Card className="border-2 shadow-sm p-8 space-y-8">
+                    <Card className="border-2 shadow-sm p-8 space-y-8 text-left">
                        <div className="space-y-6">
                          <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
                             <Building className="h-4 w-4" /> Core Identity
@@ -1029,7 +1029,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                        </div>
                     </Card>
 
-                    <Card className="border-2 shadow-sm p-8 space-y-8">
+                    <Card className="border-2 shadow-sm p-8 space-y-8 text-left">
                        <div className="space-y-6">
                          <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
                             <DollarSign className="h-4 w-4" /> Financials & Payouts
@@ -1097,21 +1097,21 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
       {/* Staff Form */}
       <Dialog open={isStaffFormOpen} onOpenChange={setIsStaffFormOpen}>
         <DialogContent className="sm:max-w-[425px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
-          <DialogHeader className="p-8 bg-[#213147] text-white">
+          <DialogHeader className="p-8 bg-[#213147] text-white text-left">
             <DialogTitle className="font-headline font-black uppercase tracking-tight text-white text-xl">
               {editingStaff ? 'Edit Personnel' : 'Add Personnel'}
             </DialogTitle>
           </DialogHeader>
           <div className="p-8"><Form {...staffForm}><form onSubmit={staffForm.handleSubmit(onSaveStaff)} className="space-y-6">
             <FormField control={staffForm.control} name="name" render={({ field }) => (
-              <FormItem><FormLabel className="text-[10px] font-black uppercase">Full Name</FormLabel><FormControl><Input {...field} className="h-12 border-2 font-bold" /></FormControl><FormMessage /></FormItem>
+              <FormItem className="text-left"><FormLabel className="text-[10px] font-black uppercase">Full Name</FormLabel><FormControl><Input {...field} className="h-12 border-2 font-bold" /></FormControl><FormMessage /></FormItem>
             )} />
             <div className="grid grid-cols-2 gap-4">
               <FormField control={staffForm.control} name="role" render={({ field }) => (
-                <FormItem><FormLabel className="text-[10px] font-black uppercase">Role</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger className="h-12 border-2 font-bold"><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="Staff">Fulfillment Staff</SelectItem><SelectItem value="Manager">Venue Manager</SelectItem></SelectContent></Select></FormItem>
+                <FormItem className="text-left"><FormLabel className="text-[10px] font-black uppercase">Role</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger className="h-12 border-2 font-bold"><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="Staff">Fulfillment Staff</SelectItem><SelectItem value="Manager">Venue Manager</SelectItem></SelectContent></Select></FormItem>
               )} />
               <FormField control={staffForm.control} name="pin" render={({ field }) => (
-                <FormItem><FormLabel className="text-[10px] font-black uppercase">4-Digit PIN</FormLabel><FormControl><Input {...field} maxLength={4} className="h-12 border-2 font-bold font-mono tracking-widest text-center" /></FormControl></FormItem>
+                <FormItem className="text-left"><FormLabel className="text-[10px] font-black uppercase">4-Digit PIN</FormLabel><FormControl><Input {...field} maxLength={4} className="h-12 border-2 font-bold font-mono tracking-widest text-center" /></FormControl></FormItem>
               )} />
             </div>
             <Button type="submit" disabled={isProcessingSave} className="w-full h-14 bg-indigo-600 font-black uppercase tracking-widest text-[11px] gap-2 shadow-xl">
@@ -1124,7 +1124,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
       {/* Item Form */}
       <Dialog open={isItemFormOpen} onOpenChange={setIsItemFormOpen}>
         <DialogContent className="sm:max-w-[500px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
-          <DialogHeader className="p-8 bg-[#213147] text-white">
+          <DialogHeader className="p-8 bg-[#213147] text-white text-left">
             <DialogTitle className="font-headline font-black uppercase tracking-tight text-white text-xl">Menu Item</DialogTitle>
           </DialogHeader>
           <ScrollArea className="max-h-[70vh]"><div className="p-8"><Form {...itemForm}><form onSubmit={itemForm.handleSubmit(async (d) => { 
@@ -1136,14 +1136,14 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
             toast({ title: "Item Saved" });
           })} className="space-y-6">
             <FormField control={itemForm.control} name="name" render={({ field }) => (
-              <FormItem><FormLabel className="text-[10px] font-black uppercase">Item Name</FormLabel><FormControl><Input {...field} className="h-12 border-2 font-bold" /></FormControl></FormItem>
+              <FormItem className="text-left"><FormLabel className="text-[10px] font-black uppercase">Item Name</FormLabel><FormControl><Input {...field} className="h-12 border-2 font-bold" /></FormControl></FormItem>
             )} />
             <div className="grid grid-cols-2 gap-4">
               <FormField control={itemForm.control} name="price" render={({ field }) => (
-                <FormItem><FormLabel className="text-[10px] font-black uppercase">Price ($)</FormLabel><FormControl><Input {...field} type="number" step="0.01" className="h-12 border-2 font-bold" /></FormControl></FormItem>
+                <FormItem className="text-left"><FormLabel className="text-[10px] font-black uppercase">Price ($)</FormLabel><FormControl><Input {...field} type="number" step="0.01" className="h-12 border-2 font-bold" /></FormControl></FormItem>
               )} />
               <FormField control={itemForm.control} name="category" render={({ field }) => (
-                <FormItem><FormLabel className="text-[10px] font-black uppercase">Category</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger className="h-12 border-2 font-bold"><SelectValue /></SelectTrigger></FormControl><SelectContent>{categories.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent></Select></FormItem>
+                <FormItem className="text-left"><FormLabel className="text-[10px] font-black uppercase">Category</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger className="h-12 border-2 font-bold"><SelectValue /></SelectTrigger></FormControl><SelectContent>{categories.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent></Select></FormItem>
               )} />
             </div>
             <Button type="submit" disabled={isProcessingSave} className="w-full h-14 bg-[#213147] font-black uppercase tracking-widest text-[11px] gap-2 shadow-xl">
@@ -1156,7 +1156,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
       {/* Modifier Group Form */}
       <Dialog open={isModifierGroupFormOpen} onOpenChange={setIsModifierGroupFormOpen}>
         <DialogContent className="sm:max-w-[600px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
-          <DialogHeader className="p-8 bg-indigo-600 text-white">
+          <DialogHeader className="p-8 bg-indigo-600 text-white text-left">
             <DialogTitle className="font-headline font-black uppercase tracking-tight text-white text-xl">Modifier Set</DialogTitle>
           </DialogHeader>
           <ScrollArea className="max-h-[70vh]"><div className="p-8"><Form {...modifierGroupForm}><form onSubmit={modifierGroupForm.handleSubmit(async (d) => {
@@ -1169,13 +1169,13 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
           })} className="space-y-6">
             <div className="grid grid-cols-3 gap-4">
               <FormField control={modifierGroupForm.control} name="name" render={({ field }) => (
-                <FormItem className="col-span-1"><FormLabel className="text-[10px] font-black uppercase">Group Name</FormLabel><FormControl><Input {...field} className="h-10 border-2 font-bold" /></FormControl></FormItem>
+                <FormItem className="col-span-1 text-left"><FormLabel className="text-[10px] font-black uppercase">Group Name</FormLabel><FormControl><Input {...field} className="h-10 border-2 font-bold" /></FormControl></FormItem>
               )} />
               <FormField control={modifierGroupForm.control} name="minSelection" render={({ field }) => (
-                <FormItem><FormLabel className="text-[10px] font-black uppercase">Min Select</FormLabel><FormControl><Input {...field} type="number" className="h-10 border-2 font-bold" /></FormControl></FormItem>
+                <FormItem className="text-left"><FormLabel className="text-[10px] font-black uppercase">Min Select</FormLabel><FormControl><Input {...field} type="number" className="h-10 border-2 font-bold" /></FormControl></FormItem>
               )} />
               <FormField control={modifierGroupForm.control} name="maxSelection" render={({ field }) => (
-                <FormItem><FormLabel className="text-[10px] font-black uppercase">Max Select</FormLabel><FormControl><Input {...field} type="number" className="h-10 border-2 font-bold" /></FormControl></FormItem>
+                <FormItem className="text-left"><FormLabel className="text-[10px] font-black uppercase">Max Select</FormLabel><FormControl><Input {...field} type="number" className="h-10 border-2 font-bold" /></FormControl></FormItem>
               )} />
             </div>
             <div className="space-y-3">
@@ -1186,10 +1186,10 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
               {optionFields.map((field, index) => (
                 <div key={field.id} className="flex gap-2 items-start bg-slate-50 p-3 rounded-xl border-2">
                   <FormField control={modifierGroupForm.control} name={`options.${index}.name`} render={({ field }) => (
-                    <FormItem className="flex-1"><FormControl><Input {...field} placeholder="Option Name" className="h-10 border-2 font-bold bg-white" /></FormControl></FormItem>
+                    <FormItem className="flex-1 text-left"><FormControl><Input {...field} placeholder="Option Name" className="h-10 border-2 font-bold bg-white" /></FormControl></FormItem>
                   )} />
                   <FormField control={modifierGroupForm.control} name={`options.${index}.priceAdjustment`} render={({ field }) => (
-                    <FormItem className="w-24"><FormControl><Input {...field} type="number" step="0.01" placeholder="$0.00" className="h-10 border-2 font-bold bg-white" /></FormControl></FormItem>
+                    <FormItem className="w-24 text-left"><FormControl><Input {...field} type="number" step="0.01" placeholder="$0.00" className="h-10 border-2 font-bold bg-white" /></FormControl></FormItem>
                   )} />
                   <Button type="button" variant="ghost" size="icon" onClick={() => removeOption(index)} className="h-10 w-10 text-muted-foreground hover:text-destructive"><Trash2 className="h-4 w-4" /></Button>
                 </div>
