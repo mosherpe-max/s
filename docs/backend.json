@@ -159,6 +159,21 @@
         "sortOrder": { "type": "number" }
       },
       "required": ["name", "venueType", "options"]
+    },
+    "StarterMenuItem": {
+      "title": "Starter Menu Item",
+      "type": "object",
+      "description": "Global template for industry-standard menu items.",
+      "properties": {
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "price": { "type": "number" },
+        "category": { "type": "string" },
+        "venueType": { "type": "array", "items": { "type": "string" } },
+        "modifierKeywords": { "type": "array", "items": { "type": "string" } },
+        "imageUrl": { "type": "string" }
+      },
+      "required": ["name", "price", "category", "venueType"]
     }
   },
   "auth": {
@@ -174,7 +189,8 @@
       { "path": "/roles_sales_rep/{email}", "definition": { "entityName": "SalesRepRole" } },
       { "path": "/menu_items/{itemId}", "definition": { "entityName": "MenuItemNormalized" } },
       { "path": "/modifier_groups/{groupId}", "definition": { "entityName": "ModifierGroup" } },
-      { "path": "/starter_modifier_library/{groupId}", "definition": { "entityName": "StarterModifierGroup" } }
+      { "path": "/starter_modifier_library/{groupId}", "definition": { "entityName": "StarterModifierGroup" } },
+      { "path": "/starter_menu_item_library/{itemId}", "definition": { "entityName": "StarterMenuItem" } }
     ]
   }
 }

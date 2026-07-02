@@ -11,11 +11,11 @@ import {
   deleteDoc,
   getDoc
 } from 'firebase/firestore';
-import type { ModifierGroup, MenuItem, ModifierOption, SellerType, StarterModifierGroup } from './types';
+import type { ModifierGroup, MenuItem, ModifierOption, SellerType, StarterModifierGroup, StarterMenuItem } from './types';
 import { publicGolfItems, privateGolfItems, bowlingAlleyItems } from './data';
 
 /**
- * Master library definition for the starter system.
+ * Master library definition for the starter modifier system.
  */
 const GLOBAL_STARTER_LIBRARY: Omit<StarterModifierGroup, 'id'>[] = [
   // --- UNIVERSAL ---
@@ -112,6 +112,37 @@ const GLOBAL_STARTER_LIBRARY: Omit<StarterModifierGroup, 'id'>[] = [
       { label: "Buffalo", priceModifier: 0 },
       { label: "Honey Mustard", priceModifier: 0 },
       { label: "Hot Sauce", priceModifier: 0 },
+      { label: "No Sauce", priceModifier: 0 }
+    ]
+  },
+  {
+    name: "Dipping Sauce",
+    venueType: ["golf", "bowling"],
+    category: "food",
+    selectionType: "single",
+    required: false,
+    sortOrder: 16,
+    options: [
+      { label: "Marinara", priceModifier: 0 },
+      { label: "Ranch", priceModifier: 0 },
+      { label: "Cheese Sauce", priceModifier: 0 },
+      { label: "Honey Mustard", priceModifier: 0 },
+      { label: "BBQ", priceModifier: 0 },
+      { label: "No Sauce", priceModifier: 0 }
+    ]
+  },
+  {
+    name: "Wrap Sauce",
+    venueType: ["golf", "bowling"],
+    category: "food",
+    selectionType: "single",
+    required: false,
+    sortOrder: 17,
+    options: [
+      { label: "Caesar Dressing", priceModifier: 0 },
+      { label: "Buffalo", priceModifier: 0 },
+      { label: "Ranch", priceModifier: 0 },
+      { label: "Chipotle Mayo", priceModifier: 0 },
       { label: "No Sauce", priceModifier: 0 }
     ]
   },
@@ -271,6 +302,20 @@ const GLOBAL_STARTER_LIBRARY: Omit<StarterModifierGroup, 'id'>[] = [
       { label: "Cheese Sauce", priceModifier: 1.00 }
     ]
   },
+  {
+    name: "Pretzel Sauce",
+    venueType: ["bowling"],
+    category: "food",
+    selectionType: "single",
+    required: false,
+    sortOrder: 45,
+    options: [
+      { label: "Cheese Sauce", priceModifier: 0 },
+      { label: "Mustard", priceModifier: 0 },
+      { label: "Marinara", priceModifier: 0 },
+      { label: "No Sauce", priceModifier: 0 }
+    ]
+  },
 
   // --- FOOD: SALADS ---
   {
@@ -305,7 +350,7 @@ const GLOBAL_STARTER_LIBRARY: Omit<StarterModifierGroup, 'id'>[] = [
     ]
   },
 
-  // --- FOOD: NACHOS ---
+  // --- FOOD: NACHOS / MEXICAN ---
   {
     name: "Nacho Protein",
     venueType: ["golf", "bowling"],
@@ -335,6 +380,21 @@ const GLOBAL_STARTER_LIBRARY: Omit<StarterModifierGroup, 'id'>[] = [
     ]
   },
   {
+    name: "Mexican Add-ons",
+    venueType: ["golf", "bowling"],
+    category: "food",
+    selectionType: "multi",
+    required: false,
+    sortOrder: 63,
+    options: [
+      { label: "Salsa", priceModifier: 0 },
+      { label: "Sour Cream", priceModifier: 0 },
+      { label: "Guacamole", priceModifier: 1.50 },
+      { label: "Pico de Gallo", priceModifier: 0 },
+      { label: "Jalapeños", priceModifier: 0 }
+    ]
+  },
+  {
     name: "Cheese Amount",
     venueType: ["golf", "bowling"],
     category: "food",
@@ -345,6 +405,20 @@ const GLOBAL_STARTER_LIBRARY: Omit<StarterModifierGroup, 'id'>[] = [
       { label: "Regular Cheese", priceModifier: 0 },
       { label: "Extra Cheese", priceModifier: 1.00 },
       { label: "Light Cheese", priceModifier: 0 }
+    ]
+  },
+  {
+    name: "Soup/Chili Add-ons",
+    venueType: ["golf", "bowling"],
+    category: "food",
+    selectionType: "multi",
+    required: false,
+    sortOrder: 64,
+    options: [
+      { label: "Shredded Cheese", priceModifier: 0 },
+      { label: "Sour Cream", priceModifier: 0 },
+      { label: "Crackers", priceModifier: 0 },
+      { label: "Green Onion", priceModifier: 0 }
     ]
   },
 
@@ -420,6 +494,21 @@ const GLOBAL_STARTER_LIBRARY: Omit<StarterModifierGroup, 'id'>[] = [
     ]
   },
 
+  // --- BEVERAGE: BEER ---
+  {
+    name: "Beer Bucket Quantity",
+    venueType: ["golf", "bowling"],
+    category: "beverage",
+    selectionType: "single",
+    required: true,
+    sortOrder: 100,
+    options: [
+      { label: "3-pack", priceModifier: 0 },
+      { label: "5-pack", priceModifier: 0 },
+      { label: "6-pack", priceModifier: 0 }
+    ]
+  },
+
   // --- BEVERAGE: COCKTAILS ---
   {
     name: "Ice Preference",
@@ -462,11 +551,150 @@ const GLOBAL_STARTER_LIBRARY: Omit<StarterModifierGroup, 'id'>[] = [
       { label: "Single", priceModifier: 0 },
       { label: "Double", priceModifier: 4.00 }
     ]
+  },
+
+  // --- KIDS ---
+  {
+    name: "Kids Sauce",
+    venueType: ["golf", "bowling"],
+    category: "universal",
+    selectionType: "single",
+    required: false,
+    sortOrder: 95,
+    options: [
+      { label: "Ketchup", priceModifier: 0 },
+      { label: "Ranch", priceModifier: 0 },
+      { label: "BBQ", priceModifier: 0 },
+      { label: "No Sauce", priceModifier: 0 }
+    ]
   }
 ];
 
 /**
- * Seeds the global starter library collection.
+ * Master library definition for the starter menu item system.
+ */
+const GLOBAL_STARTER_MENU_ITEMS: Omit<StarterMenuItem, 'id'>[] = [
+  // --- GOLF EXCLUSIVES ---
+  {
+    name: "Signature Transfusion",
+    description: "Vodka, grape juice, ginger ale, lime.",
+    price: 11.00,
+    category: "Spirits",
+    venueType: ["golf"],
+    modifierKeywords: ["cocktail", "specialty"]
+  },
+  {
+    name: "Beer Bucket Bundle",
+    description: "Your choice of standard domestic cans.",
+    price: 24.00,
+    category: "Beer",
+    venueType: ["golf", "bowling"],
+    modifierKeywords: ["beer bucket"]
+  },
+  {
+    name: "Turn Dog Combo",
+    description: "Quarter pound all-beef dog with chips.",
+    price: 9.50,
+    category: "Handhelds",
+    venueType: ["golf"],
+    modifierKeywords: ["hot dog"]
+  },
+  {
+    name: "Arnold Palmer",
+    description: "Half iced tea, half lemonade.",
+    price: 4.50,
+    category: "Soft Drinks",
+    venueType: ["golf"],
+    modifierKeywords: ["drink size"]
+  },
+
+  // --- BOWLING EXCLUSIVES ---
+  {
+    name: "16\" Pepperoni Pizza",
+    description: "Stone fired with classic pepperoni.",
+    price: 22.00,
+    category: "Pizza",
+    venueType: ["bowling"],
+    modifierKeywords: ["pizza", "crust"]
+  },
+  {
+    name: "Giant Soft Pretzel",
+    description: "Warm, salted, and served with dipping sauce.",
+    price: 8.50,
+    category: "Appetizers",
+    venueType: ["bowling"],
+    modifierKeywords: ["pretzel sauce"]
+  },
+  {
+    name: "Pitcher of Domestic Beer",
+    description: "64oz cold draft for the lane.",
+    price: 18.00,
+    category: "Beer",
+    venueType: ["bowling"],
+    modifierKeywords: []
+  },
+
+  // --- UNIVERSAL ---
+  {
+    name: "Angus Cheeseburger",
+    description: "Half pound premium beef with fries.",
+    price: 14.50,
+    category: "Handhelds",
+    venueType: ["golf", "bowling"],
+    modifierKeywords: ["burger", "doneness", "cheese", "toppings", "sauces", "side swap"]
+  },
+  {
+    name: "Jumbo Buffalo Wings",
+    description: "10 count, served with ranch or blue cheese.",
+    price: 16.00,
+    category: "Appetizers",
+    venueType: ["golf", "bowling"],
+    modifierKeywords: ["wing style", "wing sauce"]
+  },
+  {
+    name: "Chicken Quesadilla",
+    description: "Grilled chicken, melted jack, side of salsa.",
+    price: 13.00,
+    category: "Appetizers",
+    venueType: ["golf", "bowling"],
+    modifierKeywords: ["quesadilla", "mexican add-ons"]
+  },
+  {
+    name: "Crispy Chicken Tenders",
+    description: "Served with fries and dipping sauce.",
+    price: 12.50,
+    category: "Handhelds",
+    venueType: ["golf", "bowling"],
+    modifierKeywords: ["dipping sauce", "side swap"]
+  },
+  {
+    name: "Buffalo Chicken Wrap",
+    description: "Crispy chicken, buffalo sauce, lettuce, tomato.",
+    price: 13.50,
+    category: "Handhelds",
+    venueType: ["golf", "bowling"],
+    modifierKeywords: ["wrap sauce", "side swap"]
+  },
+  {
+    name: "House Chili",
+    description: "Slow simmered with beef and beans.",
+    price: 7.00,
+    category: "Entrees",
+    venueType: ["golf", "bowling"],
+    modifierKeywords: ["soup/chili add-ons"]
+  },
+  {
+    name: "Kids Chicken Strip Meal",
+    description: "2 strips, fries, and a small drink.",
+    price: 8.00,
+    category: "Kids",
+    venueType: ["golf", "bowling"],
+    modifierKeywords: ["kids sauce"]
+  }
+];
+
+/**
+ * Seeds the global starter modifier library collection.
  */
 export async function seedGlobalStarterLibrary(db: Firestore) {
   const batch = writeBatch(db);
@@ -482,20 +710,33 @@ export async function seedGlobalStarterLibrary(db: Firestore) {
 }
 
 /**
+ * Seeds the global starter menu item library collection.
+ */
+export async function seedGlobalStarterMenuLibrary(db: Firestore) {
+  const batch = writeBatch(db);
+  const libraryRef = collection(db, 'starter_menu_item_library');
+
+  GLOBAL_STARTER_MENU_ITEMS.forEach(item => {
+    const id = item.name.toLowerCase().replace(/\s+/g, '-');
+    const docRef = doc(libraryRef, id);
+    batch.set(docRef, item);
+  });
+
+  await batch.commit();
+}
+
+/**
  * Seeds a venue with typical modifiers by pulling from the Global Starter Library.
- * Maps template fields to operational ModifierGroup schema.
  */
 export async function seedVenueModifiers(db: Firestore, sellerId: string, venueType: string) {
   const typeKey = venueType.toLowerCase().includes('golf') ? 'golf' : (venueType.toLowerCase().includes('bowling') ? 'bowling' : null);
   if (!typeKey) return;
 
-  // 1. Fetch relevant templates from Global Library
   const libraryRef = collection(db, 'starter_modifier_library');
   const q = query(libraryRef, where('venueType', 'array-contains', typeKey));
   const librarySnap = await getDocs(q);
 
   if (librarySnap.empty) {
-    // If library is empty, seed it first then retry
     await seedGlobalStarterLibrary(db);
     return seedVenueModifiers(db, sellerId, venueType);
   }
@@ -503,7 +744,6 @@ export async function seedVenueModifiers(db: Firestore, sellerId: string, venueT
   const batch = writeBatch(db);
   const groupIdsMap: Record<string, string> = {};
 
-  // 2. Clone Templates into Venue Collection
   librarySnap.forEach(templateDoc => {
     const template = templateDoc.data() as StarterModifierGroup;
     const groupId = `${sellerId}-${templateDoc.id}`;
@@ -529,7 +769,7 @@ export async function seedVenueModifiers(db: Firestore, sellerId: string, venueT
     groupIdsMap[template.name] = groupId;
   });
 
-  // 3. Link cloned groups to existing Menu Items based on intelligent keyword matching
+  // Re-link modifiers to existing items
   const menuItemsRef = collection(db, 'sellers', sellerId, 'menuItems');
   const itemsSnap = await getDocs(menuItemsRef);
   
@@ -541,12 +781,10 @@ export async function seedVenueModifiers(db: Firestore, sellerId: string, venueT
     const name = item.name.toLowerCase();
     const cat = (item.category || '').toLowerCase();
     
-    // --- UNIVERSAL LINKING ---
     if (groupIdsMap['Special Instructions']) { currentGroups.push(groupIdsMap['Special Instructions']); updated = true; }
     if (groupIdsMap['Allergy Flag']) { currentGroups.push(groupIdsMap['Allergy Flag']); updated = true; }
 
-    // --- KEYWORD LINKING ---
-    if (name.includes('burger') || name.includes('sandwich') || name.includes('club') || name.includes('wrap')) {
+    if (name.includes('burger') || name.includes('sandwich') || name.includes('club')) {
       if (groupIdsMap['Doneness'] && name.includes('burger')) { currentGroups.push(groupIdsMap['Doneness']); updated = true; }
       if (groupIdsMap['Cheese']) { currentGroups.push(groupIdsMap['Cheese']); updated = true; }
       if (groupIdsMap['Toppings']) { currentGroups.push(groupIdsMap['Toppings']); updated = true; }
@@ -554,50 +792,18 @@ export async function seedVenueModifiers(db: Firestore, sellerId: string, venueT
       if (groupIdsMap['Bun']) { currentGroups.push(groupIdsMap['Bun']); updated = true; }
       if (groupIdsMap['Side Swap']) { currentGroups.push(groupIdsMap['Side Swap']); updated = true; }
     }
-    
-    if (name.includes('wings') || name.includes('wing')) {
-      if (groupIdsMap['Wing Style']) { currentGroups.push(groupIdsMap['Wing Style']); updated = true; }
-      if (groupIdsMap['Wing Sauce']) { currentGroups.push(groupIdsMap['Wing Sauce']); updated = true; }
+
+    if (name.includes('wrap')) {
+      if (groupIdsMap['Wrap Sauce']) { currentGroups.push(groupIdsMap['Wrap Sauce']); updated = true; }
+      if (groupIdsMap['Side Swap']) { currentGroups.push(groupIdsMap['Side Swap']); updated = true; }
     }
 
-    if (name.includes('pizza')) {
-      if (groupIdsMap['Crust']) { currentGroups.push(groupIdsMap['Crust']); updated = true; }
-      if (groupIdsMap['Pizza Size']) { currentGroups.push(groupIdsMap['Pizza Size']); updated = true; }
-      if (groupIdsMap['Pizza Sauce']) { currentGroups.push(groupIdsMap['Pizza Sauce']); updated = true; }
-      if (groupIdsMap['Pizza Toppings']) { currentGroups.push(groupIdsMap['Pizza Toppings']); updated = true; }
+    if (name.includes('pretzel')) {
+      if (groupIdsMap['Pretzel Sauce']) { currentGroups.push(groupIdsMap['Pretzel Sauce']); updated = true; }
     }
 
-    if (name.includes('hot dog') || name.includes('brat') || name.includes('dog')) {
-      if (groupIdsMap['Hot Dog Style']) { currentGroups.push(groupIdsMap['Hot Dog Style']); updated = true; }
-      if (groupIdsMap['Hot Dog Toppings']) { currentGroups.push(groupIdsMap['Hot Dog Toppings']); updated = true; }
-    }
-
-    if (name.includes('salad') || name.includes('caesar')) {
-      if (groupIdsMap['Dressing']) { currentGroups.push(groupIdsMap['Dressing']); updated = true; }
-      if (groupIdsMap['Salad Add-ons']) { currentGroups.push(groupIdsMap['Salad Add-ons']); updated = true; }
-    }
-
-    if (name.includes('nachos') || name.includes('nacho')) {
-      if (groupIdsMap['Nacho Protein']) { currentGroups.push(groupIdsMap['Nacho Protein']); updated = true; }
-      if (groupIdsMap['Nacho Toppings']) { currentGroups.push(groupIdsMap['Nacho Toppings']); updated = true; }
-      if (groupIdsMap['Cheese Amount']) { currentGroups.push(groupIdsMap['Cheese Amount']); updated = true; }
-    }
-
-    if (name.includes('coffee') || name.includes('espresso') || name.includes('latte')) {
-      if (groupIdsMap['Coffee Size']) { currentGroups.push(groupIdsMap['Coffee Size']); updated = true; }
-      if (groupIdsMap['Milk Type']) { currentGroups.push(groupIdsMap['Milk Type']); updated = true; }
-      if (groupIdsMap['Sweetener']) { currentGroups.push(groupIdsMap['Sweetener']); updated = true; }
-      if (groupIdsMap['Coffee Extras']) { currentGroups.push(groupIdsMap['Coffee Extras']); updated = true; }
-    }
-
-    if (cat.includes('soft drinks') || name.includes('fountain') || name.includes('soda')) {
-      if (groupIdsMap['Drink Size']) { currentGroups.push(groupIdsMap['Drink Size']); updated = true; }
-    }
-
-    if (cat.includes('spirits') || name.includes('cocktail') || name.includes('margarita') || name.includes('transfusion') || name.includes('whiskey') || name.includes('vodka')) {
-      if (groupIdsMap['Ice Preference']) { currentGroups.push(groupIdsMap['Ice Preference']); updated = true; }
-      if (groupIdsMap['Mixer']) { currentGroups.push(groupIdsMap['Mixer']); updated = true; }
-      if (groupIdsMap['Pour Size']) { currentGroups.push(groupIdsMap['Pour Size']); updated = true; }
+    if (name.includes('bucket')) {
+      if (groupIdsMap['Beer Bucket Quantity']) { currentGroups.push(groupIdsMap['Beer Bucket Quantity']); updated = true; }
     }
 
     if (updated) {
@@ -635,8 +841,8 @@ export async function seedVenueItems(db: Firestore, sellerId: string, items: any
  * Global function to reset all demo venues to their ideal states.
  */
 export async function seedAllDemoData(db: Firestore) {
-  // Ensure the library is populated first
   await seedGlobalStarterLibrary(db);
+  await seedGlobalStarterMenuLibrary(db);
   
   await seedVenueItems(db, 'demo-course', publicGolfItems);
   await seedVenueModifiers(db, 'demo-course', 'Public Golf Course');
@@ -650,7 +856,6 @@ export async function seedAllDemoData(db: Firestore) {
 
 /**
  * Deep operational reset for the entire platform.
- * Returns all venues to a fresh offline baseline.
  */
 export async function resetAllVenueOperationalStatus(db: Firestore) {
   const sellersRef = collection(db, 'sellers');
@@ -658,7 +863,6 @@ export async function resetAllVenueOperationalStatus(db: Firestore) {
   const batch = writeBatch(db);
 
   for (const sellerDoc of snapshot.docs) {
-    // 1. Clear Seller Operational Flags
     batch.update(sellerDoc.ref, {
       bevcartActive: false,
       clubhouseActive: false,
@@ -670,7 +874,6 @@ export async function resetAllVenueOperationalStatus(db: Firestore) {
       updatedAt: serverTimestamp()
     });
 
-    // 2. Purge Live Staff Signals
     const staffRef = collection(db, 'sellers', sellerDoc.id, 'staff');
     const staffSnap = await getDocs(staffRef);
     staffSnap.forEach(sDoc => {

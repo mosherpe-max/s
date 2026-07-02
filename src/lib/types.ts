@@ -145,6 +145,17 @@ export interface StarterModifierGroup {
   sortOrder: number;
 }
 
+export interface StarterMenuItem {
+  id?: string;
+  name: string;
+  description: string;
+  price: number;
+  category: Category;
+  venueType: string[]; // ['golf', 'bowling']
+  modifierKeywords: string[]; // ['burger', 'pizza', 'wings']
+  imageUrl?: string;
+}
+
 export interface MenuItem {
     id: string;
     name: string;

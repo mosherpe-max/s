@@ -1,3 +1,4 @@
+
 import { onRequest, onCall, HttpsError } from "firebase-functions/v2/https";
 import { onDocumentWritten } from "firebase-functions/v2/firestore";
 import { onSchedule } from "firebase-functions/v2/scheduler";
@@ -16,7 +17,6 @@ const db = getFirestore();
 /**
  * createPaymentIntent
  * Securely generates a Stripe Client Secret for the patron checkout.
- * Refactored to support Customer Sessions for card reuse and integrated contact collection.
  */
 export const createPaymentIntent = onCall({
   secrets: ["STRIPE_SECRET_KEY"],
@@ -54,16 +54,13 @@ export const createPaymentIntent = onCall({
       const userRef = db.collection('users').doc(buyerUid);
       const userDoc = await userRef.get();
       
-      // Use email as key to find existing stripe customer or create new
       if (userDoc.exists && userDoc.data()?.stripeCustomerId) {
         stripeCustomerId = userDoc.data()?.stripeCustomerId;
       } else {
-        // Look up by email to avoid duplicates
         const existingCustomers = await stripe.customers.list({ email: patronEmail, limit: 1 });
         if (existingCustomers.data.length > 0) {
           stripeCustomerId = existingCustomers.data[0].id;
         } else if (saveInfo) {
-          // Only create a persistent customer in Stripe if they opted to save info
           const customer = await stripe.customers.create({
             email: patronEmail,
             name: patronName,
@@ -79,15 +76,11 @@ export const createPaymentIntent = onCall({
       }
     }
 
-    logger.info(`[createPaymentIntent] Creating intent for $${amount} (Venue: ${sellerId}, Customer: ${stripeCustomerId || 'Anonymous'}, SaveInfo: ${saveInfo})`);
-    
     // 4. Create Intent
     const paymentIntent = await stripe.paymentIntents.create({
-      amount: Math.round(amount * 100), // Convert dollars to cents
+      amount: Math.round(amount * 100),
       currency: 'usd',
       customer: stripeCustomerId,
-      // Flag for reuse if user opted in.
-      // Note: We hide the native Stripe checkbox in the UI, so consent is handled by the Koop toggle.
       setup_future_usage: saveInfo ? 'off_session' : undefined,
       automatic_payment_methods: {
         enabled: true,
@@ -101,7 +94,7 @@ export const createPaymentIntent = onCall({
       }
     });
 
-    // 5. Create Customer Session for returning users to natively show saved cards
+    // 5. Create Customer Session
     let customerSessionClientSecret: string | undefined;
     if (stripeCustomerId) {
       const customerSession = await stripe.customerSessions.create({
@@ -110,7 +103,6 @@ export const createPaymentIntent = onCall({
           payment_element: {
             enabled: true,
             features: {
-              // We handle the "Save Info" checkbox in our own UI to maintain one unified step
               payment_method_save: 'disabled', 
               payment_method_redisplay: 'always'
             }
@@ -141,37 +133,25 @@ export const createPaymentIntent = onCall({
 /**
  * dailyOperationalReset
  * Scheduled script that runs HOURLY to check if it's the admin-defined reset hour.
- * Shuts down all active service channels at all venues.
  */
 export const dailyOperationalReset = onSchedule({
-  schedule: "0 * * * *", // Every hour on the hour
+  schedule: "0 * * * *",
   timeZone: "America/New_York",
   region: 'us-central1'
 }, async (event) => {
-  // 1. Fetch Solution Config to find the reset hour
   const configRef = db.collection('solution').doc('config');
   const configSnap = await configRef.get();
-  
   const resetHour = configSnap.exists ? (configSnap.data()?.dailyResetHour ?? 4) : 4;
   
-  // 2. Determine Current Hour in Solution Timezone (EST/EDT)
   const nowInEst = new Date(new Date().toLocaleString("en-US", { timeZone: "America/New_York" }));
   const currentHour = nowInEst.getHours();
 
-  if (currentHour !== resetHour) {
-    logger.info(`[dailyOperationalReset] Current hour (${currentHour}) is not the target reset hour (${resetHour}). Skipping.`);
-    return;
-  }
+  if (currentHour !== resetHour) return;
 
-  logger.info(`[dailyOperationalReset] Targeted reset hour (${resetHour}) reached. Starting operational shutdown sequence...`);
-  
   const sellersRef = db.collection('sellers');
   const snapshot = await sellersRef.where('status', '==', 'Active').get();
   
-  if (snapshot.empty) {
-    logger.info("[dailyOperationalReset] No active venues to reset.");
-    return;
-  }
+  if (snapshot.empty) return;
 
   const batch = db.batch();
   snapshot.docs.forEach(doc => {
@@ -185,13 +165,11 @@ export const dailyOperationalReset = onSchedule({
   });
 
   await batch.commit();
-  logger.info(`[dailyOperationalReset] Successfully reset operational status for ${snapshot.size} venues.`);
 });
 
 /**
  * applyStarterMenu
- * Callable function that clones templates from the global library into a venue's scoped collection.
- * Maintains independent copies so future venue-specific edits don't affect the master templates.
+ * Clones template modifiers into a venue's collection.
  */
 export const applyStarterMenu = onCall({
   region: 'us-central1',
@@ -199,65 +177,113 @@ export const applyStarterMenu = onCall({
   const { venueId, venueType } = request.data;
   
   if (!venueId || !venueType) {
-    throw new HttpsError('invalid-argument', 'The venueId and venueType ("golf" or "bowling") are required.');
+    throw new HttpsError('invalid-argument', 'The venueId and venueType are required.');
   }
 
-  logger.info(`[applyStarterMenu] Initializing menu clone for venue: ${venueId} (Type: ${venueType})`);
-
-  // 1. Fetch relevant templates from the global library
   const libraryRef = db.collection('starter_modifier_library');
   const snapshot = await libraryRef.where('venueType', 'array-contains', venueType.toLowerCase()).get();
 
-  if (snapshot.empty) {
-    logger.warn(`[applyStarterMenu] No templates found for type: ${venueType}`);
-    return { totalCreated: 0, byCategory: {} };
-  }
+  if (snapshot.empty) return { totalCreated: 0, byCategory: {} };
 
   const batch = db.batch();
   const summary: Record<string, number> = {};
 
-  // 2. Clone each template into the venue-scoped collection
   snapshot.docs.forEach(docSnap => {
     const template = docSnap.data();
-    // Unique ID combining venue context and template identity
     const groupId = `${venueId}-${docSnap.id}`;
     const groupRef = db.collection('modifier_groups').doc(groupId);
     
-    const operationalGroup = {
+    batch.set(groupRef, {
       id: groupId,
       sellerId: venueId,
       name: template.name,
-      // Map templated requirements to operational schema
       minSelection: template.required ? 1 : 0,
       maxSelection: template.selectionType === 'single' ? 1 : 99,
       options: template.options.map((opt: any) => ({
-        id: opt.label.toLowerCase().replace(/[^a-z0-9]/g, '-'),
+        id: opt.label.toLowerCase().replace(/\s+/g, '-'),
         name: opt.label,
         priceAdjustment: opt.priceModifier || 0,
         isAvailable: true
       })),
       createdAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp()
-    };
-
-    batch.set(groupRef, operationalGroup);
+    });
     
     const cat = template.category || 'universal';
     summary[cat] = (summary[cat] || 0) + 1;
   });
 
   await batch.commit();
-  logger.info(`[applyStarterMenu] Successfully cloned ${snapshot.size} modifier groups into venue ${venueId}`);
+  return { totalCreated: snapshot.size, byCategory: summary };
+});
 
-  return {
-    totalCreated: snapshot.size,
-    byCategory: summary
-  };
+/**
+ * applyStarterItems
+ * Clones template menu items into a venue's collection and auto-links them to relevant modifiers.
+ */
+export const applyStarterItems = onCall({
+  region: 'us-central1',
+}, async (request) => {
+  const { venueId, venueType } = request.data;
+  
+  if (!venueId || !venueType) {
+    throw new HttpsError('invalid-argument', 'The venueId and venueType are required.');
+  }
+
+  // 1. Fetch Items for this Venue Type
+  const itemLibRef = db.collection('starter_menu_item_library');
+  const itemSnap = await itemLibRef.where('venueType', 'array-contains', venueType.toLowerCase()).get();
+
+  if (itemSnap.empty) return { totalCreated: 0 };
+
+  // 2. Fetch already-cloned Modifiers for this venue to perform auto-linking
+  const venueModRef = db.collection('modifier_groups');
+  const modSnap = await venueModRef.where('sellerId', '==', venueId).get();
+  
+  const venueModMap: Record<string, string> = {};
+  modSnap.forEach(m => {
+    venueModMap[m.data().name.toLowerCase()] = m.id;
+  });
+
+  const batch = db.batch();
+  const venueItemsRef = db.collection('sellers').doc(venueId).collection('menuItems');
+
+  itemSnap.docs.forEach((docSnap, index) => {
+    const template = docSnap.data();
+    const itemId = `${venueId}-${docSnap.id}`;
+    const itemRef = venueItemsRef.doc(itemId);
+
+    // Auto-link logic: Find matching groups by keywords
+    const linkedGroups: string[] = [];
+    if (venueModMap['special instructions']) linkedGroups.push(venueModMap['special instructions']);
+    if (venueModMap['allergy flag']) linkedGroups.push(venueModMap['allergy flag']);
+
+    if (template.modifierKeywords) {
+      template.modifierKeywords.forEach((kw: string) => {
+        if (venueModMap[kw.toLowerCase()]) {
+          linkedGroups.push(venueModMap[kw.toLowerCase()]);
+        }
+      });
+    }
+
+    batch.set(itemRef, {
+      ...template,
+      id: itemId,
+      rank: index + 1,
+      isAvailable: true,
+      modifierGroupIds: Array.from(new Set(linkedGroups)),
+      availableOn: venueType === 'golf' ? ['Beverage Cart', 'Clubhouse', 'Take Out'] : ['Lane Delivery', 'Take Out'],
+      createdAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp()
+    });
+  });
+
+  await batch.commit();
+  return { totalCreated: itemSnap.size };
 });
 
 /**
  * onGuestOrderStatusUpdate
- * Triggers on any creation or update to an order document.
  * Manages patron SMS notifications via Twilio.
  */
 export const onGuestOrderStatusUpdate = onDocumentWritten({
@@ -271,54 +297,37 @@ export const onGuestOrderStatusUpdate = onDocumentWritten({
 
   if (!after || !after.exists) return;
 
-  // 1. Check Global SMS Gate
   const configRef = db.collection('solution').doc('config');
   const configSnap = await configRef.get();
   const smsEnabled = configSnap.exists ? (configSnap.data()?.smsNotificationsEnabled ?? true) : true;
 
-  if (!smsEnabled) {
-    logger.info(`[onGuestOrderStatusUpdate] Global SMS updates are disabled. Skipping notification for order ${orderId}.`);
-    return;
-  }
+  if (!smsEnabled) return;
 
   const afterData = after.data();
   const customerPhone = afterData?.customerPhone;
   const status = afterData?.status;
 
-  if (!customerPhone) {
-    logger.info(`[onGuestOrderStatusUpdate] No phone number for order ${orderId}. Skipping SMS.`);
-    return;
-  }
+  if (!customerPhone) return;
 
   const accountSid = process.env.TWILIO_ACCOUNT_SID;
   const authToken = process.env.TWILIO_AUTH_TOKEN;
   const fromNumber = process.env.TWILIO_FROM_NUMBER;
 
-  if (!accountSid || !authToken || !fromNumber) {
-    logger.error("[onGuestOrderStatusUpdate] Twilio credentials missing from Secret Manager.");
-    return;
-  }
+  if (!accountSid || !authToken || !fromNumber) return;
 
   const client = twilio(accountSid, authToken);
   let messageBody = "";
-  
   const trackingLink = `https://koop.app/orders/${orderId}`;
 
   if (!before || !before.exists) {
-    // RULE 1: INITIAL CREATION (Order Received)
     if (status === 'received' || status === 'Placed') {
       messageBody = `Thanks for your order! We've received it and it's in our queue. Track live: ${trackingLink}`;
     }
   } else {
-    // STATUS UPDATES
     const beforeData = before.data();
     const oldStatus = beforeData?.status;
-
-    if (status !== oldStatus) {
-      if (status === 'Out for Delivery') {
-        // RULE 2: DISPATCH (Out for Delivery)
-        messageBody = `Your order is out for delivery! A runner is on the way. Track live: ${trackingLink}`;
-      }
+    if (status !== oldStatus && status === 'Out for Delivery') {
+      messageBody = `Your order is out for delivery! A runner is on the way. Track live: ${trackingLink}`;
     }
   }
 
@@ -326,13 +335,7 @@ export const onGuestOrderStatusUpdate = onDocumentWritten({
     try {
       const cleanPhone = customerPhone.replace(/\D/g, '');
       const to = cleanPhone.length === 10 ? `+1${cleanPhone}` : `+${cleanPhone}`;
-      
-      await client.messages.create({
-        body: messageBody,
-        from: fromNumber,
-        to: to
-      });
-      logger.info(`[onGuestOrderStatusUpdate] SMS sent to ${to} for order ${orderId}`);
+      await client.messages.create({ body: messageBody, from: fromNumber, to: to });
     } catch (error: any) {
       logger.error(`[onGuestOrderStatusUpdate] Twilio dispatch failed for ${orderId}: ${error.message}`);
     }
@@ -352,7 +355,6 @@ export const handleStripeWebhook = onRequest({
   const apiKey = process.env.STRIPE_SECRET_KEY;
 
   if (!signature || !webhookSecret || !apiKey) {
-    logger.error("[handleStripeWebhook] Missing signature or secret configuration.");
     res.status(400).send("Webhook Error: Missing configuration");
     return;
   }
@@ -363,7 +365,6 @@ export const handleStripeWebhook = onRequest({
   try {
     event = stripe.webhooks.constructEvent(req.rawBody, signature, webhookSecret);
   } catch (err: any) {
-    logger.error(`[handleStripeWebhook] Signature verification failed: ${err.message}`);
     res.status(400).send(`Webhook Error: ${err.message}`);
     return;
   }
@@ -387,7 +388,6 @@ export const handleStripeWebhook = onRequest({
       };
       await db.collection('orders').add(orderData);
     } catch (err: any) {
-      logger.error(`[handleStripeWebhook] Firestore ingestion failed: ${err.message}`);
       res.status(500).send("Internal Server Error during Firestore write");
       return;
     }
