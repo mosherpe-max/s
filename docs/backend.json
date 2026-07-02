@@ -168,12 +168,14 @@
         "name": { "type": "string" },
         "description": { "type": "string" },
         "price": { "type": "number" },
-        "category": { "type": "string" },
+        "category": { "type": "string", "enum": ["food", "beverage", "alcohol"] },
         "venueType": { "type": "array", "items": { "type": "string" } },
-        "modifierKeywords": { "type": "array", "items": { "type": "string" } },
+        "serviceMode": { "type": "string", "enum": ["beverageCart", "clubhouse", "pool", "laneService", "takeout"] },
+        "suggestedModifierGroups": { "type": "array", "items": { "type": "string" } },
+        "sortOrder": { "type": "number" },
         "imageUrl": { "type": "string" }
       },
-      "required": ["name", "price", "category", "venueType"]
+      "required": ["name", "price", "category", "venueType", "serviceMode"]
     }
   },
   "auth": {

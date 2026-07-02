@@ -25,146 +25,56 @@ export const createPaymentIntent = onCall({
   const { amount, sellerId, patronName, patronPhone, patronEmail, saveInfo } = request.data;
   const buyerUid = request.auth?.uid;
 
-  // 1. Validation
-  if (!amount || amount <= 0) {
-    logger.error("[createPaymentIntent] Invalid amount received:", { amount });
-    throw new HttpsError('invalid-argument', 'A valid positive amount is required for checkout.');
-  }
-  if (!sellerId) {
-    logger.error("[createPaymentIntent] Missing sellerId in request.");
-    throw new HttpsError('invalid-argument', 'Establishment identity is required for routing.');
-  }
+  if (!amount || amount <= 0) throw new HttpsError('invalid-argument', 'Invalid amount.');
+  if (!sellerId) throw new HttpsError('invalid-argument', 'Missing sellerId.');
 
-  // 2. Stripe Initialization
   const apiKey = process.env.STRIPE_SECRET_KEY;
-  if (!apiKey) {
-    logger.error("[createPaymentIntent] STRIPE_SECRET_KEY is missing from environment/secrets.");
-    throw new HttpsError('failed-precondition', 'The payment gateway is not configured. Please contact support.');
-  }
+  if (!apiKey) throw new HttpsError('failed-precondition', 'Gateway not configured.');
 
-  const stripe = new Stripe(apiKey, {
-    apiVersion: '2025-01-27.acacia' as any,
-  });
+  const stripe = new Stripe(apiKey, { apiVersion: '2025-01-27.acacia' as any });
 
   try {
     let stripeCustomerId: string | undefined;
 
-    // 3. Customer Session Logic (Native Card Reuse)
     if (buyerUid) {
-      const userRef = db.collection('users').doc(buyerUid);
-      const userDoc = await userRef.get();
-      
+      const userDoc = await db.collection('users').doc(buyerUid).get();
       if (userDoc.exists && userDoc.data()?.stripeCustomerId) {
         stripeCustomerId = userDoc.data()?.stripeCustomerId;
       } else {
-        const existingCustomers = await stripe.customers.list({ email: patronEmail, limit: 1 });
-        if (existingCustomers.data.length > 0) {
-          stripeCustomerId = existingCustomers.data[0].id;
+        const existing = await stripe.customers.list({ email: patronEmail, limit: 1 });
+        if (existing.data.length > 0) {
+          stripeCustomerId = existing.data[0].id;
         } else if (saveInfo) {
-          const customer = await stripe.customers.create({
-            email: patronEmail,
-            name: patronName,
-            phone: patronPhone,
-            metadata: { buyerUid }
-          });
+          const customer = await stripe.customers.create({ email: patronEmail, name: patronName, phone: patronPhone, metadata: { buyerUid } });
           stripeCustomerId = customer.id;
         }
-        
-        if (stripeCustomerId) {
-          await userRef.set({ stripeCustomerId }, { merge: true });
-        }
+        if (stripeCustomerId) await db.collection('users').doc(buyerUid).set({ stripeCustomerId }, { merge: true });
       }
     }
 
-    // 4. Create Intent
     const paymentIntent = await stripe.paymentIntents.create({
       amount: Math.round(amount * 100),
       currency: 'usd',
       customer: stripeCustomerId,
       setup_future_usage: saveInfo ? 'off_session' : undefined,
-      automatic_payment_methods: {
-        enabled: true,
-      },
-      metadata: {
-        sellerId,
-        buyerUid: buyerUid || 'anonymous',
-        customerName: patronName || 'Guest',
-        customerPhone: patronPhone || '',
-        customerEmail: patronEmail || ''
-      }
+      automatic_payment_methods: { enabled: true },
+      metadata: { sellerId, buyerUid: buyerUid || 'anonymous', customerName: patronName || 'Guest', customerPhone: patronPhone || '', customerEmail: patronEmail || '' }
     });
 
-    // 5. Create Customer Session
     let customerSessionClientSecret: string | undefined;
     if (stripeCustomerId) {
       const customerSession = await stripe.customerSessions.create({
         customer: stripeCustomerId,
-        components: {
-          payment_element: {
-            enabled: true,
-            features: {
-              payment_method_save: 'disabled', 
-              payment_method_redisplay: 'always'
-            }
-          }
-        }
+        components: { payment_element: { enabled: true, features: { payment_method_save: 'disabled', payment_method_redisplay: 'always' } } }
       });
       customerSessionClientSecret = customerSession.client_secret;
     }
 
-    if (!paymentIntent.client_secret) {
-      throw new Error("Stripe failed to generate a client secret.");
-    }
-
-    return {
-      clientSecret: paymentIntent.client_secret,
-      customerSessionClientSecret
-    };
+    return { clientSecret: paymentIntent.client_secret, customerSessionClientSecret };
   } catch (err: any) {
-    logger.error(`[createPaymentIntent] Stripe API Error:`, {
-      message: err.message,
-      code: err.code,
-      type: err.type
-    });
-    throw new HttpsError('internal', err.message || 'Unable to initialize secure payment environment.');
+    logger.error("Stripe PI Error", err);
+    throw new HttpsError('internal', err.message);
   }
-});
-
-/**
- * dailyOperationalReset
- * Scheduled script that runs HOURLY to check if it's the admin-defined reset hour.
- */
-export const dailyOperationalReset = onSchedule({
-  schedule: "0 * * * *",
-  timeZone: "America/New_York",
-  region: 'us-central1'
-}, async (event) => {
-  const configRef = db.collection('solution').doc('config');
-  const configSnap = await configRef.get();
-  const resetHour = configSnap.exists ? (configSnap.data()?.dailyResetHour ?? 4) : 4;
-  
-  const nowInEst = new Date(new Date().toLocaleString("en-US", { timeZone: "America/New_York" }));
-  const currentHour = nowInEst.getHours();
-
-  if (currentHour !== resetHour) return;
-
-  const sellersRef = db.collection('sellers');
-  const snapshot = await sellersRef.where('status', '==', 'Active').get();
-  
-  if (snapshot.empty) return;
-
-  const batch = db.batch();
-  snapshot.docs.forEach(doc => {
-    batch.update(doc.ref, {
-      bevcartActive: false,
-      clubhouseActive: false,
-      lanedeliveryActive: false,
-      takeoutActive: false,
-      lastActive: FieldValue.serverTimestamp()
-    });
-  });
-
-  await batch.commit();
 });
 
 /**
@@ -175,15 +85,12 @@ export const applyStarterMenu = onCall({
   region: 'us-central1',
 }, async (request) => {
   const { venueId, venueType } = request.data;
-  
-  if (!venueId || !venueType) {
-    throw new HttpsError('invalid-argument', 'The venueId and venueType are required.');
-  }
+  if (!venueId || !venueType) throw new HttpsError('invalid-argument', 'venueId and venueType required.');
 
   const libraryRef = db.collection('starter_modifier_library');
   const snapshot = await libraryRef.where('venueType', 'array-contains', venueType.toLowerCase()).get();
 
-  if (snapshot.empty) return { totalCreated: 0, byCategory: {} };
+  if (snapshot.empty) return { totalCreated: 0 };
 
   const batch = db.batch();
   const summary: Record<string, number> = {};
@@ -191,9 +98,7 @@ export const applyStarterMenu = onCall({
   snapshot.docs.forEach(docSnap => {
     const template = docSnap.data();
     const groupId = `${venueId}-${docSnap.id}`;
-    const groupRef = db.collection('modifier_groups').doc(groupId);
-    
-    batch.set(groupRef, {
+    batch.set(db.collection('modifier_groups').doc(groupId), {
       id: groupId,
       sellerId: venueId,
       name: template.name,
@@ -208,7 +113,6 @@ export const applyStarterMenu = onCall({
       createdAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp()
     });
-    
     const cat = template.category || 'universal';
     summary[cat] = (summary[cat] || 0) + 1;
   });
@@ -219,60 +123,77 @@ export const applyStarterMenu = onCall({
 
 /**
  * applyStarterItems
- * Clones template menu items into a venue's collection and auto-links them to relevant modifiers.
+ * Clones template items into a venue's collection and links them to relevant modifiers by name lookup.
  */
 export const applyStarterItems = onCall({
   region: 'us-central1',
 }, async (request) => {
   const { venueId, venueType } = request.data;
-  
-  if (!venueId || !venueType) {
-    throw new HttpsError('invalid-argument', 'The venueId and venueType are required.');
-  }
+  if (!venueId || !venueType) throw new HttpsError('invalid-argument', 'venueId and venueType required.');
 
-  // 1. Fetch Items for this Venue Type
-  const itemLibRef = db.collection('starter_menu_item_library');
-  const itemSnap = await itemLibRef.where('venueType', 'array-contains', venueType.toLowerCase()).get();
-
+  // 1. Fetch library items for this venue type
+  const itemSnap = await db.collection('starter_menu_item_library').where('venueType', 'array-contains', venueType.toLowerCase()).get();
   if (itemSnap.empty) return { totalCreated: 0 };
 
-  // 2. Fetch already-cloned Modifiers for this venue to perform auto-linking
-  const venueModRef = db.collection('modifier_groups');
-  const modSnap = await venueModRef.where('sellerId', '==', venueId).get();
-  
-  const venueModMap: Record<string, string> = {};
-  modSnap.forEach(m => {
-    venueModMap[m.data().name.toLowerCase()] = m.id;
-  });
+  // 2. Fetch active modifier groups for this venue to build name->ID mapping
+  const modSnap = await db.collection('modifier_groups').where('sellerId', '==', venueId).get();
+  const modMap: Record<string, string> = {};
+  modSnap.forEach(m => { modMap[m.data().name.toLowerCase()] = m.id; });
 
   const batch = db.batch();
   const venueItemsRef = db.collection('sellers').doc(venueId).collection('menuItems');
 
+  // Service mode mapping: library -> operational display name
+  const modeMap: Record<string, string> = {
+    beverageCart: "Beverage Cart",
+    clubhouse: "Clubhouse",
+    pool: "Pool",
+    laneService: "Lane Delivery",
+    takeout: "Take Out"
+  };
+
+  // Operational Category Mapping
+  const operationalCatMap: Record<string, string> = {
+    alcohol: "Beer",
+    beverage: "Soft Drinks",
+    food: "Handhelds"
+  };
+
   itemSnap.docs.forEach((docSnap, index) => {
     const template = docSnap.data();
     const itemId = `${venueId}-${docSnap.id}`;
-    const itemRef = venueItemsRef.doc(itemId);
-
-    // Auto-link logic: Find matching groups by keywords
-    const linkedGroups: string[] = [];
-    if (venueModMap['special instructions']) linkedGroups.push(venueModMap['special instructions']);
-    if (venueModMap['allergy flag']) linkedGroups.push(venueModMap['allergy flag']);
-
-    if (template.modifierKeywords) {
-      template.modifierKeywords.forEach((kw: string) => {
-        if (venueModMap[kw.toLowerCase()]) {
-          linkedGroups.push(venueModMap[kw.toLowerCase()]);
-        }
+    
+    // Resolve modifier IDs from suggested names
+    const linkedIds: string[] = [];
+    if (template.suggestedModifierGroups) {
+      template.suggestedModifierGroups.forEach((name: string) => {
+        if (modMap[name.toLowerCase()]) linkedIds.push(modMap[name.toLowerCase()]);
       });
     }
 
-    batch.set(itemRef, {
-      ...template,
+    // Determine operational category
+    let opCat = template.category;
+    if (operationalCatMap[template.category]) {
+      opCat = operationalCatMap[template.category];
+      // Refining alcohol mapping
+      if (template.category === 'alcohol') {
+        const n = template.name.toLowerCase();
+        if (n.includes('wine') || n.includes('cocktail') || n.includes('whiskey')) opCat = "Spirits";
+      }
+    }
+
+    const mode = modeMap[template.serviceMode] || "Clubhouse";
+
+    batch.set(venueItemsRef.doc(itemId), {
       id: itemId,
-      rank: index + 1,
+      name: template.name,
+      description: template.description || "",
+      price: template.price,
+      category: opCat,
+      rank: template.sortOrder || index + 1,
       isAvailable: true,
-      modifierGroupIds: Array.from(new Set(linkedGroups)),
-      availableOn: venueType === 'golf' ? ['Beverage Cart', 'Clubhouse', 'Take Out'] : ['Lane Delivery', 'Take Out'],
+      availableOn: [mode],
+      modifierGroupIds: Array.from(new Set(linkedIds)),
       createdAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp()
     });
@@ -282,116 +203,60 @@ export const applyStarterItems = onCall({
   return { totalCreated: itemSnap.size };
 });
 
-/**
- * onGuestOrderStatusUpdate
- * Manages patron SMS notifications via Twilio.
- */
-export const onGuestOrderStatusUpdate = onDocumentWritten({
-  document: "orders/{orderId}",
-  secrets: ["TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN", "TWILIO_FROM_NUMBER"],
-  region: 'us-central1',
-}, async (event) => {
-  const orderId = event.params.orderId;
-  const before = event.data?.before;
+export const dailyOperationalReset = onSchedule({ schedule: "0 * * * *", timeZone: "America/New_York", region: 'us-central1' }, async () => {
+  const configSnap = await db.collection('solution').doc('config').get();
+  const resetHour = configSnap.exists ? (configSnap.data()?.dailyResetHour ?? 4) : 4;
+  const nowInEst = new Date(new Date().toLocaleString("en-US", { timeZone: "America/New_York" }));
+  if (nowInEst.getHours() !== resetHour) return;
+
+  const sellers = await db.collection('sellers').where('status', '==', 'Active').get();
+  if (sellers.empty) return;
+
+  const batch = db.batch();
+  sellers.docs.forEach(doc => {
+    batch.update(doc.ref, { bevcartActive: false, clubhouseActive: false, lanedeliveryActive: false, takeoutActive: false, lastActive: FieldValue.serverTimestamp() });
+  });
+  await batch.commit();
+});
+
+export const onGuestOrderStatusUpdate = onDocumentWritten({ document: "orders/{orderId}", secrets: ["TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN", "TWILIO_FROM_NUMBER"], region: 'us-central1' }, async (event) => {
   const after = event.data?.after;
-
   if (!after || !after.exists) return;
+  const configSnap = await db.collection('solution').doc('config').get();
+  if (!(configSnap.data()?.smsNotificationsEnabled ?? true)) return;
 
-  const configRef = db.collection('solution').doc('config');
-  const configSnap = await configRef.get();
-  const smsEnabled = configSnap.exists ? (configSnap.data()?.smsNotificationsEnabled ?? true) : true;
+  const data = after.data();
+  if (!data?.customerPhone) return;
+  const client = twilio(process.env.TWILIO_ACCOUNT_SID!, process.env.TWILIO_AUTH_TOKEN!);
+  let body = "";
+  const link = `https://koop.app/orders/${event.params.orderId}`;
 
-  if (!smsEnabled) return;
-
-  const afterData = after.data();
-  const customerPhone = afterData?.customerPhone;
-  const status = afterData?.status;
-
-  if (!customerPhone) return;
-
-  const accountSid = process.env.TWILIO_ACCOUNT_SID;
-  const authToken = process.env.TWILIO_AUTH_TOKEN;
-  const fromNumber = process.env.TWILIO_FROM_NUMBER;
-
-  if (!accountSid || !authToken || !fromNumber) return;
-
-  const client = twilio(accountSid, authToken);
-  let messageBody = "";
-  const trackingLink = `https://koop.app/orders/${orderId}`;
-
-  if (!before || !before.exists) {
-    if (status === 'received' || status === 'Placed') {
-      messageBody = `Thanks for your order! We've received it and it's in our queue. Track live: ${trackingLink}`;
-    }
-  } else {
-    const beforeData = before.data();
-    const oldStatus = beforeData?.status;
-    if (status !== oldStatus && status === 'Out for Delivery') {
-      messageBody = `Your order is out for delivery! A runner is on the way. Track live: ${trackingLink}`;
-    }
+  if (!event.data?.before.exists) {
+    if (data.status === 'Placed') body = `Order received! Track live: ${link}`;
+  } else if (data.status !== event.data.before.data()?.status && data.status === 'Out for Delivery') {
+    body = `Order out for delivery! Track live: ${link}`;
   }
 
-  if (messageBody) {
-    try {
-      const cleanPhone = customerPhone.replace(/\D/g, '');
-      const to = cleanPhone.length === 10 ? `+1${cleanPhone}` : `+${cleanPhone}`;
-      await client.messages.create({ body: messageBody, from: fromNumber, to: to });
-    } catch (error: any) {
-      logger.error(`[onGuestOrderStatusUpdate] Twilio dispatch failed for ${orderId}: ${error.message}`);
-    }
+  if (body) {
+    const to = data.customerPhone.length === 10 ? `+1${data.customerPhone}` : `+${data.customerPhone}`;
+    await client.messages.create({ body, from: process.env.TWILIO_FROM_NUMBER!, to }).catch(e => logger.error("Twilio fail", e));
   }
 });
 
-/**
- * handleStripeWebhook
- * Secure HTTP endpoint for Stripe event ingestion.
- */
-export const handleStripeWebhook = onRequest({
-  secrets: ["STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET"],
-  region: 'us-central1',
-}, async (req, res) => {
-  const signature = req.headers['stripe-signature'];
-  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
-  const apiKey = process.env.STRIPE_SECRET_KEY;
-
-  if (!signature || !webhookSecret || !apiKey) {
-    res.status(400).send("Webhook Error: Missing configuration");
-    return;
-  }
-
-  const stripe = new Stripe(apiKey);
-  let event: Stripe.Event;
-
+export const handleStripeWebhook = onRequest({ secrets: ["STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET"], region: 'us-central1' }, async (req, res) => {
+  const sig = req.headers['stripe-signature']!;
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
   try {
-    event = stripe.webhooks.constructEvent(req.rawBody, signature, webhookSecret);
-  } catch (err: any) {
-    res.status(400).send(`Webhook Error: ${err.message}`);
-    return;
-  }
-
-  if (event.type === 'payment_intent.succeeded') {
-    const paymentIntent = event.data.object as Stripe.PaymentIntent;
-    const metadata = paymentIntent.metadata || {};
-
-    try {
-      const orderData = {
-        customerName: metadata.customerName || 'Guest Patron',
-        customerPhone: metadata.customerPhone || null,
-        customerEmail: metadata.customerEmail || null,
-        status: "received",
-        sellerId: metadata.sellerId || null,
-        buyerProfileId: metadata.buyerUid || null,
-        stripePaymentIntentId: paymentIntent.id,
-        total: (paymentIntent.amount || 0) / 100,
-        createdAt: FieldValue.serverTimestamp(),
-        updatedAt: FieldValue.serverTimestamp(),
-      };
-      await db.collection('orders').add(orderData);
-    } catch (err: any) {
-      res.status(500).send("Internal Server Error during Firestore write");
-      return;
+    const event = stripe.webhooks.constructEvent(req.rawBody, sig, process.env.STRIPE_WEBHOOK_SECRET!);
+    if (event.type === 'payment_intent.succeeded') {
+      const pi = event.data.object as Stripe.PaymentIntent;
+      const meta = pi.metadata || {};
+      await db.collection('orders').add({
+        customerName: meta.customerName || 'Guest', customerPhone: meta.customerPhone, customerEmail: meta.customerEmail,
+        status: "received", sellerId: meta.sellerId, buyerProfileId: meta.buyerUid,
+        stripePaymentIntentId: pi.id, total: pi.amount / 100, createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp()
+      });
     }
-  }
-
-  res.status(200).send({ received: true });
+    res.status(200).send({ received: true });
+  } catch (err: any) { res.status(400).send(`Webhook Error: ${err.message}`); }
 });

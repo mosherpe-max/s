@@ -150,9 +150,11 @@ export interface StarterMenuItem {
   name: string;
   description: string;
   price: number;
-  category: Category;
+  category: 'food' | 'beverage' | 'alcohol' | string;
   venueType: string[]; // ['golf', 'bowling']
-  modifierKeywords: string[]; // ['burger', 'pizza', 'wings']
+  serviceMode: 'beverageCart' | 'clubhouse' | 'pool' | 'laneService' | 'takeout';
+  suggestedModifierGroups?: string[];
+  sortOrder: number;
   imageUrl?: string;
 }
 

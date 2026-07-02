@@ -162,24 +162,6 @@ import {
   Legend
 } from 'recharts';
 
-const SYSTEM_DEFAULT_THRESHOLDS = {
-  'Beverage Cart': { warning: 10, max: 15 },
-  'Clubhouse': { warning: 15, max: 20 },
-  'Lane Delivery': { warning: 10, max: 15 },
-  'Take Out': { warning: 15, max: 25 }
-};
-
-const SYSTEM_DEFAULT_MAP_SETTINGS: Record<string, MapUpdateSettings> = {
-  'Beverage Cart': { frequencySeconds: 15, activeStages: ['Placed', 'Preparing', 'Out for Delivery'] },
-  'Clubhouse': { frequencySeconds: 15, activeStages: ['Placed', 'Preparing', 'Out for Delivery'] }
-};
-
-const SYSTEM_DEFAULT_GPS_THRESHOLDS = {
-  hot: 60,   // 1 minute
-  warm: 300,  // 5 minutes
-  cold: 600   // 10 minutes
-};
-
 const SERVICE_MODES = ['Beverage Cart', 'Clubhouse', 'Lane Delivery', 'Take Out'];
 
 const MODE_COLORS: Record<string, string> = {
@@ -188,33 +170,6 @@ const MODE_COLORS: Record<string, string> = {
   'Lane Delivery': '#7C3AED',
   'Take Out': '#F59E0B'
 };
-
-const venueRegistrationSchema = z.object({
-  name: z.string().min(2, 'Establishment name required'),
-  type: z.enum(sellerTypes as any),
-  contactName: z.string().min(2, 'Contact name required'),
-  contactEmail: z.string().email('Valid email required'),
-  ownerUid: z.string().min(1, 'Initial Owner UID required for registry'),
-  menuTypes: z.array(z.string()).min(1, 'Select at least one service mode'),
-  laneCount: z.coerce.number().min(0).optional(),
-});
-
-type VenueRegistrationData = z.infer<typeof venueRegistrationSchema>;
-
-const venueMaintenanceSchema = z.object({
-  name: z.string().min(2, 'Establishment name required'),
-  ownerUid: z.string().min(1, 'Owner UID required'),
-  stripeConnectId: z.string().optional(),
-  patronConvenienceFee: z.coerce.number().min(0),
-  solutionFeeFixed: z.coerce.number().min(0),
-  solutionFeePercent: z.coerce.number().min(0).max(100),
-  monthlySolutionFee: z.coerce.number().min(0),
-  isFoundingPartner: z.boolean().default(false),
-  menuTypes: z.array(z.string()).min(1, 'Select at least one service mode'),
-  laneCount: z.coerce.number().min(0).optional(),
-});
-
-type VenueMaintenanceData = z.infer<typeof venueMaintenanceSchema>;
 
 const starterModifierSchema = z.object({
   name: z.string().min(2, 'Group name required'),
@@ -235,9 +190,11 @@ const starterItemSchema = z.object({
   name: z.string().min(2, 'Name required'),
   description: z.string().default(''),
   price: z.coerce.number().min(0),
-  category: z.enum(categories as any),
+  category: z.string().min(1, 'Category required'),
   venueType: z.array(z.string()).min(1, 'Select at least one venue type'),
-  modifierKeywords: z.array(z.string()).default([]),
+  serviceMode: z.enum(["beverageCart", "clubhouse", "pool", "laneService", "takeout"]),
+  suggestedModifierGroups: z.array(z.string()).default([]),
+  sortOrder: z.coerce.number().default(0),
   imageUrl: z.string().default('')
 });
 
@@ -249,39 +206,29 @@ function NavButton({ id, label, icon: Icon, active, onClick, sidebarOpen }: {
   return (
     <button
       onClick={() => onClick(id)}
-      title={!sidebarOpen ? label : undefined}
       className={cn(
         "flex items-center gap-3 w-full px-4 py-3 rounded-xl transition-all duration-200 group relative text-left",
-        active 
-          ? "bg-primary/10 text-primary" 
-          : "text-slate-400 hover:bg-white/5 hover:text-white"
+        active ? "bg-primary/10 text-primary" : "text-slate-400 hover:bg-white/5 hover:text-white"
       )}
     >
       <Icon className={cn("h-5 w-5 shrink-0", active ? "text-primary" : "group-hover:text-white")} />
-      {sidebarOpen && (
-        <span className={cn("text-xs font-bold uppercase tracking-widest whitespace-nowrap overflow-hidden animate-in fade-in slide-in-from-right-2 duration-300", active ? "text-primary" : "")}>
-          {label}
-        </span>
-      )}
-      {active && (
-        <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary rounded-r-full" />
-      )}
+      {sidebarOpen && <span className={cn("text-xs font-bold uppercase tracking-widest", active ? "text-primary" : "")}>{label}</span>}
+      {active && <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary rounded-r-full" />}
     </button>
   );
 }
 
-function KPICard({ label, value, sub, icon: Icon, colorClass, trend }: { label: string, value: string | number, sub: string, icon: any, colorClass?: string, trend?: string }) {
+function KPICard({ label, value, sub, icon: Icon, colorClass }: { label: string, value: string | number, sub: string, icon: any, colorClass?: string }) {
   return (
     <Card className="border-2 shadow-sm overflow-hidden relative h-full">
       <div className={cn("absolute top-0 left-0 bottom-0 w-1.5", colorClass)} />
-      <CardHeader className="pb-2 pt-5 px-4 sm:px-6">
-        <CardDescription className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center justify-between">
-          <span className="flex items-center gap-2"><Icon className="h-3.5 w-3.5" /> {label}</span>
-          {trend && <span className="text-green-500 font-bold flex items-center gap-0.5">{trend} <ArrowUpRight className="h-2 w-2" /></span>}
+      <CardHeader className="pb-2 pt-5 px-6">
+        <CardDescription className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+          <Icon className="h-3.5 w-3.5" /> {label}
         </CardDescription>
       </CardHeader>
-      <CardContent className="pb-5 px-4 sm:px-6 text-left">
-        <div className="text-2xl sm:text-3xl font-black font-headline tracking-tighter text-[#213147] mb-1">{value}</div>
+      <CardContent className="pb-5 px-6 text-left">
+        <div className="text-3xl font-black font-headline tracking-tighter text-[#213147] mb-1">{value}</div>
         <p className="text-[10px] font-bold text-muted-foreground uppercase">{sub}</p>
       </CardContent>
     </Card>
@@ -298,14 +245,7 @@ export default function SolutionAdminPage() {
 
   const [activeNav, setActiveNav] = useState('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [isMounted, setIsMounted] = useState(false);
-  const [baseUrl, setBaseUrl] = useState('');
   const [analyticsRange, setAnalyticsRange] = useState<'Today' | 'MTD' | 'YTD'>('Today');
-  const [greeting, setGreeting] = useState('Hello');
-  
-  const [selectedSeller, setSelectedSeller] = useState<Seller | null>(null);
-  const [isVenueDetailOpen, setIsVenueDetailOpen] = useState(false);
-  const [isAddVenueOpen, setIsAddVenueOpen] = useState(false);
   
   const [libraryTab, setLibraryTab] = useState<'modifiers' | 'items'>('modifiers');
   const [isLibraryFormOpen, setIsLibraryFormOpen] = useState(false);
@@ -314,194 +254,26 @@ export default function SolutionAdminPage() {
   const [editingItemTemplate, setEditingItemTemplate] = useState<StarterMenuItem | null>(null);
 
   const [isProcessingSave, setIsProcessingSave] = useState(false);
-  const [isResettingDemos, setIsResettingDemos] = useState(false);
-  const [isResettingOps, setIsResettingOps] = useState(false);
   const [isInitializingLibrary, setIsInitializingLibrary] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
   const [librarySearchTerm, setLibrarySearchTerm] = useState('');
 
-  // --- SOLUTION CONFIG STATE ---
-  const [systemThresholds, setSystemThresholds] = useState<Record<string, { warning: number; max: number }>>(SYSTEM_DEFAULT_THRESHOLDS);
-  const [mapSettings, setMapSettings] = useState<Record<string, MapUpdateSettings>>(SYSTEM_DEFAULT_MAP_SETTINGS);
-  const [gpsFreshness, setGpsFreshness] = useState(SYSTEM_DEFAULT_GPS_THRESHOLDS);
-  const [globalEnabledModes, setGlobalEnabledModes] = useState<string[]>(SERVICE_MODES);
-  const [dailyResetHour, setDailyResetHour] = useState<number>(4);
-  const [smsEnabled, setSmsEnabled] = useState<boolean>(true);
-  const [isSavingSystemConfig, setIsSavingSystemConfig] = useState(false);
+  const libraryQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'starter_modifier_library') : null), [firestore]);
+  const itemLibQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'starter_menu_item_library') : null), [firestore]);
 
-  // Logo Upload State
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [isUploadingLogo, setIsProcessingLogo] = useState(false);
-  const [logoPreview, setLogoPreview] = useState<string | null>(null);
-
-  useEffect(() => {
-    setIsMounted(true);
-    if (typeof window !== 'undefined') {
-      setBaseUrl(window.location.origin);
-      const hour = new Date().getHours();
-      if (hour < 12) setGreeting('Good Morning');
-      else if (hour < 18) setGreeting('Good Afternoon');
-      else setGreeting('Good Evening');
-    }
-  }, []);
-
-  const configRef = useMemoFirebase(() => (firestore ? doc(firestore, 'solution', 'config') : null), [firestore]);
-  const { data: config } = useDoc<SolutionConfig>(configRef);
-
-  const venueRef = useMemoFirebase(() => {
-    if (!firestore || !selectedSeller?.id) return null;
-    return doc(firestore, 'venues', selectedSeller.id);
-  }, [firestore, selectedSeller?.id]);
-  const { data: selectedVenueData } = useDoc<Venue>(venueRef);
-
-  useEffect(() => {
-    if (config?.defaultThresholds) {
-      setSystemThresholds({ ...SYSTEM_DEFAULT_THRESHOLDS, ...config.defaultThresholds });
-    }
-    if (config?.mapUpdateSettings) {
-      setMapSettings({ ...SYSTEM_DEFAULT_MAP_SETTINGS, ...config.mapUpdateSettings });
-    }
-    if (config?.gpsFreshnessThresholds) {
-      setGpsFreshness({ ...SYSTEM_DEFAULT_GPS_THRESHOLDS, ...config.gpsFreshnessThresholds });
-    }
-    if (config?.enabledModes) {
-      setGlobalEnabledModes(config.enabledModes);
-    }
-    if (config?.dailyResetHour !== undefined) {
-      setDailyResetHour(config.dailyResetHour);
-    }
-    if (config?.smsNotificationsEnabled !== undefined) {
-      setSmsEnabled(config.smsNotificationsEnabled);
-    }
-  }, [config]);
-
-  const sellersQuery = useMemoFirebase(() => {
-    if (!firestore || !user) return null;
-    return query(collection(firestore, 'sellers'), limit(100));
-  }, [firestore, user]);
-
-  const ordersQuery = useMemoFirebase(() => {
-    if (!firestore || !user) return null;
-    return query(collection(firestore, 'orders'), limit(1000), orderBy('createdAt', 'desc'));
-  }, [firestore, user]);
-
-  const libraryQuery = useMemoFirebase(() => {
-    if (!firestore || !user) return null;
-    return query(collection(firestore, 'starter_modifier_library'), limit(100));
-  }, [firestore, user]);
-
-  const itemLibQuery = useMemoFirebase(() => {
-    if (!firestore || !user) return null;
-    return query(collection(firestore, 'starter_menu_item_library'), limit(200));
-  }, [firestore, user]);
-
-  const { data: sellers } = useCollection<Seller>(sellersQuery);
-  const { data: orders } = useCollection<Order>(ordersQuery);
   const { data: libraryItems } = useCollection<StarterModifierGroup>(libraryQuery);
   const { data: itemLibrary } = useCollection<StarterMenuItem>(itemLibQuery);
-
-  const getKoopAnalyticsData = (range: 'Today' | 'MTD' | 'YTD') => {
-    if (!orders) return [];
-    const now = new Date();
-    let chartData: any[] = [];
-    
-    if (range === 'Today') {
-      const start = startOfDay(now);
-      chartData = Array.from({ length: 24 }, (_, i) => {
-        const hour = addHours(start, i);
-        const entry: any = { time: format(hour, 'ha') };
-        SERVICE_MODES.forEach(mode => {
-          const matching = orders.filter(o => o.menuType === mode && o.createdAt && typeof o.createdAt.toDate === 'function' && isSameHour(o.createdAt.toDate(), hour) && isSameDay(o.createdAt.toDate(), now));
-          entry[`${mode}_total`] = Math.round(matching.reduce((sum, o) => sum + o.total, 0));
-          entry[`${mode}_fees`] = Math.round(matching.reduce((sum, o) => sum + (o.serviceFee || 0), 0));
-        });
-        return entry;
-      });
-    } else if (range === 'MTD') {
-      const start = startOfMonth(now);
-      chartData = eachDayOfInterval({ start, end: now }).map(day => {
-        const entry: any = { time: format(day, 'MMM d') };
-        SERVICE_MODES.forEach(mode => {
-          const matching = orders.filter(o => o.menuType === mode && o.createdAt && typeof o.createdAt.toDate === 'function' && isSameDay(o.createdAt.toDate(), day));
-          entry[`${mode}_total`] = Math.round(matching.reduce((sum, o) => sum + o.total, 0));
-          entry[`${mode}_fees`] = Math.round(matching.reduce((sum, o) => sum + (o.serviceFee || 0), 0));
-        });
-        return entry;
-      });
-    } else {
-      const start = startOfYear(now);
-      chartData = Array.from({ length: now.getMonth() + 1 }, (_, i) => {
-        const month = addMonths(start, i);
-        const entry: any = { time: format(month, 'MMM') };
-        SERVICE_MODES.forEach(mode => {
-          const matching = orders.filter(o => o.menuType === mode && o.createdAt && typeof o.createdAt.toDate === 'function' && isSameMonth(o.createdAt.toDate(), month) && isSameYear(o.createdAt.toDate(), now));
-          entry[`${mode}_total`] = Math.round(matching.reduce((sum, o) => sum + o.total, 0));
-          entry[`${mode}_fees`] = Math.round(matching.reduce((sum, o) => sum + (o.serviceFee || 0), 0));
-        });
-        return entry;
-      });
-    }
-    return chartData;
-  };
-
-  const metrics = useMemo(() => {
-    if (!sellers || !orders) return null;
-    const now = new Date();
-    const monthStart = startOfMonth(now);
-    const activeSellers = sellers.filter(s => s.status === 'Active');
-    const mtdOrders = orders.filter(o => {
-      if (!o.createdAt || typeof o.createdAt.toDate !== 'function') return false;
-      try { return o.createdAt.toDate() >= monthStart; } catch { return false; }
-    });
-    const mtdGMV = mtdOrders.reduce((acc, o) => acc + (o.total || 0), 0);
-    const mtdFees = mtdOrders.reduce((acc, o) => acc + (o.serviceFee || 0), 0);
-    return { venueCounts: { total: activeSellers.length }, gmv: { mtd: mtdGMV }, orders: { mtd: mtdOrders.length }, fees: { mtd: mtdFees } };
-  }, [sellers, orders]);
-
-  const todayChartData = useMemo(() => getKoopAnalyticsData('Today'), [orders]);
-  const rangeAnalyticsData = useMemo(() => getKoopAnalyticsData(analyticsRange), [orders, analyticsRange]);
-
-  const registrationForm = useForm<VenueRegistrationData>({
-    resolver: zodResolver(venueRegistrationSchema),
-    defaultValues: { name: '', type: 'Public Golf Course', contactName: '', contactEmail: '', ownerUid: '', menuTypes: ['Beverage Cart', 'Clubhouse'], laneCount: 0 }
-  });
-
-  const maintenanceForm = useForm<VenueMaintenanceData>({
-    resolver: zodResolver(venueMaintenanceSchema),
-    defaultValues: { name: '', ownerUid: '', stripeConnectId: '', patronConvenienceFee: 150, solutionFeeFixed: 20, solutionFeePercent: 0, monthlySolutionFee: 0, isFoundingPartner: false, menuTypes: [], laneCount: 0 }
-  });
 
   const libraryForm = useForm<StarterModifierFormData>({
     resolver: zodResolver(starterModifierSchema),
     defaultValues: { name: '', venueType: ['golf', 'bowling'], category: 'food', selectionType: 'single', required: false, sortOrder: 0, options: [{ label: '', priceModifier: 0 }] }
   });
 
-  const { fields: optionFields, append: appendOption, remove: removeOption } = useFieldArray({
-    control: libraryForm.control,
-    name: "options"
-  });
+  const { fields: optionFields, append: appendOption, remove: removeOption } = useFieldArray({ control: libraryForm.control, name: "options" });
 
   const itemTemplateForm = useForm<StarterItemFormData>({
     resolver: zodResolver(starterItemSchema),
-    defaultValues: { name: '', description: '', price: 0, category: 'Handhelds', venueType: ['golf'], modifierKeywords: [], imageUrl: '' }
+    defaultValues: { name: '', description: '', price: 0, category: 'Handhelds', venueType: ['golf'], serviceMode: 'clubhouse', suggestedModifierGroups: [], sortOrder: 0, imageUrl: '' }
   });
-
-  useEffect(() => {
-    if (selectedSeller && isVenueDetailOpen) {
-      maintenanceForm.reset({
-        name: selectedSeller.courseName || '',
-        ownerUid: selectedVenueData?.ownerUid || selectedSeller.ownerId || '',
-        stripeConnectId: selectedVenueData?.stripeConnectId || selectedVenueData?.stripeAccountId || '',
-        patronConvenienceFee: selectedVenueData?.patronConvenienceFee ?? 150,
-        solutionFeeFixed: selectedVenueData?.solutionFeeFixed ?? 20,
-        solutionFeePercent: selectedVenueData?.solutionFeePercent ?? 0,
-        monthlySolutionFee: selectedVenueData?.monthlySolutionFee ?? 0,
-        isFoundingPartner: selectedVenueData?.isFoundingPartner ?? selectedSeller.isFoundingPartner ?? false,
-        menuTypes: selectedSeller.menuTypes || [],
-        laneCount: selectedSeller.laneCount || 0,
-      });
-    }
-  }, [selectedVenueData, selectedSeller, maintenanceForm, isVenueDetailOpen]);
 
   useEffect(() => {
     if (editingLibraryItem && isLibraryFormOpen) {
@@ -511,62 +283,22 @@ export default function SolutionAdminPage() {
 
   useEffect(() => {
     if (editingItemTemplate && isItemFormOpen) {
-      itemTemplateForm.reset({ name: editingItemTemplate.name, description: editingItemTemplate.description || '', price: editingItemTemplate.price, category: editingItemTemplate.category as any, venueType: editingItemTemplate.venueType, modifierKeywords: editingItemTemplate.modifierKeywords || [], imageUrl: editingItemTemplate.imageUrl || '' });
+      itemTemplateForm.reset({ name: editingItemTemplate.name, description: editingItemTemplate.description || '', price: editingItemTemplate.price, category: editingItemTemplate.category as any, venueType: editingItemTemplate.venueType, serviceMode: editingItemTemplate.serviceMode as any, suggestedModifierGroups: editingItemTemplate.suggestedModifierGroups || [], sortOrder: editingItemTemplate.sortOrder || 0, imageUrl: editingItemTemplate.imageUrl || '' });
     }
   }, [editingItemTemplate, isItemFormOpen, itemTemplateForm]);
-
-  const handleCreateVenue = async (data: VenueRegistrationData) => {
-    if (!firestore) return;
-    setIsProcessingSave(true);
-    const venueId = data.name.toLowerCase().replace(/[^a-z0-9]/g, '-');
-    const batch = writeBatch(firestore);
-    const venueRef = doc(firestore, 'venues', venueId);
-    const venuePayload = { venueId, name: data.name, ownerUid: data.ownerUid, patronConvenienceFee: 150, solutionFeeFixed: 20, solutionFeePercent: 0, monthlySolutionFee: 0, payoutsEnabled: false, stripeOnboardingComplete: false, isFoundingPartner: false, createdAt: serverTimestamp(), updatedAt: serverTimestamp() };
-    batch.set(venueRef, venuePayload);
-    const sellerRef = doc(firestore, 'sellers', venueId);
-    const initialThresholds = config?.defaultThresholds || SYSTEM_DEFAULT_THRESHOLDS;
-    const sellerPayload = { id: venueId, courseName: data.name, type: data.type, contactName: data.contactName, contactEmail: data.contactEmail, contactPhone: '', status: 'Active', serviceFee: 1.50, taxRate: 6.0, menuTypes: data.menuTypes, laneCount: data.laneCount || 0, bevcartActive: false, clubhouseActive: false, lanedeliveryActive: false, takeoutActive: false, streetAddress: '', city: '', state: '', zip: '', latitude: 0, longitude: 0, orderThresholds: initialThresholds, createdAt: serverTimestamp(), updatedAt: serverTimestamp() };
-    batch.set(sellerRef, sellerPayload);
-    const roleRef = doc(firestore, 'roles_seller_admin', data.contactEmail.toLowerCase());
-    batch.set(roleRef, { userName: data.contactName, email: data.contactEmail.toLowerCase(), sellerId: venueId, courseName: data.name, assignedAt: serverTimestamp() });
-    batch.commit().then(() => { toast({ title: "Venue Created" }); setIsAddVenueOpen(false); registrationForm.reset(); }).finally(() => setIsProcessingSave(false));
-  };
-
-  const handleSaveVenueMaintenance = async (data: VenueMaintenanceData) => {
-    if (!firestore || !selectedSeller?.id) return;
-    setIsProcessingSave(true);
-    const vRef = doc(firestore, 'venues', selectedSeller.id);
-    const sRef = doc(firestore, 'sellers', selectedSeller.id);
-    const batch = writeBatch(firestore);
-    batch.set(vRef, { name: data.name, ownerUid: data.ownerUid, stripeConnectId: data.stripeConnectId || null, stripeAccountId: data.stripeConnectId || null, patronConvenienceFee: data.patronConvenienceFee, solutionFeeFixed: data.solutionFeeFixed, solutionFeePercent: data.solutionFeePercent, monthlySolutionFee: data.monthlySolutionFee, isFoundingPartner: data.isFoundingPartner, updatedAt: serverTimestamp() }, { merge: true });
-    batch.update(sRef, { courseName: data.name, isFoundingPartner: data.isFoundingPartner, menuTypes: data.menuTypes, laneCount: data.laneCount || 0, updatedAt: serverTimestamp() });
-    batch.commit().then(() => { toast({ title: "Venue Updated" }); setIsVenueDetailOpen(false); }).finally(() => setIsProcessingSave(false));
-  };
 
   const handleSaveLibraryItem = async (data: StarterModifierFormData) => {
     if (!firestore) return;
     setIsProcessingSave(true);
     const id = editingLibraryItem?.id || data.name.toLowerCase().replace(/\s+/g, '-');
-    const libraryRef = doc(firestore, 'starter_modifier_library', id);
-    setDoc(libraryRef, data, { merge: true }).then(() => { toast({ title: "Template Saved" }); setIsLibraryFormOpen(false); setEditingLibraryItem(null); }).finally(() => setIsProcessingSave(false));
+    setDoc(doc(firestore, 'starter_modifier_library', id), data, { merge: true }).then(() => { toast({ title: "Template Saved" }); setIsLibraryFormOpen(false); }).finally(() => setIsProcessingSave(false));
   };
 
   const handleSaveItemTemplate = async (data: StarterItemFormData) => {
     if (!firestore) return;
     setIsProcessingSave(true);
     const id = editingItemTemplate?.id || data.name.toLowerCase().replace(/\s+/g, '-');
-    const itemRef = doc(firestore, 'starter_menu_item_library', id);
-    setDoc(itemRef, data, { merge: true }).then(() => { toast({ title: "Item Template Saved" }); setIsItemFormOpen(false); setEditingItemTemplate(null); }).finally(() => setIsProcessingSave(false));
-  };
-
-  const handleDeleteLibraryItem = async (id: string) => {
-    if (!firestore) return;
-    deleteDoc(doc(firestore, 'starter_modifier_library', id)).then(() => { toast({ title: "Template Removed" }); });
-  };
-
-  const handleDeleteItemTemplate = async (id: string) => {
-    if (!firestore) return;
-    deleteDoc(doc(firestore, 'starter_menu_item_library', id)).then(() => { toast({ title: "Item Template Removed" }); });
+    setDoc(doc(firestore, 'starter_menu_item_library', id), data, { merge: true }).then(() => { toast({ title: "Item Template Saved" }); setIsItemFormOpen(false); }).finally(() => setIsProcessingSave(false));
   };
 
   const handleInitializeLibrary = async () => {
@@ -575,83 +307,17 @@ export default function SolutionAdminPage() {
     try {
       await seedGlobalStarterLibrary(firestore);
       await seedGlobalStarterMenuLibrary(firestore);
-      toast({ title: "Libraries Initialized", description: "50+ industry-standard templates provisioned." });
-    } catch (e) { 
-      console.error("[Initialize Library] Error:", e);
-      toast({ variant: "destructive", title: "Setup Failed", description: "Check console for specifics." }); 
+      toast({ title: "Libraries Initialized", description: "All templates provisioned." });
+    } catch (e: any) { 
+      console.error(e);
+      toast({ variant: "destructive", title: "Setup Failed" }); 
     } finally { setIsInitializingLibrary(false); }
   };
 
-  const handleResetDemos = async () => {
-    if (!firestore) return;
-    setIsResettingDemos(true);
-    try { await seedAllDemoData(firestore); toast({ title: "Demos Reseeded" }); } catch (e) { toast({ variant: "destructive", title: "Reset Failed" }); } finally { setIsResettingDemos(false); }
-  };
-
-  const handleResetOperationalStatus = async () => {
-    if (!firestore) return;
-    setIsResettingOps(true);
-    try { await resetAllVenueOperationalStatus(firestore); toast({ title: "Operational Baseline Restored" }); } catch (e) { toast({ variant: "destructive", title: "Reset Failed" }); } finally { setIsResettingOps(false); }
-  };
-
-  const handleLogout = async () => {
-    if (!auth) return;
-    try {
-      const keysToRemove = Object.keys(localStorage).filter(k => k.startsWith('koop_'));
-      keysToRemove.forEach(k => localStorage.removeItem(k));
-      await signOut(auth);
-      router.push('/login');
-    } catch (error: any) { toast({ variant: "destructive", title: "Logout Failed" }); }
-  };
-
-  const handleUploadLogo = async () => {
-    if (!firestore || !logoPreview) return;
-    setIsProcessingLogo(true);
-    const solutionDocRef = doc(firestore, 'solution', 'config');
-    setDoc(solutionDocRef, { logoUrl: logoPreview, updatedAt: serverTimestamp() }, { merge: true }).then(() => { toast({ title: "Logo Updated" }); setLogoPreview(null); }).finally(() => setIsProcessingLogo(false));
-  };
-
-  const handleUpdateSystemDefaults = async () => {
-    if (!firestore) return;
-    setIsSavingSystemConfig(true);
-    const solutionDocRef = doc(firestore, 'solution', 'config');
-    setDoc(solutionDocRef, { defaultThresholds: systemThresholds, mapUpdateSettings: mapSettings, gpsFreshnessThresholds: gpsFreshness, enabledModes: globalEnabledModes, dailyResetHour, smsNotificationsEnabled: smsEnabled, updatedAt: serverTimestamp() }, { merge: true }).then(() => { toast({ title: "System Config Updated" }); }).finally(() => setIsSavingSystemConfig(false));
-  };
-
-  const handleLogoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => { setLogoPreview(reader.result as string); };
-      reader.readAsDataURL(file);
-    }
-  };
+  const handleLogout = async () => { if (!auth) return; await signOut(auth); router.push('/login'); };
 
   const isSuperAdmin = user?.uid === SUPER_ADMIN_ID || user?.email === 'mosherpe@gmail.com';
-
-  useEffect(() => { if (!isUserLoading && !user) router.push('/login'); }, [user, isUserLoading, router]);
-
-  const sortedLibraryItems = useMemo(() => {
-    if (!libraryItems) return [];
-    return [...libraryItems].sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
-  }, [libraryItems]);
-
-  const libraryCategories = useMemo(() => {
-    const cats = new Set<string>();
-    sortedLibraryItems.forEach(i => { if (i.category) cats.add(i.category); });
-    return Array.from(cats).sort();
-  }, [sortedLibraryItems]);
-
-  const filteredLibraryItems = useMemo(() => {
-    return sortedLibraryItems.filter(item => item.name.toLowerCase().includes(librarySearchTerm.toLowerCase()) || item.category?.toLowerCase().includes(librarySearchTerm.toLowerCase()));
-  }, [sortedLibraryItems, librarySearchTerm]);
-
-  const filteredItemTemplates = useMemo(() => {
-    if (!itemLibrary) return [];
-    return itemLibrary.filter(i => i.name.toLowerCase().includes(librarySearchTerm.toLowerCase()) || i.category.toLowerCase().includes(librarySearchTerm.toLowerCase()));
-  }, [itemLibrary, librarySearchTerm]);
-
-  if (isUserLoading) return <div className="flex flex-col items-center justify-center min-h-screen bg-[#213147] text-white"><Loader2 className="h-12 w-12 animate-spin text-primary mb-4" /><p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40">Securing Session...</p></div>;
+  if (isUserLoading) return <div className="flex flex-col items-center justify-center min-h-screen bg-[#213147] text-white"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>;
   if (!user || !isSuperAdmin) return null;
 
   const NAV_ITEMS = [
@@ -663,168 +329,76 @@ export default function SolutionAdminPage() {
     { id: "system", label: "System Control", icon: Settings2 },
   ];
 
-  const SideBarContent = ({ forceLabels = false }: { forceLabels?: boolean }) => {
-    const showLabels = forceLabels || sidebarOpen;
-    return (
-      <div className="flex flex-col h-full bg-[#213147] overflow-hidden">
-        <div className="p-6 border-b border-white/5 flex items-center justify-between shrink-0"><StylizedKoopLogo size={showLabels ? "md" : "sm"} /></div>
-        <nav className="flex-1 p-3 space-y-1 overflow-y-auto no-scrollbar text-left">
-          {NAV_ITEMS.map((item) => (
-            <NavButton key={item.id} id={item.id} label={item.label} icon={item.icon} active={activeNav === item.id} onClick={(id) => { setActiveNav(id); if (isMobile) setSidebarOpen(false); }} sidebarOpen={showLabels} />
-          ))}
-        </nav>
-        <div className="mt-auto border-t border-white/5 p-4 shrink-0 space-y-4 text-left">
-          {showLabels && (
-            <div className="px-4 py-3 bg-white/5 rounded-xl border border-white/5">
-              <div className="flex items-center gap-3">
-                <div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-black text-xs">{user?.email?.charAt(0).toUpperCase() || 'P'}</div>
-                <div className="flex flex-col min-w-0">
-                  <span className="text-[10px] font-black text-white truncate uppercase tracking-tight text-left">Solution Admin</span>
-                  <span className="text-[8px] font-bold text-slate-400 truncate uppercase text-left">{user?.email}</span>
-                </div>
-              </div>
-            </div>
-          )}
-          {!isMobile && <button onClick={() => setSidebarOpen(!sidebarOpen)} className="w-full flex items-center justify-center p-3 text-slate-400 hover:text-white hover:bg-white/5 rounded-xl transition-all">{sidebarOpen ? <ChevronLeft /> : <ChevronRight />}</button>}
-        </div>
-      </div>
-    );
-  };
-
-  const demoVenues = [
-    { id: 'demo-course', title: 'Public Golf Menu', sub: 'Beverage Cart & Clubhouse', type: 'On-Course Ordering', gradient: 'from-indigo-500 to-blue-600', icon: <Globe className="text-white/20 h-16 w-16 absolute -right-2 -top-2" />, buyerUrl: '/sellers/demo-course/order?menuType=Beverage Cart', staffEntryUrl: '/sellers/demo-course/staff-login', adminUrl: '/sellers/demo-course', staffViews: [{ label: 'Staff Entry', url: '/sellers/demo-course/staff-login', icon: <ShieldCheck className="h-3.5 w-3.5" /> }] },
-    { id: 'demo-private-course', title: 'Private Golf Menu', sub: 'Member-Only Clubhouse', type: 'Private Experience', gradient: 'from-[#213147] to-slate-700', icon: <Lock className="text-white/20 h-16 w-16 absolute -right-2 -top-2" />, buyerUrl: '/sellers/demo-private-course/order?menuType=Clubhouse', staffEntryUrl: '/sellers/demo-private-course/staff-login', adminUrl: '/sellers/demo-private-course', staffViews: [{ label: 'Staff Entry', url: '/sellers/demo-private-course/staff-login', icon: <ShieldCheck className="h-3.5 w-3.5" /> }] },
-    { id: 'demo-bowling-alley', title: 'Bowling Center', sub: 'In-Game Food & Drinks', type: 'Laneside Service', gradient: 'from-pink-600 to-rose-500', icon: <Smartphone className="text-white/20 h-16 w-16 absolute -right-2 -top-2" />, buyerUrl: '/sellers/demo-bowling-alley/order?menuType=Lane Delivery', staffEntryUrl: '/sellers/demo-bowling-alley/staff-login', adminUrl: '/sellers/demo-bowling-alley', staffViews: [{ label: 'Staff Entry', url: '/sellers/demo-bowling-alley/staff-login', icon: <ShieldCheck className="h-3.5 w-3.5" /> }] }
-  ];
-
-  const handleThresholdChange = (mode: string, field: 'warning' | 'max', val: string) => {
-    const num = parseInt(val, 10) || 0;
-    setSystemThresholds(prev => ({ ...prev, [mode]: { ...prev[mode], [field]: num } }));
-  };
-
-  const handleMapSettingChange = (mode: string, field: keyof MapUpdateSettings, val: any) => {
-    setMapSettings(prev => ({ ...prev, [mode]: { ...prev[mode], [field]: val } }));
-  };
-
-  const toggleGlobalMode = (mode: string) => {
-    const next = globalEnabledModes.includes(mode) ? globalEnabledModes.filter(m => m !== mode) : [...globalEnabledModes, mode];
-    setGlobalEnabledModes(next);
-  };
-
-  const toggleMapStage = (mode: string, stage: string) => {
-    const current = mapSettings[mode]?.activeStages || [];
-    const next = current.includes(stage) ? current.filter(s => s !== stage) : [...current, stage];
-    handleMapSettingChange(mode, 'activeStages', next);
-  };
+  const filteredLibraryItems = (libraryItems || []).filter(item => item.name.toLowerCase().includes(librarySearchTerm.toLowerCase())).sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+  const filteredItemTemplates = (itemLibrary || []).filter(item => item.name.toLowerCase().includes(librarySearchTerm.toLowerCase()));
 
   return (
     <div className="flex flex-col h-screen bg-[#F8FAFC] overflow-hidden">
-      <header className="h-16 bg-white border-b-2 flex items-center justify-between px-4 sm:px-8 shrink-0 z-30 shadow-sm relative text-left">
-        <div className="flex items-center gap-3 sm:gap-4"><StylizedKoopLogo size="sm" colorClass="text-[#213147]" /><div className="h-6 w-px bg-slate-200 hidden sm:block" /><div className="flex flex-col text-left"><h2 className="text-lg sm:text-xl font-black font-headline uppercase tracking-tight text-[#213147]">{NAV_ITEMS.find(n => n.id === activeNav)?.label}</h2><p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">{greeting}, {user?.email}</p></div></div>
-        <div className="flex items-center gap-4">{isMobile && (<Sheet><SheetTrigger asChild><Button variant="ghost" size="icon" className="text-[#213147]"><Menu className="h-6 w-6" /></Button></SheetTrigger><SheetContent side="right" className="p-0 bg-[#213147] border-l-4 border-primary/20"><SheetHeader className="sr-only"><SheetTitle>Solution Navigator</SheetTitle><SheetDescription>Global administration navigation menu.</SheetDescription></SheetHeader><SideBarContent forceLabels={true} /></SheetContent></Sheet>)}<button onClick={handleLogout} className="p-2 text-muted-foreground hover:text-destructive transition-colors flex items-center gap-2"><span className="text-[10px] font-black uppercase tracking-widest hidden sm:inline">Release Device</span><LogOut className="h-5 w-5" /></button></div>
+      <header className="h-16 bg-white border-b-2 flex items-center justify-between px-8 shrink-0 z-30 shadow-sm relative text-left">
+        <div className="flex items-center gap-4"><StylizedKoopLogo size="sm" colorClass="text-[#213147]" /><div className="flex flex-col text-left"><h2 className="text-xl font-black font-headline uppercase tracking-tight text-[#213147]">{NAV_ITEMS.find(n => n.id === activeNav)?.label}</h2><p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">Koop Platform Control</p></div></div>
+        <button onClick={handleLogout} className="p-2 text-muted-foreground hover:text-destructive transition-colors flex items-center gap-2"><span className="text-[10px] font-black uppercase tracking-widest hidden sm:inline">Release Device</span><LogOut className="h-5 w-5" /></button>
       </header>
 
-      <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
-        <aside className={cn("bg-[#213147] hidden md:flex flex-col transition-all duration-300 relative border-r-4 border-primary/20 shrink-0 shadow-2xl z-20", sidebarOpen ? "w-64" : "w-20")}><SideBarContent /></aside>
+      <div className="flex-1 flex overflow-hidden">
+        <aside className={cn("bg-[#213147] hidden md:flex flex-col transition-all duration-300 relative border-r-4 border-primary/20 shrink-0", sidebarOpen ? "w-64" : "w-20")}>
+          <div className="p-6 border-b border-white/5"><StylizedKoopLogo size={sidebarOpen ? "md" : "sm"} /></div>
+          <nav className="flex-1 p-3 space-y-1 overflow-y-auto no-scrollbar">
+            {NAV_ITEMS.map((item) => (
+              <NavButton key={item.id} id={item.id} label={item.label} icon={item.icon} active={activeNav === item.id} onClick={setActiveNav} sidebarOpen={sidebarOpen} />
+            ))}
+          </nav>
+        </aside>
 
         <main className="flex-1 flex flex-col overflow-hidden relative">
-          <ScrollArea className="flex-1 p-4 sm:p-8">
-            <div className="max-w-7xl mx-auto space-y-8 sm:space-y-10 pb-20 text-left">
-              {activeNav === 'dashboard' && (
-                <div className="space-y-8 animate-in fade-in duration-500">
-                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                    <KPICard label="Active Partners" value={metrics?.venueCounts.total || 0} sub="Global registry" icon={Store} colorClass="bg-indigo-600" />
-                    <KPICard label="GMV (MTD)" value={`$${metrics?.gmv.mtd.toLocaleString()}`} sub="Gross sales" icon={DollarSign} colorClass="bg-green-600" />
-                    <KPICard label="Orders (MTD)" value={metrics?.orders.mtd || 0} sub="Processed" icon={ShoppingBag} colorClass="bg-primary" />
-                    <KPICard label="Fee Revenue" value={`$${metrics?.fees.mtd.toLocaleString()}`} sub="Solution cut" icon={BarChart3} colorClass="bg-amber-500" />
-                  </div>
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 text-left">
-                    <Card className="border-2 shadow-sm overflow-hidden"><CardHeader className="bg-slate-50/50 border-b text-left"><CardTitle className="text-xs font-black uppercase tracking-widest text-[#213147]">Today's Solution GMV</CardTitle><CardDescription className="text-[8px] font-bold uppercase">Consolidated gross sales across all venues</CardDescription></CardHeader><CardContent className="pt-10 h-[350px]"><ResponsiveContainer width="100%" height="100%"><BarChart data={todayChartData}><CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" /><XAxis dataKey="time" axisLine={false} tickLine={false} fontSize={10} fontWeight="bold" /><YAxis axisLine={false} tickLine={false} fontSize={10} fontWeight="bold" /><Tooltip cursor={{ fill: 'transparent' }} contentStyle={{ fontSize: '10px', borderRadius: '12px', border: '2px solid #E2E8F0' }} /><Legend verticalAlign="top" align="right" iconType="circle" wrapperStyle={{ fontSize: '9px', fontWeight: 'bold', textTransform: 'uppercase' }} />{SERVICE_MODES.map(mode => (<Bar key={`${mode}_total`} name={mode} dataKey={`${mode}_total`} stackId="a" fill={MODE_COLORS[mode] || '#64748B'} />))}</BarChart></ResponsiveContainer></CardContent></Card>
-                    <Card className="border-2 shadow-sm overflow-hidden text-left"><CardHeader className="bg-slate-50/50 border-b text-left"><CardTitle className="text-xs font-black uppercase tracking-widest text-[#213147]">Today's Koop Revenue</CardTitle><CardDescription className="text-[8px] font-bold uppercase">Consolidated collected convenience fees</CardDescription></CardHeader><CardContent className="pt-10 h-[350px]"><ResponsiveContainer width="100%" height="100%"><BarChart data={todayChartData}><CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" /><XAxis dataKey="time" axisLine={false} tickLine={false} fontSize={10} fontWeight="bold" /><YAxis axisLine={false} tickLine={false} fontSize={10} fontWeight="bold" /><Tooltip cursor={{ fill: 'transparent' }} contentStyle={{ fontSize: '10px', borderRadius: '12px', border: '2px solid #E2E8F0' }} /><Legend verticalAlign="top" align="right" iconType="circle" wrapperStyle={{ fontSize: '9px', fontWeight: 'bold', textTransform: 'uppercase' }} />{SERVICE_MODES.map(mode => (<Bar key={`${mode}_fees`} name={mode} dataKey={`${mode}_fees`} stackId="a" fill={MODE_COLORS[mode] || '#64748B'} />))}</BarChart></ResponsiveContainer></CardContent></Card>
-                  </div>
-                </div>
-              )}
-
+          <ScrollArea className="flex-1 p-8">
+            <div className="max-w-7xl mx-auto space-y-8 text-left">
               {activeNav === 'library' && (
-                <div className="space-y-8 animate-in fade-in duration-500 text-left">
-                  <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between border-b-2 pb-6 text-left">
+                <div className="space-y-8 animate-in fade-in duration-500">
+                  <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between border-b-2 pb-6">
                     <div className="space-y-1">
-                      <h3 className="font-headline font-black text-2xl text-[#213147] uppercase leading-tight">Global Onboarding Libraries</h3>
+                      <h3 className="font-headline font-black text-2xl text-[#213147] uppercase">Global Onboarding Libraries</h3>
                       <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Master templates for rapid industry-standard provisioning</p>
                     </div>
-                    <div className="flex gap-3 w-full sm:w-auto">
-                      <Button onClick={handleInitializeLibrary} disabled={isInitializingLibrary} variant="outline" className="bg-white hover:bg-indigo-50 h-12 px-6 rounded-xl font-black uppercase text-[10px] tracking-widest gap-2 shadow-sm border-2 border-indigo-100">{isInitializingLibrary ? <Loader2 className="h-4 w-4 animate-spin" /> : <Database className="h-4 w-4 text-indigo-600" />} Initialize All Master Libraries</Button>
-                      <Button onClick={() => { if (libraryTab === 'modifiers') { setEditingLibraryItem(null); libraryForm.reset(); setIsLibraryFormOpen(true); } else { setEditingItemTemplate(null); itemTemplateForm.reset(); setIsItemFormOpen(true); } }} className="bg-indigo-600 hover:bg-indigo-700 h-12 px-6 rounded-xl font-black uppercase text-[10px] tracking-widest gap-2 shadow-xl">{libraryTab === 'modifiers' ? <Tags className="h-4 w-4" /> : <UtensilsCrossed className="h-4 w-4" />} Add New Template</Button>
+                    <div className="flex gap-3">
+                      <Button onClick={handleInitializeLibrary} disabled={isInitializingLibrary} variant="outline" className="bg-white border-2 border-indigo-100 font-black uppercase text-[10px] tracking-widest gap-2">
+                        {isInitializingLibrary ? <Loader2 className="h-4 w-4 animate-spin" /> : <Database className="h-4 w-4 text-indigo-600" />} Initialize All
+                      </Button>
+                      <Button onClick={() => { if (libraryTab === 'modifiers') { setEditingLibraryItem(null); libraryForm.reset(); setIsLibraryFormOpen(true); } else { setEditingItemTemplate(null); itemTemplateForm.reset(); setIsItemFormOpen(true); } }} className="bg-indigo-600 font-black uppercase text-[10px] tracking-widest gap-2 shadow-xl">
+                        <Plus className="h-4 w-4" /> Add New {libraryTab === 'modifiers' ? 'Modifier' : 'Item'}
+                      </Button>
                     </div>
                   </div>
 
                   <Tabs value={libraryTab} onValueChange={(v: any) => setLibraryTab(v)} className="space-y-6">
-                    <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+                    <div className="flex justify-between items-center gap-4">
                       <TabsList className="bg-slate-100 p-1 rounded-xl h-11"><TabsTrigger value="modifiers" className="text-[10px] font-black uppercase tracking-widest px-8">Modifier Sets</TabsTrigger><TabsTrigger value="items" className="text-[10px] font-black uppercase tracking-widest px-8">Menu Items</TabsTrigger></TabsList>
-                      <div className="flex bg-white p-2 px-3 rounded-xl border-2 shadow-sm gap-3 items-center w-full max-w-sm"><Search className="h-4 w-4 text-muted-foreground shrink-0" /><Input placeholder="Search global library..." value={librarySearchTerm} onChange={(e) => setLibrarySearchTerm(e.target.value)} className="border-0 shadow-none focus-visible:ring-0 text-xs font-medium p-0 h-auto" /></div>
+                      <div className="flex bg-white p-2 px-3 rounded-xl border-2 shadow-sm gap-3 items-center w-full max-w-sm"><Search className="h-4 w-4 text-muted-foreground shrink-0" /><Input placeholder="Search library..." value={librarySearchTerm} onChange={(e) => setLibrarySearchTerm(e.target.value)} className="border-0 shadow-none text-xs font-medium p-0 h-auto" /></div>
                     </div>
 
-                    <TabsContent value="modifiers" className="space-y-8 mt-0">
-                      {sortedLibraryItems.length === 0 ? (<div className="py-40 text-center border-2 border-dashed rounded-[3rem] bg-white"><Library className="h-16 w-16 mx-auto mb-6 text-slate-200" /><h3 className="font-headline font-black text-lg uppercase text-[#213147]">Library Empty</h3><Button onClick={handleInitializeLibrary} disabled={isInitializingLibrary} className="mt-8 bg-indigo-600 hover:bg-indigo-700 h-14 px-10 rounded-2xl font-black uppercase text-[11px] tracking-widest gap-3 shadow-xl">Initialize Master Templates</Button></div>) : (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 text-left">
-                          {libraryCategories.map(cat => {
-                            const items = filteredLibraryItems.filter(i => i.category === cat);
-                            if (items.length === 0) return null;
-                            return (
-                              <div key={cat} className="space-y-4">
-                                <div className="flex items-center gap-2 border-b-2 pb-2 px-1 text-left"><Badge variant="secondary" className="h-6 px-3 text-[10px] font-black uppercase tracking-widest bg-[#213147] text-white border-0">{cat}</Badge><span className="text-[9px] font-bold text-muted-foreground uppercase ml-auto">{items.length} Sets</span></div>
-                                <div className="space-y-4 text-left">{items.map(item => (<Card key={item.id} className="border-2 shadow-sm group hover:border-indigo-200 transition-all bg-white text-left"><CardHeader className="p-4 border-b bg-slate-50/50 flex flex-row items-center justify-between space-y-0 text-left"><div className="space-y-0.5 text-left"><p className="font-black text-xs uppercase text-[#213147]">{item.name}</p><div className="flex flex-wrap gap-1 mt-1">{item.venueType.map(vt => (<Badge key={vt} variant="outline" className="text-[7px] font-black uppercase h-3.5 px-1 bg-white border-slate-200">{vt}</Badge>))}<Badge variant="outline" className={cn("text-[7px] font-black uppercase h-3.5 px-1 border-0", item.required ? "bg-red-50 text-red-600" : "bg-slate-100 text-slate-400")}>{item.required ? 'Required' : 'Optional'}</Badge></div></div><div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"><Button variant="ghost" size="icon" className="h-8 w-8 text-indigo-600" onClick={() => { setEditingLibraryItem(item); setIsLibraryFormOpen(true); }}><Edit className="h-4 w-4" /></Button><Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleDeleteLibraryItem(item.id!)}><Trash2 className="h-4 w-4" /></Button></div></CardHeader><CardContent className="p-4 text-left"><div className="flex flex-wrap gap-1.5">{item.options.map((opt, idx) => (<Badge key={`${item.id}-opt-${idx}`} variant="outline" className="text-[8px] font-bold uppercase px-1.5 py-0.5 h-auto">{opt.label} {opt.priceModifier > 0 && `(+$${opt.priceModifier.toFixed(2)})`}</Badge>))}</div></CardContent></Card>))}</div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
+                    <TabsContent value="modifiers" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {filteredLibraryItems.map(item => (
+                        <Card key={item.id} className="border-2 shadow-sm group hover:border-indigo-200 transition-all bg-white">
+                          <CardHeader className="p-4 border-b bg-slate-50/50 flex flex-row items-center justify-between space-y-0">
+                            <div className="space-y-0.5"><p className="font-black text-xs uppercase text-[#213147]">{item.name}</p><Badge className="text-[7px] font-black uppercase h-3.5 px-1 border-0 bg-indigo-100 text-indigo-700">{item.category}</Badge></div>
+                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"><Button variant="ghost" size="icon" className="h-8 w-8 text-indigo-600" onClick={() => { setEditingLibraryItem(item); setIsLibraryFormOpen(true); }}><Edit className="h-4 w-4" /></Button></div>
+                          </CardHeader>
+                          <CardContent className="p-4 flex flex-wrap gap-1.5">{item.options.map((opt, idx) => (<Badge key={idx} variant="outline" className="text-[8px] font-bold uppercase">{opt.label}</Badge>))}</CardContent>
+                        </Card>
+                      ))}
                     </TabsContent>
 
-                    <TabsContent value="items" className="space-y-8 mt-0">
-                      {filteredItemTemplates.length === 0 ? (<div className="py-40 text-center border-2 border-dashed rounded-[3rem] bg-white"><UtensilsCrossed className="h-16 w-16 mx-auto mb-6 text-slate-200" /><h3 className="font-headline font-black text-lg uppercase text-[#213147]">No Item Templates</h3><Button onClick={handleInitializeLibrary} disabled={isInitializingLibrary} className="mt-8 bg-indigo-600 hover:bg-indigo-700 h-14 px-10 rounded-2xl font-black uppercase text-[11px] tracking-widest gap-3 shadow-xl">Populate Standard Menu</Button></div>) : (
-                        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                          {filteredItemTemplates.map(item => (
-                            <Card key={item.id} className="border-2 shadow-sm group hover:border-indigo-200 transition-all bg-white flex flex-col">
-                              <CardHeader className="p-4 border-b bg-slate-50/50 flex flex-row items-center justify-between space-y-0"><div className="space-y-1"><Badge className="h-4 px-1 text-[8px] font-black uppercase bg-[#213147] text-white border-0">{item.category}</Badge><p className="font-black text-xs uppercase text-[#213147] truncate max-w-[150px]">{item.name}</p></div><div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"><Button variant="ghost" size="icon" className="h-8 w-8 text-indigo-600" onClick={() => { setEditingItemTemplate(item); setIsItemFormOpen(true); }}><Edit className="h-4 w-4" /></Button><Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleDeleteItemTemplate(item.id!)}><Trash2 className="h-4 w-4" /></Button></div></CardHeader>
-                              <CardContent className="p-4 flex-1 space-y-3">
-                                <p className="text-[10px] text-muted-foreground font-medium line-clamp-2">{item.description || 'No description template'}</p>
-                                <div className="flex flex-wrap gap-1">
-                                  {item.venueType.map(vt => (<Badge key={vt} variant="outline" className="text-[7px] font-black uppercase h-3.5 px-1 bg-white border-slate-200">{vt}</Badge>))}
-                                </div>
-                                <div className="pt-2 border-t flex items-center justify-between"><span className="text-xs font-black text-primary font-mono">${item.price.toFixed(2)}</span><div className="flex gap-1">{item.modifierKeywords?.slice(0, 2).map(kw => (<Badge key={kw} variant="secondary" className="text-[6px] font-black uppercase px-1 h-3">{kw}</Badge>))}</div></div>
-                              </CardContent>
-                            </Card>
-                          ))}
-                        </div>
-                      )}
+                    <TabsContent value="items" className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                      {filteredItemTemplates.map(item => (
+                        <Card key={item.id} className="border-2 shadow-sm group hover:border-indigo-200 transition-all bg-white">
+                          <CardHeader className="p-4 border-b bg-slate-50/50 flex flex-row items-center justify-between space-y-0">
+                            <div className="space-y-1"><Badge className="h-4 px-1 text-[8px] font-black uppercase bg-[#213147] text-white border-0">{item.serviceMode}</Badge><p className="font-black text-xs uppercase text-[#213147] truncate">{item.name}</p></div>
+                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"><Button variant="ghost" size="icon" className="h-8 w-8 text-indigo-600" onClick={() => { setEditingItemTemplate(item); setIsItemFormOpen(true); }}><Edit className="h-4 w-4" /></Button></div>
+                          </CardHeader>
+                          <CardContent className="p-4 space-y-2"><p className="text-[10px] text-muted-foreground line-clamp-2">{item.description}</p><div className="flex justify-between items-center"><span className="text-xs font-black text-primary">${item.price.toFixed(2)}</span><div className="flex gap-1">{item.suggestedModifierGroups?.slice(0, 2).map(m => (<Badge key={m} className="text-[6px] uppercase px-1 h-3">{m}</Badge>))}</div></div></CardContent>
+                        </Card>
+                      ))}
                     </TabsContent>
                   </Tabs>
-                </div>
-              )}
-
-              {activeNav === 'venues' && (
-                <div className="space-y-6 animate-in fade-in duration-500 text-left">
-                  <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between text-left">
-                    <div className="flex-1 flex bg-white p-3 sm:p-4 rounded-2xl border-2 shadow-sm gap-4 items-center w-full min-w-0"><Search className="h-4 w-4 text-muted-foreground ml-1 sm:ml-2 shrink-0" /><Input placeholder="Search registry by venue name..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="border-0 shadow-none focus-visible:ring-0 text-xs sm:text-sm font-medium p-0 h-auto flex-1" /></div>
-                    <Button onClick={() => setIsAddVenueOpen(true)} className="bg-primary hover:bg-primary/90 h-12 md:h-14 px-6 md:px-8 rounded-2xl font-black uppercase text-[10px] md:text-xs tracking-widest gap-2 shadow-xl shadow-primary/20 w-full md:w-auto shrink-0"><Plus className="h-4 w-4" /> Register New Establishment</Button>
-                  </div>
-                  <div className="border-2 rounded-2xl overflow-hidden bg-white shadow-sm text-left"><div className="overflow-x-auto no-scrollbar"><Table className="min-w-[700px] md:min-w-full"><TableHeader className="bg-slate-50 border-b"><TableRow><TableHead className="text-[10px] font-black uppercase py-4">Establishment</TableHead><TableHead className="text-[10px] font-black uppercase">Type</TableHead><TableHead className="text-[10px] font-black uppercase hidden sm:table-cell">Contact</TableHead><TableHead className="text-[10px] font-black uppercase">Status</TableHead><TableHead className="text-right text-[10px] font-black uppercase pr-6">Actions</TableHead></TableRow></TableHeader><TableBody>{sellers?.filter(s => s.courseName.toLowerCase().includes(searchTerm.toLowerCase())).map((venue) => (<TableRow key={venue.id} className="group hover:bg-slate-50/50"><TableCell className="py-4 text-left"><div className="flex items-center gap-2"><span className="font-black text-sm uppercase text-[#213147]">{venue.courseName}</span>{venue.isFoundingPartner && (<Badge className="bg-amber-500 hover:bg-amber-600 text-white border-0 h-4 px-1.5 gap-0.5"><Star className="h-2 w-2 fill-current" /><span className="text-[8px] font-black tracking-tight">FOUNDING</span></Badge>)}</div></TableCell><TableCell className="text-[10px] font-bold text-muted-foreground uppercase text-left">{venue.type}</TableCell><TableCell className="text-[10px] font-medium hidden sm:table-cell text-left">{venue.contactName}</TableCell><TableCell className="text-left"><Badge className={cn(venue.status === 'Active' ? 'bg-green-600' : 'bg-slate-300')}>{venue.status}</Badge></TableCell><TableCell className="text-right pr-6"><div className="flex justify-end gap-2"><Button variant="outline" size="sm" onClick={() => { setSelectedSeller(venue); setIsVenueDetailOpen(true); }} className="text-[10px] font-black uppercase gap-1.5 h-8 border-2"><Settings className="h-3 w-3" /> Maintain</Button><Button variant="ghost" size="sm" asChild className="text-[10px] font-black uppercase gap-1.5 h-8 hover:bg-amber hover:text-amber-700 transition-colors"><Link href={`/sellers/${venue.id}`}><UserCog className="h-3 w-3 text-amber-600" /> Impersonate</Link></Button></div></TableCell></TableRow>))}</TableBody></Table></div></div>
-                </div>
-              )}
-
-              {activeNav === 'demos' && (
-                <div className="space-y-8 animate-in fade-in duration-500 text-left">
-                  <div className="flex justify-between items-center bg-white p-6 rounded-[2rem] border-2 shadow-sm"><div className="flex items-center gap-4 text-left"><div className="bg-amber-50 p-3 rounded-2xl"><Sparkles className="h-6 w-6 text-amber-500" /></div><div className="text-left"><h3 className="font-headline font-black text-lg uppercase text-[#213147]">Demo System Control</h3><p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Provision and reset standardized environments</p></div></div><Button onClick={handleResetDemos} disabled={isResettingDemos} className="h-12 bg-amber-500 hover:bg-amber-600 font-black uppercase text-[10px] tracking-widest gap-2 shadow-xl shadow-amber-500/20">{isResettingDemos ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />} Reseed & Reset All Demo Environments</Button></div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 text-left">{demoVenues.map((venue) => (<Card key={venue.id} className="group hover:border-indigo-500 transition-all border-2 shadow-sm overflow-hidden flex flex-col h-full bg-white text-left"><div className={cn("h-24 bg-gradient-to-br p-6 flex items-end relative", venue.gradient)}>{venue.icon}<Badge className="bg-white/20 text-white border-white/30 backdrop-blur-md uppercase text-[9px] font-black">{venue.type}</Badge></div><CardHeader className="pt-4 space-y-1 text-left"><CardTitle className="text-lg font-black uppercase">{venue.title}</CardTitle><CardDescription className="text-xs">{venue.sub}</CardDescription></CardHeader><CardContent className="flex-1 space-y-6 text-left"><div className="grid grid-cols-2 gap-4"><div className="flex flex-col items-center gap-3 bg-muted/30 p-3 rounded-2xl border-2 border-dashed"><div className="bg-white p-1.5 rounded-xl border-2 shadow-sm hover:scale-105 transition-transform cursor-pointer"><img src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${baseUrl}${venue.buyerUrl}`} alt="Patron QR" width={100} height={100} className="rounded-lg w-24 h-24" /></div><p className="text-[8px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-1"><ShoppingBag className="h-2 w-2" /> Patron Menu</p></div><div className="flex flex-col items-center gap-3 bg-indigo-50/50 p-3 rounded-2xl border-2 border-indigo-100/50 border-dashed"><div className="bg-white p-1.5 rounded-xl border-2 shadow-sm hover:scale-105 transition-transform cursor-pointer"><img src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${baseUrl}${venue.staffEntryUrl}`} alt="Staff QR" width={100} height={100} className="rounded-lg w-24 h-24" /></div><p className="text-[8px] font-black uppercase tracking-widest text-indigo-600 flex items-center gap-1"><ShieldCheck className="h-2 w-2" /> Staff Entry</p></div></div><div className="space-y-3 text-left"><p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground px-1">Staff Access Point</p><div className="grid grid-cols-1 gap-2">{venue.staffViews.map((view) => (<Button key={view.url} variant="outline" size="sm" asChild className="h-9 justify-start text-[10px] font-black uppercase tracking-widest border-indigo-100 text-indigo-600 hover:bg-indigo-50"><Link href={view.url}>{view.icon}<span className="ml-2">{view.label}</span><ExternalLink className="ml-auto h-3 w-3 opacity-30" /></Link></Button>))}<Button variant="ghost" size="sm" asChild className="h-9 justify-start text-[10px] font-black uppercase tracking-widest text-[#213147] hover:bg-slate-100"><Link href={venue.adminUrl}><LayoutDashboard className="h-3.5 w-3.5" /><span className="ml-2">Venue Admin</span><ExternalLink className="ml-auto h-3 w-3 opacity-30" /></Link></Button></div></div></CardContent><CardFooter className="pt-4 border-t bg-muted/5"><Button asChild className="w-full justify-between h-11 bg-[#213147] hover:bg-black font-black uppercase tracking-widest text-[10px]"><Link href={venue.buyerUrl}>Launch Patron Menu <PlayCircle className="h-4 w-4" /></Link></Button></CardFooter></Card>))}</div>
-                </div>
-              )}
-
-              {activeNav === 'system' && (
-                <div className="space-y-8 animate-in fade-in duration-500 text-left">
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 text-left">
-                    <Card className="border-2 shadow-sm overflow-hidden lg:col-span-2 text-left"><CardHeader className="border-b bg-[#213147] text-white flex flex-row items-center justify-between text-left"><div className="flex items-center gap-3"><ShieldAlert className="h-5 w-5 text-primary" /><div className="text-left"><CardTitle className="font-black uppercase tracking-tight text-sm">Global Service Authorization</CardTitle><CardDescription className="text-[10px] font-bold uppercase text-white/50">Restrict specific channels across the entire solution</CardDescription></div></div><Button variant="destructive" size="sm" onClick={handleResetOperationalStatus} disabled={isResettingOps} className="font-black uppercase tracking-widest text-[9px] gap-2 h-9 px-4 shadow-xl">{isResettingOps ? <Loader2 className="h-3 w-3 animate-spin" /> : <Eraser className="h-3 w-3" />} Force Global Baseline Reset</Button></CardHeader><CardContent className="p-6"><div className="grid grid-cols-2 sm:grid-cols-4 gap-4">{SERVICE_MODES.map(mode => { const isEnabled = globalEnabledModes.includes(mode); return (<div key={mode} onClick={() => toggleGlobalMode(mode)} className={cn("flex flex-col items-center gap-3 p-4 rounded-2xl border-2 cursor-pointer transition-all", isEnabled ? "border-primary bg-primary/5 shadow-md" : "border-slate-100 opacity-50 grayscale")}><div className={cn("p-2 rounded-xl", isEnabled ? "bg-primary text-white" : "bg-slate-200 text-slate-400")}><Zap className="h-5 w-5" /></div><span className="text-[10px] font-black uppercase text-[#213147] text-center">{mode}</span><Switch checked={isEnabled} className="data-[state=checked]:bg-primary" /></div>); })}</div></CardContent></Card>
-                  </div>
                 </div>
               )}
             </div>
@@ -832,19 +406,22 @@ export default function SolutionAdminPage() {
         </main>
       </div>
 
-      {/* Global Library Form - Modifiers */}
-      <Dialog open={isLibraryFormOpen} onOpenChange={setIsLibraryFormOpen}>
-        <DialogContent className="sm:max-w-[600px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
-          <DialogHeader className="p-8 bg-indigo-600 text-white"><div className="flex items-center gap-4 text-left"><div className="bg-white/20 p-3 rounded-2xl shrink-0"><Tags className="h-6 w-6 text-white" /></div><div className="text-left"><DialogTitle className="font-headline font-black uppercase tracking-tight text-white text-xl">{editingLibraryItem ? 'Modify Template' : 'Add Modifier Template'}</DialogTitle><DialogDescription className="text-white/40 text-[9px] font-bold uppercase tracking-widest mt-1">Global industrial modifier template definition</DialogDescription></div></div></DialogHeader>
-          <ScrollArea className="max-h-[70vh]"><div className="p-8"><Form {...libraryForm}><form onSubmit={libraryForm.handleSubmit(handleSaveLibraryItem)} className="space-y-8"><div className="grid grid-cols-1 sm:grid-cols-2 gap-6"><FormField control={libraryForm.control} name="name" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest">Template Name</FormLabel><FormControl><Input {...field} placeholder="Side Options" className="h-12 border-2 font-bold" /></FormControl><FormMessage /></FormItem>)} /><FormField control={libraryForm.control} name="category" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest">Library Category</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}><FormControl><SelectTrigger className="h-12 border-2 font-bold"><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="universal" className="font-bold">UNIVERSAL</SelectItem><SelectItem value="food" className="font-bold">FOOD</SelectItem><SelectItem value="beverage" className="font-bold">BEVERAGE</SelectItem></SelectContent></Select></FormItem>)} /></div><FormField control={libraryForm.control} name="venueType" render={({ field }) => (<FormItem className="space-y-3"><FormLabel className="text-[10px] font-black uppercase tracking-widest">Target Establishments</FormLabel><div className="flex gap-4">{['golf', 'bowling'].map(vt => (<div key={vt} onClick={() => { const current = field.value || []; const next = current.includes(vt) ? current.filter(v => v !== vt) : [...current, vt]; field.onChange(next); }} className={cn("flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all flex-1", field.value?.includes(vt) ? "border-indigo-600 bg-indigo-50" : "border-slate-100 opacity-60")}><Checkbox checked={field.value?.includes(vt)} /><span className="text-[10px] font-black uppercase text-[#213147]">{vt}</span></div>))}</div></FormItem>)} /><div className="grid grid-cols-1 sm:grid-cols-3 gap-6 bg-slate-50 p-6 rounded-3xl border-2"><FormField control={libraryForm.control} name="selectionType" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest">Select Rule</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}><FormControl><SelectTrigger className="h-10 border-2 font-bold text-xs"><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="single" className="text-xs">Single</SelectItem><SelectItem value="multi" className="text-xs">Multiple</SelectItem></SelectContent></Select></FormItem>)} /><FormField control={libraryForm.control} name="required" render={({ field }) => (<FormItem className="flex flex-col justify-center items-center gap-2"><FormLabel className="text-[10px] font-black uppercase tracking-widest">Required</FormLabel><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} className="data-[state=checked]:bg-red-600" /></FormControl></FormItem>)} /><FormField control={libraryForm.control} name="sortOrder" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest">Rank</FormLabel><FormControl><Input {...field} type="number" className="h-10 border-2 font-bold" /></FormControl></FormItem>)} /></div><div className="space-y-4"><div className="flex items-center justify-between border-b pb-2"><Label className="text-[10px] font-black uppercase tracking-widest text-indigo-600">Option Variations</Label><Button type="button" variant="outline" size="sm" onClick={() => appendOption({ label: '', priceModifier: 0 })} className="h-7 text-[8px] font-black uppercase gap-1"><Plus className="h-3 w-3" /> Add Variation</Button></div><div className="space-y-3">{optionFields.map((field, index) => (<div key={field.id} className="grid grid-cols-12 gap-2 items-end bg-white p-3 border-2 rounded-xl group"><div className="col-span-8 space-y-1"><Label className="text-[8px] font-black uppercase text-muted-foreground">Option Label</Label><Input {...libraryForm.register(`options.${index}.label` as const)} placeholder="e.g. Extra Bacon" className="h-9 text-xs font-bold border-0 bg-slate-50" /></div><div className="col-span-3 space-y-1"><Label className="text-[8px] font-black uppercase text-muted-foreground">Price (+)</Label><Input {...libraryForm.register(`options.${index}.priceModifier` as const)} type="number" step="0.01" className="h-9 text-xs font-bold border-0 bg-slate-50" /></div><div className="col-span-1 flex items-center justify-center pb-1"><Button type="button" variant="ghost" size="icon" onClick={() => removeOption(index)} className="h-8 w-8 text-destructive/40 hover:text-destructive"><X className="h-4 w-4" /></Button></div></div>))}</div></div><div className="flex flex-col sm:flex-row gap-3 pt-4"><Button type="submit" disabled={isProcessingSave} className="flex-1 h-14 bg-indigo-600 hover:bg-indigo-700 font-black uppercase tracking-widest text-[11px] gap-2 shadow-xl">{isProcessingSave ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Commit Template</Button><Button type="button" variant="outline" onClick={() => { setIsLibraryFormOpen(false); setEditingLibraryItem(null); libraryForm.reset(); }} className="h-14 px-8 border-2 font-black uppercase tracking-widest text-[11px]">Discard</Button></div></form></Form></div></ScrollArea>
-        </DialogContent>
-      </Dialog>
-
-      {/* Global Library Form - Menu Items */}
+      {/* Item Template Form */}
       <Dialog open={isItemFormOpen} onOpenChange={setIsItemFormOpen}>
         <DialogContent className="sm:max-w-[600px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
-          <DialogHeader className="p-8 bg-indigo-600 text-white"><div className="flex items-center gap-4 text-left"><div className="bg-white/20 p-3 rounded-2xl shrink-0"><UtensilsCrossed className="h-6 w-6 text-white" /></div><div className="text-left"><DialogTitle className="font-headline font-black uppercase tracking-tight text-white text-xl">{editingItemTemplate ? 'Modify Item Template' : 'New Master Item'}</DialogTitle><DialogDescription className="text-white/40 text-[9px] font-bold uppercase tracking-widest mt-1">Global menu item definition for rapid provisioning</DialogDescription></div></div></DialogHeader>
-          <ScrollArea className="max-h-[70vh]"><div className="p-8"><Form {...itemTemplateForm}><form onSubmit={itemTemplateForm.handleSubmit(handleSaveItemTemplate)} className="space-y-6 text-left"><div className="grid grid-cols-1 sm:grid-cols-2 gap-6"><FormField control={itemTemplateForm.control} name="name" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest">Item Name</FormLabel><FormControl><Input {...field} placeholder="Classic Cheeseburger" className="h-12 border-2 font-bold" /></FormControl><FormMessage /></FormItem>)} /><FormField control={itemTemplateForm.control} name="category" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest">Category</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}><FormControl><SelectTrigger className="h-12 border-2 font-bold"><SelectValue /></SelectTrigger></FormControl><SelectContent>{categories.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent></Select></FormItem>)} /></div><FormField control={itemTemplateForm.control} name="description" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest">Description Template</FormLabel><FormControl><Input {...field} placeholder="Served with house-made chips." className="h-12 border-2 font-bold" /></FormControl></FormItem>)} /><div className="grid grid-cols-2 gap-6"><FormField control={itemTemplateForm.control} name="price" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest">Global MSRP ($)</FormLabel><FormControl><Input {...field} type="number" step="0.01" className="h-12 border-2 font-bold" /></FormControl></FormItem>)} /><FormField control={itemTemplateForm.control} name="venueType" render={({ field }) => (<FormItem className="space-y-2"><FormLabel className="text-[10px] font-black uppercase tracking-widest">Target Venues</FormLabel><div className="flex gap-2">{['golf', 'bowling'].map(vt => (<div key={vt} onClick={() => { const current = field.value || []; const next = current.includes(vt) ? current.filter(v => v !== vt) : [...current, vt]; field.onChange(next); }} className={cn("flex items-center gap-2 p-2 rounded-lg border-2 cursor-pointer transition-all flex-1", field.value?.includes(vt) ? "border-indigo-600 bg-indigo-50" : "border-slate-100 opacity-60")}><Checkbox checked={field.value?.includes(vt)} /><span className="text-[9px] font-black uppercase">{vt}</span></div>))}</div></FormItem>)} /></div><div className="flex flex-col sm:flex-row gap-3 pt-4"><Button type="submit" disabled={isProcessingSave} className="flex-1 h-14 bg-indigo-600 hover:bg-indigo-700 font-black uppercase tracking-widest text-[11px] gap-2 shadow-xl">{isProcessingSave ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Save Item Template</Button><Button type="button" variant="outline" onClick={() => { setIsItemFormOpen(false); setEditingItemTemplate(null); itemTemplateForm.reset(); }} className="h-14 px-8 border-2 font-black uppercase tracking-widest text-[11px]">Discard</Button></div></form></Form></div></ScrollArea>
+          <DialogHeader className="p-8 bg-indigo-600 text-white"><div className="flex items-center gap-4 text-left"><div className="bg-white/20 p-3 rounded-2xl shrink-0"><UtensilsCrossed className="h-6 w-6 text-white" /></div><div className="text-left"><DialogTitle className="font-headline font-black uppercase tracking-tight text-white text-xl">Menu Item Template</DialogTitle></div></div></DialogHeader>
+          <ScrollArea className="max-h-[70vh]"><div className="p-8"><Form {...itemTemplateForm}><form onSubmit={itemTemplateForm.handleSubmit(handleSaveItemTemplate)} className="space-y-6">
+            <div className="grid grid-cols-2 gap-4">
+              <FormField control={itemTemplateForm.control} name="name" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase">Item Name</FormLabel><FormControl><Input {...field} className="h-12 border-2 font-bold" /></FormControl></FormItem>)} />
+              <FormField control={itemTemplateForm.control} name="serviceMode" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase">Service Mode</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger className="h-12 border-2 font-bold"><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="beverageCart">Beverage Cart</SelectItem><SelectItem value="clubhouse">Clubhouse</SelectItem><SelectItem value="pool">Pool</SelectItem><SelectItem value="laneService">Lane Service</SelectItem><SelectItem value="takeout">Takeout</SelectItem></SelectContent></Select></FormItem>)} />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <FormField control={itemTemplateForm.control} name="price" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase">Template Price ($)</FormLabel><FormControl><Input {...field} type="number" step="0.01" className="h-12 border-2 font-bold" /></FormControl></FormItem>)} />
+              <FormField control={itemTemplateForm.control} name="category" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase">Category</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger className="h-12 border-2 font-bold"><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="alcohol">Alcohol</SelectItem><SelectItem value="beverage">Beverage</SelectItem><SelectItem value="food">Food</SelectItem></SelectContent></Select></FormItem>)} />
+            </div>
+            <FormField control={itemTemplateForm.control} name="suggestedModifierGroups" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase">Suggested Modifiers (Comma Separated)</FormLabel><FormControl><Input value={field.value.join(', ')} onChange={(e) => field.onChange(e.target.value.split(',').map(s => s.trim()))} className="h-12 border-2 font-bold" /></FormControl></FormItem>)} />
+            <Button type="submit" disabled={isProcessingSave} className="w-full h-14 bg-indigo-600 font-black uppercase tracking-widest text-[11px] gap-2 shadow-xl">{isProcessingSave ? <Loader2 className="animate-spin" /> : <Save className="h-4 w-4" />} Save Master Template</Button>
+          </form></Form></div></ScrollArea>
         </DialogContent>
       </Dialog>
     </div>
