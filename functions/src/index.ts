@@ -189,6 +189,73 @@ export const dailyOperationalReset = onSchedule({
 });
 
 /**
+ * applyStarterMenu
+ * Callable function that clones templates from the global library into a venue's scoped collection.
+ * Maintains independent copies so future venue-specific edits don't affect the master templates.
+ */
+export const applyStarterMenu = onCall({
+  region: 'us-central1',
+}, async (request) => {
+  const { venueId, venueType } = request.data;
+  
+  if (!venueId || !venueType) {
+    throw new HttpsError('invalid-argument', 'The venueId and venueType ("golf" or "bowling") are required.');
+  }
+
+  logger.info(`[applyStarterMenu] Initializing menu clone for venue: ${venueId} (Type: ${venueType})`);
+
+  // 1. Fetch relevant templates from the global library
+  const libraryRef = db.collection('starter_modifier_library');
+  const snapshot = await libraryRef.where('venueType', 'array-contains', venueType.toLowerCase()).get();
+
+  if (snapshot.empty) {
+    logger.warn(`[applyStarterMenu] No templates found for type: ${venueType}`);
+    return { totalCreated: 0, byCategory: {} };
+  }
+
+  const batch = db.batch();
+  const summary: Record<string, number> = {};
+
+  // 2. Clone each template into the venue-scoped collection
+  snapshot.docs.forEach(docSnap => {
+    const template = docSnap.data();
+    // Unique ID combining venue context and template identity
+    const groupId = `${venueId}-${docSnap.id}`;
+    const groupRef = db.collection('modifier_groups').doc(groupId);
+    
+    const operationalGroup = {
+      id: groupId,
+      sellerId: venueId,
+      name: template.name,
+      // Map templated requirements to operational schema
+      minSelection: template.required ? 1 : 0,
+      maxSelection: template.selectionType === 'single' ? 1 : 99,
+      options: template.options.map((opt: any) => ({
+        id: opt.label.toLowerCase().replace(/[^a-z0-9]/g, '-'),
+        name: opt.label,
+        priceAdjustment: opt.priceModifier || 0,
+        isAvailable: true
+      })),
+      createdAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp()
+    };
+
+    batch.set(groupRef, operationalGroup);
+    
+    const cat = template.category || 'universal';
+    summary[cat] = (summary[cat] || 0) + 1;
+  });
+
+  await batch.commit();
+  logger.info(`[applyStarterMenu] Successfully cloned ${snapshot.size} modifier groups into venue ${venueId}`);
+
+  return {
+    totalCreated: snapshot.size,
+    byCategory: summary
+  };
+});
+
+/**
  * onGuestOrderStatusUpdate
  * Triggers on any creation or update to an order document.
  * Manages patron SMS notifications via Twilio.
