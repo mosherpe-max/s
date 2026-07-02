@@ -62,7 +62,8 @@ import {
   Share2,
   Presentation,
   Filter,
-  X
+  X,
+  Package
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -1095,7 +1096,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
 
       {/* Staff Form */}
       <Dialog open={isStaffFormOpen} onOpenChange={setIsStaffFormOpen}>
-        <DialogContent className="sm:max-w-[425px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl">
+        <DialogContent className="sm:max-w-[425px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
           <DialogHeader className="p-8 bg-[#213147] text-white">
             <DialogTitle className="font-headline font-black uppercase tracking-tight text-white text-xl">
               {editingStaff ? 'Edit Personnel' : 'Add Personnel'}
@@ -1122,7 +1123,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
 
       {/* Item Form */}
       <Dialog open={isItemFormOpen} onOpenChange={setIsItemFormOpen}>
-        <DialogContent className="sm:max-w-[500px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl">
+        <DialogContent className="sm:max-w-[500px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
           <DialogHeader className="p-8 bg-[#213147] text-white">
             <DialogTitle className="font-headline font-black uppercase tracking-tight text-white text-xl">Menu Item</DialogTitle>
           </DialogHeader>
@@ -1145,23 +1146,6 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                 <FormItem><FormLabel className="text-[10px] font-black uppercase">Category</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger className="h-12 border-2 font-bold"><SelectValue /></SelectTrigger></FormControl><SelectContent>{categories.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent></Select></FormItem>
               )} />
             </div>
-            <div className="space-y-4 pt-4 border-t text-left">
-              <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground px-1">Service Channels</Label>
-              <div className="grid grid-cols-2 gap-3">
-                 {['Beverage Cart', 'Clubhouse', 'Lane Delivery', 'Take Out'].map(mode => (
-                   <div key={mode} className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border-2">
-                     <Checkbox 
-                       checked={itemForm.getValues('availableOn').includes(mode)} 
-                       onCheckedChange={(checked) => {
-                         const current = itemForm.getValues('availableOn');
-                         itemForm.setValue('availableOn', checked ? [...current, mode] : current.filter(m => m !== mode));
-                       }} 
-                     />
-                     <span className="text-[10px] font-black uppercase">{mode}</span>
-                   </div>
-                 ))}
-              </div>
-            </div>
             <Button type="submit" disabled={isProcessingSave} className="w-full h-14 bg-[#213147] font-black uppercase tracking-widest text-[11px] gap-2 shadow-xl">
               {isProcessingSave ? <Loader2 className="animate-spin" /> : <Save className="h-4 w-4" />} Save Menu Item
             </Button>
@@ -1171,7 +1155,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
 
       {/* Modifier Group Form */}
       <Dialog open={isModifierGroupFormOpen} onOpenChange={setIsModifierGroupFormOpen}>
-        <DialogContent className="sm:max-w-[600px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl">
+        <DialogContent className="sm:max-w-[600px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
           <DialogHeader className="p-8 bg-indigo-600 text-white">
             <DialogTitle className="font-headline font-black uppercase tracking-tight text-white text-xl">Modifier Set</DialogTitle>
           </DialogHeader>
@@ -1220,7 +1204,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
 
       {/* Confirmation Modals */}
       <Dialog open={isStarterMenuConfirmOpen} onOpenChange={setIsStarterMenuConfirmOpen}>
-        <DialogContent className="sm:max-w-[425px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl">
+        <DialogContent className="sm:max-w-[425px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
           <DialogHeader className="p-8 bg-indigo-600 text-white text-left">
             <DialogTitle className="font-headline font-black uppercase tracking-tight text-white text-xl">Apply Starter Modifiers</DialogTitle>
           </DialogHeader>
@@ -1234,7 +1218,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
       </Dialog>
 
       <Dialog open={isStarterItemsConfirmOpen} onOpenChange={setIsStarterItemsConfirmOpen}>
-        <DialogContent className="sm:max-w-[425px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl">
+        <DialogContent className="sm:max-w-[425px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
           <DialogHeader className="p-8 bg-indigo-600 text-white text-left">
             <DialogTitle className="font-headline font-black uppercase tracking-tight text-white text-xl">Apply Starter Menu</DialogTitle>
           </DialogHeader>
@@ -1248,21 +1232,6 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
       </Dialog>
 
     </div>
-  );
-}
-
-function Checkbox({ checked, onCheckedChange }: { checked: boolean, onCheckedChange: (val: boolean) => void }) {
-  return (
-    <button 
-      type="button"
-      onClick={() => onCheckedChange(!checked)}
-      className={cn(
-        "h-5 w-5 rounded border-2 flex items-center justify-center transition-all",
-        checked ? "bg-primary border-primary text-white" : "border-slate-300 bg-white"
-      )}
-    >
-      {checked && <CheckCircle2 className="h-3 w-3" />}
-    </button>
   );
 }
 
