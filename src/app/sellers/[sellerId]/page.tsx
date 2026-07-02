@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useMemo, useEffect, use } from 'react';
@@ -335,7 +336,7 @@ function SortableCategory({ id, category, isVisible, onToggleVisibility }: { id:
       </div>
       <Switch 
         checked={isVisible} 
-        onCheckedChange={() => onToggleVisibility(category)} 
+        onToggle={() => onToggleVisibility(category)} 
         className="data-[state=checked]:bg-primary"
       />
     </div>
@@ -596,7 +597,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
     setIsSeeding(true);
     try {
       await seedVenueModifiers(firestore, sellerId, seller.type);
-      toast({ title: "Industry Presets Applied", description: "Standard modifier groups have been added and linked to items." });
+      toast({ title: "Industry Presets Applied", description: "Standard modifier groups have been added and linked to items from the master library." });
     } catch (error) {
       toast({ variant: "destructive", title: "Seeding Failed", description: "Could not provision industry presets." });
     } finally {
@@ -978,7 +979,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
 
               {activeNav === 'modifiers' && (
                 <div className="space-y-6 animate-in fade-in duration-500">
-                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b-2 pb-4 text-left"><div className="space-y-1"><h3 className="font-headline font-black text-2xl text-[#213147] uppercase leading-tight">Modifier Groups</h3><p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Reusable sets of customizations and add-ons</p></div><div className="flex gap-3 w-full sm:w-auto"><Button onClick={handleSeedPresets} disabled={isSeeding} variant="outline" className="flex-1 sm:flex-initial h-12 border-2 font-black uppercase text-[10px] tracking-widest gap-2">{isSeeding ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4 text-primary" />}Seed Industry Presets</Button><Button onClick={() => { setEditingModifierGroup(null); modifierGroupForm.reset({ name: '', minSelection: 0, maxSelection: 1, options: [{ id: Math.random().toString(36).substr(2, 9), name: '', priceAdjustment: 0, isAvailable: true }] }); setIsModifierGroupFormOpen(true); }} className="flex-1 sm:flex-initial bg-indigo-600 hover:bg-indigo-700 h-12 px-6 rounded-xl font-black uppercase text-[10px] tracking-widest gap-2 shadow-xl"><Plus className="h-4 w-4" /> Define New Set</Button></div></div>
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b-2 pb-4 text-left"><div className="space-y-1"><h3 className="font-headline font-black text-2xl text-[#213147] uppercase leading-tight">Modifier Groups</h3><p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Reusable sets of customizations and add-ons</p></div><div className="flex gap-3 w-full sm:w-auto"><Button onClick={handleSeedPresets} disabled={isSeeding} variant="outline" className="flex-1 sm:flex-initial h-12 border-2 font-black uppercase text-[10px] tracking-widest gap-2">{isSeeding ? <Loader2 className="h-4 w-4 animate-spin" /> : <Library className="h-4 w-4 text-primary" />}Seed Library Templates</Button><Button onClick={() => { setEditingModifierGroup(null); modifierGroupForm.reset({ name: '', minSelection: 0, maxSelection: 1, options: [{ id: Math.random().toString(36).substr(2, 9), name: '', priceAdjustment: 0, isAvailable: true }] }); setIsModifierGroupFormOpen(true); }} className="flex-1 sm:flex-initial bg-indigo-600 hover:bg-indigo-700 h-12 px-6 rounded-xl font-black uppercase text-[10px] tracking-widest gap-2 shadow-xl"><Plus className="h-4 w-4" /> Define New Set</Button></div></div>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 text-left">{modifierGroups?.map(group => (<Card key={group.id} className="border-2 shadow-sm group hover:border-indigo-200 transition-all bg-white text-left"><CardHeader className="p-4 border-b bg-slate-50/50 flex flex-row items-center justify-between space-y-0 text-left"><div className="space-y-0.5 text-left"><p className="font-black text-xs uppercase text-[#213147]">{group.name}</p><p className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest">{group.minSelection > 0 ? `Required (${group.minSelection})` : 'Optional'} · Max {group.maxSelection}</p></div><div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"><Button variant="ghost" size="icon" className="h-8 w-8 text-indigo-600" onClick={() => { setEditingModifierGroup(group); modifierGroupForm.reset(group); setIsModifierGroupFormOpen(true); }}><Edit className="h-4 w-4" /></Button><Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleDeleteModifierGroup(group.id)}><Trash2 className="h-4 w-4" /></Button></div></CardHeader><CardContent className="p-4 text-left"><div className="flex flex-wrap gap-1.5">{group.options.map((opt, idx) => (<Badge key={`${group.id}-opt-${idx}`} variant="outline" className={cn("text-[8px] font-bold uppercase px-1.5 py-0.5 h-auto", !opt.isAvailable && "opacity-40 line-through")}>{opt.name} {opt.priceAdjustment > 0 && `(+$${opt.priceAdjustment.toFixed(2)})`}</Badge>))}</div></CardContent></Card>))}</div>
                 </div>
               )}
@@ -1023,7 +1024,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                             {categories.filter(c => c !== 'Featured' && !(seller?.categoryVisibility?.[configMode] || []).includes(c)).map(cat => (
                               <div key={`cat-hidden-${cat}`} className="bg-slate-50 border-2 border-dashed rounded-xl p-3 flex items-center justify-between opacity-60">
                                 <span className="text-[10px] font-black uppercase text-slate-400">{cat}</span>
-                                <Switch checked={false} onCheckedChange={() => handleToggleCategoryVisibility(cat)} className="scale-75" />
+                                <Switch checked={false} onToggle={() => handleToggleCategoryVisibility(cat)} className="scale-75" />
                               </div>
                             ))}
                           </div>
@@ -1063,7 +1064,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                               <div className="flex items-center gap-3">
                                 <Badge variant="secondary" className="h-6 px-3 text-[10px] font-black uppercase tracking-widest bg-[#213147] text-white border-0">{cat}</Badge>
                                 <div className="flex items-center gap-2">
-                                  <Switch checked={(seller?.categoryVisibility?.[configMode] || []).includes(cat)} onCheckedChange={() => handleToggleCategoryVisibility(cat)} className="scale-75" />
+                                  <Switch checked={(seller?.categoryVisibility?.[configMode] || []).includes(cat)} onToggle={() => handleToggleCategoryVisibility(cat)} className="scale-75" />
                                   <span className="text-[9px] font-black uppercase text-muted-foreground">Category Visible</span>
                                 </div>
                               </div>
@@ -1404,7 +1405,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                           </div>
                           <div className="col-span-2 flex items-center justify-center pb-2">
                             <FormField control={modifierGroupForm.control} name={`options.${index}.isAvailable`} render={({ field }) => (
-                              <Switch checked={field.value} onCheckedChange={field.onChange} className="data-[state=checked]:bg-green-600 scale-75" />
+                              <Switch checked={field.value} onToggle={() => field.onChange(!field.value)} className="data-[state=checked]:bg-green-600 scale-75" />
                             )} />
                           </div>
                           <div className="col-span-1 flex items-center justify-center pb-1">

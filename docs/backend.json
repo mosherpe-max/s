@@ -135,6 +135,30 @@
         }
       },
       "required": ["sellerId", "name", "options"]
+    },
+    "StarterModifierGroup": {
+      "title": "Starter Modifier Group",
+      "type": "object",
+      "description": "Global template for industry-standard modifier groups.",
+      "properties": {
+        "name": { "type": "string" },
+        "venueType": { "type": "array", "items": { "type": "string" }, "description": "e.g. ['golf', 'bowling']" },
+        "category": { "type": "string", "description": "e.g. 'food', 'beverage', 'universal'" },
+        "selectionType": { "type": "string", "enum": ["single", "multi"] },
+        "required": { "type": "boolean" },
+        "options": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "label": { "type": "string" },
+              "priceModifier": { "type": "number" }
+            }
+          }
+        },
+        "sortOrder": { "type": "number" }
+      },
+      "required": ["name", "venueType", "options"]
     }
   },
   "auth": {
@@ -149,7 +173,8 @@
       { "path": "/roles_seller_admin/{email}", "definition": { "entityName": "SellerAdminRole" } },
       { "path": "/roles_sales_rep/{email}", "definition": { "entityName": "SalesRepRole" } },
       { "path": "/menu_items/{itemId}", "definition": { "entityName": "MenuItemNormalized" } },
-      { "path": "/modifier_groups/{groupId}", "definition": { "entityName": "ModifierGroup" } }
+      { "path": "/modifier_groups/{groupId}", "definition": { "entityName": "ModifierGroup" } },
+      { "path": "/starter_modifier_library/{groupId}", "definition": { "entityName": "StarterModifierGroup" } }
     ]
   }
 }

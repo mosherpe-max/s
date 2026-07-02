@@ -134,6 +134,17 @@ export interface ModifierGroup {
   updatedAt: Timestamp;
 }
 
+export interface StarterModifierGroup {
+  id?: string;
+  name: string;
+  venueType: string[]; // ['golf', 'bowling']
+  category: string; // 'food', 'beverage', 'universal'
+  selectionType: 'single' | 'multi';
+  required: boolean;
+  options: { label: string; priceModifier: number }[];
+  sortOrder: number;
+}
+
 export interface MenuItem {
     id: string;
     name: string;
