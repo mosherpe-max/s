@@ -44,12 +44,17 @@ import {
   Power,
   PanelLeft,
   ChevronLeft,
-  ChevronRightSquare
+  ChevronRightSquare,
+  Globe,
+  BellRing,
+  ShieldCheck,
+  Mail
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
 import { 
   Dialog, 
   DialogContent, 
@@ -197,6 +202,46 @@ export default function SolutionAdminPage() {
   const [isInitializingLibrary, setIsInitializingLibrary] = useState(false);
   const [isResettingSystem, setIsResettingSystem] = useState(false);
   const [librarySearchTerm, setLibrarySearchTerm] = useState('');
+
+  // System Config State
+  const [configData, setConfigData] = useState<Partial<SolutionConfig>>({
+    supportEmail: '',
+    logoUrl: '',
+    dailyResetHour: 4,
+    smsNotificationsEnabled: true,
+    gpsFreshnessThresholds: { hot: 60, warm: 300, cold: 600 },
+    enabledModes: ['Beverage Cart', 'Clubhouse', 'Lane Delivery', 'Take Out']
+  });
+  const [isSavingConfig, setIsSavingConfig] = useState(false);
+
+  const configRef = useMemoFirebase(() => (firestore ? doc(firestore, 'solution', 'config') : null), [firestore]);
+  const { data: remoteConfig } = useDoc<SolutionConfig>(configRef);
+
+  useEffect(() => {
+    if (remoteConfig) {
+      setConfigData({
+        ...remoteConfig,
+        gpsFreshnessThresholds: remoteConfig.gpsFreshnessThresholds || { hot: 60, warm: 300, cold: 600 },
+        enabledModes: remoteConfig.enabledModes || ['Beverage Cart', 'Clubhouse', 'Lane Delivery', 'Take Out']
+      });
+    }
+  }, [remoteConfig]);
+
+  const handleSaveConfig = async () => {
+    if (!firestore) return;
+    setIsSavingConfig(true);
+    try {
+      await updateDoc(doc(firestore, 'solution', 'config'), {
+        ...configData,
+        updatedAt: serverTimestamp()
+      });
+      toast({ title: "Configuration Saved", description: "Global system settings updated." });
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Save Failed", description: e.message });
+    } finally {
+      setIsSavingConfig(false);
+    }
+  };
 
   const libraryQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'starter_modifier_library') : null), [firestore]);
   const itemLibQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'starter_menu_item_library') : null), [firestore]);
@@ -480,23 +525,126 @@ export default function SolutionAdminPage() {
 
               {activeNav === 'system' && (
                 <div className="space-y-8 animate-in fade-in duration-500">
-                   <div className="flex justify-between items-center border-b-2 pb-6">
-                     <h3 className="font-headline font-black text-2xl text-[#213147] uppercase">Global System Config</h3>
-                  </div>
-                  <Card className="border-2 p-8 max-w-2xl">
-                    <div className="space-y-8">
-                       <div className="space-y-4">
-                          <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Notification Policy</Label>
-                          <div className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border-2">
-                            <div>
-                              <p className="font-bold text-sm">SMS Order Tracking</p>
-                              <p className="text-[10px] text-muted-foreground uppercase">Enable Twilio notifications for patrons</p>
-                            </div>
-                            <Switch checked={true} />
-                          </div>
-                       </div>
+                  <div className="flex justify-between items-center border-b-2 pb-6">
+                    <div className="space-y-1">
+                      <h3 className="font-headline font-black text-2xl text-[#213147] uppercase">Global System Config</h3>
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Master switches and thresholds for the platform</p>
                     </div>
-                  </Card>
+                    <Button onClick={handleSaveConfig} disabled={isSavingConfig} className="bg-primary font-black uppercase text-[10px] tracking-widest gap-2 shadow-xl h-12 px-6">
+                      {isSavingConfig ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Save Configuration
+                    </Button>
+                  </div>
+
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    {/* CORE IDENTITY & SUPPORT */}
+                    <Card className="border-2 p-8 space-y-8">
+                      <div className="space-y-6">
+                        <div className="space-y-3">
+                          <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                             <ShieldCheck className="h-3 w-3" /> Support & Identity
+                          </Label>
+                          <div className="grid gap-5">
+                            <div className="space-y-1.5">
+                              <Label htmlFor="supportEmail" className="text-xs font-bold uppercase">Global Support Email</Label>
+                              <div className="relative">
+                                <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                                <Input id="supportEmail" placeholder="support@kooporders.com" value={configData.supportEmail} onChange={(e) => setConfigData({...configData, supportEmail: e.target.value})} className="pl-10 h-12 border-2 font-bold focus-visible:ring-primary" />
+                              </div>
+                            </div>
+                            <div className="space-y-1.5">
+                              <Label htmlFor="logoUrl" className="text-xs font-bold uppercase">Master Platform Logo URL</Label>
+                              <div className="relative">
+                                <LucideImage className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                                <Input id="logoUrl" placeholder="https://..." value={configData.logoUrl} onChange={(e) => setConfigData({...configData, logoUrl: e.target.value})} className="pl-10 h-12 border-2 font-bold focus-visible:ring-primary" />
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        <Separator className="opacity-50" />
+
+                        <div className="space-y-4">
+                          <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                             <Timer className="h-3 w-3" /> Operational Logic
+                          </Label>
+                          <div className="flex items-center justify-between p-5 bg-slate-50 rounded-2xl border-2">
+                            <div className="max-w-[200px]">
+                              <p className="font-bold text-sm">Daily Operational Reset</p>
+                              <p className="text-[9px] text-muted-foreground uppercase leading-relaxed font-bold">Hour (0-23) to clear driver sessions automatically</p>
+                            </div>
+                            <div className="flex items-center gap-3">
+                               <Clock className="h-5 w-5 text-indigo-600" />
+                               <Input type="number" min="0" max="23" value={configData.dailyResetHour} onChange={(e) => setConfigData({...configData, dailyResetHour: parseInt(e.target.value)})} className="w-16 h-12 text-center font-black border-2 focus-visible:ring-indigo-600" />
+                            </div>
+                          </div>
+                          
+                          <div className="flex items-center justify-between p-5 bg-slate-50 rounded-2xl border-2">
+                            <div className="max-w-[200px]">
+                              <p className="font-bold text-sm">SMS Global Switch</p>
+                              <p className="text-[9px] text-muted-foreground uppercase leading-relaxed font-bold">Enable Twilio notifications for patrons platform-wide</p>
+                            </div>
+                            <div className="flex items-center gap-4">
+                               <BellRing className={cn("h-5 w-5 transition-colors", configData.smsNotificationsEnabled ? "text-green-600" : "text-slate-300")} />
+                               <Switch checked={configData.smsNotificationsEnabled} onCheckedChange={(val) => setConfigData({...configData, smsNotificationsEnabled: val})} />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </Card>
+
+                    {/* SIGNAL HEALTH & MODE AUTH */}
+                    <Card className="border-2 p-8 space-y-8">
+                       <div className="space-y-6">
+                         <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                            <Satellite className="h-3 w-3" /> Signal Health Thresholds (Seconds)
+                         </Label>
+                         <div className="grid grid-cols-3 gap-3">
+                           <div className="space-y-2 p-4 bg-green-50 rounded-2xl border-2 border-green-100 flex flex-col items-center">
+                             <Label className="text-[9px] font-black uppercase text-green-700">Hot (Green)</Label>
+                             <Input type="number" value={configData.gpsFreshnessThresholds?.hot} onChange={(e) => setConfigData({...configData, gpsFreshnessThresholds: {...configData.gpsFreshnessThresholds!, hot: parseInt(e.target.value)}})} className="font-black border-0 bg-transparent text-xl p-0 h-auto text-center focus-visible:ring-0" />
+                           </div>
+                           <div className="space-y-2 p-4 bg-amber-50 rounded-2xl border-2 border-amber-100 flex flex-col items-center">
+                             <Label className="text-[9px] font-black uppercase text-amber-700">Warm (Amber)</Label>
+                             <Input type="number" value={configData.gpsFreshnessThresholds?.warm} onChange={(e) => setConfigData({...configData, gpsFreshnessThresholds: {...configData.gpsFreshnessThresholds!, warm: parseInt(e.target.value)}})} className="font-black border-0 bg-transparent text-xl p-0 h-auto text-center focus-visible:ring-0" />
+                           </div>
+                           <div className="space-y-2 p-4 bg-red-50 rounded-2xl border-2 border-red-100 flex flex-col items-center">
+                             <Label className="text-[9px] font-black uppercase text-red-700">Cold (Red)</Label>
+                             <Input type="number" value={configData.gpsFreshnessThresholds?.cold} onChange={(e) => setConfigData({...configData, gpsFreshnessThresholds: {...configData.gpsFreshnessThresholds!, cold: parseInt(e.target.value)}})} className="font-black border-0 bg-transparent text-xl p-0 h-auto text-center focus-visible:ring-0" />
+                           </div>
+                         </div>
+                         <p className="text-[10px] text-muted-foreground uppercase font-bold leading-relaxed px-1">
+                           Controls how markers age on map views. Markers past Cold threshold will turn gray (Lost Signal).
+                         </p>
+                       </div>
+
+                       <Separator className="opacity-50" />
+
+                       <div className="space-y-6">
+                         <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                            <Power className="h-3 w-3" /> Global Mode Authorization
+                         </Label>
+                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                           {['Beverage Cart', 'Clubhouse', 'Pool', 'Lane Delivery', 'Take Out'].map(mode => (
+                             <div key={mode} className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border-2">
+                               <span className="text-[11px] font-black uppercase">{mode}</span>
+                               <Switch 
+                                 checked={configData.enabledModes?.includes(mode)} 
+                                 onCheckedChange={(val) => {
+                                   const next = val 
+                                     ? [...(configData.enabledModes || []), mode]
+                                     : (configData.enabledModes || []).filter(m => m !== mode);
+                                   setConfigData({...configData, enabledModes: next});
+                                 }} 
+                               />
+                             </div>
+                           ))}
+                         </div>
+                         <p className="text-[10px] text-muted-foreground uppercase font-bold leading-relaxed px-1">
+                           Restricts available service channels platform-wide, even if configured at venue level.
+                         </p>
+                       </div>
+                    </Card>
+                  </div>
                 </div>
               )}
             </div>
@@ -534,3 +682,4 @@ export default function SolutionAdminPage() {
     </div>
   );
 }
+
