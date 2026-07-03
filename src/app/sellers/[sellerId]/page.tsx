@@ -58,7 +58,7 @@ import {
   Calendar as CalendarIcon,
   QrCode,
   FileText,
-  Image as LucideImage,
+  LucideImage,
   Share2,
   Presentation,
   Filter,
@@ -256,7 +256,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
   const staffQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'sellers', sellerId, 'staff') : null), [firestore, sellerId]);
   const { data: staffList } = useCollection<StaffMember>(staffQuery);
 
-  // --- ANALYTICS LOGIC ---
+  // --- ANALYTICS LOGIC (Focused on Net Sales, excluding Koop fees) ---
 
   const analyticsData = useMemo(() => {
     if (!orders) return { dailyRevenue: [], topItems: [], channelSplit: [] };
@@ -269,10 +269,11 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
     }
 
     orders.forEach(o => {
-      if (!o.createdAt) return;
+      if (!o.createdAt || o.status === 'Cancelled') return;
       const key = format(o.createdAt.toDate(), 'MMM d');
       if (dailyMap.has(key)) {
-        dailyMap.set(key, dailyMap.get(key) + (o.total || 0));
+        // Use subtotal (Net Sales) instead of total (Gross with fees)
+        dailyMap.set(key, dailyMap.get(key) + (o.subtotal || 0));
       }
     });
 
@@ -280,15 +281,19 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
 
     const channelMap: Record<string, number> = {};
     orders.forEach(o => {
-      channelMap[o.menuType] = (channelMap[o.menuType] || 0) + 1;
+      if (o.status !== 'Cancelled') {
+        channelMap[o.menuType] = (channelMap[o.menuType] || 0) + 1;
+      }
     });
     const channelSplit = Object.entries(channelMap).map(([name, value]) => ({ name, value }));
 
     const itemMap: Record<string, number> = {};
     orders.forEach(o => {
-      o.items.forEach(i => {
-        itemMap[i.name] = (itemMap[i.name] || 0) + i.quantity;
-      });
+      if (o.status !== 'Cancelled') {
+        o.items.forEach(i => {
+          itemMap[i.name] = (itemMap[i.name] || 0) + i.quantity;
+        });
+      }
     });
     const topItems = Object.entries(itemMap)
       .map(([name, count]) => ({ name, count }))
@@ -300,8 +305,8 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
 
   const stats = useMemo(() => { 
     if (!orders) return null; 
-    const today = orders.filter(o => o.createdAt && isToday(o.createdAt.toDate())); 
-    const revenue = today.reduce((acc, o) => acc + (o.total || 0), 0); 
+    const today = orders.filter(o => o.createdAt && isToday(o.createdAt.toDate()) && o.status !== 'Cancelled'); 
+    const revenue = today.reduce((acc, o) => acc + (o.subtotal || 0), 0); 
     const activeCount = orders.filter(o => o.status !== 'Delivered' && o.status !== 'Cancelled').length;
     return { 
       revenue: revenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }), 
@@ -501,7 +506,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
               {activeNav === 'dashboard' && (
                 <div className="space-y-8 animate-in fade-in duration-500">
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                    <KPICard label="Today's Revenue" value={`$${stats?.revenue}`} sub="Gross F&B Sales" icon={DollarSign} colorClass="bg-green-500" />
+                    <KPICard label="Net Revenue" value={`$${stats?.revenue}`} sub="Excluding Platform Fees" icon={DollarSign} colorClass="bg-green-500" />
                     <KPICard label="Active Tickets" value={stats?.active || 0} sub="Pending Delivery" icon={Clock} colorClass="bg-primary" />
                     <KPICard label="Today's Volume" value={stats?.volume || 0} sub="Orders Processed" icon={ShoppingBag} colorClass="bg-indigo-600" />
                     <KPICard label="Staff Active" value={stats?.staffOn || 0} sub="On-Shift (Today)" icon={Users} colorClass="bg-slate-700" />
@@ -544,7 +549,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                   </div>
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                     <Card className="border-2 p-8 space-y-6">
-                      <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2"><TrendingUp className="h-3 w-3 text-primary" /> Revenue Trend (Last 7 Days)</h4>
+                      <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2"><TrendingUp className="h-3 w-3 text-primary" /> Net Revenue Trend (7 Days)</h4>
                       <div className="h-[300px] w-full">
                         <ResponsiveContainer width="100%" height="100%">
                           <BarChart data={analyticsData.dailyRevenue}>
@@ -677,7 +682,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                        <Separator /><div className="space-y-6"><h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2"><MapPin className="h-4 w-4" /> Logistics Base</h4><div className="space-y-2 text-left"><Label className="text-[10px] font-black uppercase">Street Address</Label><Input defaultValue={seller?.streetAddress} className="h-12 border-2 font-bold" /></div></div>
                     </Card>
                     <Card className="border-2 shadow-sm p-8 space-y-8 text-left">
-                       <div className="space-y-6"><h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2"><DollarSign className="h-4 w-4" /> Financials & Payouts</h4><div className="grid grid-cols-2 gap-6"><div className="space-y-2 text-left"><Label className="text-[10px] font-black uppercase">Tax Rate (%)</Label><Input type="number" defaultValue={seller?.taxRate} onChange={(e) => updateDoc(doc(firestore!, 'sellers', sellerId), { taxRate: parseFloat(e.target.value) })} className="h-12 border-2 font-bold" /></div><div className="space-y-2 text-left"><Label className="text-[10px] font-black uppercase">Service Fee ($)</Label><Input type="number" defaultValue={seller?.serviceFee} onChange={(e) => updateDoc(doc(firestore!, 'sellers', sellerId), { serviceFee: parseFloat(e.target.value) })} className="h-12 border-2 font-bold" /></div></div><div className="p-6 bg-slate-50 border-2 rounded-2xl flex items-center justify-between gap-6"><div className="space-y-1 text-left"><p className="text-[11px] font-black uppercase text-[#213147]">Stripe Connect Status</p><p className="text-[9px] font-bold text-muted-foreground uppercase leading-relaxed">Integrated for distribution</p></div><Badge className="bg-green-100 text-green-700 font-black border-0 px-3 py-1">Verified</Badge></div></div>
+                       <div className="space-y-6"><h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2"><DollarSign className="h-4 w-4" /> Financials & Payouts</h4><div className="grid grid-cols-1 gap-6"><div className="space-y-2 text-left"><Label className="text-[10px] font-black uppercase">Tax Rate (%)</Label><Input type="number" defaultValue={seller?.taxRate} onChange={(e) => updateDoc(doc(firestore!, 'sellers', sellerId), { taxRate: parseFloat(e.target.value) })} className="h-12 border-2 font-bold" /></div></div><div className="p-6 bg-slate-50 border-2 rounded-2xl flex items-center justify-between gap-6"><div className="space-y-1 text-left"><p className="text-[11px] font-black uppercase text-[#213147]">Stripe Connect Status</p><p className="text-[9px] font-bold text-muted-foreground uppercase leading-relaxed">Integrated for distribution</p></div><Badge className="bg-green-100 text-green-700 font-black border-0 px-3 py-1">Verified</Badge></div><div className="bg-muted/30 p-4 rounded-xl border border-dashed text-center"><p className="text-[8px] font-bold text-muted-foreground uppercase leading-relaxed">Platform convenience fees are managed exclusively by Koop Administrators.</p></div></div>
                     </Card>
                   </div>
                 </div>

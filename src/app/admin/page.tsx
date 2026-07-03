@@ -48,7 +48,9 @@ import {
   BellRing,
   ShieldCheck,
   Mail,
-  Clock
+  Clock,
+  ExternalLink,
+  CreditCard
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -98,7 +100,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { seedAllDemoData, seedGlobalStarterLibrary, seedGlobalStarterMenuLibrary, resetAllVenueOperationalStatus } from '@/lib/seed-data';
 import {
   Select,
@@ -123,19 +125,13 @@ const starterModifierSchema = z.object({
 
 type StarterModifierFormData = z.infer<typeof starterModifierSchema>;
 
-const starterItemSchema = z.object({
-  name: z.string().min(2, 'Name required'),
-  description: z.string().default(''),
-  price: z.coerce.number().min(0),
-  category: z.string().min(1, 'Category required'),
-  venueType: z.array(z.string()).min(1, 'Select at least one venue type'),
-  serviceMode: z.enum(["beverageCart", "clubhouse", "pool", "laneService", "takeout"]),
-  suggestedModifierGroups: z.array(z.string()).default([]),
-  sortOrder: z.coerce.number().default(0),
-  imageUrl: z.string().default('')
+const venueSettingsSchema = z.object({
+  patronConvenienceFee: z.coerce.number().min(0),
+  monthlySolutionFee: z.coerce.number().min(0),
+  name: z.string().min(2, 'Venue name required'),
 });
 
-type StarterItemFormData = z.infer<typeof starterItemSchema>;
+type VenueSettingsFormData = z.infer<typeof venueSettingsSchema>;
 
 const NAV_ITEMS = [
   { id: "dashboard", label: "Global Overview", icon: LayoutDashboard },
@@ -195,8 +191,9 @@ export default function SolutionAdminPage() {
   const [libraryTab, setLibraryTab] = useState<'modifiers' | 'items'>('modifiers');
   const [isLibraryFormOpen, setIsLibraryFormOpen] = useState(false);
   const [editingLibraryItem, setEditingLibraryItem] = useState<StarterModifierGroup | null>(null);
-  const [isItemFormOpen, setIsItemFormOpen] = useState(false);
-  const [editingItemTemplate, setEditingItemTemplate] = useState<StarterMenuItem | null>(null);
+
+  const [isVenueSettingsOpen, setIsVenueSettingsOpen] = useState(false);
+  const [selectedVenue, setSelectedVenue] = useState<Seller | null>(null);
 
   const [isProcessingSave, setIsProcessingSave] = useState(false);
   const [isInitializingLibrary, setIsInitializingLibrary] = useState(false);
@@ -258,9 +255,9 @@ export default function SolutionAdminPage() {
 
   const { fields: optionFields, append: appendOption, remove: removeOption } = useFieldArray({ control: libraryForm.control, name: "options" });
 
-  const itemTemplateForm = useForm<StarterItemFormData>({
-    resolver: zodResolver(starterItemSchema),
-    defaultValues: { name: '', description: '', price: 0, category: 'Handhelds', venueType: ['golf'], serviceMode: 'clubhouse', suggestedModifierGroups: [], sortOrder: 0, imageUrl: '' }
+  const venueSettingsForm = useForm<VenueSettingsFormData>({
+    resolver: zodResolver(venueSettingsSchema),
+    defaultValues: { patronConvenienceFee: 150, monthlySolutionFee: 0, name: '' }
   });
 
   useEffect(() => {
@@ -268,6 +265,42 @@ export default function SolutionAdminPage() {
       libraryForm.reset({ name: editingLibraryItem.name, venueType: editingLibraryItem.venueType, category: editingLibraryItem.category as any, selectionType: editingLibraryItem.selectionType, required: editingLibraryItem.required, sortOrder: editingLibraryItem.sortOrder, options: editingLibraryItem.options });
     }
   }, [editingLibraryItem, isLibraryFormOpen, libraryForm]);
+
+  const handleEditVenueSettings = async (v: Seller) => {
+    if (!firestore) return;
+    setSelectedVenue(v);
+    const venueDoc = await doc(firestore, 'venues', v.id);
+    // Note: We might need to fetch the Venue doc specifically for fees
+    venueSettingsForm.reset({
+      name: v.courseName,
+      patronConvenienceFee: 150, // Default if not found
+      monthlySolutionFee: 0
+    });
+    setIsVenueSettingsOpen(true);
+  };
+
+  const handleSaveVenueSettings = async (data: VenueSettingsFormData) => {
+    if (!firestore || !selectedVenue) return;
+    setIsProcessingSave(true);
+    try {
+      await updateDoc(doc(firestore, 'venues', selectedVenue.id), {
+        patronConvenienceFee: data.patronConvenienceFee,
+        monthlySolutionFee: data.monthlySolutionFee,
+        updatedAt: serverTimestamp()
+      });
+      // Also update seller doc if serviceFee is mirrored there
+      await updateDoc(doc(firestore, 'sellers', selectedVenue.id), {
+        serviceFee: data.patronConvenienceFee / 100,
+        updatedAt: serverTimestamp()
+      });
+      toast({ title: "Venue Settings Saved" });
+      setIsVenueSettingsOpen(false);
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Update Failed", description: e.message });
+    } finally {
+      setIsProcessingSave(false);
+    }
+  };
 
   const handleSaveLibraryItem = async (data: StarterModifierFormData) => {
     if (!firestore) return;
@@ -403,8 +436,8 @@ export default function SolutionAdminPage() {
                       </TableHeader>
                       <TableBody>
                         {venues?.map(v => (
-                          <TableRow key={v.id} className="group cursor-pointer" onClick={() => router.push(`/sellers/${v.id}`)}>
-                            <TableCell className="px-6 py-4">
+                          <TableRow key={v.id} className="group cursor-pointer">
+                            <TableCell className="px-6 py-4" onClick={() => router.push(`/sellers/${v.id}`)}>
                               <p className="font-black text-sm text-[#213147]">{v.courseName}</p>
                               <p className="text-[9px] font-bold text-muted-foreground uppercase">{v.city}, {v.state}</p>
                             </TableCell>
@@ -417,9 +450,14 @@ export default function SolutionAdminPage() {
                               </Badge>
                             </TableCell>
                             <TableCell className="px-6 py-4 text-right">
-                              <Button variant="ghost" size="icon" className="h-8 w-8 text-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <ChevronRight className="h-4 w-4" />
-                              </Button>
+                              <div className="flex justify-end gap-2">
+                                <Button variant="ghost" size="icon" onClick={() => handleEditVenueSettings(v)} className="h-8 w-8 text-indigo-600 hover:bg-indigo-50">
+                                  <Settings className="h-4 w-4" />
+                                </Button>
+                                <Button variant="ghost" size="icon" onClick={() => router.push(`/sellers/${v.id}`)} className="h-8 w-8 text-slate-400 hover:text-indigo-600">
+                                  <ExternalLink className="h-4 w-4" />
+                                </Button>
+                              </div>
                             </TableCell>
                           </TableRow>
                         ))}
@@ -440,7 +478,7 @@ export default function SolutionAdminPage() {
                       <Button onClick={handleInitializeLibrary} disabled={isInitializingLibrary} variant="outline" className="bg-white border-2 border-indigo-100 font-black uppercase text-[10px] tracking-widest gap-2">
                         {isInitializingLibrary ? <Loader2 className="h-4 w-4 animate-spin" /> : <Database className="h-4 w-4 text-indigo-600" />} Initialize All
                       </Button>
-                      <Button onClick={() => { if (libraryTab === 'modifiers') { setEditingLibraryItem(null); libraryForm.reset(); setIsLibraryFormOpen(true); } else { setIsItemFormOpen(true); } }} className="bg-indigo-600 font-black uppercase text-[10px] tracking-widest gap-2 shadow-xl">
+                      <Button onClick={() => { if (libraryTab === 'modifiers') { setEditingLibraryItem(null); libraryForm.reset(); setIsLibraryFormOpen(true); } }} className="bg-indigo-600 font-black uppercase text-[10px] tracking-widest gap-2 shadow-xl">
                         <Plus className="h-4 w-4" /> Add New {libraryTab === 'modifiers' ? 'Modifier' : 'Item'}
                       </Button>
                     </div>
@@ -473,7 +511,6 @@ export default function SolutionAdminPage() {
                         <Card key={item.id} className="border-2 shadow-sm group hover:border-indigo-200 transition-all bg-white text-left">
                           <CardHeader className="p-4 border-b bg-slate-50/50 flex flex-row items-center justify-between space-y-0">
                             <div className="space-y-1 text-left"><Badge className="h-4 px-1 text-[8px] font-black uppercase bg-[#213147] text-white border-0">{item.serviceMode}</Badge><p className="font-black text-xs uppercase text-[#213147] truncate">{item.name}</p></div>
-                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"><Button variant="ghost" size="icon" className="h-8 w-8 text-indigo-600" onClick={() => { setEditingItemTemplate(item); setIsItemFormOpen(true); }}><Edit className="h-4 w-4" /></Button></div>
                           </CardHeader>
                           <CardContent className="p-4 space-y-2 text-left"><p className="text-[10px] text-muted-foreground line-clamp-2">{item.description}</p><div className="flex justify-between items-center"><span className="text-xs font-black text-primary">${item.price.toFixed(2)}</span><div className="flex gap-1">{item.suggestedModifierGroups?.slice(0, 2).map(m => (<Badge key={m} className="text-[6px] uppercase px-1 h-3">{m}</Badge>))}</div></div></CardContent>
                         </Card>
@@ -668,6 +705,67 @@ export default function SolutionAdminPage() {
             </div>
             <Button type="submit" disabled={isProcessingSave} className="w-full h-14 bg-indigo-600 font-black uppercase tracking-widest text-[11px] gap-2 shadow-xl">{isProcessingSave ? <Loader2 className="animate-spin" /> : <Save className="h-4 w-4" />} Save Master Template</Button>
           </form></Form></div></ScrollArea>
+        </DialogContent>
+      </Dialog>
+
+      {/* Venue Settings Dialog (Koop Admin Only) */}
+      <Dialog open={isVenueSettingsOpen} onOpenChange={setIsVenueSettingsOpen}>
+        <DialogContent className="sm:max-w-[450px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
+          <DialogHeader className="p-8 bg-[#213147] text-white text-left">
+            <div className="flex items-center gap-4 text-left">
+              <div className="bg-white/10 p-3 rounded-2xl shrink-0"><Settings className="h-6 w-6 text-primary" /></div>
+              <div className="text-left">
+                <DialogTitle className="font-headline font-black uppercase tracking-tight text-white text-xl">Venue Controls</DialogTitle>
+                <DialogDescription className="text-white/40 text-[10px] font-bold uppercase tracking-widest mt-1">{selectedVenue?.courseName}</DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+          <div className="p-8 text-left">
+            <Form {...venueSettingsForm}>
+              <form onSubmit={venueSettingsForm.handleSubmit(handleSaveVenueSettings)} className="space-y-6">
+                <div className="space-y-4">
+                  <FormField control={venueSettingsForm.control} name="patronConvenienceFee" render={({ field }) => (
+                    <FormItem className="text-left">
+                      <div className="flex items-center justify-between mb-1">
+                        <FormLabel className="text-[10px] font-black uppercase">Convenience Fee (Cents)</FormLabel>
+                        <Badge variant="outline" className="text-[8px] font-black border-primary/20 bg-primary/5 text-primary">KOOP REVENUE</Badge>
+                      </div>
+                      <FormControl>
+                        <div className="relative">
+                          <DollarSign className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                          <Input {...field} type="number" placeholder="150" className="pl-10 h-12 border-2 font-bold" />
+                        </div>
+                      </FormControl>
+                      <FormDescription className="text-[9px] uppercase font-bold">This is the per-order fee paid by the patron.</FormDescription>
+                    </FormItem>
+                  )} />
+
+                  <FormField control={venueSettingsForm.control} name="monthlySolutionFee" render={({ field }) => (
+                    <FormItem className="text-left">
+                      <FormLabel className="text-[10px] font-black uppercase">Monthly Subscription ($)</FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <CreditCard className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                          <Input {...field} type="number" placeholder="0" className="pl-10 h-12 border-2 font-bold" />
+                        </div>
+                      </FormControl>
+                    </FormItem>
+                  )} />
+                </div>
+
+                <div className="bg-amber-50 border-2 border-amber-100 p-4 rounded-2xl flex items-start gap-3">
+                  <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                  <p className="text-[9px] text-amber-800 font-bold uppercase leading-relaxed">
+                    These settings are restricted to Koop Administrators. Venue managers cannot view or modify these financial terms.
+                  </p>
+                </div>
+
+                <Button type="submit" disabled={isProcessingSave} className="w-full h-14 bg-[#213147] font-black uppercase tracking-widest text-[11px] gap-2 shadow-xl">
+                  {isProcessingSave ? <Loader2 className="animate-spin" /> : <Save className="h-4 w-4" />} Apply Financial Terms
+                </Button>
+              </form>
+            </Form>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
