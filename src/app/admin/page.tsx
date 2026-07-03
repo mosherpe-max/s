@@ -207,7 +207,7 @@ export default function SolutionAdminPage() {
     dailyResetHour: 4,
     smsNotificationsEnabled: true,
     gpsFreshnessThresholds: { hot: 60, warm: 300, cold: 600 },
-    enabledModes: ['Beverage Cart', 'Clubhouse', 'Lane Delivery', 'Take Out']
+    enabledModes: ['Beverage Cart', 'Clubhouse', 'Lane Delivery']
   });
   const [isSavingConfig, setIsSavingConfig] = useState(false);
 
@@ -219,7 +219,7 @@ export default function SolutionAdminPage() {
       setConfigData({
         ...remoteConfig,
         gpsFreshnessThresholds: remoteConfig.gpsFreshnessThresholds || { hot: 60, warm: 300, cold: 600 },
-        enabledModes: remoteConfig.enabledModes || ['Beverage Cart', 'Clubhouse', 'Lane Delivery', 'Take Out']
+        enabledModes: (remoteConfig.enabledModes || ['Beverage Cart', 'Clubhouse', 'Lane Delivery']).filter(m => m !== 'Take Out')
       });
     }
   }, [remoteConfig]);
@@ -652,7 +652,7 @@ export default function SolutionAdminPage() {
                             <Power className="h-3 w-3" /> Global Mode Authorization
                          </Label>
                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                           {['Beverage Cart', 'Clubhouse', 'Pool', 'Lane Delivery', 'Take Out'].map(mode => (
+                           {['Beverage Cart', 'Clubhouse', 'Pool', 'Lane Delivery'].map(mode => (
                              <div key={mode} className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border-2">
                                <span className="text-[11px] font-black uppercase">{mode}</span>
                                <Switch 

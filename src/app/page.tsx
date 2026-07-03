@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useEffect } from 'react';
@@ -106,7 +105,7 @@ export default function HomePage() {
               Patrons scan a QR code from their cart, select their order, and pay right from the fairway. Your beverage cart and clubhouse staff get the order — no radio, no guesswork.
             </p>
             <ul className="space-y-3 mb-10">
-              {['On-course ordering from any hole', 'Clubhouse take-out for quick pickups', 'Dynamic delivery tracking', 'No app download required'].map(item => (
+              {['On-course ordering from any hole', 'Digital menu with live inventory', 'Dynamic delivery tracking', 'No app download required'].map(item => (
                 <li key={item} className="flex items-start gap-3 text-sm font-bold text-[#F0F0F0]">
                   <span className="text-[#E50000] font-headline">→</span> {item}
                 </li>
@@ -137,7 +136,7 @@ export default function HomePage() {
               Bowlers scan the QR at their lane, order food and drinks, and keep their game going. Your servers get notified and deliver — no lane visits needed to take the order.
             </p>
             <ul className="space-y-3 mb-10">
-              {['Per-lane QR ordering — every lane', 'Food & beverage without play interruption', 'Take-out for walk-in customers', 'Reduced server administrative time', 'Works on any mobile browser'].map(item => (
+              {['Per-lane QR ordering — every lane', 'Food & beverage without play interruption', 'Real-time order fulfillment', 'Reduced server administrative time', 'Works on any mobile browser'].map(item => (
                 <li key={item} className="flex items-start gap-3 text-sm font-bold text-[#F0F0F0]">
                   <span className="text-[#E50000] font-headline">→</span> {item}
                 </li>

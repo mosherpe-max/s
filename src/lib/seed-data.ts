@@ -151,12 +151,6 @@ export async function seedGlobalStarterMenuLibrary(db: Firestore) {
     const id = generateSlug(`${item.name}-${item.serviceMode}`);
     batch.set(doc(libraryRef, id), item);
   });
-  // Auto-clone clubhouse items to takeout as per requirement
-  GLOBAL_STARTER_MENU_ITEMS.filter(i => i.serviceMode === 'clubhouse').forEach(i => {
-    const takeoutItem = { ...i, serviceMode: 'takeout' as const };
-    const id = generateSlug(`${takeoutItem.name}-takeout`);
-    batch.set(doc(libraryRef, id), takeoutItem);
-  });
   await batch.commit();
 }
 
@@ -192,7 +186,7 @@ export async function resetAllVenueOperationalStatus(db: Firestore) {
   const snapshot = await getDocs(sellersRef);
   const batch = writeBatch(db);
   for (const sellerDoc of snapshot.docs) {
-    batch.update(sellerDoc.ref, { bevcartActive: false, clubhouseActive: false, lanedeliveryActive: false, takeoutActive: false, latitude: 0, longitude: 0, lastActive: null, updatedAt: serverTimestamp() });
+    batch.update(sellerDoc.ref, { bevcartActive: false, clubhouseActive: false, lanedeliveryActive: false, latitude: 0, longitude: 0, lastActive: null, updatedAt: serverTimestamp() });
     const staffRef = collection(db, 'sellers', sellerDoc.id, 'staff');
     const staffSnap = await getDocs(staffRef);
     staffSnap.forEach(sDoc => batch.update(sDoc.ref, { latitude: null, longitude: null, lastActive: null }));

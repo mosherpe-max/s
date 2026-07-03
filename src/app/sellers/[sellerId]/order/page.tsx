@@ -64,7 +64,6 @@ const serviceTypeIcons: Record<string, any> = {
   'Beverage Cart': Zap,
   'Clubhouse': Zap,
   'Pool': Waves,
-  'Take Out': ShoppingBasket,
   'Halfway House': Home,
   'Dine-In': Utensils,
   'Lane Delivery': MapPin,
@@ -197,7 +196,7 @@ function CheckoutDrawerContent({
   const { firebaseApp } = useFirebase();
   const firestore = useFirestore();
   const auth = useAuth();
-  const { user } = useUser();
+  const { user, isUserLoading } = useUser();
   const { toast } = useToast();
   
   const [patronEmail, setPatronEmail] = useState('');
@@ -211,28 +210,15 @@ function CheckoutDrawerContent({
   const [customerSessionClientSecret, setCustomerSessionClientSecret] = useState<string | null>(null);
   const [isFetchingIntent, setIsFetchingIntent] = useState(false);
 
-  // Track critical intent dependencies to force re-fetch if they change
-  const intentConfigString = `${baseTotalForBackend}-${saveInfo}-${patronEmail}`;
-  const [lastIntentConfig, setLastIntentConfig] = useState('');
-
   const tax = subtotal * (taxRate / 100);
   const finalTotal = subtotal + solutionFee + tax + tip;
   const baseTotalForBackend = subtotal + tax + tip;
 
   const isContactInfoValid = patronName.length >= 2 && patronPhone.replace(/\D/g, '').length >= 10 && patronEmail.includes('@');
 
-  // TRIGGER INTENT FETCH ONCE MINIMUM INFO IS ENTERED OR CRITICAL CONFIG CHANGES
+  // TRIGGER INTENT FETCH ONCE MINIMUM INFO IS ENTERED
   useEffect(() => {
-    if (paymentMethod === 'Stripe' && !isFetchingIntent && baseTotalForBackend > 0 && isContactInfoValid) {
-      // If config changed (e.g. saveInfo toggled), reset and re-fetch
-      if (intentConfigString !== lastIntentConfig) {
-        setClientSecret(null);
-        setLastIntentConfig(intentConfigString);
-        return; // Re-run effect with clientSecret null
-      }
-
-      if (clientSecret) return; // Already have a valid intent for this config
-
+    if (paymentMethod === 'Stripe' && !isFetchingIntent && baseTotalForBackend > 0 && isContactInfoValid && !clientSecret) {
       const fetchIntent = async () => {
         setIsFetchingIntent(true);
         try {
@@ -252,7 +238,7 @@ function CheckoutDrawerContent({
             patronName,
             patronPhone: patronPhone.replace(/\D/g, ''),
             patronEmail,
-            saveInfo // Signal backend to setup future usage
+            saveInfo
           });
           
           const data = result.data as { clientSecret: string; customerSessionClientSecret?: string };
@@ -265,11 +251,7 @@ function CheckoutDrawerContent({
             throw new Error("Secure gateway could not be initialized.");
           }
         } catch (e: any) {
-          toast({ 
-            variant: 'destructive', 
-            title: 'Gateway Error', 
-            description: "The digital gateway is unavailable. Please use Pay at Delivery." 
-          });
+          toast({ variant: 'destructive', title: 'Gateway Error', description: "The digital gateway is unavailable. Please use Pay at Delivery." });
           setPaymentMethod('Pay at Delivery');
         } finally {
           setIsFetchingIntent(false);
@@ -277,7 +259,7 @@ function CheckoutDrawerContent({
       };
       fetchIntent();
     }
-  }, [paymentMethod, baseTotalForBackend, sellerId, firebaseApp, clientSecret, isFetchingIntent, toast, user, auth, isContactInfoValid, patronName, patronPhone, patronEmail, saveInfo, intentConfigString, lastIntentConfig]);
+  }, [paymentMethod, baseTotalForBackend, sellerId, firebaseApp, clientSecret, isFetchingIntent, toast, user, auth, isContactInfoValid, patronName, patronPhone, patronEmail, saveInfo]);
 
   const handleManualOrder = async () => {
     if (!firestore || activeOrderItems.length === 0) return;
@@ -394,7 +376,6 @@ function CheckoutDrawerContent({
               </div>
               {paymentMethod === 'Stripe' && <Check className="h-4 w-4 text-primary" />}
             </div>
-            {/* Pay at Delivery Prototype */}
             <div className={cn("flex items-center justify-between p-4 rounded-2xl border-2 transition-all cursor-pointer opacity-60", paymentMethod === 'Pay at Delivery' ? "border-primary bg-primary/5" : "border-slate-100")} onClick={() => setPaymentMethod('Pay at Delivery')}>
               <div className="flex items-center gap-4">
                 <div className={cn("p-2 rounded-lg", paymentMethod === 'Pay at Delivery' ? "bg-primary text-white" : "bg-slate-100 text-slate-400")}><Banknote className="h-5 w-5" /></div>
@@ -574,7 +555,6 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
       case 'Beverage Cart': return !!seller.bevcartActive;
       case 'Clubhouse': return !!seller.clubhouseActive;
       case 'Lane Delivery': return !!seller.lanedeliveryActive;
-      case 'Take Out': return !!seller.takeoutActive;
       default: return true;
     }
   };
@@ -584,7 +564,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
       let defaultType = seller.type.toLowerCase().includes('bowling') ? 'Lane Delivery' : 'Beverage Cart';
       if (isModeAvailable(defaultType)) updateMenuType(defaultType);
       else {
-        const firstAvailable = seller.menuTypes.find(t => isModeAvailable(t));
+        const firstAvailable = seller.menuTypes.filter(t => t !== 'Take Out').find(t => isModeAvailable(t));
         if (firstAvailable) updateMenuType(firstAvailable);
       }
     }
@@ -675,7 +655,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
           <div className="space-y-4 w-full">
             <h1 className="font-headline text-2xl font-black text-white uppercase tracking-tight leading-none mb-1">{seller?.courseName}</h1>
             <div className="flex flex-wrap gap-2">
-              {seller?.menuTypes?.map((type) => {
+              {seller?.menuTypes?.filter(t => t !== 'Take Out').map((type) => {
                 const Icon = serviceTypeIcons[type] || Store;
                 const available = isModeAvailable(type);
                 const isSelected = selectedMenuType === type;

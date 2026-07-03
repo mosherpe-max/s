@@ -1,4 +1,3 @@
-
 'use client';
 
 import Link from 'next/link';
@@ -191,7 +190,6 @@ export function AppHeader() {
   const orderId = searchParams.get('id');
   const menuTypeParam = searchParams.get('menuType');
 
-  // ALL HOOKS MUST BE CALLED BEFORE ANY EARLY RETURN
   const sellerRef = useMemoFirebase(() => {
     if (!firestore || !sellerId) return null;
     return doc(firestore, 'sellers', sellerId);
@@ -205,7 +203,6 @@ export function AppHeader() {
   const { data: seller, isLoading: isSellerLoading } = useDoc(sellerRef);
   const { data: order } = useDoc(orderRef);
 
-  // SUPPRESS HEADER FOR ADMIN ROUTES
   const isAdminRoute = pathname?.startsWith('/admin') || 
                       (pathname?.startsWith('/sellers/') && !pathname.includes('/order') && !pathname.includes('/staff-login'));
 

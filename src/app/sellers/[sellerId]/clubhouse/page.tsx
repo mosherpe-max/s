@@ -87,7 +87,6 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
   const isSuperAdmin = user?.uid === SUPER_ADMIN_ID || user?.email === 'mosherpe@gmail.com';
 
   const broadcastLocation = (lat: number, lng: number) => {
-    // SECURITY GATE: Prevent "ghost" re-creation of staff document after exit button pressed
     if (!firestore || !sellerId || !user || isExiting) return;
     
     const nowTime = Date.now();
@@ -148,26 +147,22 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
   };
 
   const handleExitTerminal = async (target: 'admin' | 'root') => {
-    // 1. Immediately block all outgoing GPS broadcasts
     setIsExiting(true);
 
     if (currentStaffId && firestore && sellerId) {
       const staffRef = doc(firestore, 'sellers', sellerId, 'staff', currentStaffId);
       
-      // 2. Invalidate signal on maps explicitly
       await updateDoc(staffRef, { 
         lastActive: new Date(0), 
         latitude: null, 
         longitude: null 
       }).catch(() => {});
       
-      // 3. Clean up the temporary admin staff document
       if (isAdminSession) {
         await deleteDoc(staffRef).catch(() => {});
       }
     }
 
-    // 4. Purge local session tokens
     localStorage.removeItem('koop_staff_id');
     localStorage.removeItem('koop_staff_name');
     localStorage.removeItem('koop_staff_role');
@@ -194,7 +189,7 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
   const clubhouseOrders = useMemo(() => {
     if (!activeOrders) return [];
     return activeOrders
-      .filter(o => o.menuType === 'Clubhouse' || o.menuType === 'Take Out')
+      .filter(o => o.menuType === 'Clubhouse')
       .sort((a, b) => (a.createdAt?.toMillis?.() || 0) - (b.createdAt?.toMillis?.() || 0));
   }, [activeOrders]);
 
@@ -243,7 +238,6 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
   const mappedBuyers = useMemo(() => {
     if (!now || !clubhouseOrders) return [];
     return clubhouseOrders
-      .filter(o => o.menuType === 'Clubhouse')
       .map(o => {
         const lastGps = o.lastGpsUpdate?.toDate();
         const color = getSignalColor(lastGps, solutionConfig?.gpsFreshnessThresholds);

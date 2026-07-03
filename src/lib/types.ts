@@ -1,4 +1,3 @@
-
 import { Timestamp } from "firebase/firestore";
 
 export type SellerType = 'Private Golf Course' | 'Semi Private Golf Course' | 'Public Golf Course' | 'Bowling Center' | 'Brewery' | 'Restaurant';
@@ -90,7 +89,6 @@ export interface Seller {
   bevcartActive?: boolean;
   clubhouseActive?: boolean;
   lanedeliveryActive?: boolean;
-  takeoutActive?: boolean;
   lastActive?: Timestamp;
   orderThresholds?: Record<string, { warning: number; max: number }>;
   stripeAccountId?: string;
@@ -152,7 +150,7 @@ export interface StarterMenuItem {
   price: number;
   category: 'food' | 'beverage' | 'alcohol' | string;
   venueType: string[]; // ['golf', 'bowling']
-  serviceMode: 'beverageCart' | 'clubhouse' | 'pool' | 'laneService' | 'takeout';
+  serviceMode: 'beverageCart' | 'clubhouse' | 'pool' | 'laneService';
   suggestedModifierGroups?: string[];
   sortOrder: number;
   imageUrl?: string;

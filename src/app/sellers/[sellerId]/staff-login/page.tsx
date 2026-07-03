@@ -1,3 +1,4 @@
+'use client';
 
 'use client';
 
@@ -19,7 +20,6 @@ const roleIcons: Record<string, any> = {
   'Beverage Cart': Truck,
   'Clubhouse': Building,
   'Lane Delivery': Users,
-  'Take Out': MapPin,
 };
 
 export default function StaffLoginPage({ params }: { params: Promise<{ sellerId: string }> }) {
@@ -94,12 +94,10 @@ export default function StaffLoginPage({ params }: { params: Promise<{ sellerId:
     if (!authenticatedStaff || !firestore || !sellerId) return;
 
     // ACTIVATE SERVICE MODE ON SELLER DOCUMENT
-    // This is the final step to making the venue available to patrons
     const fieldMap: Record<string, string> = {
       'Beverage Cart': 'bevcartActive',
       'Clubhouse': 'clubhouseActive',
-      'Lane Delivery': 'lanedeliveryActive',
-      'Take Out': 'takeoutActive'
+      'Lane Delivery': 'lanedeliveryActive'
     };
     
     const modeField = fieldMap[menuType];
@@ -133,11 +131,9 @@ export default function StaffLoginPage({ params }: { params: Promise<{ sellerId:
     }, 800);
   };
 
-  // Determine which roles/modes are currently AUTHORIZED at the venue
-  // Note: We show all authorized modes, even if inactive, because login IS the activation trigger
   const authorizedServiceModes = React.useMemo(() => {
     if (!seller) return [];
-    return seller.menuTypes || [];
+    return (seller.menuTypes || []).filter(t => t !== 'Take Out');
   }, [seller]);
 
   return (
@@ -161,7 +157,6 @@ export default function StaffLoginPage({ params }: { params: Promise<{ sellerId:
         <CardContent className="pt-10 pb-12 px-8 text-left">
           {!authenticatedStaff ? (
             <div className="space-y-10">
-              {/* PIN Indicators */}
               <div className="flex justify-center gap-4">
                 {[...Array(4)].map((_, i) => (
                   <div 
@@ -176,7 +171,6 @@ export default function StaffLoginPage({ params }: { params: Promise<{ sellerId:
                 ))}
               </div>
 
-              {/* Keypad */}
               <div className="grid grid-cols-3 gap-4">
                 {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
                   <Button
