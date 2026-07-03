@@ -452,7 +452,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
   const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
 
   return (
-    <div className="flex flex-col h-screen bg-[#F8FAFC] overflow-hidden text-left">
+    <div className="flex flex-col h-screen bg-[#F8FAFC] overflow-x-auto text-left">
       <header className="h-16 bg-white border-b-2 flex items-center justify-between px-8 shrink-0 z-30 shadow-sm relative text-left">
         <div className="flex items-center gap-4">
           <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
@@ -486,7 +486,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
         </div>
       </header>
 
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-x-auto overflow-y-hidden">
         <aside className={cn("bg-[#213147] hidden md:flex flex-col transition-all duration-300 relative border-r-4 border-primary/20 shrink-0", sidebarOpen ? "w-64" : "w-20")}>
           <div className="p-4 border-b border-white/5 flex items-center justify-between">
             {sidebarOpen && <p className="text-[10px] font-black uppercase tracking-widest text-white/40">Navigation</p>}
@@ -499,9 +499,9 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
           </ScrollArea>
         </aside>
 
-        <main className="flex-1 flex flex-col overflow-hidden relative">
+        <main className="flex-1 flex flex-col overflow-x-auto overflow-y-hidden relative">
           <ScrollArea className="flex-1 p-8">
-            <div className="max-w-6xl mx-auto space-y-8 pb-24 text-left">
+            <div className="max-w-6xl mx-auto space-y-8 pb-24 text-left min-w-0">
               
               {activeNav === 'dashboard' && (
                 <div className="space-y-8 animate-in fade-in duration-500">
@@ -579,7 +579,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                        <Select value={orderDateRange} onValueChange={(v: any) => setOrderDateRange(v)}><SelectTrigger className="h-10 border-2 rounded-xl w-40 text-[10px] font-black uppercase tracking-widest"><CalendarIcon className="h-3 w-3 mr-2" /><SelectValue /></SelectTrigger><SelectContent><SelectItem value="today">Today</SelectItem><SelectItem value="7days">Last 7 Days</SelectItem><SelectItem value="30days">Last 30 Days</SelectItem><SelectItem value="all">All Time</SelectItem></SelectContent></Select>
                     </div>
                   </div>
-                  <div className="border-2 rounded-[2.5rem] overflow-hidden bg-white shadow-sm">
+                  <div className="border-2 rounded-[2.5rem] overflow-x-auto bg-white shadow-sm">
                     <Table><TableHeader className="bg-slate-50"><TableRow><TableHead className="text-[10px] font-black uppercase h-14 px-8">Ticket</TableHead><TableHead className="text-[10px] font-black uppercase h-14">Customer</TableHead><TableHead className="text-[10px] font-black uppercase h-14">Channel</TableHead><TableHead className="text-[10px] font-black uppercase h-14">Items</TableHead><TableHead className="text-[10px] font-black uppercase h-14 text-right px-8">Status</TableHead></TableRow></TableHeader><TableBody>{filteredOrders.map(o => (<TableRow key={o.id}><TableCell className="px-8 py-5"><p className="font-mono font-black text-xs">#{o.id.slice(-5).toUpperCase()}</p><p className="text-[9px] text-muted-foreground uppercase mt-0.5">{o.createdAt ? format(o.createdAt.toDate(), 'MMM d, h:mm a') : 'Now'}</p></TableCell><TableCell><p className="font-bold text-sm text-[#213147]">{o.customerName}</p><p className="text-[9px] text-muted-foreground uppercase">{o.customerPhone}</p></TableCell><TableCell><Badge variant="outline" className="text-[8px] font-black uppercase">{o.menuType}</Badge></TableCell><TableCell><p className="text-xs font-medium text-slate-600 line-clamp-1">{o.items.map(i => `${i.quantity}x ${i.name}`).join(', ')}</p></TableCell><TableCell className="text-right px-8"><Badge className={cn("text-[9px] font-black uppercase px-3 py-1 rounded-full", o.status === 'Delivered' ? "bg-green-100 text-green-700" : "bg-indigo-100 text-indigo-700")}>{o.status}</Badge></TableCell></TableRow>))}</TableBody></Table>
                   </div>
                 </div>
