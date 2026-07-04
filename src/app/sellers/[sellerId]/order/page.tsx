@@ -209,7 +209,7 @@ function CheckoutDrawerContent({
   const [patronEmail, setPatronEmail] = useState('');
   const [patronName, setPatronName] = useState('');
   const [patronPhone, setPatronPhone] = useState('');
-  const [saveInfo, setSaveInfo] = useState(false); // DEFAULT TO UNCHECKED
+  const [saveInfo, setSaveInfo] = useState(false); 
   const [tip, setTip] = useState(0);
   const [paymentMethod, setPaymentMethod] = useState<'Pay at Delivery' | 'Stripe' | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -226,7 +226,6 @@ function CheckoutDrawerContent({
   const disclosureCategory = getDisclosureCategory(seller?.type);
   const checkoutNotice = FEE_DISCLOSURES[disclosureCategory].checkout;
 
-  // TRIGGER INTENT FETCH ONCE MINIMUM INFO IS ENTERED
   useEffect(() => {
     if (paymentMethod === 'Stripe' && !isFetchingIntent && baseTotalForBackend > 0 && isContactInfoValid && !clientSecret) {
       const fetchIntent = async () => {
@@ -699,14 +698,26 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
 
       {selectedMenuType && (
         <>
+          {/* STICKY CATEGORY NAV */}
           <div className="sticky top-16 z-30 bg-white/95 backdrop-blur-md border-b-2 shadow-sm">
-            <div className="max-w-2xl mx-auto px-4 py-3"><div className="flex gap-2 overflow-x-auto no-scrollbar py-1">
-              {currentCategories.map((cat) => (
-                <button key={cat} onClick={() => scrollToCategory(cat)} className={cn("whitespace-nowrap px-4 py-1.5 rounded-full border-2 text-[9px] font-black uppercase tracking-widest transition-all active:scale-95", activeCategory === cat ? (cat === 'Featured' ? "bg-[#213147] border-[#213147] text-white shadow-md scale-105" : "bg-primary border-primary text-white shadow-md scale-105") : (cat === 'Featured' ? "bg-[#213147]/5 border-[#213147]/20 text-[#213147] hover:bg-[#213147]/10" : "bg-slate-50 border-slate-100 text-slate-500 hover:border-primary/30 hover:text-primary"))}>
-                  {cat}
-                </button>
-              ))}
-            </div></div>
+            <div className="max-w-2xl mx-auto px-4 py-3">
+              <div className="flex gap-2 overflow-x-auto no-scrollbar py-1">
+                {currentCategories.map((cat) => (
+                  <button 
+                    key={cat} 
+                    onClick={() => scrollToCategory(cat)} 
+                    className={cn(
+                      "whitespace-nowrap px-4 py-1.5 rounded-full border-2 text-[9px] font-black uppercase tracking-widest transition-all active:scale-95", 
+                      activeCategory === cat 
+                        ? (cat === 'Featured' ? "bg-[#213147] border-[#213147] text-white shadow-md scale-105" : "bg-primary border-primary text-white shadow-md scale-105") 
+                        : (cat === 'Featured' ? "bg-[#213147]/5 border-[#213147]/20 text-[#213147] hover:bg-[#213147]/10" : "bg-slate-50 border-slate-100 text-slate-500 hover:border-primary/30 hover:text-primary")
+                    )}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
 
           <main className="flex-1 px-4 pt-8 pb-32 max-w-2xl mx-auto w-full">
