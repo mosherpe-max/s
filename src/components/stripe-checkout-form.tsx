@@ -145,6 +145,11 @@ export function StripeCheckoutForm({
              options={{
                layout: 'tabs',
                business: { name: 'KOOP' },
+               // Disable wallets to prevent SecurityError in restricted iframe/preview environments
+               wallets: {
+                 applePay: 'never',
+                 googlePay: 'never'
+               },
                // Hide the native Stripe checkbox because we handle consent in our own UI above
                features: {
                  paymentMethodSave: 'disabled'
