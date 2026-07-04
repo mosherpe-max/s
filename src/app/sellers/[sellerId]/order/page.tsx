@@ -203,7 +203,7 @@ function CheckoutDrawerContent({
   const [patronEmail, setPatronEmail] = useState('');
   const [patronName, setPatronName] = useState('');
   const [patronPhone, setPatronPhone] = useState('');
-  const [saveInfo, setSaveInfo] = useState(true);
+  const [saveInfo, setSaveInfo] = useState(false); // DEFAULT TO UNCHECKED
   const [tip, setTip] = useState(0);
   const [paymentMethod, setPaymentMethod] = useState<'Pay at Delivery' | 'Stripe' | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
