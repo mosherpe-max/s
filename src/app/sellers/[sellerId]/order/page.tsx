@@ -663,7 +663,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
   }
 
   return (
-    <div className="flex flex-col min-h-screen bg-[#F0F0F0] overflow-x-hidden">
+    <div className="flex flex-col min-h-screen bg-[#F0F0F0]">
       <header className="relative w-full min-h-[22vh] flex flex-col bg-[#213147] overflow-hidden shrink-0 pt-8 pb-8 px-6 text-left">
         <div className="absolute inset-0 z-0 opacity-10 pointer-events-none">
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full border-[30px] border-white" />
@@ -699,7 +699,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
       {selectedMenuType && (
         <>
           {/* STICKY CATEGORY NAV */}
-          <div className="sticky top-16 z-30 bg-white/95 backdrop-blur-md border-b-2 shadow-sm">
+          <div className="sticky top-16 z-[35] bg-white/95 backdrop-blur-md border-b-2 shadow-sm w-full">
             <div className="max-w-2xl mx-auto px-4 py-3">
               <div className="flex gap-2 overflow-x-auto no-scrollbar py-1">
                 {currentCategories.map((cat) => (
