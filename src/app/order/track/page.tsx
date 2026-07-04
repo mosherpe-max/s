@@ -1,4 +1,3 @@
-
 'use client';
 
 import { Suspense, useEffect, useRef, useState, use } from 'react';
@@ -20,6 +19,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { differenceInSeconds } from 'date-fns';
+import { FEE_DISCLOSURES, getDisclosureCategory } from '@/config/fee-disclosures';
 
 function OrderTrackingContent() {
   const firestore = useFirestore();
@@ -112,11 +112,8 @@ function OrderTrackingContent() {
     });
   };
 
-  const orderStatusNotice = isGolf 
-    ? "A convenience fee was applied to this order for mobile ordering on the course."
-    : isBowling 
-    ? "A convenience fee was applied to this order for lane-side mobile ordering."
-    : "A small convenience fee was applied to support mobile ordering logistics.";
+  const disclosureCategory = getDisclosureCategory(seller?.type);
+  const statusNotice = FEE_DISCLOSURES[disclosureCategory].status;
 
   const isLoading = isOrderLoading || isSellerLoading;
 
@@ -371,7 +368,7 @@ function OrderTrackingContent() {
         <div className="bg-white/50 backdrop-blur-sm border border-slate-200 p-4 rounded-2xl flex items-start gap-3 animate-in fade-in slide-in-from-bottom-2 duration-500">
           <Info className="h-4 w-4 text-slate-400 shrink-0 mt-0.5" />
           <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-tight leading-relaxed">
-            {orderStatusNotice}
+            {statusNotice}
           </p>
         </div>
       </div>

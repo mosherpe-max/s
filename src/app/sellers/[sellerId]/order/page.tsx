@@ -57,6 +57,7 @@ import { Badge } from '@/components/ui/badge';
 import { StylizedKoopLogo } from '@/components/header';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
+import { FEE_DISCLOSURES, getDisclosureCategory } from '@/config/fee-disclosures';
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || 'pk_test_placeholder');
 
@@ -216,6 +217,9 @@ function CheckoutDrawerContent({
 
   const isContactInfoValid = patronName.length >= 2 && patronPhone.replace(/\D/g, '').length >= 10 && patronEmail.includes('@');
 
+  const disclosureCategory = getDisclosureCategory(seller?.type);
+  const checkoutNotice = FEE_DISCLOSURES[disclosureCategory].checkout;
+
   // TRIGGER INTENT FETCH ONCE MINIMUM INFO IS ENTERED
   useEffect(() => {
     if (paymentMethod === 'Stripe' && !isFetchingIntent && baseTotalForBackend > 0 && isContactInfoValid && !clientSecret) {
@@ -364,7 +368,12 @@ function CheckoutDrawerContent({
 
         <TipSelector subtotal={subtotal} onTipChange={setTip} />
 
-        <PricingBreakdown subtotal={subtotal} serviceFee={solutionFee} tax={tax} tip={tip} taxRate={taxRate} />
+        <div className="space-y-4">
+          <PricingBreakdown subtotal={subtotal} serviceFee={solutionFee} tax={tax} tip={tip} taxRate={taxRate} />
+          <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest text-center px-4 leading-relaxed opacity-60">
+            {checkoutNotice}
+          </p>
+        </div>
 
         <div className="space-y-4">
           <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground px-1">CHECKOUT</h3>
@@ -598,6 +607,9 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
     return (selectedMenuType && seller.serviceFees?.[selectedMenuType]) || seller.serviceFee || 0;
   }, [seller, venue, selectedMenuType]);
 
+  const disclosureCategory = getDisclosureCategory(seller?.type);
+  const menuNotice = FEE_DISCLOSURES[disclosureCategory].menu;
+
   const filteredMenuItems = useMemo(() => {
     if (!menuItems || !selectedMenuType) return [];
     return menuItems.filter(item => item.isAvailable !== false && (item.availableOn?.includes(selectedMenuType) || item.featuredOn?.includes(selectedMenuType)));
@@ -673,7 +685,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
               Select items to begin your order
             </p>
             <p className="text-[8px] font-bold uppercase tracking-[0.15em] text-white/40 pl-4">
-              A small convenience fee applies at checkout
+              {menuNotice}
             </p>
           </div>
         </div>
