@@ -110,6 +110,13 @@ function StripeActionArea({
 
   const handleStripePayment = async () => {
     if (!stripe || !elements || !clientSecret || !firestore) return;
+    
+    const isContactValid = patronName.length >= 2 && patronPhone.replace(/\D/g, '').length >= 10 && patronEmail.includes('@');
+    if (!isContactValid) {
+      toast({ variant: 'destructive', title: 'Details Required', description: 'Please complete your contact info to receive tracking updates.' });
+      return;
+    }
+
     setIsProcessing(true);
     try {
       const { error, paymentIntent } = await stripe.confirmPayment({
@@ -126,7 +133,9 @@ function StripeActionArea({
         },
         redirect: 'if_required',
       });
+
       if (error) throw new Error(error.message);
+
       if (paymentIntent && (paymentIntent.status === 'succeeded' || paymentIntent.status === 'processing')) {
         const finalOrderData = {
           ...orderData,
@@ -203,7 +212,7 @@ function CheckoutDrawerContent({
   const { firebaseApp } = useFirebase();
   const firestore = useFirestore();
   const auth = useAuth();
-  const { user, isUserLoading } = useUser();
+  const { user } = useUser();
   const { toast } = useToast();
   
   const [patronEmail, setPatronEmail] = useState('');
@@ -221,13 +230,12 @@ function CheckoutDrawerContent({
   const finalTotal = subtotal + solutionFee + tax + tip;
   const baseTotalForBackend = subtotal + tax + tip;
 
-  const isContactInfoValid = patronName.length >= 2 && patronPhone.replace(/\D/g, '').length >= 10 && patronEmail.includes('@');
-
   const disclosureCategory = getDisclosureCategory(seller?.type);
   const checkoutNotice = FEE_DISCLOSURES[disclosureCategory].checkout;
 
+  // FETCH INTENT IMMEDIATELY WHEN STRIPE SELECTED
   useEffect(() => {
-    if (paymentMethod === 'Stripe' && !isFetchingIntent && baseTotalForBackend > 0 && isContactInfoValid && !clientSecret) {
+    if (paymentMethod === 'Stripe' && !isFetchingIntent && baseTotalForBackend > 0 && !clientSecret) {
       const fetchIntent = async () => {
         setIsFetchingIntent(true);
         try {
@@ -241,12 +249,13 @@ function CheckoutDrawerContent({
           const functions = getFunctions(firebaseApp, 'us-central1');
           const createIntent = httpsCallable(functions, 'createPaymentIntent');
           
+          // Identity info is optional at this stage - Stripe metadata will be updated on confirm
           const result = await createIntent({ 
             amount: baseTotalForBackend, 
             sellerId,
-            patronName,
-            patronPhone: patronPhone.replace(/\D/g, ''),
-            patronEmail,
+            patronName: patronName || 'Guest',
+            patronPhone: patronPhone.replace(/\D/g, '') || '',
+            patronEmail: patronEmail || '',
             saveInfo
           });
           
@@ -260,6 +269,7 @@ function CheckoutDrawerContent({
             throw new Error("Secure gateway could not be initialized.");
           }
         } catch (e: any) {
+          console.error("Payment Intent Error:", e);
           toast({ variant: 'destructive', title: 'Gateway Error', description: "The digital gateway is unavailable. Please use Pay at Delivery." });
           setPaymentMethod('Pay at Delivery');
         } finally {
@@ -268,11 +278,12 @@ function CheckoutDrawerContent({
       };
       fetchIntent();
     }
-  }, [paymentMethod, baseTotalForBackend, sellerId, firebaseApp, clientSecret, isFetchingIntent, toast, user, auth, isContactInfoValid, patronName, patronPhone, patronEmail, saveInfo]);
+  }, [paymentMethod, baseTotalForBackend, sellerId, firebaseApp, clientSecret, isFetchingIntent, toast, user, auth, saveInfo]);
 
   const handleManualOrder = async () => {
     if (!firestore || activeOrderItems.length === 0) return;
-    if (!isContactInfoValid) {
+    const isContactValid = patronName.length >= 2 && patronPhone.replace(/\D/g, '').length >= 10 && patronEmail.includes('@');
+    if (!isContactValid) {
       toast({ variant: 'destructive', title: 'Details Required', description: 'Please complete your contact info to receive tracking updates.' });
       return;
     }
@@ -401,9 +412,9 @@ function CheckoutDrawerContent({
 
           {paymentMethod === 'Stripe' && (
             isFetchingIntent ? (
-              <div className="flex flex-col items-center gap-2 py-10">
-                <Loader2 className="h-8 w-8 animate-spin text-primary opacity-50" />
-                <p className="text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground">Initializing Secure Feed...</p>
+              <div className="flex flex-col items-center gap-4 py-20 animate-in fade-in duration-300">
+                <Loader2 className="h-10 w-10 animate-spin text-primary opacity-50" />
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Initializing Secure Checkout...</p>
               </div>
             ) : clientSecret ? (
               <Elements stripe={stripePromise} options={{ clientSecret, customerSessionClientSecret: customerSessionClientSecret || undefined }}>
@@ -420,48 +431,7 @@ function CheckoutDrawerContent({
                   saveInfo={saveInfo} setSaveInfo={setSaveInfo}
                 />
               </Elements>
-            ) : (
-              <div className="p-5 sm:p-6 border-2 border-slate-100 rounded-[2rem] bg-slate-50/50 animate-in fade-in duration-500 space-y-4">
-                 <div className="flex items-center justify-center gap-2 mb-2">
-                    <User className="h-4 w-4 text-primary" />
-                    <p className="text-[10px] font-black uppercase text-primary tracking-widest">Patron Details</p>
-                 </div>
-                 <div className="space-y-3 text-left">
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input 
-                      placeholder="Email Address" 
-                      type="email"
-                      value={patronEmail} 
-                      onChange={(e) => setPatronEmail(e.target.value)} 
-                      className="pl-10 h-12 border-2 border-white bg-white rounded-xl font-bold focus-visible:ring-primary"
-                    />
-                  </div>
-                  <div className="relative">
-                    <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input 
-                      placeholder="Full Name" 
-                      value={patronName} 
-                      onChange={(e) => setPatronName(e.target.value)} 
-                      className="pl-10 h-12 border-2 border-white bg-white rounded-xl font-bold focus-visible:ring-primary"
-                    />
-                  </div>
-                  <div className="relative">
-                    <Smartphone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input 
-                      placeholder="Mobile Number" 
-                      type="tel"
-                      value={patronPhone} 
-                      onChange={(e) => setPatronPhone(e.target.value)} 
-                      className="pl-10 h-12 border-2 border-white bg-white rounded-xl font-bold focus-visible:ring-primary"
-                    />
-                  </div>
-                </div>
-                <p className="text-[8px] font-bold text-muted-foreground text-center uppercase px-4 leading-relaxed">
-                  Enter details to enable secure digital payment element
-                </p>
-              </div>
-            )
+            ) : null
           )}
 
           {paymentMethod === 'Pay at Delivery' && (
@@ -508,7 +478,7 @@ function CheckoutDrawerContent({
                     size="lg" 
                     className="w-full h-14 font-black uppercase tracking-widest gap-2 shadow-xl" 
                     onClick={handleManualOrder} 
-                    disabled={isProcessing || !isContactInfoValid}
+                    disabled={isProcessing}
                   >
                     {isProcessing ? <Loader2 className="animate-spin" /> : <ShoppingBag className="h-5 w-5" />} 
                     PLACE ORDER
@@ -671,7 +641,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
         <div className="relative z-10 flex flex-col items-start text-left space-y-6 max-w-2xl w-full mx-auto">
           <div className="space-y-4 w-full">
             <h1 className="font-headline text-2xl font-black text-white uppercase tracking-tight leading-none mb-1">{seller?.courseName}</h1>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex wrap gap-2">
               {seller?.menuTypes?.filter(t => t !== 'Take Out').map((type) => {
                 const Icon = serviceTypeIcons[type] || Store;
                 const available = isModeAvailable(type);
@@ -698,7 +668,6 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
 
       {selectedMenuType && (
         <>
-          {/* STICKY CATEGORY NAV */}
           <div className="sticky top-16 z-[35] bg-white/95 backdrop-blur-md border-b-2 shadow-sm w-full">
             <div className="max-w-2xl mx-auto px-4 py-3">
               <div className="flex gap-2 overflow-x-auto no-scrollbar py-1">
@@ -733,7 +702,6 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
         </>
       )}
 
-      {/* Item Customization Sheet */}
       <Sheet open={!!customizingItem} onOpenChange={(o) => !o && setCustomizingItem(null)}>
         <SheetContent side="bottom" className="rounded-t-[2.5rem] h-[90vh] flex flex-col p-0 overflow-hidden outline-none">
           <SheetHeader className="px-6 py-5 border-b bg-[#213147] text-white shrink-0 text-left">
@@ -753,7 +721,6 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
         </SheetContent>
       </Sheet>
 
-      {/* Cart Summary Sheet */}
       <Sheet open={isCartOpen} onOpenChange={setIsCartOpen}>
         {totalItems > 0 && !customizingItem && (
           <div className="fixed bottom-7 left-0 right-0 p-4 bg-white/80 backdrop-blur-md border-t z-40">
