@@ -70,6 +70,12 @@ const serviceTypeIcons: Record<string, any> = {
   'Lane Delivery': MapPin,
 };
 
+const SERVICE_INSTRUCTIONS: Record<string, string> = {
+  'Beverage Cart': 'Drinks and Snacks delivered on Course',
+  'Clubhouse': 'Food and Drinks delivered on Course',
+  'Lane Delivery': 'Food and Drinks delivered to your lane',
+};
+
 function CheckoutBrandingBar() {
   return (
     <div className="fixed bottom-0 left-0 right-0 h-7 bg-[#213147] text-white flex items-center justify-center z-[60] w-full border-t border-white/5">
@@ -682,7 +688,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
           <div className="space-y-1.5">
             <p className="text-[10px] font-black uppercase tracking-[0.1em] text-white flex items-center gap-1.5">
               <Info className="h-2.5 w-2.5 shrink-0 text-primary" /> 
-              Select items to begin your order
+              {SERVICE_INSTRUCTIONS[selectedMenuType] || 'Select items to begin your order'}
             </p>
             <p className="text-[8px] font-bold uppercase tracking-[0.15em] text-white/40 pl-4">
               {menuNotice}
