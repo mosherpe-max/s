@@ -21,7 +21,8 @@ const getImg = (hint: string) => {
   const search = hint.toLowerCase();
   const found = PlaceHolderImages.find(i => 
     i.imageHint.toLowerCase() === search || 
-    i.id.toLowerCase() === search
+    i.id.toLowerCase() === search ||
+    i.description.toLowerCase().includes(search)
   );
   return found?.imageUrl || '';
 };
