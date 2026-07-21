@@ -10,6 +10,21 @@ import {
 } from 'firebase/firestore';
 import type { ModifierGroup, MenuItem, StarterModifierGroup, StarterMenuItem, VenueHealthSettings } from './types';
 import { publicGolfItems, privateGolfItems, bowlingAlleyItems } from './data';
+import { PlaceHolderImages } from './placeholder-images';
+
+/**
+ * Robust image retrieval helper.
+ * Searches by both explicit ID and descriptive imageHint.
+ */
+const getImg = (hint: string) => {
+  if (!PlaceHolderImages || !PlaceHolderImages.length) return '';
+  const search = hint.toLowerCase();
+  const found = PlaceHolderImages.find(i => 
+    i.imageHint.toLowerCase() === search || 
+    i.id.toLowerCase() === search
+  );
+  return found?.imageUrl || '';
+};
 
 const DEFAULT_HEALTH_SETTINGS: VenueHealthSettings = {
   maxOrderAcknowledgeSeconds: 120,
@@ -71,62 +86,62 @@ const GLOBAL_STARTER_LIBRARY: Omit<StarterModifierGroup, 'id'>[] = [
  */
 const GLOBAL_STARTER_MENU_ITEMS: Omit<StarterMenuItem, 'id'>[] = [
   // --- GOLF: BEVERAGE CART ---
-  { name: "Bud Light (canned)", description: "Chilled 12oz can.", price: 6.00, category: "alcohol", venueType: ["golf"], serviceMode: "beverageCart", sortOrder: 1 },
-  { name: "Miller Lite (canned)", description: "Chilled 12oz can.", price: 6.00, category: "alcohol", venueType: ["golf"], serviceMode: "beverageCart", sortOrder: 2 },
-  { name: "Coors Light (canned)", description: "Chilled 12oz can.", price: 6.00, category: "alcohol", venueType: ["golf"], serviceMode: "beverageCart", sortOrder: 3 },
-  { name: "Modelo Especial (canned)", description: "Chilled 12oz can.", price: 7.00, category: "alcohol", venueType: ["golf"], serviceMode: "beverageCart", sortOrder: 4 },
-  { name: "Heineken (canned)", description: "Chilled 12oz can.", price: 7.00, category: "alcohol", venueType: ["golf"], serviceMode: "beverageCart", sortOrder: 5 },
-  { name: "Craft/Local Beer (canned)", description: "Rotating seasonal selection.", price: 8.00, category: "alcohol", venueType: ["golf"], serviceMode: "beverageCart", sortOrder: 6 },
-  { name: "White Claw (canned)", description: "Black Cherry or Mango.", price: 7.00, category: "alcohol", venueType: ["golf"], serviceMode: "beverageCart", sortOrder: 7 },
-  { name: "Truly (canned)", description: "Wild Berry or Pineapple.", price: 7.00, category: "alcohol", venueType: ["golf"], serviceMode: "beverageCart", sortOrder: 8 },
-  { name: "Beer Bucket", description: "Choice of domestic cans on ice.", price: 24.00, category: "alcohol", venueType: ["golf"], serviceMode: "beverageCart", suggestedModifierGroups: ["Beer Bucket Quantity"], sortOrder: 9 },
-  { name: "Cocktail", description: "Premium spirit with your choice of mixer.", price: 11.00, category: "alcohol", venueType: ["golf"], serviceMode: "beverageCart", suggestedModifierGroups: ["Ice Preference", "Mixer", "Pour Size"], sortOrder: 10 },
-  { name: "Gatorade", description: "Fruit Punch or Orange.", price: 4.50, category: "beverage", venueType: ["golf"], serviceMode: "beverageCart", sortOrder: 11 },
-  { name: "Bottled Water", description: "Purified spring water.", price: 3.00, category: "beverage", venueType: ["golf"], serviceMode: "beverageCart", sortOrder: 12 },
-  { name: "Soda (can)", description: "Classic cola, diet, or lemon-lime.", price: 3.50, category: "beverage", venueType: ["golf"], serviceMode: "beverageCart", sortOrder: 13 },
-  { name: "Hot Dog", description: "All-beef dog on a toasted bun.", price: 8.50, category: "food", venueType: ["golf"], serviceMode: "beverageCart", suggestedModifierGroups: ["Hot Dog Style", "Hot Dog Toppings"], sortOrder: 14 },
-  { name: "Chips", description: "Kettle cooked sea salt.", price: 3.00, category: "food", venueType: ["golf"], serviceMode: "beverageCart", sortOrder: 15 },
-  { name: "Candy Bar", description: "Snickers, Hershey's, or KitKat.", price: 2.50, category: "food", venueType: ["golf"], serviceMode: "beverageCart", sortOrder: 16 },
+  { name: "Bud Light (canned)", description: "Chilled 12oz can.", price: 6.00, category: "alcohol", venueType: ["golf"], serviceMode: "beverageCart", imageUrl: getImg('lager can'), sortOrder: 1 },
+  { name: "Miller Lite (canned)", description: "Chilled 12oz can.", price: 6.00, category: "alcohol", venueType: ["golf"], serviceMode: "beverageCart", imageUrl: getImg('lager can'), sortOrder: 2 },
+  { name: "Coors Light (canned)", description: "Chilled 12oz can.", price: 6.00, category: "alcohol", venueType: ["golf"], serviceMode: "beverageCart", imageUrl: getImg('lager can'), sortOrder: 3 },
+  { name: "Modelo Especial (canned)", description: "Chilled 12oz can.", price: 7.00, category: "alcohol", venueType: ["golf"], serviceMode: "beverageCart", imageUrl: getImg('lager can'), sortOrder: 4 },
+  { name: "Heineken (canned)", description: "Chilled 12oz can.", price: 7.00, category: "alcohol", venueType: ["golf"], serviceMode: "beverageCart", imageUrl: getImg('lager can'), sortOrder: 5 },
+  { name: "Craft/Local Beer (canned)", description: "Rotating seasonal selection.", price: 8.00, category: "alcohol", venueType: ["golf"], serviceMode: "beverageCart", imageUrl: getImg('craft beer'), sortOrder: 6 },
+  { name: "White Claw (canned)", description: "Black Cherry or Mango.", price: 7.00, category: "alcohol", venueType: ["golf"], serviceMode: "beverageCart", imageUrl: getImg('lager can'), sortOrder: 7 },
+  { name: "Truly (canned)", description: "Wild Berry or Pineapple.", price: 7.00, category: "alcohol", venueType: ["golf"], serviceMode: "beverageCart", imageUrl: getImg('lager can'), sortOrder: 8 },
+  { name: "Beer Bucket", description: "Choice of domestic cans on ice.", price: 24.00, category: "alcohol", venueType: ["golf"], serviceMode: "beverageCart", imageUrl: getImg('craft beer'), suggestedModifierGroups: ["Beer Bucket Quantity"], sortOrder: 9 },
+  { name: "Cocktail", description: "Premium spirit with your choice of mixer.", price: 11.00, category: "alcohol", venueType: ["golf"], serviceMode: "beverageCart", imageUrl: getImg('blue cocktail'), suggestedModifierGroups: ["Ice Preference", "Mixer", "Pour Size"], sortOrder: 10 },
+  { name: "Gatorade", description: "Fruit Punch or Orange.", price: 4.50, category: "beverage", venueType: ["golf"], serviceMode: "beverageCart", imageUrl: getImg('soft-drink-1'), sortOrder: 11 },
+  { name: "Bottled Water", description: "Purified spring water.", price: 3.00, category: "beverage", venueType: ["golf"], serviceMode: "beverageCart", imageUrl: getImg('water bottle'), sortOrder: 12 },
+  { name: "Soda (can)", description: "Classic cola, diet, or lemon-lime.", price: 3.50, category: "beverage", venueType: ["golf"], serviceMode: "beverageCart", imageUrl: getImg('cola can'), sortOrder: 13 },
+  { name: "Hot Dog", description: "All-beef dog on a toasted bun.", price: 8.50, category: "food", venueType: ["golf"], serviceMode: "beverageCart", imageUrl: getImg('hot dog'), suggestedModifierGroups: ["Hot Dog Style", "Hot Dog Toppings"], sortOrder: 14 },
+  { name: "Chips", description: "Kettle cooked sea salt.", price: 3.00, category: "food", venueType: ["golf"], serviceMode: "beverageCart", imageUrl: getImg('potato chips'), sortOrder: 15 },
+  { name: "Candy Bar", description: "Snickers, Hershey's, or KitKat.", price: 2.50, category: "food", venueType: ["golf"], serviceMode: "beverageCart", imageUrl: getImg('chocolate bar'), sortOrder: 16 },
 
   // --- GOLF: CLUBHOUSE ---
-  { name: "Burger", description: "Angus beef on brioche.", price: 14.00, category: "food", venueType: ["golf"], serviceMode: "clubhouse", suggestedModifierGroups: ["Doneness", "Cheese", "Toppings", "Sauces", "Bun", "Side Swap", "Allergy Flag"], sortOrder: 100 },
-  { name: "Cheeseburger", description: "Angus beef with American cheese.", price: 15.00, category: "food", venueType: ["golf"], serviceMode: "clubhouse", suggestedModifierGroups: ["Doneness", "Cheese", "Toppings", "Sauces", "Bun", "Side Swap", "Allergy Flag"], sortOrder: 101 },
-  { name: "Chicken Sandwich", description: "Grilled or crispy breast.", price: 13.50, category: "food", venueType: ["golf"], serviceMode: "clubhouse", suggestedModifierGroups: ["Cheese", "Toppings", "Sauces", "Bun", "Side Swap"], sortOrder: 102 },
-  { name: "Club Sandwich", description: "Turkey, bacon, lettuce, tomato.", price: 14.50, category: "food", venueType: ["golf"], serviceMode: "clubhouse", suggestedModifierGroups: ["Bun", "Side Swap", "Allergy Flag"], sortOrder: 103 },
-  { name: "Caesar Wrap", description: "Romaine, parm, caesar dressing.", price: 12.50, category: "food", venueType: ["golf"], serviceMode: "clubhouse", suggestedModifierGroups: ["Wrap Sauce", "Side Swap"], sortOrder: 104 },
-  { name: "Buffalo Chicken Wrap", description: "Crispy chicken in spicy sauce.", price: 13.00, category: "food", venueType: ["golf"], serviceMode: "clubhouse", suggestedModifierGroups: ["Wrap Sauce", "Side Swap"], sortOrder: 105 },
-  { name: "Wings", description: "Jumbo wings with your choice of sauce.", price: 16.00, category: "food", venueType: ["golf"], serviceMode: "clubhouse", suggestedModifierGroups: ["Wing Style", "Wing Sauce", "Dipping Sauce"], sortOrder: 106 },
-  { name: "Nachos", description: "Loaded with cheese and jalapenos.", price: 14.00, category: "food", venueType: ["golf"], serviceMode: "clubhouse", suggestedModifierGroups: ["Nacho Protein", "Nacho Toppings", "Mexican Add-ons", "Cheese Amount"], sortOrder: 107 },
-  { name: "Quesadilla", description: "Grilled flour tortilla with jack cheese.", price: 11.00, category: "food", venueType: ["golf"], serviceMode: "clubhouse", suggestedModifierGroups: ["Mexican Add-ons"], sortOrder: 108 },
-  { name: "French Fries", description: "Crispy golden shoestring.", price: 6.00, category: "food", venueType: ["golf"], serviceMode: "clubhouse", suggestedModifierGroups: ["Dipping Sauce"], sortOrder: 109 },
-  { name: "Onion Rings", description: "Beer-battered thick cut.", price: 8.00, category: "food", venueType: ["golf"], serviceMode: "clubhouse", suggestedModifierGroups: ["Dipping Sauce"], sortOrder: 110 },
-  { name: "Side Salad", description: "Mixed greens and seasonal veg.", price: 7.00, category: "food", venueType: ["golf"], serviceMode: "clubhouse", suggestedModifierGroups: ["Dressing"], sortOrder: 111 },
-  { name: "Caesar Salad", description: "Classic house-made dressing.", price: 11.00, category: "food", venueType: ["golf"], serviceMode: "clubhouse", suggestedModifierGroups: ["Dressing", "Salad Add-ons"], sortOrder: 112 },
-  { name: "Cobb Salad", description: "Avocado, egg, bacon, and blue cheese.", price: 14.50, category: "food", venueType: ["golf"], serviceMode: "clubhouse", suggestedModifierGroups: ["Dressing", "Salad Add-ons"], sortOrder: 113 },
-  { name: "Soup of the Day", description: "Chef's daily rotation.", price: 7.00, category: "food", venueType: ["golf"], serviceMode: "clubhouse", suggestedModifierGroups: ["Soup/Chili Add-ons"], sortOrder: 114 },
-  { name: "Pizza", description: "12-inch personal stone fired.", price: 16.00, category: "food", venueType: ["golf"], serviceMode: "clubhouse", suggestedModifierGroups: ["Crust", "Pizza Size", "Pizza Sauce", "Pizza Toppings"], sortOrder: 115 },
-  { name: "Kids Cheeseburger", description: "Plain with American cheese.", price: 9.00, category: "food", venueType: ["golf"], serviceMode: "clubhouse", suggestedModifierGroups: ["Kids Sauce"], sortOrder: 116 },
-  { name: "Kids Chicken Tenders", description: "2 strips served with fries.", price: 8.50, category: "food", venueType: ["golf"], serviceMode: "clubhouse", suggestedModifierGroups: ["Kids Sauce"], sortOrder: 117 },
-  { name: "Coffee", description: "House roasted dark blend.", price: 3.50, category: "beverage", venueType: ["golf"], serviceMode: "clubhouse", suggestedModifierGroups: ["Coffee Size", "Milk Type", "Sweetener", "Coffee Extras"], sortOrder: 118 },
-  { name: "Fountain Drink", description: "20oz bottomless refill.", price: 3.50, category: "beverage", venueType: ["golf"], serviceMode: "clubhouse", suggestedModifierGroups: ["Drink Size"], sortOrder: 119 },
-  { name: "Iced Tea", description: "Freshly brewed unsweetened.", price: 3.50, category: "beverage", venueType: ["golf"], serviceMode: "clubhouse", suggestedModifierGroups: ["Drink Size"], sortOrder: 120 },
-  { name: "Lemonade", description: "Classic hand-squeezed.", price: 4.00, category: "beverage", venueType: ["golf"], serviceMode: "clubhouse", suggestedModifierGroups: ["Drink Size"], sortOrder: 121 },
-  { name: "Bud Light", description: "Draft 16oz.", price: 6.00, category: "alcohol", venueType: ["golf"], serviceMode: "clubhouse", sortOrder: 122 },
-  { name: "Miller Lite", description: "Draft 16oz.", price: 6.00, category: "alcohol", venueType: ["golf"], serviceMode: "clubhouse", sortOrder: 123 },
-  { name: "Coors Light", description: "Draft 16oz.", price: 6.00, category: "alcohol", venueType: ["golf"], serviceMode: "clubhouse", sortOrder: 124 },
-  { name: "Modelo Especial", description: "Draft 16oz.", price: 7.00, category: "alcohol", venueType: ["golf"], serviceMode: "clubhouse", sortOrder: 125 },
-  { name: "Heineken", description: "Draft 16oz.", price: 7.00, category: "alcohol", venueType: ["golf"], serviceMode: "clubhouse", sortOrder: 126 },
-  { name: "Wine by the Glass", description: "House Chardonnay or Cab.", price: 10.00, category: "alcohol", venueType: ["golf"], serviceMode: "clubhouse", sortOrder: 127 },
+  { name: "Burger", description: "Angus beef on brioche.", price: 14.00, category: "food", venueType: ["golf"], serviceMode: "clubhouse", imageUrl: getImg('burger meal'), suggestedModifierGroups: ["Doneness", "Cheese", "Toppings", "Sauces", "Bun", "Side Swap", "Allergy Flag"], sortOrder: 100 },
+  { name: "Cheeseburger", description: "Angus beef with American cheese.", price: 15.00, category: "food", venueType: ["golf"], serviceMode: "clubhouse", imageUrl: getImg('burger meal'), suggestedModifierGroups: ["Doneness", "Cheese", "Toppings", "Sauces", "Bun", "Side Swap", "Allergy Flag"], sortOrder: 101 },
+  { name: "Chicken Sandwich", description: "Grilled or crispy breast.", price: 13.50, category: "food", venueType: ["golf"], serviceMode: "clubhouse", imageUrl: getImg('burger meal'), suggestedModifierGroups: ["Cheese", "Toppings", "Sauces", "Bun", "Side Swap"], sortOrder: 102 },
+  { name: "Club Sandwich", description: "Turkey, bacon, lettuce, tomato.", price: 14.50, category: "food", venueType: ["golf"], serviceMode: "clubhouse", imageUrl: getImg('burger meal'), suggestedModifierGroups: ["Bun", "Side Swap", "Allergy Flag"], sortOrder: 103 },
+  { name: "Caesar Wrap", description: "Romaine, parm, caesar dressing.", price: 12.50, category: "food", venueType: ["golf"], serviceMode: "clubhouse", imageUrl: getImg('burger meal'), suggestedModifierGroups: ["Wrap Sauce", "Side Swap"], sortOrder: 104 },
+  { name: "Buffalo Chicken Wrap", description: "Crispy chicken in spicy sauce.", price: 13.00, category: "food", venueType: ["golf"], serviceMode: "clubhouse", imageUrl: getImg('burger meal'), suggestedModifierGroups: ["Wrap Sauce", "Side Swap"], sortOrder: 105 },
+  { name: "Wings", description: "Jumbo wings with your choice of sauce.", price: 16.00, category: "food", venueType: ["golf"], serviceMode: "clubhouse", imageUrl: getImg('chicken wings'), suggestedModifierGroups: ["Wing Style", "Wing Sauce", "Dipping Sauce"], sortOrder: 106 },
+  { name: "Nachos", description: "Loaded with cheese and jalapenos.", price: 14.00, category: "food", venueType: ["golf"], serviceMode: "clubhouse", imageUrl: getImg('loaded nachos'), suggestedModifierGroups: ["Nacho Protein", "Nacho Toppings", "Mexican Add-ons", "Cheese Amount"], sortOrder: 107 },
+  { name: "Quesadilla", description: "Grilled flour tortilla with jack cheese.", price: 11.00, category: "food", venueType: ["golf"], serviceMode: "clubhouse", imageUrl: getImg('loaded nachos'), suggestedModifierGroups: ["Mexican Add-ons"], sortOrder: 108 },
+  { name: "French Fries", description: "Crispy golden shoestring.", price: 6.00, category: "food", venueType: ["golf"], serviceMode: "clubhouse", imageUrl: getImg('potato chips'), suggestedModifierGroups: ["Dipping Sauce"], sortOrder: 109 },
+  { name: "Onion Rings", description: "Beer-battered thick cut.", price: 8.00, category: "food", venueType: ["golf"], serviceMode: "clubhouse", imageUrl: getImg('potato chips'), suggestedModifierGroups: ["Dipping Sauce"], sortOrder: 110 },
+  { name: "Side Salad", description: "Mixed greens and seasonal veg.", price: 7.00, category: "food", venueType: ["golf"], serviceMode: "clubhouse", imageUrl: getImg('grilled salmon'), suggestedModifierGroups: ["Dressing"], sortOrder: 111 },
+  { name: "Caesar Salad", description: "Classic house-made dressing.", price: 11.00, category: "food", venueType: ["golf"], serviceMode: "clubhouse", imageUrl: getImg('grilled salmon'), suggestedModifierGroups: ["Dressing", "Salad Add-ons"], sortOrder: 112 },
+  { name: "Cobb Salad", description: "Avocado, egg, bacon, and blue cheese.", price: 14.50, category: "food", venueType: ["golf"], serviceMode: "clubhouse", imageUrl: getImg('grilled salmon'), suggestedModifierGroups: ["Dressing", "Salad Add-ons"], sortOrder: 113 },
+  { name: "Soup of the Day", description: "Chef's daily rotation.", price: 7.00, category: "food", venueType: ["golf"], serviceMode: "clubhouse", imageUrl: getImg('loaded nachos'), suggestedModifierGroups: ["Soup/Chili Add-ons"], sortOrder: 114 },
+  { name: "Pizza", description: "12-inch personal stone fired.", price: 16.00, category: "food", venueType: ["golf"], serviceMode: "clubhouse", imageUrl: getImg('pepperoni pizza'), suggestedModifierGroups: ["Crust", "Pizza Size", "Pizza Sauce", "Pizza Toppings"], sortOrder: 115 },
+  { name: "Kids Cheeseburger", description: "Plain with American cheese.", price: 9.00, category: "food", venueType: ["golf"], serviceMode: "clubhouse", imageUrl: getImg('burger meal'), suggestedModifierGroups: ["Kids Sauce"], sortOrder: 116 },
+  { name: "Kids Chicken Tenders", description: "2 strips served with fries.", price: 8.50, category: "food", venueType: ["golf"], serviceMode: "clubhouse", imageUrl: getImg('chicken wings'), suggestedModifierGroups: ["Kids Sauce"], sortOrder: 117 },
+  { name: "Coffee", description: "House roasted dark blend.", price: 3.50, category: "beverage", venueType: ["golf"], serviceMode: "clubhouse", imageUrl: getImg('soft-drink-1'), suggestedModifierGroups: ["Coffee Size", "Milk Type", "Sweetener", "Coffee Extras"], sortOrder: 118 },
+  { name: "Fountain Drink", description: "20oz bottomless refill.", price: 3.50, category: "beverage", venueType: ["golf"], serviceMode: "clubhouse", imageUrl: getImg('soft-drink-1'), suggestedModifierGroups: ["Drink Size"], sortOrder: 119 },
+  { name: "Iced Tea", description: "Freshly brewed unsweetened.", price: 3.50, category: "beverage", venueType: ["golf"], serviceMode: "clubhouse", imageUrl: getImg('soft-drink-1'), suggestedModifierGroups: ["Drink Size"], sortOrder: 120 },
+  { name: "Lemonade", description: "Classic hand-squeezed.", price: 4.00, category: "beverage", venueType: ["golf"], serviceMode: "clubhouse", imageUrl: getImg('soft-drink-1'), suggestedModifierGroups: ["Drink Size"], sortOrder: 121 },
+  { name: "Bud Light", description: "Draft 16oz.", price: 6.00, category: "alcohol", venueType: ["golf"], serviceMode: "clubhouse", imageUrl: getImg('lager can'), sortOrder: 122 },
+  { name: "Miller Lite", description: "Draft 16oz.", price: 6.00, category: "alcohol", venueType: ["golf"], serviceMode: "clubhouse", imageUrl: getImg('lager can'), sortOrder: 123 },
+  { name: "Coors Light", description: "Draft 16oz.", price: 6.00, category: "alcohol", venueType: ["golf"], serviceMode: "clubhouse", imageUrl: getImg('lager can'), sortOrder: 124 },
+  { name: "Modelo Especial", description: "Draft 16oz.", price: 7.00, category: "alcohol", venueType: ["golf"], serviceMode: "clubhouse", imageUrl: getImg('lager can'), sortOrder: 125 },
+  { name: "Heineken", description: "Draft 16oz.", price: 7.00, category: "alcohol", venueType: ["golf"], serviceMode: "clubhouse", imageUrl: getImg('lager can'), sortOrder: 126 },
+  { name: "Wine by the Glass", description: "House Chardonnay or Cab.", price: 10.00, category: "alcohol", venueType: ["golf"], serviceMode: "clubhouse", imageUrl: getImg('blue cocktail'), sortOrder: 127 },
 
   // --- GOLF: POOL ---
-  { name: "Burger", description: "Grilled poolside Angus.", price: 14.00, category: "food", venueType: ["golf"], serviceMode: "pool", suggestedModifierGroups: ["Doneness", "Cheese", "Toppings", "Sauces"], sortOrder: 200 },
-  { name: "Hot Dog", description: "Classic jumbo dog.", price: 8.50, category: "food", venueType: ["golf"], serviceMode: "pool", suggestedModifierGroups: ["Hot Dog Toppings"], sortOrder: 201 },
-  { name: "Fruit Cup", description: "Fresh seasonal melon and berries.", price: 7.00, category: "food", venueType: ["golf"], serviceMode: "pool", sortOrder: 202 },
-  { name: "Frozen Cocktail", description: "Margarita or Pina Colada.", price: 12.00, category: "alcohol", venueType: ["golf"], serviceMode: "pool", sortOrder: 203 },
+  { name: "Burger", description: "Grilled poolside Angus.", price: 14.00, category: "food", venueType: ["golf"], serviceMode: "pool", imageUrl: getImg('burger meal'), suggestedModifierGroups: ["Doneness", "Cheese", "Toppings", "Sauces"], sortOrder: 200 },
+  { name: "Hot Dog", description: "Classic jumbo dog.", price: 8.50, category: "food", venueType: ["golf"], serviceMode: "pool", imageUrl: getImg('hot dog'), suggestedModifierGroups: ["Hot Dog Toppings"], sortOrder: 201 },
+  { name: "Fruit Cup", description: "Fresh seasonal melon and berries.", price: 7.00, category: "food", venueType: ["golf"], serviceMode: "pool", imageUrl: getImg('grilled salmon'), sortOrder: 202 },
+  { name: "Frozen Cocktail", description: "Margarita or Pina Colada.", price: 12.00, category: "alcohol", venueType: ["golf"], serviceMode: "pool", imageUrl: getImg('blue cocktail'), sortOrder: 203 },
 
   // --- BOWLING: LANESIDE ---
-  { name: "Pitcher of Beer", description: "64oz cold draft for the lane.", price: 20.00, category: "alcohol", venueType: ["bowling"], serviceMode: "laneService", sortOrder: 1 },
-  { name: "Stone Fired Pizza", description: "16-inch jumbo family size.", price: 22.00, category: "food", venueType: ["bowling"], serviceMode: "laneService", suggestedModifierGroups: ["Crust", "Pizza Sauce", "Pizza Toppings"], sortOrder: 2 }
+  { name: "Pitcher of Beer", description: "64oz cold draft for the lane.", price: 20.00, category: "alcohol", venueType: ["bowling"], serviceMode: "laneService", imageUrl: getImg('craft beer'), sortOrder: 1 },
+  { name: "Stone Fired Pizza", description: "16-inch jumbo family size.", price: 22.00, category: "food", venueType: ["bowling"], serviceMode: "laneService", imageUrl: getImg('pepperoni pizza'), suggestedModifierGroups: ["Crust", "Pizza Sauce", "Pizza Toppings"], sortOrder: 2 }
 ];
 
 const generateSlug = (name: string) => {

@@ -1,4 +1,3 @@
-
 import { onRequest, onCall, HttpsError } from "firebase-functions/v2/https";
 import { onDocumentWritten } from "firebase-functions/v2/firestore";
 import { onSchedule } from "firebase-functions/v2/scheduler";
@@ -191,6 +190,7 @@ export const applyStarterItems = onCall({
       price: template.price,
       category: opCat,
       rank: template.sortOrder || index + 1,
+      imageUrl: template.imageUrl || "", // Persist high-fidelity imagery
       isAvailable: true,
       availableOn: [mode],
       modifierGroupIds: Array.from(new Set(linkedIds)),
