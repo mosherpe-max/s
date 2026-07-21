@@ -70,7 +70,9 @@ import {
   Timer,
   Activity,
   AlertCircle,
-  Info
+  Info,
+  User as UserIcon,
+  Star
 } from 'lucide-react';
 import Image from 'next/image';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
@@ -233,6 +235,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
   
   const [orderSearchTerm, setOrderSearchTerm] = useState('');
   const [orderDateRange, setOrderDateRange] = useState<'today' | '7days' | '30days' | 'all'>('today');
+  const [patronSearchTerm, setPatronSearchTerm] = useState('');
 
   const [isStaffFormOpen, setIsStaffFormOpen] = useState(false);
   const [editingStaff, setEditingStaff] = useState<StaffMember | null>(null);
@@ -251,7 +254,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
   const { data: seller, isLoading: isSellerLoading } = useDoc<Seller>(sellerRef);
 
   const configRef = useMemoFirebase(() => (firestore ? doc(firestore, 'solution', 'config') : null), [firestore]);
-  const { data: solutionConfig } = useDoc<SolutionConfig>(configRef);
+  const { data: solutionConfig, isLoading: isConfigLoading } = useDoc<SolutionConfig>(configRef);
 
   const menuItemsQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'sellers', sellerId, 'menuItems') : null), [firestore, sellerId]);
   const { data: menuItems } = useCollection<MenuItem>(menuItemsQuery);
@@ -394,6 +397,52 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
 
     return { dailyRevenue, channelSplit, topItems, avgFulfillment: healthDays, operationalHealth: incidentReport };
   }, [orders, seller, solutionConfig]);
+
+  const patrons = useMemo(() => {
+    if (!orders) return [];
+    const patronMap: Record<string, {
+      name: string;
+      email: string;
+      phone: string;
+      orderCount: number;
+      totalSpent: number;
+      lastOrder: Date | null;
+      isSaved: boolean;
+    }> = {};
+
+    orders.forEach(o => {
+      // Standardize on email as unique key, fallback to phone if email missing (anonymous)
+      const key = o.customerEmail?.toLowerCase() || o.customerPhone || `guest-${o.id}`;
+      if (!patronMap[key]) {
+        patronMap[key] = {
+          name: o.customerName || 'Guest Patron',
+          email: o.customerEmail || 'N/A',
+          phone: o.customerPhone || 'N/A',
+          orderCount: 0,
+          totalSpent: 0,
+          lastOrder: null,
+          isSaved: !!o.buyerProfileId && o.buyerProfileId !== 'anonymous'
+        };
+      }
+      
+      if (o.status !== 'Cancelled') {
+        patronMap[key].orderCount += 1;
+        patronMap[key].totalSpent += (o.total || 0);
+        const orderDate = o.createdAt?.toDate();
+        if (orderDate && (!patronMap[key].lastOrder || orderDate > patronMap[key].lastOrder)) {
+          patronMap[key].lastOrder = orderDate;
+        }
+      }
+    });
+
+    const filtered = Object.values(patronMap).filter(p => {
+      if (!patronSearchTerm) return true;
+      const s = patronSearchTerm.toLowerCase();
+      return p.name.toLowerCase().includes(s) || p.email.toLowerCase().includes(s) || p.phone.includes(s);
+    });
+
+    return filtered.sort((a, b) => b.totalSpent - a.totalSpent);
+  }, [orders, patronSearchTerm]);
 
   const stats = useMemo(() => { 
     if (!orders) return null; 
@@ -548,6 +597,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
     { id: "analytics", label: "Analytics", icon: BarChart3 },
     { id: "orders", label: "Orders", icon: ClipboardList },
+    { id: "patrons", label: "Patrons", icon: UserIcon },
     { id: "menu", label: "Menu Items", icon: UtensilsCrossed },
     { id: "modifiers", label: "Modifiers", icon: Tags },
     { id: "staff", label: "Staff", icon: Users },
@@ -568,7 +618,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
   const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
 
   return (
-    <div className="flex flex-col h-screen bg-[#F8FAFC] text-left">
+    <div className="flex flex-col h-screen overflow-x-auto bg-[#F8FAFC] text-left">
       <header className="h-16 bg-white border-b-2 flex items-center justify-between px-8 shrink-0 z-30 shadow-sm relative text-left">
         <div className="flex items-center gap-4">
           <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
@@ -771,6 +821,90 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                 <div className="space-y-8 animate-in fade-in duration-500">
                   <div className="flex flex-col md:flex-row md:items-center justify-between border-b-2 pb-6 gap-4"><div className="space-y-1"><h3 className="font-headline font-black text-2xl text-[#213147] uppercase">Fulfillment Log</h3><p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Monitor establishment queue and history</p></div><div className="flex flex-wrap gap-2 items-center"><div className="relative"><Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" /><Input placeholder="Search orders..." className="pl-10 h-10 border-2 rounded-xl text-xs w-64" value={orderSearchTerm} onChange={(e) => setOrderSearchTerm(e.target.value)} /></div><Select value={orderDateRange} onValueChange={(v: any) => setOrderDateRange(v)}><SelectTrigger className="h-10 border-2 rounded-xl w-40 text-[10px] font-black uppercase tracking-widest"><CalendarIcon className="h-3 w-3 mr-2" /><SelectValue /></SelectTrigger><SelectContent><SelectItem value="today">Today</SelectItem><SelectItem value="7days">Last 7 Days</SelectItem><SelectItem value="30days">Last 30 Days</SelectItem><SelectItem value="all">All Time</SelectItem></SelectContent></Select></div></div>
                   <div className="border-2 rounded-[2.5rem] overflow-x-auto bg-white shadow-sm"><Table><TableHeader className="bg-slate-50"><TableRow><TableHead className="text-[10px] font-black uppercase h-14 px-8">Ticket</TableHead><TableHead className="text-[10px] font-black uppercase h-14">Customer</TableHead><TableHead className="text-[10px] font-black uppercase h-14">Channel</TableHead><TableHead className="text-[10px] font-black uppercase h-14">Items</TableHead><TableHead className="text-[10px] font-black uppercase h-14 text-right px-8">Status</TableHead></TableRow></TableHeader><TableBody>{filteredOrders.map(o => (<TableRow key={o.id}><TableCell className="px-8 py-5"><p className="font-mono font-black text-xs">#{o.id.slice(-5).toUpperCase()}</p><p className="text-[9px] text-muted-foreground uppercase mt-0.5">{o.createdAt ? format(o.createdAt.toDate(), 'MMM d, h:mm a') : 'Now'}</p></TableCell><TableCell><p className="font-bold text-sm text-[#213147]">{o.customerName}</p><p className="text-[9px] text-muted-foreground uppercase">{o.customerPhone}</p></TableCell><TableCell><Badge variant="outline" className="text-[8px] font-black uppercase">{o.menuType}</Badge></TableCell><TableCell><p className="text-xs font-medium text-slate-600 line-clamp-1">{o.items.map(i => `${i.quantity}x ${i.name}`).join(', ')}</p></TableCell><TableCell className="text-right px-8"><Badge className={cn("text-[9px] font-black uppercase px-3 py-1 rounded-full", o.status === 'Delivered' ? "bg-green-100 text-green-700" : "bg-indigo-100 text-indigo-700")}>{o.status}</Badge></TableCell></TableRow>))}</TableBody></Table></div>
+                </div>
+              )}
+
+              {activeNav === 'patrons' && (
+                <div className="space-y-8 animate-in fade-in duration-500">
+                  <div className="flex flex-col md:flex-row md:items-center justify-between border-b-2 pb-6 gap-4">
+                    <div className="space-y-1">
+                      <h3 className="font-headline font-black text-2xl text-[#213147] uppercase">Patron Directory</h3>
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Customers with saved profiles and active LTV</p>
+                    </div>
+                    <div className="relative">
+                      <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                      <Input 
+                        placeholder="Search patrons..." 
+                        className="pl-10 h-11 border-2 rounded-xl text-xs w-72 bg-white" 
+                        value={patronSearchTerm} 
+                        onChange={(e) => setPatronSearchTerm(e.target.value)} 
+                      />
+                    </div>
+                  </div>
+
+                  <div className="border-2 rounded-[2.5rem] overflow-hidden bg-white shadow-sm">
+                    <Table>
+                      <TableHeader className="bg-slate-50">
+                        <TableRow>
+                          <TableHead className="text-[10px] font-black uppercase h-14 px-8">Patron</TableHead>
+                          <TableHead className="text-[10px] font-black uppercase h-14">Contact Info</TableHead>
+                          <TableHead className="text-[10px] font-black uppercase h-14 text-center">Orders</TableHead>
+                          <TableHead className="text-[10px] font-black uppercase h-14 text-right">LTV (Spent)</TableHead>
+                          <TableHead className="text-[10px] font-black uppercase h-14 text-right px-8">Last Seen</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {patrons.length === 0 ? (
+                          <TableRow>
+                            <TableCell colSpan={5} className="h-60 text-center">
+                               <div className="flex flex-col items-center gap-2 opacity-30">
+                                 <UserIcon className="h-10 w-10" />
+                                 <p className="text-[10px] font-black uppercase tracking-widest">No patrons found</p>
+                               </div>
+                            </TableCell>
+                          </TableRow>
+                        ) : patrons.map((patron, idx) => (
+                          <TableRow key={patron.email} className="group hover:bg-slate-50/50 transition-colors">
+                            <TableCell className="px-8 py-5">
+                              <div className="flex items-center gap-3">
+                                <div className="bg-[#213147] h-9 w-9 rounded-full flex items-center justify-center text-white text-xs font-black shrink-0">
+                                  {patron.name.charAt(0)}
+                                </div>
+                                <div className="text-left">
+                                  <div className="flex items-center gap-1.5">
+                                    <p className="font-black text-sm text-[#213147]">{patron.name}</p>
+                                    {patron.isSaved && <Star className="h-3 w-3 text-primary fill-primary" />}
+                                  </div>
+                                  {patron.isSaved && <Badge variant="outline" className="text-[7px] font-black uppercase h-3.5 px-1 border-primary/20 bg-primary/5 text-primary">Saved Profile</Badge>}
+                                </div>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="space-y-1">
+                                <div className="flex items-center gap-1.5 text-xs font-medium text-slate-600">
+                                  <Mail className="h-3 w-3 text-muted-foreground" /> {patron.email}
+                                </div>
+                                <div className="flex items-center gap-1.5 text-xs font-medium text-slate-600">
+                                  <Phone className="h-3 w-3 text-muted-foreground" /> {patron.phone}
+                                </div>
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-center">
+                              <Badge className="bg-slate-100 text-slate-700 border-0 font-black px-2">{patron.orderCount}</Badge>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <p className="font-mono font-black text-sm text-primary">${patron.totalSpent.toFixed(2)}</p>
+                            </TableCell>
+                            <TableCell className="text-right px-8">
+                              <p className="text-[10px] font-bold text-slate-500 uppercase">
+                                {patron.lastOrder ? format(patron.lastOrder, 'MMM d, yyyy') : 'N/A'}
+                              </p>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
                 </div>
               )}
 
@@ -1174,4 +1308,3 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
     </div>
   );
 }
-
