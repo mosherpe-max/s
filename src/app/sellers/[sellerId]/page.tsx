@@ -113,7 +113,26 @@ import {
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { cn, SUPER_ADMIN_ID } from '@/lib/utils';
-import { isToday, format, subDays, startOfDay, endOfDay, differenceInMinutes, differenceInSeconds } from 'date-fns';
+import { 
+  isToday, 
+  format, 
+  subDays, 
+  startOfDay, 
+  endOfDay, 
+  differenceInMinutes, 
+  differenceInSeconds,
+  startOfMonth,
+  startOfYear,
+  eachDayOfInterval,
+  eachMonthOfInterval,
+  eachHourOfInterval,
+  isSameDay,
+  isSameMonth,
+  isSameYear,
+  isSameHour,
+  endOfMonth,
+  endOfYear
+} from 'date-fns';
 import Link from 'next/navigation';
 import { useRouter } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
@@ -236,6 +255,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
   const [orderSearchTerm, setOrderSearchTerm] = useState('');
   const [orderDateRange, setOrderDateRange] = useState<'today' | '7days' | '30days' | 'all'>('today');
   const [patronSearchTerm, setPatronSearchTerm] = useState('');
+  const [analyticsRange, setAnalyticsRange] = useState<'today' | 'mtd' | 'ytd'>('mtd');
 
   const [isStaffFormOpen, setIsStaffFormOpen] = useState(false);
   const [editingStaff, setEditingStaff] = useState<StaffMember | null>(null);
@@ -314,25 +334,74 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
   const analyticsData = useMemo(() => {
     if (!orders || !seller || !solutionConfig) return { dailyRevenue: [], topItems: [], channelSplit: [], avgFulfillment: [], operationalHealth: [] };
     
-    // 1. Commercial Performance
-    const dailyMap = new Map();
-    for (let i = 6; i >= 0; i--) { dailyMap.set(format(subDays(new Date(), i), 'MMM d'), 0); }
-    orders.forEach(o => {
-      if (!o.createdAt || o.status === 'Cancelled') return;
-      const key = format(o.createdAt.toDate(), 'MMM d');
-      if (dailyMap.has(key)) dailyMap.set(key, dailyMap.get(key) + (o.subtotal || 0));
-    });
-    const dailyRevenue = Array.from(dailyMap.entries()).map(([name, total]) => ({ name, total }));
-    
-    const channelMap: Record<string, number> = {};
-    orders.forEach(o => { if (o.status !== 'Cancelled') channelMap[o.menuType] = (channelMap[o.menuType] || 0) + 1; });
-    const channelSplit = Object.entries(channelMap).map(([name, value]) => ({ name, value }));
-    
-    const itemMap: Record<string, number> = {};
-    orders.forEach(o => { if (o.status !== 'Cancelled') o.items.forEach(i => { itemMap[i.name] = (itemMap[i.name] || 0) + i.quantity; }); });
-    const topItems = Object.entries(itemMap).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count).slice(0, 5);
+    // 1. FILTER ORDERS BY SELECTED RANGE
+    const now = new Date();
+    let rangeStart = startOfMonth(now);
+    let rangeEnd = endOfMonth(now);
 
-    // 2. Operational Health (Past 7 Days)
+    if (analyticsRange === 'today') {
+      rangeStart = startOfDay(now);
+      rangeEnd = endOfDay(now);
+    } else if (analyticsRange === 'ytd') {
+      rangeStart = startOfYear(now);
+      rangeEnd = endOfYear(now);
+    }
+
+    const filteredOrders = orders.filter(o => {
+      if (!o.createdAt || o.status === 'Cancelled') return false;
+      const orderDate = o.createdAt.toDate();
+      return orderDate >= rangeStart && orderDate <= rangeEnd;
+    });
+
+    // 2. REVENUE TREND (Based on Range)
+    let revenueData = [];
+    if (analyticsRange === 'today') {
+      // Group by hour
+      const hours = eachHourOfInterval({ start: startOfDay(now), end: endOfDay(now) });
+      revenueData = hours.map(h => {
+        const total = filteredOrders
+          .filter(o => isSameHour(o.createdAt.toDate(), h))
+          .reduce((acc, o) => acc + (o.subtotal || 0), 0);
+        return { name: format(h, 'ha'), total };
+      });
+    } else if (analyticsRange === 'mtd') {
+      // Group by day
+      const days = eachDayOfInterval({ start: startOfMonth(now), end: now });
+      revenueData = days.map(d => {
+        const total = filteredOrders
+          .filter(o => isSameDay(o.createdAt.toDate(), d))
+          .reduce((acc, o) => acc + (o.subtotal || 0), 0);
+        return { name: format(d, 'MMM d'), total };
+      });
+    } else {
+      // Group by month
+      const months = eachMonthOfInterval({ start: startOfYear(now), end: now });
+      revenueData = months.map(m => {
+        const total = filteredOrders
+          .filter(o => isSameMonth(o.createdAt.toDate(), m))
+          .reduce((acc, o) => acc + (o.subtotal || 0), 0);
+        return { name: format(m, 'MMM'), total };
+      });
+    }
+
+    // 3. TOP ITEMS & CHANNEL SPLIT (Recalculated for range)
+    const channelMap: Record<string, number> = {};
+    const itemMap: Record<string, number> = {};
+    
+    filteredOrders.forEach(o => {
+      channelMap[o.menuType] = (channelMap[o.menuType] || 0) + 1;
+      o.items.forEach(i => {
+        itemMap[i.name] = (itemMap[i.name] || 0) + i.quantity;
+      });
+    });
+
+    const channelSplit = Object.entries(channelMap).map(([name, value]) => ({ name, value }));
+    const topItems = Object.entries(itemMap)
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
+
+    // 4. OPERATIONAL HEALTH (Fixed past 7 days trend for reliability)
     const modes = seller.menuTypes || [];
     const healthDays = [];
     for (let i = 6; i >= 0; i--) {
@@ -356,7 +425,6 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
       healthDays.push(dayStats);
     }
 
-    // 3. Threshold Incidents (All Time or Filtered by Date Range)
     const incidentReport = [];
     for (let i = 6; i >= 0; i--) {
       const d = subDays(new Date(), i);
@@ -373,13 +441,11 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
       dayOrders.forEach(o => {
         const t = seller.orderThresholds?.[o.menuType] || solutionConfig.orderThresholds?.[o.menuType] || { maxOrderAcknowledgeSeconds: 120, warningOrderProcessingMinutes: 15, maxOrderProcessingMinutes: 25 };
         
-        // Ack check
         if (o.acknowledgedAt) {
           const ackSeconds = differenceInSeconds(o.acknowledgedAt.toDate(), o.createdAt.toDate());
           if (ackSeconds > t.maxOrderAcknowledgeSeconds) ackMaxCount++;
         }
         
-        // Fulfillment checks
         if (o.deliveredAt) {
           const fullMinutes = differenceInMinutes(o.deliveredAt.toDate(), o.createdAt.toDate());
           if (fullMinutes > t.maxOrderProcessingMinutes) maxCount++;
@@ -395,8 +461,8 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
       });
     }
 
-    return { dailyRevenue, channelSplit, topItems, avgFulfillment: healthDays, operationalHealth: incidentReport };
-  }, [orders, seller, solutionConfig]);
+    return { dailyRevenue: revenueData, channelSplit, topItems, avgFulfillment: healthDays, operationalHealth: incidentReport };
+  }, [orders, seller, solutionConfig, analyticsRange]);
 
   const patrons = useMemo(() => {
     if (!orders) return [];
@@ -411,7 +477,6 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
     }> = {};
 
     orders.forEach(o => {
-      // Standardize on email as unique key, fallback to phone if email missing (anonymous)
       const key = o.customerEmail?.toLowerCase() || o.customerPhone || `guest-${o.id}`;
       if (!patronMap[key]) {
         patronMap[key] = {
@@ -680,14 +745,27 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
 
               {activeNav === 'analytics' && (
                 <div className="space-y-12 animate-in fade-in duration-500">
-                  <div className="flex justify-between items-center border-b-2 pb-6">
+                  <div className="flex flex-col md:flex-row md:items-center justify-between border-b-2 pb-6 gap-4">
                     <div className="space-y-1">
                       <h3 className="font-headline font-black text-2xl text-[#213147] uppercase">Analytics</h3>
                       <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Revenue and Operational Health metrics</p>
                     </div>
-                    <Button variant="outline" className="h-11 border-2 font-black uppercase text-[10px] gap-2">
-                      <Download className="h-4 w-4" /> Export Report
-                    </Button>
+                    <div className="flex gap-3">
+                      <Select value={analyticsRange} onValueChange={(v: any) => setAnalyticsRange(v)}>
+                        <SelectTrigger className="h-11 border-2 rounded-xl w-40 text-[10px] font-black uppercase tracking-widest bg-white">
+                          <CalendarIcon className="h-3.5 w-3.5 mr-2" />
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="today">Today</SelectItem>
+                          <SelectItem value="mtd">Month to Date</SelectItem>
+                          <SelectItem value="ytd">Year to Date</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Button variant="outline" className="h-11 border-2 font-black uppercase text-[10px] gap-2 bg-white">
+                        <Download className="h-4 w-4" /> Export
+                      </Button>
+                    </div>
                   </div>
 
                   {/* COMMERCIAL PERFORMANCE */}
@@ -698,7 +776,8 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                       <Card className="border-2 p-8 space-y-6">
                         <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
-                          <TrendingUp className="h-3 w-3 text-primary" /> Net Revenue Trend (7 Days)
+                          <TrendingUp className="h-3 w-3 text-primary" /> 
+                          {analyticsRange === 'today' ? 'Hourly Sales' : analyticsRange === 'mtd' ? 'Daily Sales' : 'Monthly Sales'} Trend
                         </h4>
                         <div className="h-[300px] w-full">
                           <ResponsiveContainer width="100%" height="100%">
@@ -707,16 +786,18 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                               <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 10, fontWeight: 700}} dy={10} />
                               <YAxis axisLine={false} tickLine={false} tick={{fontSize: 10, fontWeight: 700}} />
                               <ChartTooltip cursor={{fill: '#f8fafc'}} contentStyle={{ borderRadius: '1rem', border: '2px solid #f1f5f9' }} />
-                              <Bar dataKey="total" fill="#E50000" radius={[4, 4, 0, 0]} barSize={40} />
+                              <Bar dataKey="total" fill="#E50000" radius={[4, 4, 0, 0]} barSize={analyticsRange === 'today' ? 15 : 30} />
                             </BarChart>
                           </ResponsiveContainer>
                         </div>
                       </Card>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                         <Card className="border-2 p-6 space-y-6">
-                          <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Top Items by Qty</h4>
+                          <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Top Items ({analyticsRange.toUpperCase()})</h4>
                           <div className="space-y-4">
-                            {analyticsData.topItems.map((item, idx) => (
+                            {analyticsData.topItems.length === 0 ? (
+                              <div className="py-20 text-center text-muted-foreground opacity-30"><ShoppingBag className="h-8 w-8 mx-auto mb-2" /><p className="text-[8px] font-black uppercase">No Sales</p></div>
+                            ) : analyticsData.topItems.map((item, idx) => (
                               <div key={item.name} className="flex items-center justify-between">
                                 <div className="flex items-center gap-3">
                                   <span className="text-[10px] font-black text-white bg-[#213147] h-5 w-5 rounded flex items-center justify-center">{idx + 1}</span>
@@ -728,18 +809,22 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                           </div>
                         </Card>
                         <Card className="border-2 p-6 space-y-6">
-                          <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Order Distribution</h4>
+                          <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Channel Split</h4>
                           <div className="h-[180px] flex items-center justify-center">
-                            <ResponsiveContainer width="100%" height="100%">
-                              <PieChart>
-                                <Pie data={analyticsData.channelSplit} innerRadius={50} outerRadius={75} paddingAngle={5} dataKey="value">
-                                  {analyticsData.channelSplit.map((_, index) => (
-                                    <Cell key={`cell-${index}`} fill={['#E50000', '#213147', '#4F46E5', '#0891B2'][index % 4]} />
-                                  ))}
-                                </Pie>
-                                <ChartTooltip />
-                              </PieChart>
-                            </ResponsiveContainer>
+                            {analyticsData.channelSplit.length === 0 ? (
+                               <div className="text-center text-muted-foreground opacity-30"><PieChart className="h-8 w-8 mx-auto mb-2" /><p className="text-[8px] font-black uppercase">No Data</p></div>
+                            ) : (
+                              <ResponsiveContainer width="100%" height="100%">
+                                <PieChart>
+                                  <Pie data={analyticsData.channelSplit} innerRadius={50} outerRadius={75} paddingAngle={5} dataKey="value">
+                                    {analyticsData.channelSplit.map((_, index) => (
+                                      <Cell key={`cell-${index}`} fill={['#E50000', '#213147', '#4F46E5', '#0891B2'][index % 4]} />
+                                    ))}
+                                  </Pie>
+                                  <ChartTooltip />
+                                </PieChart>
+                              </ResponsiveContainer>
+                            )}
                           </div>
                         </Card>
                       </div>
@@ -751,7 +836,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                   {/* OPERATIONAL HEALTH */}
                   <div className="space-y-8 pb-10">
                     <h4 className="text-[12px] font-black uppercase tracking-[0.3em] text-[#213147] flex items-center gap-3">
-                      <HeartPulse className="h-4 w-4 text-primary" /> Operational Health
+                      <HeartPulse className="h-4 w-4 text-primary" /> Operational Health (Past 7 Days)
                     </h4>
                     
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
