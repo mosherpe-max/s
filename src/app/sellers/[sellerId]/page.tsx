@@ -11,7 +11,8 @@ import {
   serverTimestamp, 
   deleteDoc,
   orderBy,
-  limit
+  limit,
+  getDoc
 } from 'firebase/firestore';
 import { useFirestore, useDoc, useCollection, useMemoFirebase, useUser, useAuth, useFirebase } from '@/firebase';
 import { Button } from '@/components/ui/button';
@@ -353,56 +354,66 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
       return orderDate >= rangeStart && orderDate <= rangeEnd;
     });
 
-    // 2. REVENUE TREND (Based on Range)
+    // 2. REVENUE TREND (Based on Range) - Stacked by Service Mode
     let revenueData = [];
+    const modes = seller.menuTypes || [];
+    
     if (analyticsRange === 'today') {
-      // Group by hour
       const hours = eachHourOfInterval({ start: startOfDay(now), end: endOfDay(now) });
       revenueData = hours.map(h => {
-        const total = filteredOrders
+        const bucket: any = { name: format(h, 'ha') };
+        modes.forEach(m => bucket[m] = 0);
+        
+        filteredOrders
           .filter(o => isSameHour(o.createdAt.toDate(), h))
-          .reduce((acc, o) => acc + (o.subtotal || 0), 0);
-        return { name: format(h, 'ha'), total };
+          .forEach(o => {
+            bucket[o.menuType] = (bucket[o.menuType] || 0) + (o.subtotal || 0);
+          });
+        return bucket;
       });
     } else if (analyticsRange === 'mtd') {
-      // Group by day
       const days = eachDayOfInterval({ start: startOfMonth(now), end: now });
       revenueData = days.map(d => {
-        const total = filteredOrders
+        const bucket: any = { name: format(d, 'MMM d') };
+        modes.forEach(m => bucket[m] = 0);
+
+        filteredOrders
           .filter(o => isSameDay(o.createdAt.toDate(), d))
-          .reduce((acc, o) => acc + (o.subtotal || 0), 0);
-        return { name: format(d, 'MMM d'), total };
+          .forEach(o => {
+            bucket[o.menuType] = (bucket[o.menuType] || 0) + (o.subtotal || 0);
+          });
+        return bucket;
       });
     } else {
-      // Group by month
       const months = eachMonthOfInterval({ start: startOfYear(now), end: now });
       revenueData = months.map(m => {
-        const total = filteredOrders
+        const bucket: any = { name: format(m, 'MMM') };
+        modes.forEach(m => bucket[m] = 0);
+
+        filteredOrders
           .filter(o => isSameMonth(o.createdAt.toDate(), m))
-          .reduce((acc, o) => acc + (o.subtotal || 0), 0);
-        return { name: format(m, 'MMM'), total };
+          .forEach(o => {
+            bucket[o.menuType] = (bucket[o.menuType] || 0) + (o.subtotal || 0);
+          });
+        return bucket;
       });
     }
 
-    // 3. TOP ITEMS & CHANNEL SPLIT (Recalculated for range)
-    const channelMap: Record<string, number> = {};
+    // 3. TOP ITEMS (Recalculated for range)
     const itemMap: Record<string, number> = {};
-    
     filteredOrders.forEach(o => {
-      channelMap[o.menuType] = (channelMap[o.menuType] || 0) + 1;
       o.items.forEach(i => {
         itemMap[i.name] = (itemMap[i.name] || 0) + i.quantity;
       });
     });
 
-    const channelSplit = Object.entries(channelMap).map(([name, value]) => ({ name, value }));
     const topItems = Object.entries(itemMap)
       .map(([name, count]) => ({ name, count }))
       .sort((a, b) => b.count - a.count)
       .slice(0, 5);
 
     // 4. OPERATIONAL HEALTH (Fixed past 7 days trend for reliability)
-    const modes = seller.menuTypes || [];
+    const activeModes = seller.menuTypes || [];
     const healthDays = [];
     for (let i = 6; i >= 0; i--) {
       const d = subDays(new Date(), i);
@@ -413,7 +424,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
       const dayOrders = orders.filter(o => o.createdAt && o.createdAt.toDate() >= start && o.createdAt.toDate() <= end);
       
       const dayStats: any = { name: key };
-      modes.forEach(mode => {
+      activeModes.forEach(mode => {
         const modeOrders = dayOrders.filter(o => o.menuType === mode && o.status === 'Delivered' && o.deliveredAt);
         if (modeOrders.length > 0) {
           const totalTime = modeOrders.reduce((acc, o) => acc + differenceInMinutes(o.deliveredAt!.toDate(), o.createdAt.toDate()), 0);
@@ -461,7 +472,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
       });
     }
 
-    return { dailyRevenue: revenueData, channelSplit, topItems, avgFulfillment: healthDays, operationalHealth: incidentReport };
+    return { dailyRevenue: revenueData, topItems, avgFulfillment: healthDays, operationalHealth: incidentReport };
   }, [orders, seller, solutionConfig, analyticsRange]);
 
   const patrons = useMemo(() => {
@@ -773,61 +784,62 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                     <h4 className="text-[12px] font-black uppercase tracking-[0.3em] text-[#213147] flex items-center gap-3">
                       <DollarSign className="h-4 w-4 text-primary" /> Commercial Performance
                     </h4>
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                      <Card className="border-2 p-8 space-y-6">
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                      <Card className="border-2 p-8 space-y-6 lg:col-span-2">
                         <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
                           <TrendingUp className="h-3 w-3 text-primary" /> 
-                          {analyticsRange === 'today' ? 'Hourly Sales' : analyticsRange === 'mtd' ? 'Daily Sales' : 'Monthly Sales'} Trend
+                          {analyticsRange === 'today' ? 'Hourly Sales' : analyticsRange === 'mtd' ? 'Daily Sales' : 'Monthly Sales'} Trend (Stacked by Mode)
                         </h4>
-                        <div className="h-[300px] w-full">
+                        <div className="h-[350px] w-full">
                           <ResponsiveContainer width="100%" height="100%">
                             <BarChart data={analyticsData.dailyRevenue}>
                               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                               <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 10, fontWeight: 700}} dy={10} />
                               <YAxis axisLine={false} tickLine={false} tick={{fontSize: 10, fontWeight: 700}} />
                               <ChartTooltip cursor={{fill: '#f8fafc'}} contentStyle={{ borderRadius: '1rem', border: '2px solid #f1f5f9' }} />
-                              <Bar dataKey="total" fill="#E50000" radius={[4, 4, 0, 0]} barSize={analyticsRange === 'today' ? 15 : 30} />
+                              <Legend verticalAlign="top" align="right" iconType="circle" wrapperStyle={{ paddingBottom: 20, fontSize: 10, fontWeight: 900, textTransform: 'uppercase' }} />
+                              {seller.menuTypes.filter(m => m !== 'Take Out').map((mode, idx) => (
+                                <Bar 
+                                  key={mode} 
+                                  stackId="a" 
+                                  dataKey={mode} 
+                                  fill={['#E50000', '#213147', '#4F46E5'][idx % 3]} 
+                                  radius={[0, 0, 0, 0]} 
+                                  barSize={analyticsRange === 'today' ? 15 : 30} 
+                                />
+                              ))}
                             </BarChart>
                           </ResponsiveContainer>
                         </div>
                       </Card>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        <Card className="border-2 p-6 space-y-6">
-                          <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Top Items ({analyticsRange.toUpperCase()})</h4>
-                          <div className="space-y-4">
-                            {analyticsData.topItems.length === 0 ? (
-                              <div className="py-20 text-center text-muted-foreground opacity-30"><ShoppingBag className="h-8 w-8 mx-auto mb-2" /><p className="text-[8px] font-black uppercase">No Sales</p></div>
-                            ) : analyticsData.topItems.map((item, idx) => (
-                              <div key={item.name} className="flex items-center justify-between">
-                                <div className="flex items-center gap-3">
-                                  <span className="text-[10px] font-black text-white bg-[#213147] h-5 w-5 rounded flex items-center justify-center">{idx + 1}</span>
-                                  <span className="text-xs font-bold uppercase truncate max-w-[120px]">{item.name}</span>
-                                </div>
-                                <span className="text-xs font-black text-primary">{item.count}</span>
+                      
+                      <Card className="border-2 p-6 space-y-6">
+                        <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Top Items ({analyticsRange.toUpperCase()})</h4>
+                        <div className="space-y-4">
+                          {analyticsData.topItems.length === 0 ? (
+                            <div className="py-20 text-center text-muted-foreground opacity-30"><ShoppingBag className="h-8 w-8 mx-auto mb-2" /><p className="text-[8px] font-black uppercase">No Sales</p></div>
+                          ) : analyticsData.topItems.map((item, idx) => (
+                            <div key={item.name} className="flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                <span className="text-[10px] font-black text-white bg-[#213147] h-5 w-5 rounded flex items-center justify-center">{idx + 1}</span>
+                                <span className="text-xs font-bold uppercase truncate max-w-[120px]">{item.name}</span>
                               </div>
-                            ))}
+                              <span className="text-xs font-black text-primary">{item.count}</span>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="mt-8 pt-8 border-t space-y-4">
+                          <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Mode Distribution Legend</p>
+                          <div className="space-y-2">
+                             {seller.menuTypes.filter(m => m !== 'Take Out').map((mode, idx) => (
+                               <div key={mode} className="flex items-center gap-2">
+                                 <div className="w-2 h-2 rounded-full" style={{ backgroundColor: ['#E50000', '#213147', '#4F46E5'][idx % 3] }} />
+                                 <span className="text-[9px] font-bold uppercase text-slate-600">{mode}</span>
+                               </div>
+                             ))}
                           </div>
-                        </Card>
-                        <Card className="border-2 p-6 space-y-6">
-                          <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Channel Split</h4>
-                          <div className="h-[180px] flex items-center justify-center">
-                            {analyticsData.channelSplit.length === 0 ? (
-                               <div className="text-center text-muted-foreground opacity-30"><PieChart className="h-8 w-8 mx-auto mb-2" /><p className="text-[8px] font-black uppercase">No Data</p></div>
-                            ) : (
-                              <ResponsiveContainer width="100%" height="100%">
-                                <PieChart>
-                                  <Pie data={analyticsData.channelSplit} innerRadius={50} outerRadius={75} paddingAngle={5} dataKey="value">
-                                    {analyticsData.channelSplit.map((_, index) => (
-                                      <Cell key={`cell-${index}`} fill={['#E50000', '#213147', '#4F46E5', '#0891B2'][index % 4]} />
-                                    ))}
-                                  </Pie>
-                                  <ChartTooltip />
-                                </PieChart>
-                              </ResponsiveContainer>
-                            )}
-                          </div>
-                        </Card>
-                      </div>
+                        </div>
+                      </Card>
                     </div>
                   </div>
 
@@ -1247,7 +1259,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                     name="name" 
                     render={({ field }) => (
                       <FormItem className="text-left">
-                        <FormLabel className="text-[10px] font-black uppercase">Group Name</FormLabel>
+                        <FormLabel className="text-[10px] font-black uppercase">Group Name</Label>
                         <FormControl><Input {...field} className="h-12 border-2 font-bold" /></FormControl>
                       </FormItem>
                     )} 
