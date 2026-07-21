@@ -50,7 +50,8 @@ import {
   Mail,
   Clock,
   ExternalLink,
-  CreditCard
+  CreditCard,
+  HeartPulse
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -207,6 +208,13 @@ export default function SolutionAdminPage() {
     dailyResetHour: 4,
     smsNotificationsEnabled: true,
     gpsFreshnessThresholds: { hot: 60, warm: 300, cold: 600 },
+    venueHealthSettings: {
+      maxOrderAcknowledgeSeconds: 120,
+      warningOrderProcessingMinutes: 15,
+      maxOrderProcessingMinutes: 25,
+      warningManagerInactivityDays: 3,
+      warningVenueInactivityDays: 7
+    },
     enabledModes: ['Beverage Cart', 'Clubhouse', 'Lane Delivery']
   });
   const [isSavingConfig, setIsSavingConfig] = useState(false);
@@ -219,6 +227,13 @@ export default function SolutionAdminPage() {
       setConfigData({
         ...remoteConfig,
         gpsFreshnessThresholds: remoteConfig.gpsFreshnessThresholds || { hot: 60, warm: 300, cold: 600 },
+        venueHealthSettings: remoteConfig.venueHealthSettings || {
+          maxOrderAcknowledgeSeconds: 120,
+          warningOrderProcessingMinutes: 15,
+          maxOrderProcessingMinutes: 25,
+          warningManagerInactivityDays: 3,
+          warningVenueInactivityDays: 7
+        },
         enabledModes: (remoteConfig.enabledModes || ['Beverage Cart', 'Clubhouse', 'Lane Delivery']).filter(m => m !== 'Take Out')
       });
     }
@@ -622,6 +637,66 @@ export default function SolutionAdminPage() {
 
                     {/* SIGNAL HEALTH & MODE AUTH */}
                     <Card className="border-2 p-8 space-y-8 text-left">
+                       {/* VENUE HEALTH SETTINGS */}
+                       <div className="space-y-6">
+                         <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                            <HeartPulse className="h-3 w-3 text-primary" /> Venue Health Settings
+                         </Label>
+                         <div className="grid grid-cols-1 gap-5">
+                            <div className="grid grid-cols-2 gap-4">
+                              <div className="space-y-1.5 text-left">
+                                <Label className="text-[9px] font-black uppercase">Max Ack Time (Sec)</Label>
+                                <Input 
+                                  type="number" 
+                                  value={configData.venueHealthSettings?.maxOrderAcknowledgeSeconds} 
+                                  onChange={(e) => setConfigData({...configData, venueHealthSettings: {...configData.venueHealthSettings!, maxOrderAcknowledgeSeconds: parseInt(e.target.value)}})} 
+                                  className="h-11 border-2 font-bold focus-visible:ring-primary" 
+                                />
+                              </div>
+                              <div className="space-y-1.5 text-left">
+                                <Label className="text-[9px] font-black uppercase">Warning Proc (Min)</Label>
+                                <Input 
+                                  type="number" 
+                                  value={configData.venueHealthSettings?.warningOrderProcessingMinutes} 
+                                  onChange={(e) => setConfigData({...configData, venueHealthSettings: {...configData.venueHealthSettings!, warningOrderProcessingMinutes: parseInt(e.target.value)}})} 
+                                  className="h-11 border-2 font-bold focus-visible:ring-primary" 
+                                />
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-3 gap-3">
+                              <div className="space-y-1.5 text-left">
+                                <Label className="text-[9px] font-black uppercase">Max Order (Min)</Label>
+                                <Input 
+                                  type="number" 
+                                  value={configData.venueHealthSettings?.maxOrderProcessingMinutes} 
+                                  onChange={(e) => setConfigData({...configData, venueHealthSettings: {...configData.venueHealthSettings!, maxOrderProcessingMinutes: parseInt(e.target.value)}})} 
+                                  className="h-10 border-2 font-bold" 
+                                />
+                              </div>
+                              <div className="space-y-1.5 text-left">
+                                <Label className="text-[9px] font-black uppercase">Mgr Inact (Days)</Label>
+                                <Input 
+                                  type="number" 
+                                  value={configData.venueHealthSettings?.warningManagerInactivityDays} 
+                                  onChange={(e) => setConfigData({...configData, venueHealthSettings: {...configData.venueHealthSettings!, warningManagerInactivityDays: parseInt(e.target.value)}})} 
+                                  className="h-10 border-2 font-bold" 
+                                />
+                              </div>
+                              <div className="space-y-1.5 text-left">
+                                <Label className="text-[9px] font-black uppercase">Venue Inact (Days)</Label>
+                                <Input 
+                                  type="number" 
+                                  value={configData.venueHealthSettings?.warningVenueInactivityDays} 
+                                  onChange={(e) => setConfigData({...configData, venueHealthSettings: {...configData.venueHealthSettings!, warningVenueInactivityDays: parseInt(e.target.value)}})} 
+                                  className="h-10 border-2 font-bold" 
+                                />
+                              </div>
+                            </div>
+                         </div>
+                       </div>
+
+                       <Separator className="opacity-50" />
+
                        <div className="space-y-6">
                          <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
                             <Satellite className="h-3 w-3" /> Signal Health Thresholds (Seconds)

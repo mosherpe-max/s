@@ -28,6 +28,13 @@ export interface SolutionConfig {
     warm: number;
     cold: number;
   };
+  venueHealthSettings?: {
+    maxOrderAcknowledgeSeconds: number;
+    warningOrderProcessingMinutes: number;
+    maxOrderProcessingMinutes: number;
+    warningManagerInactivityDays: number;
+    warningVenueInactivityDays: number;
+  };
   enabledModes?: string[]; // Globally authorized modes by Koop Admin
   updatedAt: Timestamp;
 }
