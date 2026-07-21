@@ -51,7 +51,8 @@ import {
   Clock,
   ExternalLink,
   CreditCard,
-  HeartPulse
+  HeartPulse,
+  ClipboardList
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -376,7 +377,7 @@ export default function SolutionAdminPage() {
 
   return (
     <div className="flex flex-col h-screen bg-[#F8FAFC] overflow-x-auto text-left">
-      <header className="h-16 bg-white border-b-2 flex items-center justify-between px-8 shrink-0 z-30 shadow-sm relative">
+      <header className="h-16 bg-white border-b-2 flex items-center justify-between px-8 shrink-0 z-30 shadow-sm relative text-left">
         <div className="flex items-center gap-4">
           <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
             <SheetTrigger asChild>
@@ -635,118 +636,128 @@ export default function SolutionAdminPage() {
                       </div>
                     </Card>
 
-                    {/* SIGNAL HEALTH & MODE AUTH */}
-                    <Card className="border-2 p-8 space-y-8 text-left">
-                       {/* VENUE HEALTH SETTINGS */}
-                       <div className="space-y-6">
-                         <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
-                            <HeartPulse className="h-3 w-3 text-primary" /> Venue Health Settings
-                         </Label>
-                         <div className="grid grid-cols-1 gap-5">
-                            <div className="grid grid-cols-2 gap-4">
+                    {/* SIGNAL HEALTH & VENUE HEALTH */}
+                    <div className="space-y-8">
+                      {/* VENUE HEALTH SETTINGS */}
+                      <Card className="border-2 p-8 space-y-8 text-left">
+                        <div className="space-y-6">
+                          <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                              <HeartPulse className="h-3 w-3 text-primary" /> Venue Health Settings
+                          </Label>
+                          
+                          {/* Group 1: Order Fulfillment */}
+                          <div className="space-y-4">
+                            <div className="flex items-center gap-2 px-1">
+                              <ClipboardList className="h-3.5 w-3.5 text-[#213147]" />
+                              <span className="text-[9px] font-black uppercase tracking-widest text-[#213147]">Order Fulfillment Thresholds</span>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-slate-50 p-5 rounded-2xl border-2">
                               <div className="space-y-1.5 text-left">
-                                <Label className="text-[9px] font-black uppercase">Max Ack Time (Sec)</Label>
+                                <Label className="text-[9px] font-black uppercase text-muted-foreground">Ack Window (Sec)</Label>
                                 <Input 
                                   type="number" 
                                   value={configData.venueHealthSettings?.maxOrderAcknowledgeSeconds} 
                                   onChange={(e) => setConfigData({...configData, venueHealthSettings: {...configData.venueHealthSettings!, maxOrderAcknowledgeSeconds: parseInt(e.target.value)}})} 
-                                  className="h-11 border-2 font-bold focus-visible:ring-primary" 
+                                  className="h-10 border-2 font-black bg-white focus-visible:ring-primary" 
                                 />
                               </div>
                               <div className="space-y-1.5 text-left">
-                                <Label className="text-[9px] font-black uppercase">Warning Proc (Min)</Label>
+                                <Label className="text-[9px] font-black uppercase text-muted-foreground">Warning (Min)</Label>
                                 <Input 
                                   type="number" 
                                   value={configData.venueHealthSettings?.warningOrderProcessingMinutes} 
                                   onChange={(e) => setConfigData({...configData, venueHealthSettings: {...configData.venueHealthSettings!, warningOrderProcessingMinutes: parseInt(e.target.value)}})} 
-                                  className="h-11 border-2 font-bold focus-visible:ring-primary" 
+                                  className="h-10 border-2 font-black bg-white focus-visible:ring-primary" 
                                 />
                               </div>
-                            </div>
-                            <div className="grid grid-cols-3 gap-3">
                               <div className="space-y-1.5 text-left">
-                                <Label className="text-[9px] font-black uppercase">Max Order (Min)</Label>
+                                <Label className="text-[9px] font-black uppercase text-muted-foreground">Max Total (Min)</Label>
                                 <Input 
                                   type="number" 
                                   value={configData.venueHealthSettings?.maxOrderProcessingMinutes} 
                                   onChange={(e) => setConfigData({...configData, venueHealthSettings: {...configData.venueHealthSettings!, maxOrderProcessingMinutes: parseInt(e.target.value)}})} 
-                                  className="h-10 border-2 font-bold" 
+                                  className="h-10 border-2 font-black bg-white focus-visible:ring-primary" 
                                 />
                               </div>
+                            </div>
+                          </div>
+
+                          <Separator className="opacity-30" />
+
+                          {/* Group 2: Venue Activity */}
+                          <div className="space-y-4">
+                            <div className="flex items-center gap-2 px-1">
+                              <Activity className="h-3.5 w-3.5 text-[#213147]" />
+                              <span className="text-[9px] font-black uppercase tracking-widest text-[#213147]">Connectivity & Inactivity</span>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50 p-5 rounded-2xl border-2">
                               <div className="space-y-1.5 text-left">
-                                <Label className="text-[9px] font-black uppercase">Mgr Inact (Days)</Label>
+                                <Label className="text-[9px] font-black uppercase text-muted-foreground">Mgr Inactivity (Days)</Label>
                                 <Input 
                                   type="number" 
                                   value={configData.venueHealthSettings?.warningManagerInactivityDays} 
                                   onChange={(e) => setConfigData({...configData, venueHealthSettings: {...configData.venueHealthSettings!, warningManagerInactivityDays: parseInt(e.target.value)}})} 
-                                  className="h-10 border-2 font-bold" 
+                                  className="h-10 border-2 font-black bg-white" 
                                 />
                               </div>
                               <div className="space-y-1.5 text-left">
-                                <Label className="text-[9px] font-black uppercase">Venue Inact (Days)</Label>
+                                <Label className="text-[9px] font-black uppercase text-muted-foreground">Venue Inactivity (Days)</Label>
                                 <Input 
                                   type="number" 
                                   value={configData.venueHealthSettings?.warningVenueInactivityDays} 
                                   onChange={(e) => setConfigData({...configData, venueHealthSettings: {...configData.venueHealthSettings!, warningVenueInactivityDays: parseInt(e.target.value)}})} 
-                                  className="h-10 border-2 font-bold" 
+                                  className="h-10 border-2 font-black bg-white" 
                                 />
                               </div>
                             </div>
-                         </div>
-                       </div>
+                          </div>
+                        </div>
+                      </Card>
 
-                       <Separator className="opacity-50" />
-
-                       <div className="space-y-6">
-                         <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                      {/* SIGNAL HEALTH THRESHOLDS */}
+                      <Card className="border-2 p-8 space-y-6 text-left">
+                        <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
                             <Satellite className="h-3 w-3" /> Signal Health Thresholds (Seconds)
-                         </Label>
-                         <div className="grid grid-cols-3 gap-3">
-                           <div className="space-y-2 p-4 bg-green-50 rounded-2xl border-2 border-green-100 flex flex-col items-center">
-                             <Label className="text-[9px] font-black uppercase text-green-700">Hot (Green)</Label>
-                             <Input type="number" value={configData.gpsFreshnessThresholds?.hot} onChange={(e) => setConfigData({...configData, gpsFreshnessThresholds: {...configData.gpsFreshnessThresholds!, hot: parseInt(e.target.value)}})} className="font-black border-0 bg-transparent text-xl p-0 h-auto text-center focus-visible:ring-0" />
-                           </div>
-                           <div className="space-y-2 p-4 bg-amber-50 rounded-2xl border-2 border-amber-100 flex flex-col items-center">
-                             <Label className="text-[9px] font-black uppercase text-amber-700">Warm (Amber)</Label>
-                             <Input type="number" value={configData.gpsFreshnessThresholds?.warm} onChange={(e) => setConfigData({...configData, gpsFreshnessThresholds: {...configData.gpsFreshnessThresholds!, warm: parseInt(e.target.value)}})} className="font-black border-0 bg-transparent text-xl p-0 h-auto text-center focus-visible:ring-0" />
-                           </div>
-                           <div className="space-y-2 p-4 bg-red-50 rounded-2xl border-2 border-red-100 flex flex-col items-center">
-                             <Label className="text-[9px] font-black uppercase text-red-700">Cold (Red)</Label>
-                             <Input type="number" value={configData.gpsFreshnessThresholds?.cold} onChange={(e) => setConfigData({...configData, gpsFreshnessThresholds: {...configData.gpsFreshnessThresholds!, cold: parseInt(e.target.value)}})} className="font-black border-0 bg-transparent text-xl p-0 h-auto text-center focus-visible:ring-0" />
-                           </div>
-                         </div>
-                         <p className="text-[10px] text-muted-foreground uppercase font-bold leading-relaxed px-1">
-                           Controls how markers age on map views. Markers past Cold threshold will turn gray (Lost Signal).
-                         </p>
-                       </div>
+                        </Label>
+                        <div className="grid grid-cols-3 gap-3">
+                          <div className="space-y-2 p-4 bg-green-50 rounded-2xl border-2 border-green-100 flex flex-col items-center">
+                            <Label className="text-[9px] font-black uppercase text-green-700">Hot (Green)</Label>
+                            <Input type="number" value={configData.gpsFreshnessThresholds?.hot} onChange={(e) => setConfigData({...configData, gpsFreshnessThresholds: {...configData.gpsFreshnessThresholds!, hot: parseInt(e.target.value)}})} className="font-black border-0 bg-transparent text-xl p-0 h-auto text-center focus-visible:ring-0" />
+                          </div>
+                          <div className="space-y-2 p-4 bg-amber-50 rounded-2xl border-2 border-amber-100 flex flex-col items-center">
+                            <Label className="text-[9px] font-black uppercase text-amber-700">Warm (Amber)</Label>
+                            <Input type="number" value={configData.gpsFreshnessThresholds?.warm} onChange={(e) => setConfigData({...configData, gpsFreshnessThresholds: {...configData.gpsFreshnessThresholds!, warm: parseInt(e.target.value)}})} className="font-black border-0 bg-transparent text-xl p-0 h-auto text-center focus-visible:ring-0" />
+                          </div>
+                          <div className="space-y-2 p-4 bg-red-50 rounded-2xl border-2 border-red-100 flex flex-col items-center">
+                            <Label className="text-[9px] font-black uppercase text-red-700">Cold (Red)</Label>
+                            <Input type="number" value={configData.gpsFreshnessThresholds?.cold} onChange={(e) => setConfigData({...configData, gpsFreshnessThresholds: {...configData.gpsFreshnessThresholds!, cold: parseInt(e.target.value)}})} className="font-black border-0 bg-transparent text-xl p-0 h-auto text-center focus-visible:ring-0" />
+                          </div>
+                        </div>
+                      </Card>
 
-                       <Separator className="opacity-50" />
-
-                       <div className="space-y-6">
-                         <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                      {/* GLOBAL MODE AUTH */}
+                      <Card className="border-2 p-8 space-y-6 text-left">
+                        <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
                             <Power className="h-3 w-3" /> Global Mode Authorization
-                         </Label>
-                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                           {['Beverage Cart', 'Clubhouse', 'Pool', 'Lane Delivery'].map(mode => (
-                             <div key={mode} className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border-2">
-                               <span className="text-[11px] font-black uppercase">{mode}</span>
-                               <Switch 
-                                 checked={configData.enabledModes?.includes(mode)} 
-                                 onCheckedChange={(val) => {
-                                   const next = val 
-                                     ? [...(configData.enabledModes || []), mode]
-                                     : (configData.enabledModes || []).filter(m => m !== mode);
-                                   setConfigData({...configData, enabledModes: next});
-                                 }} 
-                               />
-                             </div>
-                           ))}
-                         </div>
-                         <p className="text-[10px] text-muted-foreground uppercase font-bold leading-relaxed px-1">
-                           Restricts available service channels platform-wide, even if configured at venue level.
-                         </p>
-                       </div>
-                    </Card>
+                        </Label>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          {['Beverage Cart', 'Clubhouse', 'Pool', 'Lane Delivery'].map(mode => (
+                            <div key={mode} className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border-2">
+                              <span className="text-[11px] font-black uppercase">{mode}</span>
+                              <Switch 
+                                checked={configData.enabledModes?.includes(mode)} 
+                                onCheckedChange={(val) => {
+                                  const next = val 
+                                    ? [...(configData.enabledModes || []), mode]
+                                    : (configData.enabledModes || []).filter(m => m !== mode);
+                                  setConfigData({...configData, enabledModes: next});
+                                }} 
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      </Card>
+                    </div>
                   </div>
                 </div>
               )}
