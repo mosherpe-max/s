@@ -1,3 +1,4 @@
+
 import { 
   collection, 
   doc, 
@@ -15,6 +16,7 @@ import { PlaceHolderImages } from './placeholder-images';
 /**
  * Robust image retrieval helper.
  * Searches by both explicit ID and descriptive imageHint.
+ * Includes a keyword-based fallback system to guarantee an image is returned.
  */
 const getImg = (hint: string) => {
   if (!PlaceHolderImages || !PlaceHolderImages.length) return '';
@@ -24,7 +26,31 @@ const getImg = (hint: string) => {
     i.id.toLowerCase() === search ||
     i.description.toLowerCase().includes(search)
   );
-  return found?.imageUrl || '';
+  if (found) return found.imageUrl;
+
+  // Robust Fallback: try to find something based on keywords if the specific hint fails
+  if (search.includes('beer') || search.includes('lager') || search.includes('ipa') || search.includes('bud') || search.includes('miller') || search.includes('coors') || search.includes('modelo') || search.includes('heineken')) 
+    return PlaceHolderImages.find(i => i.id === 'beer-1')?.imageUrl || '';
+  if (search.includes('cocktail') || search.includes('spirit') || search.includes('vodka') || search.includes('whiskey') || search.includes('wine') || search.includes('transfusion') || search.includes('margarita')) 
+    return PlaceHolderImages.find(i => i.id === 'cocktail-blue')?.imageUrl || '';
+  if (search.includes('soda') || search.includes('cola') || search.includes('water') || search.includes('drink') || search.includes('tea') || search.includes('lemonade') || search.includes('gatorade') || search.includes('palmer') || search.includes('coffee')) 
+    return PlaceHolderImages.find(i => i.id === 'soft-drink-1')?.imageUrl || '';
+  if (search.includes('burger') || search.includes('sandwich') || search.includes('wrap') || search.includes('tender') || search.includes('tenders')) 
+    return PlaceHolderImages.find(i => i.id === 'burger')?.imageUrl || '';
+  if (search.includes('pizza')) 
+    return PlaceHolderImages.find(i => i.id === 'pizza')?.imageUrl || '';
+  if (search.includes('hot dog') || search.includes('dog')) 
+    return PlaceHolderImages.find(i => i.id === 'hotdog')?.imageUrl || '';
+  if (search.includes('wings') || search.includes('wing')) 
+    return PlaceHolderImages.find(i => i.id === 'wings')?.imageUrl || '';
+  if (search.includes('nacho') || search.includes('nachos') || search.includes('quesadilla')) 
+    return PlaceHolderImages.find(i => i.id === 'nachos')?.imageUrl || '';
+  if (search.includes('chips') || search.includes('snack') || search.includes('candy') || search.includes('pretzel')) 
+    return PlaceHolderImages.find(i => i.id === 'snack-1')?.imageUrl || '';
+  if (search.includes('salad') || search.includes('fruit') || search.includes('salmon')) 
+    return PlaceHolderImages.find(i => i.id === 'salmon')?.imageUrl || '';
+  
+  return PlaceHolderImages[0]?.imageUrl || '';
 };
 
 const DEFAULT_HEALTH_SETTINGS: VenueHealthSettings = {
@@ -98,7 +124,7 @@ const getGlobalStarterMenuItems = (): Omit<StarterMenuItem, 'id'>[] => [
   { name: "Truly (canned)", description: "Wild Berry or Pineapple.", price: 7.00, category: "alcohol", venueType: ["golf"], serviceMode: "beverageCart", imageUrl: getImg('lager can'), sortOrder: 8 },
   { name: "Beer Bucket", description: "Choice of domestic cans on ice.", price: 24.00, category: "alcohol", venueType: ["golf"], serviceMode: "beverageCart", imageUrl: getImg('craft beer'), suggestedModifierGroups: ["Beer Bucket Quantity"], sortOrder: 9 },
   { name: "Cocktail", description: "Premium spirit with your choice of mixer.", price: 11.00, category: "alcohol", venueType: ["golf"], serviceMode: "beverageCart", imageUrl: getImg('blue cocktail'), suggestedModifierGroups: ["Ice Preference", "Mixer", "Pour Size"], sortOrder: 10 },
-  { name: "Gatorade", description: "Fruit Punch or Orange.", price: 4.50, category: "beverage", venueType: ["golf"], serviceMode: "beverageCart", imageUrl: getImg('soft-drink-1'), sortOrder: 11 },
+  { name: "Gatorade", description: "Fruit Punch or Orange.", price: 4.50, category: "beverage", venueType: ["golf"], serviceMode: "beverageCart", imageUrl: getImg('cola can'), sortOrder: 11 },
   { name: "Bottled Water", description: "Purified spring water.", price: 3.00, category: "beverage", venueType: ["golf"], serviceMode: "beverageCart", imageUrl: getImg('water bottle'), sortOrder: 12 },
   { name: "Soda (can)", description: "Classic cola, diet, or lemon-lime.", price: 3.50, category: "beverage", venueType: ["golf"], serviceMode: "beverageCart", imageUrl: getImg('cola can'), sortOrder: 13 },
   { name: "Hot Dog", description: "All-beef dog on a toasted bun.", price: 8.50, category: "food", venueType: ["golf"], serviceMode: "beverageCart", imageUrl: getImg('hot dog'), suggestedModifierGroups: ["Hot Dog Style", "Hot Dog Toppings"], sortOrder: 14 },

@@ -5,6 +5,7 @@ import { PlaceHolderImages } from './placeholder-images';
 /**
  * Robust image retrieval helper.
  * Searches by both explicit ID and descriptive imageHint.
+ * Includes a keyword-based fallback system.
  */
 const getImg = (hint: string) => {
   if (!PlaceHolderImages || !PlaceHolderImages.length) return '';
@@ -13,7 +14,27 @@ const getImg = (hint: string) => {
     i.imageHint.toLowerCase() === search || 
     i.id.toLowerCase() === search
   );
-  return found?.imageUrl || '';
+  if (found) return found.imageUrl;
+
+  // Keyword-based fallback
+  if (search.includes('beer') || search.includes('lager') || search.includes('ipa')) 
+    return PlaceHolderImages.find(i => i.id === 'beer-1')?.imageUrl || '';
+  if (search.includes('cocktail') || search.includes('spirit') || search.includes('vodka') || search.includes('whiskey') || search.includes('wine')) 
+    return PlaceHolderImages.find(i => i.id === 'cocktail-blue')?.imageUrl || '';
+  if (search.includes('soda') || search.includes('cola') || search.includes('water') || search.includes('drink')) 
+    return PlaceHolderImages.find(i => i.id === 'soft-drink-1')?.imageUrl || '';
+  if (search.includes('burger') || search.includes('sandwich') || search.includes('wrap') || search.includes('hot dog') || search.includes('dog')) 
+    return PlaceHolderImages.find(i => i.id === 'burger')?.imageUrl || '';
+  if (search.includes('snack') || search.includes('chips') || search.includes('candy')) 
+    return PlaceHolderImages.find(i => i.id === 'snack-1')?.imageUrl || '';
+  if (search.includes('pizza')) 
+    return PlaceHolderImages.find(i => i.id === 'pizza')?.imageUrl || '';
+  if (search.includes('wing') || search.includes('tender')) 
+    return PlaceHolderImages.find(i => i.id === 'wings')?.imageUrl || '';
+  if (search.includes('nacho') || search.includes('quesadilla')) 
+    return PlaceHolderImages.find(i => i.id === 'nachos')?.imageUrl || '';
+
+  return PlaceHolderImages[0]?.imageUrl || '';
 };
 
 // --- COMMON ITEMS ---
@@ -126,7 +147,7 @@ export const privateGolfItems: (Omit<MenuItem, 'id' | 'rank'> & { id?: string, r
     description: 'Chilled jumbo shrimp with house sauce.', 
     price: 18.00, 
     category: 'Appetizers', 
-    imageUrl: getImg('cocktail-blue'), 
+    imageUrl: getImg('blue cocktail'), 
     availableOn: ['Clubhouse', 'Pool'],
     isAvailable: true
   },
