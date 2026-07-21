@@ -173,8 +173,6 @@ const healthSettingsSchema = z.object({
   maxOrderAcknowledgeSeconds: z.coerce.number().min(10),
   warningOrderProcessingMinutes: z.coerce.number().min(1),
   maxOrderProcessingMinutes: z.coerce.number().min(1),
-  warningManagerInactivityDays: z.coerce.number().min(1),
-  warningVenueInactivityDays: z.coerce.number().min(1),
 });
 
 type HealthSettingsFormData = z.infer<typeof healthSettingsSchema>;
@@ -382,9 +380,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
     defaultValues: {
       maxOrderAcknowledgeSeconds: 120,
       warningOrderProcessingMinutes: 15,
-      maxOrderProcessingMinutes: 25,
-      warningManagerInactivityDays: 3,
-      warningVenueInactivityDays: 7
+      maxOrderProcessingMinutes: 25
     }
   });
 
@@ -395,9 +391,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
       healthSettingsForm.reset({
         maxOrderAcknowledgeSeconds: existing.maxOrderAcknowledgeSeconds,
         warningOrderProcessingMinutes: existing.warningOrderProcessingMinutes,
-        maxOrderProcessingMinutes: existing.maxOrderProcessingMinutes,
-        warningManagerInactivityDays: existing.warningManagerInactivityDays,
-        warningVenueInactivityDays: existing.warningVenueInactivityDays
+        maxOrderProcessingMinutes: existing.maxOrderProcessingMinutes
       });
     }
   }, [seller, solutionConfig, healthSettingsForm]);
@@ -407,7 +401,10 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
     setIsProcessingSave(true);
     try {
       await updateDoc(doc(firestore, 'sellers', sellerId), {
-        healthSettings: data,
+        healthSettings: {
+          ...seller?.healthSettings, // Preserve global/existing inactivity thresholds
+          ...data
+        },
         updatedAt: serverTimestamp()
       });
       toast({ title: "Thresholds Updated", description: "Establishment health settings saved successfully." });
@@ -712,7 +709,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                   <div className="flex justify-between items-center border-b-2 pb-6"><h3 className="font-headline font-black text-2xl text-[#213147] uppercase">Growth & Collateral</h3></div>
                   <Card className="border-2 shadow-sm p-8 text-left">
                      <div className="space-y-8">
-                        <div className="flex items-center gap-4"><div className="bg-indigo-50 p-4 rounded-[2rem] text-indigo-600 border-2"><QrCode className="h-8 w-8" /></div><div className="text-left"><h4 className="font-headline font-black text-xl uppercase">QR Terminal</h4><p className="text-xs text-muted-foreground">Download location-aware QR codes for placement at lanes or on carts.</p></div></div>
+                        <div className="flex items-center gap-4"><div className="bg-indigo-50 p-4 rounded-[2rem] text-indigo-600 border-2"><QrCode className="h-8 w-8" /></div><div className="text-left"><h4 className="font-headline font-black text-xl uppercase">QR Terminal</h4><h4 className="text-xs text-muted-foreground">Download location-aware QR codes for placement at lanes or on carts.</h4></div></div>
                         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                            {['Beverage Cart', 'Clubhouse', 'Lane Delivery'].filter(m => seller?.menuTypes?.includes(m)).map(mode => (
                              <div key={mode} className="p-6 bg-slate-50 border-2 rounded-[2rem] flex flex-col items-center gap-4 group hover:border-primary transition-all">
@@ -793,10 +790,10 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                     </Card>
 
                     {/* HEALTH & THRESHOLDS (Venue Overrides) */}
-                    <Card className="border-2 shadow-sm p-8 space-y-8 text-left">
+                    <Card className="border-2 shadow-sm p-8 space-y-8 text-left h-fit">
                       <div className="flex items-center justify-between">
                         <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
-                          <HeartPulse className="h-4 w-4 text-primary" /> Fulfillment & Activity Thresholds
+                          <HeartPulse className="h-4 w-4 text-primary" /> Fulfillment Thresholds
                         </h4>
                         <Badge variant="outline" className="text-[8px] font-black border-primary/20 bg-primary/5 text-primary">VENUE OVERRIDES</Badge>
                       </div>
@@ -830,27 +827,6 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                                   </FormItem>
                                 )} />
                               </div>
-                            </div>
-                          </div>
-
-                          <div className="space-y-4">
-                            <div className="flex items-center gap-2 px-1">
-                              <Users className="h-3 w-3 text-[#213147]" />
-                              <span className="text-[9px] font-black uppercase tracking-widest text-[#213147]">Activity Monitoring</span>
-                            </div>
-                            <div className="grid grid-cols-2 gap-4 bg-slate-50 p-6 rounded-[2rem] border-2">
-                              <FormField control={healthSettingsForm.control} name="warningManagerInactivityDays" render={({ field }) => (
-                                <FormItem className="text-left">
-                                  <FormLabel className="text-[9px] font-black uppercase text-muted-foreground">Mgr Inactivity (Days)</FormLabel>
-                                  <FormControl><Input type="number" {...field} className="h-10 border-2 font-bold bg-white" /></FormControl>
-                                </FormItem>
-                              )} />
-                              <FormField control={healthSettingsForm.control} name="warningVenueInactivityDays" render={({ field }) => (
-                                <FormItem className="text-left">
-                                  <FormLabel className="text-[9px] font-black uppercase text-muted-foreground">Venue Inactivity (Days)</FormLabel>
-                                  <FormControl><Input type="number" {...field} className="h-10 border-2 font-bold bg-white" /></FormControl>
-                                </FormItem>
-                              )} />
                             </div>
                           </div>
 
