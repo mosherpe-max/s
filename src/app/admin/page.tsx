@@ -274,8 +274,8 @@ export default function SolutionAdminPage() {
   };
 
   const libraryQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'starter_modifier_library') : null), [firestore]);
-  const itemLibQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'starter_menu_item_library') : null), [firestore, sellerId]);
-  const venuesQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'sellers') : null), [firestore, sellerId]);
+  const itemLibQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'starter_menu_item_library') : null), [firestore]);
+  const venuesQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'sellers') : null), [firestore]);
 
   const { data: libraryItems } = useCollection<StarterModifierGroup>(libraryQuery);
   const { data: itemLibrary } = useCollection<StarterMenuItem>(itemLibQuery);
