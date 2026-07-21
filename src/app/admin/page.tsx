@@ -662,7 +662,7 @@ export default function SolutionAdminPage() {
                                 />
                               </div>
                               <div className="space-y-1.5 text-left">
-                                <Label className="text-[9px] font-black uppercase text-muted-foreground">Warning (Min)</Label>
+                                <Label className="text-[9px] font-black uppercase text-muted-foreground">Total Order Duration Warning (min)</Label>
                                 <Input 
                                   type="number" 
                                   value={configData.venueHealthSettings?.warningOrderProcessingMinutes} 
@@ -671,7 +671,7 @@ export default function SolutionAdminPage() {
                                 />
                               </div>
                               <div className="space-y-1.5 text-left">
-                                <Label className="text-[9px] font-black uppercase text-muted-foreground">Max Total (Min)</Label>
+                                <Label className="text-[9px] font-black uppercase text-muted-foreground">Total Order Duration Max (min)</Label>
                                 <Input 
                                   type="number" 
                                   value={configData.venueHealthSettings?.maxOrderProcessingMinutes} 
