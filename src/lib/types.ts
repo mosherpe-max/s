@@ -213,6 +213,7 @@ export interface Order {
   total: number;
   status: 'Placed' | 'Preparing' | 'Out for Delivery' | 'Delivered' | 'Cancelled';
   createdAt: Timestamp;
+  acknowledgedAt?: Timestamp;
   deliveredAt?: Timestamp;
   assignedStaffId?: string;
   assignedStaffName?: string;

@@ -66,7 +66,10 @@ import {
   Package,
   Menu,
   HeartPulse,
-  ClipboardCheck
+  ClipboardCheck,
+  Timer,
+  Activity,
+  AlertCircle
 } from 'lucide-react';
 import Image from 'next/image';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
@@ -107,7 +110,7 @@ import {
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { cn, SUPER_ADMIN_ID } from '@/lib/utils';
-import { isToday, format, subDays } from 'date-fns';
+import { isToday, format, subDays, startOfDay, endOfDay, differenceInMinutes, differenceInSeconds } from 'date-fns';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
@@ -129,7 +132,10 @@ import {
   ResponsiveContainer,
   PieChart,
   Pie,
-  Cell
+  Cell,
+  LineChart,
+  Line,
+  Legend
 } from 'recharts';
 
 // --- SCHEMAS ---
@@ -302,7 +308,9 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
   };
 
   const analyticsData = useMemo(() => {
-    if (!orders) return { dailyRevenue: [], topItems: [], channelSplit: [] };
+    if (!orders || !seller || !solutionConfig) return { dailyRevenue: [], topItems: [], channelSplit: [], avgFulfillment: [], operationalHealth: [] };
+    
+    // 1. Commercial Performance
     const dailyMap = new Map();
     for (let i = 6; i >= 0; i--) { dailyMap.set(format(subDays(new Date(), i), 'MMM d'), 0); }
     orders.forEach(o => {
@@ -311,14 +319,80 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
       if (dailyMap.has(key)) dailyMap.set(key, dailyMap.get(key) + (o.subtotal || 0));
     });
     const dailyRevenue = Array.from(dailyMap.entries()).map(([name, total]) => ({ name, total }));
+    
     const channelMap: Record<string, number> = {};
     orders.forEach(o => { if (o.status !== 'Cancelled') channelMap[o.menuType] = (channelMap[o.menuType] || 0) + 1; });
     const channelSplit = Object.entries(channelMap).map(([name, value]) => ({ name, value }));
+    
     const itemMap: Record<string, number> = {};
     orders.forEach(o => { if (o.status !== 'Cancelled') o.items.forEach(i => { itemMap[i.name] = (itemMap[i.name] || 0) + i.quantity; }); });
     const topItems = Object.entries(itemMap).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count).slice(0, 5);
-    return { dailyRevenue, channelSplit, topItems };
-  }, [orders]);
+
+    // 2. Operational Health (Past 7 Days)
+    const modes = seller.menuTypes || [];
+    const healthDays = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = subDays(new Date(), i);
+      const key = format(d, 'MMM d');
+      const start = startOfDay(d);
+      const end = endOfDay(d);
+      
+      const dayOrders = orders.filter(o => o.createdAt && o.createdAt.toDate() >= start && o.createdAt.toDate() <= end);
+      
+      const dayStats: any = { name: key };
+      modes.forEach(mode => {
+        const modeOrders = dayOrders.filter(o => o.menuType === mode && o.status === 'Delivered' && o.deliveredAt);
+        if (modeOrders.length > 0) {
+          const totalTime = modeOrders.reduce((acc, o) => acc + differenceInMinutes(o.deliveredAt!.toDate(), o.createdAt.toDate()), 0);
+          dayStats[mode] = parseFloat((totalTime / modeOrders.length).toFixed(1));
+        } else {
+          dayStats[mode] = 0;
+        }
+      });
+      healthDays.push(dayStats);
+    }
+
+    // 3. Threshold Incidents (All Time or Filtered by Date Range)
+    const incidentReport = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = subDays(new Date(), i);
+      const key = format(d, 'MMM d');
+      const start = startOfDay(d);
+      const end = endOfDay(d);
+      
+      const dayOrders = orders.filter(o => o.createdAt && o.createdAt.toDate() >= start && o.createdAt.toDate() <= end);
+      
+      let ackMaxCount = 0;
+      let warnCount = 0;
+      let maxCount = 0;
+
+      dayOrders.forEach(o => {
+        const t = seller.orderThresholds?.[o.menuType] || solutionConfig.orderThresholds?.[o.menuType] || { maxOrderAcknowledgeSeconds: 120, warningOrderProcessingMinutes: 15, maxOrderProcessingMinutes: 25 };
+        
+        // Ack check
+        if (o.acknowledgedAt) {
+          const ackSeconds = differenceInSeconds(o.acknowledgedAt.toDate(), o.createdAt.toDate());
+          if (ackSeconds > t.maxOrderAcknowledgeSeconds) ackMaxCount++;
+        }
+        
+        // Fulfillment checks
+        if (o.deliveredAt) {
+          const fullMinutes = differenceInMinutes(o.deliveredAt.toDate(), o.createdAt.toDate());
+          if (fullMinutes > t.maxOrderProcessingMinutes) maxCount++;
+          else if (fullMinutes > t.warningOrderProcessingMinutes) warnCount++;
+        }
+      });
+
+      incidentReport.push({
+        name: key,
+        'Ack Max': ackMaxCount,
+        'Full Warning': warnCount,
+        'Full Max': maxCount
+      });
+    }
+
+    return { dailyRevenue, channelSplit, topItems, avgFulfillment: healthDays, operationalHealth: incidentReport };
+  }, [orders, seller, solutionConfig]);
 
   const stats = useMemo(() => { 
     if (!orders) return null; 
@@ -554,13 +628,139 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
               )}
 
               {activeNav === 'analytics' && (
-                <div className="space-y-8 animate-in fade-in duration-500">
-                  <div className="flex justify-between items-center border-b-2 pb-6"><h3 className="font-headline font-black text-2xl text-[#213147] uppercase">Sales Performance</h3><Button variant="outline" className="h-11 border-2 font-black uppercase text-[10px] gap-2"><Download className="h-4 w-4" /> Export Report</Button></div>
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    <Card className="border-2 p-8 space-y-6"><h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2"><TrendingUp className="h-3 w-3 text-primary" /> Net Revenue Trend (7 Days)</h4><div className="h-[300px] w-full"><ResponsiveContainer width="100%" height="100%"><BarChart data={analyticsData.dailyRevenue}><CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" /><XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 10, fontWeight: 700}} dy={10} /><YAxis axisLine={false} tickLine={false} tick={{fontSize: 10, fontWeight: 700}} /><ChartTooltip cursor={{fill: '#f8fafc'}} contentStyle={{ borderRadius: '1rem', border: '2px solid #f1f5f9' }} /><Bar dataKey="total" fill="#E50000" radius={[4, 4, 0, 0]} barSize={40} /></BarChart></ResponsiveContainer></div></Card>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                      <Card className="border-2 p-6 space-y-6"><h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Top Items by Qty</h4><div className="space-y-4">{analyticsData.topItems.map((item, idx) => (<div key={item.name} className="flex items-center justify-between"><div className="flex items-center gap-3"><span className="text-[10px] font-black text-white bg-[#213147] h-5 w-5 rounded flex items-center justify-center">{idx + 1}</span><span className="text-xs font-bold uppercase truncate max-w-[120px]">{item.name}</span></div><span className="text-xs font-black text-primary">{item.count}</span></div>))}</div></Card>
-                      <Card className="border-2 p-6 space-y-6"><h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Order Distribution</h4><div className="h-[180px] flex items-center justify-center"><ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={analyticsData.channelSplit} innerRadius={50} outerRadius={75} paddingAngle={5} dataKey="value">{analyticsData.channelSplit.map((_, index) => (<Cell key={`cell-${index}`} fill={['#E50000', '#213147', '#4F46E5', '#0891B2'][index % 4]} />))}</Pie><ChartTooltip /></PieChart></ResponsiveContainer></div></Card>
+                <div className="space-y-12 animate-in fade-in duration-500">
+                  <div className="flex justify-between items-center border-b-2 pb-6">
+                    <div className="space-y-1">
+                      <h3 className="font-headline font-black text-2xl text-[#213147] uppercase">Analytics</h3>
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Revenue and Operational Health metrics</p>
+                    </div>
+                    <Button variant="outline" className="h-11 border-2 font-black uppercase text-[10px] gap-2">
+                      <Download className="h-4 w-4" /> Export Report
+                    </Button>
+                  </div>
+
+                  {/* COMMERCIAL PERFORMANCE */}
+                  <div className="space-y-8">
+                    <h4 className="text-[12px] font-black uppercase tracking-[0.3em] text-[#213147] flex items-center gap-3">
+                      <DollarSign className="h-4 w-4 text-primary" /> Commercial Performance
+                    </h4>
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                      <Card className="border-2 p-8 space-y-6">
+                        <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
+                          <TrendingUp className="h-3 w-3 text-primary" /> Net Revenue Trend (7 Days)
+                        </h4>
+                        <div className="h-[300px] w-full">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={analyticsData.dailyRevenue}>
+                              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                              <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 10, fontWeight: 700}} dy={10} />
+                              <YAxis axisLine={false} tickLine={false} tick={{fontSize: 10, fontWeight: 700}} />
+                              <ChartTooltip cursor={{fill: '#f8fafc'}} contentStyle={{ borderRadius: '1rem', border: '2px solid #f1f5f9' }} />
+                              <Bar dataKey="total" fill="#E50000" radius={[4, 4, 0, 0]} barSize={40} />
+                            </BarChart>
+                          </ResponsiveContainer>
+                        </div>
+                      </Card>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <Card className="border-2 p-6 space-y-6">
+                          <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Top Items by Qty</h4>
+                          <div className="space-y-4">
+                            {analyticsData.topItems.map((item, idx) => (
+                              <div key={item.name} className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                  <span className="text-[10px] font-black text-white bg-[#213147] h-5 w-5 rounded flex items-center justify-center">{idx + 1}</span>
+                                  <span className="text-xs font-bold uppercase truncate max-w-[120px]">{item.name}</span>
+                                </div>
+                                <span className="text-xs font-black text-primary">{item.count}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </Card>
+                        <Card className="border-2 p-6 space-y-6">
+                          <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Order Distribution</h4>
+                          <div className="h-[180px] flex items-center justify-center">
+                            <ResponsiveContainer width="100%" height="100%">
+                              <PieChart>
+                                <Pie data={analyticsData.channelSplit} innerRadius={50} outerRadius={75} paddingAngle={5} dataKey="value">
+                                  {analyticsData.channelSplit.map((_, index) => (
+                                    <Cell key={`cell-${index}`} fill={['#E50000', '#213147', '#4F46E5', '#0891B2'][index % 4]} />
+                                  ))}
+                                </Pie>
+                                <ChartTooltip />
+                              </PieChart>
+                            </ResponsiveContainer>
+                          </div>
+                        </Card>
+                      </div>
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  {/* OPERATIONAL HEALTH */}
+                  <div className="space-y-8 pb-10">
+                    <h4 className="text-[12px] font-black uppercase tracking-[0.3em] text-[#213147] flex items-center gap-3">
+                      <HeartPulse className="h-4 w-4 text-primary" /> Operational Health
+                    </h4>
+                    
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                      {/* Avg Fulfillment Time */}
+                      <Card className="border-2 p-8 space-y-6">
+                        <div className="flex items-center justify-between">
+                          <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
+                            <Timer className="h-3 w-3 text-primary" /> Avg Fulfillment (Minutes)
+                          </h4>
+                        </div>
+                        <div className="h-[300px] w-full">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <LineChart data={analyticsData.avgFulfillment}>
+                              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                              <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 10, fontWeight: 700}} dy={10} />
+                              <YAxis axisLine={false} tickLine={false} tick={{fontSize: 10, fontWeight: 700}} />
+                              <ChartTooltip contentStyle={{ borderRadius: '1rem', border: '2px solid #f1f5f9' }} />
+                              <Legend verticalAlign="top" align="right" iconType="circle" wrapperStyle={{ paddingBottom: 20, fontSize: 10, fontWeight: 900, textTransform: 'uppercase' }} />
+                              {seller.menuTypes.filter(m => m !== 'Take Out').map((mode, idx) => (
+                                <Line 
+                                  key={mode} 
+                                  type="monotone" 
+                                  dataKey={mode} 
+                                  stroke={['#E50000', '#213147', '#4F46E5'][idx % 3]} 
+                                  strokeWidth={3} 
+                                  dot={{ r: 4, strokeWidth: 2, fill: '#fff' }}
+                                  activeDot={{ r: 6, strokeWidth: 0 }} 
+                                />
+                              ))}
+                            </LineChart>
+                          </ResponsiveContainer>
+                        </div>
+                      </Card>
+
+                      {/* SLA Violations / Incidents */}
+                      <Card className="border-2 p-8 space-y-6">
+                        <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
+                          <Activity className="h-3 w-3 text-primary" /> SLA Exceptions
+                        </h4>
+                        <div className="h-[300px] w-full">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={analyticsData.operationalHealth}>
+                              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                              <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 10, fontWeight: 700}} dy={10} />
+                              <YAxis axisLine={false} tickLine={false} tick={{fontSize: 10, fontWeight: 700}} />
+                              <ChartTooltip cursor={{fill: '#f8fafc'}} contentStyle={{ borderRadius: '1rem', border: '2px solid #f1f5f9' }} />
+                              <Legend verticalAlign="top" align="right" iconType="rect" wrapperStyle={{ paddingBottom: 20, fontSize: 10, fontWeight: 900, textTransform: 'uppercase' }} />
+                              <Bar dataKey="Ack Max" stackId="a" fill="#213147" radius={[0, 0, 0, 0]} barSize={30} />
+                              <Bar dataKey="Full Warning" stackId="a" fill="#f59e0b" radius={[0, 0, 0, 0]} barSize={30} />
+                              <Bar dataKey="Full Max" stackId="a" fill="#ef4444" radius={[4, 4, 0, 0]} barSize={30} />
+                            </BarChart>
+                          </ResponsiveContainer>
+                        </div>
+                        <div className="bg-slate-50 p-4 rounded-xl flex items-start gap-3">
+                          <Info className="h-4 w-4 text-slate-400 shrink-0 mt-0.5" />
+                          <p className="text-[10px] text-muted-foreground font-bold uppercase leading-relaxed">
+                            Includes orders where acknowledgment exceeded {seller.orderThresholds?.['Beverage Cart']?.maxOrderAcknowledgeSeconds || solutionConfig.orderThresholds?.['Beverage Cart']?.maxOrderAcknowledgeSeconds}s or fulfillment exceeded {seller.orderThresholds?.['Beverage Cart']?.maxOrderProcessingMinutes || solutionConfig.orderThresholds?.['Beverage Cart']?.maxOrderProcessingMinutes}m.
+                          </p>
+                        </div>
+                      </Card>
                     </div>
                   </div>
                 </div>

@@ -142,8 +142,13 @@ export default function LaneSideServerDashboardPage({ params }: { params: Promis
     const nextIdx = stages.indexOf(currentStatus as any) + 1;
     if (nextIdx < stages.length) {
       const nextStatus = stages[nextIdx];
-      const updateData: any = { status: nextStatus, deliveredAt: nextStatus === 'Delivered' ? serverTimestamp() : null };
+      const updateData: any = { 
+        status: nextStatus, 
+        deliveredAt: nextStatus === 'Delivered' ? serverTimestamp() : null 
+      };
+
       if (nextStatus === 'Preparing') {
+        updateData.acknowledgedAt = serverTimestamp();
         const staffId = localStorage.getItem('koop_staff_id');
         const staffName = localStorage.getItem('koop_staff_name');
         if (staffId && staffName) {
@@ -151,6 +156,7 @@ export default function LaneSideServerDashboardPage({ params }: { params: Promis
           updateData.assignedStaffName = staffName;
         }
       }
+
       updateDoc(doc(firestore, 'orders', orderId), updateData);
     }
   };

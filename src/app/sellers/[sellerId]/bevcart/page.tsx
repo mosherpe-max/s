@@ -260,8 +260,13 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
     
     if (nextIdx < stages.length) {
       const nextStatus = stages[nextIdx];
-      const updateData: any = { status: nextStatus, deliveredAt: nextStatus === 'Delivered' ? serverTimestamp() : null };
+      const updateData: any = { 
+        status: nextStatus, 
+        deliveredAt: nextStatus === 'Delivered' ? serverTimestamp() : null 
+      };
+
       if (nextStatus === 'Preparing') {
+        updateData.acknowledgedAt = serverTimestamp();
         const staffId = localStorage.getItem('koop_staff_id');
         const staffName = localStorage.getItem('koop_staff_name');
         if (staffId && staffName) {
@@ -269,6 +274,7 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
           updateData.assignedStaffName = staffName;
         }
       }
+
       const orderRef = doc(firestore, 'orders', orderId);
       updateDoc(orderRef, updateData).catch(async (error) => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({ path: orderRef.path, operation: 'update', requestResourceData: updateData } satisfies SecurityRuleContext));
