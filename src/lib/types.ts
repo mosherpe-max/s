@@ -16,10 +16,13 @@ export interface MapUpdateSettings {
   activeStages: string[];
 }
 
-export interface VenueHealthSettings {
+export interface OrderFulfillmentThresholds {
   maxOrderAcknowledgeSeconds: number;
   warningOrderProcessingMinutes: number;
   maxOrderProcessingMinutes: number;
+}
+
+export interface VenueHealthSettings {
   warningManagerInactivityDays: number;
   warningVenueInactivityDays: number;
 }
@@ -27,7 +30,6 @@ export interface VenueHealthSettings {
 export interface SolutionConfig {
   supportEmail: string;
   logoUrl?: string;
-  defaultThresholds?: Record<string, { warning: number; max: number }>;
   mapUpdateSettings?: Record<string, MapUpdateSettings>;
   dailyResetHour?: number; // 0-23
   smsNotificationsEnabled?: boolean;
@@ -37,6 +39,7 @@ export interface SolutionConfig {
     cold: number;
   };
   venueHealthSettings?: VenueHealthSettings;
+  orderThresholds?: Record<string, OrderFulfillmentThresholds>; // Master defaults by Mode
   enabledModes?: string[]; // Globally authorized modes by Koop Admin
   updatedAt: Timestamp;
 }
@@ -100,7 +103,7 @@ export interface Seller {
   lanedeliveryActive?: boolean;
   lastActive?: Timestamp;
   healthSettings?: VenueHealthSettings;
-  orderThresholds?: Record<string, { warning: number; max: number }>;
+  orderThresholds?: Record<string, OrderFulfillmentThresholds>; // Venue overrides by Mode
   stripeAccountId?: string;
   stripeOnboardingComplete?: boolean;
   categoryVisibility?: Record<string, string[]>; // Map of Mode -> Array of Enabled Category Names

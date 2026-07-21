@@ -93,7 +93,7 @@ import { useRouter } from 'next/navigation';
 import { useFirestore, useCollection, useMemoFirebase, useAuth, useDoc, useUser } from '@/firebase';
 import { signOut } from 'firebase/auth';
 import { collection, query, limit, doc, setDoc, serverTimestamp, where, orderBy, updateDoc, writeBatch, deleteDoc } from 'firebase/firestore';
-import type { Seller, SolutionConfig, Order, Venue, StarterModifierGroup, StarterMenuItem } from '@/lib/types';
+import type { Seller, SolutionConfig, Order, Venue, StarterModifierGroup, StarterMenuItem, OrderFulfillmentThresholds } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { cn, SUPER_ADMIN_ID } from '@/lib/utils';
 import { StylizedKoopLogo } from '@/components/header';
@@ -210,11 +210,13 @@ export default function SolutionAdminPage() {
     smsNotificationsEnabled: true,
     gpsFreshnessThresholds: { hot: 60, warm: 300, cold: 600 },
     venueHealthSettings: {
-      maxOrderAcknowledgeSeconds: 120,
-      warningOrderProcessingMinutes: 15,
-      maxOrderProcessingMinutes: 25,
       warningManagerInactivityDays: 3,
       warningVenueInactivityDays: 7
+    },
+    orderThresholds: {
+      'Beverage Cart': { maxOrderAcknowledgeSeconds: 120, warningOrderProcessingMinutes: 15, maxOrderProcessingMinutes: 25 },
+      'Clubhouse': { maxOrderAcknowledgeSeconds: 120, warningOrderProcessingMinutes: 20, maxOrderProcessingMinutes: 30 },
+      'Lane Delivery': { maxOrderAcknowledgeSeconds: 120, warningOrderProcessingMinutes: 10, maxOrderProcessingMinutes: 15 }
     },
     enabledModes: ['Beverage Cart', 'Clubhouse', 'Lane Delivery']
   });
@@ -229,13 +231,15 @@ export default function SolutionAdminPage() {
         ...remoteConfig,
         gpsFreshnessThresholds: remoteConfig.gpsFreshnessThresholds || { hot: 60, warm: 300, cold: 600 },
         venueHealthSettings: remoteConfig.venueHealthSettings || {
-          maxOrderAcknowledgeSeconds: 120,
-          warningOrderProcessingMinutes: 15,
-          maxOrderProcessingMinutes: 25,
           warningManagerInactivityDays: 3,
           warningVenueInactivityDays: 7
         },
-        enabledModes: (remoteConfig.enabledModes || ['Beverage Cart', 'Clubhouse', 'Lane Delivery']).filter(m => m !== 'Take Out')
+        orderThresholds: remoteConfig.orderThresholds || {
+          'Beverage Cart': { maxOrderAcknowledgeSeconds: 120, warningOrderProcessingMinutes: 15, maxOrderProcessingMinutes: 25 },
+          'Clubhouse': { maxOrderAcknowledgeSeconds: 120, warningOrderProcessingMinutes: 20, maxOrderProcessingMinutes: 30 },
+          'Lane Delivery': { maxOrderAcknowledgeSeconds: 120, warningOrderProcessingMinutes: 10, maxOrderProcessingMinutes: 15 }
+        },
+        enabledModes: remoteConfig.enabledModes || ['Beverage Cart', 'Clubhouse', 'Lane Delivery']
       });
     }
   }, [remoteConfig]);
@@ -256,9 +260,22 @@ export default function SolutionAdminPage() {
     }
   };
 
+  const updateThreshold = (mode: string, field: keyof OrderFulfillmentThresholds, value: number) => {
+    setConfigData(prev => ({
+      ...prev,
+      orderThresholds: {
+        ...prev.orderThresholds,
+        [mode]: {
+          ...(prev.orderThresholds?.[mode] || { maxOrderAcknowledgeSeconds: 120, warningOrderProcessingMinutes: 15, maxOrderProcessingMinutes: 25 }),
+          [field]: value
+        }
+      }
+    }));
+  };
+
   const libraryQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'starter_modifier_library') : null), [firestore]);
-  const itemLibQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'starter_menu_item_library') : null), [firestore]);
-  const venuesQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'sellers') : null), [firestore]);
+  const itemLibQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'starter_menu_item_library') : null), [firestore, sellerId]);
+  const venuesQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'sellers') : null), [firestore, sellerId]);
 
   const { data: libraryItems } = useCollection<StarterModifierGroup>(libraryQuery);
   const { data: itemLibrary } = useCollection<StarterMenuItem>(itemLibQuery);
@@ -285,11 +302,9 @@ export default function SolutionAdminPage() {
   const handleEditVenueSettings = async (v: Seller) => {
     if (!firestore) return;
     setSelectedVenue(v);
-    const venueDoc = await doc(firestore, 'venues', v.id);
-    // Note: We might need to fetch the Venue doc specifically for fees
     venueSettingsForm.reset({
       name: v.courseName,
-      patronConvenienceFee: 150, // Default if not found
+      patronConvenienceFee: 150,
       monthlySolutionFee: 0
     });
     setIsVenueSettingsOpen(true);
@@ -304,7 +319,6 @@ export default function SolutionAdminPage() {
         monthlySolutionFee: data.monthlySolutionFee,
         updatedAt: serverTimestamp()
       });
-      // Also update seller doc if serviceFee is mirrored there
       await updateDoc(doc(firestore, 'sellers', selectedVenue.id), {
         serviceFee: data.patronConvenienceFee / 100,
         updatedAt: serverTimestamp()
@@ -581,137 +595,134 @@ export default function SolutionAdminPage() {
 
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                     {/* CORE IDENTITY & SUPPORT */}
-                    <Card className="border-2 p-8 space-y-8 text-left">
-                      <div className="space-y-6">
-                        <div className="space-y-3">
-                          <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
-                             <ShieldCheck className="h-3 w-3" /> Support & Identity
-                          </Label>
-                          <div className="grid gap-5">
-                            <div className="space-y-1.5 text-left">
-                              <Label htmlFor="supportEmail" className="text-xs font-bold uppercase">Global Support Email</Label>
-                              <div className="relative">
-                                <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                                <Input id="supportEmail" placeholder="support@kooporders.com" value={configData.supportEmail} onChange={(e) => setConfigData({...configData, supportEmail: e.target.value})} className="pl-10 h-12 border-2 font-bold focus-visible:ring-primary" />
-                              </div>
-                            </div>
-                            <div className="space-y-1.5 text-left">
-                              <Label htmlFor="logoUrl" className="text-xs font-bold uppercase">Master Platform Logo URL</Label>
-                              <div className="relative">
-                                <LucideImage className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                                <Input id="logoUrl" placeholder="https://..." value={configData.logoUrl} onChange={(e) => setConfigData({...configData, logoUrl: e.target.value})} className="pl-10 h-12 border-2 font-bold focus-visible:ring-primary" />
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-
-                        <Separator className="opacity-50" />
-
-                        <div className="space-y-4">
-                          <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
-                             <Timer className="h-3 w-3" /> Operational Logic
-                          </Label>
-                          <div className="flex items-center justify-between p-5 bg-slate-50 rounded-2xl border-2">
-                            <div className="max-w-[200px] text-left">
-                              <p className="font-bold text-sm">Daily Operational Reset</p>
-                              <p className="text-[9px] text-muted-foreground uppercase leading-relaxed font-bold">Hour (0-23) to clear driver sessions automatically</p>
-                            </div>
-                            <div className="flex items-center gap-3">
-                               <Clock className="h-5 w-5 text-indigo-600" />
-                               <Input type="number" min="0" max="23" value={configData.dailyResetHour} onChange={(e) => setConfigData({...configData, dailyResetHour: parseInt(e.target.value)})} className="w-16 h-12 text-center font-black border-2 focus-visible:ring-indigo-600" />
-                            </div>
-                          </div>
-                          
-                          <div className="flex items-center justify-between p-5 bg-slate-50 rounded-2xl border-2">
-                            <div className="max-w-[200px] text-left">
-                              <p className="font-bold text-sm">SMS Global Switch</p>
-                              <p className="text-[9px] text-muted-foreground uppercase leading-relaxed font-bold">Enable Twilio notifications for patrons platform-wide</p>
-                            </div>
-                            <div className="flex items-center gap-4">
-                               <BellRing className={cn("h-5 w-5 transition-colors", configData.smsNotificationsEnabled ? "text-green-600" : "text-slate-300")} />
-                               <Switch checked={configData.smsNotificationsEnabled} onCheckedChange={(val) => setConfigData({...configData, smsNotificationsEnabled: val})} />
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </Card>
-
-                    {/* SIGNAL HEALTH & VENUE HEALTH */}
                     <div className="space-y-8">
-                      {/* VENUE HEALTH SETTINGS */}
                       <Card className="border-2 p-8 space-y-8 text-left">
                         <div className="space-y-6">
-                          <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
-                              <HeartPulse className="h-3 w-3 text-primary" /> Venue Health Settings
-                          </Label>
-                          
-                          {/* Group 1: Order Fulfillment */}
+                          <div className="space-y-3">
+                            <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                               <ShieldCheck className="h-3 w-3" /> Support & Identity
+                            </Label>
+                            <div className="grid gap-5">
+                              <div className="space-y-1.5 text-left">
+                                <Label htmlFor="supportEmail" className="text-xs font-bold uppercase">Global Support Email</Label>
+                                <div className="relative">
+                                  <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                                  <Input id="supportEmail" placeholder="support@kooporders.com" value={configData.supportEmail} onChange={(e) => setConfigData({...configData, supportEmail: e.target.value})} className="pl-10 h-12 border-2 font-bold focus-visible:ring-primary" />
+                                </div>
+                              </div>
+                              <div className="space-y-1.5 text-left">
+                                <Label htmlFor="logoUrl" className="text-xs font-bold uppercase">Master Platform Logo URL</Label>
+                                <div className="relative">
+                                  <LucideImage className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                                  <Input id="logoUrl" placeholder="https://..." value={configData.logoUrl} onChange={(e) => setConfigData({...configData, logoUrl: e.target.value})} className="pl-10 h-12 border-2 font-bold focus-visible:ring-primary" />
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          <Separator className="opacity-50" />
+
                           <div className="space-y-4">
+                            <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                               <Timer className="h-3 w-3" /> Operational Logic
+                            </Label>
+                            <div className="flex items-center justify-between p-5 bg-slate-50 rounded-2xl border-2">
+                              <div className="max-w-[200px] text-left">
+                                <p className="font-bold text-sm">Daily Operational Reset</p>
+                                <p className="text-[9px] text-muted-foreground uppercase leading-relaxed font-bold">Hour (0-23) to clear driver sessions automatically</p>
+                              </div>
+                              <div className="flex items-center gap-3">
+                                 <Clock className="h-5 w-5 text-indigo-600" />
+                                 <Input type="number" min="0" max="23" value={configData.dailyResetHour} onChange={(e) => setConfigData({...configData, dailyResetHour: parseInt(e.target.value)})} className="w-16 h-12 text-center font-black border-2 focus-visible:ring-indigo-600" />
+                              </div>
+                            </div>
+                            
+                            <div className="flex items-center justify-between p-5 bg-slate-50 rounded-2xl border-2">
+                              <div className="max-w-[200px] text-left">
+                                <p className="font-bold text-sm">SMS Global Switch</p>
+                                <p className="text-[9px] text-muted-foreground uppercase leading-relaxed font-bold">Enable Twilio notifications for patrons platform-wide</p>
+                              </div>
+                              <div className="flex items-center gap-4">
+                                 <BellRing className={cn("h-5 w-5 transition-colors", configData.smsNotificationsEnabled ? "text-green-600" : "text-slate-300")} />
+                                 <Switch checked={configData.smsNotificationsEnabled} onCheckedChange={(val) => setConfigData({...configData, smsNotificationsEnabled: val})} />
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </Card>
+
+                      {/* VENUE ACTIVITY SETTINGS */}
+                      <Card className="border-2 p-8 space-y-6 text-left">
+                        <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                            <Activity className="h-3 w-3 text-primary" /> Platform Inactivity Alerts
+                        </Label>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50 p-5 rounded-2xl border-2">
+                          <div className="space-y-1.5 text-left">
+                            <Label className="text-[9px] font-black uppercase text-muted-foreground">Mgr Inactivity (Days)</Label>
+                            <Input 
+                              type="number" 
+                              value={configData.venueHealthSettings?.warningManagerInactivityDays} 
+                              onChange={(e) => setConfigData({...configData, venueHealthSettings: {...configData.venueHealthSettings!, warningManagerInactivityDays: parseInt(e.target.value)}})} 
+                              className="h-10 border-2 font-black bg-white" 
+                            />
+                          </div>
+                          <div className="space-y-1.5 text-left">
+                            <Label className="text-[9px] font-black uppercase text-muted-foreground">Venue Inactivity (Days)</Label>
+                            <Input 
+                              type="number" 
+                              value={configData.venueHealthSettings?.warningVenueInactivityDays} 
+                              onChange={(e) => setConfigData({...configData, venueHealthSettings: {...configData.venueHealthSettings!, warningVenueInactivityDays: parseInt(e.target.value)}})} 
+                              className="h-10 border-2 font-black bg-white" 
+                            />
+                          </div>
+                        </div>
+                      </Card>
+                    </div>
+
+                    {/* FULFILLMENT & SIGNAL HEALTH */}
+                    <div className="space-y-8">
+                      {/* PER-MODE FULFILLMENT THRESHOLDS */}
+                      <Card className="border-2 p-8 space-y-8 text-left">
+                        <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                            <HeartPulse className="h-3 w-3 text-primary" /> Default Fulfillment Thresholds
+                        </Label>
+                        
+                        {['Beverage Cart', 'Clubhouse', 'Lane Delivery'].map((mode) => (
+                          <div key={mode} className="space-y-4">
                             <div className="flex items-center gap-2 px-1">
-                              <ClipboardList className="h-3.5 w-3.5 text-[#213147]" />
-                              <span className="text-[9px] font-black uppercase tracking-widest text-[#213147]">Order Fulfillment Thresholds</span>
+                              <Badge className="bg-[#213147] text-white text-[8px] font-black uppercase h-5">{mode}</Badge>
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-slate-50 p-5 rounded-2xl border-2">
                               <div className="space-y-1.5 text-left">
-                                <Label className="text-[9px] font-black uppercase text-muted-foreground">Ack Window (Sec)</Label>
+                                <Label className="text-[9px] font-black uppercase text-muted-foreground">Ack (Sec)</Label>
                                 <Input 
                                   type="number" 
-                                  value={configData.venueHealthSettings?.maxOrderAcknowledgeSeconds} 
-                                  onChange={(e) => setConfigData({...configData, venueHealthSettings: {...configData.venueHealthSettings!, maxOrderAcknowledgeSeconds: parseInt(e.target.value)}})} 
+                                  value={configData.orderThresholds?.[mode]?.maxOrderAcknowledgeSeconds} 
+                                  onChange={(e) => updateThreshold(mode, 'maxOrderAcknowledgeSeconds', parseInt(e.target.value))} 
                                   className="h-10 border-2 font-black bg-white focus-visible:ring-primary" 
                                 />
                               </div>
                               <div className="space-y-1.5 text-left">
-                                <Label className="text-[9px] font-black uppercase text-muted-foreground">Total Order Duration Warning (min)</Label>
+                                <Label className="text-[9px] font-black uppercase text-muted-foreground">Warn (min)</Label>
                                 <Input 
                                   type="number" 
-                                  value={configData.venueHealthSettings?.warningOrderProcessingMinutes} 
-                                  onChange={(e) => setConfigData({...configData, venueHealthSettings: {...configData.venueHealthSettings!, warningOrderProcessingMinutes: parseInt(e.target.value)}})} 
+                                  value={configData.orderThresholds?.[mode]?.warningOrderProcessingMinutes} 
+                                  onChange={(e) => updateThreshold(mode, 'warningOrderProcessingMinutes', parseInt(e.target.value))} 
                                   className="h-10 border-2 font-black bg-white focus-visible:ring-primary" 
                                 />
                               </div>
                               <div className="space-y-1.5 text-left">
-                                <Label className="text-[9px] font-black uppercase text-muted-foreground">Total Order Duration Max (min)</Label>
+                                <Label className="text-[9px] font-black uppercase text-muted-foreground">Max (min)</Label>
                                 <Input 
                                   type="number" 
-                                  value={configData.venueHealthSettings?.maxOrderProcessingMinutes} 
-                                  onChange={(e) => setConfigData({...configData, venueHealthSettings: {...configData.venueHealthSettings!, maxOrderProcessingMinutes: parseInt(e.target.value)}})} 
+                                  value={configData.orderThresholds?.[mode]?.maxOrderProcessingMinutes} 
+                                  onChange={(e) => updateThreshold(mode, 'maxOrderProcessingMinutes', parseInt(e.target.value))} 
                                   className="h-10 border-2 font-black bg-white focus-visible:ring-primary" 
                                 />
                               </div>
                             </div>
                           </div>
-
-                          <Separator className="opacity-30" />
-
-                          {/* Group 2: Venue Activity */}
-                          <div className="space-y-4">
-                            <div className="flex items-center gap-2 px-1">
-                              <Activity className="h-3.5 w-3.5 text-[#213147]" />
-                              <span className="text-[9px] font-black uppercase tracking-widest text-[#213147]">Connectivity & Inactivity</span>
-                            </div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50 p-5 rounded-2xl border-2">
-                              <div className="space-y-1.5 text-left">
-                                <Label className="text-[9px] font-black uppercase text-muted-foreground">Mgr Inactivity (Days)</Label>
-                                <Input 
-                                  type="number" 
-                                  value={configData.venueHealthSettings?.warningManagerInactivityDays} 
-                                  onChange={(e) => setConfigData({...configData, venueHealthSettings: {...configData.venueHealthSettings!, warningManagerInactivityDays: parseInt(e.target.value)}})} 
-                                  className="h-10 border-2 font-black bg-white" 
-                                />
-                              </div>
-                              <div className="space-y-1.5 text-left">
-                                <Label className="text-[9px] font-black uppercase text-muted-foreground">Venue Inactivity (Days)</Label>
-                                <Input 
-                                  type="number" 
-                                  value={configData.venueHealthSettings?.warningVenueInactivityDays} 
-                                  onChange={(e) => setConfigData({...configData, venueHealthSettings: {...configData.venueHealthSettings!, warningVenueInactivityDays: parseInt(e.target.value)}})} 
-                                  className="h-10 border-2 font-black bg-white" 
-                                />
-                              </div>
-                            </div>
-                          </div>
-                        </div>
+                        ))}
                       </Card>
 
                       {/* SIGNAL HEALTH THRESHOLDS */}
@@ -741,7 +752,7 @@ export default function SolutionAdminPage() {
                             <Power className="h-3 w-3" /> Global Mode Authorization
                         </Label>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          {['Beverage Cart', 'Clubhouse', 'Pool', 'Lane Delivery'].map(mode => (
+                          {['Beverage Cart', 'Clubhouse', 'Lane Delivery'].map(mode => (
                             <div key={mode} className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border-2">
                               <span className="text-[11px] font-black uppercase">{mode}</span>
                               <Switch 

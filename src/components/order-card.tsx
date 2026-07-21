@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import type { Order, VenueHealthSettings } from '@/lib/types';
+import type { Order, OrderFulfillmentThresholds } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from './ui/card';
 import { Separator } from './ui/separator';
 import { Button } from './ui/button';
@@ -15,8 +15,7 @@ interface OrderCardProps {
   onUpdateStatus: (id: string, currentStatus: string) => void;
   onAttach?: (id: string) => void;
   currentStaffId?: string;
-  healthSettings?: VenueHealthSettings;
-  thresholds?: { warning: number; max: number }; // Legacy support
+  thresholds?: OrderFulfillmentThresholds;
   now: number;
 }
 
@@ -32,12 +31,13 @@ const getStatusConfig = (status: Order['status']) => {
   return config[status] || { label: '???', icon: Clock, variant: 'outline' };
 };
 
-const DEFAULT_THRESHOLDS = { 
-  warning: 15, 
-  max: 25 
+const DEFAULT_THRESHOLDS: OrderFulfillmentThresholds = { 
+  maxOrderAcknowledgeSeconds: 120,
+  warningOrderProcessingMinutes: 15, 
+  maxOrderProcessingMinutes: 25 
 };
 
-export function OrderCard({ order, orderNumber, onUpdateStatus, onAttach, currentStaffId, healthSettings, thresholds, now }: OrderCardProps) {
+export function OrderCard({ order, orderNumber, onUpdateStatus, onAttach, currentStaffId, thresholds, now }: OrderCardProps) {
   const statusInfo = getStatusConfig(order.status);
   
   // Calculate Order Duration
@@ -49,11 +49,10 @@ export function OrderCard({ order, orderNumber, onUpdateStatus, onAttach, curren
   const gpsMinutesElapsed = lastGpsTime ? Math.floor((now - lastGpsTime) / 60000) : null;
   
   // Fulfillment Threshold Logic
-  const warningThreshold = healthSettings?.warningOrderProcessingMinutes || thresholds?.warning || DEFAULT_THRESHOLDS.warning;
-  const maxThreshold = healthSettings?.maxOrderProcessingMinutes || thresholds?.max || DEFAULT_THRESHOLDS.max;
+  const t = thresholds || DEFAULT_THRESHOLDS;
   
-  const isOverdue = minutesElapsed >= maxThreshold;
-  const isWarning = minutesElapsed >= warningThreshold && !isOverdue;
+  const isOverdue = minutesElapsed >= t.maxOrderProcessingMinutes;
+  const isWarning = minutesElapsed >= t.warningOrderProcessingMinutes && !isOverdue;
 
   const isAssignedToMe = currentStaffId && order.assignedStaffId === currentStaffId;
   const isAssignedToOther = order.assignedStaffId && order.assignedStaffId !== currentStaffId;
