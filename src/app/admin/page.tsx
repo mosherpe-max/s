@@ -52,7 +52,10 @@ import {
   ExternalLink,
   CreditCard,
   HeartPulse,
-  ClipboardList
+  ClipboardList,
+  User,
+  Percent,
+  CheckCircle2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -92,7 +95,7 @@ import { Switch } from '@/components/ui/switch';
 import { useRouter } from 'next/navigation';
 import { useFirestore, useCollection, useMemoFirebase, useAuth, useDoc, useUser } from '@/firebase';
 import { signOut } from 'firebase/auth';
-import { collection, query, limit, doc, setDoc, serverTimestamp, where, orderBy, updateDoc, writeBatch, deleteDoc } from 'firebase/firestore';
+import { collection, query, limit, doc, setDoc, serverTimestamp, where, orderBy, updateDoc, writeBatch, deleteDoc, getDoc } from 'firebase/firestore';
 import type { Seller, SolutionConfig, Order, Venue, StarterModifierGroup, StarterMenuItem, OrderFulfillmentThresholds } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { cn, SUPER_ADMIN_ID } from '@/lib/utils';
@@ -128,9 +131,17 @@ const starterModifierSchema = z.object({
 type StarterModifierFormData = z.infer<typeof starterModifierSchema>;
 
 const venueSettingsSchema = z.object({
+  name: z.string().min(2, 'Venue name required'),
+  ownerUid: z.string().min(1, 'Owner UID required'),
+  stripeAccountId: z.string().optional().nullable(),
+  stripeConnectId: z.string().optional().nullable(),
+  solutionFeeFixed: z.coerce.number().min(0),
+  solutionFeePercent: z.coerce.number().min(0),
   patronConvenienceFee: z.coerce.number().min(0),
   monthlySolutionFee: z.coerce.number().min(0),
-  name: z.string().min(2, 'Venue name required'),
+  stripeOnboardingComplete: z.boolean().default(false),
+  payoutsEnabled: z.boolean().default(false),
+  isFoundingPartner: z.boolean().default(false),
 });
 
 type VenueSettingsFormData = z.infer<typeof venueSettingsSchema>;
@@ -290,7 +301,19 @@ export default function SolutionAdminPage() {
 
   const venueSettingsForm = useForm<VenueSettingsFormData>({
     resolver: zodResolver(venueSettingsSchema),
-    defaultValues: { patronConvenienceFee: 150, monthlySolutionFee: 0, name: '' }
+    defaultValues: { 
+      name: '', 
+      ownerUid: '', 
+      stripeAccountId: '', 
+      stripeConnectId: '', 
+      solutionFeeFixed: 0, 
+      solutionFeePercent: 0, 
+      patronConvenienceFee: 150, 
+      monthlySolutionFee: 0, 
+      stripeOnboardingComplete: false, 
+      payoutsEnabled: false, 
+      isFoundingPartner: false 
+    }
   });
 
   useEffect(() => {
@@ -299,13 +322,26 @@ export default function SolutionAdminPage() {
     }
   }, [editingLibraryItem, isLibraryFormOpen, libraryForm]);
 
-  const handleEditVenueSettings = async (v: Seller) => {
+  const handleEditVenueSettings = async (s: Seller) => {
     if (!firestore) return;
-    setSelectedVenue(v);
+    setSelectedVenue(s);
+    
+    // Fetch detailed Venue document
+    const venueSnap = await getDoc(doc(firestore, 'venues', s.id));
+    const vData = venueSnap.exists() ? venueSnap.data() as Venue : null;
+
     venueSettingsForm.reset({
-      name: v.courseName,
-      patronConvenienceFee: 150,
-      monthlySolutionFee: 0
+      name: vData?.name || s.courseName,
+      ownerUid: vData?.ownerUid || '',
+      stripeAccountId: vData?.stripeAccountId || '',
+      stripeConnectId: vData?.stripeConnectId || '',
+      solutionFeeFixed: vData?.solutionFeeFixed || 0,
+      solutionFeePercent: vData?.solutionFeePercent || 0,
+      patronConvenienceFee: vData?.patronConvenienceFee || 150,
+      monthlySolutionFee: vData?.monthlySolutionFee || 0,
+      stripeOnboardingComplete: vData?.stripeOnboardingComplete || false,
+      payoutsEnabled: vData?.payoutsEnabled || false,
+      isFoundingPartner: vData?.isFoundingPartner || false,
     });
     setIsVenueSettingsOpen(true);
   };
@@ -314,16 +350,22 @@ export default function SolutionAdminPage() {
     if (!firestore || !selectedVenue) return;
     setIsProcessingSave(true);
     try {
-      await updateDoc(doc(firestore, 'venues', selectedVenue.id), {
-        patronConvenienceFee: data.patronConvenienceFee,
-        monthlySolutionFee: data.monthlySolutionFee,
+      // Update the legal Venue document
+      await setDoc(doc(firestore, 'venues', selectedVenue.id), {
+        ...data,
+        venueId: selectedVenue.id,
         updatedAt: serverTimestamp()
-      });
+      }, { merge: true });
+
+      // Update the operational Seller document
       await updateDoc(doc(firestore, 'sellers', selectedVenue.id), {
+        courseName: data.name,
         serviceFee: data.patronConvenienceFee / 100,
+        isFoundingPartner: data.isFoundingPartner,
         updatedAt: serverTimestamp()
       });
-      toast({ title: "Venue Settings Saved" });
+
+      toast({ title: "Venue Data Synchronized", description: "Business and operational records updated." });
       setIsVenueSettingsOpen(false);
     } catch (e: any) {
       toast({ variant: "destructive", title: "Update Failed", description: e.message });
@@ -390,7 +432,7 @@ export default function SolutionAdminPage() {
   );
 
   return (
-    <div className="flex flex-col h-screen bg-[#F8FAFC] text-left">
+    <div className="flex flex-col h-screen bg-[#F8FAFC] text-left overflow-x-auto">
       <header className="h-16 bg-white border-b-2 flex items-center justify-between px-8 shrink-0 z-30 shadow-sm relative text-left">
         <div className="flex items-center gap-4">
           <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
@@ -805,64 +847,170 @@ export default function SolutionAdminPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Venue Settings Dialog (Koop Admin Only) */}
+      {/* Venue Settings Dialog (Koop Admin Mastery) */}
       <Dialog open={isVenueSettingsOpen} onOpenChange={setIsVenueSettingsOpen}>
-        <DialogContent className="sm:max-w-[450px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
+        <DialogContent className="sm:max-w-[700px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
           <DialogHeader className="p-8 bg-[#213147] text-white text-left">
             <div className="flex items-center gap-4 text-left">
               <div className="bg-white/10 p-3 rounded-2xl shrink-0"><Settings className="h-6 w-6 text-primary" /></div>
               <div className="text-left">
-                <DialogTitle className="font-headline font-black uppercase tracking-tight text-white text-xl">Venue Controls</DialogTitle>
+                <DialogTitle className="font-headline font-black uppercase tracking-tight text-white text-xl">Establishment Master Control</DialogTitle>
                 <DialogDescription className="text-white/40 text-[10px] font-bold uppercase tracking-widest mt-1">{selectedVenue?.courseName}</DialogDescription>
               </div>
             </div>
           </DialogHeader>
-          <div className="p-8 text-left">
-            <Form {...venueSettingsForm}>
-              <form onSubmit={venueSettingsForm.handleSubmit(handleSaveVenueSettings)} className="space-y-6">
-                <div className="space-y-4">
-                  <FormField control={venueSettingsForm.control} name="patronConvenienceFee" render={({ field }) => (
-                    <FormItem className="text-left">
-                      <div className="flex items-center justify-between mb-1">
-                        <FormLabel className="text-[10px] font-black uppercase">Convenience Fee (Cents)</FormLabel>
-                        <Badge variant="outline" className="text-[8px] font-black border-primary/20 bg-primary/5 text-primary">KOOP REVENUE</Badge>
-                      </div>
-                      <FormControl>
-                        <div className="relative">
-                          <DollarSign className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                          <Input {...field} type="number" placeholder="150" className="pl-10 h-12 border-2 font-bold" />
+          <ScrollArea className="max-h-[75vh]">
+            <div className="p-8 text-left">
+              <Form {...venueSettingsForm}>
+                <form onSubmit={venueSettingsForm.handleSubmit(handleSaveVenueSettings)} className="space-y-10">
+                  
+                  {/* 1. IDENTITY & OWNERSHIP */}
+                  <div className="space-y-6">
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-primary flex items-center gap-2">
+                       <User className="h-3 w-3" /> Identity & Ownership
+                    </Label>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <FormField control={venueSettingsForm.control} name="name" render={({ field }) => (
+                        <FormItem className="text-left">
+                          <FormLabel className="text-[9px] font-black uppercase">Establishment Name</FormLabel>
+                          <FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl>
+                        </FormItem>
+                      )} />
+                      <FormField control={venueSettingsForm.control} name="ownerUid" render={({ field }) => (
+                        <FormItem className="text-left">
+                          <FormLabel className="text-[9px] font-black uppercase">Primary Owner (Auth UID)</FormLabel>
+                          <FormControl><Input {...field} className="h-11 border-2 font-bold font-mono text-xs" /></FormControl>
+                        </FormItem>
+                      )} />
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  {/* 2. PAYMENT GATEWAY */}
+                  <div className="space-y-6">
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-primary flex items-center gap-2">
+                       <CreditCard className="h-3 w-3" /> Stripe Express Integration
+                    </Label>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <FormField control={venueSettingsForm.control} name="stripeAccountId" render={({ field }) => (
+                        <FormItem className="text-left">
+                          <FormLabel className="text-[9px] font-black uppercase">Express Account ID</FormLabel>
+                          <FormControl><Input {...field} placeholder="acct_..." className="h-11 border-2 font-bold font-mono text-xs" /></FormControl>
+                        </FormItem>
+                      )} />
+                      <FormField control={venueSettingsForm.control} name="stripeConnectId" render={({ field }) => (
+                        <FormItem className="text-left">
+                          <FormLabel className="text-[9px] font-black uppercase">Connect ID</FormLabel>
+                          <FormControl><Input {...field} className="h-11 border-2 font-bold font-mono text-xs" /></FormControl>
+                        </FormItem>
+                      )} />
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                      <FormField control={venueSettingsForm.control} name="stripeOnboardingComplete" render={({ field }) => (
+                        <FormItem className="flex items-center justify-between p-3 rounded-xl border-2 bg-slate-50 space-y-0 h-12">
+                          <div className="flex items-center gap-2">
+                            <CheckCircle2 className={cn("h-4 w-4", field.value ? "text-green-600" : "text-slate-300")} />
+                            <FormLabel className="text-[9px] font-black uppercase">Onboarding</FormLabel>
+                          </div>
+                          <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                        </FormItem>
+                      )} />
+                      <FormField control={venueSettingsForm.control} name="payoutsEnabled" render={({ field }) => (
+                        <FormItem className="flex items-center justify-between p-3 rounded-xl border-2 bg-slate-50 space-y-0 h-12">
+                          <div className="flex items-center gap-2">
+                            <DollarSign className={cn("h-4 w-4", field.value ? "text-green-600" : "text-slate-300")} />
+                            <FormLabel className="text-[9px] font-black uppercase">Payouts</FormLabel>
+                          </div>
+                          <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                        </FormItem>
+                      )} />
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  {/* 3. FINANCIAL TERMS */}
+                  <div className="space-y-6">
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-primary flex items-center gap-2">
+                       <Banknote className="h-3 w-3" /> Commercial Terms
+                    </Label>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                       {/* PLATFORM REVENUE */}
+                       <div className="space-y-4">
+                         <p className="text-[9px] font-black uppercase text-indigo-600 px-1 border-b border-indigo-100 pb-1">Platform Revenue</p>
+                         <div className="grid grid-cols-1 gap-4">
+                            <FormField control={venueSettingsForm.control} name="patronConvenienceFee" render={({ field }) => (
+                              <FormItem className="text-left">
+                                <FormLabel className="text-[9px] font-black uppercase">Convenience Fee (Cents)</FormLabel>
+                                <FormControl><Input {...field} type="number" className="h-11 border-2 font-bold" /></FormControl>
+                                <FormDescription className="text-[8px] uppercase">Paid by patron per order.</FormDescription>
+                              </FormItem>
+                            )} />
+                            <FormField control={venueSettingsForm.control} name="monthlySolutionFee" render={({ field }) => (
+                              <FormItem className="text-left">
+                                <FormLabel className="text-[9px] font-black uppercase">SaaS Subscription ($)</FormLabel>
+                                <FormControl><Input {...field} type="number" className="h-11 border-2 font-bold" /></FormControl>
+                                <FormDescription className="text-[8px] uppercase">Monthly recurring venue cost.</FormDescription>
+                              </FormItem>
+                            )} />
+                         </div>
+                       </div>
+
+                       {/* TRANSACTION FEES */}
+                       <div className="space-y-4">
+                         <p className="text-[9px] font-black uppercase text-slate-400 px-1 border-b border-slate-100 pb-1">Solution Fee (Split)</p>
+                         <div className="grid grid-cols-1 gap-4">
+                            <FormField control={venueSettingsForm.control} name="solutionFeeFixed" render={({ field }) => (
+                              <FormItem className="text-left">
+                                <FormLabel className="text-[9px] font-black uppercase">Fixed Fee (Cents)</FormLabel>
+                                <FormControl><Input {...field} type="number" className="h-11 border-2 font-bold" /></FormControl>
+                              </FormItem>
+                            )} />
+                            <FormField control={venueSettingsForm.control} name="solutionFeePercent" render={({ field }) => (
+                              <FormItem className="text-left">
+                                <FormLabel className="text-[9px] font-black uppercase">Percentage Fee (%)</FormLabel>
+                                <FormControl>
+                                  <div className="relative">
+                                    <Percent className="absolute right-3 top-3 h-4 w-4 text-slate-300" />
+                                    <Input {...field} type="number" step="0.1" className="h-11 border-2 font-bold pr-10" />
+                                  </div>
+                                </FormControl>
+                              </FormItem>
+                            )} />
+                         </div>
+                       </div>
+                    </div>
+
+                    <FormField control={venueSettingsForm.control} name="isFoundingPartner" render={({ field }) => (
+                      <FormItem className="flex items-center justify-between p-4 rounded-2xl border-2 border-primary/20 bg-primary/5 space-y-0">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <Sparkles className="h-4 w-4 text-primary fill-primary/20" />
+                            <FormLabel className="text-[10px] font-black uppercase text-primary">Founding Partner Status</FormLabel>
+                          </div>
+                          <p className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">Grants lifetime badge and marketing benefits</p>
                         </div>
-                      </FormControl>
-                      <FormDescription className="text-[9px] uppercase font-bold">This is the per-order fee paid by the patron.</FormDescription>
-                    </FormItem>
-                  )} />
+                        <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                      </FormItem>
+                    )} />
+                  </div>
 
-                  <FormField control={venueSettingsForm.control} name="monthlySolutionFee" render={({ field }) => (
-                    <FormItem className="text-left">
-                      <FormLabel className="text-[10px] font-black uppercase">Monthly Subscription ($)</FormLabel>
-                      <FormControl>
-                        <div className="relative">
-                          <CreditCard className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                          <Input {...field} type="number" placeholder="0" className="pl-10 h-12 border-2 font-bold" />
-                        </div>
-                      </FormControl>
-                    </FormItem>
-                  )} />
-                </div>
+                  <div className="bg-amber-50 border-2 border-amber-100 p-4 rounded-2xl flex items-start gap-3">
+                    <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                    <p className="text-[9px] text-amber-800 font-bold uppercase leading-relaxed">
+                      Changes to these parameters take effect immediately across all active delivery channels. Ensure Stripe metadata is synced before modifying Account IDs.
+                    </p>
+                  </div>
 
-                <div className="bg-amber-50 border-2 border-amber-100 p-4 rounded-2xl flex items-start gap-3">
-                  <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
-                  <p className="text-[9px] text-amber-800 font-bold uppercase leading-relaxed">
-                    These settings are restricted to Koop Administrators. Venue managers cannot view or modify these financial terms.
-                  </p>
-                </div>
-
-                <Button type="submit" disabled={isProcessingSave} className="w-full h-14 bg-[#213147] font-black uppercase tracking-widest text-[11px] gap-2 shadow-xl">
-                  {isProcessingSave ? <Loader2 className="animate-spin" /> : <Save className="h-4 w-4" />} Apply Financial Terms
-                </Button>
-              </form>
-            </Form>
-          </div>
+                  <Button type="submit" disabled={isProcessingSave} className="w-full h-14 bg-[#213147] font-black uppercase tracking-widest text-[11px] gap-2 shadow-xl">
+                    {isProcessingSave ? <Loader2 className="animate-spin" /> : <Save className="h-4 w-4" />} Synchronize Master Registry
+                  </Button>
+                </form>
+              </Form>
+            </div>
+          </ScrollArea>
         </DialogContent>
       </Dialog>
     </div>
