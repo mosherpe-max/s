@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
+import Image from 'next/image';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { 
   Store, 
@@ -108,7 +109,6 @@ import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
-import { seedAllDemoData, seedGlobalStarterLibrary, seedGlobalStarterMenuLibrary, resetAllVenueOperationalStatus } from '@/lib/seed-data';
 import {
   Select,
   SelectContent,
@@ -484,6 +484,8 @@ export default function SolutionAdminPage() {
     if (!firestore) return;
     setIsInitializingLibrary(true);
     try {
+      // Import on demand to keep initial load fast
+      const { seedGlobalStarterLibrary, seedGlobalStarterMenuLibrary } = await import('@/lib/seed-data');
       await seedGlobalStarterLibrary(firestore);
       await seedGlobalStarterMenuLibrary(firestore);
       toast({ title: "Libraries Initialized", description: "All templates provisioned." });
@@ -497,6 +499,7 @@ export default function SolutionAdminPage() {
     if (!firestore) return;
     setIsResettingSystem(true);
     try {
+      const { resetAllVenueOperationalStatus } = await import('@/lib/seed-data');
       await resetAllVenueOperationalStatus(firestore);
       toast({ title: "System Reset Complete", description: "All operational statuses cleared." });
     } catch (e: any) {
@@ -696,6 +699,23 @@ export default function SolutionAdminPage() {
                         <div className="col-span-full py-20 text-center border-2 border-dashed rounded-3xl opacity-50 bg-slate-50"><UtensilsCrossed className="h-10 w-10 mx-auto mb-4 text-slate-300" /><p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Item Library Empty. Click Initialize All above.</p></div>
                       ) : filteredItemTemplates.map(item => (
                         <Card key={item.id} className="border-2 shadow-sm group hover:border-indigo-200 transition-all bg-white text-left relative overflow-hidden">
+                          {/* Image Preview Header */}
+                          <div className="relative aspect-video w-full bg-slate-100 border-b overflow-hidden">
+                            {item.imageUrl ? (
+                              <Image 
+                                src={item.imageUrl} 
+                                alt={item.name} 
+                                fill 
+                                className="object-cover transition-transform group-hover:scale-105"
+                                data-ai-hint={item.name}
+                              />
+                            ) : (
+                              <div className="flex items-center justify-center h-full text-slate-300">
+                                <LucideImage className="h-8 w-8" />
+                              </div>
+                            )}
+                          </div>
+                          
                           <CardHeader className="p-4 border-b bg-slate-50/50 flex flex-row items-center justify-between space-y-0">
                             <div className="space-y-1 text-left"><Badge className="h-4 px-1 text-[8px] font-black uppercase bg-[#213147] text-white border-0">{item.serviceMode}</Badge><p className="font-black text-xs uppercase text-[#213147] truncate">{item.name}</p></div>
                             <Button variant="ghost" size="icon" className="h-8 w-8 text-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => { setEditingItemTemplate(item); itemLibraryForm.reset(item); setIsItemLibraryFormOpen(true); }}>
@@ -730,7 +750,7 @@ export default function SolutionAdminPage() {
                         <h4 className="font-headline font-black text-xl uppercase">Full Demo Reseed</h4>
                         <p className="text-xs text-muted-foreground">Wipes and recreates all demo venues (demo-course, etc.) with factory-default items and modifiers.</p>
                       </div>
-                      <Button onClick={async () => { if(confirm('Wipe and reseed all demos?')){ await seedAllDemoData(firestore!); toast({ title: "Seed Complete" }); } }} variant="destructive" className="w-full h-14 font-black uppercase tracking-widest text-[11px] gap-2 shadow-xl">
+                      <Button onClick={async () => { if(confirm('Wipe and reseed all demos?')){ const { seedAllDemoData } = await import('@/lib/seed-data'); await seedAllDemoData(firestore!); toast({ title: "Seed Complete" }); } }} variant="destructive" className="w-full h-14 font-black uppercase tracking-widest text-[11px] gap-2 shadow-xl">
                         <Zap className="h-4 w-4" /> Reseed All Demo Venues
                       </Button>
                     </Card>
