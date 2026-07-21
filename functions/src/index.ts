@@ -84,40 +84,70 @@ export const applyStarterMenu = onCall({
   region: 'us-central1',
 }, async (request) => {
   const { venueId, venueType } = request.data;
-  if (!venueId || !venueType) throw new HttpsError('invalid-argument', 'venueId and venueType required.');
+  
+  if (!venueId || !venueType) {
+    throw new HttpsError('invalid-argument', 'venueId and venueType are required.');
+  }
 
-  const libraryRef = db.collection('starter_modifier_library');
-  const snapshot = await libraryRef.where('venueType', 'array-contains', venueType.toLowerCase()).get();
+  try {
+    const normalizedType = venueType.toLowerCase();
+    logger.info(`[applyStarterMenu] Provisioning modifiers for ${venueId} (Type: ${normalizedType})`);
 
-  if (snapshot.empty) return { totalCreated: 0 };
+    const libraryRef = db.collection('starter_modifier_library');
+    const snapshot = await libraryRef.where('venueType', 'array-contains', normalizedType).get();
 
-  const batch = db.batch();
-  const summary: Record<string, number> = {};
+    if (snapshot.empty) {
+      logger.warn(`[applyStarterMenu] No templates found in library for venue type: ${normalizedType}`);
+      return { totalCreated: 0, status: 'no_templates_found' };
+    }
 
-  snapshot.docs.forEach(docSnap => {
-    const template = docSnap.data();
-    const groupId = `${venueId}-${docSnap.id}`;
-    batch.set(db.collection('modifier_groups').doc(groupId), {
-      id: groupId,
-      sellerId: venueId,
-      name: template.name,
-      minSelection: template.required ? 1 : 0,
-      maxSelection: template.selectionType === 'single' ? 1 : 99,
-      options: template.options.map((opt: any) => ({
-        id: opt.label.toLowerCase().replace(/\s+/g, '-'),
-        name: opt.label,
-        priceAdjustment: opt.priceModifier || 0,
-        isAvailable: true
-      })),
-      createdAt: FieldValue.serverTimestamp(),
-      updatedAt: FieldValue.serverTimestamp()
+    const batch = db.batch();
+    const summary: Record<string, number> = {};
+
+    snapshot.docs.forEach(docSnap => {
+      const template = docSnap.data();
+      
+      // Safety check: skip if template is malformed
+      if (!template.name || !Array.isArray(template.options)) {
+        logger.warn(`[applyStarterMenu] Skipping malformed template: ${docSnap.id}`);
+        return;
+      }
+
+      const groupId = `${venueId}-${docSnap.id}`;
+      const groupRef = db.collection('modifier_groups').doc(groupId);
+
+      batch.set(groupRef, {
+        id: groupId,
+        sellerId: venueId,
+        name: template.name,
+        minSelection: template.required ? 1 : 0,
+        maxSelection: template.selectionType === 'single' ? 1 : 99,
+        options: template.options.map((opt: any) => ({
+          id: (opt.label || opt.name || 'option').toLowerCase().replace(/\s+/g, '-'),
+          name: opt.label || opt.name || 'Option',
+          priceAdjustment: opt.priceModifier || opt.priceAdjustment || 0,
+          isAvailable: true
+        })),
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp()
+      }, { merge: true });
+
+      const cat = template.category || 'universal';
+      summary[cat] = (summary[cat] || 0) + 1;
     });
-    const cat = template.category || 'universal';
-    summary[cat] = (summary[cat] || 0) + 1;
-  });
 
-  await batch.commit();
-  return { totalCreated: snapshot.size, byCategory: summary };
+    await batch.commit();
+    logger.info(`[applyStarterMenu] Successfully provisioned ${snapshot.size} modifier sets for ${venueId}`);
+    
+    return { 
+      totalCreated: snapshot.size, 
+      byCategory: summary,
+      status: 'success'
+    };
+  } catch (error: any) {
+    logger.error("[applyStarterMenu] Critical Failure:", error);
+    throw new HttpsError('internal', `Failed to provision starter modifiers: ${error.message}`);
+  }
 });
 
 /**
@@ -128,79 +158,113 @@ export const applyStarterItems = onCall({
   region: 'us-central1',
 }, async (request) => {
   const { venueId, venueType } = request.data;
-  if (!venueId || !venueType) throw new HttpsError('invalid-argument', 'venueId and venueType required.');
+  
+  if (!venueId || !venueType) {
+    throw new HttpsError('invalid-argument', 'venueId and venueType are required.');
+  }
 
-  // 1. Fetch library items for this venue type
-  const itemSnap = await db.collection('starter_menu_item_library').where('venueType', 'array-contains', venueType.toLowerCase()).get();
-  if (itemSnap.empty) return { totalCreated: 0 };
+  try {
+    const normalizedType = venueType.toLowerCase();
+    logger.info(`[applyStarterItems] Provisioning menu items for ${venueId} (Type: ${normalizedType})`);
 
-  // 2. Fetch active modifier groups for this venue to build name->ID mapping
-  const modSnap = await db.collection('modifier_groups').where('sellerId', '==', venueId).get();
-  const modMap: Record<string, string> = {};
-  modSnap.forEach(m => { modMap[m.data().name.toLowerCase()] = m.id; });
-
-  const batch = db.batch();
-  const venueItemsRef = db.collection('sellers').doc(venueId).collection('menuItems');
-
-  // Service mode mapping: library -> operational display name
-  const modeMap: Record<string, string> = {
-    beverageCart: "Beverage Cart",
-    clubhouse: "Clubhouse",
-    pool: "Pool",
-    laneService: "Lane Delivery",
-    takeout: "Take Out"
-  };
-
-  // Operational Category Mapping
-  const operationalCatMap: Record<string, string> = {
-    alcohol: "Beer",
-    beverage: "Soft Drinks",
-    food: "Handhelds"
-  };
-
-  itemSnap.docs.forEach((docSnap, index) => {
-    const template = docSnap.data();
-    const itemId = `${venueId}-${docSnap.id}`;
-    
-    // Resolve modifier IDs from suggested names
-    const linkedIds: string[] = [];
-    if (template.suggestedModifierGroups) {
-      template.suggestedModifierGroups.forEach((name: string) => {
-        if (modMap[name.toLowerCase()]) linkedIds.push(modMap[name.toLowerCase()]);
-      });
+    // 1. Fetch library items for this venue type
+    const itemSnap = await db.collection('starter_menu_item_library')
+      .where('venueType', 'array-contains', normalizedType)
+      .get();
+      
+    if (itemSnap.empty) {
+      logger.warn(`[applyStarterItems] No menu templates found in library for type: ${normalizedType}`);
+      return { totalCreated: 0, status: 'no_templates_found' };
     }
 
-    // Determine operational category
-    let opCat = template.category;
-    if (operationalCatMap[template.category]) {
-      opCat = operationalCatMap[template.category];
-      // Refining alcohol mapping
-      if (template.category === 'alcohol') {
-        const n = template.name.toLowerCase();
-        if (n.includes('wine') || n.includes('cocktail') || n.includes('whiskey')) opCat = "Spirits";
-      }
-    }
-
-    const mode = modeMap[template.serviceMode] || "Clubhouse";
-
-    batch.set(venueItemsRef.doc(itemId), {
-      id: itemId,
-      name: template.name,
-      description: template.description || "",
-      price: template.price,
-      category: opCat,
-      rank: template.sortOrder || index + 1,
-      imageUrl: template.imageUrl || "", // Persist high-fidelity imagery
-      isAvailable: true,
-      availableOn: [mode],
-      modifierGroupIds: Array.from(new Set(linkedIds)),
-      createdAt: FieldValue.serverTimestamp(),
-      updatedAt: FieldValue.serverTimestamp()
+    // 2. Fetch active modifier groups for this venue to build name->ID mapping
+    const modSnap = await db.collection('modifier_groups').where('sellerId', '==', venueId).get();
+    const modMap: Record<string, string> = {};
+    modSnap.forEach(m => { 
+      const name = m.data()?.name;
+      if (name) modMap[name.toLowerCase()] = m.id; 
     });
-  });
 
-  await batch.commit();
-  return { totalCreated: itemSnap.size };
+    const batch = db.batch();
+    const venueItemsRef = db.collection('sellers').doc(venueId).collection('menuItems');
+
+    // Service mode mapping: library -> operational display name
+    const modeMap: Record<string, string> = {
+      beverageCart: "Beverage Cart",
+      clubhouse: "Clubhouse",
+      pool: "Pool",
+      laneService: "Lane Delivery",
+      takeout: "Take Out"
+    };
+
+    // Operational Category Mapping
+    const operationalCatMap: Record<string, string> = {
+      alcohol: "Beer",
+      beverage: "Soft Drinks",
+      food: "Handhelds"
+    };
+
+    itemSnap.docs.forEach((docSnap, index) => {
+      const template = docSnap.data();
+      
+      // Safety check
+      if (!template.name) return;
+
+      const itemId = `${venueId}-${docSnap.id}`;
+      
+      // Resolve modifier IDs from suggested names
+      const linkedIds: string[] = [];
+      if (Array.isArray(template.suggestedModifierGroups)) {
+        template.suggestedModifierGroups.forEach((name: string) => {
+          const lowerName = name.toLowerCase();
+          if (modMap[lowerName]) {
+            linkedIds.push(modMap[lowerName]);
+          }
+        });
+      }
+
+      // Determine operational category
+      let opCat = template.category || "Other";
+      if (operationalCatMap[template.category]) {
+        opCat = operationalCatMap[template.category];
+        // Refining alcohol mapping
+        if (template.category === 'alcohol') {
+          const n = template.name.toLowerCase();
+          if (n.includes('wine') || n.includes('cocktail') || n.includes('whiskey')) {
+            opCat = "Spirits";
+          }
+        }
+      }
+
+      const mode = modeMap[template.serviceMode] || "Clubhouse";
+
+      batch.set(venueItemsRef.doc(itemId), {
+        id: itemId,
+        name: template.name,
+        description: template.description || "",
+        price: template.price || 0,
+        category: opCat,
+        rank: template.sortOrder || index + 1,
+        imageUrl: template.imageUrl || "", 
+        isAvailable: true,
+        availableOn: [mode],
+        modifierGroupIds: Array.from(new Set(linkedIds)),
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp()
+      }, { merge: true });
+    });
+
+    await batch.commit();
+    logger.info(`[applyStarterItems] Successfully provisioned ${itemSnap.size} menu items for ${venueId}`);
+    
+    return { 
+      totalCreated: itemSnap.size,
+      status: 'success'
+    };
+  } catch (error: any) {
+    logger.error("[applyStarterItems] Critical Failure:", error);
+    throw new HttpsError('internal', `Failed to provision menu items: ${error.message}`);
+  }
 });
 
 export const dailyOperationalReset = onSchedule({ schedule: "0 * * * *", timeZone: "America/New_York", region: 'us-central1' }, async () => {

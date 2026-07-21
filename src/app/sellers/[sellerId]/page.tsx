@@ -397,34 +397,58 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
   };
 
   const handleApplyStarterMenu = async () => {
-    if (!firebaseApp || !sellerId) return;
+    if (!firebaseApp || !sellerId || !seller) {
+      toast({ variant: "destructive", title: "Error", description: "Establishment data is still loading. Please try again." });
+      return;
+    }
+    
     setIsApplyingStarter(true);
     try {
-      const type = seller?.type?.toLowerCase().includes('bowling') ? 'bowling' : 'golf';
+      const type = seller.type?.toLowerCase().includes('bowling') ? 'bowling' : 'golf';
       const functions = getFunctions(firebaseApp, 'us-central1');
       const applyStarter = httpsCallable(functions, 'applyStarterMenu');
-      await applyStarter({ venueId: sellerId, venueType: type });
-      toast({ title: "Modifiers Provisioned" });
-      setIsStarterMenuConfirmOpen(false);
+      
+      const result = await applyStarter({ venueId: sellerId, venueType: type });
+      const data = result.data as { totalCreated: number; status: string };
+      
+      if (data.status === 'success') {
+        toast({ title: "Modifiers Provisioned", description: `Added ${data.totalCreated} modifier groups to your library.` });
+        setIsStarterMenuConfirmOpen(false);
+      } else {
+        throw new Error(data.status === 'no_templates_found' ? "No modifier templates found for your venue type." : "Unknown error occurred.");
+      }
     } catch (error: any) { 
-      toast({ variant: "destructive", title: "Setup Failed", description: error.message }); 
+      console.error("[VenueAdmin] applyStarterMenu error:", error);
+      toast({ variant: "destructive", title: "Setup Failed", description: error.message || "Failed to call provisioning function." }); 
     } finally { 
       setIsApplyingStarter(false); 
     }
   };
 
   const handleApplyStarterItems = async () => {
-    if (!firebaseApp || !sellerId) return;
+    if (!firebaseApp || !sellerId || !seller) {
+      toast({ variant: "destructive", title: "Error", description: "Establishment data is still loading. Please try again." });
+      return;
+    }
+    
     setIsApplyingStarterItems(true);
     try {
-      const type = seller?.type?.toLowerCase().includes('bowling') ? 'bowling' : 'golf';
+      const type = seller.type?.toLowerCase().includes('bowling') ? 'bowling' : 'golf';
       const functions = getFunctions(firebaseApp, 'us-central1');
       const applyItems = httpsCallable(functions, 'applyStarterItems');
-      await applyItems({ venueId: sellerId, venueType: type });
-      toast({ title: "Menu Items Provisioned" });
-      setIsStarterItemsConfirmOpen(false);
+      
+      const result = await applyItems({ venueId: sellerId, venueType: type });
+      const data = result.data as { totalCreated: number; status: string };
+      
+      if (data.status === 'success') {
+        toast({ title: "Menu Items Provisioned", description: `Cloned ${data.totalCreated} items to your catalog.` });
+        setIsStarterItemsConfirmOpen(false);
+      } else {
+        throw new Error(data.status === 'no_templates_found' ? "No menu templates found for your venue type." : "Unknown error occurred.");
+      }
     } catch (error: any) { 
-      toast({ variant: "destructive", title: "Setup Failed", description: error.message }); 
+      console.error("[VenueAdmin] applyStarterItems error:", error);
+      toast({ variant: "destructive", title: "Setup Failed", description: error.message || "Failed to call provisioning function." }); 
     } finally { 
       setIsApplyingStarterItems(false); 
     }
