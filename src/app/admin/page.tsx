@@ -31,7 +31,6 @@ import {
   Timer,
   Satellite,
   ShieldAlert,
-  Wand2,
   Settings,
   AlertTriangle,
   Sparkles,
@@ -56,7 +55,9 @@ import {
   User,
   Percent,
   CheckCircle2,
-  Banknote
+  Banknote,
+  Phone,
+  Home
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -134,6 +135,14 @@ type StarterModifierFormData = z.infer<typeof starterModifierSchema>;
 const venueSettingsSchema = z.object({
   name: z.string().min(2, 'Venue name required'),
   ownerUid: z.string().min(1, 'Owner UID required'),
+  type: z.string().min(1, 'Venue type required'),
+  streetAddress: z.string().min(1, 'Address required'),
+  city: z.string().min(1, 'City required'),
+  state: z.string().min(1, 'State required'),
+  zip: z.string().min(1, 'Zip required'),
+  contactName: z.string().min(1, 'Contact name required'),
+  contactPhone: z.string().min(1, 'Contact phone required'),
+  contactEmail: z.string().email('Valid contact email required'),
   stripeAccountId: z.string().optional().nullable(),
   stripeConnectId: z.string().optional().nullable(),
   solutionFeeFixed: z.coerce.number().min(0),
@@ -305,6 +314,14 @@ export default function SolutionAdminPage() {
     defaultValues: { 
       name: '', 
       ownerUid: '', 
+      type: 'Public Golf Course',
+      streetAddress: '',
+      city: '',
+      state: '',
+      zip: '',
+      contactName: '',
+      contactPhone: '',
+      contactEmail: '',
       stripeAccountId: '', 
       stripeConnectId: '', 
       solutionFeeFixed: 0, 
@@ -317,12 +334,6 @@ export default function SolutionAdminPage() {
     }
   });
 
-  useEffect(() => {
-    if (editingLibraryItem && isLibraryFormOpen) {
-      libraryForm.reset({ name: editingLibraryItem.name, venueType: editingLibraryItem.venueType, category: editingLibraryItem.category as any, selectionType: editingLibraryItem.selectionType, required: editingLibraryItem.required, sortOrder: editingLibraryItem.sortOrder, options: editingLibraryItem.options });
-    }
-  }, [editingLibraryItem, isLibraryFormOpen, libraryForm]);
-
   const handleEditVenueSettings = async (s: Seller) => {
     if (!firestore) return;
     setSelectedVenue(s);
@@ -334,15 +345,23 @@ export default function SolutionAdminPage() {
     venueSettingsForm.reset({
       name: vData?.name || s.courseName,
       ownerUid: vData?.ownerUid || '',
-      stripeAccountId: vData?.stripeAccountId || '',
+      type: s.type || 'Public Golf Course',
+      streetAddress: s.streetAddress || '',
+      city: s.city || '',
+      state: s.state || '',
+      zip: s.zip || '',
+      contactName: s.contactName || '',
+      contactPhone: s.contactPhone || '',
+      contactEmail: s.contactEmail || s.contactEmail || '',
+      stripeAccountId: vData?.stripeAccountId || s.stripeAccountId || '',
       stripeConnectId: vData?.stripeConnectId || '',
       solutionFeeFixed: vData?.solutionFeeFixed || 0,
       solutionFeePercent: vData?.solutionFeePercent || 0,
-      patronConvenienceFee: vData?.patronConvenienceFee || 150,
+      patronConvenienceFee: vData?.patronConvenienceFee || (s.serviceFee ? s.serviceFee * 100 : 150),
       monthlySolutionFee: vData?.monthlySolutionFee || 0,
-      stripeOnboardingComplete: vData?.stripeOnboardingComplete || false,
+      stripeOnboardingComplete: vData?.stripeOnboardingComplete || s.stripeOnboardingComplete || false,
       payoutsEnabled: vData?.payoutsEnabled || false,
-      isFoundingPartner: vData?.isFoundingPartner || false,
+      isFoundingPartner: vData?.isFoundingPartner || s.isFoundingPartner || false,
     });
     setIsVenueSettingsOpen(true);
   };
@@ -353,16 +372,36 @@ export default function SolutionAdminPage() {
     try {
       // Update the legal Venue document
       await setDoc(doc(firestore, 'venues', selectedVenue.id), {
-        ...data,
         venueId: selectedVenue.id,
+        name: data.name,
+        ownerUid: data.ownerUid,
+        stripeAccountId: data.stripeAccountId,
+        stripeConnectId: data.stripeConnectId,
+        solutionFeeFixed: data.solutionFeeFixed,
+        solutionFeePercent: data.solutionFeePercent,
+        patronConvenienceFee: data.patronConvenienceFee,
+        monthlySolutionFee: data.monthlySolutionFee,
+        stripeOnboardingComplete: data.stripeOnboardingComplete,
+        payoutsEnabled: data.payoutsEnabled,
+        isFoundingPartner: data.isFoundingPartner,
         updatedAt: serverTimestamp()
       }, { merge: true });
 
       // Update the operational Seller document
       await updateDoc(doc(firestore, 'sellers', selectedVenue.id), {
         courseName: data.name,
+        type: data.type,
+        streetAddress: data.streetAddress,
+        city: data.city,
+        state: data.state,
+        zip: data.zip,
+        contactName: data.contactName,
+        contactPhone: data.contactPhone,
+        contactEmail: data.contactEmail,
         serviceFee: data.patronConvenienceFee / 100,
         isFoundingPartner: data.isFoundingPartner,
+        stripeAccountId: data.stripeAccountId,
+        stripeOnboardingComplete: data.stripeOnboardingComplete,
         updatedAt: serverTimestamp()
       });
 
@@ -493,7 +532,7 @@ export default function SolutionAdminPage() {
                 <div className="space-y-8 animate-in fade-in duration-500">
                   <div className="flex justify-between items-center border-b-2 pb-6">
                      <h3 className="font-headline font-black text-2xl text-[#213147] uppercase">Establishment Registry</h3>
-                     <Button className="bg-indigo-600 font-black uppercase text-[10px] tracking-widest gap-2 shadow-xl">
+                     <Button className="bg-indigo-600 font-black uppercase text-[10px] tracking-widest gap-2 shadow-xl h-11 px-6">
                        <Plus className="h-4 w-4" /> Add Venue
                      </Button>
                   </div>
@@ -509,8 +548,8 @@ export default function SolutionAdminPage() {
                       </TableHeader>
                       <TableBody>
                         {venues?.map(v => (
-                          <TableRow key={v.id} className="group cursor-pointer">
-                            <TableCell className="px-6 py-4" onClick={() => router.push(`/sellers/${v.id}`)}>
+                          <TableRow key={v.id} className="group">
+                            <TableCell className="px-6 py-4">
                               <p className="font-black text-sm text-[#213147]">{v.courseName}</p>
                               <p className="text-[9px] font-bold text-muted-foreground uppercase">{v.city}, {v.state}</p>
                             </TableCell>
@@ -551,7 +590,7 @@ export default function SolutionAdminPage() {
                       <Button onClick={handleInitializeLibrary} disabled={isInitializingLibrary} variant="outline" className="bg-white border-2 border-indigo-100 font-black uppercase text-[10px] tracking-widest gap-2">
                         {isInitializingLibrary ? <Loader2 className="h-4 w-4 animate-spin" /> : <Database className="h-4 w-4 text-indigo-600" />} Initialize All
                       </Button>
-                      <Button onClick={() => { if (libraryTab === 'modifiers') { setEditingLibraryItem(null); libraryForm.reset(); setIsLibraryFormOpen(true); } }} className="bg-indigo-600 font-black uppercase text-[10px] tracking-widest gap-2 shadow-xl">
+                      <Button onClick={() => { if (libraryTab === 'modifiers') { setEditingLibraryItem(null); libraryForm.reset(); setIsLibraryFormOpen(true); } }} className="bg-indigo-600 font-black uppercase text-[10px] tracking-widest gap-2 shadow-xl h-11 px-6">
                         <Plus className="h-4 w-4" /> Add New {libraryTab === 'modifiers' ? 'Modifier' : 'Item'}
                       </Button>
                     </div>
@@ -920,7 +959,7 @@ export default function SolutionAdminPage() {
 
       {/* Venue Settings Dialog (Koop Admin Mastery) */}
       <Dialog open={isVenueSettingsOpen} onOpenChange={setIsVenueSettingsOpen}>
-        <DialogContent className="sm:max-w-[700px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
+        <DialogContent className="sm:max-w-[750px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
           <DialogHeader className="p-8 bg-[#213147] text-white text-left">
             <div className="flex items-center gap-4 text-left">
               <div className="bg-white/10 p-3 rounded-2xl shrink-0"><Settings className="h-6 w-6 text-primary" /></div>
@@ -930,7 +969,7 @@ export default function SolutionAdminPage() {
               </div>
             </div>
           </DialogHeader>
-          <ScrollArea className="max-h-[75vh]">
+          <ScrollArea className="max-h-[80vh]">
             <div className="p-8 text-left">
               <Form {...venueSettingsForm}>
                 <form onSubmit={venueSettingsForm.handleSubmit(handleSaveVenueSettings)} className="space-y-10">
@@ -958,7 +997,94 @@ export default function SolutionAdminPage() {
 
                   <Separator />
 
-                  {/* 2. PAYMENT GATEWAY */}
+                  {/* 2. LOGISTICS & CONTACT */}
+                  <div className="space-y-6">
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-primary flex items-center gap-2">
+                       <MapPin className="h-3 w-3" /> Establishment Logistics & Contact
+                    </Label>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <FormField control={venueSettingsForm.control} name="type" render={({ field }) => (
+                        <FormItem className="text-left">
+                          <FormLabel className="text-[9px] font-black uppercase">Venue Type</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger className="h-11 border-2 font-bold">
+                                <SelectValue />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="Public Golf Course">Public Golf Course</SelectItem>
+                              <SelectItem value="Private Golf Course">Private Golf Course</SelectItem>
+                              <SelectItem value="Semi Private Golf Course">Semi Private Golf Course</SelectItem>
+                              <SelectItem value="Bowling Center">Bowling Center</SelectItem>
+                              <SelectItem value="Brewery">Brewery</SelectItem>
+                              <SelectItem value="Restaurant">Restaurant</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </FormItem>
+                      )} />
+                      <FormField control={venueSettingsForm.control} name="streetAddress" render={({ field }) => (
+                        <FormItem className="text-left">
+                          <FormLabel className="text-[9px] font-black uppercase">Street Address</FormLabel>
+                          <div className="relative">
+                            <Home className="absolute left-3 top-3 h-4 w-4 text-slate-300" />
+                            <FormControl><Input {...field} className="pl-10 h-11 border-2 font-bold" /></FormControl>
+                          </div>
+                        </FormItem>
+                      )} />
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <FormField control={venueSettingsForm.control} name="city" render={({ field }) => (
+                        <FormItem className="text-left">
+                          <FormLabel className="text-[9px] font-black uppercase">City</FormLabel>
+                          <FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl>
+                        </FormItem>
+                      )} />
+                      <FormField control={venueSettingsForm.control} name="state" render={({ field }) => (
+                        <FormItem className="text-left">
+                          <FormLabel className="text-[9px] font-black uppercase">State (Code)</FormLabel>
+                          <FormControl><Input {...field} maxLength={2} placeholder="MI" className="h-11 border-2 font-bold uppercase text-center" /></FormControl>
+                        </FormItem>
+                      )} />
+                      <FormField control={venueSettingsForm.control} name="zip" render={({ field }) => (
+                        <FormItem className="text-left">
+                          <FormLabel className="text-[9px] font-black uppercase">Zip Code</FormLabel>
+                          <FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl>
+                        </FormItem>
+                      )} />
+                    </div>
+                    <Separator className="opacity-50" />
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <FormField control={venueSettingsForm.control} name="contactName" render={({ field }) => (
+                        <FormItem className="text-left">
+                          <FormLabel className="text-[9px] font-black uppercase">Contact Name</FormLabel>
+                          <FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl>
+                        </FormItem>
+                      )} />
+                      <FormField control={venueSettingsForm.control} name="contactPhone" render={({ field }) => (
+                        <FormItem className="text-left">
+                          <FormLabel className="text-[9px] font-black uppercase">Contact Phone</FormLabel>
+                          <div className="relative">
+                            <Phone className="absolute left-3 top-3 h-4 w-4 text-slate-300" />
+                            <FormControl><Input {...field} type="tel" className="pl-10 h-11 border-2 font-bold" /></FormControl>
+                          </div>
+                        </FormItem>
+                      )} />
+                      <FormField control={venueSettingsForm.control} name="contactEmail" render={({ field }) => (
+                        <FormItem className="text-left">
+                          <FormLabel className="text-[9px] font-black uppercase">Contact Email</FormLabel>
+                          <div className="relative">
+                            <Mail className="absolute left-3 top-3 h-4 w-4 text-slate-300" />
+                            <FormControl><Input {...field} type="email" className="pl-10 h-11 border-2 font-bold" /></FormControl>
+                          </div>
+                        </FormItem>
+                      )} />
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  {/* 3. PAYMENT GATEWAY */}
                   <div className="space-y-6">
                     <Label className="text-[10px] font-black uppercase tracking-widest text-primary flex items-center gap-2">
                        <CreditCard className="h-3 w-3" /> Stripe Express Integration
@@ -1001,7 +1127,7 @@ export default function SolutionAdminPage() {
 
                   <Separator />
 
-                  {/* 3. FINANCIAL TERMS */}
+                  {/* 4. FINANCIAL TERMS */}
                   <div className="space-y-6">
                     <Label className="text-[10px] font-black uppercase tracking-widest text-primary flex items-center gap-2">
                        <Banknote className="h-3 w-3" /> Commercial Terms
