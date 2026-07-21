@@ -93,6 +93,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { Switch } from '@/components/ui/switch';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { useRouter } from 'next/navigation';
 import { useFirestore, useCollection, useMemoFirebase, useAuth, useDoc, useUser } from '@/firebase';
 import { signOut } from 'firebase/auth';
