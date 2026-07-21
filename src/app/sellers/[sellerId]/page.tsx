@@ -171,12 +171,6 @@ const modifierGroupSchema = z.object({
 
 type ModifierGroupFormData = z.infer<typeof modifierGroupSchema>;
 
-const fulfillmentThresholdSchema = z.object({
-  maxOrderAcknowledgeSeconds: z.coerce.number().min(10),
-  warningOrderProcessingMinutes: z.coerce.number().min(1),
-  maxOrderProcessingMinutes: z.coerce.number().min(1),
-});
-
 // --- UI COMPONENTS ---
 
 function NavButton({ id, label, icon: Icon, active, onClick, sidebarOpen }: { 
@@ -386,6 +380,22 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
     toast({ title: editingItem ? "Item Updated" : "Item Added" });
   };
 
+  const onSaveModifierGroup = async (data: ModifierGroupFormData) => {
+    if (!firestore || !sellerId) return;
+    setIsProcessingSave(true);
+    const id = editingModifierGroup?.id || Math.random().toString(36).substr(2, 9);
+    await setDoc(doc(firestore, 'modifier_groups', id), { 
+      ...data, 
+      id, 
+      sellerId, 
+      updatedAt: serverTimestamp(),
+      createdAt: editingModifierGroup?.createdAt || serverTimestamp() 
+    }, { merge: true });
+    setIsModifierGroupFormOpen(false);
+    setIsProcessingSave(false);
+    toast({ title: editingModifierGroup ? "Modifier Updated" : "Modifier Added" });
+  };
+
   const handleApplyStarterMenu = async () => {
     if (!firebaseApp || !sellerId) return;
     setIsApplyingStarter(true);
@@ -396,7 +406,11 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
       await applyStarter({ venueId: sellerId, venueType: type });
       toast({ title: "Modifiers Provisioned" });
       setIsStarterMenuConfirmOpen(false);
-    } catch (error: any) { toast({ variant: "destructive", title: "Setup Failed", description: error.message }); } finally { setIsApplyingStarter(false); }
+    } catch (error: any) { 
+      toast({ variant: "destructive", title: "Setup Failed", description: error.message }); 
+    } finally { 
+      setIsApplyingStarter(false); 
+    }
   };
 
   const handleApplyStarterItems = async () => {
@@ -409,7 +423,11 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
       await applyItems({ venueId: sellerId, venueType: type });
       toast({ title: "Menu Items Provisioned" });
       setIsStarterItemsConfirmOpen(false);
-    } catch (error: any) { toast({ variant: "destructive", title: "Setup Failed", description: error.message }); } finally { setIsApplyingStarterItems(false); }
+    } catch (error: any) { 
+      toast({ variant: "destructive", title: "Setup Failed", description: error.message }); 
+    } finally { 
+      setIsApplyingStarterItems(false); 
+    }
   };
 
   const handleImpersonate = (mode: string) => {
@@ -597,7 +615,6 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                     <Card className="border-2 shadow-sm p-8 space-y-8 text-left h-fit"><div className="space-y-6"><h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2"><Building className="h-4 w-4" /> Core Identity</h4><div className="grid gap-6"><div className="space-y-2 text-left"><Label className="text-[10px] font-black uppercase">Official Establishment Name</Label><Input defaultValue={seller?.courseName} onChange={(e) => updateDoc(doc(firestore!, 'sellers', sellerId), { courseName: e.target.value })} className="h-12 border-2 font-bold" /></div><div className="grid grid-cols-2 gap-6"><div className="space-y-2 text-left"><Label className="text-[10px] font-black uppercase">Establishment Type</Label><Select defaultValue={seller?.type} onValueChange={(v) => updateDoc(doc(firestore!, 'sellers', sellerId), { type: v })}><SelectTrigger className="h-12 border-2 font-bold"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="Public Golf Course">Public Golf Course</SelectItem><SelectItem value="Private Golf Course">Private Golf Course</SelectItem><SelectItem value="Bowling Center">Bowling Center</SelectItem></SelectContent></Select></div><div className="space-y-2 text-left"><Label className="text-[10px] font-black uppercase">Current Status</Label><div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border-2 h-12"><Switch checked={seller?.status === 'Active'} onCheckedChange={(v) => updateDoc(doc(firestore!, 'sellers', sellerId), { status: v ? 'Active' : 'Inactive' })} /><span className="text-[10px] font-black uppercase">{seller?.status}</span></div></div></div><div className="space-y-2 text-left"><Label className="text-[10px] font-black uppercase">Tax Rate (%)</Label><Input type="number" defaultValue={seller?.taxRate} onChange={(e) => updateDoc(doc(firestore!, 'sellers', sellerId), { taxRate: parseFloat(e.target.value) })} className="h-12 border-2 font-bold" /></div></div></div><Separator /><div className="space-y-6"><h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2"><MapPin className="h-4 w-4" /> Logistics Base</h4><div className="space-y-2 text-left"><Label className="text-[10px] font-black uppercase">Street Address</Label><Input defaultValue={seller?.streetAddress} className="h-12 border-2 font-bold" /></div></div></Card>
 
-                    {/* FULFILLMENT THRESHOLDS (Dynamic by active modes) */}
                     <Card className="border-2 shadow-sm p-8 space-y-8 text-left h-fit">
                       <div className="flex items-center justify-between"><h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2"><HeartPulse className="h-4 w-4 text-primary" /> Fulfillment Thresholds</h4><Badge variant="outline" className="text-[8px] font-black border-primary/20 bg-primary/5 text-primary uppercase">Active Channels</Badge></div>
                       <div className="space-y-8">
@@ -632,11 +649,86 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
         </main>
       </div>
 
-      {/* Staff, Item, and Modifier Dialogs... */}
+      {/* Confirmation Dialogs */}
+      <Dialog open={isStarterMenuConfirmOpen} onOpenChange={setIsStarterMenuConfirmOpen}>
+        <DialogContent className="sm:max-w-[425px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
+          <DialogHeader className="p-8 bg-indigo-600 text-white text-left">
+            <DialogTitle className="font-headline font-black uppercase tracking-tight text-white text-xl">Apply Starter Set?</DialogTitle>
+            <DialogDescription className="text-white/60 text-[10px] font-bold uppercase tracking-widest mt-1">Industry-standard modifier library</DialogDescription>
+          </DialogHeader>
+          <div className="p-8 space-y-6">
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              This will provision common modifier groups like Doneness, Cheese options, and Drink Sizes based on your venue type.
+            </p>
+            <Button onClick={handleApplyStarterMenu} disabled={isApplyingStarter} className="w-full h-14 bg-indigo-600 font-black uppercase tracking-widest text-[11px] gap-2 shadow-xl">
+              {isApplyingStarter ? <Loader2 className="animate-spin" /> : <Sparkles className="h-4 w-4" />} Provision Modifiers Now
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isStarterItemsConfirmOpen} onOpenChange={setIsStarterItemsConfirmOpen}>
+        <DialogContent className="sm:max-w-[425px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
+          <DialogHeader className="p-8 bg-[#213147] text-white text-left">
+            <DialogTitle className="font-headline font-black uppercase tracking-tight text-white text-xl">Apply Starter Menu?</DialogTitle>
+            <DialogDescription className="text-white/60 text-[10px] font-bold uppercase tracking-widest mt-1">High-impact catalog provisioning</DialogDescription>
+          </DialogHeader>
+          <div className="p-8 space-y-6">
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Clone industry-standard products (Burgers, Hot Dogs, Specialty Drinks) directly to your menu, including high-fidelity imagery.
+            </p>
+            <Button onClick={handleApplyStarterItems} disabled={isApplyingStarterItems} className="w-full h-14 bg-[#213147] font-black uppercase tracking-widest text-[11px] gap-2 shadow-xl">
+              {isApplyingStarterItems ? <Loader2 className="animate-spin" /> : <Wand2 className="h-4 w-4 text-primary" />} Provision Menu Items
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Staff Form */}
       <Dialog open={isStaffFormOpen} onOpenChange={setIsStaffFormOpen}>
         <DialogContent className="sm:max-w-[425px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left"><DialogHeader className="p-8 bg-[#213147] text-white text-left"><DialogTitle className="font-headline font-black uppercase tracking-tight text-white text-xl">{editingStaff ? 'Edit Personnel' : 'Add Personnel'}</DialogTitle></DialogHeader><div className="p-8"><Form {...staffForm}><form onSubmit={staffForm.handleSubmit(onSaveStaff)} className="space-y-6"><FormField control={staffForm.control} name="name" render={({ field }) => (<FormItem className="text-left"><FormLabel className="text-[10px] font-black uppercase">Full Name</FormLabel><FormControl><Input {...field} className="h-12 border-2 font-bold" /></FormControl></FormItem>)} /><div className="grid grid-cols-2 gap-4"><FormField control={staffForm.control} name="role" render={({ field }) => (<FormItem className="text-left"><FormLabel className="text-[10px] font-black uppercase">Role</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger className="h-12 border-2 font-bold"><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="Staff">Fulfillment Staff</SelectItem><SelectItem value="Manager">Venue Manager</SelectItem></SelectContent></Select></FormItem>)} /><FormField control={staffForm.control} name="pin" render={({ field }) => (<FormItem className="text-left"><FormLabel className="text-[10px] font-black uppercase">4-Digit PIN</FormLabel><FormControl><Input {...field} maxLength={4} className="h-12 border-2 font-bold font-mono tracking-widest text-center" /></FormControl></FormItem>)} /></div><Button type="submit" disabled={isProcessingSave} className="w-full h-14 bg-indigo-600 font-black uppercase tracking-widest text-[11px] gap-2 shadow-xl">{isProcessingSave ? <Loader2 className="animate-spin" /> : <Save className="h-4 w-4" />} Save Personnel</Button></form></Form></div></DialogContent>
       </Dialog>
 
+      {/* Modifier Group Editor */}
+      <Dialog open={isModifierGroupFormOpen} onOpenChange={setIsModifierGroupFormOpen}>
+        <DialogContent className="sm:max-w-[600px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
+          <DialogHeader className="p-8 bg-indigo-600 text-white text-left">
+            <DialogTitle className="font-headline font-black uppercase tracking-tight text-white text-xl">{editingModifierGroup ? 'Edit Modifier Set' : 'Add Modifier Set'}</DialogTitle>
+          </DialogHeader>
+          <ScrollArea className="max-h-[70vh]">
+            <div className="p-8">
+              <Form {...modifierGroupForm}>
+                <form onSubmit={modifierGroupForm.handleSubmit(onSaveModifierGroup)} className="space-y-6">
+                  <FormField control={modifierGroupForm.control} name="name" render={({ field }) => (
+                    <FormItem className="text-left"><FormLabel className="text-[10px] font-black uppercase">Group Name</FormLabel><FormControl><Input {...field} className="h-12 border-2 font-bold" /></FormControl></FormItem>
+                  )} />
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField control={modifierGroupForm.control} name="minSelection" render={({ field }) => (
+                      <FormItem className="text-left"><FormLabel className="text-[10px] font-black uppercase">Min Selection</FormLabel><FormControl><Input type="number" {...field} className="h-12 border-2 font-bold" /></FormControl></FormItem>
+                    )} />
+                    <FormField control={modifierGroupForm.control} name="maxSelection" render={({ field }) => (
+                      <FormItem className="text-left"><FormLabel className="text-[10px] font-black uppercase">Max Selection</FormLabel><FormControl><Input type="number" {...field} className="h-12 border-2 font-bold" /></FormControl></FormItem>
+                    )} />
+                  </div>
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center px-1"><Label className="text-[10px] font-black uppercase text-indigo-600">Options</Label><Button type="button" variant="ghost" size="sm" onClick={() => appendOption({ id: Math.random().toString(36).substr(2, 9), name: '', priceAdjustment: 0, isAvailable: true })} className="text-[9px] font-black uppercase gap-1.5"><Plus className="h-3 w-3" /> Add Option</Button></div>
+                    {optionFields.map((field, index) => (
+                      <div key={field.id} className="flex gap-2 items-start bg-slate-50 p-3 rounded-xl border-2">
+                        <FormField control={modifierGroupForm.control} name={`options.${index}.name`} render={({ field }) => (<FormItem className="flex-1 text-left"><FormControl><Input {...field} placeholder="Option Name" className="h-10 border-2 font-bold bg-white" /></FormControl></FormItem>)} />
+                        <FormField control={modifierGroupForm.control} name={`options.${index}.priceAdjustment`} render={({ field }) => (<FormItem className="w-24 text-left"><FormControl><Input {...field} type="number" step="0.01" placeholder="$0.00" className="h-10 border-2 font-bold bg-white" /></FormControl></FormItem>)} />
+                        <Button type="button" variant="ghost" size="icon" onClick={() => removeOption(index)} className="h-10 w-10 text-muted-foreground hover:text-destructive"><X className="h-4 w-4" /></Button>
+                      </div>
+                    ))}
+                  </div>
+                  <Button type="submit" disabled={isProcessingSave} className="w-full h-14 bg-indigo-600 font-black uppercase tracking-widest text-[11px] gap-2 shadow-xl">{isProcessingSave ? <Loader2 className="animate-spin" /> : <Save className="h-4 w-4" />} Save Modifier Set</Button>
+                </form>
+              </Form>
+            </div>
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
+
+      {/* Item Form */}
       <Dialog open={isItemFormOpen} onOpenChange={setIsItemFormOpen}>
         <DialogContent className="sm:max-w-[600px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
           <DialogHeader className="p-8 bg-primary text-white text-left">
