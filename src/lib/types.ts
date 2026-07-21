@@ -16,6 +16,14 @@ export interface MapUpdateSettings {
   activeStages: string[];
 }
 
+export interface VenueHealthSettings {
+  maxOrderAcknowledgeSeconds: number;
+  warningOrderProcessingMinutes: number;
+  maxOrderProcessingMinutes: number;
+  warningManagerInactivityDays: number;
+  warningVenueInactivityDays: number;
+}
+
 export interface SolutionConfig {
   supportEmail: string;
   logoUrl?: string;
@@ -28,13 +36,7 @@ export interface SolutionConfig {
     warm: number;
     cold: number;
   };
-  venueHealthSettings?: {
-    maxOrderAcknowledgeSeconds: number;
-    warningOrderProcessingMinutes: number;
-    maxOrderProcessingMinutes: number;
-    warningManagerInactivityDays: number;
-    warningVenueInactivityDays: number;
-  };
+  venueHealthSettings?: VenueHealthSettings;
   enabledModes?: string[]; // Globally authorized modes by Koop Admin
   updatedAt: Timestamp;
 }
@@ -97,6 +99,7 @@ export interface Seller {
   clubhouseActive?: boolean;
   lanedeliveryActive?: boolean;
   lastActive?: Timestamp;
+  healthSettings?: VenueHealthSettings;
   orderThresholds?: Record<string, { warning: number; max: number }>;
   stripeAccountId?: string;
   stripeOnboardingComplete?: boolean;

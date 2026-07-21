@@ -64,7 +64,9 @@ import {
   Filter,
   X,
   Package,
-  Menu
+  Menu,
+  HeartPulse,
+  ClipboardCheck
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -72,7 +74,7 @@ import { Switch } from '@/components/ui/switch';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import {
   Select,
   SelectContent,
@@ -114,7 +116,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { categories } from '@/lib/types';
-import type { MenuItem, Seller, Order, StaffMember, ModifierGroup } from '@/lib/types';
+import type { MenuItem, Seller, Order, StaffMember, ModifierGroup, SolutionConfig } from '@/lib/types';
 import { signOut } from 'firebase/auth';
 import { 
   BarChart, 
@@ -166,6 +168,16 @@ const modifierGroupSchema = z.object({
 });
 
 type ModifierGroupFormData = z.infer<typeof modifierGroupSchema>;
+
+const healthSettingsSchema = z.object({
+  maxOrderAcknowledgeSeconds: z.coerce.number().min(10),
+  warningOrderProcessingMinutes: z.coerce.number().min(1),
+  maxOrderProcessingMinutes: z.coerce.number().min(1),
+  warningManagerInactivityDays: z.coerce.number().min(1),
+  warningVenueInactivityDays: z.coerce.number().min(1),
+});
+
+type HealthSettingsFormData = z.infer<typeof healthSettingsSchema>;
 
 // --- UI COMPONENTS ---
 
@@ -244,6 +256,9 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
   const sellerRef = useMemoFirebase(() => (firestore ? doc(firestore, 'sellers', sellerId) : null), [firestore, sellerId]);
   const { data: seller, isLoading: isSellerLoading } = useDoc<Seller>(sellerRef);
 
+  const configRef = useMemoFirebase(() => (firestore ? doc(firestore, 'solution', 'config') : null), [firestore]);
+  const { data: solutionConfig } = useDoc<SolutionConfig>(configRef);
+
   const menuItemsQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'sellers', sellerId, 'menuItems') : null), [firestore, sellerId]);
   const { data: menuItems } = useCollection<MenuItem>(menuItemsQuery);
 
@@ -253,10 +268,10 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
   const ordersQuery = useMemoFirebase(() => (firestore ? query(collection(firestore, 'orders'), where('sellerId', '==', sellerId)) : null), [firestore, sellerId]);
   const { data: orders } = useCollection<Order>(ordersQuery);
 
-  const staffQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'sellers', sellerId, 'staff') : null), [firestore, sellerId]);
-  const { data: staffList } = useCollection<StaffMember>(staffQuery);
+  const staffListQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'sellers', sellerId, 'staff') : null), [firestore, sellerId]);
+  const { data: staffList } = useCollection<StaffMember>(staffListQuery);
 
-  // --- ANALYTICS LOGIC (Focused on Net Sales, excluding Koop fees) ---
+  // --- ANALYTICS LOGIC ---
 
   const analyticsData = useMemo(() => {
     if (!orders) return { dailyRevenue: [], topItems: [], channelSplit: [] };
@@ -272,7 +287,6 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
       if (!o.createdAt || o.status === 'Cancelled') return;
       const key = format(o.createdAt.toDate(), 'MMM d');
       if (dailyMap.has(key)) {
-        // Use subtotal (Net Sales) instead of total (Gross with fees)
         dailyMap.set(key, dailyMap.get(key) + (o.subtotal || 0));
       }
     });
@@ -344,7 +358,75 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
     return [...list].sort((a, b) => (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0));
   }, [orders, orderSearchTerm, orderDateRange]);
 
-  // --- ACTIONS ---
+  // --- FORMS ---
+
+  const staffForm = useForm<StaffFormData>({ 
+    resolver: zodResolver(staffSchema), 
+    defaultValues: { name: '', role: 'Staff', pin: '', isActive: true } 
+  });
+
+  const itemForm = useForm<ItemFormData>({ 
+    resolver: zodResolver(itemSchema), 
+    defaultValues: { name: '', description: '', price: 0, category: 'Other', isAvailable: true, availableOn: [], featuredOn: [], modifierGroupIds: [] } 
+  });
+
+  const modifierGroupForm = useForm<ModifierGroupFormData>({ 
+    resolver: zodResolver(modifierGroupSchema), 
+    defaultValues: { name: '', minSelection: 0, maxSelection: 1, options: [{ id: Math.random().toString(36).substr(2, 9), name: '', priceAdjustment: 0, isAvailable: true }] } 
+  });
+
+  const { fields: optionFields, append: appendOption, remove: removeOption } = useFieldArray({ control: modifierGroupForm.control, name: "options" });
+
+  const healthSettingsForm = useForm<HealthSettingsFormData>({
+    resolver: zodResolver(healthSettingsSchema),
+    defaultValues: {
+      maxOrderAcknowledgeSeconds: 120,
+      warningOrderProcessingMinutes: 15,
+      maxOrderProcessingMinutes: 25,
+      warningManagerInactivityDays: 3,
+      warningVenueInactivityDays: 7
+    }
+  });
+
+  // Handle Initial Defaults for Health Settings from Global Config
+  useEffect(() => {
+    if (seller && solutionConfig?.venueHealthSettings) {
+      const existing = seller.healthSettings || solutionConfig.venueHealthSettings;
+      healthSettingsForm.reset({
+        maxOrderAcknowledgeSeconds: existing.maxOrderAcknowledgeSeconds,
+        warningOrderProcessingMinutes: existing.warningOrderProcessingMinutes,
+        maxOrderProcessingMinutes: existing.maxOrderProcessingMinutes,
+        warningManagerInactivityDays: existing.warningManagerInactivityDays,
+        warningVenueInactivityDays: existing.warningVenueInactivityDays
+      });
+    }
+  }, [seller, solutionConfig, healthSettingsForm]);
+
+  const onSaveHealthSettings = async (data: HealthSettingsFormData) => {
+    if (!firestore || !sellerId) return;
+    setIsProcessingSave(true);
+    try {
+      await updateDoc(doc(firestore, 'sellers', sellerId), {
+        healthSettings: data,
+        updatedAt: serverTimestamp()
+      });
+      toast({ title: "Thresholds Updated", description: "Establishment health settings saved successfully." });
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Save Failed", description: e.message });
+    } finally {
+      setIsProcessingSave(false);
+    }
+  };
+
+  const onSaveStaff = async (data: StaffFormData) => {
+    if (!firestore || !sellerId) return;
+    setIsProcessingSave(true);
+    const id = editingStaff?.id || Math.random().toString(36).substr(2, 9);
+    await setDoc(doc(firestore, 'sellers', sellerId, 'staff', id), { ...data, id, createdAt: editingStaff?.createdAt || serverTimestamp() }, { merge: true });
+    setIsStaffFormOpen(false);
+    setIsProcessingSave(false);
+    toast({ title: editingStaff ? "Staff Updated" : "Staff Added" });
+  };
 
   const handleApplyStarterMenu = async () => {
     if (!firebaseApp || !sellerId) return;
@@ -390,35 +472,6 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
   };
 
   const handleLogout = async () => { if (!auth) return; await signOut(auth); router.push('/login'); };
-
-  // --- FORMS ---
-
-  const staffForm = useForm<StaffFormData>({ 
-    resolver: zodResolver(staffSchema), 
-    defaultValues: { name: '', role: 'Staff', pin: '', isActive: true } 
-  });
-
-  const itemForm = useForm<ItemFormData>({ 
-    resolver: zodResolver(itemSchema), 
-    defaultValues: { name: '', description: '', price: 0, category: 'Other', isAvailable: true, availableOn: [], featuredOn: [], modifierGroupIds: [] } 
-  });
-
-  const modifierGroupForm = useForm<ModifierGroupFormData>({ 
-    resolver: zodResolver(modifierGroupSchema), 
-    defaultValues: { name: '', minSelection: 0, maxSelection: 1, options: [{ id: Math.random().toString(36).substr(2, 9), name: '', priceAdjustment: 0, isAvailable: true }] } 
-  });
-
-  const { fields: optionFields, append: appendOption, remove: removeOption } = useFieldArray({ control: modifierGroupForm.control, name: "options" });
-
-  const onSaveStaff = async (data: StaffFormData) => {
-    if (!firestore || !sellerId) return;
-    setIsProcessingSave(true);
-    const id = editingStaff?.id || Math.random().toString(36).substr(2, 9);
-    await setDoc(doc(firestore, 'sellers', sellerId, 'staff', id), { ...data, id, createdAt: editingStaff?.createdAt || serverTimestamp() }, { merge: true });
-    setIsStaffFormOpen(false);
-    setIsProcessingSave(false);
-    toast({ title: editingStaff ? "Staff Updated" : "Staff Added" });
-  };
 
   const NAV_ITEMS = [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -524,7 +577,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                     </CardHeader>
                     <CardContent className="p-8">
                       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-                        {['Beverage Cart', 'Clubhouse', 'Lane Delivery'].filter(m => seller?.menuTypes?.includes(m)).map(mode => {
+                        {['Beverage Cart', 'Clubhouse', 'Lane Delivery'].filter(mode => seller?.menuTypes?.includes(mode)).map(mode => {
                           const fieldMap: any = { 'Beverage Cart': 'bevcartActive', 'Clubhouse': 'clubhouseActive', 'Lane Delivery': 'lanedeliveryActive' };
                           const isActive = !!(seller as any)?.[fieldMap[mode]];
                           return (
@@ -675,14 +728,137 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
 
               {activeNav === 'settings' && (
                 <div className="space-y-8 animate-in fade-in duration-500">
-                  <div className="flex justify-between items-center border-b-2 pb-6"><h3 className="font-headline font-black text-2xl text-[#213147] uppercase">Establishment Settings</h3><Button onClick={() => { if (seller) { updateDoc(doc(firestore!, 'sellers', sellerId), { updatedAt: serverTimestamp() }).then(() => toast({ title: "Settings Updated" })); } }} className="bg-primary h-12 px-6 font-black uppercase text-[10px] shadow-xl"><Save className="h-4 w-4" /> Save All Changes</Button></div>
+                  <div className="flex justify-between items-center border-b-2 pb-6">
+                    <div className="space-y-1">
+                      <h3 className="font-headline font-black text-2xl text-[#213147] uppercase">Establishment Settings</h3>
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Configuration and fulfillment thresholds</p>
+                    </div>
+                  </div>
+
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    <Card className="border-2 shadow-sm p-8 space-y-8 text-left">
-                       <div className="space-y-6"><h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2"><Building className="h-4 w-4" /> Core Identity</h4><div className="grid gap-6"><div className="space-y-2 text-left"><Label className="text-[10px] font-black uppercase">Official Establishment Name</Label><Input defaultValue={seller?.courseName} onChange={(e) => updateDoc(doc(firestore!, 'sellers', sellerId), { courseName: e.target.value })} className="h-12 border-2 font-bold" /></div><div className="grid grid-cols-2 gap-6"><div className="space-y-2 text-left"><Label className="text-[10px] font-black uppercase">Establishment Type</Label><Select defaultValue={seller?.type} onValueChange={(v) => updateDoc(doc(firestore!, 'sellers', sellerId), { type: v })}><SelectTrigger className="h-12 border-2 font-bold"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="Public Golf Course">Public Golf Course</SelectItem><SelectItem value="Private Golf Course">Private Golf Course</SelectItem><SelectItem value="Bowling Center">Bowling Center</SelectItem></SelectContent></Select></div><div className="space-y-2 text-left"><Label className="text-[10px] font-black uppercase">Current Status</Label><div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border-2 h-12"><Switch checked={seller?.status === 'Active'} onCheckedChange={(v) => updateDoc(doc(firestore!, 'sellers', sellerId), { status: v ? 'Active' : 'Inactive' })} /><span className="text-[10px] font-black uppercase">{seller?.status}</span></div></div></div></div></div>
-                       <Separator /><div className="space-y-6"><h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2"><MapPin className="h-4 w-4" /> Logistics Base</h4><div className="space-y-2 text-left"><Label className="text-[10px] font-black uppercase">Street Address</Label><Input defaultValue={seller?.streetAddress} className="h-12 border-2 font-bold" /></div></div>
+                    {/* CORE IDENTITY */}
+                    <Card className="border-2 shadow-sm p-8 space-y-8 text-left h-fit">
+                       <div className="space-y-6">
+                         <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2"><Building className="h-4 w-4" /> Core Identity</h4>
+                         <div className="grid gap-6">
+                           <div className="space-y-2 text-left">
+                             <Label className="text-[10px] font-black uppercase">Official Establishment Name</Label>
+                             <Input 
+                               defaultValue={seller?.courseName} 
+                               onChange={(e) => updateDoc(doc(firestore!, 'sellers', sellerId), { courseName: e.target.value })} 
+                               className="h-12 border-2 font-bold" 
+                             />
+                           </div>
+                           <div className="grid grid-cols-2 gap-6">
+                             <div className="space-y-2 text-left">
+                               <Label className="text-[10px] font-black uppercase">Establishment Type</Label>
+                               <Select defaultValue={seller?.type} onValueChange={(v) => updateDoc(doc(firestore!, 'sellers', sellerId), { type: v })}>
+                                 <SelectTrigger className="h-12 border-2 font-bold"><SelectValue /></SelectTrigger>
+                                 <SelectContent>
+                                   <SelectItem value="Public Golf Course">Public Golf Course</SelectItem>
+                                   <SelectItem value="Private Golf Course">Private Golf Course</SelectItem>
+                                   <SelectItem value="Bowling Center">Bowling Center</SelectItem>
+                                 </SelectContent>
+                               </Select>
+                             </div>
+                             <div className="space-y-2 text-left">
+                               <Label className="text-[10px] font-black uppercase">Current Status</Label>
+                               <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border-2 h-12">
+                                 <Switch checked={seller?.status === 'Active'} onCheckedChange={(v) => updateDoc(doc(firestore!, 'sellers', sellerId), { status: v ? 'Active' : 'Inactive' })} />
+                                 <span className="text-[10px] font-black uppercase">{seller?.status}</span>
+                               </div>
+                             </div>
+                           </div>
+                           <div className="space-y-2 text-left">
+                             <Label className="text-[10px] font-black uppercase">Tax Rate (%)</Label>
+                             <Input 
+                               type="number" 
+                               defaultValue={seller?.taxRate} 
+                               onChange={(e) => updateDoc(doc(firestore!, 'sellers', sellerId), { taxRate: parseFloat(e.target.value) })} 
+                               className="h-12 border-2 font-bold" 
+                             />
+                           </div>
+                         </div>
+                       </div>
+                       
+                       <Separator />
+                       
+                       <div className="space-y-6">
+                         <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2"><MapPin className="h-4 w-4" /> Logistics Base</h4>
+                         <div className="space-y-2 text-left">
+                           <Label className="text-[10px] font-black uppercase">Street Address</Label>
+                           <Input defaultValue={seller?.streetAddress} className="h-12 border-2 font-bold" />
+                         </div>
+                       </div>
                     </Card>
+
+                    {/* HEALTH & THRESHOLDS (Venue Overrides) */}
                     <Card className="border-2 shadow-sm p-8 space-y-8 text-left">
-                       <div className="space-y-6"><h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2"><DollarSign className="h-4 w-4" /> Financials & Payouts</h4><div className="grid grid-cols-1 gap-6"><div className="space-y-2 text-left"><Label className="text-[10px] font-black uppercase">Tax Rate (%)</Label><Input type="number" defaultValue={seller?.taxRate} onChange={(e) => updateDoc(doc(firestore!, 'sellers', sellerId), { taxRate: parseFloat(e.target.value) })} className="h-12 border-2 font-bold" /></div></div><div className="p-6 bg-slate-50 border-2 rounded-2xl flex items-center justify-between gap-6"><div className="space-y-1 text-left"><p className="text-[11px] font-black uppercase text-[#213147]">Stripe Connect Status</p><p className="text-[9px] font-bold text-muted-foreground uppercase leading-relaxed">Integrated for distribution</p></div><Badge className="bg-green-100 text-green-700 font-black border-0 px-3 py-1">Verified</Badge></div><div className="bg-muted/30 p-4 rounded-xl border border-dashed text-center"><p className="text-[8px] font-bold text-muted-foreground uppercase leading-relaxed">Platform convenience fees are managed exclusively by Koop Administrators.</p></div></div>
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
+                          <HeartPulse className="h-4 w-4 text-primary" /> Fulfillment & Activity Thresholds
+                        </h4>
+                        <Badge variant="outline" className="text-[8px] font-black border-primary/20 bg-primary/5 text-primary">VENUE OVERRIDES</Badge>
+                      </div>
+
+                      <Form {...healthSettingsForm}>
+                        <form onSubmit={healthSettingsForm.handleSubmit(onSaveHealthSettings)} className="space-y-8">
+                          <div className="space-y-4">
+                            <div className="flex items-center gap-2 px-1">
+                              <ClipboardCheck className="h-3 w-3 text-[#213147]" />
+                              <span className="text-[9px] font-black uppercase tracking-widest text-[#213147]">Order Fulfillment</span>
+                            </div>
+                            <div className="grid gap-4 bg-slate-50 p-6 rounded-[2rem] border-2">
+                              <FormField control={healthSettingsForm.control} name="maxOrderAcknowledgeSeconds" render={({ field }) => (
+                                <FormItem className="text-left">
+                                  <FormLabel className="text-[9px] font-black uppercase text-muted-foreground">Ack Window (Seconds)</FormLabel>
+                                  <FormControl><Input type="number" {...field} className="h-10 border-2 font-bold bg-white" /></FormControl>
+                                  <FormDescription className="text-[8px] font-bold uppercase">Time staff has to accept a new ticket.</FormDescription>
+                                </FormItem>
+                              )} />
+                              <div className="grid grid-cols-2 gap-4">
+                                <FormField control={healthSettingsForm.control} name="warningOrderProcessingMinutes" render={({ field }) => (
+                                  <FormItem className="text-left">
+                                    <FormLabel className="text-[9px] font-black uppercase text-muted-foreground">Duration Warning (Min)</FormLabel>
+                                    <FormControl><Input type="number" {...field} className="h-10 border-2 font-bold bg-white" /></FormControl>
+                                  </FormItem>
+                                )} />
+                                <FormField control={healthSettingsForm.control} name="maxOrderProcessingMinutes" render={({ field }) => (
+                                  <FormItem className="text-left">
+                                    <FormLabel className="text-[9px] font-black uppercase text-muted-foreground">Duration Max (Min)</FormLabel>
+                                    <FormControl><Input type="number" {...field} className="h-10 border-2 font-bold bg-white" /></FormControl>
+                                  </FormItem>
+                                )} />
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="space-y-4">
+                            <div className="flex items-center gap-2 px-1">
+                              <Users className="h-3 w-3 text-[#213147]" />
+                              <span className="text-[9px] font-black uppercase tracking-widest text-[#213147]">Activity Monitoring</span>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4 bg-slate-50 p-6 rounded-[2rem] border-2">
+                              <FormField control={healthSettingsForm.control} name="warningManagerInactivityDays" render={({ field }) => (
+                                <FormItem className="text-left">
+                                  <FormLabel className="text-[9px] font-black uppercase text-muted-foreground">Mgr Inactivity (Days)</FormLabel>
+                                  <FormControl><Input type="number" {...field} className="h-10 border-2 font-bold bg-white" /></FormControl>
+                                </FormItem>
+                              )} />
+                              <FormField control={healthSettingsForm.control} name="warningVenueInactivityDays" render={({ field }) => (
+                                <FormItem className="text-left">
+                                  <FormLabel className="text-[9px] font-black uppercase text-muted-foreground">Venue Inactivity (Days)</FormLabel>
+                                  <FormControl><Input type="number" {...field} className="h-10 border-2 font-bold bg-white" /></FormControl>
+                                </FormItem>
+                              )} />
+                            </div>
+                          </div>
+
+                          <Button type="submit" disabled={isProcessingSave} className="w-full h-14 bg-[#213147] font-black uppercase tracking-widest text-[10px] gap-2 shadow-xl">
+                            {isProcessingSave ? <Loader2 className="animate-spin" /> : <Save className="h-4 w-4" />} Save Fulfillment Rules
+                          </Button>
+                        </form>
+                      </Form>
                     </Card>
                   </div>
                 </div>

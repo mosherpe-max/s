@@ -8,8 +8,16 @@ import {
   where,
   Firestore
 } from 'firebase/firestore';
-import type { ModifierGroup, MenuItem, StarterModifierGroup, StarterMenuItem } from './types';
+import type { ModifierGroup, MenuItem, StarterModifierGroup, StarterMenuItem, VenueHealthSettings } from './types';
 import { publicGolfItems, privateGolfItems, bowlingAlleyItems } from './data';
+
+const DEFAULT_HEALTH_SETTINGS: VenueHealthSettings = {
+  maxOrderAcknowledgeSeconds: 120,
+  warningOrderProcessingMinutes: 15,
+  maxOrderProcessingMinutes: 25,
+  warningManagerInactivityDays: 3,
+  warningVenueInactivityDays: 7
+};
 
 /**
  * Master library definition for the starter modifier system.
@@ -186,7 +194,16 @@ export async function resetAllVenueOperationalStatus(db: Firestore) {
   const snapshot = await getDocs(sellersRef);
   const batch = writeBatch(db);
   for (const sellerDoc of snapshot.docs) {
-    batch.update(sellerDoc.ref, { bevcartActive: false, clubhouseActive: false, lanedeliveryActive: false, latitude: 0, longitude: 0, lastActive: null, updatedAt: serverTimestamp() });
+    batch.update(sellerDoc.ref, { 
+      bevcartActive: false, 
+      clubhouseActive: false, 
+      lanedeliveryActive: false, 
+      latitude: 0, 
+      longitude: 0, 
+      lastActive: null, 
+      healthSettings: DEFAULT_HEALTH_SETTINGS,
+      updatedAt: serverTimestamp() 
+    });
     const staffRef = collection(db, 'sellers', sellerDoc.id, 'staff');
     const staffSnap = await getDocs(staffRef);
     staffSnap.forEach(sDoc => batch.update(sDoc.ref, { latitude: null, longitude: null, lastActive: null }));
