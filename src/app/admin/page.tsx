@@ -116,6 +116,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Checkbox } from '@/components/ui/checkbox';
 
 const US_STATES = [
   { code: 'AL', name: 'Alabama' }, { code: 'AK', name: 'Alaska' }, { code: 'AZ', name: 'Arizona' },
@@ -151,6 +152,20 @@ const starterModifierSchema = z.object({
 });
 
 type StarterModifierFormData = z.infer<typeof starterModifierSchema>;
+
+const starterMenuItemSchema = z.object({
+  name: z.string().min(2, 'Item name required'),
+  description: z.string().default(''),
+  price: z.coerce.number().min(0),
+  category: z.string().min(1, 'Category required'),
+  venueType: z.array(z.string()).min(1, 'Select at least one venue type'),
+  serviceMode: z.enum(['beverageCart', 'clubhouse', 'pool', 'laneService', 'takeout']),
+  suggestedModifierGroups: z.array(z.string()).default([]),
+  sortOrder: z.coerce.number().default(0),
+  imageUrl: z.string().default(''),
+});
+
+type StarterMenuItemFormData = z.infer<typeof starterMenuItemSchema>;
 
 const venueSettingsSchema = z.object({
   name: z.string().min(2, 'Venue name required'),
@@ -233,7 +248,9 @@ export default function SolutionAdminPage() {
   
   const [libraryTab, setLibraryTab] = useState<'modifiers' | 'items'>('modifiers');
   const [isLibraryFormOpen, setIsLibraryFormOpen] = useState(false);
+  const [isItemLibraryFormOpen, setIsItemLibraryFormOpen] = useState(false);
   const [editingLibraryItem, setEditingLibraryItem] = useState<StarterModifierGroup | null>(null);
+  const [editingItemTemplate, setEditingItemTemplate] = useState<StarterMenuItem | null>(null);
 
   const [isVenueSettingsOpen, setIsVenueSettingsOpen] = useState(false);
   const [selectedVenue, setSelectedVenue] = useState<Seller | null>(null);
@@ -328,6 +345,11 @@ export default function SolutionAdminPage() {
   });
 
   const { fields: optionFields, append: appendOption, remove: removeOption } = useFieldArray({ control: libraryForm.control, name: "options" });
+
+  const itemLibraryForm = useForm<StarterMenuItemFormData>({
+    resolver: zodResolver(starterMenuItemSchema),
+    defaultValues: { name: '', description: '', price: 0, category: 'food', venueType: ['golf'], serviceMode: 'beverageCart', suggestedModifierGroups: [], sortOrder: 0, imageUrl: '' }
+  });
 
   const venueSettingsForm = useForm<VenueSettingsFormData>({
     resolver: zodResolver(venueSettingsSchema),
@@ -438,7 +460,24 @@ export default function SolutionAdminPage() {
     if (!firestore) return;
     setIsProcessingSave(true);
     const id = editingLibraryItem?.id || data.name.toLowerCase().replace(/[^a-z0-9]/g, '-');
-    setDoc(doc(firestore, 'starter_modifier_library', id), data, { merge: true }).then(() => { toast({ title: "Template Saved" }); setIsLibraryFormOpen(false); }).finally(() => setIsProcessingSave(false));
+    setDoc(doc(firestore, 'starter_modifier_library', id), data, { merge: true })
+      .then(() => { 
+        toast({ title: "Template Saved" }); 
+        setIsLibraryFormOpen(false); 
+      })
+      .finally(() => setIsProcessingSave(false));
+  };
+
+  const handleSaveMenuItemTemplate = async (data: StarterMenuItemFormData) => {
+    if (!firestore) return;
+    setIsProcessingSave(true);
+    const id = editingItemTemplate?.id || `${data.name.toLowerCase().replace(/[^a-z0-9]/g, '-')}-${data.serviceMode}`;
+    setDoc(doc(firestore, 'starter_menu_item_library', id), data, { merge: true })
+      .then(() => { 
+        toast({ title: "Menu Template Saved" }); 
+        setIsItemLibraryFormOpen(false); 
+      })
+      .finally(() => setIsProcessingSave(false));
   };
 
   const handleInitializeLibrary = async () => {
@@ -610,7 +649,17 @@ export default function SolutionAdminPage() {
                       <Button onClick={handleInitializeLibrary} disabled={isInitializingLibrary} variant="outline" className="bg-white border-2 border-indigo-100 font-black uppercase text-[10px] tracking-widest gap-2">
                         {isInitializingLibrary ? <Loader2 className="h-4 w-4 animate-spin" /> : <Database className="h-4 w-4 text-indigo-600" />} Initialize All
                       </Button>
-                      <Button onClick={() => { if (libraryTab === 'modifiers') { setEditingLibraryItem(null); libraryForm.reset(); setIsLibraryFormOpen(true); } }} className="bg-indigo-600 font-black uppercase text-[10px] tracking-widest gap-2 shadow-xl h-11 px-6">
+                      <Button onClick={() => { 
+                        if (libraryTab === 'modifiers') { 
+                          setEditingLibraryItem(null); 
+                          libraryForm.reset({ name: '', venueType: ['golf', 'bowling'], category: 'food', selectionType: 'single', required: false, sortOrder: 0, options: [{ label: '', priceModifier: 0 }] }); 
+                          setIsLibraryFormOpen(true); 
+                        } else {
+                          setEditingItemTemplate(null);
+                          itemLibraryForm.reset({ name: '', description: '', price: 0, category: 'food', venueType: ['golf'], serviceMode: 'beverageCart', suggestedModifierGroups: [], sortOrder: 0, imageUrl: '' });
+                          setIsItemLibraryFormOpen(true);
+                        }
+                      }} className="bg-indigo-600 font-black uppercase text-[10px] tracking-widest gap-2 shadow-xl h-11 px-6">
                         <Plus className="h-4 w-4" /> Add New {libraryTab === 'modifiers' ? 'Modifier' : 'Item'}
                       </Button>
                     </div>
@@ -618,8 +667,14 @@ export default function SolutionAdminPage() {
 
                   <Tabs value={libraryTab} onValueChange={(v: any) => setLibraryTab(v)} className="space-y-6">
                     <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
-                      <TabsList className="bg-slate-100 p-1 rounded-xl h-11"><TabsTrigger value="modifiers" className="text-[10px] font-black uppercase tracking-widest px-8">Modifier Sets</TabsTrigger><TabsTrigger value="items" className="text-[10px] font-black uppercase tracking-widest px-8">Menu Items</TabsTrigger></TabsList>
-                      <div className="flex bg-white p-2 px-3 rounded-xl border-2 shadow-sm gap-3 items-center w-full max-sm:max-w-none max-w-sm"><Search className="h-4 w-4 text-muted-foreground shrink-0" /><Input placeholder="Search library..." value={librarySearchTerm} onChange={(e) => setLibrarySearchTerm(e.target.value)} className="border-0 shadow-none text-xs font-medium p-0 h-auto" /></div>
+                      <TabsList className="bg-slate-100 p-1 rounded-xl h-11">
+                        <TabsTrigger value="modifiers" className="text-[10px] font-black uppercase tracking-widest px-8">Modifier Sets</TabsTrigger>
+                        <TabsTrigger value="items" className="text-[10px] font-black uppercase tracking-widest px-8">Menu Items</TabsTrigger>
+                      </TabsList>
+                      <div className="flex bg-white p-2 px-3 rounded-xl border-2 shadow-sm gap-3 items-center w-full max-sm:max-w-none max-w-sm">
+                        <Search className="h-4 w-4 text-muted-foreground shrink-0" />
+                        <Input placeholder="Search library..." value={librarySearchTerm} onChange={(e) => setLibrarySearchTerm(e.target.value)} className="border-0 shadow-none text-xs font-medium p-0 h-auto" />
+                      </div>
                     </div>
 
                     <TabsContent value="modifiers" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -629,7 +684,7 @@ export default function SolutionAdminPage() {
                         <Card key={item.id} className="border-2 shadow-sm group hover:border-indigo-200 transition-all bg-white text-left">
                           <CardHeader className="p-4 border-b bg-slate-50/50 flex flex-row items-center justify-between space-y-0">
                             <div className="space-y-0.5 text-left"><p className="font-black text-xs uppercase text-[#213147]">{item.name}</p><div className="flex gap-1">{item.venueType.map(v => <Badge key={v} className="text-[6px] font-black uppercase h-3 px-1 border-0 bg-slate-200 text-slate-600">{v}</Badge>)}<Badge className="text-[6px] font-black uppercase h-3 px-1 border-0 bg-indigo-100 text-indigo-700">{item.category}</Badge></div></div>
-                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"><Button variant="ghost" size="icon" className="h-8 w-8 text-indigo-600" onClick={() => { setEditingLibraryItem(item); setIsLibraryFormOpen(true); }}><Edit className="h-4 w-4" /></Button></div>
+                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"><Button variant="ghost" size="icon" className="h-8 w-8 text-indigo-600" onClick={() => { setEditingLibraryItem(item); libraryForm.reset(item); setIsLibraryFormOpen(true); }}><Edit className="h-4 w-4" /></Button></div>
                           </CardHeader>
                           <CardContent className="p-4 flex flex-wrap gap-1.5 text-left">{item.options.map((opt, idx) => (<Badge key={idx} variant="outline" className="text-[8px] font-bold uppercase">{opt.label} {opt.priceModifier > 0 && `(+$${opt.priceModifier.toFixed(2)})`}</Badge>))}</CardContent>
                         </Card>
@@ -640,11 +695,22 @@ export default function SolutionAdminPage() {
                        {filteredItemTemplates.length === 0 ? (
                         <div className="col-span-full py-20 text-center border-2 border-dashed rounded-3xl opacity-50 bg-slate-50"><UtensilsCrossed className="h-10 w-10 mx-auto mb-4 text-slate-300" /><p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Item Library Empty. Click Initialize All above.</p></div>
                       ) : filteredItemTemplates.map(item => (
-                        <Card key={item.id} className="border-2 shadow-sm group hover:border-indigo-200 transition-all bg-white text-left">
+                        <Card key={item.id} className="border-2 shadow-sm group hover:border-indigo-200 transition-all bg-white text-left relative overflow-hidden">
                           <CardHeader className="p-4 border-b bg-slate-50/50 flex flex-row items-center justify-between space-y-0">
                             <div className="space-y-1 text-left"><Badge className="h-4 px-1 text-[8px] font-black uppercase bg-[#213147] text-white border-0">{item.serviceMode}</Badge><p className="font-black text-xs uppercase text-[#213147] truncate">{item.name}</p></div>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => { setEditingItemTemplate(item); itemLibraryForm.reset(item); setIsItemLibraryFormOpen(true); }}>
+                              <Edit className="h-4 w-4" />
+                            </Button>
                           </CardHeader>
-                          <CardContent className="p-4 space-y-2 text-left"><p className="text-[10px] text-muted-foreground line-clamp-2">{item.description}</p><div className="flex justify-between items-center"><span className="text-xs font-black text-primary">${item.price.toFixed(2)}</span><div className="flex gap-1">{item.suggestedModifierGroups?.slice(0, 2).map(m => (<Badge key={m} className="text-[6px] uppercase px-1 h-3">{m}</Badge>))}</div></div></CardContent>
+                          <CardContent className="p-4 space-y-2 text-left">
+                            <p className="text-[10px] text-muted-foreground line-clamp-2">{item.description || "No description provided."}</p>
+                            <div className="flex justify-between items-center">
+                              <span className="text-xs font-black text-primary">${item.price.toFixed(2)}</span>
+                              <div className="flex gap-1">
+                                {item.venueType.map(v => <Badge key={v} className="text-[6px] font-black uppercase h-3 px-1 border-0 bg-slate-100 text-slate-500">{v}</Badge>)}
+                              </div>
+                            </div>
+                          </CardContent>
                         </Card>
                       ))}
                     </TabsContent>
@@ -970,6 +1036,152 @@ export default function SolutionAdminPage() {
                     ))}
                   </div>
                   <Button type="submit" disabled={isProcessingSave} className="w-full h-14 bg-indigo-600 font-black uppercase tracking-widest text-[11px] gap-2 shadow-xl">{isProcessingSave ? <Loader2 className="animate-spin" /> : <Save className="h-4 w-4" />} Save Master Template</Button>
+                </form>
+              </Form>
+            </div>
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
+
+      {/* Menu Item Template Form */}
+      <Dialog open={isItemLibraryFormOpen} onOpenChange={setIsItemLibraryFormOpen}>
+        <DialogContent className="sm:max-w-[700px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
+          <DialogHeader className="p-8 bg-[#213147] text-white text-left">
+            <div className="flex items-center gap-4 text-left">
+              <div className="bg-white/20 p-3 rounded-2xl shrink-0"><UtensilsCrossed className="h-6 w-6 text-white" /></div>
+              <div className="text-left">
+                <DialogTitle className="font-headline font-black uppercase tracking-tight text-white text-xl">Menu Item Template</DialogTitle>
+                <DialogDescription className="text-white/40 text-[10px] font-bold uppercase tracking-widest mt-1">Master product definition for provisioning</DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+          <ScrollArea className="max-h-[80vh]">
+            <div className="p-8 text-left">
+              <Form {...itemLibraryForm}>
+                <form onSubmit={itemLibraryForm.handleSubmit(handleSaveMenuItemTemplate)} className="space-y-8">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <FormField 
+                      control={itemLibraryForm.control} 
+                      name="name" 
+                      render={({ field }) => (
+                        <FormItem className="text-left">
+                          <FormLabel className="text-[10px] font-black uppercase">Template Name</FormLabel>
+                          <FormControl><Input {...field} className="h-12 border-2 font-bold" /></FormControl>
+                        </FormItem>
+                      )} 
+                    />
+                    <FormField 
+                      control={itemLibraryForm.control} 
+                      name="price" 
+                      render={({ field }) => (
+                        <FormItem className="text-left">
+                          <FormLabel className="text-[10px] font-black uppercase">Base Price ($)</FormLabel>
+                          <FormControl><Input type="number" step="0.01" {...field} className="h-12 border-2 font-bold" /></FormControl>
+                        </FormItem>
+                      )} 
+                    />
+                  </div>
+
+                  <FormField 
+                    control={itemLibraryForm.control} 
+                    name="description" 
+                    render={({ field }) => (
+                      <FormItem className="text-left">
+                        <FormLabel className="text-[10px] font-black uppercase">Description</FormLabel>
+                        <FormControl><Input {...field} className="h-12 border-2 font-bold" /></FormControl>
+                      </FormItem>
+                    )} 
+                  />
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <FormField 
+                      control={itemLibraryForm.control} 
+                      name="category" 
+                      render={({ field }) => (
+                        <FormItem className="text-left">
+                          <FormLabel className="text-[10px] font-black uppercase">Library Category</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger className="h-12 border-2 font-bold">
+                                <SelectValue />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="food">Food</SelectItem>
+                              <SelectItem value="beverage">Beverage</SelectItem>
+                              <SelectItem value="alcohol">Alcohol</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </FormItem>
+                      )} 
+                    />
+                    <FormField 
+                      control={itemLibraryForm.control} 
+                      name="serviceMode" 
+                      render={({ field }) => (
+                        <FormItem className="text-left">
+                          <FormLabel className="text-[10px] font-black uppercase">Primary Service Mode</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger className="h-12 border-2 font-bold">
+                                <SelectValue />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="beverageCart">Beverage Cart</SelectItem>
+                              <SelectItem value="clubhouse">Clubhouse</SelectItem>
+                              <SelectItem value="pool">Pool</SelectItem>
+                              <SelectItem value="laneService">Lane Service</SelectItem>
+                              <SelectItem value="takeout">Take Out</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </FormItem>
+                      )} 
+                    />
+                  </div>
+
+                  <div className="space-y-4">
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Authorized Venue Types</Label>
+                    <div className="flex gap-6 p-4 bg-slate-50 rounded-2xl border-2">
+                      {['golf', 'bowling'].map((type) => (
+                        <FormField
+                          key={type}
+                          control={itemLibraryForm.control}
+                          name="venueType"
+                          render={({ field }) => (
+                            <FormItem className="flex items-center space-x-3 space-y-0">
+                              <FormControl>
+                                <Checkbox
+                                  checked={field.value?.includes(type)}
+                                  onCheckedChange={(checked) => {
+                                    return checked
+                                      ? field.onChange([...field.value, type])
+                                      : field.onChange(field.value?.filter((value) => value !== type));
+                                  }}
+                                />
+                              </FormControl>
+                              <FormLabel className="text-[11px] font-black uppercase cursor-pointer">{type}</FormLabel>
+                            </FormItem>
+                          )}
+                        />
+                      ))}
+                    </div>
+                  </div>
+
+                  <FormField 
+                    control={itemLibraryForm.control} 
+                    name="imageUrl" 
+                    render={({ field }) => (
+                      <FormItem className="text-left">
+                        <FormLabel className="text-[10px] font-black uppercase">Image URL</FormLabel>
+                        <FormControl><Input {...field} placeholder="https://..." className="h-12 border-2 font-bold" /></FormControl>
+                      </FormItem>
+                    )} 
+                  />
+
+                  <Button type="submit" disabled={isProcessingSave} className="w-full h-14 bg-[#213147] font-black uppercase tracking-widest text-[11px] gap-2 shadow-xl">
+                    {isProcessingSave ? <Loader2 className="animate-spin" /> : <Save className="h-4 w-4" />} Save Menu Template
+                  </Button>
                 </form>
               </Form>
             </div>
