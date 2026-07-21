@@ -101,7 +101,6 @@ import type { Seller, SolutionConfig, Order, Venue, StarterModifierGroup, Starte
 import { useToast } from '@/hooks/use-toast';
 import { cn, SUPER_ADMIN_ID } from '@/lib/utils';
 import { StylizedKoopLogo } from '@/components/header';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -497,7 +496,7 @@ export default function SolutionAdminPage() {
                        <Plus className="h-4 w-4" /> Add Venue
                      </Button>
                   </div>
-                  <div className="border-2 rounded-[2rem] overflow-x-auto bg-white shadow-sm">
+                  <div className="border-2 rounded-[2rem] overflow-auto bg-white shadow-sm">
                     <Table>
                       <TableHeader className="bg-slate-50">
                         <TableRow>
@@ -823,28 +822,98 @@ export default function SolutionAdminPage() {
       {/* Modifier Template Form */}
       <Dialog open={isLibraryFormOpen} onOpenChange={setIsLibraryFormOpen}>
         <DialogContent className="sm:max-w-[600px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
-          <DialogHeader className="p-8 bg-indigo-600 text-white text-left"><div className="flex items-center gap-4 text-left"><div className="bg-white/20 p-3 rounded-2xl shrink-0"><Tags className="h-6 w-6 text-white" /></div><div className="text-left"><DialogTitle className="font-headline font-black uppercase tracking-tight text-white text-xl">Modifier Set Template</DialogTitle></div></div></DialogHeader>
-          <ScrollArea className="max-h-[70vh]"><div className="p-8 text-left"><Form {...libraryForm}><form onSubmit={libraryForm.handleSubmit(handleSaveLibraryItem)} className="space-y-6">
-            <div className="grid grid-cols-2 gap-4">
-              <FormField control={libraryForm.control} name="name" render={({ field }) => (<FormItem className="text-left"><FormLabel className="text-[10px] font-black uppercase">Template Name</FormLabel><FormControl><Input {...field} className="h-12 border-2 font-bold" /></FormControl></FormItem>)} />
-              <FormField control={libraryForm.control} name="category" render={({ field }) => (<FormItem className="text-left"><FormLabel className="text-[10px] font-black uppercase">Category</Label><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger className="h-12 border-2 font-bold"><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="food">Food</SelectItem><SelectItem value="beverage">Beverage</SelectItem><SelectItem value="universal">Universal</SelectItem></SelectContent></Select></FormItem>)} />
+          <DialogHeader className="p-8 bg-indigo-600 text-white text-left">
+            <div className="flex items-center gap-4 text-left">
+              <div className="bg-white/20 p-3 rounded-2xl shrink-0"><Tags className="h-6 w-6 text-white" /></div>
+              <div className="text-left">
+                <DialogTitle className="font-headline font-black uppercase tracking-tight text-white text-xl">Modifier Set Template</DialogTitle>
+              </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
-               <FormField control={libraryForm.control} name="selectionType" render={({ field }) => (<FormItem className="text-left"><FormLabel className="text-[10px] font-black uppercase">Selection Logic</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger className="h-12 border-2 font-bold"><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="single">Single (Radio)</SelectItem><SelectItem value="multi">Multiple (Checkbox)</SelectItem></SelectContent></Select></FormItem>)} />
-               <FormField control={libraryForm.control} name="required" render={({ field }) => (<FormItem className="flex flex-row items-center justify-between rounded-xl border-2 p-3 space-y-0 h-12"><div className="space-y-0.5"><FormLabel className="text-[10px] font-black uppercase">Required</FormLabel></div><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl></FormItem>)} />
+          </DialogHeader>
+          <ScrollArea className="max-h-[70vh]">
+            <div className="p-8 text-left">
+              <Form {...libraryForm}>
+                <form onSubmit={libraryForm.handleSubmit(handleSaveLibraryItem)} className="space-y-6">
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField 
+                      control={libraryForm.control} 
+                      name="name" 
+                      render={({ field }) => (
+                        <FormItem className="text-left">
+                          <FormLabel className="text-[10px] font-black uppercase">Template Name</FormLabel>
+                          <FormControl><Input {...field} className="h-12 border-2 font-bold" /></FormControl>
+                        </FormItem>
+                      )} 
+                    />
+                    <FormField 
+                      control={libraryForm.control} 
+                      name="category" 
+                      render={({ field }) => (
+                        <FormItem className="text-left">
+                          <FormLabel className="text-[10px] font-black uppercase">Category</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger className="h-12 border-2 font-bold">
+                                <SelectValue />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="food">Food</SelectItem>
+                              <SelectItem value="beverage">Beverage</SelectItem>
+                              <SelectItem value="universal">Universal</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </FormItem>
+                      )} 
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField 
+                      control={libraryForm.control} 
+                      name="selectionType" 
+                      render={({ field }) => (
+                        <FormItem className="text-left">
+                          <FormLabel className="text-[10px] font-black uppercase">Selection Logic</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger className="h-12 border-2 font-bold">
+                                <SelectValue />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="single">Single (Radio)</SelectItem>
+                              <SelectItem value="multi">Multiple (Checkbox)</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </FormItem>
+                      )} 
+                    />
+                    <FormField 
+                      control={libraryForm.control} 
+                      name="required" 
+                      render={({ field }) => (
+                        <FormItem className="flex flex-row items-center justify-between rounded-xl border-2 p-3 space-y-0 h-12">
+                          <div className="space-y-0.5"><FormLabel className="text-[10px] font-black uppercase">Required</FormLabel></div>
+                          <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                        </FormItem>
+                      )} 
+                    />
+                  </div>
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center px-1"><Label className="text-[10px] font-black uppercase text-indigo-600">Template Options</Label><Button type="button" variant="ghost" size="sm" onClick={() => appendOption({ label: '', priceModifier: 0 })} className="text-[9px] font-black uppercase gap-1.5"><Plus className="h-3 w-3" /> Add Option</Button></div>
+                    {optionFields.map((field, index) => (
+                      <div key={field.id} className="flex gap-2 items-start bg-slate-50 p-3 rounded-xl border-2">
+                        <FormField control={libraryForm.control} name={`options.${index}.label`} render={({ field }) => (<FormItem className="flex-1 text-left"><FormControl><Input {...field} placeholder="Label" className="h-10 border-2 font-bold bg-white" /></FormControl></FormItem>)} />
+                        <FormField control={libraryForm.control} name={`options.${index}.priceModifier`} render={({ field }) => (<FormItem className="w-24 text-left"><FormControl><Input {...field} type="number" step="0.01" placeholder="$0.00" className="h-10 border-2 font-bold bg-white" /></FormControl></FormItem>)} />
+                        <Button type="button" variant="ghost" size="icon" onClick={() => removeOption(index)} className="h-10 w-10 text-muted-foreground hover:text-destructive"><X className="h-4 w-4" /></Button>
+                      </div>
+                    ))}
+                  </div>
+                  <Button type="submit" disabled={isProcessingSave} className="w-full h-14 bg-indigo-600 font-black uppercase tracking-widest text-[11px] gap-2 shadow-xl">{isProcessingSave ? <Loader2 className="animate-spin" /> : <Save className="h-4 w-4" />} Save Master Template</Button>
+                </form>
+              </Form>
             </div>
-            <div className="space-y-3">
-              <div className="flex justify-between items-center px-1"><Label className="text-[10px] font-black uppercase text-indigo-600">Template Options</Label><Button type="button" variant="ghost" size="sm" onClick={() => appendOption({ label: '', priceModifier: 0 })} className="text-[9px] font-black uppercase gap-1.5"><Plus className="h-3 w-3" /> Add Option</Button></div>
-              {optionFields.map((field, index) => (
-                <div key={field.id} className="flex gap-2 items-start bg-slate-50 p-3 rounded-xl border-2">
-                  <FormField control={libraryForm.control} name={`options.${index}.label`} render={({ field }) => (<FormItem className="flex-1 text-left"><FormControl><Input {...field} placeholder="Label" className="h-10 border-2 font-bold bg-white" /></FormControl></FormItem>)} />
-                  <FormField control={libraryForm.control} name={`options.${index}.priceModifier`} render={({ field }) => (<FormItem className="w-24 text-left"><FormControl><Input {...field} type="number" step="0.01" placeholder="$0.00" className="h-10 border-2 font-bold bg-white" /></FormControl></FormItem>)} />
-                  <Button type="button" variant="ghost" size="icon" onClick={() => removeOption(index)} className="h-10 w-10 text-muted-foreground hover:text-destructive"><X className="h-4 w-4" /></Button>
-                </div>
-              ))}
-            </div>
-            <Button type="submit" disabled={isProcessingSave} className="w-full h-14 bg-indigo-600 font-black uppercase tracking-widest text-[11px] gap-2 shadow-xl">{isProcessingSave ? <Loader2 className="animate-spin" /> : <Save className="h-4 w-4" />} Save Master Template</Button>
-          </form></Form></div></ScrollArea>
+          </ScrollArea>
         </DialogContent>
       </Dialog>
 
