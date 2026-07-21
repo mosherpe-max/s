@@ -22,7 +22,12 @@ service cloud.firestore {
       );
     }
 
-    // Solution configuration readable by everyone (e.g. for branding and support email access)
+    // User profiles - patrons can read/write their own identity
+    match /users/{userId} {
+      allow read, write: if isSignedIn() && request.auth.uid == userId;
+    }
+
+    // Solution configuration readable by everyone
     match /solution/config {
       allow read: if true;
       allow write: if isSuperAdmin();
@@ -57,7 +62,7 @@ service cloud.firestore {
       allow read: if isSignedIn() && request.auth.token.email.lower() == email.lower();
     }
 
-    // Venue registry readable by everyone (contains non-sensitive business names/IDs)
+    // Venue registry
     match /venues/{venueId} {
       allow read: if true;
       allow write: if isSuperAdmin() || isVenueOwner(venueId);
@@ -98,7 +103,6 @@ service cloud.firestore {
     // Normalized Menu and Modifiers
     match /modifier_groups/{groupId} {
       allow read: if true;
-      // Allow write if the user owns the sellerId associated with the modifier group
       allow write: if isSuperAdmin() || (
         isSignedIn() && 
         (

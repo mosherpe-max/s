@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, use, useEffect, useMemo } from 'react';
@@ -47,6 +48,7 @@ import { useCart } from '@/lib/cart-context';
 import { Label } from '@/components/ui/label';
 import { RadioGroup } from '@/components/ui/radio-group';
 import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
 import { mockBuyerLocation } from '@/lib/data';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, useStripe, useElements } from '@stripe/react-stripe-js';
@@ -97,10 +99,9 @@ function StripeActionArea({
   setIsProcessing, 
   onOrderComplete,
   orderData,
-  patronEmail, setPatronEmail,
-  patronName, setPatronName,
-  patronPhone, setPatronPhone,
-  saveInfo, setSaveInfo
+  patronEmail,
+  patronName,
+  patronPhone
 }: any) {
   const stripe = useStripe();
   const elements = useElements();
@@ -111,12 +112,6 @@ function StripeActionArea({
   const handleStripePayment = async () => {
     if (!stripe || !elements || !clientSecret || !firestore) return;
     
-    const isContactValid = patronName.length >= 2 && patronPhone.replace(/\D/g, '').length >= 10 && patronEmail.includes('@');
-    if (!isContactValid) {
-      toast({ variant: 'destructive', title: 'Details Required', description: 'Please complete your contact info to receive tracking updates.' });
-      return;
-    }
-
     setIsProcessing(true);
     try {
       const { error, paymentIntent } = await stripe.confirmPayment({
@@ -165,18 +160,8 @@ function StripeActionArea({
 
   return (
     <div className="space-y-6">
-      <div className="mt-4 p-4 sm:p-5 border-2 border-slate-100 rounded-[2rem] sm:rounded-[2.5rem] bg-slate-50/50 animate-in fade-in duration-500">
-        <StripeCheckoutForm 
-          onReadyStateChange={setIsStripeReady} 
-          patronName={patronName}
-          setPatronName={setPatronName}
-          patronPhone={patronPhone}
-          setPatronPhone={setPatronPhone}
-          patronEmail={patronEmail}
-          setPatronEmail={setPatronEmail}
-          saveInfo={saveInfo}
-          setSaveInfo={setSaveInfo}
-        />
+      <div className="p-4 sm:p-5 border-2 border-slate-100 rounded-[2rem] sm:rounded-[2.5rem] bg-slate-50/50 animate-in fade-in duration-500">
+        <StripeCheckoutForm onReadyStateChange={setIsStripeReady} />
       </div>
 
       <div className="fixed bottom-7 left-0 right-0 p-4 bg-white/80 backdrop-blur-md border-t z-50">
@@ -233,7 +218,11 @@ function CheckoutDrawerContent({
   const disclosureCategory = getDisclosureCategory(seller?.type);
   const checkoutNotice = FEE_DISCLOSURES[disclosureCategory].checkout;
 
-  // FETCH INTENT IMMEDIATELY WHEN STRIPE SELECTED
+  // Clear existing secret if critical saving info changes to force a re-fetch
+  useEffect(() => {
+    setClientSecret(null);
+  }, [saveInfo, patronEmail]);
+
   useEffect(() => {
     if (paymentMethod === 'Stripe' && !isFetchingIntent && baseTotalForBackend > 0 && !clientSecret) {
       const fetchIntent = async () => {
@@ -249,7 +238,6 @@ function CheckoutDrawerContent({
           const functions = getFunctions(firebaseApp, 'us-central1');
           const createIntent = httpsCallable(functions, 'createPaymentIntent');
           
-          // Identity info is optional at this stage - Stripe metadata will be updated on confirm
           const result = await createIntent({ 
             amount: baseTotalForBackend, 
             sellerId,
@@ -265,12 +253,10 @@ function CheckoutDrawerContent({
             if (data.customerSessionClientSecret) {
               setCustomerSessionClientSecret(data.customerSessionClientSecret);
             }
-          } else {
-            throw new Error("Secure gateway could not be initialized.");
           }
         } catch (e: any) {
           console.error("Payment Intent Error:", e);
-          toast({ variant: 'destructive', title: 'Gateway Error', description: "The digital gateway is unavailable. Please use Pay at Delivery." });
+          toast({ variant: 'destructive', title: 'Gateway Error', description: "Digital checkout unavailable. Please use Pay at Delivery." });
           setPaymentMethod('Pay at Delivery');
         } finally {
           setIsFetchingIntent(false);
@@ -278,7 +264,7 @@ function CheckoutDrawerContent({
       };
       fetchIntent();
     }
-  }, [paymentMethod, baseTotalForBackend, sellerId, firebaseApp, clientSecret, isFetchingIntent, toast, user, auth, saveInfo]);
+  }, [paymentMethod, baseTotalForBackend, sellerId, firebaseApp, clientSecret, isFetchingIntent, toast, user, auth, saveInfo, patronEmail, patronName, patronPhone]);
 
   const handleManualOrder = async () => {
     if (!firestore || activeOrderItems.length === 0) return;
@@ -382,6 +368,57 @@ function CheckoutDrawerContent({
           </div>
         )}
 
+        {/* 1. IDENTITY SECTION - ALWAYS VISIBLE */}
+        <div className="space-y-6">
+          <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary px-1 flex items-center gap-2">
+            <User className="h-3 w-3" /> Delivery Details
+          </h3>
+          <div className="space-y-3">
+            <div className="relative">
+              <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+              <Input 
+                placeholder="Email Address" 
+                type="email"
+                value={patronEmail} 
+                onChange={(e) => setPatronEmail(e.target.value)} 
+                className="pl-10 h-12 border-2 border-slate-100 rounded-xl font-bold focus-visible:ring-primary"
+              />
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="relative">
+                <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Input 
+                  placeholder="Full Name" 
+                  value={patronName} 
+                  onChange={(e) => setPatronName(e.target.value)} 
+                  className="pl-10 h-12 border-2 border-slate-100 rounded-xl font-bold focus-visible:ring-primary"
+                />
+              </div>
+              <div className="relative">
+                <Smartphone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Input 
+                  placeholder="Mobile Number" 
+                  type="tel"
+                  value={patronPhone} 
+                  onChange={(e) => setPatronPhone(e.target.value)} 
+                  className="pl-10 h-12 border-2 border-slate-100 rounded-xl font-bold focus-visible:ring-primary"
+                />
+              </div>
+            </div>
+            
+            <div 
+              className="flex items-center space-x-3 p-3 bg-primary/5 rounded-xl border-2 border-primary/10 cursor-pointer transition-all hover:bg-primary/10"
+              onClick={() => setSaveInfo(!saveInfo)}
+            >
+              <Checkbox id="save-info" checked={saveInfo} onCheckedChange={(val) => setSaveInfo(!!val)} className="h-5 w-5 data-[state=checked]:bg-primary" />
+              <div className="text-left">
+                <label htmlFor="save-info" className="text-[10px] font-black uppercase text-[#213147] cursor-pointer block leading-none">Save for faster checkout</label>
+                <p className="text-[8px] font-bold text-muted-foreground uppercase mt-1">Securely store details for your next visit</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <TipSelector subtotal={subtotal} onTipChange={setTip} />
 
         <div className="space-y-4">
@@ -392,7 +429,7 @@ function CheckoutDrawerContent({
         </div>
 
         <div className="space-y-4">
-          <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground px-1">CHECKOUT</h3>
+          <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground px-1">PAYMENT METHOD</h3>
           <RadioGroup value={paymentMethod || ''} onValueChange={(v: any) => setPaymentMethod(v)} className="grid grid-cols-1 gap-3">
             <div className={cn("flex items-center justify-between p-4 rounded-2xl border-2 transition-all cursor-pointer", paymentMethod === 'Stripe' ? "border-primary bg-primary/5 shadow-md" : "border-slate-100 hover:border-slate-200")} onClick={() => setPaymentMethod('Stripe')}>
               <div className="flex items-center gap-4">
@@ -425,10 +462,9 @@ function CheckoutDrawerContent({
                   setIsProcessing={setIsProcessing} 
                   onOrderComplete={onOrderComplete} 
                   orderData={currentOrderData}
-                  patronEmail={patronEmail} setPatronEmail={setPatronEmail}
-                  patronName={patronName} setPatronName={setPatronName}
-                  patronPhone={patronPhone} setPatronPhone={setPatronPhone}
-                  saveInfo={saveInfo} setSaveInfo={setSaveInfo}
+                  patronEmail={patronEmail}
+                  patronName={patronName}
+                  patronPhone={patronPhone}
                 />
               </Elements>
             ) : null
@@ -436,42 +472,6 @@ function CheckoutDrawerContent({
 
           {paymentMethod === 'Pay at Delivery' && (
             <div className="space-y-6">
-              <div className="p-5 sm:p-6 border-2 border-slate-100 rounded-[2rem] bg-slate-50/50 animate-in fade-in duration-500">
-                <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary mb-4 px-1 flex items-center gap-2">
-                   <User className="h-3 w-3" /> Contact Details
-                </h3>
-                <div className="space-y-3 text-left">
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input 
-                      placeholder="Email Address" 
-                      type="email"
-                      value={patronEmail} 
-                      onChange={(e) => setPatronEmail(e.target.value)} 
-                      className="pl-10 h-12 border-2 border-white bg-white rounded-xl font-bold focus-visible:ring-primary"
-                    />
-                  </div>
-                  <div className="relative">
-                    <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input 
-                      placeholder="Full Name" 
-                      value={patronName} 
-                      onChange={(e) => setPatronName(e.target.value)} 
-                      className="pl-10 h-12 border-2 border-white bg-white rounded-xl font-bold focus-visible:ring-primary"
-                    />
-                  </div>
-                  <div className="relative">
-                    <Smartphone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input 
-                      placeholder="Mobile Number" 
-                      type="tel"
-                      value={patronPhone} 
-                      onChange={(e) => setPatronPhone(e.target.value)} 
-                      className="pl-10 h-12 border-2 border-white bg-white rounded-xl font-bold focus-visible:ring-primary"
-                    />
-                  </div>
-                </div>
-              </div>
               <div className="fixed bottom-7 left-0 right-0 p-4 bg-white/80 backdrop-blur-md border-t z-50">
                 <div className="max-w-xl mx-auto px-2">
                   <Button 
@@ -728,7 +728,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
               <SheetTrigger asChild>
                 <Button size="lg" className="w-full h-14 font-black uppercase tracking-widest shadow-xl flex justify-between px-6 sm:px-8">
                   <div className="flex items-center gap-2 sm:gap-3"><span>REVIEW ORDER</span><span className="bg-white/20 text-[10px] px-2 py-0.5 rounded-full">{totalItems} ITEMS</span></div>
-                  <span className="bg-white/20 px-3 py-1 rounded-lg">${subtotal.toFixed(2)}</span>
+                  <span className="bg-white/20 px-3 py-1 rounded-lg">${total.toFixed(2)}</span>
                 </Button>
               </SheetTrigger>
             </div>

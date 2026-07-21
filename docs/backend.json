@@ -41,6 +41,20 @@
       },
       "required": ["id", "courseName", "contactEmail", "status"]
     },
+    "User": {
+      "title": "User",
+      "type": "object",
+      "description": "Patron profile for managing saved payment methods and order history.",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "displayName": { "type": "string" },
+        "phoneNumber": { "type": "string" },
+        "stripeCustomerId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      }
+    },
     "SolutionConfig": {
       "title": "Solution Config",
       "type": "object",
@@ -185,6 +199,7 @@
     "structure": [
       { "path": "/venues/{venueId}", "definition": { "entityName": "Venue" } },
       { "path": "/sellers/{sellerId}", "definition": { "entityName": "Seller" } },
+      { "path": "/users/{userId}", "definition": { "entityName": "User" } },
       { "path": "/solution/config", "definition": { "entityName": "SolutionConfig" } },
       { "path": "/roles_admin/{uid}", "definition": { "entityName": "AdminRole" } },
       { "path": "/roles_seller_admin/{email}", "definition": { "entityName": "SellerAdminRole" } },

@@ -1,3 +1,4 @@
+
 import { onRequest, onCall, HttpsError } from "firebase-functions/v2/https";
 import { onDocumentWritten } from "firebase-functions/v2/firestore";
 import { onSchedule } from "firebase-functions/v2/scheduler";
@@ -16,6 +17,7 @@ const db = getFirestore();
 /**
  * createPaymentIntent
  * Securely generates a Stripe Client Secret for the patron checkout.
+ * Handles customer creation and future-usage authorization for "Faster Checkout".
  */
 export const createPaymentIntent = onCall({
   secrets: ["STRIPE_SECRET_KEY"],
@@ -35,31 +37,58 @@ export const createPaymentIntent = onCall({
 
     let stripeCustomerId: string | undefined;
 
+    // 1. IDENTITY SYNC: Look for existing customer if buyer is authenticated or email provided
     if (buyerUid) {
       const userDoc = await db.collection('users').doc(buyerUid).get();
       if (userDoc.exists && userDoc.data()?.stripeCustomerId) {
         stripeCustomerId = userDoc.data()?.stripeCustomerId;
-      } else {
-        const existing = await stripe.customers.list({ email: patronEmail, limit: 1 });
-        if (existing.data.length > 0) {
-          stripeCustomerId = existing.data[0].id;
-        } else if (saveInfo) {
-          const customer = await stripe.customers.create({ email: patronEmail, name: patronName, phone: patronPhone, metadata: { buyerUid } });
-          stripeCustomerId = customer.id;
-        }
-        if (stripeCustomerId) await db.collection('users').doc(buyerUid).set({ stripeCustomerId }, { merge: true });
       }
     }
 
+    if (!stripeCustomerId && patronEmail) {
+      const existing = await stripe.customers.list({ email: patronEmail, limit: 1 });
+      if (existing.data.length > 0) {
+        stripeCustomerId = existing.data[0].id;
+      } else if (saveInfo) {
+        // Create customer if they elected to save info
+        const customer = await stripe.customers.create({ 
+          email: patronEmail, 
+          name: patronName, 
+          phone: patronPhone, 
+          metadata: { buyerUid: buyerUid || 'anonymous' } 
+        });
+        stripeCustomerId = customer.id;
+      }
+    }
+
+    // 2. PERSISTENCE: If we found/created a customer and have a UID, update the profile
+    if (stripeCustomerId && buyerUid) {
+      await db.collection('users').doc(buyerUid).set({ 
+        stripeCustomerId, 
+        email: patronEmail,
+        displayName: patronName,
+        phoneNumber: patronPhone,
+        updatedAt: FieldValue.serverTimestamp()
+      }, { merge: true });
+    }
+
+    // 3. INTENT: Create the payment intent with optional future usage flags
     const paymentIntent = await stripe.paymentIntents.create({
       amount: Math.round(amount * 100),
       currency: 'usd',
       customer: stripeCustomerId,
       setup_future_usage: saveInfo ? 'off_session' : undefined,
       automatic_payment_methods: { enabled: true },
-      metadata: { sellerId, buyerUid: buyerUid || 'anonymous', customerName: patronName || 'Guest', customerPhone: patronPhone || '', customerEmail: patronEmail || '' }
+      metadata: { 
+        sellerId, 
+        buyerUid: buyerUid || 'anonymous', 
+        customerName: patronName || 'Guest', 
+        customerPhone: patronPhone || '', 
+        customerEmail: patronEmail || '' 
+      }
     });
 
+    // 4. SESSIONS: Optional Customer Session for the Payment Element
     let customerSessionClientSecret: string | undefined;
     if (stripeCustomerId) {
       const customerSession = await stripe.customerSessions.create({
