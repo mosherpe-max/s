@@ -294,7 +294,7 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
         </div>
       </header>
 
-      <div className="flex-1 flex flex-col md:flex-row overflow-x-auto md:overflow-hidden p-4 gap-4">
+      <div className="flex-1 flex flex-col md:flex-row overflow-auto p-4 gap-4">
         {isGolf && (
           <div className="relative w-full md:w-2/3 h-[40vh] md:h-full bg-muted rounded-xl overflow-hidden border-2 shadow-sm">
             <Button variant="outline" size="icon" className="absolute top-2 right-2 z-10 bg-background/80 h-8 w-8" onClick={() => setFitTrigger(p => p + 1)}><Focus className="h-4 w-4" /></Button>
@@ -319,15 +319,15 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
             <div className="flex items-center gap-2"><Building className="h-4 w-4 text-primary" /><span>Orders Queue</span></div>
             <Badge className="bg-[#213147] text-white font-black border-0">{clubhouseOrders.length}</Badge>
           </h2>
-          <ScrollArea className="flex-1 px-2 text-left">
-            <div className={cn("py-2.5 gap-3", isGolf ? "space-y-3" : "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 p-4")}>
+          <div className={cn("flex-1 overflow-auto px-2 text-left", isGolf ? "" : "p-4")}>
+            <div className={cn("py-2.5 gap-3", isGolf ? "space-y-3" : "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3")}>
               {isLoading ? <Skeleton className="h-40 w-full" /> : clubhouseOrders.length === 0 ? (
                 <div className="col-span-full py-20 text-center text-muted-foreground opacity-40"><Building className="h-10 w-10 mx-auto mb-2" /><p className="text-[10px] font-black uppercase tracking-[0.2em]">No active orders</p></div>
               ) : (
                 clubhouseOrders.map((order, index) => (<OrderCard key={order.id} order={order} orderNumber={index + 1} now={now} onUpdateStatus={handleUpdateOrderStatus} onAttach={handleAttachOrder} currentStaffId={currentStaffId} thresholds={primarySeller?.orderThresholds?.[order.menuType]} />))
               )}
             </div>
-          </ScrollArea>
+          </div>
         </div>
       </div>
     </div>

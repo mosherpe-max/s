@@ -439,7 +439,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
   const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
 
   return (
-    <div className="flex flex-col h-screen bg-[#F8FAFC] overflow-x-auto text-left">
+    <div className="flex flex-col h-screen bg-[#F8FAFC] text-left">
       <header className="h-16 bg-white border-b-2 flex items-center justify-between px-8 shrink-0 z-30 shadow-sm relative text-left">
         <div className="flex items-center gap-4">
           <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
@@ -461,14 +461,14 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
         </div>
       </header>
 
-      <div className="flex-1 flex overflow-x-auto overflow-y-hidden">
+      <div className="flex-1 flex overflow-hidden">
         <aside className={cn("bg-[#213147] hidden md:flex flex-col transition-all duration-300 relative border-r-4 border-primary/20 shrink-0", sidebarOpen ? "w-64" : "w-20")}>
           <div className="p-4 border-b border-white/5 flex items-center justify-between">{sidebarOpen && <p className="text-[10px] font-black uppercase tracking-widest text-white/40">Navigation</p>}<Button variant="ghost" size="icon" onClick={() => setSidebarOpen(!sidebarOpen)} className="text-white/20 hover:text-white mx-auto">{sidebarOpen ? <PanelLeft className="h-4 w-4" /> : <ChevronRightSquare className="h-4 w-4" />}</Button></div>
           <ScrollArea className="flex-1 p-3"><NavContent /></ScrollArea>
         </aside>
 
-        <main className="flex-1 flex flex-col overflow-x-auto overflow-y-hidden relative">
-          <ScrollArea className="flex-1 p-8">
+        <main className="flex-1 overflow-auto relative">
+          <div className="p-8">
             <div className="max-w-6xl mx-auto space-y-8 pb-24 text-left min-w-0">
               {activeNav === 'dashboard' && (
                 <div className="space-y-8 animate-in fade-in duration-500">
@@ -488,7 +488,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                           return (
                             <div key={mode} className={cn("p-6 rounded-[2rem] border-2 transition-all flex flex-col items-center gap-4 relative group", isActive ? "border-primary bg-primary/5 shadow-inner" : "bg-slate-50 opacity-60 grayscale")}>
                               <div className={cn("p-3 rounded-2xl transition-all shadow-lg", isActive ? "bg-primary text-white scale-110" : "bg-slate-200 text-slate-400")}><Zap className="h-6 w-6" /></div>
-                              <div className="text-center"><p className="text-[11px] font-black uppercase tracking-widest text-[#213147]">{mode}</p><Badge variant="outline" className={cn("mt-2 text-[8px] font-black uppercase", isActive ? "border-primary/30 text-primary bg-white" : "border-slate-200 text-slate-400")}>{isActive ? "LIVE SIGNAL" : "INACTIVE"}</Badge></div>
+                              <div className="text-center"><p className="text-11px font-black uppercase tracking-widest text-[#213147]">{mode}</p><Badge variant="outline" className={cn("mt-2 text-[8px] font-black uppercase", isActive ? "border-primary/30 text-primary bg-white" : "border-slate-200 text-slate-400")}>{isActive ? "LIVE SIGNAL" : "INACTIVE"}</Badge></div>
                               <Button variant="outline" size="sm" className="h-9 w-full rounded-xl text-[10px] font-black uppercase border-2 shadow-sm" onClick={() => handleImpersonate(mode)}>Enter Channel</Button>
                             </div>
                           );
@@ -584,7 +584,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                 </div>
               )}
             </div>
-          </ScrollArea>
+          </div>
         </main>
       </div>
 

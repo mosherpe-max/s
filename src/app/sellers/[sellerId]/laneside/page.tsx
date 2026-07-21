@@ -191,13 +191,13 @@ export default function LaneSideServerDashboardPage({ params }: { params: Promis
         </div>
       </header>
 
-      <div className="flex-1 flex flex-col overflow-x-auto overflow-y-auto p-4 max-w-3xl mx-auto w-full">
+      <div className="flex-1 flex flex-col overflow-auto p-4 max-w-3xl mx-auto w-full">
         <div className="flex flex-col bg-background border-2 rounded-[2rem] overflow-hidden min-h-0 shadow-xl text-left">
           <h2 className="font-headline text-xs font-black px-6 py-4 shrink-0 border-b flex items-center justify-between uppercase bg-muted/10 tracking-widest">
             <div className="flex items-center gap-2"><LayoutList className="h-4 w-4 text-primary" /><span>Pending Deliveries</span></div>
             <Badge className="bg-[#213147] text-white font-black border-0">{lanesideOrders.length}</Badge>
           </h2>
-          <ScrollArea className="flex-1 text-left">
+          <div className="flex-1 overflow-auto text-left">
             <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-4 text-left">
               {isLoading ? (
                 <><Skeleton className="h-48 w-full rounded-2xl" /><Skeleton className="h-48 w-full rounded-2xl" /></>
@@ -207,7 +207,7 @@ export default function LaneSideServerDashboardPage({ params }: { params: Promis
                 lanesideOrders.map((order, index) => (<OrderCard key={order.id} order={order} orderNumber={index + 1} now={now} onUpdateStatus={handleUpdateOrderStatus} onAttach={handleAttachOrder} thresholds={primarySeller?.orderThresholds?.[order.menuType]} />))
               )}
             </div>
-          </ScrollArea>
+          </div>
         </div>
       </div>
     </div>

@@ -46,7 +46,7 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className={cn("font-body antialiased min-h-screen flex flex-col pb-7")}>
+      <body className={cn("font-body antialiased min-h-screen flex flex-col pb-7 overflow-x-auto")}>
         <FirebaseClientProvider>
           <CartProvider>
             <OrderNotificationListener />

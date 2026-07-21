@@ -390,7 +390,7 @@ export default function SolutionAdminPage() {
   );
 
   return (
-    <div className="flex flex-col h-screen bg-[#F8FAFC] overflow-x-auto text-left">
+    <div className="flex flex-col h-screen bg-[#F8FAFC] text-left">
       <header className="h-16 bg-white border-b-2 flex items-center justify-between px-8 shrink-0 z-30 shadow-sm relative text-left">
         <div className="flex items-center gap-4">
           <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
@@ -419,7 +419,7 @@ export default function SolutionAdminPage() {
         </button>
       </header>
 
-      <div className="flex-1 flex overflow-x-auto overflow-y-hidden">
+      <div className="flex-1 flex overflow-hidden">
         <aside className={cn("bg-[#213147] hidden md:flex flex-col transition-all duration-300 relative border-r-4 border-primary/20 shrink-0", sidebarOpen ? "w-64" : "w-20")}>
           <div className="p-6 border-b border-white/5 flex items-center justify-between">
             {sidebarOpen && <StylizedKoopLogo size="md" />}
@@ -432,8 +432,8 @@ export default function SolutionAdminPage() {
           </ScrollArea>
         </aside>
 
-        <main className="flex-1 flex flex-col overflow-x-auto overflow-y-hidden relative">
-          <ScrollArea className="flex-1 p-8">
+        <main className="flex-1 overflow-auto relative">
+          <div className="p-8">
             <div className="max-w-7xl mx-auto space-y-8 text-left pb-20 min-w-0">
               {activeNav === 'dashboard' && (
                 <div className="space-y-8 animate-in fade-in duration-500">
@@ -773,7 +773,7 @@ export default function SolutionAdminPage() {
                 </div>
               )}
             </div>
-          </ScrollArea>
+          </div>
         </main>
       </div>
 

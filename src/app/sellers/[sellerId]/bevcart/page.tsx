@@ -356,7 +356,7 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
         </div>
       </div>
 
-      <div className="flex-1 flex flex-col md:flex-row overflow-x-auto md:overflow-hidden p-4 gap-4">
+      <div className="flex-1 flex flex-col md:flex-row overflow-auto p-4 gap-4">
         <div className="relative w-full md:w-2/3 h-[40vh] md:h-full bg-muted rounded-xl overflow-hidden border-2 shadow-sm">
          <Button variant="outline" size="icon" className="absolute top-2 right-2 z-10 bg-background/80 h-8 w-8" onClick={() => setFitTrigger(p => p + 1)}><Focus className="h-4 w-4" /></Button>
           {sellerLocation ? (
@@ -378,7 +378,7 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
             <span>Active Orders</span>
             <span className="bg-[#213147] text-white text-[10px] font-black rounded-full px-2 py-0.5">{driverOrders.length}</span>
           </h2>
-          <ScrollArea className="flex-1 px-2 text-left">
+          <div className="flex-1 overflow-auto px-2 text-left">
             <div className="py-2.5 space-y-3">
               {isLoading ? <Skeleton className="h-40 w-full" /> : driverOrders.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-20 text-muted-foreground opacity-40 text-center">
@@ -400,7 +400,7 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
                 ))
               )}
             </div>
-          </ScrollArea>
+          </div>
         </div>
       </div>
     </div>
