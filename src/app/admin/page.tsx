@@ -499,8 +499,6 @@ export default function SolutionAdminPage() {
 
   const handleReseedDemos = async () => {
     if (!firestore) return;
-    if (!confirm('Wipe and reseed all demo environments? This will reset all demo courses and bowling centers to factory defaults.')) return;
-    
     setIsReseedingDemos(true);
     try {
       const { seedAllDemoData } = await import('@/lib/seed-data');
@@ -1359,7 +1357,7 @@ export default function SolutionAdminPage() {
                           <FormLabel className="text-[9px] font-black uppercase">Contact Email</FormLabel>
                           <div className="relative">
                             <Mail className="absolute left-3 top-3 h-4 w-4 text-slate-300" />
-                            <FormControl><Input {...field} type="email" className="pl-10 h-11 border-2 font-bold" /></FormControl>
+                            <FormControl><Input {...field} type="email" className="pl-11 h-11 border-2 font-bold" /></FormControl>
                           </div>
                         </FormItem>
                       )} />

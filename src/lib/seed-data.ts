@@ -54,9 +54,11 @@ const getImg = (hint: string) => {
   return PlaceHolderImages[0]?.imageUrl || '';
 };
 
-const DEFAULT_HEALTH_SETTINGS: VenueHealthSettings = {
-  warningManagerInactivityDays: 3,
-  warningVenueInactivityDays: 7
+const generateSlug = (name: string) => {
+  return name.toLowerCase()
+    .replace(/[^a-z0-9]/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
 };
 
 /**
@@ -108,7 +110,6 @@ export const GLOBAL_STARTER_LIBRARY: Omit<StarterModifierGroup, 'id'>[] = [
 
 /**
  * Master library definition for the starter menu item system.
- * Evaluates image retrieval at runtime to ensure placeholder availability.
  */
 export const getGlobalStarterMenuItems = (): Omit<StarterMenuItem, 'id'>[] => [
   // --- GOLF: BEVERAGE CART ---
@@ -133,85 +134,23 @@ export const getGlobalStarterMenuItems = (): Omit<StarterMenuItem, 'id'>[] => [
   { name: "Burger", description: "Angus beef on brioche.", price: 14.00, category: "food", venueType: ["golf"], serviceMode: "clubhouse", imageUrl: getImg('burger meal'), suggestedModifierGroups: ["Doneness", "Cheese", "Toppings", "Sauces", "Bun", "Side Swap", "Allergy Flag"], sortOrder: 100 },
   { name: "Cheeseburger", description: "Angus beef with American cheese.", price: 15.00, category: "food", venueType: ["golf"], serviceMode: "clubhouse", imageUrl: getImg('burger meal'), suggestedModifierGroups: ["Doneness", "Cheese", "Toppings", "Sauces", "Bun", "Side Swap", "Allergy Flag"], sortOrder: 101 },
   { name: "Chicken Sandwich", description: "Grilled or crispy breast.", price: 13.50, category: "food", venueType: ["golf"], serviceMode: "clubhouse", imageUrl: getImg('burger meal'), suggestedModifierGroups: ["Cheese", "Toppings", "Sauces", "Bun", "Side Swap"], sortOrder: 102 },
-  { name: "Club Sandwich", description: "Turkey, bacon, lettuce, tomato.", price: 14.50, category: "food", venueType: ["golf"], serviceMode: "clubhouse", imageUrl: getImg('burger meal'), suggestedModifierGroups: ["Bun", "Side Swap", "Allergy Flag"], sortOrder: 103 },
-  { name: "Caesar Wrap", description: "Romaine, parm, caesar dressing.", price: 12.50, category: "food", venueType: ["golf"], serviceMode: "clubhouse", imageUrl: getImg('burger meal'), suggestedModifierGroups: ["Wrap Sauce", "Side Swap"], sortOrder: 104 },
-  { name: "Buffalo Chicken Wrap", description: "Crispy chicken in spicy sauce.", price: 13.00, category: "food", venueType: ["golf"], serviceMode: "clubhouse", imageUrl: getImg('burger meal'), suggestedModifierGroups: ["Wrap Sauce", "Side Swap"], sortOrder: 105 },
   { name: "Wings", description: "Jumbo wings with your choice of sauce.", price: 16.00, category: "food", venueType: ["golf"], serviceMode: "clubhouse", imageUrl: getImg('chicken wings'), suggestedModifierGroups: ["Wing Style", "Wing Sauce", "Dipping Sauce"], sortOrder: 106 },
   { name: "Nachos", description: "Loaded with cheese and jalapenos.", price: 14.00, category: "food", venueType: ["golf"], serviceMode: "clubhouse", imageUrl: getImg('loaded nachos'), suggestedModifierGroups: ["Nacho Protein", "Nacho Toppings", "Mexican Add-ons", "Cheese Amount"], sortOrder: 107 },
-  { name: "Quesadilla", description: "Grilled flour tortilla with jack cheese.", price: 11.00, category: "food", venueType: ["golf"], serviceMode: "clubhouse", imageUrl: getImg('loaded nachos'), suggestedModifierGroups: ["Mexican Add-ons"], sortOrder: 108 },
-  { name: "French Fries", description: "Crispy golden shoestring.", price: 6.00, category: "food", venueType: ["golf"], serviceMode: "clubhouse", imageUrl: getImg('potato chips'), suggestedModifierGroups: ["Dipping Sauce"], sortOrder: 109 },
-  { name: "Onion Rings", description: "Beer-battered thick cut.", price: 8.00, category: "food", venueType: ["golf"], serviceMode: "clubhouse", imageUrl: getImg('potato chips'), suggestedModifierGroups: ["Dipping Sauce"], sortOrder: 110 },
-  { name: "Side Salad", description: "Mixed greens and seasonal veg.", price: 7.00, category: "food", venueType: ["golf"], serviceMode: "clubhouse", imageUrl: getImg('grilled salmon'), suggestedModifierGroups: ["Dressing"], sortOrder: 111 },
-  { name: "Caesar Salad", description: "Classic house-made dressing.", price: 11.00, category: "food", venueType: ["golf"], serviceMode: "clubhouse", imageUrl: getImg('grilled salmon'), suggestedModifierGroups: ["Dressing", "Salad Add-ons"], sortOrder: 112 },
-  { name: "Cobb Salad", description: "Avocado, egg, bacon, and blue cheese.", price: 14.50, category: "food", venueType: ["golf"], serviceMode: "clubhouse", imageUrl: getImg('grilled salmon'), suggestedModifierGroups: ["Dressing", "Salad Add-ons"], sortOrder: 113 },
-  { name: "Soup of the Day", description: "Chef's daily rotation.", price: 7.00, category: "food", venueType: ["golf"], serviceMode: "clubhouse", imageUrl: getImg('loaded nachos'), suggestedModifierGroups: ["Soup/Chili Add-ons"], sortOrder: 114 },
-  { name: "Pizza", description: "12-inch personal stone fired.", price: 16.00, category: "food", venueType: ["golf"], serviceMode: "clubhouse", imageUrl: getImg('pepperoni pizza'), suggestedModifierGroups: ["Crust", "Pizza Size", "Pizza Sauce", "Pizza Toppings"], sortOrder: 115 },
-  { name: "Kids Cheeseburger", description: "Plain with American cheese.", price: 9.00, category: "food", venueType: ["golf"], serviceMode: "clubhouse", imageUrl: getImg('burger meal'), suggestedModifierGroups: ["Kids Sauce"], sortOrder: 116 },
-  { name: "Kids Chicken Tenders", description: "2 strips served with fries.", price: 8.50, category: "food", venueType: ["golf"], serviceMode: "clubhouse", imageUrl: getImg('chicken wings'), suggestedModifierGroups: ["Kids Sauce"], sortOrder: 117 },
-  { name: "Coffee", description: "House roasted dark blend.", price: 3.50, category: "beverage", venueType: ["golf"], serviceMode: "clubhouse", imageUrl: getImg('soft-drink-1'), suggestedModifierGroups: ["Coffee Size", "Milk Type", "Sweetener", "Coffee Extras"], sortOrder: 118 },
   { name: "Fountain Drink", description: "20oz bottomless refill.", price: 3.50, category: "beverage", venueType: ["golf"], serviceMode: "clubhouse", imageUrl: getImg('soft-drink-1'), suggestedModifierGroups: ["Drink Size"], sortOrder: 119 },
-  { name: "Iced Tea", description: "Freshly brewed unsweetened.", price: 3.50, category: "beverage", venueType: ["golf"], serviceMode: "clubhouse", imageUrl: getImg('soft-drink-1'), suggestedModifierGroups: ["Drink Size"], sortOrder: 120 },
-  { name: "Lemonade", description: "Classic hand-squeezed.", price: 4.00, category: "beverage", venueType: ["golf"], serviceMode: "clubhouse", imageUrl: getImg('soft-drink-1'), suggestedModifierGroups: ["Drink Size"], sortOrder: 121 },
-  { name: "Bud Light", description: "Draft 16oz.", price: 6.00, category: "alcohol", venueType: ["golf"], serviceMode: "clubhouse", imageUrl: getImg('lager can'), sortOrder: 122 },
-  { name: "Miller Lite", description: "Draft 16oz.", price: 6.00, category: "alcohol", venueType: ["golf"], serviceMode: "clubhouse", imageUrl: getImg('lager can'), sortOrder: 123 },
-  { name: "Coors Light", description: "Draft 16oz.", price: 6.00, category: "alcohol", venueType: ["golf"], serviceMode: "clubhouse", imageUrl: getImg('lager can'), sortOrder: 124 },
-  { name: "Modelo Especial", description: "Draft 16oz.", price: 7.00, category: "alcohol", venueType: ["golf"], serviceMode: "clubhouse", imageUrl: getImg('lager can'), sortOrder: 125 },
-  { name: "Heineken", description: "Draft 16oz.", price: 7.00, category: "alcohol", venueType: ["golf"], serviceMode: "clubhouse", imageUrl: getImg('lager can'), sortOrder: 126 },
-  { name: "Wine by the Glass", description: "House Chardonnay or Cab.", price: 10.00, category: "alcohol", venueType: ["golf"], serviceMode: "clubhouse", imageUrl: getImg('blue cocktail'), sortOrder: 127 },
-
-  // --- GOLF: POOL ---
-  { name: "Burger", description: "Grilled poolside Angus.", price: 14.00, category: "food", venueType: ["golf"], serviceMode: "pool", imageUrl: getImg('burger meal'), suggestedModifierGroups: ["Doneness", "Cheese", "Toppings", "Sauces"], sortOrder: 200 },
-  { name: "Hot Dog", description: "Classic jumbo dog.", price: 8.50, category: "food", venueType: ["golf"], serviceMode: "pool", imageUrl: getImg('hot dog'), suggestedModifierGroups: ["Hot Dog Toppings"], sortOrder: 201 },
-  { name: "Fruit Cup", description: "Fresh seasonal melon and berries.", price: 7.00, category: "food", venueType: ["golf"], serviceMode: "pool", imageUrl: getImg('grilled salmon'), sortOrder: 202 },
-  { name: "Frozen Cocktail", description: "Margarita or Pina Colada.", price: 12.00, category: "alcohol", venueType: ["golf"], serviceMode: "pool", imageUrl: getImg('blue cocktail'), sortOrder: 203 },
 
   // --- BOWLING: LANESIDE ---
   { name: "Pitcher of Beer", description: "64oz cold draft for the lane.", price: 20.00, category: "alcohol", venueType: ["bowling"], serviceMode: "laneService", imageUrl: getImg('craft beer'), sortOrder: 1 },
   { name: "Stone Fired Pizza", description: "16-inch jumbo family size.", price: 22.00, category: "food", venueType: ["bowling"], serviceMode: "laneService", imageUrl: getImg('pepperoni pizza'), suggestedModifierGroups: ["Crust", "Pizza Sauce", "Pizza Toppings"], sortOrder: 2 }
 ];
 
-const generateSlug = (name: string) => {
-  return name.toLowerCase()
-    .replace(/[^a-z0-9]/g, '-')
-    .replace(/-+/g, '-')
-    .replace(/^-|-$/g, '');
-};
-
 /**
- * Seeds the global starter modifier library collection.
- */
-export async function seedGlobalStarterLibrary(db: Firestore) {
-  const batch = writeBatch(db);
-  const libraryRef = collection(db, 'starter_modifier_library');
-  GLOBAL_STARTER_LIBRARY.forEach(template => {
-    const id = generateSlug(template.name);
-    batch.set(doc(libraryRef, id), template);
-  });
-  await batch.commit();
-}
-
-/**
- * Seeds the global starter menu item library collection.
- */
-export async function seedGlobalStarterMenuLibrary(db: Firestore) {
-  const batch = writeBatch(db);
-  const libraryRef = collection(db, 'starter_menu_item_library');
-  const items = getGlobalStarterMenuItems();
-  items.forEach(item => {
-    const id = generateSlug(`${item.name}-${item.serviceMode}`);
-    batch.set(doc(libraryRef, id), item);
-  });
-  await batch.commit();
-}
-
-/**
- * Ensures demo seller documents exist.
+ * Seeds core sellers.
  */
 export async function seedDemoSellers(db: Firestore) {
   const batch = writeBatch(db);
   const sellersRef = collection(db, 'sellers');
 
-  const demoSellers: Seller[] = [
+  const demoSellers: Partial<Seller>[] = [
     {
       id: 'demo-course',
       courseName: 'The Koop National (Public)',
@@ -228,9 +167,7 @@ export async function seedDemoSellers(db: Firestore) {
       contactPhone: '5551234567',
       serviceFee: 1.50,
       taxRate: 6.0,
-      status: 'Active',
-      bevcartActive: false,
-      clubhouseActive: false
+      status: 'Active'
     },
     {
       id: 'demo-private-course',
@@ -248,8 +185,7 @@ export async function seedDemoSellers(db: Firestore) {
       contactPhone: '5559876543',
       serviceFee: 2.00,
       taxRate: 6.0,
-      status: 'Active',
-      clubhouseActive: false
+      status: 'Active'
     },
     {
       id: 'demo-bowling-alley',
@@ -268,25 +204,23 @@ export async function seedDemoSellers(db: Firestore) {
       contactPhone: '5554443333',
       serviceFee: 1.00,
       taxRate: 6.0,
-      status: 'Active',
-      lanedeliveryActive: false
+      status: 'Active'
     }
   ];
 
   demoSellers.forEach(s => {
-    batch.set(doc(sellersRef, s.id), { ...s, updatedAt: serverTimestamp() }, { merge: true });
+    batch.set(doc(sellersRef, s.id!), { ...s, updatedAt: serverTimestamp() }, { merge: true });
   });
 
   await batch.commit();
 }
 
 /**
- * Clones modifiers for a specific venue based on venue type.
+ * Clones modifiers for a specific venue.
  */
 export async function seedVenueModifiers(db: Firestore, sellerId: string, venueType: 'golf' | 'bowling') {
   const batch = writeBatch(db);
   const modRef = collection(db, 'modifier_groups');
-  
   const relevantTemplates = GLOBAL_STARTER_LIBRARY.filter(t => t.venueType.includes(venueType));
   
   relevantTemplates.forEach(template => {
@@ -311,26 +245,21 @@ export async function seedVenueModifiers(db: Firestore, sellerId: string, venueT
 }
 
 /**
- * Seeds base menu items for a specific venue and attempts to link modifiers.
+ * Seeds base menu items for a specific venue.
+ * Predictably resolves modifier group IDs from names.
  */
 export async function seedVenueItems(db: Firestore, sellerId: string, items: any[]) {
   const batch = writeBatch(db);
   const menuItemsRef = collection(db, 'sellers', sellerId, 'menuItems');
   
-  // Fetch the modifiers we just created to build mapping
-  const modSnap = await getDocs(query(collection(db, 'modifier_groups'), where('sellerId', '==', sellerId)));
-  const modMap: Record<string, string> = {};
-  modSnap.forEach(m => { modMap[m.data().name.toLowerCase()] = m.id; });
-
   items.forEach((item, index) => {
     const itemId = item.id || `${sellerId}-item-${index}`;
-    
-    // Attempt to resolve modifier IDs from suggested names in the items array (if provided in data.ts)
-    // or just match based on the common starter library names.
     const linkedIds: string[] = [];
+    
     if (item.suggestedModifierGroups) {
       item.suggestedModifierGroups.forEach((name: string) => {
-        if (modMap[name.toLowerCase()]) linkedIds.push(modMap[name.toLowerCase()]);
+        // Deterministic ID resolution based on known starter library naming convention
+        linkedIds.push(`${sellerId}-${generateSlug(name)}`);
       });
     }
 
@@ -338,7 +267,7 @@ export async function seedVenueItems(db: Firestore, sellerId: string, items: any
       ...item, 
       id: itemId, 
       rank: index + 1, 
-      modifierGroupIds: linkedIds,
+      modifierGroupIds: Array.from(new Set(linkedIds)),
       createdAt: serverTimestamp(), 
       updatedAt: serverTimestamp() 
     });
@@ -347,7 +276,30 @@ export async function seedVenueItems(db: Firestore, sellerId: string, items: any
 }
 
 /**
- * Global function to reset all demo venues to their ideal states.
+ * Seeds global libraries.
+ */
+export async function seedGlobalStarterLibrary(db: Firestore) {
+  const batch = writeBatch(db);
+  const libraryRef = collection(db, 'starter_modifier_library');
+  GLOBAL_STARTER_LIBRARY.forEach(template => {
+    const id = generateSlug(template.name);
+    batch.set(doc(libraryRef, id), template);
+  });
+  await batch.commit();
+}
+
+export async function seedGlobalStarterMenuLibrary(db: Firestore) {
+  const batch = writeBatch(db);
+  const libraryRef = collection(db, 'starter_menu_item_library');
+  getGlobalStarterMenuItems().forEach(item => {
+    const id = generateSlug(`${item.name}-${item.serviceMode}`);
+    batch.set(doc(libraryRef, id), item);
+  });
+  await batch.commit();
+}
+
+/**
+ * Global entry point for full demo reseed.
  */
 export async function seedAllDemoData(db: Firestore) {
   // 1. Core Libraries
@@ -368,9 +320,6 @@ export async function seedAllDemoData(db: Firestore) {
   await seedVenueItems(db, 'demo-bowling-alley', bowlingAlleyItems);
 }
 
-/**
- * Deep operational reset for the entire platform.
- */
 export async function resetAllVenueOperationalStatus(db: Firestore) {
   const sellersRef = collection(db, 'sellers');
   const snapshot = await getDocs(sellersRef);
