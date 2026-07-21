@@ -69,7 +69,8 @@ import {
   ClipboardCheck,
   Timer,
   Activity,
-  AlertCircle
+  AlertCircle,
+  Info
 } from 'lucide-react';
 import Image from 'next/image';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
@@ -111,7 +112,7 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { cn, SUPER_ADMIN_ID } from '@/lib/utils';
 import { isToday, format, subDays, startOfDay, endOfDay, differenceInMinutes, differenceInSeconds } from 'date-fns';
-import Link from 'next/link';
+import Link from 'next/navigation';
 import { useRouter } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
@@ -1031,7 +1032,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                         <FormControl><Input {...field} className="h-12 border-2 font-bold" /></FormControl>
                       </FormItem>
                     )} 
-                  />
+                    />
                   <div className="grid grid-cols-2 gap-4">
                     <FormField 
                       control={modifierGroupForm.control} 
@@ -1173,3 +1174,4 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
     </div>
   );
 }
+
