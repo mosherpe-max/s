@@ -55,7 +55,8 @@ import {
   ClipboardList,
   User,
   Percent,
-  CheckCircle2
+  CheckCircle2,
+  Banknote
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -826,7 +827,7 @@ export default function SolutionAdminPage() {
           <ScrollArea className="max-h-[70vh]"><div className="p-8 text-left"><Form {...libraryForm}><form onSubmit={libraryForm.handleSubmit(handleSaveLibraryItem)} className="space-y-6">
             <div className="grid grid-cols-2 gap-4">
               <FormField control={libraryForm.control} name="name" render={({ field }) => (<FormItem className="text-left"><FormLabel className="text-[10px] font-black uppercase">Template Name</FormLabel><FormControl><Input {...field} className="h-12 border-2 font-bold" /></FormControl></FormItem>)} />
-              <FormField control={libraryForm.control} name="category" render={({ field }) => (<FormItem className="text-left"><FormLabel className="text-[10px] font-black uppercase">Category</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger className="h-12 border-2 font-bold"><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="food">Food</SelectItem><SelectItem value="beverage">Beverage</SelectItem><SelectItem value="universal">Universal</SelectItem></SelectContent></Select></FormItem>)} />
+              <FormField control={libraryForm.control} name="category" render={({ field }) => (<FormItem className="text-left"><FormLabel className="text-[10px] font-black uppercase">Category</Label><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger className="h-12 border-2 font-bold"><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="food">Food</SelectItem><SelectItem value="beverage">Beverage</SelectItem><SelectItem value="universal">Universal</SelectItem></SelectContent></Select></FormItem>)} />
             </div>
             <div className="grid grid-cols-2 gap-4">
                <FormField control={libraryForm.control} name="selectionType" render={({ field }) => (<FormItem className="text-left"><FormLabel className="text-[10px] font-black uppercase">Selection Logic</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger className="h-12 border-2 font-bold"><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="single">Single (Radio)</SelectItem><SelectItem value="multi">Multiple (Checkbox)</SelectItem></SelectContent></Select></FormItem>)} />
