@@ -120,8 +120,8 @@ export const applyStarterMenu = onCall({
         id: groupId,
         sellerId: venueId,
         name: template.name,
-        minSelection: template.required ? 1 : 0,
-        maxSelection: template.selectionType === 'single' ? 1 : 99,
+        minSelection: template.minSelection ?? (template.required ? 1 : 0),
+        maxSelection: template.maxSelection ?? (template.selectionType === 'single' ? 1 : 99),
         options: template.options.map((opt: any) => ({
           id: (opt.label || opt.name || 'option').toLowerCase().replace(/\s+/g, '-'),
           name: opt.label || opt.name || 'Option',
@@ -167,7 +167,6 @@ export const applyStarterItems = onCall({
     const normalizedType = venueType.toLowerCase();
     logger.info(`[applyStarterItems] Provisioning menu items for ${venueId} (Type: ${normalizedType})`);
 
-    // 1. Fetch library items for this venue type
     const itemSnap = await db.collection('starter_menu_item_library')
       .where('venueType', 'array-contains', normalizedType)
       .get();
@@ -177,7 +176,6 @@ export const applyStarterItems = onCall({
       return { totalCreated: 0, status: 'no_templates_found' };
     }
 
-    // 2. Fetch active modifier groups for this venue to build name->ID mapping
     const modSnap = await db.collection('modifier_groups').where('sellerId', '==', venueId).get();
     const modMap: Record<string, string> = {};
     modSnap.forEach(m => { 
@@ -188,7 +186,6 @@ export const applyStarterItems = onCall({
     const batch = db.batch();
     const venueItemsRef = db.collection('sellers').doc(venueId).collection('menuItems');
 
-    // Service mode mapping: library -> operational display name
     const modeMap: Record<string, string> = {
       beverageCart: "Beverage Cart",
       clubhouse: "Clubhouse",
@@ -197,7 +194,6 @@ export const applyStarterItems = onCall({
       takeout: "Take Out"
     };
 
-    // Operational Category Mapping
     const operationalCatMap: Record<string, string> = {
       alcohol: "Beer",
       beverage: "Soft Drinks",
@@ -206,13 +202,9 @@ export const applyStarterItems = onCall({
 
     itemSnap.docs.forEach((docSnap, index) => {
       const template = docSnap.data();
-      
-      // Safety check
       if (!template.name) return;
 
       const itemId = `${venueId}-${docSnap.id}`;
-      
-      // Resolve modifier IDs from suggested names
       const linkedIds: string[] = [];
       if (Array.isArray(template.suggestedModifierGroups)) {
         template.suggestedModifierGroups.forEach((name: string) => {
@@ -223,11 +215,9 @@ export const applyStarterItems = onCall({
         });
       }
 
-      // Determine operational category
       let opCat = template.category || "Other";
       if (operationalCatMap[template.category]) {
         opCat = operationalCatMap[template.category];
-        // Refining alcohol mapping
         if (template.category === 'alcohol') {
           const n = template.name.toLowerCase();
           if (n.includes('wine') || n.includes('cocktail') || n.includes('whiskey')) {
@@ -295,9 +285,11 @@ export const onGuestOrderStatusUpdate = onDocumentWritten({ document: "orders/{o
   let body = "";
   const link = `https://koop.app/orders/${event.params.orderId}`;
 
-  if (!event.data?.before.exists) {
+  const beforeData = event.data?.before?.exists ? event.data.before.data() : null;
+
+  if (!beforeData) {
     if (data.status === 'Placed') body = `Order received! Track live: ${link}`;
-  } else if (data.status !== event.data.before.data()?.status && data.status === 'Out for Delivery') {
+  } else if (data.status !== beforeData.status && data.status === 'Out for Delivery') {
     body = `Order out for delivery! Track live: ${link}`;
   }
 
