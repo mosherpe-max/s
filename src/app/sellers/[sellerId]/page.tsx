@@ -58,7 +58,7 @@ import {
   Calendar as CalendarIcon,
   QrCode,
   FileText,
-  LucideImage,
+  Image as LucideImage,
   Share2,
   Presentation,
   Filter,
@@ -68,6 +68,7 @@ import {
   HeartPulse,
   ClipboardCheck
 } from 'lucide-react';
+import Image from 'next/image';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
@@ -148,6 +149,7 @@ const itemSchema = z.object({
   price: z.coerce.number().min(0),
   category: z.string().min(1, 'Category required'),
   isAvailable: z.boolean().default(true),
+  imageUrl: z.string().default(''),
   availableOn: z.array(z.string()).default([]),
   featuredOn: z.array(z.string()).default([]),
   modifierGroupIds: z.array(z.string()).default([]),
@@ -359,7 +361,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
   }, [orders, orderSearchTerm, orderDateRange]);
 
   const staffForm = useForm<StaffFormData>({ resolver: zodResolver(staffSchema), defaultValues: { name: '', role: 'Staff', pin: '', isActive: true } });
-  const itemForm = useForm<ItemFormData>({ resolver: zodResolver(itemSchema), defaultValues: { name: '', description: '', price: 0, category: 'Other', isAvailable: true, availableOn: [], featuredOn: [], modifierGroupIds: [] } });
+  const itemForm = useForm<ItemFormData>({ resolver: zodResolver(itemSchema), defaultValues: { name: '', description: '', price: 0, category: 'Other', isAvailable: true, imageUrl: '', availableOn: [], featuredOn: [], modifierGroupIds: [] } });
   const modifierGroupForm = useForm<ModifierGroupFormData>({ resolver: zodResolver(modifierGroupSchema), defaultValues: { name: '', minSelection: 0, maxSelection: 1, options: [{ id: Math.random().toString(36).substr(2, 9), name: '', priceAdjustment: 0, isAvailable: true }] } });
 
   const { fields: optionFields, append: appendOption, remove: removeOption } = useFieldArray({ control: modifierGroupForm.control, name: "options" });
@@ -372,6 +374,16 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
     setIsStaffFormOpen(false);
     setIsProcessingSave(false);
     toast({ title: editingStaff ? "Staff Updated" : "Staff Added" });
+  };
+
+  const onSaveItem = async (data: ItemFormData) => {
+    if (!firestore || !sellerId) return;
+    setIsProcessingSave(true);
+    const id = editingItem?.id || Math.random().toString(36).substr(2, 9);
+    await setDoc(doc(firestore, 'sellers', sellerId, 'menuItems', id), { ...data, id, rank: editingItem?.rank || 99, createdAt: editingItem?.createdAt || serverTimestamp(), updatedAt: serverTimestamp() }, { merge: true });
+    setIsItemFormOpen(false);
+    setIsProcessingSave(false);
+    toast({ title: editingItem ? "Item Updated" : "Item Added" });
   };
 
   const handleApplyStarterMenu = async () => {
@@ -522,7 +534,39 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
               {activeNav === 'menu' && (
                 <div className="space-y-6 animate-in fade-in duration-500">
                   <div className="flex justify-between items-center border-b-2 pb-4"><div className="space-y-1"><h3 className="font-headline font-black text-2xl text-[#213147] uppercase">Menu Item Library</h3><p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Provision and manage products</p></div><div className="flex gap-2"><Button onClick={() => setIsStarterItemsConfirmOpen(true)} variant="outline" className="h-12 border-2 font-black uppercase text-[10px] gap-2"><Library className="h-4 w-4 text-indigo-600" /> Apply Starter Items</Button><Button onClick={() => { setEditingItem(null); itemForm.reset(); setIsItemFormOpen(true); }} className="bg-primary h-12 px-6 font-black uppercase text-[10px] gap-2 shadow-xl"><Plus className="h-4 w-4" /> Add Item</Button></div></div>
-                  <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">{menuItems?.map(item => (<Card key={item.id} className="border-2 shadow-sm group bg-white relative text-left"><CardHeader className="p-4 border-b bg-slate-50/50 flex flex-row items-start justify-between space-y-0"><div className="space-y-0.5 text-left"><p className="font-black text-xs uppercase text-[#213147] truncate max-w-[140px]">{item.name}</p><p className="text-[10px] font-bold text-primary font-mono">${item.price.toFixed(2)}</p></div><Button variant="ghost" size="icon" className="h-8 w-8 text-indigo-600 opacity-0 group-hover:opacity-100" onClick={() => { setEditingItem(item); itemForm.reset(item as any); setIsItemFormOpen(true); }}><Edit className="h-4 w-4" /></Button></CardHeader><CardContent className="p-4 space-y-3"><p className="text-[10px] text-muted-foreground line-clamp-2 leading-relaxed">{item.description || 'No description.'}</p><div className="flex flex-wrap gap-1">{item.availableOn?.map(m => (<Badge key={m} variant="secondary" className="text-[7px] px-1 h-3.5 border-0 uppercase">{m.split(' ')[0]}</Badge>))}</div></CardContent></Card>))}</div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                    {menuItems?.map(item => (
+                      <Card key={item.id} className="border-2 shadow-sm group bg-white relative text-left overflow-hidden">
+                        <div className="relative aspect-video w-full bg-slate-100 border-b overflow-hidden">
+                          {item.imageUrl ? (
+                            <Image 
+                              src={item.imageUrl} 
+                              alt={item.name} 
+                              fill 
+                              className="object-cover transition-transform group-hover:scale-105"
+                            />
+                          ) : (
+                            <div className="flex items-center justify-center h-full text-slate-300">
+                              <LucideImage className="h-8 w-8" />
+                            </div>
+                          )}
+                        </div>
+                        <CardHeader className="p-4 border-b bg-slate-50/50 flex flex-row items-start justify-between space-y-0">
+                          <div className="space-y-0.5 text-left">
+                            <p className="font-black text-xs uppercase text-[#213147] truncate max-w-[140px]">{item.name}</p>
+                            <p className="text-[10px] font-bold text-primary font-mono">${item.price.toFixed(2)}</p>
+                          </div>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-indigo-600 opacity-0 group-hover:opacity-100" onClick={() => { setEditingItem(item); itemForm.reset(item as any); setIsItemFormOpen(true); }}>
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                        </CardHeader>
+                        <CardContent className="p-4 space-y-3">
+                          <p className="text-[10px] text-muted-foreground line-clamp-2 leading-relaxed">{item.description || 'No description.'}</p>
+                          <div className="flex flex-wrap gap-1">{item.availableOn?.map(m => (<Badge key={m} variant="secondary" className="text-[7px] px-1 h-3.5 border-0 uppercase">{m.split(' ')[0]}</Badge>))}</div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
                 </div>
               )}
 
@@ -591,6 +635,30 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
       {/* Staff, Item, and Modifier Dialogs... */}
       <Dialog open={isStaffFormOpen} onOpenChange={setIsStaffFormOpen}>
         <DialogContent className="sm:max-w-[425px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left"><DialogHeader className="p-8 bg-[#213147] text-white text-left"><DialogTitle className="font-headline font-black uppercase tracking-tight text-white text-xl">{editingStaff ? 'Edit Personnel' : 'Add Personnel'}</DialogTitle></DialogHeader><div className="p-8"><Form {...staffForm}><form onSubmit={staffForm.handleSubmit(onSaveStaff)} className="space-y-6"><FormField control={staffForm.control} name="name" render={({ field }) => (<FormItem className="text-left"><FormLabel className="text-[10px] font-black uppercase">Full Name</FormLabel><FormControl><Input {...field} className="h-12 border-2 font-bold" /></FormControl></FormItem>)} /><div className="grid grid-cols-2 gap-4"><FormField control={staffForm.control} name="role" render={({ field }) => (<FormItem className="text-left"><FormLabel className="text-[10px] font-black uppercase">Role</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger className="h-12 border-2 font-bold"><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="Staff">Fulfillment Staff</SelectItem><SelectItem value="Manager">Venue Manager</SelectItem></SelectContent></Select></FormItem>)} /><FormField control={staffForm.control} name="pin" render={({ field }) => (<FormItem className="text-left"><FormLabel className="text-[10px] font-black uppercase">4-Digit PIN</FormLabel><FormControl><Input {...field} maxLength={4} className="h-12 border-2 font-bold font-mono tracking-widest text-center" /></FormControl></FormItem>)} /></div><Button type="submit" disabled={isProcessingSave} className="w-full h-14 bg-indigo-600 font-black uppercase tracking-widest text-[11px] gap-2 shadow-xl">{isProcessingSave ? <Loader2 className="animate-spin" /> : <Save className="h-4 w-4" />} Save Personnel</Button></form></Form></div></DialogContent>
+      </Dialog>
+
+      <Dialog open={isItemFormOpen} onOpenChange={setIsItemFormOpen}>
+        <DialogContent className="sm:max-w-[600px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
+          <DialogHeader className="p-8 bg-primary text-white text-left">
+            <DialogTitle className="font-headline font-black uppercase tracking-tight text-white text-xl">{editingItem ? 'Edit Menu Item' : 'Add Menu Item'}</DialogTitle>
+          </DialogHeader>
+          <ScrollArea className="max-h-[70vh]">
+            <div className="p-8">
+              <Form {...itemForm}>
+                <form onSubmit={itemForm.handleSubmit(onSaveItem)} className="space-y-6">
+                  <FormField control={itemForm.control} name="name" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase">Item Name</FormLabel><FormControl><Input {...field} className="h-12 border-2 font-bold" /></FormControl></FormItem>)} />
+                  <FormField control={itemForm.control} name="description" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase">Description</FormLabel><FormControl><Input {...field} className="h-12 border-2 font-bold" /></FormControl></FormItem>)} />
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField control={itemForm.control} name="price" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase">Price ($)</FormLabel><FormControl><Input type="number" step="0.01" {...field} className="h-12 border-2 font-bold" /></FormControl></FormItem>)} />
+                    <FormField control={itemForm.control} name="category" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase">Category</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger className="h-12 border-2 font-bold"><SelectValue /></SelectTrigger></FormControl><SelectContent>{categories.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent></Select></FormItem>)} />
+                  </div>
+                  <FormField control={itemForm.control} name="imageUrl" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase">Image URL</FormLabel><FormControl><Input {...field} className="h-12 border-2 font-bold" /></FormControl></FormItem>)} />
+                  <Button type="submit" disabled={isProcessingSave} className="w-full h-14 bg-primary font-black uppercase tracking-widest text-[11px] gap-2 shadow-xl">{isProcessingSave ? <Loader2 className="animate-spin" /> : <Save className="h-4 w-4" />} Save Item</Button>
+                </form>
+              </Form>
+            </div>
+          </ScrollArea>
+        </DialogContent>
       </Dialog>
     </div>
   );

@@ -83,8 +83,9 @@ const GLOBAL_STARTER_LIBRARY: Omit<StarterModifierGroup, 'id'>[] = [
 
 /**
  * Master library definition for the starter menu item system.
+ * Evaluates image retrieval at runtime to ensure placeholder availability.
  */
-const GLOBAL_STARTER_MENU_ITEMS: Omit<StarterMenuItem, 'id'>[] = [
+const getGlobalStarterMenuItems = (): Omit<StarterMenuItem, 'id'>[] => [
   // --- GOLF: BEVERAGE CART ---
   { name: "Bud Light (canned)", description: "Chilled 12oz can.", price: 6.00, category: "alcohol", venueType: ["golf"], serviceMode: "beverageCart", imageUrl: getImg('lager can'), sortOrder: 1 },
   { name: "Miller Lite (canned)", description: "Chilled 12oz can.", price: 6.00, category: "alcohol", venueType: ["golf"], serviceMode: "beverageCart", imageUrl: getImg('lager can'), sortOrder: 2 },
@@ -170,7 +171,8 @@ export async function seedGlobalStarterLibrary(db: Firestore) {
 export async function seedGlobalStarterMenuLibrary(db: Firestore) {
   const batch = writeBatch(db);
   const libraryRef = collection(db, 'starter_menu_item_library');
-  GLOBAL_STARTER_MENU_ITEMS.forEach(item => {
+  const items = getGlobalStarterMenuItems();
+  items.forEach(item => {
     const id = generateSlug(`${item.name}-${item.serviceMode}`);
     batch.set(doc(libraryRef, id), item);
   });
