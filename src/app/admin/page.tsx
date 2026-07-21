@@ -1003,7 +1003,9 @@ export default function SolutionAdminPage() {
                       render={({ field }) => (
                         <FormItem className="text-left">
                           <FormLabel className="text-[10px] font-black uppercase">Template Name</FormLabel>
-                          <FormControl><Input {...field} className="h-12 border-2 font-bold" /></FormControl>
+                          <FormControl>
+                            <Input {...field} className="h-12 border-2 font-bold" />
+                          </FormControl>
                         </FormItem>
                       )} 
                     />
@@ -1065,8 +1067,28 @@ export default function SolutionAdminPage() {
                     <div className="flex justify-between items-center px-1"><Label className="text-[10px] font-black uppercase text-indigo-600">Template Options</Label><Button type="button" variant="ghost" size="sm" onClick={() => appendOption({ label: '', priceModifier: 0 })} className="text-[9px] font-black uppercase gap-1.5"><Plus className="h-3 w-3" /> Add Option</Button></div>
                     {optionFields.map((field, index) => (
                       <div key={field.id} className="flex gap-2 items-start bg-slate-50 p-3 rounded-xl border-2">
-                        <FormField control={libraryForm.control} name={`options.${index}.label`} render={({ field }) => (<FormItem className="flex-1 text-left"><FormControl><Input {...field} placeholder="Label" className="h-10 border-2 font-bold bg-white" /></FormControl></FormItem>)} />
-                        <FormField control={libraryForm.control} name={`options.${index}.priceModifier`} render={({ field }) => (<FormItem className="w-24 text-left"><FormControl><Input {...field} type="number" step="0.01" placeholder="$0.00" className="h-10 border-2 font-bold bg-white" /></FormControl></FormItem>)} />
+                        <FormField 
+                          control={libraryForm.control} 
+                          name={`options.${index}.label`} 
+                          render={({ field }) => (
+                            <FormItem className="flex-1 text-left">
+                              <FormControl>
+                                <Input {...field} placeholder="Label" className="h-10 border-2 font-bold bg-white" />
+                              </FormControl>
+                            </FormItem>
+                          )} 
+                        />
+                        <FormField 
+                          control={libraryForm.control} 
+                          name={`options.${index}.priceModifier`} 
+                          render={({ field }) => (
+                            <FormItem className="w-24 text-left">
+                              <FormControl>
+                                <Input {...field} type="number" step="0.01" placeholder="$0.00" className="h-10 border-2 font-bold bg-white" />
+                              </FormControl>
+                            </FormItem>
+                          )} 
+                        />
                         <Button type="button" variant="ghost" size="icon" onClick={() => removeOption(index)} className="h-10 w-10 text-muted-foreground hover:text-destructive"><X className="h-4 w-4" /></Button>
                       </div>
                     ))}
@@ -1248,18 +1270,26 @@ export default function SolutionAdminPage() {
                        <User className="h-3 w-3" /> Identity & Ownership
                     </Label>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <FormField control={venueSettingsForm.control} name="name" render={({ field }) => (
-                        <FormItem className="text-left">
-                          <FormLabel className="text-[9px] font-black uppercase">Establishment Name</FormLabel>
-                          <FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl>
-                        </FormItem>
-                      )} />
-                      <FormField control={venueSettingsForm.control} name="ownerUid" render={({ field }) => (
-                        <FormItem className="text-left">
-                          <FormLabel className="text-[9px] font-black uppercase">Primary Owner (Auth UID)</FormLabel>
-                          <FormControl><Input {...field} className="h-11 border-2 font-bold font-mono text-xs" /></FormControl>
-                        </FormItem>
-                      )} />
+                      <FormField 
+                        control={venueSettingsForm.control} 
+                        name="name" 
+                        render={({ field }) => (
+                          <FormItem className="text-left">
+                            <FormLabel className="text-[9px] font-black uppercase">Establishment Name</FormLabel>
+                            <FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl>
+                          </FormItem>
+                        )} 
+                      />
+                      <FormField 
+                        control={venueSettingsForm.control} 
+                        name="ownerUid" 
+                        render={({ field }) => (
+                          <FormItem className="text-left">
+                            <FormLabel className="text-[9px] font-black uppercase">Primary Owner (Auth UID)</FormLabel>
+                            <FormControl><Input {...field} className="h-11 border-2 font-bold font-mono text-xs" /></FormControl>
+                          </FormItem>
+                        )} 
+                      />
                     </div>
                   </div>
 
@@ -1271,95 +1301,127 @@ export default function SolutionAdminPage() {
                        <MapPin className="h-3 w-3" /> Establishment Logistics & Contact
                     </Label>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <FormField control={venueSettingsForm.control} name="type" render={({ field }) => (
-                        <FormItem className="text-left">
-                          <FormLabel className="text-[9px] font-black uppercase">Venue Type</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <FormControl>
-                              <SelectTrigger className="h-11 border-2 font-bold">
-                                <SelectValue />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="Public Golf Course">Public Golf Course</SelectItem>
-                              <SelectItem value="Private Golf Course">Private Golf Course</SelectItem>
-                              <SelectItem value="Semi Private Golf Course">Semi Private Golf Course</SelectItem>
-                              <SelectItem value="Bowling Center">Bowling Center</SelectItem>
-                              <SelectItem value="Brewery">Brewery</SelectItem>
-                              <SelectItem value="Restaurant">Restaurant</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </FormItem>
-                      )} />
-                      <FormField control={venueSettingsForm.control} name="streetAddress" render={({ field }) => (
-                        <FormItem className="text-left">
-                          <FormLabel className="text-[9px] font-black uppercase">Street Address</FormLabel>
-                          <div className="relative">
-                            <Home className="absolute left-3 top-3 h-4 w-4 text-slate-300" />
-                            <FormControl><Input {...field} className="pl-10 h-11 border-2 font-bold" /></FormControl>
-                          </div>
-                        </FormItem>
-                      )} />
+                      <FormField 
+                        control={venueSettingsForm.control} 
+                        name="type" 
+                        render={({ field }) => (
+                          <FormItem className="text-left">
+                            <FormLabel className="text-[9px] font-black uppercase">Venue Type</FormLabel>
+                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                              <FormControl>
+                                <SelectTrigger className="h-11 border-2 font-bold">
+                                  <SelectValue />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="Public Golf Course">Public Golf Course</SelectItem>
+                                <SelectItem value="Private Golf Course">Private Golf Course</SelectItem>
+                                <SelectItem value="Semi Private Golf Course">Semi Private Golf Course</SelectItem>
+                                <SelectItem value="Bowling Center">Bowling Center</SelectItem>
+                                <SelectItem value="Brewery">Brewery</SelectItem>
+                                <SelectItem value="Restaurant">Restaurant</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </FormItem>
+                        )} 
+                      />
+                      <FormField 
+                        control={venueSettingsForm.control} 
+                        name="streetAddress" 
+                        render={({ field }) => (
+                          <FormItem className="text-left">
+                            <FormLabel className="text-[9px] font-black uppercase">Street Address</FormLabel>
+                            <div className="relative">
+                              <Home className="absolute left-3 top-3 h-4 w-4 text-slate-300" />
+                              <FormControl><Input {...field} className="pl-10 h-11 border-2 font-bold" /></FormControl>
+                            </div>
+                          </FormItem>
+                        )} 
+                      />
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <FormField control={venueSettingsForm.control} name="city" render={({ field }) => (
-                        <FormItem className="text-left">
-                          <FormLabel className="text-[9px] font-black uppercase">City</FormLabel>
-                          <FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl>
-                        </FormItem>
-                      )} />
-                      <FormField control={venueSettingsForm.control} name="state" render={({ field }) => (
-                        <FormItem className="text-left">
-                          <FormLabel className="text-[9px] font-black uppercase">State</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <FormControl>
-                              <SelectTrigger className="h-11 border-2 font-bold">
-                                <SelectValue placeholder="Select State" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {US_STATES.map((state) => (
-                                <SelectItem key={state.code} value={state.code}>
-                                  {state.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </FormItem>
-                      )} />
-                      <FormField control={venueSettingsForm.control} name="zip" render={({ field }) => (
-                        <FormItem className="text-left">
-                          <FormLabel className="text-[9px] font-black uppercase">Zip Code</FormLabel>
-                          <FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl>
-                        </FormItem>
-                      )} />
+                      <FormField 
+                        control={venueSettingsForm.control} 
+                        name="city" 
+                        render={({ field }) => (
+                          <FormItem className="text-left">
+                            <FormLabel className="text-[9px] font-black uppercase">City</FormLabel>
+                            <FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl>
+                          </FormItem>
+                        )} 
+                      />
+                      <FormField 
+                        control={venueSettingsForm.control} 
+                        name="state" 
+                        render={({ field }) => (
+                          <FormItem className="text-left">
+                            <FormLabel className="text-[9px] font-black uppercase">State</FormLabel>
+                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                              <FormControl>
+                                <SelectTrigger className="h-11 border-2 font-bold">
+                                  <SelectValue placeholder="Select State" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {US_STATES.map((state) => (
+                                  <SelectItem key={state.code} value={state.code}>
+                                    {state.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </FormItem>
+                        )} 
+                      />
+                      <FormField 
+                        control={venueSettingsForm.control} 
+                        name="zip" 
+                        render={({ field }) => (
+                          <FormItem className="text-left">
+                            <FormLabel className="text-[9px] font-black uppercase">Zip Code</FormLabel>
+                            <FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl>
+                          </FormItem>
+                        )} 
+                      />
                     </div>
                     <Separator className="opacity-50" />
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <FormField control={venueSettingsForm.control} name="contactName" render={({ field }) => (
-                        <FormItem className="text-left">
-                          <FormLabel className="text-[9px] font-black uppercase">Contact Name</FormLabel>
-                          <FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl>
-                        </FormItem>
-                      )} />
-                      <FormField control={venueSettingsForm.control} name="contactPhone" render={({ field }) => (
-                        <FormItem className="text-left">
-                          <FormLabel className="text-[9px] font-black uppercase">Contact Phone</FormLabel>
-                          <div className="relative">
-                            <Phone className="absolute left-3 top-3 h-4 w-4 text-slate-300" />
-                            <FormControl><Input {...field} type="tel" className="pl-10 h-11 border-2 font-bold" /></FormControl>
-                          </div>
-                        </FormItem>
-                      )} />
-                      <FormField control={venueSettingsForm.control} name="contactEmail" render={({ field }) => (
-                        <FormItem className="text-left">
-                          <FormLabel className="text-[9px] font-black uppercase">Contact Email</FormLabel>
-                          <div className="relative">
-                            <Mail className="absolute left-3 top-3 h-4 w-4 text-slate-300" />
-                            <FormControl><Input {...field} type="email" className="pl-11 h-11 border-2 font-bold" /></FormControl>
-                          </div>
-                        </FormItem>
-                      )} />
+                      <FormField 
+                        control={venueSettingsForm.control} 
+                        name="contactName" 
+                        render={({ field }) => (
+                          <FormItem className="text-left">
+                            <FormLabel className="text-[9px] font-black uppercase">Contact Name</FormLabel>
+                            <FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl>
+                          </FormItem>
+                        )} 
+                      />
+                      <FormField 
+                        control={venueSettingsForm.control} 
+                        name="contactPhone" 
+                        render={({ field }) => (
+                          <FormItem className="text-left">
+                            <FormLabel className="text-[9px] font-black uppercase">Contact Phone</FormLabel>
+                            <div className="relative">
+                              <Phone className="absolute left-3 top-3 h-4 w-4 text-slate-300" />
+                              <FormControl><Input {...field} type="tel" className="pl-10 h-11 border-2 font-bold" /></FormControl>
+                            </div>
+                          </FormItem>
+                        )} 
+                      />
+                      <FormField 
+                        control={venueSettingsForm.control} 
+                        name="contactEmail" 
+                        render={({ field }) => (
+                          <FormItem className="text-left">
+                            <FormLabel className="text-[9px] font-black uppercase">Contact Email</FormLabel>
+                            <div className="relative">
+                              <Mail className="absolute left-3 top-3 h-4 w-4 text-slate-300" />
+                              <FormControl><Input {...field} type="email" className="pl-11 h-11 border-2 font-bold" /></FormControl>
+                            </div>
+                          </FormItem>
+                        )} 
+                      />
                     </div>
                   </div>
 
@@ -1371,38 +1433,54 @@ export default function SolutionAdminPage() {
                        <CreditCard className="h-3 w-3" /> Stripe Express Integration
                     </Label>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <FormField control={venueSettingsForm.control} name="stripeAccountId" render={({ field }) => (
-                        <FormItem className="text-left">
-                          <FormLabel className="text-[9px] font-black uppercase">Express Account ID</FormLabel>
-                          <FormControl><Input {...field} placeholder="acct_..." className="h-11 border-2 font-bold font-mono text-xs" /></FormControl>
-                        </FormItem>
-                      )} />
-                      <FormField control={venueSettingsForm.control} name="stripeConnectId" render={({ field }) => (
-                        <FormItem className="text-left">
-                          <FormLabel className="text-[9px] font-black uppercase">Connect ID</FormLabel>
-                          <FormControl><Input {...field} className="h-11 border-2 font-bold font-mono text-xs" /></FormControl>
-                        </FormItem>
-                      )} />
+                      <FormField 
+                        control={venueSettingsForm.control} 
+                        name="stripeAccountId" 
+                        render={({ field }) => (
+                          <FormItem className="text-left">
+                            <FormLabel className="text-[9px] font-black uppercase">Express Account ID</FormLabel>
+                            <FormControl><Input {...field} placeholder="acct_..." className="h-11 border-2 font-bold font-mono text-xs" /></FormControl>
+                          </FormItem>
+                        )} 
+                      />
+                      <FormField 
+                        control={venueSettingsForm.control} 
+                        name="stripeConnectId" 
+                        render={({ field }) => (
+                          <FormItem className="text-left">
+                            <FormLabel className="text-[9px] font-black uppercase">Connect ID</FormLabel>
+                            <FormControl><Input {...field} className="h-11 border-2 font-bold font-mono text-xs" /></FormControl>
+                          </FormItem>
+                        )} 
+                      />
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-                      <FormField control={venueSettingsForm.control} name="stripeOnboardingComplete" render={({ field }) => (
-                        <FormItem className="flex items-center justify-between p-3 rounded-xl border-2 bg-slate-50 space-y-0 h-12">
-                          <div className="flex items-center gap-2">
-                            <CheckCircle2 className={cn("h-4 w-4", field.value ? "text-green-600" : "text-slate-300")} />
-                            <FormLabel className="text-[9px] font-black uppercase">Onboarding</FormLabel>
-                          </div>
-                          <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
-                        </FormItem>
-                      )} />
-                      <FormField control={venueSettingsForm.control} name="payoutsEnabled" render={({ field }) => (
-                        <FormItem className="flex items-center justify-between p-3 rounded-xl border-2 bg-slate-50 space-y-0 h-12">
-                          <div className="flex items-center gap-2">
-                            <DollarSign className={cn("h-4 w-4", field.value ? "text-green-600" : "text-slate-300")} />
-                            <FormLabel className="text-[9px] font-black uppercase">Payouts</FormLabel>
-                          </div>
-                          <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
-                        </FormItem>
-                      )} />
+                      <FormField 
+                        control={venueSettingsForm.control} 
+                        name="stripeOnboardingComplete" 
+                        render={({ field }) => (
+                          <FormItem className="flex items-center justify-between p-3 rounded-xl border-2 bg-slate-50 space-y-0 h-12">
+                            <div className="flex items-center gap-2">
+                              <CheckCircle2 className={cn("h-4 w-4", field.value ? "text-green-600" : "text-slate-300")} />
+                              <FormLabel className="text-[9px] font-black uppercase">Onboarding</FormLabel>
+                            </div>
+                            <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                          </FormItem>
+                        )} 
+                      />
+                      <FormField 
+                        control={venueSettingsForm.control} 
+                        name="payoutsEnabled" 
+                        render={({ field }) => (
+                          <FormItem className="flex items-center justify-between p-3 rounded-xl border-2 bg-slate-50 space-y-0 h-12">
+                            <div className="flex items-center gap-2">
+                              <DollarSign className={cn("h-4 w-4", field.value ? "text-green-600" : "text-slate-300")} />
+                              <FormLabel className="text-[9px] font-black uppercase">Payouts</FormLabel>
+                            </div>
+                            <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                          </FormItem>
+                        )} 
+                      />
                     </div>
                   </div>
 
@@ -1419,20 +1497,28 @@ export default function SolutionAdminPage() {
                        <div className="space-y-4">
                          <p className="text-[9px] font-black uppercase text-indigo-600 px-1 border-b border-indigo-100 pb-1">Platform Revenue</p>
                          <div className="grid grid-cols-1 gap-4">
-                            <FormField control={venueSettingsForm.control} name="patronConvenienceFee" render={({ field }) => (
-                              <FormItem className="text-left">
-                                <FormLabel className="text-[9px] font-black uppercase">Convenience Fee (Cents)</FormLabel>
-                                <FormControl><Input {...field} type="number" className="h-11 border-2 font-bold" /></FormControl>
-                                <FormDescription className="text-[8px] uppercase">Paid by patron per order.</FormDescription>
-                              </FormItem>
-                            )} />
-                            <FormField control={venueSettingsForm.control} name="monthlySolutionFee" render={({ field }) => (
-                              <FormItem className="text-left">
-                                <FormLabel className="text-[9px] font-black uppercase">SaaS Subscription ($)</FormLabel>
-                                <FormControl><Input {...field} type="number" className="h-11 border-2 font-bold" /></FormControl>
-                                <FormDescription className="text-[8px] uppercase">Monthly recurring venue cost.</FormDescription>
-                              </FormItem>
-                            )} />
+                            <FormField 
+                              control={venueSettingsForm.control} 
+                              name="patronConvenienceFee" 
+                              render={({ field }) => (
+                                <FormItem className="text-left">
+                                  <FormLabel className="text-[9px] font-black uppercase">Convenience Fee (Cents)</FormLabel>
+                                  <FormControl><Input {...field} type="number" className="h-11 border-2 font-bold" /></FormControl>
+                                  <FormDescription className="text-[8px] uppercase">Paid by patron per order.</FormDescription>
+                                </FormItem>
+                              )} 
+                            />
+                            <FormField 
+                              control={venueSettingsForm.control} 
+                              name="monthlySolutionFee" 
+                              render={({ field }) => (
+                                <FormItem className="text-left">
+                                  <FormLabel className="text-[9px] font-black uppercase">SaaS Subscription ($)</FormLabel>
+                                  <FormControl><Input {...field} type="number" className="h-11 border-2 font-bold" /></FormControl>
+                                  <FormDescription className="text-[8px] uppercase">Monthly recurring venue cost.</FormDescription>
+                                </FormItem>
+                              )} 
+                            />
                          </div>
                        </div>
 
@@ -1440,39 +1526,51 @@ export default function SolutionAdminPage() {
                        <div className="space-y-4">
                          <p className="text-[9px] font-black uppercase text-slate-400 px-1 border-b border-slate-100 pb-1">Solution Fee (Split)</p>
                          <div className="grid grid-cols-1 gap-4">
-                            <FormField control={venueSettingsForm.control} name="solutionFeeFixed" render={({ field }) => (
-                              <FormItem className="text-left">
-                                <FormLabel className="text-[9px] font-black uppercase">Fixed Fee (Cents)</FormLabel>
-                                <FormControl><Input {...field} type="number" className="h-11 border-2 font-bold" /></FormControl>
-                              </FormItem>
-                            )} />
-                            <FormField control={venueSettingsForm.control} name="solutionFeePercent" render={({ field }) => (
-                              <FormItem className="text-left">
-                                <FormLabel className="text-[9px] font-black uppercase">Percentage Fee (%)</FormLabel>
-                                <FormControl>
-                                  <div className="relative">
-                                    <Percent className="absolute right-3 top-3 h-4 w-4 text-slate-300" />
-                                    <Input {...field} type="number" step="0.1" className="h-11 border-2 font-bold pr-10" />
-                                  </div>
-                                </FormControl>
-                              </FormItem>
-                            )} />
+                            <FormField 
+                              control={venueSettingsForm.control} 
+                              name="solutionFeeFixed" 
+                              render={({ field }) => (
+                                <FormItem className="text-left">
+                                  <FormLabel className="text-[9px] font-black uppercase">Fixed Fee (Cents)</FormLabel>
+                                  <FormControl><Input {...field} type="number" className="h-11 border-2 font-bold" /></FormControl>
+                                </FormItem>
+                              )} 
+                            />
+                            <FormField 
+                              control={venueSettingsForm.control} 
+                              name="solutionFeePercent" 
+                              render={({ field }) => (
+                                <FormItem className="text-left">
+                                  <FormLabel className="text-[9px] font-black uppercase">Percentage Fee (%)</FormLabel>
+                                  <FormControl>
+                                    <div className="relative">
+                                      <Percent className="absolute right-3 top-3 h-4 w-4 text-slate-300" />
+                                      <Input {...field} type="number" step="0.1" className="h-11 border-2 font-bold pr-10" />
+                                    </div>
+                                  </FormControl>
+                                </FormItem>
+                              )} 
+                            />
                          </div>
                        </div>
                     </div>
 
-                    <FormField control={venueSettingsForm.control} name="isFoundingPartner" render={({ field }) => (
-                      <FormItem className="flex items-center justify-between p-4 rounded-2xl border-2 border-primary/20 bg-primary/5 space-y-0">
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2">
-                            <Sparkles className="h-4 w-4 text-primary fill-primary/20" />
-                            <FormLabel className="text-[10px] font-black uppercase text-primary">Founding Partner Status</FormLabel>
+                    <FormField 
+                      control={venueSettingsForm.control} 
+                      name="isFoundingPartner" 
+                      render={({ field }) => (
+                        <FormItem className="flex items-center justify-between p-4 rounded-2xl border-2 border-primary/20 bg-primary/5 space-y-0">
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                              <Sparkles className="h-4 w-4 text-primary fill-primary/20" />
+                              <FormLabel className="text-[10px] font-black uppercase text-primary">Founding Partner Status</FormLabel>
+                            </div>
+                            <p className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">Grants lifetime badge and marketing benefits</p>
                           </div>
-                          <p className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">Grants lifetime badge and marketing benefits</p>
-                        </div>
-                        <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
-                      </FormItem>
-                    )} />
+                          <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                        </FormItem>
+                      )} 
+                    />
                   </div>
 
                   <div className="bg-amber-50 border-2 border-amber-100 p-4 rounded-2xl flex items-start gap-3">

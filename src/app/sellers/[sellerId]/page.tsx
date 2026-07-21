@@ -575,7 +575,20 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
 
               {activeNav === 'menu' && (
                 <div className="space-y-6 animate-in fade-in duration-500">
-                  <div className="flex justify-between items-center border-b-2 pb-4"><div className="space-y-1"><h3 className="font-headline font-black text-2xl text-[#213147] uppercase">Menu Item Library</h3><p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Provision and manage products</p></div><div className="flex gap-2"><Button onClick={() => setIsStarterItemsConfirmOpen(true)} variant="outline" className="h-12 border-2 font-black uppercase text-[10px] gap-2"><Library className="h-4 w-4 text-indigo-600" /> Apply Starter Items</Button><Button onClick={() => { setEditingItem(null); itemForm.reset(); setIsItemFormOpen(true); }} className="bg-primary h-12 px-6 font-black uppercase text-[10px] gap-2 shadow-xl"><Plus className="h-4 w-4" /> Add Item</Button></div></div>
+                  <div className="flex justify-between items-center border-b-2 pb-4">
+                    <div className="space-y-1">
+                      <h3 className="font-headline font-black text-2xl text-[#213147] uppercase">Menu Item Library</h3>
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Provision and manage products</p>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button onClick={() => setIsStarterItemsConfirmOpen(true)} variant="outline" className="h-12 border-2 font-black uppercase text-[10px] gap-2">
+                        <Library className="h-4 w-4 text-indigo-600" /> Apply Starter Items
+                      </Button>
+                      <Button onClick={() => { setEditingItem(null); itemForm.reset({ name: '', description: '', price: 0, category: 'Other', isAvailable: true, imageUrl: '', availableOn: [], featuredOn: [], modifierGroupIds: [] }); setIsItemFormOpen(true); }} className="bg-primary h-12 px-6 font-black uppercase text-[10px] gap-2 shadow-xl">
+                        <Plus className="h-4 w-4" /> Add Item
+                      </Button>
+                    </div>
+                  </div>
                   <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
                     {menuItems?.map(item => (
                       <Card key={item.id} className="border-2 shadow-sm group bg-white relative text-left overflow-hidden">
@@ -614,14 +627,47 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
 
               {activeNav === 'modifiers' && (
                 <div className="space-y-6 animate-in fade-in duration-500">
-                  <div className="flex justify-between items-center border-b-2 pb-4"><div className="space-y-1"><h3 className="font-headline font-black text-2xl text-[#213147] uppercase">Modifier Groups</h3><p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Establishment customization sets</p></div><div className="flex gap-2"><Button onClick={() => setIsStarterMenuConfirmOpen(true)} variant="outline" className="h-12 border-2 font-black uppercase text-[10px] gap-2"><Tags className="h-4 w-4 text-indigo-600" /> Apply Starter Modifiers</Button><Button onClick={() => { setEditingModifierGroup(null); modifierGroupForm.reset(); setIsModifierGroupFormOpen(true); }} className="bg-indigo-600 h-12 px-6 font-black uppercase text-[10px] gap-2 shadow-xl"><Plus className="h-4 w-4" /> Add Modifier Set</Button></div></div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">{modifierGroups?.map(group => (<Card key={group.id} className="border-2 shadow-sm group bg-white text-left"><CardHeader className="p-5 border-b bg-slate-50/50 flex flex-row items-center justify-between space-y-0"><div className="space-y-1 text-left"><p className="font-black text-xs uppercase text-[#213147]">{group.name}</p><div className="flex items-center gap-2"><Badge className="text-[7px] font-black bg-indigo-100 text-indigo-700 uppercase h-3.5 px-1">{group.minSelection > 0 ? 'Required' : 'Optional'}</Badge><span className="text-[9px] font-bold text-muted-foreground uppercase">Min {group.minSelection} / Max {group.maxSelection}</span></div></div><Button variant="ghost" size="icon" className="h-8 w-8 text-indigo-600 opacity-0 group-hover:opacity-100" onClick={() => { setEditingModifierGroup(group); modifierGroupForm.reset(group as any); setIsModifierGroupFormOpen(true); }}><Edit className="h-4 w-4" /></Button></CardHeader><CardContent className="p-5 flex flex-wrap gap-2">{group.options.map((opt, idx) => (<Badge key={idx} variant="outline" className="text-[9px] font-bold uppercase border-slate-100 bg-white">{opt.name} {opt.priceAdjustment > 0 && <span className="text-primary ml-1">+${opt.priceAdjustment.toFixed(2)}</span>}</Badge>))}</CardContent></Card>))}</div>
+                  <div className="flex justify-between items-center border-b-2 pb-4">
+                    <div className="space-y-1">
+                      <h3 className="font-headline font-black text-2xl text-[#213147] uppercase">Modifier Groups</h3>
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Establishment customization sets</p>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button onClick={() => setIsStarterMenuConfirmOpen(true)} variant="outline" className="h-12 border-2 font-black uppercase text-[10px] gap-2">
+                        <Tags className="h-4 w-4 text-indigo-600" /> Apply Starter Modifiers
+                      </Button>
+                      <Button onClick={() => { setEditingModifierGroup(null); modifierGroupForm.reset({ name: '', minSelection: 0, maxSelection: 1, options: [{ id: Math.random().toString(36).substr(2, 9), name: '', priceAdjustment: 0, isAvailable: true }] }); setIsModifierGroupFormOpen(true); }} className="bg-indigo-600 h-12 px-6 font-black uppercase text-[10px] gap-2 shadow-xl">
+                        <Plus className="h-4 w-4" /> Add Modifier Set
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {modifierGroups?.map(group => (
+                      <Card key={group.id} className="border-2 shadow-sm group bg-white text-left">
+                        <CardHeader className="p-5 border-b bg-slate-50/50 flex flex-row items-center justify-between space-y-0">
+                          <div className="space-y-1 text-left">
+                            <p className="font-black text-xs uppercase text-[#213147]">{group.name}</p>
+                            <div className="flex items-center gap-2">
+                              <Badge className="text-[7px] font-black bg-indigo-100 text-indigo-700 uppercase h-3.5 px-1">{group.minSelection > 0 ? 'Required' : 'Optional'}</Badge>
+                              <span className="text-[9px] font-bold text-muted-foreground uppercase">Min {group.minSelection} / Max {group.maxSelection}</span>
+                            </div>
+                          </div>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-indigo-600 opacity-0 group-hover:opacity-100" onClick={() => { setEditingModifierGroup(group); modifierGroupForm.reset(group as any); setIsModifierGroupFormOpen(true); }}>
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                        </CardHeader>
+                        <CardContent className="p-5 flex flex-wrap gap-2">
+                          {group.options.map((opt, idx) => (<Badge key={idx} variant="outline" className="text-[9px] font-bold uppercase border-slate-100 bg-white">{opt.name} {opt.priceAdjustment > 0 && <span className="text-primary ml-1">+${opt.priceAdjustment.toFixed(2)}</span>}</Badge>))}
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
                 </div>
               )}
 
               {activeNav === 'staff' && (
                 <div className="space-y-8 animate-in fade-in duration-500">
-                  <div className="flex justify-between items-center border-b-2 pb-6"><div className="space-y-1"><h3 className="font-headline font-black text-2xl text-[#213147] uppercase">Staff Directory</h3><p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Manage personnel and access PINs</p></div><Button onClick={() => { setEditingStaff(null); staffForm.reset(); setIsStaffFormOpen(true); }} className="bg-indigo-600 h-12 px-6 font-black uppercase text-[10px] shadow-xl"><Plus className="h-4 w-4" /> Add Staff</Button></div>
+                  <div className="flex justify-between items-center border-b-2 pb-6"><div className="space-y-1"><h3 className="font-headline font-black text-2xl text-[#213147] uppercase">Staff Directory</h3><p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Manage personnel and access PINs</p></div><Button onClick={() => { setEditingStaff(null); staffForm.reset({ name: '', role: 'Staff', pin: '', isActive: true }); setIsStaffFormOpen(true); }} className="bg-indigo-600 h-12 px-6 font-black uppercase text-[10px] shadow-xl"><Plus className="h-4 w-4" /> Add Staff</Button></div>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">{staffList?.map(s => (<Card key={s.id} className="border-2 shadow-sm group bg-white overflow-hidden text-left"><CardHeader className="p-6 pb-4 flex flex-row items-center gap-4 relative"><div className="bg-slate-100 p-3 rounded-2xl text-slate-400 group-hover:text-indigo-600 transition-colors"><Users className="h-6 w-6" /></div><div className="text-left"><p className="font-black text-sm uppercase text-[#213147]">{s.name}</p><Badge variant="secondary" className="text-[8px] font-black uppercase mt-1">{s.role}</Badge></div><Button variant="ghost" size="icon" className="absolute top-4 right-4 h-8 w-8 opacity-0 group-hover:opacity-100" onClick={() => { setEditingStaff(s); staffForm.reset(s as any); setIsStaffFormOpen(true); }}><Edit className="h-4 w-4" /></Button></CardHeader><CardContent className="p-6 pt-0 space-y-4"><div className="bg-slate-50 p-4 rounded-2xl border-2 border-slate-100 flex items-center justify-between"><div className="space-y-0.5 text-left"><p className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">Secure PIN</p><p className="text-sm font-black font-mono tracking-[0.3em]">{s.pin}</p></div><Badge className={cn("text-[8px] font-black uppercase px-2 h-4", s.isActive ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-400")}>{s.isActive ? 'Active' : 'Inactive'}</Badge></div></CardContent></Card>))}</div>
                 </div>
               )}
@@ -637,7 +683,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                 <div className="space-y-8 animate-in fade-in duration-500">
                   <div className="flex justify-between items-center border-b-2 pb-6"><div className="space-y-1"><h3 className="font-headline font-black text-2xl text-[#213147] uppercase">Establishment Settings</h3><p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Configuration and fulfillment thresholds</p></div><Button onClick={onSaveFulfillment} disabled={isProcessingSave} className="bg-[#213147] font-black uppercase text-[10px] gap-2 h-11 px-6 shadow-xl">{isProcessingSave ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Save Fulfillment Rules</Button></div>
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    <Card className="border-2 shadow-sm p-8 space-y-8 text-left h-fit"><div className="space-y-6"><h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2"><Building className="h-4 w-4" /> Core Identity</h4><div className="grid gap-6"><div className="space-y-2 text-left"><Label className="text-[10px] font-black uppercase">Official Establishment Name</Label><Input defaultValue={seller?.courseName} onChange={(e) => updateDoc(doc(firestore!, 'sellers', sellerId), { courseName: e.target.value })} className="h-12 border-2 font-bold" /></div><div className="grid grid-cols-2 gap-6"><div className="space-y-2 text-left"><Label className="text-[10px] font-black uppercase">Establishment Type</Label><Select defaultValue={seller?.type} onValueChange={(v) => updateDoc(doc(firestore!, 'sellers', sellerId), { type: v })}><SelectTrigger className="h-12 border-2 font-bold"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="Public Golf Course">Public Golf Course</SelectItem><SelectItem value="Private Golf Course">Private Golf Course</SelectItem><SelectItem value="Bowling Center">Bowling Center</SelectItem></SelectContent></Select></div><div className="space-y-2 text-left"><Label className="text-[10px] font-black uppercase">Current Status</Label><div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border-2 h-12"><Switch checked={seller?.status === 'Active'} onCheckedChange={(v) => updateDoc(doc(firestore!, 'sellers', sellerId), { status: v ? 'Active' : 'Inactive' })} /><span className="text-[10px] font-black uppercase">{seller?.status}</span></div></div></div><div className="space-y-2 text-left"><Label className="text-[10px] font-black uppercase">Tax Rate (%)</Label><Input type="number" defaultValue={seller?.taxRate} onChange={(e) => updateDoc(doc(firestore!, 'sellers', sellerId), { taxRate: parseFloat(e.target.value) })} className="h-12 border-2 font-bold" /></div></div></div><Separator /><div className="space-y-6"><h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2"><MapPin className="h-4 w-4" /> Logistics Base</h4><div className="space-y-2 text-left"><Label className="text-[10px] font-black uppercase">Street Address</Label><Input defaultValue={seller?.streetAddress} className="h-12 border-2 font-bold" /></div></div></Card>
+                    <Card className="border-2 shadow-sm p-8 space-y-8 text-left h-fit"><div className="space-y-6"><h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2"><Building className="h-4 w-4" /> Core Identity</h4><div className="grid gap-6"><div className="space-y-2 text-left"><Label className="text-[10px] font-black uppercase">Official Establishment Name</Label><Input defaultValue={seller?.courseName} onChange={(e) => updateDoc(doc(firestore!, 'sellers', sellerId), { courseName: e.target.value })} className="h-12 border-2 font-bold" /></div><div className="grid grid-cols-2 gap-6"><div className="space-y-2 text-left"><Label className="text-[10px] font-black uppercase">Establishment Type</Label><Select defaultValue={seller?.type} onValueChange={(v) => updateDoc(doc(firestore!, 'sellers', sellerId), { type: v as any })}><SelectTrigger className="h-12 border-2 font-bold"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="Public Golf Course">Public Golf Course</SelectItem><SelectItem value="Private Golf Course">Private Golf Course</SelectItem><SelectItem value="Bowling Center">Bowling Center</SelectItem></SelectContent></Select></div><div className="space-y-2 text-left"><Label className="text-[10px] font-black uppercase">Current Status</Label><div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border-2 h-12"><Switch checked={seller?.status === 'Active'} onCheckedChange={(v) => updateDoc(doc(firestore!, 'sellers', sellerId), { status: v ? 'Active' : 'Inactive' })} /><span className="text-[10px] font-black uppercase">{seller?.status}</span></div></div></div><div className="space-y-2 text-left"><Label className="text-[10px] font-black uppercase">Tax Rate (%)</Label><Input type="number" defaultValue={seller?.taxRate} onChange={(e) => updateDoc(doc(firestore!, 'sellers', sellerId), { taxRate: parseFloat(e.target.value) })} className="h-12 border-2 font-bold" /></div></div></div><Separator /><div className="space-y-6"><h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2"><MapPin className="h-4 w-4" /> Logistics Base</h4><div className="space-y-2 text-left"><Label className="text-[10px] font-black uppercase">Street Address</Label><Input defaultValue={seller?.streetAddress} className="h-12 border-2 font-bold" /></div></div></Card>
 
                     <Card className="border-2 shadow-sm p-8 space-y-8 text-left h-fit">
                       <div className="flex items-center justify-between"><h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2"><HeartPulse className="h-4 w-4 text-primary" /> Fulfillment Thresholds</h4><Badge variant="outline" className="text-[8px] font-black border-primary/20 bg-primary/5 text-primary uppercase">Active Channels</Badge></div>
@@ -710,7 +756,60 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
 
       {/* Staff Form */}
       <Dialog open={isStaffFormOpen} onOpenChange={setIsStaffFormOpen}>
-        <DialogContent className="sm:max-w-[425px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left"><DialogHeader className="p-8 bg-[#213147] text-white text-left"><DialogTitle className="font-headline font-black uppercase tracking-tight text-white text-xl">{editingStaff ? 'Edit Personnel' : 'Add Personnel'}</DialogTitle></DialogHeader><div className="p-8"><Form {...staffForm}><form onSubmit={staffForm.handleSubmit(onSaveStaff)} className="space-y-6"><FormField control={staffForm.control} name="name" render={({ field }) => (<FormItem className="text-left"><FormLabel className="text-[10px] font-black uppercase">Full Name</FormLabel><FormControl><Input {...field} className="h-12 border-2 font-bold" /></FormControl></FormItem>)} /><div className="grid grid-cols-2 gap-4"><FormField control={staffForm.control} name="role" render={({ field }) => (<FormItem className="text-left"><FormLabel className="text-[10px] font-black uppercase">Role</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger className="h-12 border-2 font-bold"><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="Staff">Fulfillment Staff</SelectItem><SelectItem value="Manager">Venue Manager</SelectItem></SelectContent></Select></FormItem>)} /><FormField control={staffForm.control} name="pin" render={({ field }) => (<FormItem className="text-left"><FormLabel className="text-[10px] font-black uppercase">4-Digit PIN</FormLabel><FormControl><Input {...field} maxLength={4} className="h-12 border-2 font-bold font-mono tracking-widest text-center" /></FormControl></FormItem>)} /></div><Button type="submit" disabled={isProcessingSave} className="w-full h-14 bg-indigo-600 font-black uppercase tracking-widest text-[11px] gap-2 shadow-xl">{isProcessingSave ? <Loader2 className="animate-spin" /> : <Save className="h-4 w-4" />} Save Personnel</Button></form></Form></div></DialogContent>
+        <DialogContent className="sm:max-w-[425px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
+          <DialogHeader className="p-8 bg-[#213147] text-white text-left">
+            <DialogTitle className="font-headline font-black uppercase tracking-tight text-white text-xl">{editingStaff ? 'Edit Personnel' : 'Add Personnel'}</DialogTitle>
+          </DialogHeader>
+          <div className="p-8">
+            <Form {...staffForm}>
+              <form onSubmit={staffForm.handleSubmit(onSaveStaff)} className="space-y-6">
+                <FormField 
+                  control={staffForm.control} 
+                  name="name" 
+                  render={({ field }) => (
+                    <FormItem className="text-left">
+                      <FormLabel className="text-[10px] font-black uppercase">Full Name</FormLabel>
+                      <FormControl><Input {...field} className="h-12 border-2 font-bold" /></FormControl>
+                    </FormItem>
+                  )} 
+                />
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField 
+                    control={staffForm.control} 
+                    name="role" 
+                    render={({ field }) => (
+                      <FormItem className="text-left">
+                        <FormLabel className="text-[10px] font-black uppercase">Role</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger className="h-12 border-2 font-bold">
+                              <SelectValue />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="Staff">Fulfillment Staff</SelectItem>
+                            <SelectItem value="Manager">Venue Manager</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </FormItem>
+                    )} 
+                  />
+                  <FormField 
+                    control={staffForm.control} 
+                    name="pin" 
+                    render={({ field }) => (
+                      <FormItem className="text-left">
+                        <FormLabel className="text-[10px] font-black uppercase">4-Digit PIN</FormLabel>
+                        <FormControl><Input {...field} maxLength={4} className="h-12 border-2 font-bold font-mono tracking-widest text-center" /></FormControl>
+                      </FormItem>
+                    )} 
+                  />
+                </div>
+                <Button type="submit" disabled={isProcessingSave} className="w-full h-14 bg-indigo-600 font-black uppercase tracking-widest text-[11px] gap-2 shadow-xl">{isProcessingSave ? <Loader2 className="animate-spin" /> : <Save className="h-4 w-4" />} Save Personnel</Button>
+              </form>
+            </Form>
+          </div>
+        </DialogContent>
       </Dialog>
 
       {/* Modifier Group Editor */}
@@ -723,23 +822,64 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
             <div className="p-8">
               <Form {...modifierGroupForm}>
                 <form onSubmit={modifierGroupForm.handleSubmit(onSaveModifierGroup)} className="space-y-6">
-                  <FormField control={modifierGroupForm.control} name="name" render={({ field }) => (
-                    <FormItem className="text-left"><FormLabel className="text-[10px] font-black uppercase">Group Name</FormLabel><FormControl><Input {...field} className="h-12 border-2 font-bold" /></FormControl></FormItem>
-                  )} />
+                  <FormField 
+                    control={modifierGroupForm.control} 
+                    name="name" 
+                    render={({ field }) => (
+                      <FormItem className="text-left">
+                        <FormLabel className="text-[10px] font-black uppercase">Group Name</FormLabel>
+                        <FormControl><Input {...field} className="h-12 border-2 font-bold" /></FormControl>
+                      </FormItem>
+                    )} 
+                  />
                   <div className="grid grid-cols-2 gap-4">
-                    <FormField control={modifierGroupForm.control} name="minSelection" render={({ field }) => (
-                      <FormItem className="text-left"><FormLabel className="text-[10px] font-black uppercase">Min Selection</FormLabel><FormControl><Input type="number" {...field} className="h-12 border-2 font-bold" /></FormControl></FormItem>
-                    )} />
-                    <FormField control={modifierGroupForm.control} name="maxSelection" render={({ field }) => (
-                      <FormItem className="text-left"><FormLabel className="text-[10px] font-black uppercase">Max Selection</FormLabel><FormControl><Input type="number" {...field} className="h-12 border-2 font-bold" /></FormControl></FormItem>
-                    )} />
+                    <FormField 
+                      control={modifierGroupForm.control} 
+                      name="minSelection" 
+                      render={({ field }) => (
+                        <FormItem className="text-left">
+                          <FormLabel className="text-[10px] font-black uppercase">Min Selection</FormLabel>
+                          <FormControl><Input type="number" {...field} className="h-12 border-2 font-bold" /></FormControl>
+                        </FormItem>
+                      )} 
+                    />
+                    <FormField 
+                      control={modifierGroupForm.control} 
+                      name="maxSelection" 
+                      render={({ field }) => (
+                        <FormItem className="text-left">
+                          <FormLabel className="text-[10px] font-black uppercase">Max Selection</FormLabel>
+                          <FormControl><Input type="number" {...field} className="h-12 border-2 font-bold" /></FormControl>
+                        </FormItem>
+                      )} 
+                    />
                   </div>
                   <div className="space-y-3">
                     <div className="flex justify-between items-center px-1"><Label className="text-[10px] font-black uppercase text-indigo-600">Options</Label><Button type="button" variant="ghost" size="sm" onClick={() => appendOption({ id: Math.random().toString(36).substr(2, 9), name: '', priceAdjustment: 0, isAvailable: true })} className="text-[9px] font-black uppercase gap-1.5"><Plus className="h-3 w-3" /> Add Option</Button></div>
                     {optionFields.map((field, index) => (
                       <div key={field.id} className="flex gap-2 items-start bg-slate-50 p-3 rounded-xl border-2">
-                        <FormField control={modifierGroupForm.control} name={`options.${index}.name`} render={({ field }) => (<FormItem className="flex-1 text-left"><FormControl><Input {...field} placeholder="Option Name" className="h-10 border-2 font-bold bg-white" /></FormControl></FormItem>)} />
-                        <FormField control={modifierGroupForm.control} name={`options.${index}.priceAdjustment`} render={({ field }) => (<FormItem className="w-24 text-left"><FormControl><Input {...field} type="number" step="0.01" placeholder="$0.00" className="h-10 border-2 font-bold bg-white" /></FormControl></FormItem>)} />
+                        <FormField 
+                          control={modifierGroupForm.control} 
+                          name={`options.${index}.name`} 
+                          render={({ field }) => (
+                            <FormItem className="flex-1 text-left">
+                              <FormControl>
+                                <Input {...field} placeholder="Option Name" className="h-10 border-2 font-bold bg-white" />
+                              </FormControl>
+                            </FormItem>
+                          )} 
+                        />
+                        <FormField 
+                          control={modifierGroupForm.control} 
+                          name={`options.${index}.priceAdjustment`} 
+                          render={({ field }) => (
+                            <FormItem className="w-24 text-left">
+                              <FormControl>
+                                <Input {...field} type="number" step="0.01" placeholder="$0.00" className="h-10 border-2 font-bold bg-white" />
+                              </FormControl>
+                            </FormItem>
+                          )} 
+                        />
                         <Button type="button" variant="ghost" size="icon" onClick={() => removeOption(index)} className="h-10 w-10 text-muted-foreground hover:text-destructive"><X className="h-4 w-4" /></Button>
                       </div>
                     ))}
@@ -762,13 +902,67 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
             <div className="p-8">
               <Form {...itemForm}>
                 <form onSubmit={itemForm.handleSubmit(onSaveItem)} className="space-y-6">
-                  <FormField control={itemForm.control} name="name" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase">Item Name</FormLabel><FormControl><Input {...field} className="h-12 border-2 font-bold" /></FormControl></FormItem>)} />
-                  <FormField control={itemForm.control} name="description" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase">Description</FormLabel><FormControl><Input {...field} className="h-12 border-2 font-bold" /></FormControl></FormItem>)} />
+                  <FormField 
+                    control={itemForm.control} 
+                    name="name" 
+                    render={({ field }) => (
+                      <FormItem className="text-left">
+                        <FormLabel className="text-[10px] font-black uppercase">Item Name</FormLabel>
+                        <FormControl><Input {...field} className="h-12 border-2 font-bold" /></FormControl>
+                      </FormItem>
+                    )} 
+                  />
+                  <FormField 
+                    control={itemForm.control} 
+                    name="description" 
+                    render={({ field }) => (
+                      <FormItem className="text-left">
+                        <FormLabel className="text-[10px] font-black uppercase">Description</FormLabel>
+                        <FormControl><Input {...field} className="h-12 border-2 font-bold" /></FormControl>
+                      </FormItem>
+                    )} 
+                  />
                   <div className="grid grid-cols-2 gap-4">
-                    <FormField control={itemForm.control} name="price" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase">Price ($)</FormLabel><FormControl><Input type="number" step="0.01" {...field} className="h-12 border-2 font-bold" /></FormControl></FormItem>)} />
-                    <FormField control={itemForm.control} name="category" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase">Category</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger className="h-12 border-2 font-bold"><SelectValue /></SelectTrigger></FormControl><SelectContent>{categories.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent></Select></FormItem>)} />
+                    <FormField 
+                      control={itemForm.control} 
+                      name="price" 
+                      render={({ field }) => (
+                        <FormItem className="text-left">
+                          <FormLabel className="text-[10px] font-black uppercase">Price ($)</FormLabel>
+                          <FormControl><Input type="number" step="0.01" {...field} className="h-12 border-2 font-bold" /></FormControl>
+                        </FormItem>
+                      )} 
+                    />
+                    <FormField 
+                      control={itemForm.control} 
+                      name="category" 
+                      render={({ field }) => (
+                        <FormItem className="text-left">
+                          <FormLabel className="text-[10px] font-black uppercase">Category</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger className="h-12 border-2 font-bold">
+                                <SelectValue />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {categories.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                        </FormItem>
+                      )} 
+                    />
                   </div>
-                  <FormField control={itemForm.control} name="imageUrl" render={({ field }) => (<FormItem><FormLabel className="text-[10px] font-black uppercase">Image URL</FormLabel><FormControl><Input {...field} className="h-12 border-2 font-bold" /></FormControl></FormItem>)} />
+                  <FormField 
+                    control={itemForm.control} 
+                    name="imageUrl" 
+                    render={({ field }) => (
+                      <FormItem className="text-left">
+                        <FormLabel className="text-[10px] font-black uppercase">Image URL</FormLabel>
+                        <FormControl><Input {...field} className="h-12 border-2 font-bold" /></FormControl>
+                      </FormItem>
+                    )} 
+                  />
                   <Button type="submit" disabled={isProcessingSave} className="w-full h-14 bg-primary font-black uppercase tracking-widest text-[11px] gap-2 shadow-xl">{isProcessingSave ? <Loader2 className="animate-spin" /> : <Save className="h-4 w-4" />} Save Item</Button>
                 </form>
               </Form>

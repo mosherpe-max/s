@@ -21,18 +21,18 @@ export const createPaymentIntent = onCall({
   secrets: ["STRIPE_SECRET_KEY"],
   region: 'us-central1',
 }, async (request) => {
-  const { amount, sellerId, patronName, patronPhone, patronEmail, saveInfo } = request.data;
-  const buyerUid = request.auth?.uid;
-
-  if (!amount || amount <= 0) throw new HttpsError('invalid-argument', 'Invalid amount.');
-  if (!sellerId) throw new HttpsError('invalid-argument', 'Missing sellerId.');
-
-  const apiKey = process.env.STRIPE_SECRET_KEY;
-  if (!apiKey) throw new HttpsError('failed-precondition', 'Gateway not configured.');
-
-  const stripe = new Stripe(apiKey, { apiVersion: '2025-01-27.acacia' as any });
-
   try {
+    const { amount, sellerId, patronName, patronPhone, patronEmail, saveInfo } = request.data || {};
+    const buyerUid = request.auth?.uid;
+
+    if (!amount || amount <= 0) throw new HttpsError('invalid-argument', 'Invalid amount.');
+    if (!sellerId) throw new HttpsError('invalid-argument', 'Missing sellerId.');
+
+    const apiKey = process.env.STRIPE_SECRET_KEY;
+    if (!apiKey) throw new HttpsError('failed-precondition', 'Gateway not configured.');
+
+    const stripe = new Stripe(apiKey, { apiVersion: '2025-01-27.acacia' as any });
+
     let stripeCustomerId: string | undefined;
 
     if (buyerUid) {
@@ -72,7 +72,7 @@ export const createPaymentIntent = onCall({
     return { clientSecret: paymentIntent.client_secret, customerSessionClientSecret };
   } catch (err: any) {
     logger.error("Stripe PI Error", err);
-    throw new HttpsError('internal', err.message);
+    throw new HttpsError('internal', err.message || 'Internal payment gateway error.');
   }
 });
 
@@ -83,7 +83,7 @@ export const createPaymentIntent = onCall({
 export const applyStarterMenu = onCall({
   region: 'us-central1',
 }, async (request) => {
-  const { venueId, venueType } = request.data;
+  const { venueId, venueType } = request.data || {};
   
   if (!venueId || !venueType) {
     throw new HttpsError('invalid-argument', 'venueId and venueType are required.');
@@ -102,16 +102,12 @@ export const applyStarterMenu = onCall({
     }
 
     const batch = db.batch();
+    let count = 0;
     const summary: Record<string, number> = {};
 
     snapshot.docs.forEach(docSnap => {
       const template = docSnap.data();
-      
-      // Safety check: skip if template is malformed
-      if (!template.name || !Array.isArray(template.options)) {
-        logger.warn(`[applyStarterMenu] Skipping malformed template: ${docSnap.id}`);
-        return;
-      }
+      if (!template || !template.name || !Array.isArray(template.options)) return;
 
       const groupId = `${venueId}-${docSnap.id}`;
       const groupRef = db.collection('modifier_groups').doc(groupId);
@@ -123,9 +119,9 @@ export const applyStarterMenu = onCall({
         minSelection: template.minSelection ?? (template.required ? 1 : 0),
         maxSelection: template.maxSelection ?? (template.selectionType === 'single' ? 1 : 99),
         options: template.options.map((opt: any) => ({
-          id: (opt.label || opt.name || 'option').toLowerCase().replace(/\s+/g, '-'),
-          name: opt.label || opt.name || 'Option',
-          priceAdjustment: opt.priceModifier || opt.priceAdjustment || 0,
+          id: String(opt.label || opt.name || 'option').toLowerCase().replace(/\s+/g, '-'),
+          name: String(opt.label || opt.name || 'Option'),
+          priceAdjustment: Number(opt.priceModifier || opt.priceAdjustment || 0),
           isAvailable: true
         })),
         createdAt: FieldValue.serverTimestamp(),
@@ -134,16 +130,15 @@ export const applyStarterMenu = onCall({
 
       const cat = template.category || 'universal';
       summary[cat] = (summary[cat] || 0) + 1;
+      count++;
     });
 
-    await batch.commit();
-    logger.info(`[applyStarterMenu] Successfully provisioned ${snapshot.size} modifier sets for ${venueId}`);
-    
-    return { 
-      totalCreated: snapshot.size, 
-      byCategory: summary,
-      status: 'success'
-    };
+    if (count > 0) {
+      await batch.commit();
+    }
+
+    logger.info(`[applyStarterMenu] Successfully provisioned ${count} modifier sets for ${venueId}`);
+    return { totalCreated: count, byCategory: summary, status: 'success' };
   } catch (error: any) {
     logger.error("[applyStarterMenu] Critical Failure:", error);
     throw new HttpsError('internal', `Failed to provision starter modifiers: ${error.message}`);
@@ -152,12 +147,12 @@ export const applyStarterMenu = onCall({
 
 /**
  * applyStarterItems
- * Clones template items into a venue's collection and links them to relevant modifiers by name lookup.
+ * Clones template items into a venue's collection and links them to relevant modifiers.
  */
 export const applyStarterItems = onCall({
   region: 'us-central1',
 }, async (request) => {
-  const { venueId, venueType } = request.data;
+  const { venueId, venueType } = request.data || {};
   
   if (!venueId || !venueType) {
     throw new HttpsError('invalid-argument', 'venueId and venueType are required.');
@@ -200,15 +195,16 @@ export const applyStarterItems = onCall({
       food: "Handhelds"
     };
 
+    let count = 0;
     itemSnap.docs.forEach((docSnap, index) => {
       const template = docSnap.data();
-      if (!template.name) return;
+      if (!template || !template.name) return;
 
       const itemId = `${venueId}-${docSnap.id}`;
       const linkedIds: string[] = [];
       if (Array.isArray(template.suggestedModifierGroups)) {
         template.suggestedModifierGroups.forEach((name: string) => {
-          const lowerName = name.toLowerCase();
+          const lowerName = String(name).toLowerCase();
           if (modMap[lowerName]) {
             linkedIds.push(modMap[lowerName]);
           }
@@ -219,7 +215,7 @@ export const applyStarterItems = onCall({
       if (operationalCatMap[template.category]) {
         opCat = operationalCatMap[template.category];
         if (template.category === 'alcohol') {
-          const n = template.name.toLowerCase();
+          const n = String(template.name).toLowerCase();
           if (n.includes('wine') || n.includes('cocktail') || n.includes('whiskey')) {
             opCat = "Spirits";
           }
@@ -232,7 +228,7 @@ export const applyStarterItems = onCall({
         id: itemId,
         name: template.name,
         description: template.description || "",
-        price: template.price || 0,
+        price: Number(template.price || 0),
         category: opCat,
         rank: template.sortOrder || index + 1,
         imageUrl: template.imageUrl || "", 
@@ -242,15 +238,15 @@ export const applyStarterItems = onCall({
         createdAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp()
       }, { merge: true });
+      count++;
     });
 
-    await batch.commit();
-    logger.info(`[applyStarterItems] Successfully provisioned ${itemSnap.size} menu items for ${venueId}`);
-    
-    return { 
-      totalCreated: itemSnap.size,
-      status: 'success'
-    };
+    if (count > 0) {
+      await batch.commit();
+    }
+
+    logger.info(`[applyStarterItems] Successfully provisioned ${count} menu items for ${venueId}`);
+    return { totalCreated: count, status: 'success' };
   } catch (error: any) {
     logger.error("[applyStarterItems] Critical Failure:", error);
     throw new HttpsError('internal', `Failed to provision menu items: ${error.message}`);
@@ -276,43 +272,64 @@ export const dailyOperationalReset = onSchedule({ schedule: "0 * * * *", timeZon
 export const onGuestOrderStatusUpdate = onDocumentWritten({ document: "orders/{orderId}", secrets: ["TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN", "TWILIO_FROM_NUMBER"], region: 'us-central1' }, async (event) => {
   const after = event.data?.after;
   if (!after || !after.exists) return;
-  const configSnap = await db.collection('solution').doc('config').get();
-  if (!(configSnap.data()?.smsNotificationsEnabled ?? true)) return;
+  
+  try {
+    const configSnap = await db.collection('solution').doc('config').get();
+    if (configSnap.exists && configSnap.data()?.smsNotificationsEnabled === false) return;
 
-  const data = after.data();
-  if (!data?.customerPhone) return;
-  const client = twilio(process.env.TWILIO_ACCOUNT_SID!, process.env.TWILIO_AUTH_TOKEN!);
-  let body = "";
-  const link = `https://koop.app/orders/${event.params.orderId}`;
+    const data = after.data();
+    if (!data?.customerPhone) return;
 
-  const beforeData = event.data?.before?.exists ? event.data.before.data() : null;
+    const accountSid = process.env.TWILIO_ACCOUNT_SID;
+    const authToken = process.env.TWILIO_AUTH_TOKEN;
+    if (!accountSid || !authToken) return;
 
-  if (!beforeData) {
-    if (data.status === 'Placed') body = `Order received! Track live: ${link}`;
-  } else if (data.status !== beforeData.status && data.status === 'Out for Delivery') {
-    body = `Order out for delivery! Track live: ${link}`;
-  }
+    const client = twilio(accountSid, authToken);
+    let body = "";
+    const link = `https://koop.app/orders/${event.params.orderId}`;
 
-  if (body) {
-    const to = data.customerPhone.length === 10 ? `+1${data.customerPhone}` : `+${data.customerPhone}`;
-    await client.messages.create({ body, from: process.env.TWILIO_FROM_NUMBER!, to }).catch(e => logger.error("Twilio fail", e));
+    const beforeData = event.data?.before?.exists ? event.data.before.data() : null;
+
+    if (!beforeData) {
+      if (data.status === 'Placed') body = `Order received! Track live: ${link}`;
+    } else if (data.status !== beforeData.status && data.status === 'Out for Delivery') {
+      body = `Order out for delivery! Track live: ${link}`;
+    }
+
+    if (body) {
+      const to = String(data.customerPhone).length === 10 ? `+1${data.customerPhone}` : `+${data.customerPhone}`;
+      await client.messages.create({ body, from: process.env.TWILIO_FROM_NUMBER!, to });
+    }
+  } catch (err) {
+    logger.error("Twilio Task Failed", err);
   }
 });
 
 export const handleStripeWebhook = onRequest({ secrets: ["STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET"], region: 'us-central1' }, async (req, res) => {
-  const sig = req.headers['stripe-signature']!;
-  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+  const sig = req.headers['stripe-signature'];
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  const stripeKey = process.env.STRIPE_SECRET_KEY;
+
+  if (!sig || !webhookSecret || !stripeKey) {
+    res.status(400).send("Webhook configuration missing.");
+    return;
+  }
+
+  const stripe = new Stripe(stripeKey, { apiVersion: '2025-01-27.acacia' as any });
   try {
-    const event = stripe.webhooks.constructEvent(req.rawBody, sig, process.env.STRIPE_WEBHOOK_SECRET!);
+    const event = stripe.webhooks.constructEvent(req.rawBody, sig, webhookSecret);
     if (event.type === 'payment_intent.succeeded') {
       const pi = event.data.object as Stripe.PaymentIntent;
       const meta = pi.metadata || {};
       await db.collection('orders').add({
-        customerName: meta.customerName || 'Guest', customerPhone: meta.customerPhone, customerEmail: meta.customerEmail,
-        status: "received", sellerId: meta.sellerId, buyerProfileId: meta.buyerUid,
-        stripePaymentIntentId: pi.id, total: pi.amount / 100, createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp()
+        customerName: meta.customerName || 'Guest', customerPhone: meta.customerPhone || '', customerEmail: meta.customerEmail || '',
+        status: "received", sellerId: meta.sellerId || '', buyerProfileId: meta.buyerUid || 'anonymous',
+        stripePaymentIntentId: pi.id, total: (pi.amount || 0) / 100, createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp()
       });
     }
     res.status(200).send({ received: true });
-  } catch (err: any) { res.status(400).send(`Webhook Error: ${err.message}`); }
+  } catch (err: any) { 
+    logger.error("Stripe Webhook Error", err);
+    res.status(400).send(`Webhook Error: ${err.message}`); 
+  }
 });
