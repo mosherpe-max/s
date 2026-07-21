@@ -24,7 +24,7 @@ export default function HomePage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#213147] text-white font-body selection:bg-red-600 selection:text-white overflow-x-hidden">
+    <div className="min-h-screen bg-[#213147] text-white font-body selection:bg-red-600 selection:text-white overflow-x-auto">
       {/* HERO SECTION - Visible Immediately */}
       <section className="relative min-h-[90vh] flex flex-col justify-center px-6 md:px-12 py-20 overflow-hidden">
         {/* Animated Background Elements */}

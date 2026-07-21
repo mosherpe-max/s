@@ -75,29 +75,31 @@ export default function LaneSideServerDashboardPage({ params }: { params: Promis
   };
 
   const handleExitTerminal = async (target: 'admin' | 'root') => {
-    if (currentStaffId && firestore && sellerId) {
-      const staffRef = doc(firestore, 'sellers', sellerId, 'staff', currentStaffId);
-      // Immediately invalidate signal on maps (though laneside is static, we clean up the session)
-      await updateDoc(staffRef, { 
-        lastActive: new Date(0),
-        latitude: null,
-        longitude: null 
-      }).catch(() => {});
-      
-      if (isAdminSession) {
-        await deleteDoc(staffRef).catch(() => {});
+    if (target === 'admin' || target === 'root') {
+      // Identity info session cleaning
+      if (currentStaffId && firestore && sellerId) {
+        const staffRef = doc(firestore, 'sellers', sellerId, 'staff', currentStaffId);
+        await updateDoc(staffRef, { 
+          lastActive: new Date(0),
+          latitude: null,
+          longitude: null 
+        }).catch(() => {});
+        
+        if (isAdminSession) {
+          await deleteDoc(staffRef).catch(() => {});
+        }
       }
-    }
 
-    localStorage.removeItem('koop_staff_id');
-    localStorage.removeItem('koop_staff_name');
-    localStorage.removeItem('koop_staff_role');
-    localStorage.removeItem('koop_staff_session_start');
+      localStorage.removeItem('koop_staff_id');
+      localStorage.removeItem('koop_staff_name');
+      localStorage.removeItem('koop_staff_role');
+      localStorage.removeItem('koop_staff_session_start');
 
-    if (target === 'admin') {
-      router.push(`/sellers/${sellerId}`);
-    } else {
-      router.push('/');
+      if (target === 'admin') {
+        router.push(`/sellers/${sellerId}`);
+      } else {
+        router.push('/');
+      }
     }
   };
 
@@ -164,7 +166,7 @@ export default function LaneSideServerDashboardPage({ params }: { params: Promis
   const isLoading = areActiveOrdersLoading || isPrimaryLoading;
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden bg-muted/20 text-left">
+    <div className="flex flex-col h-screen overflow-x-auto bg-muted/20 text-left">
       <header className="flex-shrink-0 px-4 h-16 flex items-center justify-between border-b-2 border-[#E50000] bg-[#213147] z-20 shadow-sm text-left">
         <div className="flex items-center gap-4">
           {isAdminSession && (
@@ -189,7 +191,7 @@ export default function LaneSideServerDashboardPage({ params }: { params: Promis
         </div>
       </header>
 
-      <div className="flex-1 flex flex-col overflow-hidden p-4 max-w-3xl mx-auto w-full">
+      <div className="flex-1 flex flex-col overflow-x-auto overflow-y-auto p-4 max-w-3xl mx-auto w-full">
         <div className="flex flex-col bg-background border-2 rounded-[2rem] overflow-hidden min-h-0 shadow-xl text-left">
           <h2 className="font-headline text-xs font-black px-6 py-4 shrink-0 border-b flex items-center justify-between uppercase bg-muted/10 tracking-widest">
             <div className="flex items-center gap-2"><LayoutList className="h-4 w-4 text-primary" /><span>Pending Deliveries</span></div>

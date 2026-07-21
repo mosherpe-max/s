@@ -315,7 +315,7 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
   const isLoading = areActiveOrdersLoading || isPrimaryLoading;
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden bg-muted/20 text-left">
+    <div className="flex flex-col h-screen overflow-x-auto bg-muted/20 text-left">
       <header className="flex-shrink-0 px-4 h-16 flex items-center justify-between border-b-2 border-[#E50000] bg-[#213147] z-20 shadow-sm text-left">
         <div className="flex items-center gap-4">
           {isAdminSession && (
@@ -356,7 +356,7 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
         </div>
       </div>
 
-      <div className="flex-1 flex flex-col md:flex-row overflow-hidden p-4 gap-4">
+      <div className="flex-1 flex flex-col md:flex-row overflow-x-auto md:overflow-hidden p-4 gap-4">
         <div className="relative w-full md:w-2/3 h-[40vh] md:h-full bg-muted rounded-xl overflow-hidden border-2 shadow-sm">
          <Button variant="outline" size="icon" className="absolute top-2 right-2 z-10 bg-background/80 h-8 w-8" onClick={() => setFitTrigger(p => p + 1)}><Focus className="h-4 w-4" /></Button>
           {sellerLocation ? (

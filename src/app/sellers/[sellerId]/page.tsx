@@ -455,7 +455,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
     <div className="flex flex-col h-screen bg-[#F8FAFC] overflow-x-auto text-left">
       <header className="h-16 bg-white border-b-2 flex items-center justify-between px-8 shrink-0 z-30 shadow-sm relative text-left">
         <div className="flex items-center gap-4">
-          <Sheet open={mobileMenuOpen} onOpenChange={mobileMenuOpen}>
+          <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
             <SheetTrigger asChild>
               <Button variant="ghost" size="icon" className="md:hidden">
                 <Menu className="h-6 w-6 text-[#213147]" />
