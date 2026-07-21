@@ -7,9 +7,10 @@ import {
   getDocs, 
   query, 
   where,
-  Firestore
+  Firestore,
+  setDoc
 } from 'firebase/firestore';
-import type { ModifierGroup, MenuItem, StarterModifierGroup, StarterMenuItem, VenueHealthSettings } from './types';
+import type { ModifierGroup, MenuItem, StarterModifierGroup, StarterMenuItem, VenueHealthSettings, Seller } from './types';
 import { publicGolfItems, privateGolfItems, bowlingAlleyItems } from './data';
 import { PlaceHolderImages } from './placeholder-images';
 
@@ -54,9 +55,6 @@ const getImg = (hint: string) => {
 };
 
 const DEFAULT_HEALTH_SETTINGS: VenueHealthSettings = {
-  maxOrderAcknowledgeSeconds: 120,
-  warningOrderProcessingMinutes: 15,
-  maxOrderProcessingMinutes: 25,
   warningManagerInactivityDays: 3,
   warningVenueInactivityDays: 7
 };
@@ -64,7 +62,7 @@ const DEFAULT_HEALTH_SETTINGS: VenueHealthSettings = {
 /**
  * Master library definition for the starter modifier system.
  */
-const GLOBAL_STARTER_LIBRARY: Omit<StarterModifierGroup, 'id'>[] = [
+export const GLOBAL_STARTER_LIBRARY: Omit<StarterModifierGroup, 'id'>[] = [
   // --- UNIVERSAL ---
   { name: "Special Instructions", venueType: ["golf", "bowling"], category: "universal", selectionType: "single", required: false, sortOrder: 5, options: [{ label: "Add Note to Order", priceModifier: 0 }] },
   { name: "Allergy Flag", venueType: ["golf", "bowling"], category: "universal", selectionType: "multi", required: false, sortOrder: 6, options: [{ label: "Nut Allergy", priceModifier: 0 }, { label: "Gluten Sensitivity", priceModifier: 0 }, { label: "Dairy-Free", priceModifier: 0 }, { label: "Vegetarian", priceModifier: 0 }, { label: "Vegan", priceModifier: 0 }] },
@@ -112,7 +110,7 @@ const GLOBAL_STARTER_LIBRARY: Omit<StarterModifierGroup, 'id'>[] = [
  * Master library definition for the starter menu item system.
  * Evaluates image retrieval at runtime to ensure placeholder availability.
  */
-const getGlobalStarterMenuItems = (): Omit<StarterMenuItem, 'id'>[] => [
+export const getGlobalStarterMenuItems = (): Omit<StarterMenuItem, 'id'>[] => [
   // --- GOLF: BEVERAGE CART ---
   { name: "Bud Light (canned)", description: "Chilled 12oz can.", price: 6.00, category: "alcohol", venueType: ["golf"], serviceMode: "beverageCart", imageUrl: getImg('lager can'), sortOrder: 1 },
   { name: "Miller Lite (canned)", description: "Chilled 12oz can.", price: 6.00, category: "alcohol", venueType: ["golf"], serviceMode: "beverageCart", imageUrl: getImg('lager can'), sortOrder: 2 },
@@ -207,27 +205,167 @@ export async function seedGlobalStarterMenuLibrary(db: Firestore) {
 }
 
 /**
- * Global function to reset all demo venues to their ideal states.
+ * Ensures demo seller documents exist.
  */
-export async function seedAllDemoData(db: Firestore) {
-  await seedGlobalStarterLibrary(db);
-  await seedGlobalStarterMenuLibrary(db);
-  await seedVenueItems(db, 'demo-course', publicGolfItems);
-  await seedVenueItems(db, 'demo-private-course', privateGolfItems);
-  await seedVenueItems(db, 'demo-bowling-alley', bowlingAlleyItems);
+export async function seedDemoSellers(db: Firestore) {
+  const batch = writeBatch(db);
+  const sellersRef = collection(db, 'sellers');
+
+  const demoSellers: Seller[] = [
+    {
+      id: 'demo-course',
+      courseName: 'The Koop National (Public)',
+      type: 'Public Golf Course',
+      menuTypes: ['Beverage Cart', 'Clubhouse', 'Take Out'],
+      streetAddress: '123 Fairway Drive',
+      city: 'Bloomfield',
+      state: 'MI',
+      zip: '48301',
+      latitude: 42.5833,
+      longitude: -83.2458,
+      contactName: 'General Manager',
+      contactEmail: 'gm@koop-demo.com',
+      contactPhone: '5551234567',
+      serviceFee: 1.50,
+      taxRate: 6.0,
+      status: 'Active',
+      bevcartActive: false,
+      clubhouseActive: false
+    },
+    {
+      id: 'demo-private-course',
+      courseName: 'Orchard Lake CC (Private)',
+      type: 'Private Golf Course',
+      menuTypes: ['Clubhouse', 'Pool', 'Take Out'],
+      streetAddress: '5000 West Shore Dr',
+      city: 'Orchard Lake',
+      state: 'MI',
+      zip: '48324',
+      latitude: 42.5719,
+      longitude: -83.3552,
+      contactName: 'Club Manager',
+      contactEmail: 'club@koop-demo.com',
+      contactPhone: '5559876543',
+      serviceFee: 2.00,
+      taxRate: 6.0,
+      status: 'Active',
+      clubhouseActive: false
+    },
+    {
+      id: 'demo-bowling-alley',
+      courseName: 'Strike City Lanes',
+      type: 'Bowling Center',
+      menuTypes: ['Lane Delivery', 'Take Out'],
+      laneCount: 24,
+      streetAddress: '888 Spare Ave',
+      city: 'Rochester',
+      state: 'MI',
+      zip: '48307',
+      latitude: 42.6808,
+      longitude: -83.1338,
+      contactName: 'Floor Manager',
+      contactEmail: 'manager@strikecity.com',
+      contactPhone: '5554443333',
+      serviceFee: 1.00,
+      taxRate: 6.0,
+      status: 'Active',
+      lanedeliveryActive: false
+    }
+  ];
+
+  demoSellers.forEach(s => {
+    batch.set(doc(sellersRef, s.id), { ...s, updatedAt: serverTimestamp() }, { merge: true });
+  });
+
+  await batch.commit();
 }
 
 /**
- * Seeds base menu items for a specific venue (legacy helper).
+ * Clones modifiers for a specific venue based on venue type.
+ */
+export async function seedVenueModifiers(db: Firestore, sellerId: string, venueType: 'golf' | 'bowling') {
+  const batch = writeBatch(db);
+  const modRef = collection(db, 'modifier_groups');
+  
+  const relevantTemplates = GLOBAL_STARTER_LIBRARY.filter(t => t.venueType.includes(venueType));
+  
+  relevantTemplates.forEach(template => {
+    const groupId = `${sellerId}-${generateSlug(template.name)}`;
+    batch.set(doc(modRef, groupId), {
+      id: groupId,
+      sellerId: sellerId,
+      name: template.name,
+      minSelection: template.required ? 1 : 0,
+      maxSelection: template.selectionType === 'single' ? 1 : 99,
+      options: template.options.map(opt => ({
+        id: generateSlug(opt.label),
+        name: opt.label,
+        priceAdjustment: opt.priceModifier,
+        isAvailable: true
+      })),
+      updatedAt: serverTimestamp()
+    });
+  });
+
+  await batch.commit();
+}
+
+/**
+ * Seeds base menu items for a specific venue and attempts to link modifiers.
  */
 export async function seedVenueItems(db: Firestore, sellerId: string, items: any[]) {
   const batch = writeBatch(db);
   const menuItemsRef = collection(db, 'sellers', sellerId, 'menuItems');
+  
+  // Fetch the modifiers we just created to build mapping
+  const modSnap = await getDocs(query(collection(db, 'modifier_groups'), where('sellerId', '==', sellerId)));
+  const modMap: Record<string, string> = {};
+  modSnap.forEach(m => { modMap[m.data().name.toLowerCase()] = m.id; });
+
   items.forEach((item, index) => {
     const itemId = item.id || `${sellerId}-item-${index}`;
-    batch.set(doc(menuItemsRef, itemId), { ...item, id: itemId, rank: index + 1, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
+    
+    // Attempt to resolve modifier IDs from suggested names in the items array (if provided in data.ts)
+    // or just match based on the common starter library names.
+    const linkedIds: string[] = [];
+    if (item.suggestedModifierGroups) {
+      item.suggestedModifierGroups.forEach((name: string) => {
+        if (modMap[name.toLowerCase()]) linkedIds.push(modMap[name.toLowerCase()]);
+      });
+    }
+
+    batch.set(doc(menuItemsRef, itemId), { 
+      ...item, 
+      id: itemId, 
+      rank: index + 1, 
+      modifierGroupIds: linkedIds,
+      createdAt: serverTimestamp(), 
+      updatedAt: serverTimestamp() 
+    });
   });
   await batch.commit();
+}
+
+/**
+ * Global function to reset all demo venues to their ideal states.
+ */
+export async function seedAllDemoData(db: Firestore) {
+  // 1. Core Libraries
+  await seedGlobalStarterLibrary(db);
+  await seedGlobalStarterMenuLibrary(db);
+  
+  // 2. Core Sellers
+  await seedDemoSellers(db);
+
+  // 3. Modifiers for Demos
+  await seedVenueModifiers(db, 'demo-course', 'golf');
+  await seedVenueModifiers(db, 'demo-private-course', 'golf');
+  await seedVenueModifiers(db, 'demo-bowling-alley', 'bowling');
+
+  // 4. Menu Items for Demos
+  await seedVenueItems(db, 'demo-course', publicGolfItems);
+  await seedVenueItems(db, 'demo-private-course', privateGolfItems);
+  await seedVenueItems(db, 'demo-bowling-alley', bowlingAlleyItems);
 }
 
 /**
@@ -245,7 +383,6 @@ export async function resetAllVenueOperationalStatus(db: Firestore) {
       latitude: 0, 
       longitude: 0, 
       lastActive: null, 
-      healthSettings: DEFAULT_HEALTH_SETTINGS,
       updatedAt: serverTimestamp() 
     });
     const staffRef = collection(db, 'sellers', sellerDoc.id, 'staff');

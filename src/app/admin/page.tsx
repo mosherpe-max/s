@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -257,6 +258,7 @@ export default function SolutionAdminPage() {
 
   const [isProcessingSave, setIsProcessingSave] = useState(false);
   const [isInitializingLibrary, setIsInitializingLibrary] = useState(false);
+  const [isReseedingDemos, setIsReseedingDemos] = useState(false);
   const [isResettingSystem, setIsResettingSystem] = useState(false);
   const [librarySearchTerm, setLibrarySearchTerm] = useState('');
 
@@ -432,7 +434,7 @@ export default function SolutionAdminPage() {
       // Update the operational Seller document
       await updateDoc(doc(firestore, 'sellers', selectedVenue.id), {
         courseName: data.name,
-        type: data.type,
+        type: data.type as any,
         streetAddress: data.streetAddress,
         city: data.city,
         state: data.state,
@@ -493,6 +495,23 @@ export default function SolutionAdminPage() {
       console.error("Initialization Failed:", e);
       toast({ variant: "destructive", title: "Setup Failed", description: e.message }); 
     } finally { setIsInitializingLibrary(false); }
+  };
+
+  const handleReseedDemos = async () => {
+    if (!firestore) return;
+    if (!confirm('Wipe and reseed all demo environments? This will reset all demo courses and bowling centers to factory defaults.')) return;
+    
+    setIsReseedingDemos(true);
+    try {
+      const { seedAllDemoData } = await import('@/lib/seed-data');
+      await seedAllDemoData(firestore);
+      toast({ title: "Reseed Complete", description: "All demo environments have been refreshed with the latest library data." });
+    } catch (e: any) {
+      console.error("Reseed Failed:", e);
+      toast({ variant: "destructive", title: "Reseed Failed", description: e.message });
+    } finally {
+      setIsReseedingDemos(false);
+    }
   };
 
   const handleSystemReset = async () => {
@@ -750,8 +769,8 @@ export default function SolutionAdminPage() {
                         <h4 className="font-headline font-black text-xl uppercase">Full Demo Reseed</h4>
                         <p className="text-xs text-muted-foreground">Wipes and recreates all demo venues (demo-course, etc.) with factory-default items and modifiers.</p>
                       </div>
-                      <Button onClick={async () => { if(confirm('Wipe and reseed all demos?')){ const { seedAllDemoData } = await import('@/lib/seed-data'); await seedAllDemoData(firestore!); toast({ title: "Seed Complete" }); } }} variant="destructive" className="w-full h-14 font-black uppercase tracking-widest text-[11px] gap-2 shadow-xl">
-                        <Zap className="h-4 w-4" /> Reseed All Demo Venues
+                      <Button onClick={handleReseedDemos} disabled={isReseedingDemos} variant="destructive" className="w-full h-14 font-black uppercase tracking-widest text-[11px] gap-2 shadow-xl">
+                        {isReseedingDemos ? <Loader2 className="animate-spin" /> : <Zap className="h-4 w-4" />} Reseed All Demo Venues
                       </Button>
                     </Card>
 
