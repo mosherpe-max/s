@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, use, useEffect, useMemo } from 'react';
@@ -500,7 +499,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const { orderItems, updateItem, isCartOpen, setIsCartOpen, clearCart, totalItems } = useCart();
+  const { orderItems, updateItem, isCartOpen, setIsCartOpen, clearCart, totalItems, total } = useCart();
   
   const menuTypeFromUrl = searchParams.get('menuType');
   const selectedMenuType = menuTypeFromUrl || '';

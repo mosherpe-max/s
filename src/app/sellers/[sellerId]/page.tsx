@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useMemo, useEffect, use } from 'react';
@@ -463,9 +462,9 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
 
       incidentReport.push({
         name: key,
-        'Ack Max': ackMaxCount,
-        'Full Warning': warnCount,
-        'Full Max': maxCount
+        'Acknowledge Max': ackMaxCount,
+        'Fulfillment Warning': warnCount,
+        'Fulfillment Max': maxCount
       });
     }
 
@@ -893,9 +892,9 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                               <YAxis axisLine={false} tickLine={false} tick={{fontSize: 10, fontWeight: 700}} />
                               <ChartTooltip cursor={{fill: '#f8fafc'}} contentStyle={{ borderRadius: '1rem', border: '2px solid #f1f5f9' }} />
                               <Legend verticalAlign="top" align="right" iconType="rect" wrapperStyle={{ paddingBottom: 20, fontSize: 10, fontWeight: 900, textTransform: 'uppercase' }} />
-                              <Bar dataKey="Ack Max" stackId="a" fill="#213147" radius={[0, 0, 0, 0]} barSize={30} />
-                              <Bar dataKey="Full Warning" stackId="a" fill="#f59e0b" radius={[0, 0, 0, 0]} barSize={30} />
-                              <Bar dataKey="Full Max" stackId="a" fill="#ef4444" radius={[4, 4, 0, 0]} barSize={30} />
+                              <Bar dataKey="Acknowledge Max" stackId="a" fill="#213147" radius={[0, 0, 0, 0]} barSize={30} />
+                              <Bar dataKey="Fulfillment Warning" stackId="a" fill="#f59e0b" radius={[0, 0, 0, 0]} barSize={30} />
+                              <Bar dataKey="Fulfillment Max" stackId="a" fill="#ef4444" radius={[4, 4, 0, 0]} barSize={30} />
                             </BarChart>
                           </ResponsiveContainer>
                         </div>
