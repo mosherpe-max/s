@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useMemo, useEffect, use } from 'react';
@@ -152,9 +153,6 @@ import {
   CartesianGrid, 
   Tooltip as ChartTooltip, 
   ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
   LineChart,
   Line,
   Legend
@@ -885,7 +883,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                       {/* SLA Violations / Incidents */}
                       <Card className="border-2 p-8 space-y-6">
                         <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
-                          <Activity className="h-3 w-3 text-primary" /> SLA Exceptions
+                          <Activity className="h-3 w-3 text-primary" /> Service Level Agreement Exceptions
                         </h4>
                         <div className="h-[300px] w-full">
                           <ResponsiveContainer width="100%" height="100%">
@@ -1247,7 +1245,9 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
       <Dialog open={isModifierGroupFormOpen} onOpenChange={setIsModifierGroupFormOpen}>
         <DialogContent className="sm:max-w-[600px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
           <DialogHeader className="p-8 bg-indigo-600 text-white text-left">
-            <DialogTitle className="font-headline font-black uppercase tracking-tight text-white text-xl">{editingModifierGroup ? 'Edit Modifier Set' : 'Add Modifier Set'}</DialogTitle>
+            <DialogTitle className="font-headline font-black uppercase tracking-tight text-white text-xl">
+              {editingModifierGroup ? 'Edit Modifier Set' : 'Add Modifier Set'}
+            </DialogTitle>
           </DialogHeader>
           <ScrollArea className="max-h-[70vh]">
             <div className="p-8">
