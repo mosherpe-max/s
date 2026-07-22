@@ -134,7 +134,6 @@ import {
   endOfMonth,
   endOfYear
 } from 'date-fns';
-import Link from 'next/navigation';
 import { useRouter } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
@@ -1259,7 +1258,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                     name="name" 
                     render={({ field }) => (
                       <FormItem className="text-left">
-                        <FormLabel className="text-[10px] font-black uppercase">Group Name</Label>
+                        <FormLabel className="text-[10px] font-black uppercase">Group Name</FormLabel>
                         <FormControl><Input {...field} className="h-12 border-2 font-bold" /></FormControl>
                       </FormItem>
                     )} 
