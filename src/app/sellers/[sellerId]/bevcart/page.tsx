@@ -94,7 +94,9 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
   }, [primarySeller, sellerLocation]);
 
   const isBevCartActive = primarySeller?.bevcartActive === true;
-  const isAdminSession = currentStaffId?.startsWith('admin-');
+  
+  // CRITICAL: Impersonation logic strictly reserved for Admin Portal entry
+  const isAdminSession = !!currentStaffId?.startsWith('admin-');
   const isSuperAdmin = user?.uid === SUPER_ADMIN_ID || user?.email === 'mosherpe@gmail.com';
 
   const handleToggleActive = (checked: boolean) => {

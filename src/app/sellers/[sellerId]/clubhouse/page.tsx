@@ -83,7 +83,9 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
 
   const isGolf = primarySeller?.type?.toLowerCase().includes('golf');
   const isClubhouseActive = primarySeller?.clubhouseActive === true;
-  const isAdminSession = currentStaffId?.startsWith('admin-');
+
+  // CRITICAL: Impersonation logic strictly reserved for Admin Portal entry
+  const isAdminSession = !!currentStaffId?.startsWith('admin-');
   const isSuperAdmin = user?.uid === SUPER_ADMIN_ID || user?.email === 'mosherpe@gmail.com';
 
   const broadcastLocation = (lat: number, lng: number) => {

@@ -1,7 +1,5 @@
 'use client';
 
-'use client';
-
 import React, { useState, useEffect, use } from 'react';
 import { collection, query, where, getDocs, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { signInAnonymously } from 'firebase/auth';
@@ -33,6 +31,15 @@ export default function StaffLoginPage({ params }: { params: Promise<{ sellerId:
   const [isVerifying, setIsVerifying] = useState(false);
   const [authenticatedStaff, setAuthenticatedStaff] = useState<StaffMember | null>(null);
   const [venueName, setVenueName] = useState('This Venue');
+
+  // CLEAN UP PREVIOUS SESSIONS ON MOUNT
+  // This ensures a fresh shift start and clears any administrative "impersonation" tokens
+  useEffect(() => {
+    localStorage.removeItem('koop_staff_id');
+    localStorage.removeItem('koop_staff_name');
+    localStorage.removeItem('koop_staff_role');
+    localStorage.removeItem('koop_staff_session_start');
+  }, []);
 
   const sellerRef = useMemoFirebase(() => (firestore ? doc(firestore, 'sellers', sellerId) : null), [firestore, sellerId]);
   const { data: seller } = useDoc<Seller>(sellerRef);
@@ -108,7 +115,7 @@ export default function StaffLoginPage({ params }: { params: Promise<{ sellerId:
       }).catch(() => {});
     }
 
-    // Persist session
+    // Persist Official Staff Session (No 'admin-' prefix)
     localStorage.setItem('koop_staff_id', authenticatedStaff.id);
     localStorage.setItem('koop_staff_name', authenticatedStaff.name);
     localStorage.setItem('koop_staff_role', menuType);
