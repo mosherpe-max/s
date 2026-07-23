@@ -44,7 +44,6 @@ interface MapViewProps {
 
 /**
  * Internal component to handle map bounds and overlays.
- * Only runs once the API is loaded and the map instance is ready.
  */
 function MapElements({ buyerLocation, sellerLocation, sellers, buyers, drivers, radius, zoomMode = 'all', fitTrigger }: Omit<MapViewProps, 'interactive'>) {
   const map = useMap();
@@ -61,17 +60,14 @@ function MapElements({ buyerLocation, sellerLocation, sellers, buyers, drivers, 
     const isExplicitTrigger = fitTrigger !== undefined && fitTrigger > 0;
     const isAutoFitMode = fitTrigger === undefined; 
     
-    // Stringify positions for simple diff check
     const currentBuyerPos = buyerLocation ? `${buyerLocation.latitude},${buyerLocation.longitude}` : "";
     const currentSellerPos = sellerLocation ? `${sellerLocation.latitude},${sellerLocation.longitude}` : "";
     const posChanged = currentBuyerPos !== lastBuyerPos.current || currentSellerPos !== lastSellerPos.current;
 
-    // Check if we have meaningful data to fit
     const hasData = (buyerLocation && (sellerLocation || zoomMode === 'radius')) || (sellers && sellers.length > 0) || (buyers && buyers.length > 0) || (drivers && drivers.length > 0) || (sellerLocation && sellerLocation.latitude);
     
     if (!hasData) return;
     
-    // Throttle automated fits (max once every 5 seconds) to prevent visual bounce
     const now = Date.now();
     const isThrottled = isAutoFitMode && (now - lastFitTime.current < 5000);
     
@@ -82,18 +78,14 @@ function MapElements({ buyerLocation, sellerLocation, sellers, buyers, drivers, 
     const bounds = new window.google.maps.LatLngBounds();
     let hasPoints = false;
 
-    // PATRON FOCUS MODE: 0.5 Mile Radius Zoom
     if (zoomMode === 'radius' && buyerLocation && radius) {
        const latOffset = radius / 111320; 
        const lngOffset = radius / (111320 * Math.cos(buyerLocation.latitude * (Math.PI / 180)));
-       
        bounds.extend(new window.google.maps.LatLng(buyerLocation.latitude + latOffset, buyerLocation.longitude + lngOffset));
        bounds.extend(new window.google.maps.LatLng(buyerLocation.latitude - latOffset, buyerLocation.longitude - lngOffset));
        bounds.extend(new window.google.maps.LatLng(buyerLocation.latitude, buyerLocation.longitude));
        hasPoints = true;
-    } 
-    // BILATERAL MODE: Fit both Driver and Patron
-    else if (buyerLocation && sellerLocation && sellerLocation.latitude && sellerLocation.latitude !== 0) {
+    } else if (buyerLocation && sellerLocation && sellerLocation.latitude && sellerLocation.latitude !== 0) {
       bounds.extend(new window.google.maps.LatLng(sellerLocation.latitude, sellerLocation.longitude));
       bounds.extend(new window.google.maps.LatLng(buyerLocation.latitude, buyerLocation.longitude));
       hasPoints = true;
@@ -104,27 +96,21 @@ function MapElements({ buyerLocation, sellerLocation, sellers, buyers, drivers, 
       }
       if (sellers) {
         sellers.forEach(s => {
-          if (s.location.latitude) {
-            bounds.extend(new window.google.maps.LatLng(s.location.latitude, s.location.longitude));
-            hasPoints = true;
-          }
+          if (s.location.latitude) bounds.extend(new window.google.maps.LatLng(s.location.latitude, s.location.longitude));
         });
+        if (sellers.length > 0) hasPoints = true;
       }
       if (drivers) {
         drivers.forEach(d => {
-          if (d.location.latitude) {
-            bounds.extend(new window.google.maps.LatLng(d.location.latitude, d.location.longitude));
-            hasPoints = true;
-          }
+          if (d.location.latitude) bounds.extend(new window.google.maps.LatLng(d.location.latitude, d.location.longitude));
         });
+        if (drivers.length > 0) hasPoints = true;
       }
       if (buyers) {
         buyers.forEach(buyer => {
-          if (buyer.location.latitude) {
-            bounds.extend(new window.google.maps.LatLng(buyer.location.latitude, buyer.location.longitude));
-            hasPoints = true;
-          }
+          if (buyer.location.latitude) bounds.extend(new window.google.maps.LatLng(buyer.location.latitude, buyer.location.longitude));
         });
+        if (buyers.length > 0) hasPoints = true;
       }
     }
 
@@ -140,12 +126,10 @@ function MapElements({ buyerLocation, sellerLocation, sellers, buyers, drivers, 
       lastZoomMode.current = zoomMode;
       lastFitTime.current = now;
     }
-
   }, [map, apiIsLoaded, zoomMode, fitTrigger, buyerLocation, sellerLocation, radius, sellers, buyers, drivers]);
 
   useEffect(() => {
     if (!map || !apiIsLoaded || !radius || !buyerLocation || !window.google) return;
-
     const circle = new window.google.maps.Circle({
       strokeColor: "#E50000",
       strokeOpacity: 0.6,
@@ -156,18 +140,12 @@ function MapElements({ buyerLocation, sellerLocation, sellers, buyers, drivers, 
       center: { lat: buyerLocation.latitude, lng: buyerLocation.longitude },
       radius: radius,
     });
-
-    return () => {
-      circle.setMap(null);
-    };
+    return () => { circle.setMap(null); };
   }, [map, apiIsLoaded, buyerLocation?.latitude, buyerLocation?.longitude, radius]);
 
   return null;
 }
 
-/**
- * The core map rendering logic. 
- */
 function MapInternal({ buyerLocation, sellerLocation, showPrimaryMarker, primaryDriverId, primaryType, sellers, buyers, drivers, radius, zoomMode, interactive, fitTrigger }: MapViewProps) {
   const apiIsLoaded = useApiIsLoaded();
   const center = useMemo(() => 
@@ -175,8 +153,8 @@ function MapInternal({ buyerLocation, sellerLocation, showPrimaryMarker, primary
   [buyerLocation, sellerLocation]);
 
   const getPathForType = (type: string | undefined) => {
-    if (type === 'Clubhouse' || type === 'Take Out') return PATH_CLUBHOUSE;
-    return PATH_CART; // Default to cart icon for drivers
+    if (type === 'Clubhouse' || type === 'Take Out' || type === 'Pool' || type === 'Lane Delivery') return PATH_CLUBHOUSE;
+    return PATH_CART; 
   };
 
   return (
@@ -218,8 +196,11 @@ function MapInternal({ buyerLocation, sellerLocation, showPrimaryMarker, primary
           />
         ))}
 
-        {/* Driver Pins - Specialized Icons based on Role, Unique Colors for ID */}
+        {/* Driver Pins - Fleet View (Hides Self to avoid duplication) */}
         {drivers && drivers.map((driver) => {
+          // IDENTITY GUARD: Do not render the current device's icon as a fleet driver
+          if (primaryDriverId && driver.id === primaryDriverId) return null;
+          
           return (
             <Marker 
               key={`driver-item-${driver.id}`} 
@@ -262,10 +243,9 @@ function MapInternal({ buyerLocation, sellerLocation, showPrimaryMarker, primary
           />
         )}
 
-        {/* Patron Markers - Circular symbols with freshness-aware coloring and order index */}
+        {/* Patron Markers */}
         {buyers && buyers.map((buyer, index) => {
           if (!apiIsLoaded || typeof window === 'undefined' || !window.google) return null;
-          
           return (
             <Marker 
               key={`buyer-list-${buyer.id}`} 
@@ -304,7 +284,7 @@ export function MapView(props: MapViewProps) {
         <AlertCircle className="h-12 w-12 text-red-500 mb-6 drop-shadow-xl" />
         <h3 className="font-headline font-black uppercase text-lg mb-2 tracking-tight">Map Service Unavailable</h3>
         <p className="text-[10px] text-white/50 max-w-xs leading-relaxed uppercase font-black tracking-widest">
-          Please add a valid Google Maps API Key to your environment variables to enable live delivery tracking.
+          Please add a valid Google Maps API Key to your environment variables.
         </p>
       </div>
     );

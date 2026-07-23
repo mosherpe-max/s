@@ -9,7 +9,6 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { OrderCard } from '@/components/order-card';
 import type { Order, Seller, StaffMember, SolutionConfig } from '@/lib/types';
-import { mockSellerLocation } from '@/lib/data';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
@@ -175,13 +174,11 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
     const deliveredToday = bevOrdersToday.filter(o => o.status === 'Delivered');
     const dailyTips = deliveredToday.reduce((acc, o) => acc + (o.tip || 0), 0);
 
-    // Ack Time (Today's acknowledged orders)
     const acknowledged = bevOrdersToday.filter(o => o.acknowledgedAt);
     const avgAck = acknowledged.length > 0 
       ? acknowledged.reduce((acc, o) => acc + differenceInSeconds(o.acknowledgedAt!.toDate(), o.createdAt.toDate()), 0) / acknowledged.length
       : 0;
 
-    // Total Time (Today's delivered orders)
     const fulfilled = deliveredToday.filter(o => o.deliveredAt);
     const avgTotal = fulfilled.length > 0
       ? fulfilled.reduce((acc, o) => acc + differenceInMinutes(o.deliveredAt!.toDate(), o.createdAt.toDate()), 0) / fulfilled.length
@@ -230,10 +227,8 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
     
     if (currentStaffId) {
       const staffRef = doc(firestore, 'sellers', sellerId, 'staff', currentStaffId);
-      const staffData = { latitude: lat, longitude: lng, lastActive: serverTimestamp() };
-      setDoc(staffRef, staffData, { merge: true }).catch(() => {});
+      setDoc(staffRef, { latitude: lat, longitude: lng, lastActive: serverTimestamp() }, { merge: true }).catch(() => {});
     }
-    // We only update the staff record. The root Seller document represents the fixed venue clubhouse.
   };
 
   useEffect(() => {
@@ -319,14 +314,14 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
   }, [driverOrders, now, solutionConfig]);
 
   const mappedDrivers = useMemo(() => {
-    if (!allStaff || !currentStaffId) return [];
+    if (!allStaff) return [];
     return allStaff
-      .filter(s => s.id !== currentStaffId && s.latitude && s.longitude && s.lastActive)
+      .filter(s => s.latitude && s.longitude && s.lastActive)
       .map(s => {
         const color = getDriverColor(s.id);
         return { id: s.id, name: s.name, location: { latitude: s.latitude!, longitude: s.longitude! }, type: s.role === 'Driver' || s.role === 'Staff' ? 'Beverage Cart' : 'Clubhouse', colorOverride: color };
       });
-  }, [allStaff, currentStaffId, solutionConfig]);
+  }, [allStaff, solutionConfig]);
 
   const isLoading = areActiveOrdersLoading || isPrimaryLoading;
 
@@ -408,13 +403,13 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
             />
           ) : <Skeleton className="w-full h-full" />}
         </div>
-        <div className="w-full md:w-1/3 flex flex-col bg-background border-2 rounded-xl overflow-hidden min-h-0">
+        <div className="w-full md:w-1/3 flex flex-col bg-background border-2 rounded-xl overflow-hidden min-h-0 text-left">
           <h2 className="font-headline text-xs font-black px-4 py-3 shrink-0 border-b flex items-center justify-between uppercase bg-muted/10 tracking-widest">
             <span>Active Orders</span>
             <span className="bg-[#213147] text-white text-[10px] font-black rounded-full px-2 py-0.5">{driverOrders.length}</span>
           </h2>
           <div className="flex-1 overflow-auto px-2 text-left">
-            <div className="py-2.5 space-y-3">
+            <div className="py-2.5 space-y-3 text-left">
               {isLoading ? <Skeleton className="h-40 w-full" /> : driverOrders.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-20 text-muted-foreground opacity-40 text-center">
                   <Package className="h-10 w-10 mb-2" />

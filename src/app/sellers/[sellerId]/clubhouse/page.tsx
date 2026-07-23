@@ -110,11 +110,10 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
       const staffRef = doc(firestore, 'sellers', sellerId, 'staff', currentStaffId);
       setDoc(staffRef, { latitude: lat, longitude: lng, lastActive: serverTimestamp() }, { merge: true }).catch(() => {});
     }
-    // We only update the staff record. The root Seller document represents the fixed venue clubhouse.
   };
 
   useEffect(() => {
-    if (isGolf && navigator.geolocation && firestore && sellerId && user && !isExiting) {
+    if (navigator.geolocation && firestore && sellerId && user && !isExiting) {
       navigator.geolocation.getCurrentPosition((p) => {
         const lat = p.coords.latitude;
         const lng = p.coords.longitude;
@@ -122,10 +121,10 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
         broadcastLocation(lat, lng);
       }, null, { enableHighAccuracy: true });
     }
-  }, [isGolf, firestore, sellerId, user, currentStaffId, solutionConfig, isExiting]);
+  }, [firestore, sellerId, user, currentStaffId, solutionConfig, isExiting]);
 
   useEffect(() => {
-    if (isGolf && navigator.geolocation && firestore && sellerId && user && !isExiting) {
+    if (navigator.geolocation && firestore && sellerId && user && !isExiting) {
       const watchId = navigator.geolocation.watchPosition(
         (p) => {
           if (isExiting) return;
@@ -143,7 +142,7 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
       );
       return () => navigator.geolocation.clearWatch(watchId);
     }
-  }, [isGolf, firestore, sellerId, user, currentStaffId, solutionConfig, isExiting]);
+  }, [firestore, sellerId, user, currentStaffId, solutionConfig, isExiting]);
 
   const handleToggleActive = (checked: boolean) => {
     if (!firestore || !sellerId || !user) return;
@@ -212,13 +211,11 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
     const deliveredToday = ordersToday.filter(o => o.status === 'Delivered');
     const dailyTips = deliveredToday.reduce((acc, o) => acc + (o.tip || 0), 0);
     
-    // Ack Time (Today's acknowledged orders)
     const acknowledged = ordersToday.filter(o => o.acknowledgedAt);
     const avgAck = acknowledged.length > 0 
       ? acknowledged.reduce((acc, o) => acc + differenceInSeconds(o.acknowledgedAt!.toDate(), o.createdAt.toDate()), 0) / acknowledged.length
       : 0;
 
-    // Total Time (Today's delivered orders)
     const fulfilled = deliveredToday.filter(o => o.deliveredAt);
     const avgTotal = fulfilled.length > 0
       ? fulfilled.reduce((acc, o) => acc + differenceInMinutes(o.deliveredAt!.toDate(), o.createdAt.toDate()), 0) / fulfilled.length
@@ -291,14 +288,14 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
   }, [clubhouseOrders, now, solutionConfig]);
 
   const mappedDrivers = useMemo(() => {
-    if (!allStaff || !currentStaffId) return [];
+    if (!allStaff) return [];
     return allStaff
-      .filter(s => s.id !== currentStaffId && s.latitude && s.longitude && s.lastActive)
+      .filter(s => s.latitude && s.longitude && s.lastActive)
       .map(s => {
         const color = getDriverColor(s.id);
         return { id: s.id, name: s.name, location: { latitude: s.latitude!, longitude: s.longitude! }, type: s.role === 'Driver' || s.role === 'Staff' ? 'Beverage Cart' : 'Clubhouse', colorOverride: color };
       });
-  }, [allStaff, currentStaffId, solutionConfig]);
+  }, [allStaff, solutionConfig]);
 
   const isLoading = areActiveOrdersLoading || isPrimaryLoading;
 
@@ -351,45 +348,55 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
       </div>
 
       <div className="flex-1 flex flex-col md:flex-row overflow-auto p-4 gap-4">
-        {isGolf && (
-          <div className="relative w-full md:w-2/3 h-[40vh] md:h-full bg-muted rounded-xl overflow-hidden border-2 shadow-sm">
-            <Button variant="outline" size="icon" className="absolute top-2 right-2 z-10 bg-background/80 h-8 w-8" onClick={() => setFitTrigger(p => p + 1)}><Focus className="h-4 w-4" /></Button>
-            
-            <div className="absolute top-3 left-3 z-10 pointer-events-none">
-              <Badge className={cn(
-                "flex items-center gap-1.5 px-2 py-1 border-0 shadow-lg transition-colors",
-                isClubhouseActive ? "bg-green-600 text-white" : "bg-slate-500/80 text-white"
-              )}>
-                <div className={cn("h-1.5 w-1.5 rounded-full", isClubhouseActive ? "bg-white animate-pulse" : "bg-white/40")} />
-                <span className="text-[8px] font-black uppercase tracking-widest">
-                  {isClubhouseActive ? "Signal Live" : "Signal Off"}
-                </span>
-              </Badge>
-            </div>
-
-            {primarySeller ? (
-              <MapView 
-                sellerLocation={sellerLocation || { latitude: primarySeller.latitude, longitude: primarySeller.longitude }} 
-                primaryType="Clubhouse"
-                primaryDriverId={currentStaffId}
-                buyers={mappedBuyers} 
-                drivers={mappedDrivers}
-                radius={1609.34} 
-                fitTrigger={fitTrigger}
-                showPrimaryMarker={isClubhouseActive} 
-                interactive={true}
-              />
-            ) : <Skeleton className="w-full h-full" />}
+        <div className="relative w-full md:w-2/3 h-[40vh] md:h-full bg-muted rounded-xl overflow-hidden border-2 shadow-sm">
+          <Button variant="outline" size="icon" className="absolute top-2 right-2 z-10 bg-background/80 h-8 w-8" onClick={() => setFitTrigger(p => p + 1)}><Focus className="h-4 w-4" /></Button>
+          
+          <div className="absolute top-3 left-3 z-10 pointer-events-none">
+            <Badge className={cn(
+              "flex items-center gap-1.5 px-2 py-1 border-0 shadow-lg transition-colors",
+              isClubhouseActive ? "bg-green-600 text-white" : "bg-slate-500/80 text-white"
+            )}>
+              <div className={cn("h-1.5 w-1.5 rounded-full", isClubhouseActive ? "bg-white animate-pulse" : "bg-white/40")} />
+              <span className="text-[8px] font-black uppercase tracking-widest">
+                {isClubhouseActive ? "Signal Live" : "Signal Off"}
+              </span>
+            </Badge>
           </div>
-        )}
 
-        <div className={cn("flex flex-col bg-background border-2 rounded-xl overflow-hidden min-h-0", isGolf ? "w-full md:w-1/3" : "w-full max-w-4xl mx-auto")}>
+          {sellerLocation ? (
+            <MapView 
+              sellerLocation={sellerLocation} 
+              primaryType="Clubhouse"
+              primaryDriverId={currentStaffId}
+              buyers={mappedBuyers} 
+              drivers={mappedDrivers}
+              radius={1609.34} 
+              fitTrigger={fitTrigger}
+              showPrimaryMarker={isClubhouseActive} 
+              interactive={true}
+            />
+          ) : (primarySeller ? (
+            <MapView 
+              sellerLocation={{ latitude: primarySeller.latitude, longitude: primarySeller.longitude }} 
+              primaryType="Clubhouse"
+              primaryDriverId={currentStaffId}
+              buyers={mappedBuyers} 
+              drivers={mappedDrivers}
+              radius={1609.34} 
+              fitTrigger={fitTrigger}
+              showPrimaryMarker={isClubhouseActive} 
+              interactive={true}
+            />
+          ) : <Skeleton className="w-full h-full" />)}
+        </div>
+
+        <div className={cn("flex flex-col bg-background border-2 rounded-xl overflow-hidden min-h-0 text-left", isGolf ? "w-full md:w-1/3" : "w-full max-w-4xl mx-auto")}>
           <h2 className="font-headline text-xs font-black px-4 py-3 shrink-0 border-b flex items-center justify-between uppercase bg-muted/10 tracking-widest">
             <div className="flex items-center gap-2"><Building className="h-4 w-4 text-primary" /><span>Orders Queue</span></div>
             <Badge className="bg-[#213147] text-white font-black border-0">{clubhouseOrders.length}</Badge>
           </h2>
           <div className={cn("flex-1 overflow-auto px-2 text-left", isGolf ? "" : "p-4")}>
-            <div className={cn("py-2.5 gap-3", isGolf ? "space-y-3" : "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3")}>
+            <div className={cn("py-2.5 gap-3 text-left", isGolf ? "space-y-3" : "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3")}>
               {isLoading ? <Skeleton className="h-40 w-full" /> : clubhouseOrders.length === 0 ? (
                 <div className="col-span-full py-20 text-center text-muted-foreground opacity-40"><Building className="h-10 w-10 mx-auto mb-2" /><p className="text-[10px] font-black uppercase tracking-[0.2em]">No active orders</p></div>
               ) : (
