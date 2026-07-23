@@ -99,41 +99,52 @@ function PatronIdentifyFields({ patronEmail, setPatronEmail, patronName, setPatr
         <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2">
           <User className="h-3 w-3" /> Delivery Contact
         </h3>
-        <p className="text-[9px] font-bold text-muted-foreground uppercase leading-relaxed">
-          We collect your email and mobile number to send you real-time order updates via SMS and a digital receipt via email.
-        </p>
       </div>
       
-      <div className="space-y-3">
-        <div className="relative">
-          <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-          <Input 
-            placeholder="Email Address" 
-            type="email"
-            value={patronEmail} 
-            onChange={(e) => setPatronEmail(e.target.value)} 
-            className="pl-10 h-12 border-2 border-white rounded-xl font-bold focus-visible:ring-primary bg-white shadow-sm"
-          />
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div className="space-y-4">
+        <div className="space-y-1.5">
           <div className="relative">
-            <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+            <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
             <Input 
-              placeholder="Full Name" 
-              value={patronName} 
-              onChange={(e) => setPatronName(e.target.value)} 
+              placeholder="Email Address" 
+              type="email"
+              value={patronEmail} 
+              onChange={(e) => setPatronEmail(e.target.value)} 
               className="pl-10 h-12 border-2 border-white rounded-xl font-bold focus-visible:ring-primary bg-white shadow-sm"
             />
           </div>
-          <div className="relative">
-            <Smartphone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-            <Input 
-              placeholder="Mobile Number" 
-              type="tel"
-              value={patronPhone} 
-              onChange={(e) => setPatronPhone(e.target.value)} 
-              className="pl-10 h-12 border-2 border-white rounded-xl font-bold focus-visible:ring-primary bg-white shadow-sm"
-            />
+          <p className="text-[8px] font-bold text-muted-foreground uppercase tracking-wider pl-1">
+            Your digital receipt will be sent here
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="space-y-1.5">
+            <div className="relative">
+              <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+              <Input 
+                placeholder="Full Name" 
+                value={patronName} 
+                onChange={(e) => setPatronName(e.target.value)} 
+                className="pl-10 h-12 border-2 border-white rounded-xl font-bold focus-visible:ring-primary bg-white shadow-sm"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <div className="relative">
+              <Smartphone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+              <Input 
+                placeholder="Mobile Number" 
+                type="tel"
+                value={patronPhone} 
+                onChange={(e) => setPatronPhone(e.target.value)} 
+                className="pl-10 h-12 border-2 border-white rounded-xl font-bold focus-visible:ring-primary bg-white shadow-sm"
+              />
+            </div>
+            <p className="text-[8px] font-bold text-muted-foreground uppercase tracking-wider pl-1">
+              We'll text you order status updates (e.g., 'Order Ready')
+            </p>
           </div>
         </div>
       </div>
@@ -238,7 +249,7 @@ function StripeActionArea({
         <Checkbox id="save-info-stripe" checked={saveInfo} onCheckedChange={(val) => setSaveInfo(!!val)} className="h-5 w-5 data-[state=checked]:bg-primary" />
         <div className="text-left">
           <label htmlFor="save-info-stripe" className="text-[10px] font-black uppercase text-[#213147] cursor-pointer block leading-none">Save for faster checkout</label>
-          <p className="text-[8px] font-bold text-muted-foreground uppercase mt-1">Securely store details for your next visit</p>
+          <p className="text-[8px] font-bold text-muted-foreground uppercase mt-1">Securely saves your contact & payment info on this device for 1-tap ordering.</p>
         </div>
       </div>
 
@@ -526,7 +537,7 @@ function CheckoutDrawerContent({
                 <Checkbox id="save-info-pad" checked={saveInfo} onCheckedChange={(val) => setSaveInfo(!!val)} className="h-5 w-5 data-[state=checked]:bg-primary" />
                 <div className="text-left">
                   <label htmlFor="save-info-pad" className="text-[10px] font-black uppercase text-[#213147] cursor-pointer block leading-none">Save for faster checkout</label>
-                  <p className="text-[8px] font-bold text-muted-foreground uppercase mt-1">Securely store details for your next visit</p>
+                  <p className="text-[8px] font-bold text-muted-foreground uppercase mt-1">Securely saves your contact & payment info on this device for 1-tap ordering.</p>
                 </div>
               </div>
 
