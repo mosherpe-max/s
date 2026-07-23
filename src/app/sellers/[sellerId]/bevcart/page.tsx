@@ -312,11 +312,6 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
       });
   }, [allStaff, currentStaffId, solutionConfig]);
 
-  const signalColor = useMemo(() => {
-    const lastActive = primarySeller?.lastActive?.toDate();
-    return getSignalColor(lastActive, solutionConfig?.gpsFreshnessThresholds);
-  }, [primarySeller?.lastActive, solutionConfig]);
-
   const isLoading = areActiveOrdersLoading || isPrimaryLoading;
 
   return (
@@ -340,10 +335,6 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
           </div>
         </div>
         <div className="flex items-center space-x-3">
-          <Badge className="h-6 px-2 gap-1.5 border-0 shadow-inner transition-colors" style={{ backgroundColor: `${signalColor}20`, color: signalColor }}>
-            <div className="h-1.5 w-1.5 rounded-full animate-pulse" style={{ backgroundColor: signalColor }} />
-            <span className="text-[8px] font-black uppercase tracking-widest">Live Signal</span>
-          </Badge>
           <Switch checked={isBevCartActive} onCheckedChange={handleToggleActive} className="data-[state=checked]:bg-green-600" />
           <Button variant="ghost" size="icon" onClick={() => handleExitTerminal('root')} className="text-white/40 hover:text-white" disabled={isExiting}><LogOut className="h-4 w-4" /></Button>
         </div>
