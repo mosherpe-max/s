@@ -666,6 +666,27 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
     }, 500);
   };
 
+  const handleToggleModeStatus = async (mode: string, currentState: boolean) => {
+    if (!firestore || !sellerId) return;
+    const fieldMap: Record<string, string> = { 
+      'Beverage Cart': 'bevcartActive', 
+      'Clubhouse': 'clubhouseActive', 
+      'Lane Delivery': 'lanedeliveryActive' 
+    };
+    const field = fieldMap[mode];
+    if (!field) return;
+
+    try {
+      await updateDoc(doc(firestore, 'sellers', sellerId), {
+        [field]: !currentState,
+        updatedAt: serverTimestamp()
+      });
+      toast({ title: `${mode} ${!currentState ? 'Activated' : 'Deactivated'}` });
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Toggle Failed", description: e.message });
+    }
+  };
+
   const handleLogout = async () => { if (!auth) return; await signOut(auth); router.push('/login'); };
 
   const NAV_ITEMS = [
@@ -741,6 +762,15 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                           const isActive = !!(seller as any)?.[fieldMap[mode]];
                           return (
                             <div key={mode} className={cn("p-6 rounded-[2rem] border-2 transition-all flex flex-col items-center gap-4 relative group", isActive ? "border-primary bg-primary/5 shadow-inner" : "bg-slate-50 opacity-60 grayscale")}>
+                              {/* Direct Admin Toggle */}
+                              <div className="absolute top-4 right-4">
+                                <Switch 
+                                  checked={isActive} 
+                                  onCheckedChange={() => handleToggleModeStatus(mode, isActive)} 
+                                  className="data-[state=checked]:bg-green-600"
+                                />
+                              </div>
+
                               <div className={cn("p-3 rounded-2xl transition-all shadow-lg", isActive ? "bg-primary text-white scale-110" : "bg-slate-200 text-slate-400")}><Zap className="h-6 w-6" /></div>
                               <div className="text-center"><p className="text-11px font-black uppercase tracking-widest text-[#213147]">{mode}</p><Badge variant="outline" className={cn("mt-2 text-[8px] font-black uppercase", isActive ? "border-primary/30 text-primary bg-white" : "border-slate-200 text-slate-400")}>{isActive ? "LIVE SIGNAL" : "INACTIVE"}</Badge></div>
                               <Button variant="outline" size="sm" className="h-9 w-full rounded-xl text-[10px] font-black uppercase border-2 shadow-sm" onClick={() => handleImpersonate(mode)}>Enter Channel</Button>
