@@ -16,15 +16,15 @@ const db = getFirestore();
 
 /**
  * createPaymentIntent
- * Securely generates a Stripe Client Secret for the patron checkout.
- * Handles customer creation and future-usage authorization for "Faster Checkout".
+ * Securely generates a Stripe Client Secret and Customer Session for zero-friction checkout.
+ * Handles customer creation, future-usage authorization, and Express destination charges.
  */
 export const createPaymentIntent = onCall({
   secrets: ["STRIPE_SECRET_KEY"],
   region: 'us-central1',
 }, async (request) => {
   try {
-    const { amount, sellerId, patronName, patronPhone, patronEmail, saveInfo } = request.data || {};
+    const { amount, sellerId, patronName, patronPhone, patronEmail, saveInfo, stripeCustomerId: clientProvidedCustomerId } = request.data || {};
     const buyerUid = request.auth?.uid;
 
     if (!amount || amount <= 0) throw new HttpsError('invalid-argument', 'Invalid amount.');
@@ -35,50 +35,68 @@ export const createPaymentIntent = onCall({
 
     const stripe = new Stripe(apiKey, { apiVersion: '2025-01-27.acacia' as any });
 
-    let stripeCustomerId: string | undefined;
+    // 1. VENUE RESOLUTION: Get the destination Stripe Account ID
+    const sellerDoc = await db.collection('sellers').doc(sellerId).get();
+    const venueStripeAccountId = sellerDoc.data()?.stripeAccountId;
+    if (!venueStripeAccountId) {
+      throw new HttpsError('failed-precondition', 'Venue is not configured for digital payments.');
+    }
 
-    // 1. IDENTITY SYNC: Look for existing customer if buyer is authenticated or email provided
-    if (buyerUid) {
+    let stripeCustomerId: string | undefined = clientProvidedCustomerId;
+
+    // 2. IDENTITY SYNC: Fallback to Firestore profile if no client ID provided
+    if (!stripeCustomerId && buyerUid) {
       const userDoc = await db.collection('users').doc(buyerUid).get();
       if (userDoc.exists && userDoc.data()?.stripeCustomerId) {
         stripeCustomerId = userDoc.data()?.stripeCustomerId;
       }
     }
 
-    if (!stripeCustomerId && patronEmail) {
-      const existing = await stripe.customers.list({ email: patronEmail, limit: 1 });
-      if (existing.data.length > 0) {
-        stripeCustomerId = existing.data[0].id;
-      } else if (saveInfo) {
-        // Create customer if they elected to save info
-        const customer = await stripe.customers.create({ 
-          email: patronEmail, 
-          name: patronName, 
-          phone: patronPhone, 
-          metadata: { buyerUid: buyerUid || 'anonymous' } 
-        });
-        stripeCustomerId = customer.id;
-      }
+    // 3. CUSTOMER CREATION: Create customer if totally unknown
+    if (!stripeCustomerId) {
+      const customer = await stripe.customers.create({ 
+        email: patronEmail || undefined, 
+        name: patronName || 'Guest Patron', 
+        description: 'Koop Guest Patron',
+        metadata: { buyerUid: buyerUid || 'anonymous' } 
+      });
+      stripeCustomerId = customer.id;
     }
 
-    // 2. PERSISTENCE: If we found/created a customer and have a UID, update the profile
-    if (stripeCustomerId && buyerUid) {
+    // 4. PERSISTENCE: If buyer is authenticated, ensure the UID is linked to the ID
+    if (buyerUid && stripeCustomerId) {
       await db.collection('users').doc(buyerUid).set({ 
         stripeCustomerId, 
-        email: patronEmail,
-        displayName: patronName,
-        phoneNumber: patronPhone,
+        email: patronEmail || '',
+        displayName: patronName || '',
         updatedAt: FieldValue.serverTimestamp()
       }, { merge: true });
     }
 
-    // 3. INTENT: Create the payment intent with optional future usage flags
+    // 5. CUSTOMER SESSION: For redisplaying saved cards in the Payment Element
+    const customerSession = await stripe.customerSessions.create({
+      customer: stripeCustomerId,
+      components: { 
+        payment_element: { 
+          enabled: true, 
+          features: { 
+            payment_method_save: 'enabled', 
+            payment_method_redisplay: 'enabled' 
+          } 
+        } 
+      }
+    });
+
+    // 6. INTENT: Create the payment intent with destination charge
     const paymentIntent = await stripe.paymentIntents.create({
       amount: Math.round(amount * 100),
       currency: 'usd',
       customer: stripeCustomerId,
       setup_future_usage: saveInfo ? 'off_session' : undefined,
       automatic_payment_methods: { enabled: true },
+      transfer_data: {
+        destination: venueStripeAccountId,
+      },
       metadata: { 
         sellerId, 
         buyerUid: buyerUid || 'anonymous', 
@@ -88,17 +106,11 @@ export const createPaymentIntent = onCall({
       }
     });
 
-    // 4. SESSIONS: Optional Customer Session for the Payment Element
-    let customerSessionClientSecret: string | undefined;
-    if (stripeCustomerId) {
-      const customerSession = await stripe.customerSessions.create({
-        customer: stripeCustomerId,
-        components: { payment_element: { enabled: true, features: { payment_method_save: 'disabled', payment_method_redisplay: 'always' } } }
-      });
-      customerSessionClientSecret = customerSession.client_secret;
-    }
-
-    return { clientSecret: paymentIntent.client_secret, customerSessionClientSecret };
+    return { 
+      clientSecret: paymentIntent.client_secret, 
+      customerSessionClientSecret: customerSession.client_secret,
+      stripeCustomerId 
+    };
   } catch (err: any) {
     logger.error("Stripe PI Error", err);
     throw new HttpsError('internal', err.message || 'Internal payment gateway error.');

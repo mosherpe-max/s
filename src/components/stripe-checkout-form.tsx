@@ -12,8 +12,7 @@ interface StripeCheckoutFormProps {
 
 /**
  * Integrated Stripe Checkout Form.
- * Focuses exclusively on the Secure Payment Element.
- * Identity fields are handled by the parent CheckoutDrawer for state synchronization.
+ * Configured for zero-friction experience with layout: tabs and hidden billing detail fields.
  */
 export function StripeCheckoutForm({ onReadyStateChange }: StripeCheckoutFormProps) {
   const stripe = useStripe();
@@ -55,7 +54,7 @@ export function StripeCheckoutForm({ onReadyStateChange }: StripeCheckoutFormPro
               applePay: 'never',
               googlePay: 'never'
             },
-            // Identity collected by parent; postal code required for AVS
+            // REDUCE FRICTION: Identity collected by parent; hide redundant fields
             fields: {
               billingDetails: {
                 name: 'never',

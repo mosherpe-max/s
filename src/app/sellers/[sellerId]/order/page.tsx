@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, use, useEffect, useMemo } from 'react';
@@ -80,7 +81,7 @@ const SERVICE_INSTRUCTIONS: Record<string, string> = {
 function CheckoutBrandingBar() {
   return (
     <div className="fixed bottom-0 left-0 right-0 h-7 bg-[#213147] text-white flex items-center justify-center z-[60] w-full border-t border-white/5">
-      <div className="max-w-xl mx-auto w-full px-4 sm:px-6 flex items-center justify-between">
+      <div className="max-w-xl mx-auto w-full px-4 flex items-center justify-between">
         <span className="text-[10px] font-black uppercase tracking-widest text-white/40">Secure Order</span>
         <div className="flex items-center gap-0.5">
           <span className="text-[10px] font-black uppercase tracking-widest text-white/60">Powered by</span>
@@ -100,7 +101,8 @@ function StripeActionArea({
   orderData,
   patronEmail,
   patronName,
-  patronPhone
+  patronPhone,
+  stripeCustomerId
 }: any) {
   const stripe = useStripe();
   const elements = useElements();
@@ -131,6 +133,11 @@ function StripeActionArea({
       if (error) throw new Error(error.message);
 
       if (paymentIntent && (paymentIntent.status === 'succeeded' || paymentIntent.status === 'processing')) {
+        // CACHE IDENTITY FOR ZERO-FRICTION CHECKOUT
+        if (stripeCustomerId) {
+          localStorage.setItem('koop_stripe_customer_id', stripeCustomerId);
+        }
+
         const finalOrderData = {
           ...orderData,
           customerEmail: patronEmail,
@@ -159,7 +166,7 @@ function StripeActionArea({
 
   return (
     <div className="space-y-6">
-      <div className="p-4 sm:p-5 border-2 border-slate-100 rounded-[2rem] sm:rounded-[2.5rem] bg-slate-50/50 animate-in fade-in duration-500">
+      <div className="p-4 border-2 border-slate-100 rounded-[2rem] bg-slate-50/50 animate-in fade-in duration-500">
         <StripeCheckoutForm onReadyStateChange={setIsStripeReady} />
       </div>
 
@@ -208,6 +215,7 @@ function CheckoutDrawerContent({
   const [isProcessing, setIsProcessing] = useState(false);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [customerSessionClientSecret, setCustomerSessionClientSecret] = useState<string | null>(null);
+  const [stripeCustomerId, setStripeCustomerId] = useState<string | null>(null);
   const [isFetchingIntent, setIsFetchingIntent] = useState(false);
 
   const tax = subtotal * (taxRate / 100);
@@ -217,9 +225,11 @@ function CheckoutDrawerContent({
   const disclosureCategory = getDisclosureCategory(seller?.type);
   const checkoutNotice = FEE_DISCLOSURES[disclosureCategory].checkout;
 
+  // LOAD CACHED IDENTITY
   useEffect(() => {
-    setClientSecret(null);
-  }, [saveInfo, patronEmail]);
+    const cachedId = localStorage.getItem('koop_stripe_customer_id');
+    if (cachedId) setStripeCustomerId(cachedId);
+  }, []);
 
   useEffect(() => {
     if (paymentMethod === 'Stripe' && !isFetchingIntent && baseTotalForBackend > 0 && !clientSecret) {
@@ -242,14 +252,18 @@ function CheckoutDrawerContent({
             patronName: patronName || 'Guest',
             patronPhone: patronPhone.replace(/\D/g, '') || '',
             patronEmail: patronEmail || '',
-            saveInfo
+            saveInfo,
+            stripeCustomerId // PASSED FOR ZERO-FRICTION FETCH
           });
           
-          const data = result.data as { clientSecret: string; customerSessionClientSecret?: string };
+          const data = result.data as { clientSecret: string; customerSessionClientSecret?: string; stripeCustomerId?: string };
           if (data?.clientSecret) {
             setClientSecret(data.clientSecret);
             if (data.customerSessionClientSecret) {
               setCustomerSessionClientSecret(data.customerSessionClientSecret);
+            }
+            if (data.stripeCustomerId) {
+              setStripeCustomerId(data.stripeCustomerId);
             }
           }
         } catch (e: any) {
@@ -262,7 +276,7 @@ function CheckoutDrawerContent({
       };
       fetchIntent();
     }
-  }, [paymentMethod, baseTotalForBackend, sellerId, firebaseApp, clientSecret, isFetchingIntent, toast, user, auth, saveInfo, patronEmail, patronName, patronPhone]);
+  }, [paymentMethod, baseTotalForBackend, sellerId, firebaseApp, clientSecret, isFetchingIntent, toast, user, auth, saveInfo, patronEmail, patronName, patronPhone, stripeCustomerId]);
 
   const handleManualOrder = async () => {
     if (!firestore || activeOrderItems.length === 0) return;
@@ -356,7 +370,7 @@ function CheckoutDrawerContent({
         {selectedMenuType === 'Lane Delivery' && seller?.laneCount && (
           <div className="space-y-4">
             <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground px-1">STATION / LANE</h3>
-            <div className="grid grid-cols-5 sm:grid-cols-6 gap-2">
+            <div className="grid grid-cols-5 gap-2">
               {Array.from({ length: seller.laneCount }, (_, i) => (i + 1).toString()).map(l => (
                 <Button key={l} variant={locationValue === `Lane ${l}` ? 'default' : 'outline'} size="sm" onClick={() => setLocationValue(`Lane ${l}`)} className="font-black h-11 px-0 rounded-xl">
                   {l}
@@ -462,6 +476,7 @@ function CheckoutDrawerContent({
                   patronEmail={patronEmail}
                   patronName={patronName}
                   patronPhone={patronPhone}
+                  stripeCustomerId={stripeCustomerId}
                 />
               </Elements>
             ) : null
