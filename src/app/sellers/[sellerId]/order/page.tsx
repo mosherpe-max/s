@@ -596,12 +596,9 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
     }
     if (!isChannelOpen) return false;
 
-    // RESTRICTION: Check for at least one active staff heartbeat in this mode
-    const activeStaff = staffList?.filter(s => {
-      if (!s.lastActive || s.activeMode !== type) return false;
-      const secondsSinceActive = (Date.now() - s.lastActive.toMillis()) / 1000;
-      return secondsSinceActive < 300; // Heartbeat valid if updated in last 5 mins
-    });
+    // PERSISTENCE LOGIC: A service mode stays active as long as at least one staff is assigned to it.
+    // We remove the short-lived GPS heartbeat check so that the menu stays open if their device sleeps.
+    const activeStaff = staffList?.filter(s => s.activeMode === type && s.isActive !== false);
 
     return (activeStaff && activeStaff.length > 0) || false;
   };

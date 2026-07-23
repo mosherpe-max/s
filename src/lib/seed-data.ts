@@ -336,7 +336,12 @@ export async function resetAllVenueOperationalStatus(db: Firestore) {
     });
     const staffRef = collection(db, 'sellers', sellerDoc.id, 'staff');
     const staffSnap = await getDocs(staffRef);
-    staffSnap.forEach(sDoc => batch.update(sDoc.ref, { latitude: null, longitude: null, lastActive: null }));
+    staffSnap.forEach(sDoc => batch.update(sDoc.ref, { 
+      latitude: null, 
+      longitude: null, 
+      lastActive: null,
+      activeMode: null 
+    }));
   }
   await batch.commit();
 }
