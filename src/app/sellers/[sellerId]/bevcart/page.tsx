@@ -1,4 +1,3 @@
-
 'use client';
 
 import { collection, query, where, doc, updateDoc, serverTimestamp, setDoc, deleteDoc } from 'firebase/firestore';
@@ -374,85 +373,26 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
         </div>
       </header>
 
-      <div className="flex-shrink-0 px-4 py-2 bg-background border-b flex items-center justify-between">
-        <div className="flex-1 flex items-center justify-center gap-6">
-          <div className="flex flex-col items-center">
-            <span className="text-[8px] font-black uppercase text-muted-foreground">Daily Tips</span>
-            <span className="text-xs font-bold">${metrics?.dailyTips.toFixed(2) || '0.00'}</span>
-          </div>
-          <div className="h-6 w-px bg-muted" />
-          <div className="flex flex-col items-center">
-            <span className="text-[8px] font-black uppercase text-muted-foreground">Deliveries</span>
-            <span className="text-xs font-bold">{metrics?.count || '0'}</span>
-          </div>
-          <div className="h-6 w-px bg-muted" />
-          <div className="flex flex-col items-center">
-            <span className="text-[8px] font-black uppercase text-muted-foreground">Ack Time</span>
-            <span className="text-xs font-bold">{metrics?.avgAck || '0'}s</span>
-          </div>
-          <div className="h-6 w-px bg-muted" />
-          <div className="flex flex-col items-center">
-            <span className="text-[8px] font-black uppercase text-muted-foreground">Total</span>
-            <span className="text-xs font-bold">{metrics?.avgTotal || '0'}m</span>
-          </div>
+      <div className="flex-shrink-0 px-4 py-2 bg-background border-b flex items-center justify-center gap-6">
+        <div className="flex flex-col items-center">
+          <span className="text-[8px] font-black uppercase text-muted-foreground">Daily Tips</span>
+          <span className="text-xs font-bold">${metrics?.dailyTips.toFixed(2) || '0.00'}</span>
         </div>
-
-        <Dialog open={isHistoryOpen} onOpenChange={setIsHistoryOpen}>
-          <DialogTrigger asChild>
-            <Button variant="outline" size="sm" className="h-8 rounded-full border-2 border-indigo-100 text-indigo-600 font-black uppercase text-[9px] tracking-widest gap-2 bg-white shadow-sm shrink-0">
-              <History className="h-3.5 w-3.5" /> Shift History
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[500px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl">
-            <DialogHeader className="p-6 bg-indigo-600 text-white">
-              <DialogTitle className="font-headline font-black uppercase tracking-tight text-white flex items-center gap-2">
-                <History className="h-5 w-5" /> Your Today's Orders
-              </DialogTitle>
-            </DialogHeader>
-            <div className="flex-shrink-0 p-4 bg-slate-50 border-b flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Badge className="bg-indigo-100 text-indigo-700 border-0 h-6 uppercase text-[9px] font-black">{personalHistory.length} Delivered</Badge>
-                <p className="text-[10px] font-bold text-muted-foreground uppercase">{currentStaffName}</p>
-              </div>
-              <div className="flex items-center gap-1.5">
-                 <span className="text-[10px] font-black uppercase text-muted-foreground">Total Tips:</span>
-                 <span className="text-sm font-black text-green-600">${personalHistory.reduce((acc, o) => acc + (o.tip || 0), 0).toFixed(2)}</span>
-              </div>
-            </div>
-            <ScrollArea className="h-[400px]">
-              {personalHistory.length === 0 ? (
-                <div className="py-20 text-center opacity-40">
-                  <Package className="h-10 w-10 mx-auto mb-2 text-slate-400" />
-                  <p className="text-[10px] font-black uppercase tracking-widest">No deliveries recorded today</p>
-                </div>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="text-[9px] font-black uppercase">Ticket</TableHead>
-                      <TableHead className="text-[9px] font-black uppercase">Customer</TableHead>
-                      <TableHead className="text-[9px] font-black uppercase text-right">Order</TableHead>
-                      <TableHead className="text-[9px] font-black uppercase text-right">Tip</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {personalHistory.map(o => (
-                      <TableRow key={o.id}>
-                        <TableCell className="font-mono font-black text-[10px]">#{getNumericOrderId(o.id)}</TableCell>
-                        <TableCell>
-                          <p className="font-bold text-[10px] uppercase truncate max-w-[100px]">{o.customerName}</p>
-                          <p className="text-[8px] text-muted-foreground uppercase">{o.deliveredAt ? format(o.deliveredAt.toDate(), 'h:mm a') : ''}</p>
-                        </TableCell>
-                        <TableCell className="text-right font-bold text-[10px] text-[#213147]">${o.total.toFixed(2)}</TableCell>
-                        <TableCell className="text-right font-black text-[10px] text-green-600">${(o.tip || 0).toFixed(2)}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
-            </ScrollArea>
-          </DialogContent>
-        </Dialog>
+        <div className="h-6 w-px bg-muted" />
+        <div className="flex flex-col items-center">
+          <span className="text-[8px] font-black uppercase text-muted-foreground">Deliveries</span>
+          <span className="text-xs font-bold">{metrics?.count || '0'}</span>
+        </div>
+        <div className="h-6 w-px bg-muted" />
+        <div className="flex flex-col items-center">
+          <span className="text-[8px] font-black uppercase text-muted-foreground">Ack Time</span>
+          <span className="text-xs font-bold">{metrics?.avgAck || '0'}s</span>
+        </div>
+        <div className="h-6 w-px bg-muted" />
+        <div className="flex flex-col items-center">
+          <span className="text-[8px] font-black uppercase text-muted-foreground">Total</span>
+          <span className="text-xs font-bold">{metrics?.avgTotal || '0'}m</span>
+        </div>
       </div>
 
       <div className="flex-1 flex flex-col md:flex-row overflow-auto p-4 gap-4">
@@ -486,10 +426,70 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
           ) : <Skeleton className="w-full h-full" />}
         </div>
         <div className="w-full md:w-1/3 flex flex-col bg-background border-2 rounded-xl overflow-hidden min-h-0 text-left">
-          <h2 className="font-headline text-xs font-black px-4 py-3 shrink-0 border-b flex items-center justify-between uppercase bg-muted/10 tracking-widest">
-            <span>Active Orders</span>
-            <span className="bg-[#213147] text-white text-[10px] font-black rounded-full px-2 py-0.5">{driverOrders.length}</span>
-          </h2>
+          <div className="shrink-0 border-b bg-muted/10 px-4 py-3 flex items-center justify-between">
+            <h2 className="font-headline text-xs font-black flex items-center gap-2 uppercase tracking-widest">
+              <span>Active Orders</span>
+              <span className="bg-[#213147] text-white text-[10px] font-black rounded-full px-2 py-0.5">{driverOrders.length}</span>
+            </h2>
+            
+            <Dialog open={isHistoryOpen} onOpenChange={setIsHistoryOpen}>
+              <DialogTrigger asChild>
+                <Button variant="ghost" size="sm" className="h-7 rounded-full text-indigo-600 font-black uppercase text-[9px] tracking-widest gap-1.5 hover:bg-indigo-50">
+                  <History className="h-3 w-3" /> History
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[500px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl">
+                <DialogHeader className="p-6 bg-indigo-600 text-white">
+                  <DialogTitle className="font-headline font-black uppercase tracking-tight text-white flex items-center gap-2">
+                    <History className="h-5 w-5" /> Your Today's Orders
+                  </DialogTitle>
+                </DialogHeader>
+                <div className="flex-shrink-0 p-4 bg-slate-50 border-b flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Badge className="bg-indigo-100 text-indigo-700 border-0 h-6 uppercase text-[9px] font-black">{personalHistory.length} Delivered</Badge>
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase">{currentStaffName}</p>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] font-black uppercase text-muted-foreground">Total Tips:</span>
+                    <span className="text-sm font-black text-green-600">${personalHistory.reduce((acc, o) => acc + (o.tip || 0), 0).toFixed(2)}</span>
+                  </div>
+                </div>
+                <ScrollArea className="h-[400px]">
+                  {personalHistory.length === 0 ? (
+                    <div className="py-20 text-center opacity-40">
+                      <Package className="h-10 w-10 mx-auto mb-2 text-slate-400" />
+                      <p className="text-[10px] font-black uppercase tracking-widest">No deliveries recorded today</p>
+                    </div>
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="text-[9px] font-black uppercase">Ticket</TableHead>
+                          <TableHead className="text-[9px] font-black uppercase">Customer</TableHead>
+                          <TableHead className="text-[9px] font-black uppercase text-right">Order</TableHead>
+                          <TableHead className="text-[9px] font-black uppercase text-right">Tip</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {personalHistory.map(o => (
+                          <TableRow key={o.id}>
+                            <TableCell className="font-mono font-black text-[10px]">#{getNumericOrderId(o.id)}</TableCell>
+                            <TableCell>
+                              <p className="font-bold text-[10px] uppercase truncate max-w-[100px]">{o.customerName}</p>
+                              <p className="text-[8px] text-muted-foreground uppercase">{o.deliveredAt ? format(o.deliveredAt.toDate(), 'h:mm a') : ''}</p>
+                            </TableCell>
+                            <TableCell className="text-right font-bold text-[10px] text-[#213147]">${o.total.toFixed(2)}</TableCell>
+                            <TableCell className="text-right font-black text-[10px] text-green-600">${(o.tip || 0).toFixed(2)}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
+                </ScrollArea>
+              </DialogContent>
+            </Dialog>
+          </div>
+          
           <div className="flex-1 overflow-auto px-2 text-left">
             <div className="py-2.5 space-y-3 text-left">
               {isLoading ? <Skeleton className="h-40 w-full" /> : driverOrders.length === 0 ? (
