@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, use, useEffect, useMemo } from 'react';
@@ -93,7 +92,7 @@ function CheckoutBrandingBar() {
   );
 }
 
-function PatronIdentifyFields({ patronEmail, setPatronEmail, patronName, setPatronName, patronPhone, setPatronPhone, saveInfo, setSaveInfo }: any) {
+function PatronIdentifyFields({ patronEmail, setPatronEmail, patronName, setPatronName, patronPhone, setPatronPhone }: any) {
   return (
     <div className="space-y-6 bg-slate-50/50 p-5 rounded-[2rem] border-2 border-slate-100 animate-in fade-in duration-500">
       <div className="space-y-1.5 px-1">
@@ -101,7 +100,7 @@ function PatronIdentifyFields({ patronEmail, setPatronEmail, patronName, setPatr
           <User className="h-3 w-3" /> Delivery Contact
         </h3>
         <p className="text-[9px] font-bold text-muted-foreground uppercase leading-relaxed">
-          We collect these details to send you order status updates via SMS and a digital receipt via email.
+          We collect your email and mobile number to send you real-time order updates via SMS and a digital receipt via email.
         </p>
       </div>
       
@@ -137,17 +136,6 @@ function PatronIdentifyFields({ patronEmail, setPatronEmail, patronName, setPatr
             />
           </div>
         </div>
-        
-        <div 
-          className="flex items-center space-x-3 p-3 bg-primary/5 rounded-xl border-2 border-primary/10 cursor-pointer transition-all hover:bg-primary/10"
-          onClick={() => setSaveInfo(!saveInfo)}
-        >
-          <Checkbox id="save-info" checked={saveInfo} onCheckedChange={(val) => setSaveInfo(!!val)} className="h-5 w-5 data-[state=checked]:bg-primary" />
-          <div className="text-left">
-            <label htmlFor="save-info" className="text-[10px] font-black uppercase text-[#213147] cursor-pointer block leading-none">Save for faster checkout</label>
-            <p className="text-[8px] font-bold text-muted-foreground uppercase mt-1">Securely store details for your next visit</p>
-          </div>
-        </div>
       </div>
     </div>
   );
@@ -164,7 +152,9 @@ function StripeActionArea({
   patronName,
   patronPhone,
   stripeCustomerId,
-  idFields
+  idFields,
+  saveInfo,
+  setSaveInfo
 }: any) {
   const stripe = useStripe();
   const elements = useElements();
@@ -239,6 +229,17 @@ function StripeActionArea({
       
       <div className="p-4 border-2 border-slate-100 rounded-[2rem] bg-slate-50/50 animate-in fade-in duration-500">
         <StripeCheckoutForm onReadyStateChange={setIsStripeReady} />
+      </div>
+
+      <div 
+        className="flex items-center space-x-3 p-4 bg-primary/5 rounded-[2rem] border-2 border-primary/10 cursor-pointer transition-all hover:bg-primary/10 animate-in fade-in duration-500"
+        onClick={() => setSaveInfo(!saveInfo)}
+      >
+        <Checkbox id="save-info-stripe" checked={saveInfo} onCheckedChange={(val) => setSaveInfo(!!val)} className="h-5 w-5 data-[state=checked]:bg-primary" />
+        <div className="text-left">
+          <label htmlFor="save-info-stripe" className="text-[10px] font-black uppercase text-[#213147] cursor-pointer block leading-none">Save for faster checkout</label>
+          <p className="text-[8px] font-bold text-muted-foreground uppercase mt-1">Securely store details for your next visit</p>
+        </div>
       </div>
 
       <div className="fixed bottom-7 left-0 right-0 p-4 bg-white/80 backdrop-blur-md border-t z-50">
@@ -426,7 +427,6 @@ function CheckoutDrawerContent({
       patronEmail={patronEmail} setPatronEmail={setPatronEmail}
       patronName={patronName} setPatronName={setPatronName}
       patronPhone={patronPhone} setPatronPhone={setPatronPhone}
-      saveInfo={saveInfo} setSaveInfo={setSaveInfo}
     />
   );
 
@@ -508,6 +508,8 @@ function CheckoutDrawerContent({
                   patronPhone={patronPhone}
                   stripeCustomerId={stripeCustomerId}
                   idFields={idForm}
+                  saveInfo={saveInfo}
+                  setSaveInfo={setSaveInfo}
                 />
               </Elements>
             ) : null
@@ -517,6 +519,17 @@ function CheckoutDrawerContent({
             <div className="space-y-6">
               {idForm}
               
+              <div 
+                className="flex items-center space-x-3 p-4 bg-primary/5 rounded-[2rem] border-2 border-primary/10 cursor-pointer transition-all hover:bg-primary/10 animate-in fade-in duration-500"
+                onClick={() => setSaveInfo(!saveInfo)}
+              >
+                <Checkbox id="save-info-pad" checked={saveInfo} onCheckedChange={(val) => setSaveInfo(!!val)} className="h-5 w-5 data-[state=checked]:bg-primary" />
+                <div className="text-left">
+                  <label htmlFor="save-info-pad" className="text-[10px] font-black uppercase text-[#213147] cursor-pointer block leading-none">Save for faster checkout</label>
+                  <p className="text-[8px] font-bold text-muted-foreground uppercase mt-1">Securely store details for your next visit</p>
+                </div>
+              </div>
+
               <div className="fixed bottom-7 left-0 right-0 p-4 bg-white/80 backdrop-blur-md border-t z-50">
                 <div className="max-w-xl mx-auto px-2">
                   <Button 
@@ -597,7 +610,6 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
     if (!isChannelOpen) return false;
 
     // PERSISTENCE LOGIC: A service mode stays active as long as at least one staff is assigned to it.
-    // We remove the short-lived GPS heartbeat check so that the menu stays open if their device sleeps.
     const activeStaff = staffList?.filter(s => s.activeMode === type && s.isActive !== false);
 
     return (activeStaff && activeStaff.length > 0) || false;
