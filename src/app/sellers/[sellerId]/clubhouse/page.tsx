@@ -10,14 +10,29 @@ import type { Order, Seller, StaffMember, SolutionConfig } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
-import { Package, LogOut, Building, LayoutList, Focus, ChevronLeft, ShieldAlert } from 'lucide-react';
+import { Package, LogOut, Building, LayoutList, Focus, ChevronLeft, ShieldAlert, History } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { useRouter } from 'next/navigation';
 import { MapView } from '@/components/map-view';
-import { isToday, differenceInSeconds, differenceInMinutes } from 'date-fns';
-import { cn, calculateDistance, getSignalColor, getDriverColor, SUPER_ADMIN_ID, isStaffSessionStale } from '@/lib/utils';
+import { isToday, differenceInSeconds, differenceInMinutes, format } from 'date-fns';
+import { cn, calculateDistance, getSignalColor, getDriverColor, SUPER_ADMIN_ID, isStaffSessionStale, getNumericOrderId } from '@/lib/utils';
 import Link from 'next/link';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 type LatLng = {
   latitude: number;
@@ -39,6 +54,7 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
   const [isAdminSession, setIsAdminSession] = useState(false);
   const [greeting, setGreeting] = useState('Hello');
   const [isExiting, setIsExiting] = useState(false);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
 
   const lastOrderIdsRef = useRef<Set<string>>(new Set());
   const lastBroadcastRef = useRef<{ lat: number; lng: number; time: number } | null>(null);
@@ -204,6 +220,13 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
       .sort((a, b) => (a.createdAt?.toMillis?.() || 0) - (b.createdAt?.toMillis?.() || 0));
   }, [activeOrders]);
 
+  const personalHistory = useMemo(() => {
+    if (!allOrders || !currentStaffId) return [];
+    return allOrders
+      .filter(o => o.assignedStaffId === currentStaffId && o.status === 'Delivered' && o.createdAt && isToday(o.createdAt.toDate()))
+      .sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
+  }, [allOrders, currentStaffId]);
+
   const metrics = useMemo(() => {
     if (!allOrders) return null;
     const mode = 'Clubhouse';
@@ -325,26 +348,85 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
         </div>
       </header>
 
-      <div className="flex-shrink-0 px-4 py-2 bg-background border-b flex items-center justify-center gap-6">
-        <div className="flex flex-col items-center">
-          <span className="text-[8px] font-black uppercase text-muted-foreground">Daily Tips</span>
-          <span className="text-xs font-bold">${metrics?.dailyTips.toFixed(2) || '0.00'}</span>
+      <div className="flex-shrink-0 px-4 py-2 bg-background border-b flex items-center justify-between">
+        <div className="flex-1 flex items-center justify-center gap-6">
+          <div className="flex flex-col items-center">
+            <span className="text-[8px] font-black uppercase text-muted-foreground">Daily Tips</span>
+            <span className="text-xs font-bold">${metrics?.dailyTips.toFixed(2) || '0.00'}</span>
+          </div>
+          <div className="h-6 w-px bg-muted" />
+          <div className="flex flex-col items-center">
+            <span className="text-[8px] font-black uppercase text-muted-foreground">Deliveries</span>
+            <span className="text-xs font-bold">{metrics?.count || '0'}</span>
+          </div>
+          <div className="h-6 w-px bg-muted" />
+          <div className="flex flex-col items-center">
+            <span className="text-[8px] font-black uppercase text-muted-foreground">Ack Time</span>
+            <span className="text-xs font-bold">{metrics?.avgAck || '0'}s</span>
+          </div>
+          <div className="h-6 w-px bg-muted" />
+          <div className="flex flex-col items-center">
+            <span className="text-[8px] font-black uppercase text-muted-foreground">Total</span>
+            <span className="text-xs font-bold">{metrics?.avgTotal || '0'}m</span>
+          </div>
         </div>
-        <div className="h-6 w-px bg-muted" />
-        <div className="flex flex-col items-center">
-          <span className="text-[8px] font-black uppercase text-muted-foreground">Deliveries</span>
-          <span className="text-xs font-bold">{metrics?.count || '0'}</span>
-        </div>
-        <div className="h-6 w-px bg-muted" />
-        <div className="flex flex-col items-center">
-          <span className="text-[8px] font-black uppercase text-muted-foreground">Ack Time</span>
-          <span className="text-xs font-bold">{metrics?.avgAck || '0'}s</span>
-        </div>
-        <div className="h-6 w-px bg-muted" />
-        <div className="flex flex-col items-center">
-          <span className="text-[8px] font-black uppercase text-muted-foreground">Total</span>
-          <span className="text-xs font-bold">{metrics?.avgTotal || '0'}m</span>
-        </div>
+
+        <Dialog open={isHistoryOpen} onOpenChange={setIsHistoryOpen}>
+          <DialogTrigger asChild>
+            <Button variant="outline" size="sm" className="h-8 rounded-full border-2 border-indigo-100 text-indigo-600 font-black uppercase text-[9px] tracking-widest gap-2 bg-white shadow-sm shrink-0">
+              <History className="h-3.5 w-3.5" /> Shift History
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-[500px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl">
+            <DialogHeader className="p-6 bg-indigo-600 text-white">
+              <DialogTitle className="font-headline font-black uppercase tracking-tight text-white flex items-center gap-2">
+                <History className="h-5 w-5" /> Your Today's Orders
+              </DialogTitle>
+            </DialogHeader>
+            <div className="flex-shrink-0 p-4 bg-slate-50 border-b flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Badge className="bg-indigo-100 text-indigo-700 border-0 h-6 uppercase text-[9px] font-black">{personalHistory.length} Delivered</Badge>
+                <p className="text-[10px] font-bold text-muted-foreground uppercase">{currentStaffName}</p>
+              </div>
+              <div className="flex items-center gap-1.5">
+                 <span className="text-[10px] font-black uppercase text-muted-foreground">Total Tips:</span>
+                 <span className="text-sm font-black text-green-600">${personalHistory.reduce((acc, o) => acc + (o.tip || 0), 0).toFixed(2)}</span>
+              </div>
+            </div>
+            <ScrollArea className="h-[400px]">
+              {personalHistory.length === 0 ? (
+                <div className="py-20 text-center opacity-40">
+                  <Package className="h-10 w-10 mx-auto mb-2 text-slate-400" />
+                  <p className="text-[10px] font-black uppercase tracking-widest">No deliveries recorded today</p>
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="text-[9px] font-black uppercase">Ticket</TableHead>
+                      <TableHead className="text-[9px] font-black uppercase">Customer</TableHead>
+                      <TableHead className="text-[9px] font-black uppercase text-right">Order</TableHead>
+                      <TableHead className="text-[9px] font-black uppercase text-right">Tip</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {personalHistory.map(o => (
+                      <TableRow key={o.id}>
+                        <TableCell className="font-mono font-black text-[10px]">#{getNumericOrderId(o.id)}</TableCell>
+                        <TableCell>
+                          <p className="font-bold text-[10px] uppercase truncate max-w-[100px]">{o.customerName}</p>
+                          <p className="text-[8px] text-muted-foreground uppercase">{o.deliveredAt ? format(o.deliveredAt.toDate(), 'h:mm a') : ''}</p>
+                        </TableCell>
+                        <TableCell className="text-right font-bold text-[10px] text-[#213147]">${o.total.toFixed(2)}</TableCell>
+                        <TableCell className="text-right font-black text-[10px] text-green-600">${(o.tip || 0).toFixed(2)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </ScrollArea>
+          </DialogContent>
+        </Dialog>
       </div>
 
       <div className="flex-1 flex flex-col md:flex-row overflow-auto p-4 gap-4">
@@ -400,7 +482,7 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
               {isLoading ? <Skeleton className="h-40 w-full" /> : clubhouseOrders.length === 0 ? (
                 <div className="col-span-full py-20 text-center text-muted-foreground opacity-40"><Building className="h-10 w-10 mx-auto mb-2" /><p className="text-[10px] font-black uppercase tracking-[0.2em]">No active orders</p></div>
               ) : (
-                clubhouseOrders.map((order, index) => (<OrderCard key={order.id} order={order} orderNumber={index + 1} now={now} onUpdateStatus={handleUpdateOrderStatus} onAttach={handleAttachOrder} currentStaffId={currentStaffId} thresholds={primarySeller?.orderThresholds?.[order.menuType]} />))
+                clubhouseOrders.map((order, index) => (<OrderCard key={order.id} order={order} orderNumber={index + 1} now={now} onUpdateStatus={handleUpdateOrderStatus} onAttach={handleAttachOrder} thresholds={primarySeller?.orderThresholds?.[order.menuType]} />))
               )}
             </div>
           </div>
