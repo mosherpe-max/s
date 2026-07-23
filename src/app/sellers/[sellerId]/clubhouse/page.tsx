@@ -14,6 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { useRouter } from 'next/navigation';
 import { MapView } from '@/components/map-view';
+import { isToday, differenceInSeconds, differenceInMinutes } from 'date-fns';
 import { cn, calculateDistance, getSignalColor, SUPER_ADMIN_ID, isStaffSessionStale } from '@/lib/utils';
 import Link from 'next/link';
 
@@ -190,12 +191,46 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
 
   const { data: activeOrders, isLoading: areActiveOrdersLoading } = useCollection<Order>(activeOrdersQuery);
 
+  const allOrdersQuery = useMemoFirebase(() => {
+    if (!firestore || !sellerId) return null;
+    return query(collection(firestore, 'orders'), where('sellerId', '==', sellerId));
+  }, [firestore, sellerId]);
+
+  const { data: allOrders } = useCollection<Order>(allOrdersQuery);
+
   const clubhouseOrders = useMemo(() => {
     if (!activeOrders) return [];
     return activeOrders
       .filter(o => o.menuType === 'Clubhouse')
       .sort((a, b) => (a.createdAt?.toMillis?.() || 0) - (b.createdAt?.toMillis?.() || 0));
   }, [activeOrders]);
+
+  const metrics = useMemo(() => {
+    if (!allOrders) return null;
+    const mode = 'Clubhouse';
+    const ordersToday = allOrders.filter(o => o.menuType === mode && o.createdAt && isToday(o.createdAt.toDate()));
+    const deliveredToday = ordersToday.filter(o => o.status === 'Delivered');
+    const dailyTips = deliveredToday.reduce((acc, o) => acc + (o.tip || 0), 0);
+    
+    // Ack Time (Today's acknowledged orders)
+    const acknowledged = ordersToday.filter(o => o.acknowledgedAt);
+    const avgAck = acknowledged.length > 0 
+      ? acknowledged.reduce((acc, o) => acc + differenceInSeconds(o.acknowledgedAt!.toDate(), o.createdAt.toDate()), 0) / acknowledged.length
+      : 0;
+
+    // Total Time (Today's delivered orders)
+    const fulfilled = deliveredToday.filter(o => o.deliveredAt);
+    const avgTotal = fulfilled.length > 0
+      ? fulfilled.reduce((acc, o) => acc + differenceInMinutes(o.deliveredAt!.toDate(), o.createdAt.toDate()), 0) / fulfilled.length
+      : 0;
+
+    return { 
+      dailyTips, 
+      count: deliveredToday.length,
+      avgAck: Math.round(avgAck),
+      avgTotal: parseFloat(avgTotal.toFixed(1))
+    };
+  }, [allOrders]);
 
   useEffect(() => {
     if (!clubhouseOrders || !now) return;
@@ -292,6 +327,28 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
           <Button variant="ghost" size="icon" onClick={() => handleExitTerminal('root')} className="text-white/40 hover:text-white" disabled={isExiting}><LogOut className="h-4 w-4" /></Button>
         </div>
       </header>
+
+      <div className="flex-shrink-0 px-4 py-2 bg-background border-b flex items-center justify-center gap-6">
+        <div className="flex flex-col items-center">
+          <span className="text-[8px] font-black uppercase text-muted-foreground">Daily Tips</span>
+          <span className="text-xs font-bold">${metrics?.dailyTips.toFixed(2) || '0.00'}</span>
+        </div>
+        <div className="h-6 w-px bg-muted" />
+        <div className="flex flex-col items-center">
+          <span className="text-[8px] font-black uppercase text-muted-foreground">Deliveries</span>
+          <span className="text-xs font-bold">{metrics?.count || '0'}</span>
+        </div>
+        <div className="h-6 w-px bg-muted" />
+        <div className="flex flex-col items-center">
+          <span className="text-[8px] font-black uppercase text-muted-foreground">Ack Time</span>
+          <span className="text-xs font-bold">{metrics?.avgAck || '0'}s</span>
+        </div>
+        <div className="h-6 w-px bg-muted" />
+        <div className="flex flex-col items-center">
+          <span className="text-[8px] font-black uppercase text-muted-foreground">Total</span>
+          <span className="text-xs font-bold">{metrics?.avgTotal || '0'}m</span>
+        </div>
+      </div>
 
       <div className="flex-1 flex flex-col md:flex-row overflow-auto p-4 gap-4">
         {isGolf && (

@@ -15,7 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Focus, Package, LogOut, Truck, ChevronLeft, LayoutDashboard, ShieldAlert } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
-import { isToday } from 'date-fns';
+import { isToday, differenceInSeconds, differenceInMinutes } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
@@ -173,7 +173,25 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
     const bevOrdersToday = allOrders.filter(o => o.menuType === 'Beverage Cart' && o.createdAt && isToday(o.createdAt.toDate()));
     const deliveredToday = bevOrdersToday.filter(o => o.status === 'Delivered');
     const dailyTips = deliveredToday.reduce((acc, o) => acc + (o.tip || 0), 0);
-    return { dailyTips, count: deliveredToday.length };
+
+    // Ack Time (Today's acknowledged orders)
+    const acknowledged = bevOrdersToday.filter(o => o.acknowledgedAt);
+    const avgAck = acknowledged.length > 0 
+      ? acknowledged.reduce((acc, o) => acc + differenceInSeconds(o.acknowledgedAt!.toDate(), o.createdAt.toDate()), 0) / acknowledged.length
+      : 0;
+
+    // Total Time (Today's delivered orders)
+    const fulfilled = deliveredToday.filter(o => o.deliveredAt);
+    const avgTotal = fulfilled.length > 0
+      ? fulfilled.reduce((acc, o) => acc + differenceInMinutes(o.deliveredAt!.toDate(), o.createdAt.toDate()), 0) / fulfilled.length
+      : 0;
+
+    return { 
+      dailyTips, 
+      count: deliveredToday.length,
+      avgAck: Math.round(avgAck),
+      avgTotal: parseFloat(avgTotal.toFixed(1))
+    };
   }, [allOrders]);
 
   useEffect(() => {
@@ -349,6 +367,16 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
         <div className="flex flex-col items-center">
           <span className="text-[8px] font-black uppercase text-muted-foreground">Deliveries</span>
           <span className="text-xs font-bold">{metrics?.count || '0'}</span>
+        </div>
+        <div className="h-6 w-px bg-muted" />
+        <div className="flex flex-col items-center">
+          <span className="text-[8px] font-black uppercase text-muted-foreground">Ack Time</span>
+          <span className="text-xs font-bold">{metrics?.avgAck || '0'}s</span>
+        </div>
+        <div className="h-6 w-px bg-muted" />
+        <div className="flex flex-col items-center">
+          <span className="text-[8px] font-black uppercase text-muted-foreground">Total</span>
+          <span className="text-xs font-bold">{metrics?.avgTotal || '0'}m</span>
         </div>
       </div>
 
