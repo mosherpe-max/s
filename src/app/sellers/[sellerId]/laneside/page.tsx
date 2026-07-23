@@ -26,6 +26,7 @@ export default function LaneSideServerDashboardPage({ params }: { params: Promis
   const [now, setNow] = useState<number>(Date.now());
   const [currentStaffId, setCurrentStaffId] = useState<string | undefined>();
   const [currentStaffName, setCurrentStaffName] = useState<string>('');
+  const [isAdminSession, setIsAdminSession] = useState(false);
   const [greeting, setGreeting] = useState('Hello');
   const lastOrderIdsRef = useRef<Set<string>>(new Set());
 
@@ -42,11 +43,13 @@ export default function LaneSideServerDashboardPage({ params }: { params: Promis
     if (typeof window !== 'undefined') {
       const storedId = localStorage.getItem('koop_staff_id');
       const storedName = localStorage.getItem('koop_staff_name');
+      const isImpersonating = localStorage.getItem('koop_is_admin_session') === 'true';
       const sessionStart = localStorage.getItem('koop_staff_session_start');
       const resetHour = solutionConfig?.dailyResetHour ?? 4;
       
       // DAILY OPERATIONAL RESET CHECK
       if (sessionStart && isStaffSessionStale(new Date(parseInt(sessionStart, 10)), resetHour)) {
+        localStorage.removeItem('koop_is_admin_session');
         localStorage.removeItem('koop_staff_id');
         localStorage.removeItem('koop_staff_name');
         localStorage.removeItem('koop_staff_role');
@@ -56,6 +59,7 @@ export default function LaneSideServerDashboardPage({ params }: { params: Promis
       } else {
         setCurrentStaffId(storedId || undefined);
         setCurrentStaffName(storedName || '');
+        setIsAdminSession(isImpersonating);
       }
 
       const hour = new Date().getHours();
@@ -66,9 +70,6 @@ export default function LaneSideServerDashboardPage({ params }: { params: Promis
   }, [sellerId, router, toast, solutionConfig?.dailyResetHour]);
 
   const isServerActive = primarySeller?.lanedeliveryActive === true;
-
-  // CRITICAL: Impersonation logic strictly reserved for Admin Portal entry
-  const isAdminSession = !!currentStaffId?.startsWith('admin-');
   const isSuperAdmin = user?.uid === SUPER_ADMIN_ID || user?.email === 'mosherpe@gmail.com';
 
   const handleToggleActive = (checked: boolean) => {
@@ -77,31 +78,29 @@ export default function LaneSideServerDashboardPage({ params }: { params: Promis
   };
 
   const handleExitTerminal = async (target: 'admin' | 'root') => {
-    if (target === 'admin' || target === 'root') {
-      // Identity info session cleaning
-      if (currentStaffId && firestore && sellerId) {
-        const staffRef = doc(firestore, 'sellers', sellerId, 'staff', currentStaffId);
-        await updateDoc(staffRef, { 
-          lastActive: new Date(0),
-          latitude: null,
-          longitude: null 
-        }).catch(() => {});
-        
-        if (isAdminSession) {
-          await deleteDoc(staffRef).catch(() => {});
-        }
+    if (currentStaffId && firestore && sellerId) {
+      const staffRef = doc(firestore, 'sellers', sellerId, 'staff', currentStaffId);
+      await updateDoc(staffRef, { 
+        lastActive: new Date(0),
+        latitude: null,
+        longitude: null 
+      }).catch(() => {});
+      
+      if (isAdminSession) {
+        await deleteDoc(staffRef).catch(() => {});
       }
+    }
 
-      localStorage.removeItem('koop_staff_id');
-      localStorage.removeItem('koop_staff_name');
-      localStorage.removeItem('koop_staff_role');
-      localStorage.removeItem('koop_staff_session_start');
+    localStorage.removeItem('koop_is_admin_session');
+    localStorage.removeItem('koop_staff_id');
+    localStorage.removeItem('koop_staff_name');
+    localStorage.removeItem('koop_staff_role');
+    localStorage.removeItem('koop_staff_session_start');
 
-      if (target === 'admin') {
-        router.push(`/sellers/${sellerId}`);
-      } else {
-        router.push('/');
-      }
+    if (target === 'admin') {
+      router.push(`/sellers/${sellerId}`);
+    } else {
+      router.push('/');
     }
   };
 

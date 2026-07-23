@@ -39,6 +39,7 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
   const [now, setNow] = useState<number>(Date.now());
   const [currentStaffId, setCurrentStaffId] = useState<string | undefined>();
   const [currentStaffName, setCurrentStaffName] = useState<string>('');
+  const [isAdminSession, setIsAdminSession] = useState(false);
   const [greeting, setGreeting] = useState('Hello');
   const [isExiting, setIsExiting] = useState(false);
   
@@ -59,10 +60,12 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
     if (typeof window !== 'undefined') {
       const storedId = localStorage.getItem('koop_staff_id');
       const storedName = localStorage.getItem('koop_staff_name');
+      const isImpersonating = localStorage.getItem('koop_is_admin_session') === 'true';
       const sessionStart = localStorage.getItem('koop_staff_session_start');
       const resetHour = solutionConfig?.dailyResetHour ?? 4;
       
       if (sessionStart && isStaffSessionStale(new Date(parseInt(sessionStart, 10)), resetHour)) {
+        localStorage.removeItem('koop_is_admin_session');
         localStorage.removeItem('koop_staff_id');
         localStorage.removeItem('koop_staff_name');
         localStorage.removeItem('koop_staff_role');
@@ -72,6 +75,7 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
       } else {
         setCurrentStaffId(storedId || undefined);
         setCurrentStaffName(storedName || '');
+        setIsAdminSession(isImpersonating);
       }
 
       const hour = new Date().getHours();
@@ -94,9 +98,6 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
   }, [primarySeller, sellerLocation]);
 
   const isBevCartActive = primarySeller?.bevcartActive === true;
-  
-  // CRITICAL: Impersonation logic strictly reserved for Admin Portal entry
-  const isAdminSession = !!currentStaffId?.startsWith('admin-');
   const isSuperAdmin = user?.uid === SUPER_ADMIN_ID || user?.email === 'mosherpe@gmail.com';
 
   const handleToggleActive = (checked: boolean) => {
@@ -113,26 +114,23 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
   };
 
   const handleExitTerminal = async (target: 'admin' | 'root') => {
-    // 1. Immediately block all outgoing GPS broadcasts
     setIsExiting(true);
 
     if (currentStaffId && firestore && sellerId) {
       const staffRef = doc(firestore, 'sellers', sellerId, 'staff', currentStaffId);
       
-      // 2. Invalidate signal on maps explicitly
       await updateDoc(staffRef, { 
         lastActive: new Date(0), 
         latitude: null, 
         longitude: null 
       }).catch(() => {});
       
-      // 3. Clean up the temporary admin staff document
       if (isAdminSession) {
         await deleteDoc(staffRef).catch(() => {});
       }
     }
 
-    // 4. Purge local session tokens
+    localStorage.removeItem('koop_is_admin_session');
     localStorage.removeItem('koop_staff_id');
     localStorage.removeItem('koop_staff_name');
     localStorage.removeItem('koop_staff_role');
@@ -197,7 +195,6 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
   }, []);
 
   const broadcastLocation = (lat: number, lng: number) => {
-    // SECURITY GATE: Prevent "ghost" re-creation of staff document after exit button pressed
     if (!firestore || !sellerId || !user || isExiting) return;
     
     const nowTime = Date.now();

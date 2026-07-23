@@ -651,11 +651,14 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
   };
 
   const handleImpersonate = (mode: string) => {
+    // SECURITY: Set explicit administrative session marker
+    localStorage.setItem('koop_is_admin_session', 'true');
     localStorage.setItem('koop_staff_id', `admin-${user?.uid}`);
     localStorage.setItem('koop_staff_name', `${user?.email?.split('@')[0]} (Admin)`);
     localStorage.setItem('koop_staff_role', mode);
     localStorage.setItem('koop_staff_session_start', Date.now().toString());
     localStorage.setItem('koop_venue_id', sellerId);
+    
     setTimeout(() => {
       if (mode === 'Beverage Cart') router.push(`/sellers/${sellerId}/bevcart`);
       else if (mode === 'Clubhouse') router.push(`/sellers/${sellerId}/clubhouse`);

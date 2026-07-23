@@ -32,9 +32,10 @@ export default function StaffLoginPage({ params }: { params: Promise<{ sellerId:
   const [authenticatedStaff, setAuthenticatedStaff] = useState<StaffMember | null>(null);
   const [venueName, setVenueName] = useState('This Venue');
 
-  // CLEAN UP PREVIOUS SESSIONS ON MOUNT
-  // This ensures a fresh shift start and clears any administrative "impersonation" tokens
+  // AGGRESSIVE SESSION PURGE ON MOUNT
+  // This completely destroys any existing "impersonation" or manager session on the device
   useEffect(() => {
+    localStorage.removeItem('koop_is_admin_session');
     localStorage.removeItem('koop_staff_id');
     localStorage.removeItem('koop_staff_name');
     localStorage.removeItem('koop_staff_role');
@@ -115,7 +116,8 @@ export default function StaffLoginPage({ params }: { params: Promise<{ sellerId:
       }).catch(() => {});
     }
 
-    // Persist Official Staff Session (No 'admin-' prefix)
+    // Persist Official Staff Session
+    localStorage.setItem('koop_is_admin_session', 'false');
     localStorage.setItem('koop_staff_id', authenticatedStaff.id);
     localStorage.setItem('koop_staff_name', authenticatedStaff.name);
     localStorage.setItem('koop_staff_role', menuType);

@@ -34,6 +34,7 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
   const [fitTrigger, setFitTrigger] = useState<number>(0);
   const [currentStaffId, setCurrentStaffId] = useState<string | undefined>();
   const [currentStaffName, setCurrentStaffName] = useState<string>('');
+  const [isAdminSession, setIsAdminSession] = useState(false);
   const [greeting, setGreeting] = useState('Hello');
   const [isExiting, setIsExiting] = useState(false);
 
@@ -53,10 +54,12 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
     if (typeof window !== 'undefined') {
       const storedId = localStorage.getItem('koop_staff_id');
       const storedName = localStorage.getItem('koop_staff_name');
+      const isImpersonating = localStorage.getItem('koop_is_admin_session') === 'true';
       const sessionStart = localStorage.getItem('koop_staff_session_start');
       const resetHour = solutionConfig?.dailyResetHour ?? 4;
       
       if (sessionStart && isStaffSessionStale(new Date(parseInt(sessionStart, 10)), resetHour)) {
+        localStorage.removeItem('koop_is_admin_session');
         localStorage.removeItem('koop_staff_id');
         localStorage.removeItem('koop_staff_name');
         localStorage.removeItem('koop_staff_role');
@@ -66,6 +69,7 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
       } else {
         setCurrentStaffId(storedId || undefined);
         setCurrentStaffName(storedName || '');
+        setIsAdminSession(isImpersonating);
       }
 
       const hour = new Date().getHours();
@@ -83,9 +87,6 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
 
   const isGolf = primarySeller?.type?.toLowerCase().includes('golf');
   const isClubhouseActive = primarySeller?.clubhouseActive === true;
-
-  // CRITICAL: Impersonation logic strictly reserved for Admin Portal entry
-  const isAdminSession = !!currentStaffId?.startsWith('admin-');
   const isSuperAdmin = user?.uid === SUPER_ADMIN_ID || user?.email === 'mosherpe@gmail.com';
 
   const broadcastLocation = (lat: number, lng: number) => {
@@ -165,6 +166,7 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
       }
     }
 
+    localStorage.removeItem('koop_is_admin_session');
     localStorage.removeItem('koop_staff_id');
     localStorage.removeItem('koop_staff_name');
     localStorage.removeItem('koop_staff_role');
