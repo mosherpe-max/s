@@ -297,6 +297,20 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
         {isGolf && (
           <div className="relative w-full md:w-2/3 h-[40vh] md:h-full bg-muted rounded-xl overflow-hidden border-2 shadow-sm">
             <Button variant="outline" size="icon" className="absolute top-2 right-2 z-10 bg-background/80 h-8 w-8" onClick={() => setFitTrigger(p => p + 1)}><Focus className="h-4 w-4" /></Button>
+            
+            {/* SIGNAL STATUS OVERLAY */}
+            <div className="absolute top-3 left-3 z-10 pointer-events-none">
+              <Badge className={cn(
+                "flex items-center gap-1.5 px-2 py-1 border-0 shadow-lg transition-colors",
+                isClubhouseActive ? "bg-green-600 text-white" : "bg-slate-500/80 text-white"
+              )}>
+                <div className={cn("h-1.5 w-1.5 rounded-full", isClubhouseActive ? "bg-white animate-pulse" : "bg-white/40")} />
+                <span className="text-[8px] font-black uppercase tracking-widest">
+                  {isClubhouseActive ? "Signal Live" : "Signal Off"}
+                </span>
+              </Badge>
+            </div>
+
             {primarySeller ? (
               <MapView 
                 sellerLocation={sellerLocation || { latitude: primarySeller.latitude, longitude: primarySeller.longitude }} 
