@@ -1,3 +1,4 @@
+
 'use client'
 
 import { Truck, User, AlertCircle, Loader2 } from 'lucide-react';
@@ -217,10 +218,8 @@ function MapInternal({ buyerLocation, sellerLocation, showPrimaryMarker, primary
           />
         ))}
 
-        {/* Driver Pins - Specialized Icons based on Role */}
-        {drivers && drivers.map((driver, index) => {
-          const defaultColor = index === 0 ? '#213147' : '#E50000';
-          
+        {/* Driver Pins - Specialized Icons based on Role, Unique Colors for ID */}
+        {drivers && drivers.map((driver) => {
           return (
             <Marker 
               key={`driver-item-${driver.id}`} 
@@ -228,7 +227,7 @@ function MapInternal({ buyerLocation, sellerLocation, showPrimaryMarker, primary
               title={`${driver.name} (${driver.type})`}
               icon={{
                 path: getPathForType(driver.type),
-                fillColor: driver.colorOverride || defaultColor,
+                fillColor: driver.colorOverride || getDriverColor(driver.id),
                 fillOpacity: 1,
                 strokeWeight: 1.5,
                 strokeColor: '#FFFFFF',
@@ -238,15 +237,15 @@ function MapInternal({ buyerLocation, sellerLocation, showPrimaryMarker, primary
           );
         })}
 
-        {/* Local Primary Driver Marker */}
-        {sellerLocation && sellerLocation.latitude && sellerLocation.latitude !== 0 && (
+        {/* Local Primary Driver Marker ("YOU") */}
+        {sellerLocation && sellerLocation.latitude && sellerLocation.latitude !== 0 && showPrimaryMarker && (
           <Marker 
             key="primary-seller-marker"
             position={{ lat: sellerLocation.latitude, lng: sellerLocation.longitude }}
-            title="Delivery Driver"
+            title="Your Current Location"
             icon={{
               path: getPathForType(primaryType),
-              fillColor: '#213147', // Koop Blue for primary driver
+              fillColor: primaryDriverId ? getDriverColor(primaryDriverId) : '#213147',
               fillOpacity: 1,
               strokeWeight: 2,
               strokeColor: '#FFFFFF',

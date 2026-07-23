@@ -12,15 +12,19 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
+/**
+ * Returns a deterministic hex color for a driver based on their ID.
+ * Used for map markers to distinguish multiple staff members.
+ */
 export function getDriverColor(id: string): string {
   const colors = [
-    'indigo-600',
-    'blue-600',
-    'purple-600',
-    'pink-600',
-    'cyan-600',
-    'fuchsia-600',
-    'violet-600',
+    '#4f46e5', // indigo-600
+    '#2563eb', // blue-600
+    '#9333ea', // purple-600
+    '#db2777', // pink-600
+    '#0891b2', // cyan-600
+    '#c026d3', // fuchsia-600
+    '#7c3aed', // violet-600
   ];
   
   let hash = 0;

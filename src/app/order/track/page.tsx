@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Suspense, useEffect, useRef, useState, use } from 'react';
@@ -126,11 +127,6 @@ function OrderTrackingContent() {
   const driverLocation = assignedStaff?.latitude ? { latitude: assignedStaff.latitude, longitude: assignedStaff.longitude } : (seller?.latitude ? { latitude: seller.latitude, longitude: seller.longitude } : null);
   const showBilateral = isDriverAttached && !!driverLocation;
 
-  // Signal Freshness Check
-  const lastActiveDate = assignedStaff?.lastActive?.toDate() || seller?.lastActive?.toDate();
-  const secondsSinceActive = lastActiveDate ? differenceInSeconds(now, lastActiveDate) : 999;
-  const isSignalLive = secondsSinceActive < 60;
-
   return (
     <div className="flex flex-col min-h-screen bg-muted/10">
       {/* Top Section: Map or Completion Message */}
@@ -157,30 +153,15 @@ function OrderTrackingContent() {
               </div>
             </div>
           ) : (
-            <>
-              <MapView 
-                sellerLocation={showBilateral ? driverLocation! : undefined} 
-                buyerLocation={order.deliveryLocation} 
-                primaryType={order.menuType}
-                radius={order.status === 'Placed' ? 804.672 : undefined}
-                zoomMode={order.status === 'Placed' ? 'radius' : 'all'}
-                interactive={false} 
-              />
-              {/* DRIVER SIGNAL INDICATOR */}
-              {isDriverAttached && (
-                <div className="absolute top-3 left-3 z-10">
-                  <Badge className={cn(
-                    "flex items-center gap-1.5 px-2 py-1 border-0 shadow-lg transition-colors",
-                    isSignalLive ? "bg-primary text-white" : "bg-amber-600/90 text-white"
-                  )}>
-                    <div className={cn("h-1.5 w-1.5 rounded-full", isSignalLive ? "bg-white animate-pulse" : "bg-white/40")} />
-                    <span className="text-[8px] font-black uppercase tracking-widest">
-                      {isSignalLive ? (assignedStaff ? `Live Feed: ${assignedStaff.name}` : "Live Driver Feed") : "Awaiting Driver Signal"}
-                    </span>
-                  </Badge>
-                </div>
-              )}
-            </>
+            <MapView 
+              sellerLocation={showBilateral ? driverLocation! : undefined} 
+              buyerLocation={order.deliveryLocation} 
+              primaryType={order.menuType}
+              primaryDriverId={order.assignedStaffId}
+              radius={order.status === 'Placed' ? 804.672 : undefined}
+              zoomMode={order.status === 'Placed' ? 'radius' : 'all'}
+              interactive={false} 
+            />
           )}
         </div>
       )}
@@ -310,7 +291,7 @@ function OrderTrackingContent() {
                     <span className="font-mono">${(i.price * i.quantity).toFixed(2)}</span>
                   </div>
                   {i.selectedModifiers && Object.values(i.selectedModifiers).flat().length > 0 && (
-                    <div className="flex flex-wrap gap-1 pl-4">
+                    <div className="flex wrap gap-1 pl-4">
                       {Object.values(i.selectedModifiers).flat().map((mod, idx) => (
                         <span key={`${i.cartId}-mod-${idx}`} className="text-[8px] font-bold text-muted-foreground uppercase">
                           + {mod.name}

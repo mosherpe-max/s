@@ -1,3 +1,4 @@
+
 'use client';
 
 import { collection, query, where, doc, updateDoc, serverTimestamp, setDoc, deleteDoc } from 'firebase/firestore';
@@ -15,7 +16,7 @@ import { Badge } from '@/components/ui/badge';
 import { useRouter } from 'next/navigation';
 import { MapView } from '@/components/map-view';
 import { isToday, differenceInSeconds, differenceInMinutes } from 'date-fns';
-import { cn, calculateDistance, getSignalColor, SUPER_ADMIN_ID, isStaffSessionStale } from '@/lib/utils';
+import { cn, calculateDistance, getSignalColor, getDriverColor, SUPER_ADMIN_ID, isStaffSessionStale } from '@/lib/utils';
 import Link from 'next/link';
 
 type LatLng = {
@@ -295,7 +296,8 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
     return allStaff
       .filter(s => s.id !== currentStaffId && s.latitude && s.longitude && s.lastActive)
       .map(s => {
-        const color = getSignalColor(s.lastActive?.toDate(), solutionConfig?.gpsFreshnessThresholds);
+        // Unique coloring for staff, ignore signal freshness per user request
+        const color = getDriverColor(s.id);
         return { id: s.id, name: s.name, location: { latitude: s.latitude!, longitude: s.longitude! }, type: s.role === 'Driver' || s.role === 'Staff' ? 'Beverage Cart' : 'Clubhouse', colorOverride: color };
       });
   }, [allStaff, currentStaffId, solutionConfig]);
@@ -372,12 +374,12 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
               <MapView 
                 sellerLocation={sellerLocation || { latitude: primarySeller.latitude, longitude: primarySeller.longitude }} 
                 primaryType="Clubhouse"
+                primaryDriverId={currentStaffId}
                 buyers={mappedBuyers} 
                 drivers={mappedDrivers}
                 radius={1609.34} 
                 fitTrigger={fitTrigger}
                 showPrimaryMarker={isClubhouseActive} 
-                primaryDriverId={sellerId} 
                 interactive={true}
               />
             ) : <Skeleton className="w-full h-full" />}
