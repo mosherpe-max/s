@@ -11,7 +11,7 @@ import type { Order, Seller, StaffMember, SolutionConfig } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
-import { Focus, Package, LogOut, Truck, ChevronLeft, LayoutDashboard, ShieldAlert, History, User, DollarSign, CheckCircle2 } from 'lucide-react';
+import { Focus, Package, LogOut, Truck, ChevronLeft, LayoutDashboard, ShieldAlert, History, User, DollarSign, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { isToday, differenceInSeconds, differenceInMinutes, format } from 'date-fns';
@@ -80,12 +80,7 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
       const resetHour = solutionConfig?.dailyResetHour ?? 4;
       
       if (sessionStart && isStaffSessionStale(new Date(parseInt(sessionStart, 10)), resetHour)) {
-        localStorage.removeItem('koop_is_admin_session');
-        localStorage.removeItem('koop_staff_id');
-        localStorage.removeItem('koop_staff_name');
-        localStorage.removeItem('koop_staff_role');
-        localStorage.removeItem('koop_staff_session_start');
-        router.push(`/sellers/${sellerId}/staff-login`);
+        handleExitTerminal('root');
         toast({ title: "Shift Reset", description: "Daily operational reset performed. Please re-enter PIN." });
       } else {
         setCurrentStaffId(storedId || undefined);
@@ -99,6 +94,14 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
       else setGreeting('Good Evening');
     }
   }, [sellerId, router, toast, solutionConfig?.dailyResetHour]);
+
+  // ACCESS GUARD: If Admin deactivates mode, force exit
+  useEffect(() => {
+    if (primarySeller && primarySeller.bevcartActive === false && !isAdminSession && !isExiting) {
+      toast({ variant: "destructive", title: "Channel Closed", description: "This service mode has been deactivated by management." });
+      handleExitTerminal('root');
+    }
+  }, [primarySeller?.bevcartActive, isAdminSession, isExiting]);
 
   const staffQuery = useMemoFirebase(() => {
     if (!firestore || !sellerId) return null;
@@ -137,7 +140,8 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
       await updateDoc(staffRef, { 
         lastActive: new Date(0), 
         latitude: null, 
-        longitude: null 
+        longitude: null,
+        activeMode: null
       }).catch(() => {});
       
       if (isAdminSession) {
@@ -154,7 +158,7 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
     if (target === 'admin') {
       router.push(`/sellers/${sellerId}`);
     } else {
-      router.push('/');
+      router.push(`/sellers/${sellerId}/staff-login`);
     }
   };
 
@@ -249,7 +253,7 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
     
     if (currentStaffId) {
       const staffRef = doc(firestore, 'sellers', sellerId, 'staff', currentStaffId);
-      setDoc(staffRef, { latitude: lat, longitude: lng, lastActive: serverTimestamp() }, { merge: true }).catch(() => {});
+      setDoc(staffRef, { latitude: lat, longitude: lng, lastActive: serverTimestamp(), activeMode: 'Beverage Cart' }, { merge: true }).catch(() => {});
     }
   };
 
@@ -341,7 +345,7 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
       .filter(s => s.latitude && s.longitude && s.lastActive)
       .map(s => {
         const color = getDriverColor(s.id);
-        return { id: s.id, name: s.name, location: { latitude: s.latitude!, longitude: s.longitude! }, type: s.role === 'Driver' || s.role === 'Staff' ? 'Beverage Cart' : 'Clubhouse', colorOverride: color };
+        return { id: s.id, name: s.name, location: { latitude: s.latitude!, longitude: s.longitude! }, type: s.activeMode || 'Beverage Cart', colorOverride: color };
       });
   }, [allStaff, solutionConfig]);
 

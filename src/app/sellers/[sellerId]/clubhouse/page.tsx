@@ -9,7 +9,7 @@ import type { Order, Seller, StaffMember, SolutionConfig } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
-import { Package, LogOut, Building, LayoutList, Focus, ChevronLeft, ShieldAlert, History } from 'lucide-react';
+import { Package, LogOut, Building, LayoutList, Focus, ChevronLeft, ShieldAlert, History, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { useRouter } from 'next/navigation';
@@ -76,12 +76,7 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
       const resetHour = solutionConfig?.dailyResetHour ?? 4;
       
       if (sessionStart && isStaffSessionStale(new Date(parseInt(sessionStart, 10)), resetHour)) {
-        localStorage.removeItem('koop_is_admin_session');
-        localStorage.removeItem('koop_staff_id');
-        localStorage.removeItem('koop_staff_name');
-        localStorage.removeItem('koop_staff_role');
-        localStorage.removeItem('koop_staff_session_start');
-        router.push(`/sellers/${sellerId}/staff-login`);
+        handleExitTerminal('root');
         toast({ title: "Shift Reset", description: "Daily operational reset performed. Please re-enter PIN." });
       } else {
         setCurrentStaffId(storedId || undefined);
@@ -95,6 +90,14 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
       else setGreeting('Good Evening');
     }
   }, [sellerId, router, toast, solutionConfig?.dailyResetHour]);
+
+  // ACCESS GUARD: If Admin deactivates mode, force exit
+  useEffect(() => {
+    if (primarySeller && primarySeller.clubhouseActive === false && !isAdminSession && !isExiting) {
+      toast({ variant: "destructive", title: "Channel Closed", description: "Clubhouse service has been deactivated by management." });
+      handleExitTerminal('root');
+    }
+  }, [primarySeller?.clubhouseActive, isAdminSession, isExiting]);
 
   const staffQuery = useMemoFirebase(() => {
     if (!firestore || !sellerId) return null;
@@ -123,7 +126,7 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
 
     if (currentStaffId) {
       const staffRef = doc(firestore, 'sellers', sellerId, 'staff', currentStaffId);
-      setDoc(staffRef, { latitude: lat, longitude: lng, lastActive: serverTimestamp() }, { merge: true }).catch(() => {});
+      setDoc(staffRef, { latitude: lat, longitude: lng, lastActive: serverTimestamp(), activeMode: 'Clubhouse' }, { merge: true }).catch(() => {});
     }
   };
 
@@ -173,7 +176,8 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
       await updateDoc(staffRef, { 
         lastActive: new Date(0), 
         latitude: null, 
-        longitude: null 
+        longitude: null,
+        activeMode: null
       }).catch(() => {});
       
       if (isAdminSession) {
@@ -190,7 +194,7 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
     if (target === 'admin') {
       router.push(`/sellers/${sellerId}`);
     } else {
-      router.push('/');
+      router.push(`/sellers/${sellerId}/staff-login`);
     }
   };
 
@@ -315,7 +319,7 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
       .filter(s => s.latitude && s.longitude && s.lastActive)
       .map(s => {
         const color = getDriverColor(s.id);
-        return { id: s.id, name: s.name, location: { latitude: s.latitude!, longitude: s.longitude! }, type: s.role === 'Driver' || s.role === 'Staff' ? 'Beverage Cart' : 'Clubhouse', colorOverride: color };
+        return { id: s.id, name: s.name, location: { latitude: s.latitude!, longitude: s.longitude! }, type: s.activeMode || 'Clubhouse', colorOverride: color };
       });
   }, [allStaff, solutionConfig]);
 
@@ -397,19 +401,7 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
               showPrimaryMarker={isClubhouseActive} 
               interactive={true}
             />
-          ) : (primarySeller ? (
-            <MapView 
-              sellerLocation={{ latitude: primarySeller.latitude, longitude: primarySeller.longitude }} 
-              primaryType="Clubhouse"
-              primaryDriverId={currentStaffId}
-              buyers={mappedBuyers} 
-              drivers={mappedDrivers}
-              radius={1609.34} 
-              fitTrigger={fitTrigger}
-              showPrimaryMarker={isClubhouseActive} 
-              interactive={true}
-            />
-          ) : <Skeleton className="w-full h-full" />)}
+          ) : <Skeleton className="w-full h-full" />}
         </div>
 
         <div className={cn("flex flex-col bg-background border-2 rounded-xl overflow-hidden min-h-0 text-left", isGolf ? "w-full md:w-1/3" : "w-full max-w-4xl mx-auto")}>

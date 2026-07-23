@@ -7,7 +7,7 @@ import { useFirestore, useDoc, useMemoFirebase, useAuth } from '@/firebase';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, Lock, Smartphone, User, ShieldCheck, ChevronRight, X, Eraser, CheckCircle2, Truck, Building, Users, MapPin } from 'lucide-react';
+import { Loader2, Lock, Smartphone, User, ShieldCheck, ChevronRight, X, Eraser, CheckCircle2, Truck, Building, Users, MapPin, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import type { Seller, StaffMember } from '@/lib/types';
@@ -33,7 +33,6 @@ export default function StaffLoginPage({ params }: { params: Promise<{ sellerId:
   const [venueName, setVenueName] = useState('This Venue');
 
   // AGGRESSIVE SESSION PURGE ON MOUNT
-  // This completely destroys any existing "impersonation" or manager session on the device
   useEffect(() => {
     localStorage.removeItem('koop_is_admin_session');
     localStorage.removeItem('koop_staff_id');
@@ -83,9 +82,7 @@ export default function StaffLoginPage({ params }: { params: Promise<{ sellerId:
         });
         setPin('');
       } else {
-        // Establish an authenticated session for Security Rules
         await signInAnonymously(auth);
-        
         const staffData = snapshot.docs[0].data() as StaffMember;
         setAuthenticatedStaff(staffData);
         toast({ title: `Identity Verified`, description: `Hello, ${staffData.name}. Please select your shift role.` });
@@ -99,9 +96,8 @@ export default function StaffLoginPage({ params }: { params: Promise<{ sellerId:
   };
 
   const handleRoleSelect = async (menuType: string) => {
-    if (!authenticatedStaff || !firestore || !sellerId) return;
+    if (!authenticatedStaff || !firestore || !sellerId || !seller) return;
 
-    // ACTIVATE SERVICE MODE ON SELLER DOCUMENT
     const fieldMap: Record<string, string> = {
       'Beverage Cart': 'bevcartActive',
       'Clubhouse': 'clubhouseActive',
@@ -109,12 +105,18 @@ export default function StaffLoginPage({ params }: { params: Promise<{ sellerId:
     };
     
     const modeField = fieldMap[menuType];
-    if (modeField) {
-      await updateDoc(doc(firestore, 'sellers', sellerId), {
-        [modeField]: true,
-        updatedAt: serverTimestamp()
-      }).catch(() => {});
+    const isModeAuthorizedByAdmin = !!(seller as any)?.[modeField];
+
+    if (!isModeAuthorizedByAdmin) {
+      toast({ variant: "destructive", title: "Channel Restricted", description: `The ${menuType} is currently deactivated by management.` });
+      return;
     }
+
+    // Update Personnel document with active role
+    await updateDoc(doc(firestore, 'sellers', sellerId, 'staff', authenticatedStaff.id), {
+      activeMode: menuType,
+      lastActive: serverTimestamp()
+    }).catch(() => {});
 
     // Persist Official Staff Session
     localStorage.setItem('koop_is_admin_session', 'false');
@@ -129,7 +131,6 @@ export default function StaffLoginPage({ params }: { params: Promise<{ sellerId:
       description: `Assuming ${menuType} role. Launching dashboard...` 
     });
 
-    // Route to appropriate dashboard
     setTimeout(() => {
       switch (menuType) {
         case 'Beverage Cart': router.push(`/sellers/${sellerId}/bevcart`); break;
@@ -233,21 +234,29 @@ export default function StaffLoginPage({ params }: { params: Promise<{ sellerId:
                 {authorizedServiceModes.length > 0 ? (
                   authorizedServiceModes.map((type) => {
                     const Icon = roleIcons[type] || Building;
+                    const fieldMap: any = { 'Beverage Cart': 'bevcartActive', 'Clubhouse': 'clubhouseActive', 'Lane Delivery': 'lanedeliveryActive' };
+                    const isDeactivated = seller && !(seller as any)?.[fieldMap[type]];
+
                     return (
                       <Button
                         key={type}
                         variant="outline"
+                        disabled={isDeactivated}
                         onClick={() => handleRoleSelect(type)}
-                        className="h-16 justify-start px-6 gap-4 border-2 rounded-2xl hover:border-primary hover:bg-primary/5 transition-all group"
+                        className={cn(
+                          "h-16 justify-start px-6 gap-4 border-2 rounded-2xl transition-all group relative",
+                          isDeactivated ? "opacity-50 grayscale border-slate-100" : "hover:border-primary hover:bg-primary/5 shadow-sm"
+                        )}
                       >
                         <div className="bg-muted group-hover:bg-primary/10 p-2 rounded-xl transition-colors">
-                          <Icon className="h-5 w-5 text-[#213147] group-hover:text-primary" />
+                          <Icon className={cn("h-5 w-5", isDeactivated ? "text-slate-300" : "text-[#213147] group-hover:text-primary")} />
                         </div>
                         <div className="text-left">
                           <p className="text-xs font-black uppercase tracking-widest">{type}</p>
-                          <p className="text-[9px] font-bold text-muted-foreground uppercase">Activate & Enter Dashboard</p>
+                          <p className="text-[9px] font-bold text-muted-foreground uppercase">{isDeactivated ? 'Deactivated by Admin' : 'Activate & Enter Dashboard'}</p>
                         </div>
-                        <ChevronRight className="ml-auto h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                        {!isDeactivated && <ChevronRight className="ml-auto h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />}
+                        {isDeactivated && <AlertTriangle className="ml-auto h-4 w-4 text-amber-500/40" />}
                       </Button>
                     );
                   })

@@ -1,10 +1,10 @@
 'use client';
 
 import { useState, use, useEffect, useMemo } from 'react';
-import { collection, doc, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, doc, addDoc, serverTimestamp, query, where } from 'firebase/firestore';
 import { signInAnonymously } from 'firebase/auth';
 import { useFirestore, useCollection, useMemoFirebase, useDoc, useAuth, useUser, useFirebase } from '@/firebase';
-import type { Seller, MenuItem, OrderItem, SolutionConfig, Category, Venue } from '@/lib/types';
+import type { Seller, MenuItem, OrderItem, SolutionConfig, Category, Venue, StaffMember } from '@/lib/types';
 import { categories } from '@/lib/types';
 import { BuyerMenu } from '@/components/buyer-menu';
 import { OrderSummary } from '@/components/order-summary';
@@ -217,7 +217,6 @@ function CheckoutDrawerContent({
   const disclosureCategory = getDisclosureCategory(seller?.type);
   const checkoutNotice = FEE_DISCLOSURES[disclosureCategory].checkout;
 
-  // Clear existing secret if critical saving info changes to force a re-fetch
   useEffect(() => {
     setClientSecret(null);
   }, [saveInfo, patronEmail]);
@@ -367,7 +366,6 @@ function CheckoutDrawerContent({
           </div>
         )}
 
-        {/* 1. IDENTITY SECTION - ALWAYS VISIBLE */}
         <div className="space-y-6">
           <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary px-1 flex items-center gap-2">
             <User className="h-3 w-3" /> Delivery Details
@@ -516,6 +514,9 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
   const venueRef = useMemoFirebase(() => (firestore ? doc(firestore, 'venues', sellerId) : null), [firestore, sellerId]);
   const { data: venue, isLoading: isVenueLoading } = useDoc<Venue>(venueRef);
 
+  const staffQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'sellers', sellerId, 'staff') : null), [firestore, sellerId]);
+  const { data: staffList } = useCollection<StaffMember>(staffQuery);
+
   const menuItemsQuery = useMemoFirebase(() => {
     if (!firestore || !sellerId) return null;
     return collection(firestore, 'sellers', sellerId, 'menuItems');
@@ -530,20 +531,35 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
 
   const isModeAvailable = (type: string) => {
     if (!seller) return false;
+    
+    // Check Global Koop Auth
     const isGloballyAuthorized = !solutionConfig || (solutionConfig.enabledModes?.includes(type) ?? true);
     if (!isGloballyAuthorized) return false;
+    
+    // Check Venue Admin Toggles
     const isVenueAuthorized = seller.menuTypes.includes(type);
     if (!isVenueAuthorized) return false;
+    
+    let isChannelOpen = true;
     switch(type) {
-      case 'Beverage Cart': return !!seller.bevcartActive;
-      case 'Clubhouse': return !!seller.clubhouseActive;
-      case 'Lane Delivery': return !!seller.lanedeliveryActive;
-      default: return true;
+      case 'Beverage Cart': isChannelOpen = !!seller.bevcartActive; break;
+      case 'Clubhouse': isChannelOpen = !!seller.clubhouseActive; break;
+      case 'Lane Delivery': isChannelOpen = !!seller.lanedeliveryActive; break;
     }
+    if (!isChannelOpen) return false;
+
+    // RESTRICTION: Check for at least one active staff heartbeat in this mode
+    const activeStaff = staffList?.filter(s => {
+      if (!s.lastActive || s.activeMode !== type) return false;
+      const secondsSinceActive = (Date.now() - s.lastActive.toMillis()) / 1000;
+      return secondsSinceActive < 300; // Heartbeat valid if updated in last 5 mins
+    });
+
+    return (activeStaff && activeStaff.length > 0) || false;
   };
 
   useEffect(() => {
-    if (!menuTypeFromUrl && seller && !isSellerLoading) {
+    if (!menuTypeFromUrl && seller && !isSellerLoading && staffList) {
       let defaultType = seller.type.toLowerCase().includes('bowling') ? 'Lane Delivery' : 'Beverage Cart';
       if (isModeAvailable(defaultType)) updateMenuType(defaultType);
       else {
@@ -551,7 +567,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
         if (firstAvailable) updateMenuType(firstAvailable);
       }
     }
-  }, [seller, solutionConfig, menuTypeFromUrl, isSellerLoading]);
+  }, [seller, solutionConfig, menuTypeFromUrl, isSellerLoading, staffList]);
 
   useEffect(() => {
     const options = { root: null, rootMargin: '-160px 0px -50% 0px', threshold: 0 };
@@ -631,6 +647,9 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
     );
   }
 
+  const authorizedModes = seller?.menuTypes?.filter(t => t !== 'Take Out') || [];
+  const availableModes = authorizedModes.filter(t => isModeAvailable(t));
+
   return (
     <div className="flex flex-col min-h-screen bg-[#F0F0F0] overflow-x-auto">
       <header className="relative w-full min-h-[22vh] flex flex-col bg-[#213147] overflow-hidden shrink-0 pt-8 pb-8 px-6 text-left">
@@ -641,9 +660,9 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
           <div className="space-y-4 w-full">
             <h1 className="font-headline text-2xl font-black text-white uppercase tracking-tight leading-none mb-1">{seller?.courseName}</h1>
             <div className="flex wrap gap-2">
-              {seller?.menuTypes?.filter(t => t !== 'Take Out').map((type) => {
+              {authorizedModes.map((type) => {
                 const Icon = serviceTypeIcons[type] || Store;
-                const available = isModeAvailable(type);
+                const available = availableModes.includes(type);
                 const isSelected = selectedMenuType === type;
                 return (
                   <button key={type} disabled={!available} onClick={() => updateMenuType(type)} className={cn("flex items-center gap-2 px-4 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all shadow-lg", isSelected ? "bg-primary text-white scale-105" : (available ? "bg-white/10 text-white hover:bg-white/20" : "bg-white/5 text-white/20 grayscale cursor-not-allowed border border-white/5"))}>
@@ -656,7 +675,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
           <div className="space-y-1.5">
             <p className="text-[10px] font-black uppercase tracking-[0.1em] text-white flex items-center gap-1.5">
               <Info className="h-2.5 w-2.5 shrink-0 text-primary" /> 
-              {SERVICE_INSTRUCTIONS[selectedMenuType] || 'Select items to begin your order'}
+              {availableModes.includes(selectedMenuType) ? (SERVICE_INSTRUCTIONS[selectedMenuType] || 'Select items to begin your order') : 'Service currently unavailable.'}
             </p>
             <p className="text-[8px] font-bold uppercase tracking-[0.15em] text-white/40 pl-4">
               {menuNotice}
@@ -665,7 +684,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
         </div>
       </header>
 
-      {selectedMenuType && (
+      {availableModes.includes(selectedMenuType) ? (
         <>
           <div className="sticky top-16 z-[35] bg-white/95 backdrop-blur-md border-b-2 shadow-sm w-full">
             <div className="max-w-2xl mx-auto px-4 py-3">
@@ -699,6 +718,19 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
             />
           </main>
         </>
+      ) : (
+        <div className="flex-1 flex flex-col items-center justify-center p-12 text-center space-y-6">
+          <div className="bg-white p-10 rounded-[3rem] shadow-xl border-2 border-slate-100 max-w-sm">
+            <AlertTriangle className="h-16 w-16 text-amber-500 mx-auto mb-6" />
+            <h2 className="font-headline font-black text-2xl uppercase tracking-tight text-[#213147] mb-3">Service Offline</h2>
+            <p className="text-muted-foreground text-sm font-medium leading-relaxed">
+              We don't have any staff active for {selectedMenuType || 'this channel'} at the moment. Please select another mode or check back soon.
+            </p>
+          </div>
+          <Button variant="outline" className="font-black uppercase text-[10px] tracking-widest border-2 h-12 px-8 rounded-full" onClick={() => router.push('/')}>
+            Return to Home
+          </Button>
+        </div>
       )}
 
       <Sheet open={!!customizingItem} onOpenChange={(o) => !o && setCustomizingItem(null)}>

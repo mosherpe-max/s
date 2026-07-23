@@ -6,11 +6,11 @@ import { useEffect, useState, useMemo, useRef, use } from 'react';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { OrderCard } from '@/components/order-card';
-import type { Order, Seller, SolutionConfig } from '@/lib/types';
+import type { Order, Seller, StaffMember, SolutionConfig } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
-import { Package, LogOut, MapPin, LayoutList, ChevronLeft, ShieldAlert, History } from 'lucide-react';
+import { Package, LogOut, MapPin, LayoutList, ChevronLeft, ShieldAlert, History, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { isToday, differenceInSeconds, differenceInMinutes, format } from 'date-fns';
@@ -45,6 +45,7 @@ export default function LaneSideServerDashboardPage({ params }: { params: Promis
   const [isAdminSession, setIsAdminSession] = useState(false);
   const [greeting, setGreeting] = useState('Hello');
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [isExiting, setIsExiting] = useState(false);
   const lastOrderIdsRef = useRef<Set<string>>(new Set());
 
   const primarySellerRef = useMemoFirebase(() => {
@@ -64,14 +65,8 @@ export default function LaneSideServerDashboardPage({ params }: { params: Promis
       const sessionStart = localStorage.getItem('koop_staff_session_start');
       const resetHour = solutionConfig?.dailyResetHour ?? 4;
       
-      // DAILY OPERATIONAL RESET CHECK
       if (sessionStart && isStaffSessionStale(new Date(parseInt(sessionStart, 10)), resetHour)) {
-        localStorage.removeItem('koop_is_admin_session');
-        localStorage.removeItem('koop_staff_id');
-        localStorage.removeItem('koop_staff_name');
-        localStorage.removeItem('koop_staff_role');
-        localStorage.removeItem('koop_staff_session_start');
-        router.push(`/sellers/${sellerId}/staff-login`);
+        handleExitTerminal('root');
         toast({ title: "Shift Reset", description: "Daily operational reset performed. Please re-enter PIN." });
       } else {
         setCurrentStaffId(storedId || undefined);
@@ -86,6 +81,14 @@ export default function LaneSideServerDashboardPage({ params }: { params: Promis
     }
   }, [sellerId, router, toast, solutionConfig?.dailyResetHour]);
 
+  // ACCESS GUARD: If Admin deactivates mode, force exit
+  useEffect(() => {
+    if (primarySeller && primarySeller.lanedeliveryActive === false && !isAdminSession && !isExiting) {
+      toast({ variant: "destructive", title: "Channel Closed", description: "Lane Delivery service has been deactivated by management." });
+      handleExitTerminal('root');
+    }
+  }, [primarySeller?.lanedeliveryActive, isAdminSession, isExiting]);
+
   const isServerActive = primarySeller?.lanedeliveryActive === true;
   const isSuperAdmin = user?.uid === SUPER_ADMIN_ID || user?.email === 'mosherpe@gmail.com';
 
@@ -95,12 +98,14 @@ export default function LaneSideServerDashboardPage({ params }: { params: Promis
   };
 
   const handleExitTerminal = async (target: 'admin' | 'root') => {
+    setIsExiting(true);
     if (currentStaffId && firestore && sellerId) {
       const staffRef = doc(firestore, 'sellers', sellerId, 'staff', currentStaffId);
       await updateDoc(staffRef, { 
         lastActive: new Date(0),
         latitude: null,
-        longitude: null 
+        longitude: null,
+        activeMode: null
       }).catch(() => {});
       
       if (isAdminSession) {
@@ -117,7 +122,7 @@ export default function LaneSideServerDashboardPage({ params }: { params: Promis
     if (target === 'admin') {
       router.push(`/sellers/${sellerId}`);
     } else {
-      router.push('/');
+      router.push(`/sellers/${sellerId}/staff-login`);
     }
   };
 
@@ -160,13 +165,11 @@ export default function LaneSideServerDashboardPage({ params }: { params: Promis
     const deliveredToday = ordersToday.filter(o => o.status === 'Delivered');
     const dailyTips = deliveredToday.reduce((acc, o) => acc + (o.tip || 0), 0);
     
-    // Ack Time (Today's acknowledged orders)
     const acknowledged = ordersToday.filter(o => o.acknowledgedAt);
     const avgAck = acknowledged.length > 0 
       ? acknowledged.reduce((acc, o) => acc + differenceInSeconds(o.acknowledgedAt!.toDate(), o.createdAt.toDate()), 0) / acknowledged.length
       : 0;
 
-    // Total Time (Today's delivered orders)
     const fulfilled = deliveredToday.filter(o => o.deliveredAt);
     const avgTotal = fulfilled.length > 0
       ? fulfilled.reduce((acc, o) => acc + differenceInMinutes(o.deliveredAt!.toDate(), o.createdAt.toDate()), 0) / fulfilled.length
@@ -236,7 +239,7 @@ export default function LaneSideServerDashboardPage({ params }: { params: Promis
         <div className="flex items-center gap-4">
           {isAdminSession && (
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" className="h-8 text-[9px] font-black uppercase tracking-widest border-primary/30 bg-primary/10 text-primary hover:bg-primary hover:text-white" onClick={() => handleExitTerminal('admin')}><ChevronLeft className="h-3 w-3 mr-1" /> Exit Terminal</Button>
+              <Button variant="outline" size="sm" className="h-8 text-[9px] font-black uppercase tracking-widest border-primary/30 bg-primary/10 text-primary hover:bg-primary hover:text-white" onClick={() => handleExitTerminal('admin')} disabled={isExiting}><ChevronLeft className="h-3 w-3 mr-1" /> Exit Terminal</Button>
               {isSuperAdmin && (
                 <Button variant="outline" size="sm" asChild className="h-8 text-[9px] font-black uppercase tracking-widest border-amber-200 bg-amber-50 text-amber-600 hover:bg-amber-100"><Link href="/admin"><ShieldAlert className="h-3 w-3 mr-1" /> Solution Admin</Link></Button>
               )}
@@ -252,7 +255,7 @@ export default function LaneSideServerDashboardPage({ params }: { params: Promis
         </div>
         <div className="flex items-center space-x-3">
           <Switch checked={isServerActive} onCheckedChange={handleToggleActive} className="data-[state=checked]:bg-green-600" />
-          <Button variant="ghost" size="icon" onClick={() => handleExitTerminal('root')} className="text-white/40 hover:text-white"><LogOut className="h-4 w-4" /></Button>
+          <Button variant="ghost" size="icon" onClick={() => handleExitTerminal('root')} className="text-white/40 hover:text-white" disabled={isExiting}><LogOut className="h-4 w-4" /></Button>
         </div>
       </header>
 

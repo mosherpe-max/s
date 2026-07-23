@@ -68,6 +68,7 @@ export interface StaffMember {
   role: 'Staff' | 'Manager';
   pin: string;
   isActive: boolean;
+  activeMode?: string; // Current shift assignment (Bevcart, Clubhouse, etc)
   createdAt: Timestamp;
   latitude?: number;
   longitude?: number;
