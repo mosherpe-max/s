@@ -19,7 +19,7 @@ import { isToday } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
-import { calculateDistance, getSignalColor, SUPER_ADMIN_ID, isStaffSessionStale } from '@/lib/utils';
+import { cn, calculateDistance, getSignalColor, SUPER_ADMIN_ID, isStaffSessionStale } from '@/lib/utils';
 import Link from 'next/link';
 
 type LatLng = {
