@@ -41,7 +41,8 @@ import {
   User,
   Smartphone,
   Mail,
-  X
+  X,
+  ReceiptText
 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useCart } from '@/lib/cart-context';
@@ -92,6 +93,66 @@ function CheckoutBrandingBar() {
   );
 }
 
+function PatronIdentifyFields({ patronEmail, setPatronEmail, patronName, setPatronName, patronPhone, setPatronPhone, saveInfo, setSaveInfo }: any) {
+  return (
+    <div className="space-y-6 bg-slate-50/50 p-5 rounded-[2rem] border-2 border-slate-100 animate-in fade-in duration-500">
+      <div className="space-y-1.5 px-1">
+        <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2">
+          <User className="h-3 w-3" /> Delivery Contact
+        </h3>
+        <p className="text-[9px] font-bold text-muted-foreground uppercase leading-relaxed">
+          We collect these details to send you order status updates via SMS and a digital receipt via email.
+        </p>
+      </div>
+      
+      <div className="space-y-3">
+        <div className="relative">
+          <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+          <Input 
+            placeholder="Email Address" 
+            type="email"
+            value={patronEmail} 
+            onChange={(e) => setPatronEmail(e.target.value)} 
+            className="pl-10 h-12 border-2 border-white rounded-xl font-bold focus-visible:ring-primary bg-white shadow-sm"
+          />
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="relative">
+            <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+            <Input 
+              placeholder="Full Name" 
+              value={patronName} 
+              onChange={(e) => setPatronName(e.target.value)} 
+              className="pl-10 h-12 border-2 border-white rounded-xl font-bold focus-visible:ring-primary bg-white shadow-sm"
+            />
+          </div>
+          <div className="relative">
+            <Smartphone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+            <Input 
+              placeholder="Mobile Number" 
+              type="tel"
+              value={patronPhone} 
+              onChange={(e) => setPatronPhone(e.target.value)} 
+              className="pl-10 h-12 border-2 border-white rounded-xl font-bold focus-visible:ring-primary bg-white shadow-sm"
+            />
+          </div>
+        </div>
+        
+        <div 
+          className="flex items-center space-x-3 p-3 bg-primary/5 rounded-xl border-2 border-primary/10 cursor-pointer transition-all hover:bg-primary/10"
+          onClick={() => setSaveInfo(!saveInfo)}
+        >
+          <Checkbox id="save-info" checked={saveInfo} onCheckedChange={(val) => setSaveInfo(!!val)} className="h-5 w-5 data-[state=checked]:bg-primary" />
+          <div className="text-left">
+            <label htmlFor="save-info" className="text-[10px] font-black uppercase text-[#213147] cursor-pointer block leading-none">Save for faster checkout</label>
+            <p className="text-[8px] font-bold text-muted-foreground uppercase mt-1">Securely store details for your next visit</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function StripeActionArea({ 
   clientSecret, 
   customerSessionClientSecret,
@@ -102,7 +163,8 @@ function StripeActionArea({
   patronEmail,
   patronName,
   patronPhone,
-  stripeCustomerId
+  stripeCustomerId,
+  idFields
 }: any) {
   const stripe = useStripe();
   const elements = useElements();
@@ -113,6 +175,13 @@ function StripeActionArea({
   const handleStripePayment = async () => {
     if (!stripe || !elements || !clientSecret || !firestore) return;
     
+    // Validate Identification First
+    const isContactValid = patronName.length >= 2 && patronPhone.replace(/\D/g, '').length >= 10 && patronEmail.includes('@');
+    if (!isContactValid) {
+      toast({ variant: 'destructive', title: 'Details Required', description: 'Please complete your contact info to receive tracking updates.' });
+      return;
+    }
+
     setIsProcessing(true);
     try {
       const { error, paymentIntent } = await stripe.confirmPayment({
@@ -166,6 +235,8 @@ function StripeActionArea({
 
   return (
     <div className="space-y-6">
+      {idFields}
+      
       <div className="p-4 border-2 border-slate-100 rounded-[2rem] bg-slate-50/50 animate-in fade-in duration-500">
         <StripeCheckoutForm onReadyStateChange={setIsStripeReady} />
       </div>
@@ -350,6 +421,15 @@ function CheckoutDrawerContent({
     };
   }, [user, sellerId, activeOrderItems, subtotal, solutionFee, tax, tip, finalTotal, selectedMenuType, locationValue]);
 
+  const idForm = (
+    <PatronIdentifyFields 
+      patronEmail={patronEmail} setPatronEmail={setPatronEmail}
+      patronName={patronName} setPatronName={setPatronName}
+      patronPhone={patronPhone} setPatronPhone={setPatronPhone}
+      saveInfo={saveInfo} setSaveInfo={setSaveInfo}
+    />
+  );
+
   return (
     <ScrollArea className="flex-1 w-full overflow-x-hidden">
       <div className="max-w-xl mx-auto px-4 py-8 space-y-10 pb-32">
@@ -380,56 +460,6 @@ function CheckoutDrawerContent({
           </div>
         )}
 
-        <div className="space-y-6">
-          <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary px-1 flex items-center gap-2">
-            <User className="h-3 w-3" /> Delivery Details
-          </h3>
-          <div className="space-y-3">
-            <div className="relative">
-              <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-              <Input 
-                placeholder="Email Address" 
-                type="email"
-                value={patronEmail} 
-                onChange={(e) => setPatronEmail(e.target.value)} 
-                className="pl-10 h-12 border-2 border-slate-100 rounded-xl font-bold focus-visible:ring-primary"
-              />
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="relative">
-                <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input 
-                  placeholder="Full Name" 
-                  value={patronName} 
-                  onChange={(e) => setPatronName(e.target.value)} 
-                  className="pl-10 h-12 border-2 border-slate-100 rounded-xl font-bold focus-visible:ring-primary"
-                />
-              </div>
-              <div className="relative">
-                <Smartphone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input 
-                  placeholder="Mobile Number" 
-                  type="tel"
-                  value={patronPhone} 
-                  onChange={(e) => setPatronPhone(e.target.value)} 
-                  className="pl-10 h-12 border-2 border-slate-100 rounded-xl font-bold focus-visible:ring-primary"
-                />
-              </div>
-            </div>
-            
-            <div 
-              className="flex items-center space-x-3 p-3 bg-primary/5 rounded-xl border-2 border-primary/10 cursor-pointer transition-all hover:bg-primary/10"
-              onClick={() => setSaveInfo(!saveInfo)}
-            >
-              <Checkbox id="save-info" checked={saveInfo} onCheckedChange={(val) => setSaveInfo(!!val)} className="h-5 w-5 data-[state=checked]:bg-primary" />
-              <div className="text-left">
-                <label htmlFor="save-info" className="text-[10px] font-black uppercase text-[#213147] cursor-pointer block leading-none">Save for faster checkout</label>
-                <p className="text-[8px] font-bold text-muted-foreground uppercase mt-1">Securely store details for your next visit</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
         <TipSelector subtotal={subtotal} onTipChange={setTip} />
 
         <div className="space-y-4">
@@ -452,7 +482,7 @@ function CheckoutDrawerContent({
             <div className={cn("flex items-center justify-between p-4 rounded-2xl border-2 transition-all cursor-pointer opacity-60", paymentMethod === 'Pay at Delivery' ? "border-primary bg-primary/5" : "border-slate-100")} onClick={() => setPaymentMethod('Pay at Delivery')}>
               <div className="flex items-center gap-4">
                 <div className={cn("p-2 rounded-lg", paymentMethod === 'Pay at Delivery' ? "bg-primary text-white" : "bg-slate-100 text-slate-400")}><Banknote className="h-5 w-5" /></div>
-                <div className="text-left"><p className="text-xs font-black uppercase tracking-tight text-[#213147]">Pay at Delivery</p><p className="text-[9px] font-bold text-muted-foreground uppercase">Prototype Only</p></div>
+                <div className="text-left"><p className="text-xs font-black uppercase tracking-tight text-[#213147]">Pay at Delivery</p><p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">CHECKOUT ON ARRIVAL</p></div>
               </div>
               {paymentMethod === 'Pay at Delivery' && <Check className="h-4 w-4 text-primary" />}
             </div>
@@ -477,6 +507,7 @@ function CheckoutDrawerContent({
                   patronName={patronName}
                   patronPhone={patronPhone}
                   stripeCustomerId={stripeCustomerId}
+                  idFields={idForm}
                 />
               </Elements>
             ) : null
@@ -484,6 +515,8 @@ function CheckoutDrawerContent({
 
           {paymentMethod === 'Pay at Delivery' && (
             <div className="space-y-6">
+              {idForm}
+              
               <div className="fixed bottom-7 left-0 right-0 p-4 bg-white/80 backdrop-blur-md border-t z-50">
                 <div className="max-w-xl mx-auto px-2">
                   <Button 
