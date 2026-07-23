@@ -233,10 +233,7 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
       const staffData = { latitude: lat, longitude: lng, lastActive: serverTimestamp() };
       setDoc(staffRef, staffData, { merge: true }).catch(() => {});
     }
-
-    const sellerDocRef = doc(firestore, 'sellers', sellerId);
-    const venueData = { latitude: lat, longitude: lng, lastActive: serverTimestamp() };
-    updateDoc(sellerDocRef, venueData).catch(() => {});
+    // We only update the staff record. The root Seller document represents the fixed venue clubhouse.
   };
 
   useEffect(() => {
@@ -322,11 +319,10 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
   }, [driverOrders, now, solutionConfig]);
 
   const mappedDrivers = useMemo(() => {
-    if (!allStaff) return [];
+    if (!allStaff || !currentStaffId) return [];
     return allStaff
       .filter(s => s.id !== currentStaffId && s.latitude && s.longitude && s.lastActive)
       .map(s => {
-        // Unique coloring for staff, ignore signal freshness per user request
         const color = getDriverColor(s.id);
         return { id: s.id, name: s.name, location: { latitude: s.latitude!, longitude: s.longitude! }, type: s.role === 'Driver' || s.role === 'Staff' ? 'Beverage Cart' : 'Clubhouse', colorOverride: color };
       });
@@ -386,7 +382,6 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
         <div className="relative w-full md:w-2/3 h-[40vh] md:h-full bg-muted rounded-xl overflow-hidden border-2 shadow-sm">
          <Button variant="outline" size="icon" className="absolute top-2 right-2 z-10 bg-background/80 h-8 w-8" onClick={() => setFitTrigger(p => p + 1)}><Focus className="h-4 w-4" /></Button>
           
-          {/* SIGNAL STATUS OVERLAY */}
           <div className="absolute top-3 left-3 z-10 pointer-events-none">
             <Badge className={cn(
               "flex items-center gap-1.5 px-2 py-1 border-0 shadow-lg transition-colors",
