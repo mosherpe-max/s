@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, use, useEffect, useMemo } from 'react';
+import { useState, use, useEffect, useMemo, useRef } from 'react';
 import { collection, doc, addDoc, serverTimestamp, query, where } from 'firebase/firestore';
 import { signInAnonymously } from 'firebase/auth';
 import { useFirestore, useCollection, useMemoFirebase, useDoc, useAuth, useUser, useFirebase } from '@/firebase';
@@ -155,7 +155,6 @@ function PatronIdentifyFields({ patronEmail, setPatronEmail, patronName, setPatr
 
 function StripeActionArea({ 
   clientSecret, 
-  customerSessionClientSecret,
   isProcessing, 
   setIsProcessing, 
   onOrderComplete,
@@ -194,9 +193,7 @@ function StripeActionArea({
               name: patronName,
               email: patronEmail,
               phone: patronPhone
-            },
-            // CRITICAL: Explicitly authorize redisplay for zero-friction future visits
-            allow_redisplay: 'always'
+            }
           }
         },
         redirect: 'if_required',
@@ -332,8 +329,9 @@ function CheckoutDrawerContent({
     }
   }, []);
 
-  // FETCH INTENT - SYNCED WITH SAVE INFO STATE
+  // FETCH INTENT - SYNCED WITH STABLE PARAMETERS
   useEffect(() => {
+    // Only fetch when payment method is active and total is valid
     if (paymentMethod === 'Stripe' && !isFetchingIntent && baseTotalForBackend > 0) {
       const fetchIntent = async () => {
         setIsFetchingIntent(true);
@@ -351,10 +349,11 @@ function CheckoutDrawerContent({
           const result = await createIntent({ 
             amount: baseTotalForBackend, 
             sellerId,
+            // Only pass identity if we have it from cache or user typed it before selecting method
             patronName: patronName || 'Guest',
             patronPhone: patronPhone.replace(/\D/g, '') || '',
             patronEmail: patronEmail || '',
-            saveInfo, // SYNC: Setup future usage based on user opt-in
+            saveInfo, 
             stripeCustomerId
           });
           
@@ -374,7 +373,8 @@ function CheckoutDrawerContent({
       };
       fetchIntent();
     }
-  }, [paymentMethod, baseTotalForBackend, sellerId, firebaseApp, isFetchingIntent, toast, user, auth, saveInfo, patronEmail, patronName, patronPhone, stripeCustomerId]);
+    // CRITICAL: Removed patron identity strings from dependencies to avoid infinite spinner cycle on keystroke
+  }, [paymentMethod, baseTotalForBackend, sellerId, firebaseApp, user, auth, saveInfo]);
 
   const handleManualOrder = async () => {
     if (!firestore || activeOrderItems.length === 0) return;
@@ -525,13 +525,25 @@ function CheckoutDrawerContent({
                 <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Initializing Secure Checkout...</p>
               </div>
             ) : clientSecret ? (
-              <Elements stripe={stripePromise} options={{ clientSecret, customerSessionClientSecret: customerSessionClientSecret || undefined }}>
+              <Elements 
+                stripe={stripePromise} 
+                options={{ 
+                  clientSecret, 
+                  customerSessionClientSecret: customerSessionClientSecret || undefined,
+                  defaultValues: {
+                    billingDetails: {
+                      name: patronName,
+                      email: patronEmail,
+                      phone: patronPhone
+                    }
+                  }
+                }}
+              >
                 <StripeActionArea 
                   clientSecret={clientSecret} 
-                  customerSessionClientSecret={customerSessionClientSecret}
                   isProcessing={isProcessing} 
                   setIsProcessing={setIsProcessing} 
-                  onOrderComplete={onOrderComplete} 
+                  onOrderComplete={handleOrderComplete} 
                   orderData={currentOrderData}
                   patronEmail={patronEmail}
                   patronName={patronName}

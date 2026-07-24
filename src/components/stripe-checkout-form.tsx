@@ -3,7 +3,7 @@
 
 import React, { useState } from 'react';
 import { PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
-import { Lock, ShieldCheck } from 'lucide-react';
+import { Lock, ShieldCheck, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface StripeCheckoutFormProps {
@@ -41,9 +41,16 @@ export function StripeCheckoutForm({ onReadyStateChange }: StripeCheckoutFormPro
       </div>
       
       <div className={cn(
-        "bg-white p-4 rounded-2xl border-2 transition-all duration-300",
+        "bg-white p-4 rounded-2xl border-2 transition-all duration-300 relative min-h-[100px]",
         error ? "border-destructive/50 ring-4 ring-destructive/10" : "border-slate-100 shadow-sm"
       )}>
+        {!isElementLoaded && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/80 z-10 gap-2">
+            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            <span className="text-[8px] font-black uppercase text-muted-foreground tracking-widest">Securing Terminal...</span>
+          </div>
+        )}
+
         <PaymentElement 
           onReady={() => setIsElementLoaded(true)}
           onChange={handleChange}
