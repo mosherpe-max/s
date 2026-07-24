@@ -176,7 +176,6 @@ function StripeActionArea({
   const handleStripePayment = async () => {
     if (!stripe || !elements || !clientSecret || !firestore) return;
     
-    // Validate Identification First
     const isContactValid = patronName.length >= 2 && patronPhone.replace(/\D/g, '').length >= 10 && patronEmail.includes('@');
     if (!isContactValid) {
       toast({ variant: 'destructive', title: 'Details Required', description: 'Please complete your contact info to receive tracking updates.' });
@@ -203,9 +202,14 @@ function StripeActionArea({
       if (error) throw new Error(error.message);
 
       if (paymentIntent && (paymentIntent.status === 'succeeded' || paymentIntent.status === 'processing')) {
-        // CACHE IDENTITY FOR ZERO-FRICTION CHECKOUT
-        if (stripeCustomerId) {
-          localStorage.setItem('koop_stripe_customer_id', stripeCustomerId);
+        // PERSIST IDENTITY IF OPTED-IN
+        if (saveInfo) {
+          localStorage.setItem('koop_patron_name', patronName);
+          localStorage.setItem('koop_patron_email', patronEmail);
+          localStorage.setItem('koop_patron_phone', patronPhone);
+          if (stripeCustomerId) {
+            localStorage.setItem('koop_stripe_customer_id', stripeCustomerId);
+          }
         }
 
         const finalOrderData = {
@@ -308,10 +312,21 @@ function CheckoutDrawerContent({
   const disclosureCategory = getDisclosureCategory(seller?.type);
   const checkoutNotice = FEE_DISCLOSURES[disclosureCategory].checkout;
 
-  // LOAD CACHED IDENTITY
+  // LOAD CACHED IDENTITY ON MOUNT
   useEffect(() => {
-    const cachedId = localStorage.getItem('koop_stripe_customer_id');
-    if (cachedId) setStripeCustomerId(cachedId);
+    const cachedName = localStorage.getItem('koop_patron_name');
+    const cachedEmail = localStorage.getItem('koop_patron_email');
+    const cachedPhone = localStorage.getItem('koop_patron_phone');
+    const cachedCustomerId = localStorage.getItem('koop_stripe_customer_id');
+
+    if (cachedName) setPatronName(cachedName);
+    if (cachedEmail) setPatronEmail(cachedEmail);
+    if (cachedPhone) setPatronPhone(cachedPhone);
+    if (cachedCustomerId) setStripeCustomerId(cachedCustomerId);
+
+    if (cachedName || cachedEmail || cachedPhone || cachedCustomerId) {
+      setSaveInfo(true);
+    }
   }, []);
 
   useEffect(() => {
@@ -336,22 +351,18 @@ function CheckoutDrawerContent({
             patronPhone: patronPhone.replace(/\D/g, '') || '',
             patronEmail: patronEmail || '',
             saveInfo,
-            stripeCustomerId // PASSED FOR ZERO-FRICTION FETCH
+            stripeCustomerId
           });
           
           const data = result.data as { clientSecret: string; customerSessionClientSecret?: string; stripeCustomerId?: string };
           if (data?.clientSecret) {
             setClientSecret(data.clientSecret);
-            if (data.customerSessionClientSecret) {
-              setCustomerSessionClientSecret(data.customerSessionClientSecret);
-            }
-            if (data.stripeCustomerId) {
-              setStripeCustomerId(data.stripeCustomerId);
-            }
+            if (data.customerSessionClientSecret) setCustomerSessionClientSecret(data.customerSessionClientSecret);
+            if (data.stripeCustomerId) setStripeCustomerId(data.stripeCustomerId);
           }
         } catch (e: any) {
           console.error("Payment Intent Error:", e);
-          toast({ variant: 'destructive', title: 'Gateway Error', description: "Digital checkout unavailable. Please use Pay at Delivery." });
+          toast({ variant: 'destructive', title: 'Gateway Error', description: "Digital checkout unavailable." });
           setPaymentMethod('Pay at Delivery');
         } finally {
           setIsFetchingIntent(false);
@@ -376,6 +387,14 @@ function CheckoutDrawerContent({
         currentUser = result.user;
       }
       if (!currentUser) throw new Error("Authentication failed.");
+
+      // PERSIST IDENTITY IF OPTED-IN
+      if (saveInfo) {
+        localStorage.setItem('koop_patron_name', patronName);
+        localStorage.setItem('koop_patron_email', patronEmail);
+        localStorage.setItem('koop_patron_phone', patronPhone);
+      }
+
       const orderData: any = {
         sellerId,
         buyerProfileId: currentUser.uid,
@@ -452,11 +471,7 @@ function CheckoutDrawerContent({
           </SheetClose>
         </div>
 
-        <OrderSummary 
-          items={activeOrderItems} 
-          onUpdateItem={() => {}} 
-          onRemoveItem={() => {}}
-        />
+        <OrderSummary items={activeOrderItems} onUpdateItem={() => {}} onRemoveItem={() => {}} />
         
         {selectedMenuType === 'Lane Delivery' && seller?.laneCount && (
           <div className="space-y-4">
@@ -529,7 +544,6 @@ function CheckoutDrawerContent({
           {paymentMethod === 'Pay at Delivery' && (
             <div className="space-y-6">
               {idForm}
-              
               <div 
                 className="flex items-center space-x-3 p-4 bg-primary/5 rounded-[2rem] border-2 border-primary/10 cursor-pointer transition-all hover:bg-primary/10 animate-in fade-in duration-500"
                 onClick={() => setSaveInfo(!saveInfo)}
@@ -540,17 +554,10 @@ function CheckoutDrawerContent({
                   <p className="text-[8px] font-bold text-muted-foreground uppercase mt-1">Securely saves your contact & payment info on this device for 1-tap ordering.</p>
                 </div>
               </div>
-
               <div className="fixed bottom-7 left-0 right-0 p-4 bg-white/80 backdrop-blur-md border-t z-50">
                 <div className="max-w-xl mx-auto px-2">
-                  <Button 
-                    size="lg" 
-                    className="w-full h-14 font-black uppercase tracking-widest gap-2 shadow-xl" 
-                    onClick={handleManualOrder} 
-                    disabled={isProcessing}
-                  >
-                    {isProcessing ? <Loader2 className="animate-spin" /> : <ShoppingBag className="h-5 w-5" />} 
-                    PLACE ORDER
+                  <Button size="lg" className="w-full h-14 font-black uppercase tracking-widest gap-2 shadow-xl" onClick={handleManualOrder} disabled={isProcessing}>
+                    {isProcessing ? <Loader2 className="animate-spin" /> : <ShoppingBag className="h-5 w-5" />} PLACE ORDER
                   </Button>
                 </div>
               </div>
@@ -589,10 +596,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
   const staffQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'sellers', sellerId, 'staff') : null), [firestore, sellerId]);
   const { data: staffList } = useCollection<StaffMember>(staffQuery);
 
-  const menuItemsQuery = useMemoFirebase(() => {
-    if (!firestore || !sellerId) return null;
-    return collection(firestore, 'sellers', sellerId, 'menuItems');
-  }, [firestore, sellerId]);
+  const menuItemsQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'sellers', sellerId, 'menuItems') : null), [firestore, sellerId]);
   const { data: menuItems, isLoading: areItemsLoading } = useCollection<MenuItem>(menuItemsQuery);
 
   const updateMenuType = (type: string) => {
@@ -603,15 +607,10 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
 
   const isModeAvailable = (type: string) => {
     if (!seller) return false;
-    
-    // Check Global Koop Auth
     const isGloballyAuthorized = !solutionConfig || (solutionConfig.enabledModes?.includes(type) ?? true);
     if (!isGloballyAuthorized) return false;
-    
-    // Check Venue Admin Toggles
     const isVenueAuthorized = seller.menuTypes.includes(type);
     if (!isVenueAuthorized) return false;
-    
     let isChannelOpen = true;
     switch(type) {
       case 'Beverage Cart': isChannelOpen = !!seller.bevcartActive; break;
@@ -619,10 +618,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
       case 'Lane Delivery': isChannelOpen = !!seller.lanedeliveryActive; break;
     }
     if (!isChannelOpen) return false;
-
-    // PERSISTENCE LOGIC: A service mode stays active as long as at least one staff is assigned to it.
     const activeStaff = staffList?.filter(s => s.activeMode === type && s.isActive !== false);
-
     return (activeStaff && activeStaff.length > 0) || false;
   };
 
@@ -776,14 +772,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
           </div>
 
           <main className="flex-1 px-4 pt-8 pb-32 max-w-2xl mx-auto w-full">
-            <BuyerMenu 
-              orderItems={orderItems} 
-              onUpdateItem={updateItem} 
-              onOpenModifiers={setCustomizingItem} 
-              currentCategories={currentCategories} 
-              menuItems={filteredMenuItems} 
-              selectedMenuType={selectedMenuType} 
-            />
+            <BuyerMenu orderItems={orderItems} onUpdateItem={updateItem} onOpenModifiers={setCustomizingItem} currentCategories={currentCategories} menuItems={filteredMenuItems} selectedMenuType={selectedMenuType} />
           </main>
         </>
       ) : (
@@ -810,13 +799,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
               <SheetClose className="absolute right-0 top-0 text-white/40 hover:text-white"><X className="h-6 w-6" /></SheetClose>
             </div>
           </SheetHeader>
-          {customizingItem && (
-            <ModifierSelector 
-              item={customizingItem} 
-              onConfirm={handleConfirmModifiers} 
-              onCancel={() => setCustomizingItem(null)} 
-            />
-          )}
+          {customizingItem && <ModifierSelector item={customizingItem} onConfirm={handleConfirmModifiers} onCancel={() => setCustomizingItem(null)} />}
         </SheetContent>
       </Sheet>
 
@@ -841,20 +824,10 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
               <SheetClose className="absolute right-0 top-1 text-white/40 hover:text-white"><X className="h-6 w-6" /></SheetClose>
             </div>
           </SheetHeader>
-          <CheckoutDrawerContent 
-            seller={seller}
-            sellerId={sellerId}
-            selectedMenuType={selectedMenuType}
-            locationValue={locationValue}
-            setLocationValue={setLocationValue}
-            activeOrderItems={activeOrderItems}
-            subtotal={subtotal}
-            solutionFee={solutionFee}
-            taxRate={taxRate}
-            onOrderComplete={handleOrderComplete}
-          />
+          <CheckoutDrawerContent seller={seller} sellerId={sellerId} selectedMenuType={selectedMenuType} locationValue={locationValue} setLocationValue={setLocationValue} activeOrderItems={activeOrderItems} subtotal={subtotal} solutionFee={solutionFee} taxRate={taxRate} onOrderComplete={handleOrderComplete} />
         </SheetContent>
       </Sheet>
     </div>
   );
 }
+
