@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, use, useEffect, useMemo } from 'react';
@@ -193,7 +194,9 @@ function StripeActionArea({
               name: patronName,
               email: patronEmail,
               phone: patronPhone
-            }
+            },
+            // CRITICAL: Explicitly authorize redisplay for zero-friction future visits
+            allow_redisplay: 'always'
           }
         },
         redirect: 'if_required',
@@ -329,8 +332,9 @@ function CheckoutDrawerContent({
     }
   }, []);
 
+  // FETCH INTENT - SYNCED WITH SAVE INFO STATE
   useEffect(() => {
-    if (paymentMethod === 'Stripe' && !isFetchingIntent && baseTotalForBackend > 0 && !clientSecret) {
+    if (paymentMethod === 'Stripe' && !isFetchingIntent && baseTotalForBackend > 0) {
       const fetchIntent = async () => {
         setIsFetchingIntent(true);
         try {
@@ -350,7 +354,7 @@ function CheckoutDrawerContent({
             patronName: patronName || 'Guest',
             patronPhone: patronPhone.replace(/\D/g, '') || '',
             patronEmail: patronEmail || '',
-            saveInfo,
+            saveInfo, // SYNC: Setup future usage based on user opt-in
             stripeCustomerId
           });
           
@@ -370,7 +374,7 @@ function CheckoutDrawerContent({
       };
       fetchIntent();
     }
-  }, [paymentMethod, baseTotalForBackend, sellerId, firebaseApp, clientSecret, isFetchingIntent, toast, user, auth, saveInfo, patronEmail, patronName, patronPhone, stripeCustomerId]);
+  }, [paymentMethod, baseTotalForBackend, sellerId, firebaseApp, isFetchingIntent, toast, user, auth, saveInfo, patronEmail, patronName, patronPhone, stripeCustomerId]);
 
   const handleManualOrder = async () => {
     if (!firestore || activeOrderItems.length === 0) return;
@@ -497,7 +501,7 @@ function CheckoutDrawerContent({
 
         <div className="space-y-4">
           <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground px-1">PAYMENT METHOD</h3>
-          <RadioGroup value={paymentMethod || ''} onValueChange={(v: any) => setPaymentMethod(v)} className="grid grid-cols-1 gap-3">
+          <RadioGroup value={paymentMethod || ''} onValueChange={(v: any) => { setPaymentMethod(v); setClientSecret(null); }} className="grid grid-cols-1 gap-3">
             <div className={cn("flex items-center justify-between p-4 rounded-2xl border-2 transition-all cursor-pointer", paymentMethod === 'Stripe' ? "border-primary bg-primary/5 shadow-md" : "border-slate-100 hover:border-slate-200")} onClick={() => setPaymentMethod('Stripe')}>
               <div className="flex items-center gap-4">
                 <div className={cn("p-2 rounded-lg", paymentMethod === 'Stripe' ? "bg-primary text-white" : "bg-slate-100 text-slate-400")}><CreditCard className="h-5 w-5" /></div>
@@ -830,4 +834,3 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
     </div>
   );
 }
-
