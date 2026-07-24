@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, use, useEffect, useMemo, useRef } from 'react';
@@ -193,7 +192,8 @@ function StripeActionArea({
               name: patronName,
               email: patronEmail,
               phone: patronPhone
-            }
+            },
+            allow_redisplay: 'always'
           }
         },
         redirect: 'if_required',
@@ -240,8 +240,6 @@ function StripeActionArea({
 
   return (
     <div className="space-y-6">
-      {idFields}
-      
       <div className="p-4 border-2 border-slate-100 rounded-[2rem] bg-slate-50/50 animate-in fade-in duration-500">
         <StripeCheckoutForm onReadyStateChange={setIsStripeReady} />
       </div>
@@ -331,7 +329,6 @@ function CheckoutDrawerContent({
 
   // FETCH INTENT - SYNCED WITH STABLE PARAMETERS
   useEffect(() => {
-    // Only fetch when payment method is active and total is valid
     if (paymentMethod === 'Stripe' && !isFetchingIntent && baseTotalForBackend > 0) {
       const fetchIntent = async () => {
         setIsFetchingIntent(true);
@@ -349,7 +346,6 @@ function CheckoutDrawerContent({
           const result = await createIntent({ 
             amount: baseTotalForBackend, 
             sellerId,
-            // Only pass identity if we have it from cache or user typed it before selecting method
             patronName: patronName || 'Guest',
             patronPhone: patronPhone.replace(/\D/g, '') || '',
             patronEmail: patronEmail || '',
@@ -373,7 +369,6 @@ function CheckoutDrawerContent({
       };
       fetchIntent();
     }
-    // CRITICAL: Removed patron identity strings from dependencies to avoid infinite spinner cycle on keystroke
   }, [paymentMethod, baseTotalForBackend, sellerId, firebaseApp, user, auth, saveInfo]);
 
   const handleManualOrder = async () => {
@@ -392,7 +387,6 @@ function CheckoutDrawerContent({
       }
       if (!currentUser) throw new Error("Authentication failed.");
 
-      // PERSIST IDENTITY IF OPTED-IN
       if (saveInfo) {
         localStorage.setItem('koop_patron_name', patronName);
         localStorage.setItem('koop_patron_email', patronEmail);
@@ -499,6 +493,11 @@ function CheckoutDrawerContent({
           </p>
         </div>
 
+        <div className="space-y-6">
+          <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground px-1">DELIVERY DETAILS</h3>
+          {idForm}
+        </div>
+
         <div className="space-y-4">
           <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground px-1">PAYMENT METHOD</h3>
           <RadioGroup value={paymentMethod || ''} onValueChange={(v: any) => { setPaymentMethod(v); setClientSecret(null); }} className="grid grid-cols-1 gap-3">
@@ -543,13 +542,12 @@ function CheckoutDrawerContent({
                   clientSecret={clientSecret} 
                   isProcessing={isProcessing} 
                   setIsProcessing={setIsProcessing} 
-                  onOrderComplete={handleOrderComplete} 
+                  onOrderComplete={onOrderComplete} 
                   orderData={currentOrderData}
                   patronEmail={patronEmail}
                   patronName={patronName}
                   patronPhone={patronPhone}
                   stripeCustomerId={stripeCustomerId}
-                  idFields={idForm}
                   saveInfo={saveInfo}
                   setSaveInfo={setSaveInfo}
                 />
@@ -559,7 +557,6 @@ function CheckoutDrawerContent({
 
           {paymentMethod === 'Pay at Delivery' && (
             <div className="space-y-6">
-              {idForm}
               <div 
                 className="flex items-center space-x-3 p-4 bg-primary/5 rounded-[2rem] border-2 border-primary/10 cursor-pointer transition-all hover:bg-primary/10 animate-in fade-in duration-500"
                 onClick={() => setSaveInfo(!saveInfo)}
