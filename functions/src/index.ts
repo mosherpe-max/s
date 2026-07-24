@@ -294,20 +294,84 @@ export const applyStarterItems = onCall({
   }
 });
 
-export const dailyOperationalReset = onSchedule({ schedule: "0 * * * *", timeZone: "America/New_York", region: 'us-central1' }, async () => {
+/**
+ * dailyOperationalReset
+ * Performs a system-wide sweep at the reset hour (default 4 AM EST).
+ * 1. Deactivates venue service modes.
+ * 2. Clears staff activeMode and location (effectively logging them out).
+ * 3. Cancels stale active orders.
+ */
+export const dailyOperationalReset = onSchedule({ 
+  schedule: "0 * * * *", 
+  timeZone: "America/New_York", 
+  region: 'us-central1' 
+}, async () => {
   const configSnap = await db.collection('solution').doc('config').get();
   const resetHour = configSnap.exists ? (configSnap.data()?.dailyResetHour ?? 4) : 4;
+  
+  // Get current hour in EST
   const nowInEst = new Date(new Date().toLocaleString("en-US", { timeZone: "America/New_York" }));
-  if (nowInEst.getHours() !== resetHour) return;
+  if (nowInEst.getHours() !== resetHour) {
+    logger.info(`[dailyOperationalReset] Current hour ${nowInEst.getHours()} is not reset hour ${resetHour}. Skipping.`);
+    return;
+  }
 
+  logger.info(`[dailyOperationalReset] Starting system-wide operational sweep for reset hour: ${resetHour}`);
+
+  // 1. FETCH ACTIVE SELLERS
   const sellers = await db.collection('sellers').where('status', '==', 'Active').get();
-  if (sellers.empty) return;
+  if (sellers.empty) {
+    logger.info("[dailyOperationalReset] No active sellers found. Sweep complete.");
+    return;
+  }
 
-  const batch = db.batch();
-  sellers.docs.forEach(doc => {
-    batch.update(doc.ref, { bevcartActive: false, clubhouseActive: false, lanedeliveryActive: false, takeoutActive: false, lastActive: FieldValue.serverTimestamp() });
-  });
-  await batch.commit();
+  // 2. ITERATE AND RESET EACH VENUE'S ECOSYSTEM
+  for (const sellerDoc of sellers.docs) {
+    const sellerId = sellerDoc.id;
+    const batch = db.batch();
+
+    // A. Reset Venue Status
+    batch.update(sellerDoc.ref, { 
+      bevcartActive: false, 
+      clubhouseActive: false, 
+      lanedeliveryActive: false, 
+      takeoutActive: false, 
+      lastActive: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp()
+    });
+
+    // B. Clear Staff Sessions
+    const staffRef = db.collection('sellers').doc(sellerId).collection('staff');
+    const activeStaff = await staffRef.where('activeMode', '!=', null).get();
+    activeStaff.forEach(sDoc => {
+      batch.update(sDoc.ref, { 
+        activeMode: null, 
+        latitude: null, 
+        longitude: null, 
+        lastActive: FieldValue.serverTimestamp() 
+      });
+    });
+
+    // C. Cancel Stale Orders
+    const ordersRef = db.collection('orders');
+    const staleOrders = await ordersRef
+      .where('sellerId', '==', sellerId)
+      .where('status', 'in', ['Placed', 'Preparing', 'Out for Delivery'])
+      .get();
+      
+    staleOrders.forEach(oDoc => {
+      batch.update(oDoc.ref, { 
+        status: 'Cancelled', 
+        notes: 'System Reset: Order expired at daily reset hour.',
+        updatedAt: FieldValue.serverTimestamp() 
+      });
+    });
+
+    await batch.commit();
+    logger.info(`[dailyOperationalReset] Reset complete for venue: ${sellerId} (${activeStaff.size} staff, ${staleOrders.size} orders)`);
+  }
+
+  logger.info("[dailyOperationalReset] Global operational sweep finalized.");
 });
 
 export const onGuestOrderStatusUpdate = onDocumentWritten({ document: "orders/{orderId}", secrets: ["TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN", "TWILIO_FROM_NUMBER"], region: 'us-central1' }, async (event) => {
