@@ -1,3 +1,4 @@
+
 'use client';
 
 import { collection, query, where, doc, updateDoc, serverTimestamp, deleteDoc } from 'firebase/firestore';
@@ -57,6 +58,13 @@ export default function LaneSideServerDashboardPage({ params }: { params: Promis
   const configRef = useMemoFirebase(() => (firestore ? doc(firestore, 'solution', 'config') : null), [firestore]);
   const { data: solutionConfig } = useDoc<SolutionConfig>(configRef);
 
+  // Monitor CURRENT Staff Member's active state
+  const myStaffDocRef = useMemoFirebase(() => {
+    if (!firestore || !sellerId || !currentStaffId) return null;
+    return doc(firestore, 'sellers', sellerId, 'staff', currentStaffId);
+  }, [firestore, sellerId, currentStaffId]);
+  const { data: myStaffData } = useDoc<StaffMember>(myStaffDocRef);
+
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const storedId = localStorage.getItem('koop_staff_id');
@@ -65,9 +73,10 @@ export default function LaneSideServerDashboardPage({ params }: { params: Promis
       const sessionStart = localStorage.getItem('koop_staff_session_start');
       const resetHour = solutionConfig?.dailyResetHour ?? 4;
       
+      // A. Check for STALE session (past reset hour)
       if (sessionStart && isStaffSessionStale(new Date(parseInt(sessionStart, 10)), resetHour)) {
         handleExitTerminal('root');
-        toast({ title: "Shift Reset", description: "Daily operational reset performed. Please re-enter PIN." });
+        toast({ title: "Shift Expired", description: "Your shift has ended per the daily reset policy." });
       } else {
         setCurrentStaffId(storedId || undefined);
         setCurrentStaffName(storedName || '');
@@ -81,7 +90,15 @@ export default function LaneSideServerDashboardPage({ params }: { params: Promis
     }
   }, [sellerId, router, toast, solutionConfig?.dailyResetHour]);
 
-  // ACCESS GUARD: If Admin deactivates mode, force exit
+  // B. Check for REMOTE logout (activeMode cleared by backend reset)
+  useEffect(() => {
+    if (myStaffData && myStaffData.activeMode === null && !isAdminSession && !isExiting) {
+      toast({ title: "Session Terminated", description: "You have been logged out by a system reset." });
+      handleExitTerminal('root');
+    }
+  }, [myStaffData?.activeMode, isAdminSession, isExiting]);
+
+  // C. Check for MODE deactivation by Manager
   useEffect(() => {
     if (primarySeller && primarySeller.lanedeliveryActive === false && !isAdminSession && !isExiting) {
       toast({ variant: "destructive", title: "Channel Closed", description: "Lane Delivery service has been deactivated by management." });

@@ -17,7 +17,6 @@ const db = getFirestore();
 /**
  * createPaymentIntent
  * Securely generates a Stripe Client Secret and Customer Session for zero-friction checkout.
- * Handles customer creation, future-usage authorization, and Express destination charges.
  */
 export const createPaymentIntent = onCall({
   secrets: ["STRIPE_SECRET_KEY"],
@@ -35,7 +34,7 @@ export const createPaymentIntent = onCall({
 
     const stripe = new Stripe(apiKey, { apiVersion: '2025-01-27.acacia' as any });
 
-    // 1. VENUE RESOLUTION: Get the destination Stripe Account ID
+    // 1. VENUE RESOLUTION
     const sellerDoc = await db.collection('sellers').doc(sellerId).get();
     const venueStripeAccountId = sellerDoc.data()?.stripeAccountId;
     if (!venueStripeAccountId) {
@@ -44,7 +43,7 @@ export const createPaymentIntent = onCall({
 
     let stripeCustomerId: string | undefined = clientProvidedCustomerId;
 
-    // 2. IDENTITY SYNC: Fallback to Firestore profile if no client ID provided
+    // 2. IDENTITY SYNC
     if (!stripeCustomerId && buyerUid) {
       const userDoc = await db.collection('users').doc(buyerUid).get();
       if (userDoc.exists && userDoc.data()?.stripeCustomerId) {
@@ -52,7 +51,7 @@ export const createPaymentIntent = onCall({
       }
     }
 
-    // 3. CUSTOMER CREATION: Create customer if totally unknown
+    // 3. CUSTOMER CREATION
     if (!stripeCustomerId) {
       const customer = await stripe.customers.create({ 
         email: patronEmail || undefined, 
@@ -63,7 +62,7 @@ export const createPaymentIntent = onCall({
       stripeCustomerId = customer.id;
     }
 
-    // 4. PERSISTENCE: If buyer is authenticated, ensure the UID is linked to the ID
+    // 4. PERSISTENCE
     if (buyerUid && stripeCustomerId) {
       await db.collection('users').doc(buyerUid).set({ 
         stripeCustomerId, 
@@ -73,7 +72,7 @@ export const createPaymentIntent = onCall({
       }, { merge: true });
     }
 
-    // 5. CUSTOMER SESSION: For redisplaying saved cards in the Payment Element
+    // 5. CUSTOMER SESSION
     const customerSession = await stripe.customerSessions.create({
       customer: stripeCustomerId,
       components: { 
@@ -87,7 +86,7 @@ export const createPaymentIntent = onCall({
       }
     });
 
-    // 6. INTENT: Create the payment intent with destination charge
+    // 6. INTENT
     const paymentIntent = await stripe.paymentIntents.create({
       amount: Math.round(amount * 100),
       currency: 'usd',
@@ -118,188 +117,9 @@ export const createPaymentIntent = onCall({
 });
 
 /**
- * applyStarterMenu
- * Clones template modifiers into a venue's collection.
- */
-export const applyStarterMenu = onCall({
-  region: 'us-central1',
-}, async (request) => {
-  const { venueId, venueType } = request.data || {};
-  
-  if (!venueId || !venueType) {
-    throw new HttpsError('invalid-argument', 'venueId and venueType are required.');
-  }
-
-  try {
-    const normalizedType = venueType.toLowerCase();
-    logger.info(`[applyStarterMenu] Provisioning modifiers for ${venueId} (Type: ${normalizedType})`);
-
-    const libraryRef = db.collection('starter_modifier_library');
-    const snapshot = await libraryRef.where('venueType', 'array-contains', normalizedType).get();
-
-    if (snapshot.empty) {
-      logger.warn(`[applyStarterMenu] No templates found in library for venue type: ${normalizedType}`);
-      return { totalCreated: 0, status: 'no_templates_found' };
-    }
-
-    const batch = db.batch();
-    let count = 0;
-    const summary: Record<string, number> = {};
-
-    snapshot.docs.forEach(docSnap => {
-      const template = docSnap.data();
-      if (!template || !template.name || !Array.isArray(template.options)) return;
-
-      const groupId = `${venueId}-${docSnap.id}`;
-      const groupRef = db.collection('modifier_groups').doc(groupId);
-
-      batch.set(groupRef, {
-        id: groupId,
-        sellerId: venueId,
-        name: template.name,
-        minSelection: template.minSelection ?? (template.required ? 1 : 0),
-        maxSelection: template.maxSelection ?? (template.selectionType === 'single' ? 1 : 99),
-        options: template.options.map((opt: any) => ({
-          id: String(opt.label || opt.name || 'option').toLowerCase().replace(/\s+/g, '-'),
-          name: String(opt.label || opt.name || 'Option'),
-          priceAdjustment: Number(opt.priceModifier || opt.priceAdjustment || 0),
-          isAvailable: true
-        })),
-        createdAt: FieldValue.serverTimestamp(),
-        updatedAt: FieldValue.serverTimestamp()
-      }, { merge: true });
-
-      const cat = template.category || 'universal';
-      summary[cat] = (summary[cat] || 0) + 1;
-      count++;
-    });
-
-    if (count > 0) {
-      await batch.commit();
-    }
-
-    logger.info(`[applyStarterMenu] Successfully provisioned ${count} modifier sets for ${venueId}`);
-    return { totalCreated: count, byCategory: summary, status: 'success' };
-  } catch (error: any) {
-    logger.error("[applyStarterMenu] Critical Failure:", error);
-    throw new HttpsError('internal', `Failed to provision starter modifiers: ${error.message}`);
-  }
-});
-
-/**
- * applyStarterItems
- * Clones template items into a venue's collection and links them to relevant modifiers.
- */
-export const applyStarterItems = onCall({
-  region: 'us-central1',
-}, async (request) => {
-  const { venueId, venueType } = request.data || {};
-  
-  if (!venueId || !venueType) {
-    throw new HttpsError('invalid-argument', 'venueId and venueType are required.');
-  }
-
-  try {
-    const normalizedType = venueType.toLowerCase();
-    logger.info(`[applyStarterItems] Provisioning menu items for ${venueId} (Type: ${normalizedType})`);
-
-    const itemSnap = await db.collection('starter_menu_item_library')
-      .where('venueType', 'array-contains', normalizedType)
-      .get();
-      
-    if (itemSnap.empty) {
-      logger.warn(`[applyStarterItems] No menu templates found in library for type: ${normalizedType}`);
-      return { totalCreated: 0, status: 'no_templates_found' };
-    }
-
-    const modSnap = await db.collection('modifier_groups').where('sellerId', '==', venueId).get();
-    const modMap: Record<string, string> = {};
-    modSnap.forEach(m => { 
-      const name = m.data()?.name;
-      if (name) modMap[name.toLowerCase()] = m.id; 
-    });
-
-    const batch = db.batch();
-    const venueItemsRef = db.collection('sellers').doc(venueId).collection('menuItems');
-
-    const modeMap: Record<string, string> = {
-      beverageCart: "Beverage Cart",
-      clubhouse: "Clubhouse",
-      pool: "Pool",
-      laneService: "Lane Delivery",
-      takeout: "Take Out"
-    };
-
-    const operationalCatMap: Record<string, string> = {
-      alcohol: "Beer",
-      beverage: "Soft Drinks",
-      food: "Handhelds"
-    };
-
-    let count = 0;
-    itemSnap.docs.forEach((docSnap, index) => {
-      const template = docSnap.data();
-      if (!template || !template.name) return;
-
-      const itemId = `${venueId}-${docSnap.id}`;
-      const linkedIds: string[] = [];
-      if (Array.isArray(template.suggestedModifierGroups)) {
-        template.suggestedModifierGroups.forEach((name: string) => {
-          const lowerName = String(name).toLowerCase();
-          if (modMap[lowerName]) {
-            linkedIds.push(modMap[lowerName]);
-          }
-        });
-      }
-
-      let opCat = template.category || "Other";
-      if (operationalCatMap[template.category]) {
-        opCat = operationalCatMap[template.category];
-        if (template.category === 'alcohol') {
-          const n = String(template.name).toLowerCase();
-          if (n.includes('wine') || n.includes('cocktail') || n.includes('whiskey')) {
-            opCat = "Spirits";
-          }
-        }
-      }
-
-      const mode = modeMap[template.serviceMode] || "Clubhouse";
-
-      batch.set(venueItemsRef.doc(itemId), {
-        id: itemId,
-        name: template.name,
-        description: template.description || "",
-        price: Number(template.price || 0),
-        category: opCat,
-        rank: template.sortOrder || index + 1,
-        imageUrl: template.imageUrl || "", 
-        isAvailable: true,
-        availableOn: [mode],
-        modifierGroupIds: Array.from(new Set(linkedIds)),
-        createdAt: FieldValue.serverTimestamp(),
-        updatedAt: FieldValue.serverTimestamp()
-      }, { merge: true });
-      count++;
-    });
-
-    if (count > 0) {
-      await batch.commit();
-    }
-
-    logger.info(`[applyStarterItems] Successfully provisioned ${count} menu items for ${venueId}`);
-    return { totalCreated: count, status: 'success' };
-  } catch (error: any) {
-    logger.error("[applyStarterItems] Critical Failure:", error);
-    throw new HttpsError('internal', `Failed to provision menu items: ${error.message}`);
-  }
-});
-
-/**
  * dailyOperationalReset
- * Performs a system-wide sweep at the reset hour (default 4 AM EST).
- * 1. Deactivates venue service modes.
- * 2. Clears staff activeMode and location (effectively logging them out).
- * 3. Cancels stale active orders.
+ * Scheduled sweep to clear all sessions and active orders system-wide.
+ * Runs at the top of every hour, but only executes logic on the resetHour (default 4 AM EST).
  */
 export const dailyOperationalReset = onSchedule({ 
   schedule: "0 * * * *", 
@@ -309,41 +129,39 @@ export const dailyOperationalReset = onSchedule({
   const configSnap = await db.collection('solution').doc('config').get();
   const resetHour = configSnap.exists ? (configSnap.data()?.dailyResetHour ?? 4) : 4;
   
-  // Get current hour in EST
+  // Precise EST check
   const nowInEst = new Date(new Date().toLocaleString("en-US", { timeZone: "America/New_York" }));
   if (nowInEst.getHours() !== resetHour) {
     logger.info(`[dailyOperationalReset] Current hour ${nowInEst.getHours()} is not reset hour ${resetHour}. Skipping.`);
     return;
   }
 
-  logger.info(`[dailyOperationalReset] Starting system-wide operational sweep for reset hour: ${resetHour}`);
+  logger.info(`[dailyOperationalReset] STARTING SYSTEM-WIDE SWEEP FOR RESET HOUR: ${resetHour}`);
 
-  // 1. FETCH ACTIVE SELLERS
-  const sellers = await db.collection('sellers').where('status', '==', 'Active').get();
+  // Fetch all sellers to ensure comprehensive cleanup
+  const sellers = await db.collection('sellers').get();
   if (sellers.empty) {
-    logger.info("[dailyOperationalReset] No active sellers found. Sweep complete.");
+    logger.info("[dailyOperationalReset] No sellers found. Sweep complete.");
     return;
   }
 
-  // 2. ITERATE AND RESET EACH VENUE'S ECOSYSTEM
   for (const sellerDoc of sellers.docs) {
     const sellerId = sellerDoc.id;
     const batch = db.batch();
 
-    // A. Reset Venue Status
+    // A. Shutdown Service Channels
     batch.update(sellerDoc.ref, { 
       bevcartActive: false, 
       clubhouseActive: false, 
       lanedeliveryActive: false, 
-      takeoutActive: false, 
       lastActive: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp()
     });
 
-    // B. Clear Staff Sessions
+    // B. Clear All Staff Sessions (Crucial for frontend auto-logout)
     const staffRef = db.collection('sellers').doc(sellerId).collection('staff');
-    const activeStaff = await staffRef.where('activeMode', '!=', null).get();
-    activeStaff.forEach(sDoc => {
+    const staffSnapshot = await staffRef.get(); // Get all to be safe
+    staffSnapshot.forEach(sDoc => {
       batch.update(sDoc.ref, { 
         activeMode: null, 
         latitude: null, 
@@ -352,7 +170,7 @@ export const dailyOperationalReset = onSchedule({
       });
     });
 
-    // C. Cancel Stale Orders
+    // C. Cancel All Non-Delivered Orders
     const ordersRef = db.collection('orders');
     const staleOrders = await ordersRef
       .where('sellerId', '==', sellerId)
@@ -362,19 +180,27 @@ export const dailyOperationalReset = onSchedule({
     staleOrders.forEach(oDoc => {
       batch.update(oDoc.ref, { 
         status: 'Cancelled', 
-        notes: 'System Reset: Order expired at daily reset hour.',
+        notes: 'Operational Reset: Cancelled at end of business day.',
         updatedAt: FieldValue.serverTimestamp() 
       });
     });
 
     await batch.commit();
-    logger.info(`[dailyOperationalReset] Reset complete for venue: ${sellerId} (${activeStaff.size} staff, ${staleOrders.size} orders)`);
+    logger.info(`[dailyOperationalReset] Reset complete for venue: ${sellerId} (${staffSnapshot.size} staff, ${staleOrders.size} orders)`);
   }
 
   logger.info("[dailyOperationalReset] Global operational sweep finalized.");
 });
 
-export const onGuestOrderStatusUpdate = onDocumentWritten({ document: "orders/{orderId}", secrets: ["TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN", "TWILIO_FROM_NUMBER"], region: 'us-central1' }, async (event) => {
+/**
+ * onGuestOrderStatusUpdate
+ * Triggers on order changes to send SMS updates.
+ */
+export const onGuestOrderStatusUpdate = onDocumentWritten({ 
+  document: "orders/{orderId}", 
+  secrets: ["TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN", "TWILIO_FROM_NUMBER"], 
+  region: 'us-central1' 
+}, async (event) => {
   const after = event.data?.after;
   if (!after || !after.exists) return;
   
@@ -387,7 +213,8 @@ export const onGuestOrderStatusUpdate = onDocumentWritten({ document: "orders/{o
 
     const accountSid = process.env.TWILIO_ACCOUNT_SID;
     const authToken = process.env.TWILIO_AUTH_TOKEN;
-    if (!accountSid || !authToken) return;
+    const fromNumber = process.env.TWILIO_FROM_NUMBER;
+    if (!accountSid || !authToken || !fromNumber) return;
 
     const client = twilio(accountSid, authToken);
     let body = "";
@@ -403,14 +230,21 @@ export const onGuestOrderStatusUpdate = onDocumentWritten({ document: "orders/{o
 
     if (body) {
       const to = String(data.customerPhone).length === 10 ? `+1${data.customerPhone}` : `+${data.customerPhone}`;
-      await client.messages.create({ body, from: process.env.TWILIO_FROM_NUMBER!, to });
+      await client.messages.create({ body, from: fromNumber, to });
     }
   } catch (err) {
     logger.error("Twilio Task Failed", err);
   }
 });
 
-export const handleStripeWebhook = onRequest({ secrets: ["STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET"], region: 'us-central1' }, async (req, res) => {
+/**
+ * handleStripeWebhook
+ * Consumes Stripe events to create orders in Firestore.
+ */
+export const handleStripeWebhook = onRequest({ 
+  secrets: ["STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET"], 
+  region: 'us-central1' 
+}, async (req, res) => {
   const sig = req.headers['stripe-signature'];
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
   const stripeKey = process.env.STRIPE_SECRET_KEY;
@@ -427,9 +261,16 @@ export const handleStripeWebhook = onRequest({ secrets: ["STRIPE_SECRET_KEY", "S
       const pi = event.data.object as Stripe.PaymentIntent;
       const meta = pi.metadata || {};
       await db.collection('orders').add({
-        customerName: meta.customerName || 'Guest', customerPhone: meta.customerPhone || '', customerEmail: meta.customerEmail || '',
-        status: "received", sellerId: meta.sellerId || '', buyerProfileId: meta.buyerUid || 'anonymous',
-        stripePaymentIntentId: pi.id, total: (pi.amount || 0) / 100, createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp()
+        customerName: meta.customerName || 'Guest', 
+        customerPhone: meta.customerPhone || '', 
+        customerEmail: meta.customerEmail || '',
+        status: "Placed", 
+        sellerId: meta.sellerId || '', 
+        buyerProfileId: meta.buyerUid || 'anonymous',
+        stripePaymentIntentId: pi.id, 
+        total: (pi.amount || 0) / 100, 
+        createdAt: FieldValue.serverTimestamp(), 
+        updatedAt: FieldValue.serverTimestamp()
       });
     }
     res.status(200).send({ received: true });
@@ -437,4 +278,55 @@ export const handleStripeWebhook = onRequest({ secrets: ["STRIPE_SECRET_KEY", "S
     logger.error("Stripe Webhook Error", err);
     res.status(400).send(`Webhook Error: ${err.message}`); 
   }
+});
+
+/**
+ * applyStarterMenu / applyStarterItems
+ * Administrative cloning tools.
+ */
+export const applyStarterMenu = onCall({ region: 'us-central1' }, async (request) => {
+  const { venueId, venueType } = request.data || {};
+  if (!venueId || !venueType) throw new HttpsError('invalid-argument', 'venueId and venueType required.');
+  try {
+    const snapshot = await db.collection('starter_modifier_library').where('venueType', 'array-contains', venueType.toLowerCase()).get();
+    if (snapshot.empty) return { totalCreated: 0, status: 'no_templates_found' };
+    const batch = db.batch();
+    snapshot.docs.forEach(docSnap => {
+      const template = docSnap.data();
+      const groupId = `${venueId}-${docSnap.id}`;
+      batch.set(db.collection('modifier_groups').doc(groupId), {
+        id: groupId, sellerId: venueId, name: template.name,
+        minSelection: template.required ? 1 : 0,
+        maxSelection: template.selectionType === 'single' ? 1 : 99,
+        options: template.options.map((opt: any) => ({
+          id: String(opt.label).toLowerCase().replace(/\s+/g, '-'),
+          name: opt.label, priceAdjustment: opt.priceModifier, isAvailable: true
+        })),
+        updatedAt: FieldValue.serverTimestamp()
+      }, { merge: true });
+    });
+    await batch.commit();
+    return { totalCreated: snapshot.size, status: 'success' };
+  } catch (e: any) { throw new HttpsError('internal', e.message); }
+});
+
+export const applyStarterItems = onCall({ region: 'us-central1' }, async (request) => {
+  const { venueId, venueType } = request.data || {};
+  if (!venueId || !venueType) throw new HttpsError('invalid-argument', 'venueId and venueType required.');
+  try {
+    const itemSnap = await db.collection('starter_menu_item_library').where('venueType', 'array-contains', venueType.toLowerCase()).get();
+    if (itemSnap.empty) return { totalCreated: 0, status: 'no_templates_found' };
+    const batch = db.batch();
+    const venueItemsRef = db.collection('sellers').doc(venueId).collection('menuItems');
+    itemSnap.docs.forEach((docSnap, index) => {
+      const template = docSnap.data();
+      const itemId = `${venueId}-${docSnap.id}`;
+      batch.set(venueItemsRef.doc(itemId), {
+        ...template, id: itemId, availableOn: [template.serviceMode === 'beverageCart' ? 'Beverage Cart' : template.serviceMode === 'clubhouse' ? 'Clubhouse' : 'Lane Delivery'],
+        rank: index + 1, createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp()
+      }, { merge: true });
+    });
+    await batch.commit();
+    return { totalCreated: itemSnap.size, status: 'success' };
+  } catch (e: any) { throw new HttpsError('internal', e.message); }
 });
