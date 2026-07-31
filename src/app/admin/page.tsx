@@ -61,7 +61,9 @@ import {
   Phone,
   Home,
   Flame,
-  UserX
+  UserX,
+  QrCode,
+  ArrowRight
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -120,6 +122,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from '@/components/ui/checkbox';
+import Link from 'next/link';
 
 const US_STATES = [
   { code: 'AL', name: 'Alabama' }, { code: 'AK', name: 'Alaska' }, { code: 'AZ', name: 'Arizona' },
@@ -199,7 +202,40 @@ const NAV_ITEMS = [
   { id: "venues", label: "Venue Management", icon: Store },
   { id: "library", label: "Global Library", icon: Library },
   { id: "system", label: "System Control", icon: Settings2 },
-  { id: "demos", label: "Sales Demo Ops", icon: Zap },
+  { id: "demos", label: "Sales Demos", icon: Zap },
+];
+
+const DEMO_VENUES = [
+  {
+    id: 'demo-course',
+    title: 'Public Golf Menu',
+    sub: 'The Koop National (Public)',
+    type: 'Golf',
+    menuUrl: '/sellers/demo-course/order?menuType=Beverage Cart',
+    staffUrl: '/sellers/demo-course/staff-login',
+    adminUrl: '/sellers/demo-course',
+    gradient: 'from-indigo-600 to-blue-500'
+  },
+  {
+    id: 'demo-private-course',
+    title: 'Private Golf Menu',
+    sub: 'Orchard Lake CC (Private)',
+    type: 'Golf',
+    menuUrl: '/sellers/demo-private-course/order?menuType=Clubhouse',
+    staffUrl: '/sellers/demo-private-course/staff-login',
+    adminUrl: '/sellers/demo-private-course',
+    gradient: 'from-[#213147] to-slate-700'
+  },
+  {
+    id: 'demo-bowling-alley',
+    title: 'Bowling Center',
+    sub: 'Strike City Lanes',
+    type: 'Bowling',
+    menuUrl: '/sellers/demo-bowling-alley/order?menuType=Lane Delivery',
+    staffUrl: '/sellers/demo-bowling-alley/staff-login',
+    adminUrl: '/sellers/demo-bowling-alley',
+    gradient: 'from-pink-600 to-rose-500'
+  }
 ];
 
 function NavButton({ id, label, icon: Icon, active, onClick, sidebarOpen }: { 
@@ -287,6 +323,8 @@ export default function SolutionAdminPage() {
 
   const configRef = useMemoFirebase(() => (firestore ? doc(firestore, 'solution', 'config') : null), [firestore]);
   const { data: remoteConfig } = useDoc<SolutionConfig>(configRef);
+
+  const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
 
   useEffect(() => {
     if (remoteConfig) {
@@ -773,19 +811,58 @@ export default function SolutionAdminPage() {
               {activeNav === 'demos' && (
                 <div className="space-y-8 animate-in fade-in duration-500">
                    <div className="flex justify-between items-center border-b-2 pb-6">
-                     <h3 className="font-headline font-black text-2xl text-[#213147] uppercase">Sales Demo Control</h3>
+                     <h3 className="font-headline font-black text-2xl text-[#213147] uppercase">Sales Demos</h3>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <Card className="border-2 p-8 space-y-6 text-left">
-                      <div className="bg-amber-100 p-4 rounded-3xl w-fit text-amber-700"><AlertTriangle className="h-10 w-10" /></div>
-                      <div className="space-y-2">
-                        <h4 className="font-headline font-black text-xl uppercase">Full Demo Reseed</h4>
-                        <p className="text-xs text-muted-foreground">Wipes and recreates all demo venues (demo-course, etc.) with factory-default items and modifiers.</p>
-                      </div>
-                      <Button onClick={handleReseedDemos} disabled={isReseedingDemos} variant="destructive" className="w-full h-14 font-black uppercase tracking-widest text-[11px] gap-2 shadow-xl">
-                        {isReseedingDemos ? <Loader2 className="animate-spin" /> : <Zap className="h-4 w-4" />} Reseed All Demo Venues
-                      </Button>
-                    </Card>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                    {DEMO_VENUES.map((venue) => (
+                      <Card key={venue.id} className="border-2 shadow-md overflow-hidden flex flex-col group hover:border-indigo-500 transition-all bg-white">
+                        <div className={cn("h-3 w-full", venue.gradient)} />
+                        <CardHeader className="p-6 pb-2 text-left">
+                          <div className="flex items-center justify-between mb-2">
+                             <Badge variant="outline" className="text-[9px] font-black uppercase px-2">{venue.type}</Badge>
+                             <div className="bg-indigo-50 p-2 rounded-xl text-indigo-600 opacity-20 group-hover:opacity-100 transition-opacity">
+                               <Zap className="h-4 w-4" />
+                             </div>
+                          </div>
+                          <CardTitle className="font-headline font-black text-lg uppercase text-[#213147]">{venue.title}</CardTitle>
+                          <CardDescription className="text-[10px] font-bold uppercase text-muted-foreground">{venue.sub}</CardDescription>
+                        </CardHeader>
+                        <CardContent className="p-6 pt-6 flex-1 space-y-8">
+                          {/* QR CODE SECTION */}
+                          <div className="flex flex-col items-center gap-3 p-5 bg-slate-50 rounded-[2rem] border-2 border-dashed group-hover:border-indigo-200 transition-colors">
+                            <div className="bg-white p-2 rounded-2xl border-2 shadow-sm">
+                              <img 
+                                src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${baseUrl}${venue.menuUrl}`}
+                                alt="Patron QR"
+                                className="w-24 h-24"
+                              />
+                            </div>
+                            <p className="text-[9px] font-black uppercase text-muted-foreground tracking-[0.2em] flex items-center gap-1.5">
+                              <QrCode className="h-3 w-3" /> Scan for Menu
+                            </p>
+                          </div>
+
+                          {/* LINKS SECTION */}
+                          <div className="space-y-2">
+                            <Button asChild variant="outline" className="w-full justify-between h-11 text-[10px] font-black uppercase tracking-widest border-2 border-slate-100 group-hover:border-indigo-100 hover:bg-indigo-50">
+                              <Link href={venue.menuUrl}>
+                                Launch Menu <PlayCircle className="h-4 w-4 text-indigo-600" />
+                              </Link>
+                            </Button>
+                            <Button asChild variant="outline" className="w-full justify-between h-11 text-[10px] font-black uppercase tracking-widest border-2 border-slate-100 group-hover:border-indigo-100 hover:bg-indigo-50">
+                              <Link href={venue.staffUrl}>
+                                Staff Portal <Smartphone className="h-4 w-4 text-indigo-600" />
+                              </Link>
+                            </Button>
+                            <Button asChild variant="outline" className="w-full justify-between h-11 text-[10px] font-black uppercase tracking-widest border-2 border-slate-100 group-hover:border-indigo-100 hover:bg-indigo-50">
+                              <Link href={venue.adminUrl}>
+                                Venue Admin <LayoutDashboard className="h-4 w-4 text-indigo-600" />
+                              </Link>
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
                   </div>
                 </div>
               )}
@@ -807,7 +884,7 @@ export default function SolutionAdminPage() {
                     <h4 className="text-[12px] font-black uppercase tracking-[0.3em] text-red-600 flex items-center gap-2">
                        <Flame className="h-4 w-4" /> Emergency Operations
                     </h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                        <Card className="border-2 border-red-100 bg-red-50/30 p-6 flex flex-col gap-4 text-left">
                          <div className="flex items-center gap-3">
                            <div className="bg-red-100 p-2 rounded-xl text-red-600"><Power className="h-5 w-5" /></div>
@@ -831,6 +908,19 @@ export default function SolutionAdminPage() {
                          </div>
                          <Button onClick={handleWipePatrons} disabled={isWipingPatrons} className="h-12 border-2 border-amber-200 bg-white text-amber-700 hover:bg-amber-50 font-black uppercase text-[10px] tracking-widest gap-2">
                            {isWipingPatrons ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserX className="h-4 w-4" />} Wipe Patron Cache
+                         </Button>
+                       </Card>
+
+                       <Card className="border-2 border-indigo-100 bg-indigo-50/30 p-6 flex flex-col gap-4 text-left">
+                         <div className="flex items-center gap-3">
+                           <div className="bg-indigo-100 p-2 rounded-xl text-indigo-600"><Database className="h-5 w-5" /></div>
+                           <div className="text-left">
+                             <p className="text-xs font-black uppercase text-indigo-700">Full Demo Reseed</p>
+                             <p className="text-[9px] font-bold text-indigo-600/70 uppercase">Wipes and recreates all demo venues with latest defaults</p>
+                           </div>
+                         </div>
+                         <Button onClick={handleReseedDemos} disabled={isReseedingDemos} className="h-12 border-2 border-indigo-200 bg-white text-indigo-700 hover:bg-indigo-50 font-black uppercase text-[10px] tracking-widest gap-2">
+                           {isReseedingDemos ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4" />} Reseed Demo Venues
                          </Button>
                        </Card>
                     </div>
@@ -1455,7 +1545,7 @@ export default function SolutionAdminPage() {
                           <FormItem className="text-left">
                             <FormLabel className="text-[9px] font-black uppercase">Contact Email</FormLabel>
                             <div className="relative">
-                              <Mail className="absolute left-3 top-3 h-4 w-4 text-slate-300" />
+                              <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                               <FormControl><Input {...field} type="email" className="pl-11 h-11 border-2 font-bold" /></FormControl>
                             </div>
                           </FormItem>
