@@ -1,3 +1,4 @@
+
 import { Timestamp } from "firebase/firestore";
 
 export type SellerType = 'Private Golf Course' | 'Semi Private Golf Course' | 'Public Golf Course' | 'Bowling Center' | 'Brewery' | 'Restaurant';
@@ -257,4 +258,37 @@ export interface SellerAdminRole {
   sellerId: string;
   courseName: string;
   assignedAt: Timestamp;
+}
+
+export type LeadStage = 'Cold Lead' | 'On-Site Meeting' | 'Demo' | 'Offer' | 'Closed' | 'Dead';
+
+export interface Lead {
+  id: string;
+  venueName: string;
+  streetAddress: string;
+  city: string;
+  state: string;
+  zip: string;
+  county: string;
+  contactName: string;
+  phone: string;
+  email: string;
+  venueType: 'Golf Course' | 'Bowling Center' | 'Other';
+  stage: LeadStage;
+  marketFitData: {
+    golf?: {
+      hasBevCart: boolean;
+      hasClubhouseKitchen: boolean;
+      roundsAnnually: number;
+      bevCartAnnualRevenue: number;
+    };
+    bowling?: {
+      hasBar: boolean;
+      hasKitchen: boolean;
+      lanesCount: number;
+      fbAnnualRevenue: number;
+    };
+  };
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
 }

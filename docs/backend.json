@@ -190,6 +190,28 @@
         "imageUrl": { "type": "string" }
       },
       "required": ["name", "price", "category", "venueType", "serviceMode"]
+    },
+    "Lead": {
+      "title": "Lead",
+      "type": "object",
+      "description": "Prospective venue for the Sales CRM.",
+      "properties": {
+        "id": { "type": "string" },
+        "venueName": { "type": "string" },
+        "streetAddress": { "type": "string" },
+        "city": { "type": "string" },
+        "state": { "type": "string" },
+        "county": { "type": "string" },
+        "contactName": { "type": "string" },
+        "phone": { "type": "string" },
+        "email": { "type": "string" },
+        "venueType": { "type": "string", "enum": ["Golf Course", "Bowling Center", "Other"] },
+        "stage": { "type": "string", "enum": ["Cold Lead", "On-Site Meeting", "Demo", "Offer", "Closed", "Dead"] },
+        "marketFitData": { "type": "object" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["venueName", "venueType", "stage"]
     }
   },
   "auth": {
@@ -207,7 +229,8 @@
       { "path": "/menu_items/{itemId}", "definition": { "entityName": "MenuItemNormalized" } },
       { "path": "/modifier_groups/{groupId}", "definition": { "entityName": "ModifierGroup" } },
       { "path": "/starter_modifier_library/{groupId}", "definition": { "entityName": "StarterModifierGroup" } },
-      { "path": "/starter_menu_item_library/{itemId}", "definition": { "entityName": "StarterMenuItem" } }
+      { "path": "/starter_menu_item_library/{itemId}", "definition": { "entityName": "StarterMenuItem" } },
+      { "path": "/leads/{leadId}", "definition": { "entityName": "Lead" } }
     ]
   }
 }

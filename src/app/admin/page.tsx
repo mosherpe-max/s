@@ -63,7 +63,11 @@ import {
   Flame,
   UserX,
   QrCode,
-  ArrowRight
+  ArrowRight,
+  Target,
+  BarChart,
+  ClipboardCheck,
+  Building
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -105,7 +109,7 @@ import { useRouter } from 'next/navigation';
 import { useFirestore, useCollection, useMemoFirebase, useAuth, useDoc, useUser } from '@/firebase';
 import { signOut } from 'firebase/auth';
 import { collection, query, limit, doc, setDoc, serverTimestamp, where, orderBy, updateDoc, writeBatch, deleteDoc, getDoc } from 'firebase/firestore';
-import type { Seller, SolutionConfig, Order, Venue, StarterModifierGroup, StarterMenuItem, OrderFulfillmentThresholds } from '@/lib/types';
+import type { Seller, SolutionConfig, Order, Venue, StarterModifierGroup, StarterMenuItem, OrderFulfillmentThresholds, Lead, LeadStage } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { cn, SUPER_ADMIN_ID } from '@/lib/utils';
 import { StylizedKoopLogo } from '@/components/header';
@@ -143,6 +147,36 @@ const US_STATES = [
   { code: 'VA', name: 'Virginia' }, { code: 'WA', name: 'Washington' }, { code: 'WV', name: 'West Virginia' },
   { code: 'WI', name: 'Wisconsin' }, { code: 'WY', name: 'Wyoming' }
 ];
+
+const leadSchema = z.object({
+  venueName: z.string().min(2, 'Venue name required'),
+  venueType: z.enum(['Golf Course', 'Bowling Center', 'Other']),
+  stage: z.enum(['Cold Lead', 'On-Site Meeting', 'Demo', 'Offer', 'Closed', 'Dead']),
+  streetAddress: z.string().default(''),
+  city: z.string().default(''),
+  state: z.string().default(''),
+  zip: z.string().default(''),
+  county: z.string().default(''),
+  contactName: z.string().min(2, 'Contact name required'),
+  phone: z.string().default(''),
+  email: z.string().email('Valid email required'),
+  marketFitData: z.object({
+    golf: z.object({
+      hasBevCart: z.boolean().default(false),
+      hasClubhouseKitchen: z.boolean().default(false),
+      roundsAnnually: z.coerce.number().default(0),
+      bevCartAnnualRevenue: z.coerce.number().default(0),
+    }).optional(),
+    bowling: z.object({
+      hasBar: z.boolean().default(false),
+      hasKitchen: z.boolean().default(false),
+      lanesCount: z.coerce.number().default(0),
+      fbAnnualRevenue: z.coerce.number().default(0),
+    }).optional(),
+  }).default({}),
+});
+
+type LeadFormData = z.infer<typeof leadSchema>;
 
 const starterModifierSchema = z.object({
   name: z.string().min(2, 'Group name required'),
@@ -199,6 +233,7 @@ type VenueSettingsFormData = z.infer<typeof venueSettingsSchema>;
 
 const NAV_ITEMS = [
   { id: "dashboard", label: "Global Overview", icon: LayoutDashboard },
+  { id: "sales", label: "Sales CRM", icon: Target },
   { id: "venues", label: "Venue Management", icon: Store },
   { id: "library", label: "Global Library", icon: Library },
   { id: "system", label: "System Control", icon: Settings2 },
@@ -291,6 +326,10 @@ export default function SolutionAdminPage() {
   const [editingLibraryItem, setEditingLibraryItem] = useState<StarterModifierGroup | null>(null);
   const [editingItemTemplate, setEditingItemTemplate] = useState<StarterMenuItem | null>(null);
 
+  const [isLeadFormOpen, setIsLeadFormOpen] = useState(false);
+  const [editingLead, setEditingLead] = useState<Lead | null>(null);
+  const [leadSearchTerm, setLeadSearchTerm] = useState('');
+
   const [isVenueSettingsOpen, setIsVenueSettingsOpen] = useState(false);
   const [selectedVenue, setSelectedVenue] = useState<Seller | null>(null);
 
@@ -377,10 +416,12 @@ export default function SolutionAdminPage() {
   const libraryQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'starter_modifier_library') : null), [firestore]);
   const itemLibQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'starter_menu_item_library') : null), [firestore]);
   const venuesQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'sellers') : null), [firestore]);
+  const leadsQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'leads') : null), [firestore]);
 
   const { data: libraryItems } = useCollection<StarterModifierGroup>(libraryQuery);
   const { data: itemLibrary } = useCollection<StarterMenuItem>(itemLibQuery);
   const { data: venues } = useCollection<Seller>(venuesQuery);
+  const { data: leads } = useCollection<Lead>(leadsQuery);
 
   const libraryForm = useForm<StarterModifierFormData>({
     resolver: zodResolver(starterModifierSchema),
@@ -392,6 +433,27 @@ export default function SolutionAdminPage() {
   const itemLibraryForm = useForm<StarterMenuItemFormData>({
     resolver: zodResolver(starterMenuItemSchema),
     defaultValues: { name: '', description: '', price: 0, category: 'food', venueType: ['golf'], serviceMode: 'beverageCart', suggestedModifierGroups: [], sortOrder: 0, imageUrl: '' }
+  });
+
+  const leadForm = useForm<LeadFormData>({
+    resolver: zodResolver(leadSchema),
+    defaultValues: {
+      venueName: '',
+      venueType: 'Golf Course',
+      stage: 'Cold Lead',
+      streetAddress: '',
+      city: '',
+      state: '',
+      zip: '',
+      county: '',
+      contactName: '',
+      phone: '',
+      email: '',
+      marketFitData: {
+        golf: { hasBevCart: false, hasClubhouseKitchen: false, roundsAnnually: 0, bevCartAnnualRevenue: 0 },
+        bowling: { hasBar: false, hasKitchen: false, lanesCount: 0, fbAnnualRevenue: 0 }
+      }
+    }
   });
 
   const venueSettingsForm = useForm<VenueSettingsFormData>({
@@ -418,6 +480,36 @@ export default function SolutionAdminPage() {
       isFoundingPartner: false 
     }
   });
+
+  const handleSaveLead = async (data: LeadFormData) => {
+    if (!firestore) return;
+    setIsProcessingSave(true);
+    const id = editingLead?.id || Math.random().toString(36).substr(2, 9);
+    
+    // Ensure nested objects are initialized if missing
+    const finalData = {
+      ...data,
+      id,
+      updatedAt: serverTimestamp(),
+      createdAt: editingLead?.createdAt || serverTimestamp()
+    };
+
+    setDoc(doc(firestore, 'leads', id), finalData, { merge: true })
+      .then(() => {
+        toast({ title: editingLead ? "Lead Updated" : "Lead Created" });
+        setIsLeadFormOpen(false);
+        setEditingLead(null);
+      })
+      .finally(() => setIsProcessingSave(false));
+  };
+
+  const handleDeleteLead = async (id: string) => {
+    if (!firestore) return;
+    if (!confirm('Are you sure you want to delete this lead?')) return;
+    deleteDoc(doc(firestore, 'leads', id)).then(() => {
+      toast({ title: "Lead Deleted" });
+    });
+  };
 
   const handleEditVenueSettings = async (s: Seller) => {
     if (!firestore) return;
@@ -586,6 +678,7 @@ export default function SolutionAdminPage() {
 
   const filteredLibraryItems = (libraryItems || []).filter(item => item.name.toLowerCase().includes(librarySearchTerm.toLowerCase())).sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
   const filteredItemTemplates = (itemLibrary || []).filter(item => item.name.toLowerCase().includes(librarySearchTerm.toLowerCase())).sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+  const filteredLeads = (leads || []).filter(l => l.venueName.toLowerCase().includes(leadSearchTerm.toLowerCase())).sort((a, b) => (b.updatedAt?.toMillis() || 0) - (a.updatedAt?.toMillis() || 0));
 
   const NavContent = () => (
     <nav className="space-y-1">
@@ -657,6 +750,126 @@ export default function SolutionAdminPage() {
                     <KPICard label="Master Templates" value={(libraryItems?.length || 0) + (itemLibrary?.length || 0)} sub="Library Entities" icon={Library} colorClass="bg-primary" />
                     <KPICard label="System Health" value="100%" sub="All Feeds Live" icon={Activity} colorClass="bg-emerald-500" />
                   </div>
+                </div>
+              )}
+
+              {activeNav === 'sales' && (
+                <div className="space-y-8 animate-in fade-in duration-500">
+                  <div className="flex justify-between items-center border-b-2 pb-6">
+                    <div className="space-y-1">
+                      <h3 className="font-headline font-black text-2xl text-[#213147] uppercase">Sales CRM</h3>
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Manage leads and track sales funnel progression</p>
+                    </div>
+                    <Button onClick={() => { 
+                      setEditingLead(null); 
+                      leadForm.reset({
+                        venueName: '',
+                        venueType: 'Golf Course',
+                        stage: 'Cold Lead',
+                        streetAddress: '',
+                        city: '',
+                        state: '',
+                        zip: '',
+                        county: '',
+                        contactName: '',
+                        phone: '',
+                        email: '',
+                        marketFitData: {
+                          golf: { hasBevCart: false, hasClubhouseKitchen: false, roundsAnnually: 0, bevCartAnnualRevenue: 0 },
+                          bowling: { hasBar: false, hasKitchen: false, lanesCount: 0, fbAnnualRevenue: 0 }
+                        }
+                      }); 
+                      setIsLeadFormOpen(true); 
+                    }} className="bg-primary font-black uppercase text-[10px] tracking-widest gap-2 shadow-xl h-11 px-6">
+                      <Plus className="h-4 w-4" /> Add New Lead
+                    </Button>
+                  </div>
+
+                  <Tabs defaultValue="list" className="space-y-6">
+                    <TabsList className="bg-slate-100 p-1 rounded-xl h-11">
+                      <TabsTrigger value="list" className="text-[10px] font-black uppercase tracking-widest px-8">Manage Leads</TabsTrigger>
+                      <TabsTrigger value="funnel" className="text-[10px] font-black uppercase tracking-widest px-8">Sales Funnel</TabsTrigger>
+                    </TabsList>
+
+                    <TabsContent value="list" className="space-y-4">
+                      <div className="flex bg-white p-2 px-3 rounded-xl border-2 shadow-sm gap-3 items-center w-full max-w-md">
+                        <Search className="h-4 w-4 text-muted-foreground shrink-0" />
+                        <Input placeholder="Search leads..." value={leadSearchTerm} onChange={(e) => setLeadSearchTerm(e.target.value)} className="border-0 shadow-none text-xs font-medium p-0 h-auto" />
+                      </div>
+
+                      <div className="border-2 rounded-[2rem] overflow-hidden bg-white shadow-sm">
+                        <Table>
+                          <TableHeader className="bg-slate-50">
+                            <TableRow>
+                              <TableHead className="text-[10px] font-black uppercase px-6 h-12">Venue</TableHead>
+                              <TableHead className="text-[10px] font-black uppercase px-6 h-12">Contact</TableHead>
+                              <TableHead className="text-[10px] font-black uppercase px-6 h-12">Stage</TableHead>
+                              <TableHead className="text-[10px] font-black uppercase px-6 h-12 text-right">Actions</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {filteredLeads.length === 0 ? (
+                              <TableRow>
+                                <TableCell colSpan={4} className="h-40 text-center text-muted-foreground uppercase text-[10px] font-black opacity-30">No leads in database</TableCell>
+                              </TableRow>
+                            ) : filteredLeads.map(lead => (
+                              <TableRow key={lead.id} className="group">
+                                <TableCell className="px-6 py-4">
+                                  <p className="font-black text-sm text-[#213147]">{lead.venueName}</p>
+                                  <p className="text-[9px] font-bold text-muted-foreground uppercase">{lead.city}, {lead.state} {lead.county && `(${lead.county} Co)`}</p>
+                                </TableCell>
+                                <TableCell className="px-6 py-4">
+                                  <p className="font-bold text-xs">{lead.contactName}</p>
+                                  <p className="text-[9px] text-muted-foreground">{lead.email}</p>
+                                </TableCell>
+                                <TableCell className="px-6 py-4">
+                                  <Badge className={cn(
+                                    "text-[8px] font-black uppercase",
+                                    lead.stage === 'Closed' ? "bg-green-100 text-green-700" :
+                                    lead.stage === 'Dead' ? "bg-slate-100 text-slate-400" :
+                                    "bg-indigo-100 text-indigo-700"
+                                  )}>
+                                    {lead.stage}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell className="px-6 py-4 text-right">
+                                  <div className="flex justify-end gap-1">
+                                    <Button variant="ghost" size="icon" onClick={() => { setEditingLead(lead); leadForm.reset(lead); setIsLeadFormOpen(true); }} className="h-8 w-8 text-indigo-600">
+                                      <Edit className="h-4 w-4" />
+                                    </Button>
+                                    <Button variant="ghost" size="icon" onClick={() => handleDeleteLead(lead.id)} className="h-8 w-8 text-destructive">
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </TabsContent>
+
+                    <TabsContent value="funnel" className="space-y-8">
+                       <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                         {['Cold Lead', 'On-Site Meeting', 'Demo', 'Offer', 'Closed', 'Dead'].map(stage => (
+                           <div key={stage} className="space-y-4">
+                             <div className="flex items-center justify-between px-2">
+                               <Badge variant="outline" className="text-[8px] font-black uppercase tracking-widest">{stage}</Badge>
+                               <span className="text-[10px] font-black text-muted-foreground">{(leads || []).filter(l => l.stage === stage).length}</span>
+                             </div>
+                             <div className="space-y-2">
+                               {(leads || []).filter(l => l.stage === stage).map(lead => (
+                                 <Card key={lead.id} className="p-3 border-2 shadow-sm hover:border-primary transition-all cursor-pointer" onClick={() => { setEditingLead(lead); leadForm.reset(lead); setIsLeadFormOpen(true); }}>
+                                   <p className="text-[10px] font-black uppercase truncate text-[#213147]">{lead.venueName}</p>
+                                   <p className="text-[8px] font-bold text-muted-foreground uppercase mt-1">{lead.city}, {lead.state}</p>
+                                 </Card>
+                               ))}
+                             </div>
+                           </div>
+                         ))}
+                       </div>
+                    </TabsContent>
+                  </Tabs>
                 </div>
               )}
 
@@ -919,7 +1132,7 @@ export default function SolutionAdminPage() {
                              <p className="text-[9px] font-bold text-indigo-600/70 uppercase">Wipes and recreates all demo venues with latest defaults</p>
                            </div>
                          </div>
-                         <Button onClick={handleReseedDemos} disabled={isReseedingDemos} className="h-12 border-2 border-indigo-200 bg-white text-indigo-700 hover:bg-indigo-50 font-black uppercase text-[10px] tracking-widest gap-2">
+                         <Button onClick={handleReseedDemos} disabled={isReseedingDemos} className="h-12 border-2 border-indigo-200 bg-white text-indigo-700 hover:bg-amber-50 font-black uppercase text-[10px] tracking-widest gap-2">
                            {isReseedingDemos ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4" />} Reseed Demo Venues
                          </Button>
                        </Card>
@@ -1109,6 +1322,158 @@ export default function SolutionAdminPage() {
           </div>
         </main>
       </div>
+
+      {/* Sales CRM Lead Form */}
+      <Dialog open={isLeadFormOpen} onOpenChange={setIsLeadFormOpen}>
+        <DialogContent className="sm:max-w-[750px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
+          <DialogHeader className="p-8 bg-[#213147] text-white text-left">
+            <div className="flex items-center gap-4 text-left">
+              <div className="bg-white/10 p-3 rounded-2xl shrink-0"><Target className="h-6 w-6 text-primary" /></div>
+              <div className="text-left">
+                <DialogTitle className="font-headline font-black uppercase tracking-tight text-white text-xl">{editingLead ? 'Modify Prospect' : 'New CRM Prospect'}</DialogTitle>
+                <DialogDescription className="text-white/40 text-[10px] font-bold uppercase tracking-widest mt-1">Lead & Market Fit Data Registry</DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+          <ScrollArea className="max-h-[80vh]">
+            <div className="p-8 text-left">
+              <Form {...leadForm}>
+                <form onSubmit={leadForm.handleSubmit(handleSaveLead)} className="space-y-10">
+                  <div className="space-y-6">
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-primary flex items-center gap-2">
+                       <Store className="h-3 w-3" /> Core Lead Info
+                    </Label>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <FormField control={leadForm.control} name="venueName" render={({ field }) => (
+                        <FormItem><FormLabel className="text-[9px] font-black uppercase">Venue Name</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl><FormMessage /></FormItem>
+                      )} />
+                      <FormField control={leadForm.control} name="venueType" render={({ field }) => (
+                        <FormItem><FormLabel className="text-[9px] font-black uppercase">Venue Type</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger className="h-11 border-2 font-bold"><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="Golf Course">Golf Course</SelectItem><SelectItem value="Bowling Center">Bowling Center</SelectItem><SelectItem value="Other">Other</SelectItem></SelectContent></Select></FormItem>
+                      )} />
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                       <FormField control={leadForm.control} name="streetAddress" render={({ field }) => (
+                        <FormItem className="md:col-span-2"><FormLabel className="text-[9px] font-black uppercase">Street Address</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>
+                      )} />
+                      <FormField control={leadForm.control} name="county" render={({ field }) => (
+                        <FormItem><FormLabel className="text-[9px] font-black uppercase">County</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>
+                      )} />
+                    </div>
+                    <div className="grid grid-cols-3 gap-4">
+                      <FormField control={leadForm.control} name="city" render={({ field }) => (
+                        <FormItem><FormLabel className="text-[9px] font-black uppercase">City</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>
+                      )} />
+                      <FormField control={leadForm.control} name="state" render={({ field }) => (
+                        <FormItem><FormLabel className="text-[9px] font-black uppercase">State</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger className="h-11 border-2 font-bold"><SelectValue placeholder="Select State" /></SelectTrigger></FormControl><SelectContent>{US_STATES.map(s => <SelectItem key={s.code} value={s.code}>{s.name}</SelectItem>)}</SelectContent></Select></FormItem>
+                      )} />
+                      <FormField control={leadForm.control} name="zip" render={({ field }) => (
+                        <FormItem><FormLabel className="text-[9px] font-black uppercase">Zip</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>
+                      )} />
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  <div className="space-y-6">
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-primary flex items-center gap-2">
+                       <User className="h-3 w-3" /> Contact Details
+                    </Label>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <FormField control={leadForm.control} name="contactName" render={({ field }) => (
+                        <FormItem><FormLabel className="text-[9px] font-black uppercase">Prime Contact</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>
+                      )} />
+                      <FormField control={leadForm.control} name="phone" render={({ field }) => (
+                        <FormItem><FormLabel className="text-[9px] font-black uppercase">Phone</FormLabel><FormControl><Input {...field} type="tel" className="h-11 border-2 font-bold" /></FormControl></FormItem>
+                      )} />
+                      <FormField control={leadForm.control} name="email" render={({ field }) => (
+                        <FormItem><FormLabel className="text-[9px] font-black uppercase">Email</FormLabel><FormControl><Input {...field} type="email" className="h-11 border-2 font-bold" /></FormControl></FormItem>
+                      )} />
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  <div className="space-y-6">
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-primary flex items-center gap-2">
+                       <ClipboardList className="h-3 w-3" /> Sales Funnel State
+                    </Label>
+                    <FormField control={leadForm.control} name="stage" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-[9px] font-black uppercase">Current Pipeline Stage</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl><SelectTrigger className="h-11 border-2 font-bold"><SelectValue /></SelectTrigger></FormControl>
+                          <SelectContent>
+                            <SelectItem value="Cold Lead">Cold Lead</SelectItem>
+                            <SelectItem value="On-Site Meeting">On-Site Meeting</SelectItem>
+                            <SelectItem value="Demo">Demo</SelectItem>
+                            <SelectItem value="Offer">Offer</SelectItem>
+                            <SelectItem value="Closed">Closed</SelectItem>
+                            <SelectItem value="Dead">Dead</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </FormItem>
+                    )} />
+                  </div>
+
+                  <Separator />
+
+                  <div className="space-y-6">
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-primary flex items-center gap-2">
+                       <BarChart className="h-3 w-3" /> Critical Market Fit Data
+                    </Label>
+                    
+                    {leadForm.watch('venueType') === 'Golf Course' && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-slate-50 p-6 rounded-[2rem] border-2">
+                        <div className="space-y-4">
+                          <FormField control={leadForm.control} name="marketFitData.golf.hasBevCart" render={({ field }) => (
+                            <FormItem className="flex items-center justify-between p-3 rounded-xl border bg-white space-y-0 h-11"><FormLabel className="text-[10px] font-black uppercase">Beverage Cart</FormLabel><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl></FormItem>
+                          )} />
+                          <FormField control={leadForm.control} name="marketFitData.golf.hasClubhouseKitchen" render={({ field }) => (
+                            <FormItem className="flex items-center justify-between p-3 rounded-xl border bg-white space-y-0 h-11"><FormLabel className="text-[10px] font-black uppercase">Clubhouse Kitchen</FormLabel><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl></FormItem>
+                          )} />
+                        </div>
+                        <div className="space-y-4">
+                          <FormField control={leadForm.control} name="marketFitData.golf.roundsAnnually" render={({ field }) => (
+                            <FormItem><FormLabel className="text-[9px] font-black uppercase">Rounds Annually</FormLabel><FormControl><Input type="number" {...field} className="h-10 border-2 font-bold" /></FormControl></FormItem>
+                          )} />
+                          <FormField control={leadForm.control} name="marketFitData.golf.bevCartAnnualRevenue" render={({ field }) => (
+                            <FormItem><FormLabel className="text-[9px] font-black uppercase">Bev Cart Annual Rev ($)</FormLabel><FormControl><Input type="number" {...field} className="h-10 border-2 font-bold" /></FormControl></FormItem>
+                          )} />
+                        </div>
+                      </div>
+                    )}
+
+                    {leadForm.watch('venueType') === 'Bowling Center' && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-slate-50 p-6 rounded-[2rem] border-2">
+                        <div className="space-y-4">
+                          <FormField control={leadForm.control} name="marketFitData.bowling.hasBar" render={({ field }) => (
+                            <FormItem className="flex items-center justify-between p-3 rounded-xl border bg-white space-y-0 h-11"><FormLabel className="text-[10px] font-black uppercase">Full Bar</FormLabel><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl></FormItem>
+                          )} />
+                          <FormField control={leadForm.control} name="marketFitData.bowling.hasKitchen" render={({ field }) => (
+                            <FormItem className="flex items-center justify-between p-3 rounded-xl border bg-white space-y-0 h-11"><FormLabel className="text-[10px] font-black uppercase">Full Kitchen</FormLabel><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl></FormItem>
+                          )} />
+                        </div>
+                        <div className="space-y-4">
+                          <FormField control={leadForm.control} name="marketFitData.bowling.lanesCount" render={({ field }) => (
+                            <FormItem><FormLabel className="text-[9px] font-black uppercase">Number of Lanes</FormLabel><FormControl><Input type="number" {...field} className="h-10 border-2 font-bold" /></FormControl></FormItem>
+                          )} />
+                          <FormField control={leadForm.control} name="marketFitData.bowling.fbAnnualRevenue" render={({ field }) => (
+                            <FormItem><FormLabel className="text-[9px] font-black uppercase">F&B Annual Revenue ($)</FormLabel><FormControl><Input type="number" {...field} className="h-10 border-2 font-bold" /></FormControl></FormItem>
+                          )} />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <Button type="submit" disabled={isProcessingSave} className="w-full h-14 bg-[#213147] font-black uppercase tracking-widest text-[11px] gap-2 shadow-xl">
+                    {isProcessingSave ? <Loader2 className="animate-spin" /> : <Save className="h-4 w-4" />} Synchronize CRM Record
+                  </Button>
+                </form>
+              </Form>
+            </div>
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
 
       {/* Modifier Template Form */}
       <Dialog open={isLibraryFormOpen} onOpenChange={setIsLibraryFormOpen}>
