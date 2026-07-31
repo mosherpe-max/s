@@ -160,6 +160,7 @@ function OrderTrackingContent() {
               primaryDriverId={order.assignedStaffId}
               radius={order.status === 'Placed' ? 804.672 : undefined}
               zoomMode={order.status === 'Placed' ? 'radius' : 'all'}
+              showPrimaryMarker={showBilateral}
               interactive={false} 
             />
           )}
