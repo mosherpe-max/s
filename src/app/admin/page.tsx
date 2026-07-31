@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import Image from 'next/image';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { 
@@ -67,7 +67,11 @@ import {
   Target,
   BarChart,
   ClipboardCheck,
-  Building
+  Building,
+  Upload,
+  FileSpreadsheet,
+  Download,
+  Info
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -127,6 +131,7 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from '@/components/ui/checkbox';
 import Link from 'next/link';
+import * as XLSX from 'xlsx';
 
 const US_STATES = [
   { code: 'AL', name: 'Alabama' }, { code: 'AK', name: 'Alaska' }, { code: 'AZ', name: 'Arizona' },
@@ -327,8 +332,10 @@ export default function SolutionAdminPage() {
   const [editingItemTemplate, setEditingItemTemplate] = useState<StarterMenuItem | null>(null);
 
   const [isLeadFormOpen, setIsLeadFormOpen] = useState(false);
+  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
   const [leadSearchTerm, setLeadSearchTerm] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [isVenueSettingsOpen, setIsVenueSettingsOpen] = useState(false);
   const [selectedVenue, setSelectedVenue] = useState<Seller | null>(null);
@@ -503,6 +510,133 @@ export default function SolutionAdminPage() {
       .finally(() => setIsProcessingSave(false));
   };
 
+  const handleImportExcel = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !firestore) return;
+
+    setIsProcessingSave(true);
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      try {
+        const bstr = e.target?.result;
+        const workbook = XLSX.read(bstr, { type: 'binary' });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const data = XLSX.utils.sheet_to_json(worksheet);
+
+        if (data.length === 0) throw new Error("Spreadsheet is empty");
+
+        const batch = writeBatch(firestore);
+        let count = 0;
+
+        data.forEach((row: any) => {
+          const id = Math.random().toString(36).substr(2, 9);
+          const leadRef = doc(firestore, 'leads', id);
+          
+          const leadType = row.venueType || row.Type || 'Other';
+          const stage = row.stage || row.Stage || 'Cold Lead';
+
+          const leadData = {
+            id,
+            venueName: row.venueName || row['Venue Name'] || 'Unknown Venue',
+            venueType: leadType,
+            stage,
+            streetAddress: row.streetAddress || row['Street Address'] || '',
+            city: row.city || row['City'] || '',
+            state: row.state || row['State'] || '',
+            zip: row.zip || row['Zip'] || '',
+            county: row.county || row['County'] || '',
+            contactName: row.contactName || row['Contact Name'] || 'Main Contact',
+            phone: row.phone || row['Phone'] || '',
+            email: row.email || row['Email'] || '',
+            marketFitData: {
+              golf: {
+                hasBevCart: row.golf_hasBevCart === 'Yes' || row.golf_hasBevCart === true,
+                hasClubhouseKitchen: row.golf_hasClubhouseKitchen === 'Yes' || row.golf_hasClubhouseKitchen === true,
+                roundsAnnually: Number(row.golf_roundsAnnually) || 0,
+                bevCartAnnualRevenue: Number(row.golf_bevCartAnnualRevenue) || 0,
+              },
+              bowling: {
+                hasBar: row.bowling_hasBar === 'Yes' || row.bowling_hasBar === true,
+                hasKitchen: row.bowling_hasKitchen === 'Yes' || row.bowling_hasKitchen === true,
+                lanesCount: Number(row.bowling_lanesCount) || 0,
+                fbAnnualRevenue: Number(row.bowling_fbAnnualRevenue) || 0,
+              }
+            },
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp()
+          };
+          
+          batch.set(leadRef, leadData);
+          count++;
+        });
+
+        await batch.commit();
+        toast({ title: "Batch Import Complete", description: `Successfully added ${count} leads to the database.` });
+        setIsImportDialogOpen(false);
+      } catch (err: any) {
+        toast({ variant: "destructive", title: "Import Failed", description: err.message });
+      } finally {
+        setIsProcessingSave(false);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+      }
+    };
+    reader.readAsBinaryString(file);
+  };
+
+  const downloadExcelTemplate = () => {
+    const templateData = [
+      {
+        'Venue Name': 'Example Golf Club',
+        'Type': 'Golf Course',
+        'Stage': 'Cold Lead',
+        'Street Address': '123 Fairway Ln',
+        'City': 'Bloomfield',
+        'State': 'MI',
+        'Zip': '48301',
+        'County': 'Oakland',
+        'Contact Name': 'John Doe',
+        'Phone': '555-0123',
+        'Email': 'john@example.com',
+        'golf_hasBevCart': 'Yes',
+        'golf_hasClubhouseKitchen': 'Yes',
+        'golf_roundsAnnually': 32000,
+        'golf_bevCartAnnualRevenue': 450000,
+        'bowling_hasBar': '',
+        'bowling_hasKitchen': '',
+        'bowling_lanesCount': '',
+        'bowling_fbAnnualRevenue': ''
+      },
+      {
+        'Venue Name': 'Strike City Lanes',
+        'Type': 'Bowling Center',
+        'Stage': 'Demo',
+        'Street Address': '888 Spare Ave',
+        'City': 'Rochester',
+        'State': 'NY',
+        'Zip': '14604',
+        'County': 'Monroe',
+        'Contact Name': 'Jane Smith',
+        'Phone': '555-9999',
+        'Email': 'jane@strikecity.com',
+        'golf_hasBevCart': '',
+        'golf_hasClubhouseKitchen': '',
+        'golf_roundsAnnually': '',
+        'golf_bevCartAnnualRevenue': '',
+        'bowling_hasBar': 'Yes',
+        'bowling_hasKitchen': 'Yes',
+        'bowling_lanesCount': 24,
+        'bowling_fbAnnualRevenue': 800000
+      }
+    ];
+
+    const worksheet = XLSX.utils.json_to_sheet(templateData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Lead Template");
+    XLSX.writeFile(workbook, "KOOP_Lead_Import_Template.xlsx");
+    toast({ title: "Template Downloaded", description: "Follow the format in the file for best results." });
+  };
+
   const handleDeleteLead = async (id: string) => {
     if (!firestore) return;
     if (!confirm('Are you sure you want to delete this lead?')) return;
@@ -529,7 +663,7 @@ export default function SolutionAdminPage() {
       zip: s.zip || '',
       contactName: s.contactName || '',
       contactPhone: s.contactPhone || '',
-      contactEmail: s.contactEmail || s.contactEmail || '',
+      contactEmail: vData?.contactEmail || s.contactEmail || '',
       stripeAccountId: vData?.stripeAccountId || s.stripeAccountId || '',
       stripeConnectId: vData?.stripeConnectId || '',
       solutionFeeFixed: vData?.solutionFeeFixed || 0,
@@ -755,34 +889,39 @@ export default function SolutionAdminPage() {
 
               {activeNav === 'sales' && (
                 <div className="space-y-8 animate-in fade-in duration-500">
-                  <div className="flex justify-between items-center border-b-2 pb-6">
+                  <div className="flex flex-col md:flex-row gap-4 md:items-center justify-between border-b-2 pb-6">
                     <div className="space-y-1">
                       <h3 className="font-headline font-black text-2xl text-[#213147] uppercase">Sales CRM</h3>
                       <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Manage leads and track sales funnel progression</p>
                     </div>
-                    <Button onClick={() => { 
-                      setEditingLead(null); 
-                      leadForm.reset({
-                        venueName: '',
-                        venueType: 'Golf Course',
-                        stage: 'Cold Lead',
-                        streetAddress: '',
-                        city: '',
-                        state: '',
-                        zip: '',
-                        county: '',
-                        contactName: '',
-                        phone: '',
-                        email: '',
-                        marketFitData: {
-                          golf: { hasBevCart: false, hasClubhouseKitchen: false, roundsAnnually: 0, bevCartAnnualRevenue: 0 },
-                          bowling: { hasBar: false, hasKitchen: false, lanesCount: 0, fbAnnualRevenue: 0 }
-                        }
-                      }); 
-                      setIsLeadFormOpen(true); 
-                    }} className="bg-primary font-black uppercase text-[10px] tracking-widest gap-2 shadow-xl h-11 px-6">
-                      <Plus className="h-4 w-4" /> Add New Lead
-                    </Button>
+                    <div className="flex flex-wrap gap-3">
+                      <Button onClick={() => setIsImportDialogOpen(true)} variant="outline" className="bg-white border-2 border-slate-100 font-black uppercase text-[10px] tracking-widest gap-2 h-11 px-6">
+                        <Upload className="h-4 w-4 text-primary" /> Batch Import
+                      </Button>
+                      <Button onClick={() => { 
+                        setEditingLead(null); 
+                        leadForm.reset({
+                          venueName: '',
+                          venueType: 'Golf Course',
+                          stage: 'Cold Lead',
+                          streetAddress: '',
+                          city: '',
+                          state: '',
+                          zip: '',
+                          county: '',
+                          contactName: '',
+                          phone: '',
+                          email: '',
+                          marketFitData: {
+                            golf: { hasBevCart: false, hasClubhouseKitchen: false, roundsAnnually: 0, bevCartAnnualRevenue: 0 },
+                            bowling: { hasBar: false, hasKitchen: false, lanesCount: 0, fbAnnualRevenue: 0 }
+                          }
+                        }); 
+                        setIsLeadFormOpen(true); 
+                      }} className="bg-primary font-black uppercase text-[10px] tracking-widest gap-2 shadow-xl h-11 px-6">
+                        <Plus className="h-4 w-4" /> Add New Lead
+                      </Button>
+                    </div>
                   </div>
 
                   <Tabs defaultValue="list" className="space-y-6">
@@ -1322,6 +1461,52 @@ export default function SolutionAdminPage() {
           </div>
         </main>
       </div>
+
+      {/* Import Terminal Dialog */}
+      <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
+        <DialogContent className="sm:max-w-[500px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl">
+          <DialogHeader className="p-8 bg-[#213147] text-white">
+            <div className="flex items-center gap-4">
+              <div className="bg-primary/20 p-3 rounded-2xl"><FileSpreadsheet className="h-6 w-6 text-primary" /></div>
+              <div className="text-left">
+                <DialogTitle className="font-headline font-black uppercase tracking-tight text-white text-xl">Batch Lead Import</DialogTitle>
+                <DialogDescription className="text-white/40 text-[10px] font-bold uppercase tracking-widest mt-1">Upload Excel/CSV Database</DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+          <div className="p-8 space-y-8">
+            <div className="space-y-4">
+              <div className="bg-slate-50 p-6 rounded-[2rem] border-2 border-dashed flex flex-col items-center gap-4 text-center group hover:border-primary transition-colors cursor-pointer" onClick={() => fileInputRef.current?.click()}>
+                <div className="bg-white p-4 rounded-2xl shadow-sm border-2 group-hover:scale-105 transition-transform"><Upload className="h-8 w-8 text-primary" /></div>
+                <div className="space-y-1">
+                  <p className="text-[11px] font-black uppercase text-[#213147]">Click to select spreadsheet</p>
+                  <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">Supported formats: .xlsx, .xls, .csv</p>
+                </div>
+                <input type="file" ref={fileInputRef} onChange={handleImportExcel} className="hidden" accept=".xlsx, .xls, .csv" />
+              </div>
+              
+              <div className="bg-indigo-50/50 p-5 rounded-2xl border-2 border-indigo-100 flex items-start gap-4">
+                <Info className="h-5 w-5 text-indigo-600 shrink-0" />
+                <div className="space-y-2">
+                  <p className="text-[10px] font-black uppercase text-indigo-700 tracking-widest">Import Instructions</p>
+                  <p className="text-[9px] font-bold text-indigo-600/70 uppercase leading-relaxed">Ensure your columns match our master schema. Use the template provided below for best results.</p>
+                  <Button onClick={downloadExcelTemplate} variant="link" className="h-auto p-0 text-[10px] font-black uppercase tracking-widest text-indigo-600 gap-1.5"><Download className="h-3 w-3" /> Get Standard Template</Button>
+                </div>
+              </div>
+            </div>
+
+            {isProcessingSave && (
+              <div className="flex items-center justify-center gap-3 py-2 animate-in fade-in">
+                <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Parsing Terminal Data...</span>
+              </div>
+            )}
+          </div>
+          <DialogFooter className="px-8 pb-8">
+            <Button variant="ghost" onClick={() => setIsImportDialogOpen(false)} className="text-[10px] font-black uppercase tracking-widest">Cancel</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Sales CRM Lead Form */}
       <Dialog open={isLeadFormOpen} onOpenChange={setIsLeadFormOpen}>
