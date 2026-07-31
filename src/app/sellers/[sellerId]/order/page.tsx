@@ -162,7 +162,6 @@ function StripeActionArea({
   patronName,
   patronPhone,
   stripeCustomerId,
-  idFields,
   saveInfo,
   setSaveInfo
 }: any) {
@@ -194,6 +193,12 @@ function StripeActionArea({
               phone: patronPhone
             },
             allow_redisplay: 'always'
+          },
+          // HARDENED SAVE LOGIC: Handle future usage preference at confirmation to avoid Element re-mounts
+          payment_method_options: {
+            card: {
+              setup_future_usage: saveInfo ? 'off_session' : undefined
+            }
           }
         },
         redirect: 'if_required',
@@ -327,7 +332,7 @@ function CheckoutDrawerContent({
     }
   }, []);
 
-  // FETCH INTENT - SYNCED WITH STABLE PARAMETERS
+  // FETCH INTENT - CRITICAL: Removed saveInfo from dependencies to avoid Element re-mount data loss
   useEffect(() => {
     if (paymentMethod === 'Stripe' && !isFetchingIntent && baseTotalForBackend > 0) {
       const fetchIntent = async () => {
@@ -349,6 +354,7 @@ function CheckoutDrawerContent({
             patronName: patronName || 'Guest',
             patronPhone: patronPhone.replace(/\D/g, '') || '',
             patronEmail: patronEmail || '',
+            // Pass the persistent saveInfo from state, but don't trigger re-fetch when toggled
             saveInfo, 
             stripeCustomerId
           });
@@ -369,7 +375,7 @@ function CheckoutDrawerContent({
       };
       fetchIntent();
     }
-  }, [paymentMethod, baseTotalForBackend, sellerId, firebaseApp, user, auth, saveInfo]);
+  }, [paymentMethod, baseTotalForBackend, sellerId, firebaseApp, user, auth]);
 
   const handleManualOrder = async () => {
     if (!firestore || activeOrderItems.length === 0) return;
