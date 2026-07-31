@@ -191,7 +191,7 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
       const staffRef = doc(firestore, 'sellers', sellerId, 'staff', currentStaffId);
       
       await updateDoc(staffRef, { 
-        lastActive: new Date(0), 
+        lastActive: null, 
         latitude: null, 
         longitude: null,
         activeMode: null
@@ -333,10 +333,10 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
   const mappedDrivers = useMemo(() => {
     if (!allStaff) return [];
     return allStaff
-      .filter(s => s.latitude && s.longitude && s.lastActive)
+      .filter(s => s.latitude && s.longitude && s.lastActive && s.activeMode) // Only show active staff
       .map(s => {
         const color = getDriverColor(s.id);
-        return { id: s.id, name: s.name, location: { latitude: s.latitude!, longitude: s.longitude! }, type: s.activeMode || 'Clubhouse', colorOverride: color };
+        return { id: s.id, name: s.name, location: { latitude: s.latitude!, longitude: s.longitude! }, type: s.activeMode!, colorOverride: color };
       });
   }, [allStaff, solutionConfig]);
 

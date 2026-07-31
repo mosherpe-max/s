@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -58,7 +59,9 @@ import {
   CheckCircle2,
   Banknote,
   Phone,
-  Home
+  Home,
+  Flame,
+  UserX
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -195,8 +198,8 @@ const NAV_ITEMS = [
   { id: "dashboard", label: "Global Overview", icon: LayoutDashboard },
   { id: "venues", label: "Venue Management", icon: Store },
   { id: "library", label: "Global Library", icon: Library },
-  { id: "demos", label: "Sales Demos", icon: Zap },
   { id: "system", label: "System Control", icon: Settings2 },
+  { id: "demos", label: "Sales Demo Ops", icon: Zap },
 ];
 
 function NavButton({ id, label, icon: Icon, active, onClick, sidebarOpen }: { 
@@ -259,6 +262,7 @@ export default function SolutionAdminPage() {
   const [isInitializingLibrary, setIsInitializingLibrary] = useState(false);
   const [isReseedingDemos, setIsReseedingDemos] = useState(false);
   const [isResettingSystem, setIsResettingSystem] = useState(false);
+  const [isWipingPatrons, setIsWipingPatrons] = useState(false);
   const [librarySearchTerm, setLibrarySearchTerm] = useState('');
 
   // System Config State
@@ -517,10 +521,22 @@ export default function SolutionAdminPage() {
     try {
       const { resetAllVenueOperationalStatus } = await import('@/lib/seed-data');
       await resetAllVenueOperationalStatus(firestore);
-      toast({ title: "System Reset Complete", description: "All operational statuses cleared." });
+      toast({ title: "System Reset Complete", description: "All operational statuses and staff locations cleared." });
     } catch (e: any) {
       toast({ variant: "destructive", title: "Reset Failed" });
     } finally { setIsResettingSystem(false); }
+  };
+
+  const handleWipePatrons = async () => {
+    if (!firestore) return;
+    setIsWipingPatrons(true);
+    try {
+      const { wipeAllPatronData } = await import('@/lib/seed-data');
+      await wipeAllPatronData(firestore);
+      toast({ title: "Patron Cache Purged", description: "All global patron profiles have been deleted." });
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Wipe Failed" });
+    } finally { setIsWipingPatrons(false); }
   };
 
   const handleLogout = async () => { if (!auth) return; await signOut(auth); router.push('/login'); };
@@ -770,17 +786,6 @@ export default function SolutionAdminPage() {
                         {isReseedingDemos ? <Loader2 className="animate-spin" /> : <Zap className="h-4 w-4" />} Reseed All Demo Venues
                       </Button>
                     </Card>
-
-                    <Card className="border-2 p-8 space-y-6 text-left">
-                      <div className="bg-indigo-100 p-4 rounded-3xl w-fit text-indigo-700"><Timer className="h-10 w-10" /></div>
-                      <div className="space-y-2">
-                        <h4 className="font-headline font-black text-xl uppercase">Global Operational Reset</h4>
-                        <p className="text-xs text-muted-foreground">Deactivates all service modes and clears driver locations across the platform.</p>
-                      </div>
-                      <Button onClick={handleSystemReset} disabled={isResettingSystem} className="w-full h-14 bg-indigo-600 font-black uppercase tracking-widest text-[11px] gap-2 shadow-xl">
-                        {isResettingSystem ? <Loader2 className="animate-spin" /> : <Power className="h-4 w-4" />} Clear Platform Activity
-                      </Button>
-                    </Card>
                   </div>
                 </div>
               )}
@@ -795,6 +800,40 @@ export default function SolutionAdminPage() {
                     <Button onClick={handleSaveConfig} disabled={isSavingConfig} className="bg-primary font-black uppercase text-[10px] tracking-widest gap-2 shadow-xl h-12 px-6">
                       {isSavingConfig ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Save Configuration
                     </Button>
+                  </div>
+
+                  {/* EMERGENCY OPERATIONS SECTION */}
+                  <div className="space-y-6">
+                    <h4 className="text-[12px] font-black uppercase tracking-[0.3em] text-red-600 flex items-center gap-2">
+                       <Flame className="h-4 w-4" /> Emergency Operations
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                       <Card className="border-2 border-red-100 bg-red-50/30 p-6 flex flex-col gap-4 text-left">
+                         <div className="flex items-center gap-3">
+                           <div className="bg-red-100 p-2 rounded-xl text-red-600"><Power className="h-5 w-5" /></div>
+                           <div className="text-left">
+                             <p className="text-xs font-black uppercase text-red-700">Force System-Wide Staff Logout</p>
+                             <p className="text-[9px] font-bold text-red-600/70 uppercase">Immediately terminates all active staff shifts and clears locations</p>
+                           </div>
+                         </div>
+                         <Button onClick={handleSystemReset} disabled={isResettingSystem} variant="destructive" className="h-12 font-black uppercase text-[10px] tracking-widest gap-2">
+                           {isResettingSystem ? <Loader2 className="h-4 w-4 animate-spin" /> : <Power className="h-4 w-4" />} Clear Platform Activity Now
+                         </Button>
+                       </Card>
+
+                       <Card className="border-2 border-amber-100 bg-amber-50/30 p-6 flex flex-col gap-4 text-left">
+                         <div className="flex items-center gap-3">
+                           <div className="bg-amber-100 p-2 rounded-xl text-amber-600"><UserX className="h-5 w-5" /></div>
+                           <div className="text-left">
+                             <p className="text-xs font-black uppercase text-amber-700">Reset Global Patron Identity</p>
+                             <p className="text-[9px] font-bold text-amber-600/70 uppercase">Purges all saved patron profiles to start checkout flows fresh</p>
+                           </div>
+                         </div>
+                         <Button onClick={handleWipePatrons} disabled={isWipingPatrons} className="h-12 border-2 border-amber-200 bg-white text-amber-700 hover:bg-amber-50 font-black uppercase text-[10px] tracking-widest gap-2">
+                           {isWipingPatrons ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserX className="h-4 w-4" />} Wipe Patron Cache
+                         </Button>
+                       </Card>
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">

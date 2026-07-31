@@ -8,7 +8,8 @@ import {
   query, 
   where,
   Firestore,
-  setDoc
+  setDoc,
+  deleteDoc
 } from 'firebase/firestore';
 import type { ModifierGroup, MenuItem, StarterModifierGroup, StarterMenuItem, VenueHealthSettings, Seller } from './types';
 import { publicGolfItems, privateGolfItems, bowlingAlleyItems } from './data';
@@ -320,28 +321,53 @@ export async function seedAllDemoData(db: Firestore) {
   await seedVenueItems(db, 'demo-bowling-alley', bowlingAlleyItems);
 }
 
+/**
+ * Forceful system-wide reset.
+ * Deactivates all service channels and explicitly clears ALL staff locations/modes.
+ */
 export async function resetAllVenueOperationalStatus(db: Firestore) {
   const sellersRef = collection(db, 'sellers');
   const snapshot = await getDocs(sellersRef);
-  const batch = writeBatch(db);
+  
   for (const sellerDoc of snapshot.docs) {
+    const batch = writeBatch(db);
+    
+    // A. Shutdown root service toggles and clear venue location
     batch.update(sellerDoc.ref, { 
       bevcartActive: false, 
       clubhouseActive: false, 
       lanedeliveryActive: false, 
-      latitude: 0, 
-      longitude: 0, 
+      latitude: null, // Hard clear
+      longitude: null, // Hard clear
       lastActive: null, 
       updatedAt: serverTimestamp() 
     });
+
+    // B. Explicitly purge ALL staff sub-collection records
     const staffRef = collection(db, 'sellers', sellerDoc.id, 'staff');
     const staffSnap = await getDocs(staffRef);
     staffSnap.forEach(sDoc => batch.update(sDoc.ref, { 
       latitude: null, 
       longitude: null, 
       lastActive: null,
-      activeMode: null 
+      activeMode: null // This triggers the client-side force logout
     }));
+
+    await batch.commit();
   }
+}
+
+/**
+ * Deletes all patron identity documents to start fresh.
+ */
+export async function wipeAllPatronData(db: Firestore) {
+  const usersRef = collection(db, 'users');
+  const snapshot = await getDocs(usersRef);
+  
+  const batch = writeBatch(db);
+  snapshot.docs.forEach(uDoc => {
+    batch.delete(uDoc.ref);
+  });
+  
   await batch.commit();
 }
