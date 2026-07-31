@@ -118,8 +118,9 @@ export const createPaymentIntent = onCall({
 
 /**
  * dailyOperationalReset
- * Scheduled sweep to clear all sessions and active orders system-wide.
+ * Scheduled sweep to clear all staff sessions and active orders system-wide.
  * Runs at the top of every hour, but only executes logic on the resetHour (default 4 AM EST).
+ * This function preserves Venue Admin settings (like bevcartActive status).
  */
 export const dailyOperationalReset = onSchedule({ 
   schedule: "0 * * * *", 
@@ -149,18 +150,10 @@ export const dailyOperationalReset = onSchedule({
     const sellerId = sellerDoc.id;
     const batch = db.batch();
 
-    // A. Shutdown Service Channels
-    batch.update(sellerDoc.ref, { 
-      bevcartActive: false, 
-      clubhouseActive: false, 
-      lanedeliveryActive: false, 
-      lastActive: FieldValue.serverTimestamp(),
-      updatedAt: FieldValue.serverTimestamp()
-    });
-
-    // B. Clear All Staff Sessions (Crucial for frontend auto-logout)
+    // STAFF SESSION TERMINATION
+    // Clears shift assignments and locations. The activeMode = null triggers the client-side force logout.
     const staffRef = db.collection('sellers').doc(sellerId).collection('staff');
-    const staffSnapshot = await staffRef.get(); // Get all to be safe
+    const staffSnapshot = await staffRef.get();
     staffSnapshot.forEach(sDoc => {
       batch.update(sDoc.ref, { 
         activeMode: null, 
@@ -170,7 +163,7 @@ export const dailyOperationalReset = onSchedule({
       });
     });
 
-    // C. Cancel All Non-Delivered Orders
+    // CANCEL STALE ORDERS
     const ordersRef = db.collection('orders');
     const staleOrders = await ordersRef
       .where('sellerId', '==', sellerId)
@@ -186,7 +179,7 @@ export const dailyOperationalReset = onSchedule({
     });
 
     await batch.commit();
-    logger.info(`[dailyOperationalReset] Reset complete for venue: ${sellerId} (${staffSnapshot.size} staff, ${staleOrders.size} orders)`);
+    logger.info(`[dailyOperationalReset] Reset complete for venue: ${sellerId} (${staffSnapshot.size} staff, ${staleOrders.size} orders). Settings preserved.`);
   }
 
   logger.info("[dailyOperationalReset] Global operational sweep finalized.");

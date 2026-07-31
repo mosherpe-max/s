@@ -322,8 +322,9 @@ export async function seedAllDemoData(db: Firestore) {
 }
 
 /**
- * Forceful system-wide reset.
- * Deactivates all service channels and explicitly clears ALL staff locations/modes.
+ * Forceful system-wide staff logout.
+ * Clears explicitly ALL staff locations and shift assignments.
+ * NOTE: This function PRESERVES administrative settings like service mode activity toggles.
  */
 export async function resetAllVenueOperationalStatus(db: Firestore) {
   const sellersRef = collection(db, 'sellers');
@@ -332,25 +333,15 @@ export async function resetAllVenueOperationalStatus(db: Firestore) {
   for (const sellerDoc of snapshot.docs) {
     const batch = writeBatch(db);
     
-    // A. Shutdown root service toggles and clear venue location
-    batch.update(sellerDoc.ref, { 
-      bevcartActive: false, 
-      clubhouseActive: false, 
-      lanedeliveryActive: false, 
-      latitude: null, // Hard clear
-      longitude: null, // Hard clear
-      lastActive: null, 
-      updatedAt: serverTimestamp() 
-    });
-
-    // B. Explicitly purge ALL staff sub-collection records
+    // Explicitly purge ALL staff sub-collection records
+    // This triggers the client-side force logout via the dashboard session listeners.
     const staffRef = collection(db, 'sellers', sellerDoc.id, 'staff');
     const staffSnap = await getDocs(staffRef);
     staffSnap.forEach(sDoc => batch.update(sDoc.ref, { 
       latitude: null, 
       longitude: null, 
       lastActive: null,
-      activeMode: null // This triggers the client-side force logout
+      activeMode: null // Essential: triggers force exit to login
     }));
 
     await batch.commit();
