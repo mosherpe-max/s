@@ -10,7 +10,7 @@ import type { Order, Seller, StaffMember, SolutionConfig } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
-import { Package, LogOut, Building, LayoutList, Focus, ChevronLeft, ShieldAlert, History, AlertTriangle } from 'lucide-react';
+import { Package, LogOut, Building, LayoutList, Focus, ChevronLeft, ShieldAlert, History, AlertTriangle, BellRing } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { useRouter } from 'next/navigation';
@@ -55,9 +55,12 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
   const [greeting, setGreeting] = useState('Hello');
   const [isExiting, setIsExiting] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [notificationPermission, setNotificationPermission] = useState<string>('default');
 
   const lastOrderIdsRef = useRef<Set<string>>(new Set());
+  const initialLoadRef = useRef(true);
   const lastBroadcastRef = useRef<{ lat: number; lng: number; time: number } | null>(null);
+  const chimeRef = useRef<HTMLAudioElement | null>(null);
 
   const primarySellerRef = useMemoFirebase(() => {
     if (!firestore || !sellerId) return null;
@@ -82,6 +85,13 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
       const isImpersonating = localStorage.getItem('koop_is_admin_session') === 'true';
       const sessionStart = localStorage.getItem('koop_staff_session_start');
       const resetHour = solutionConfig?.dailyResetHour ?? 4;
+
+      // INITIALIZE AUDIO CHIME (Base64 Beep)
+      chimeRef.current = new Audio('data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YTdvT18AZm9vYmFyYmF6YmF6YmF6YmF6YmF6YmF6YmF6YmF6YmF6YmF6YmF6YmF6YmF6YmF6YmF6YmF6YmF6YmF6YmF6YmF6YmF6YmF6YmF6YmF6YmF6YmF6YmF6YmF6YmF6YmF6YmF6YmF6YmF6YmF6YmF6');
+      
+      if ("Notification" in window) {
+        setNotificationPermission(Notification.permission);
+      }
       
       // A. Check for STALE session (past reset hour)
       if (sessionStart && isStaffSessionStale(new Date(parseInt(sessionStart, 10)), resetHour)) {
@@ -272,14 +282,31 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
     };
   }, [allOrders]);
 
+  // NEW ORDER ALERT LOGIC
   useEffect(() => {
     if (!clubhouseOrders || !now) return;
     const currentOrderIds = new Set(clubhouseOrders.map(o => o.id));
     const newOrders = clubhouseOrders.filter(o => !lastOrderIdsRef.current.has(o.id));
-    if (newOrders.length > 0 && lastOrderIdsRef.current.size > 0) {
+    if (newOrders.length > 0 && !initialLoadRef.current) {
       toast({ title: "NEW CLUBHOUSE ORDER!" });
+      
+      // 1. Audible Alert
+      if (chimeRef.current) {
+        chimeRef.current.play().catch(() => {});
+      }
+
+      // 2. System Notification
+      if ("Notification" in window && Notification.permission === "granted") {
+        newOrders.forEach(o => {
+          new Notification("New Clubhouse Order", {
+            body: `${o.customerName} - ${o.items.length} items`,
+            icon: '/icon'
+          });
+        });
+      }
     }
     lastOrderIdsRef.current = currentOrderIds;
+    initialLoadRef.current = false;
   }, [clubhouseOrders, now, toast]);
 
   useEffect(() => {
@@ -359,7 +386,14 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
               <h1 className="font-headline text-sm font-bold text-white uppercase tracking-tight leading-none mb-0.5">CLUBHOUSE PORTAL</h1>
               {isAdminSession && <Badge className="bg-amber-500 text-white border-0 text-[7px] font-black uppercase h-3.5 px-1 animate-pulse">Impersonating</Badge>}
             </div>
-            <p className="text-[10px] font-bold text-white/50 uppercase tracking-widest leading-none">{greeting}, {currentStaffName}</p>
+            <div className="flex items-center gap-2">
+              <p className="text-[10px] font-bold text-white/50 uppercase tracking-widest leading-none">{greeting}, {currentStaffName}</p>
+              {notificationPermission === 'granted' && (
+                <Badge className="bg-green-500/20 text-green-400 border-0 h-3 px-1 text-[6px] font-black uppercase tracking-widest gap-1">
+                  <BellRing className="h-2 w-2" /> Alerts Active
+                </Badge>
+              )}
+            </div>
           </div>
         </div>
         <div className="flex items-center space-x-3">

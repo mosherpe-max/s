@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect, use } from 'react';
@@ -85,6 +86,12 @@ export default function StaffLoginPage({ params }: { params: Promise<{ sellerId:
         await signInAnonymously(auth);
         const staffData = snapshot.docs[0].data() as StaffMember;
         setAuthenticatedStaff(staffData);
+        
+        // REQUEST NOTIFICATION PERMISSION - CRITICAL FOR PWA
+        if ("Notification" in window && Notification.permission === "default") {
+          Notification.requestPermission();
+        }
+
         toast({ title: `Identity Verified`, description: `Hello, ${staffData.name}. Please select your shift role.` });
       }
     } catch (error: any) {
