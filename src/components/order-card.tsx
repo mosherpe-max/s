@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -5,7 +6,7 @@ import type { Order, OrderFulfillmentThresholds } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from './ui/card';
 import { Separator } from './ui/separator';
 import { Button } from './ui/button';
-import { Clock, AlertTriangle, ChevronRight, CheckCircle2, Truck, Timer, Satellite, User, UserPlus, DollarSign } from 'lucide-react';
+import { Clock, AlertTriangle, ChevronRight, CheckCircle2, Truck, Timer, Satellite, User, UserPlus, MapPin } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { cn, getNumericOrderId } from '@/lib/utils';
 
@@ -129,8 +130,9 @@ export function OrderCard({ order, orderNumber, onUpdateStatus, onAttach, curren
         
         <div className="flex flex-col gap-1 border-t pt-1.5">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1 text-[8px] font-black text-primary uppercase">
-              <Clock className="h-2 w-2" /> {order.menuTypeLocation || 'Standard'}
+            {/* DELIVERY LOCATION - ENLARGED PER USER REQUEST */}
+            <div className="flex items-center gap-1.5 text-sm font-black text-primary uppercase">
+              <MapPin className="h-3.5 w-3.5" /> {order.menuTypeLocation || 'Standard'}
             </div>
             
             {/* GPS FRESHNESS INDICATOR */}
