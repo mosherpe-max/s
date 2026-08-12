@@ -109,20 +109,36 @@ export function OrderCard({ order, orderNumber, onUpdateStatus, onAttach, curren
       </CardHeader>
 
       {/* COMPACT CONTENT */}
-      <CardContent className="p-2.5 flex-1 space-y-2">
-        <div className="space-y-1">
+      <CardContent className="p-2.5 flex-1 space-y-3">
+        <div className="space-y-2">
           {order.items.map(item => (
-            <div key={item.cartId} className="flex justify-between text-sm leading-tight py-1">
-              <span className="font-black text-[#213147] truncate flex-1 uppercase">
-                {item.quantity}x {item.name}
-              </span>
-              <span className="font-mono text-slate-500 font-bold shrink-0 ml-2">
-                ${(item.price * item.quantity).toFixed(2)}
-              </span>
+            <div key={item.cartId} className="flex flex-col py-1 border-b border-slate-50 last:border-0">
+              <div className="flex justify-between text-sm leading-tight">
+                <span className="font-black text-[#213147] truncate flex-1 uppercase">
+                  {item.quantity}x {item.name}
+                </span>
+                <span className="font-mono text-slate-500 font-bold shrink-0 ml-2">
+                  ${(item.price * item.quantity).toFixed(2)}
+                </span>
+              </div>
+              {/* MENU MODIFIERS SECTION */}
+              {item.selectedModifiers && Object.values(item.selectedModifiers).flat().length > 0 && (
+                <div className="flex flex-wrap gap-1 mt-1 pl-1">
+                  {Object.values(item.selectedModifiers).flat().map((mod, idx) => (
+                    <Badge 
+                      key={`${item.cartId}-mod-${idx}`} 
+                      variant="outline" 
+                      className="text-[7px] font-black uppercase h-3.5 px-1.5 border-primary/20 bg-primary/5 text-primary"
+                    >
+                      {mod.name}
+                    </Badge>
+                  ))}
+                </div>
+              )}
             </div>
           ))}
 
-          <div className="flex justify-between items-center pt-2 border-t border-dashed mt-2">
+          <div className="flex justify-between items-center pt-2 border-t border-dashed mt-1">
             <span className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Total Value</span>
             <span className="text-base font-black text-primary font-mono">${(order.total || 0).toFixed(2)}</span>
           </div>
@@ -130,7 +146,7 @@ export function OrderCard({ order, orderNumber, onUpdateStatus, onAttach, curren
         
         <div className="flex flex-col gap-1 border-t pt-1.5">
           <div className="flex items-center justify-between">
-            {/* DELIVERY LOCATION - ENLARGED PER USER REQUEST */}
+            {/* DELIVERY LOCATION */}
             <div className="flex items-center gap-1.5 text-sm font-black text-primary uppercase">
               <MapPin className="h-3.5 w-3.5" /> {order.menuTypeLocation || 'Standard'}
             </div>
