@@ -1,4 +1,3 @@
-
 'use client';
 
 import { collection, query, where, doc, updateDoc, serverTimestamp, setDoc, deleteDoc } from 'firebase/firestore';
@@ -55,7 +54,6 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
   const [currentStaffId, setCurrentStaffId] = useState<string | undefined>();
   const [currentStaffName, setCurrentStaffName] = useState<string>('');
   const [isAdminSession, setIsAdminSession] = useState(false);
-  const [greeting, setGreeting] = useState('Hello');
   const [isExiting, setIsExiting] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [notificationPermission, setNotificationPermission] = useState<string>('default');
@@ -105,11 +103,6 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
         setCurrentStaffName(storedName || '');
         setIsAdminSession(isImpersonating);
       }
-
-      const hour = new Date().getHours();
-      if (hour < 12) setGreeting('Good Morning');
-      else if (hour < 18) setGreeting('Good Afternoon');
-      else setGreeting('Good Evening');
     }
   }, [sellerId, router, toast, solutionConfig?.dailyResetHour]);
 
@@ -407,11 +400,21 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
           )}
           <div className="flex flex-col min-w-0">
             <div className="flex items-center gap-2">
-              <h1 className="font-headline text-sm font-bold text-white uppercase tracking-tight leading-none mb-0.5">BEVCART PORTAL</h1>
-              {isAdminSession && <Badge className="bg-amber-500 text-white border-0 text-[7px] font-black uppercase h-3.5 px-1 animate-pulse">Impersonating</Badge>}
+              <h1 className="font-headline text-sm font-black text-white uppercase tracking-tight leading-none mb-0.5">
+                {primarySeller?.courseName || 'BEVCART PORTAL'}
+              </h1>
+              {isAdminSession && <Badge className="bg-amber-500 text-white border-0 text-[7px] font-black uppercase h-3.5 px-1 animate-pulse">Admin</Badge>}
             </div>
-            <div className="flex items-center gap-2">
-              <p className="text-[10px] font-bold text-white/50 uppercase tracking-widest leading-none">{greeting}, {currentStaffName}</p>
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1.5">
+                <Badge className="bg-primary/20 text-primary border-0 h-4 px-1.5 text-[8px] font-black uppercase tracking-widest">Beverage Cart</Badge>
+              </div>
+              <div className="flex items-center gap-1.5 border-l border-white/10 pl-3">
+                <User className="h-2.5 w-2.5 text-white/40" />
+                <span className="text-[9px] font-black text-white/60 uppercase tracking-widest leading-none">
+                  {currentStaffName}
+                </span>
+              </div>
               {notificationPermission === 'granted' && (
                 <Badge className="bg-green-500/20 text-green-400 border-0 h-3 px-1 text-[6px] font-black uppercase tracking-widest gap-1">
                   <BellRing className="h-2 w-2" /> Alerts Active
