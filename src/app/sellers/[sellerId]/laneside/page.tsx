@@ -316,8 +316,13 @@ export default function LaneSideServerDashboardPage({ params }: { params: Promis
 
       <div className="flex-shrink-0 px-4 py-2 bg-background border-b flex items-center justify-center gap-6">
         <div className="flex flex-col items-center">
-          <span className="text-[8px] font-black uppercase text-muted-foreground">Daily Tips</span>
-          <span className="text-xs font-bold">${metrics?.dailyTips.toFixed(2) || '0.00'}</span>
+          <span className="text-[8px] font-black uppercase text-muted-foreground">Ack Time</span>
+          <span className="text-xs font-bold">{metrics?.avgAck || '0'}s</span>
+        </div>
+        <div className="h-6 w-px bg-muted" />
+        <div className="flex flex-col items-center">
+          <span className="text-[8px] font-black uppercase text-muted-foreground">Duration</span>
+          <span className="text-xs font-bold">{metrics?.avgTotal || '0'}m</span>
         </div>
         <div className="h-6 w-px bg-muted" />
         <div className="flex flex-col items-center">
@@ -326,13 +331,8 @@ export default function LaneSideServerDashboardPage({ params }: { params: Promis
         </div>
         <div className="h-6 w-px bg-muted" />
         <div className="flex flex-col items-center">
-          <span className="text-[8px] font-black uppercase text-muted-foreground">Ack Time</span>
-          <span className="text-xs font-bold">{metrics?.avgAck || '0'}s</span>
-        </div>
-        <div className="h-6 w-px bg-muted" />
-        <div className="flex flex-col items-center">
-          <span className="text-[8px] font-black uppercase text-muted-foreground">Total</span>
-          <span className="text-xs font-bold">{metrics?.avgTotal || '0'}m</span>
+          <span className="text-[8px] font-black uppercase text-muted-foreground">Daily Tips</span>
+          <span className="text-xs font-bold">${metrics?.dailyTips.toFixed(2) || '0.00'}</span>
         </div>
       </div>
 
