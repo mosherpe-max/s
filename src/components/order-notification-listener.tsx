@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useRef } from 'react';
@@ -5,13 +6,15 @@ import { collection, query, limit, where } from 'firebase/firestore';
 import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import type { Order } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
-import { Navigation, CheckCircle2, PartyPopper } from 'lucide-react';
+import { Navigation, CheckCircle2, PartyPopper, BellRing } from 'lucide-react';
 import { ToastAction } from '@/components/ui/toast';
 import { useRouter, usePathname } from 'next/navigation';
+import { playNotificationSound } from '@/lib/utils';
 
 /**
  * A global listener that monitors order status for the buyer.
  * Scoped to the current customer session.
+ * Features audible chimes and system-level notifications for PWA users.
  */
 export function OrderNotificationListener() {
   const firestore = useFirestore();
@@ -60,8 +63,19 @@ export function OrderNotificationListener() {
       return;
     }
 
-    // Trigger toast on status change
+    // Trigger toast and audible chime on status change
     if (order.status !== prevStatusRef.current) {
+      // 1. Play Audible Noise
+      playNotificationSound();
+
+      // 2. Trigger System Notification (PWA)
+      if ("Notification" in window && Notification.permission === "granted") {
+        new Notification("Order Update", {
+          body: `Order status changed to ${order.status}`,
+          icon: '/icon'
+        });
+      }
+
       const trackAction = (
         <ToastAction altText="View Order" onClick={() => router.push(orderUrl)}>
           View

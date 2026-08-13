@@ -1,3 +1,4 @@
+
 'use client';
 
 import { collection, query, where, doc, updateDoc, serverTimestamp, deleteDoc } from 'firebase/firestore';
@@ -14,7 +15,7 @@ import { Package, LogOut, MapPin, LayoutList, ChevronLeft, ShieldAlert, History,
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { isToday, differenceInSeconds, differenceInMinutes, format } from 'date-fns';
-import { SUPER_ADMIN_ID, isStaffSessionStale, getNumericOrderId } from '@/lib/utils';
+import { SUPER_ADMIN_ID, isStaffSessionStale, getNumericOrderId, playNotificationSound } from '@/lib/utils';
 import Link from 'next/link';
 import {
   Dialog,
@@ -49,7 +50,6 @@ export default function LaneSideServerDashboardPage({ params }: { params: Promis
   
   const lastOrderIdsRef = useRef<Set<string>>(new Set());
   const initialLoadRef = useRef(true);
-  const chimeRef = useRef<HTMLAudioElement | null>(null);
 
   const primarySellerRef = useMemoFirebase(() => {
     if (!firestore || !sellerId) return null;
@@ -75,9 +75,6 @@ export default function LaneSideServerDashboardPage({ params }: { params: Promis
       const sessionStart = localStorage.getItem('koop_staff_session_start');
       const resetHour = solutionConfig?.dailyResetHour ?? 4;
 
-      // INITIALIZE AUDIO CHIME (Base64 Beep)
-      chimeRef.current = new Audio('data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YTdvT18AZm9vYmFyYmF6YmF6YmF6YmF6YmF6YmF6YmF6YmF6YmF6YmF6YmF6YmF6YmF6YmF6YmF6YmF6YmF6YmF6YmF6YmF6YmF6YmF6YmF6YmF6YmF6YmF6YmF6YmF6YmF6YmF6YmF6YmF6YmF6YmF6YmF6');
-      
       if ("Notification" in window) {
         setNotificationPermission(Notification.permission);
       }
@@ -210,12 +207,8 @@ export default function LaneSideServerDashboardPage({ params }: { params: Promis
     const currentOrderIds = new Set(lanesideOrders.map(o => o.id));
     const newOrders = lanesideOrders.filter(o => !lastOrderIdsRef.current.has(o.id));
     if (newOrders.length > 0 && !initialLoadRef.current) {
-      toast({ title: "NEW LANE ORDER!" });
-      
       // 1. Audible Alert
-      if (chimeRef.current) {
-        chimeRef.current.play().catch(() => {});
-      }
+      playNotificationSound();
 
       // 2. System Notification
       if ("Notification" in window && Notification.permission === "granted") {
@@ -226,6 +219,8 @@ export default function LaneSideServerDashboardPage({ params }: { params: Promis
           });
         });
       }
+
+      toast({ title: "NEW LANE ORDER!" });
     }
     lastOrderIdsRef.current = currentOrderIds;
     initialLoadRef.current = false;

@@ -14,8 +14,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { ShoppingBag, MapPin, Loader2, Store, ClipboardList, Satellite, Info, Smartphone, Zap, Edit2, CheckCircle2, ArrowRight, PartyPopper, Heart } from 'lucide-react';
-import { getNumericOrderId } from '@/lib/utils';
+import { ShoppingBag, MapPin, Loader2, Store, ClipboardList, Satellite, Info, Smartphone, Zap, Edit2, CheckCircle2, ArrowRight, PartyPopper, Heart, BellRing } from 'lucide-react';
+import { getNumericOrderId, playNotificationSound } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
@@ -32,6 +32,7 @@ function OrderTrackingContent() {
   const watchIdRef = useRef<number | null>(null);
   const wakeLockRef = useRef<any>(null);
   const [now, setNow] = useState<Date>(new Date());
+  const [notificationPermission, setNotificationPermission] = useState<string>('default');
 
   const orderRef = useMemoFirebase(() => (firestore && orderId ? doc(firestore, 'orders', orderId) : null), [firestore, orderId]);
   const { data: order, isLoading: isOrderLoading } = useDoc<Order>(orderRef);
@@ -41,7 +42,7 @@ function OrderTrackingContent() {
 
   const staffRef = useMemoFirebase(() => {
     if (!firestore || !order?.sellerId || !order?.assignedStaffId) return null;
-    return doc(firestore, 'sellers', order.sellerId, 'staff', order.assignedStaffId);
+    return doc(firestore, 'sellers', sellerId, 'staff', order.assignedStaffId);
   }, [firestore, order?.sellerId, order?.assignedStaffId]);
   const { data: assignedStaff } = useDoc<StaffMember>(staffRef);
 
@@ -53,6 +54,22 @@ function OrderTrackingContent() {
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 10000);
     return () => clearInterval(timer);
+  }, []);
+
+  // Request Notification Permissions on mount
+  useEffect(() => {
+    if ("Notification" in window) {
+      setNotificationPermission(Notification.permission);
+      if (Notification.permission === "default") {
+        Notification.requestPermission().then(permission => {
+          setNotificationPermission(permission);
+          if (permission === 'granted') {
+             // Audible verification to confirm sound is working
+             playNotificationSound();
+          }
+        });
+      }
+    }
   }, []);
 
   // Implement Screen Wake Lock - ONLY FOR GOLF COURSES (Release when delivered)
@@ -188,6 +205,20 @@ function OrderTrackingContent() {
               <Smartphone className="h-5 w-5 text-white/20 mb-0.5" />
               <span className="text-[8px] font-black text-white/40 uppercase tracking-tighter">Locked</span>
             </div>
+          </div>
+        )}
+
+        {/* NOTIFICATION STATUS INDICATOR */}
+        {notificationPermission !== 'granted' && !isDelivered && (
+          <div className="bg-amber-50 rounded-2xl p-4 border-2 border-amber-200 flex items-center justify-between gap-4">
+             <div className="flex items-center gap-3">
+               <BellRing className="h-5 w-5 text-amber-600" />
+               <div className="text-left">
+                 <p className="text-[10px] font-black uppercase text-amber-700">Enable Audible Alerts</p>
+                 <p className="text-[8px] font-bold text-amber-600/70 uppercase">Get sound alerts for order updates</p>
+               </div>
+             </div>
+             <Button size="sm" className="bg-amber-600 h-8 text-[9px] font-black uppercase tracking-widest" onClick={() => Notification.requestPermission()}>Enable</Button>
           </div>
         )}
 

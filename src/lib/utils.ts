@@ -13,6 +13,45 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 /**
+ * Programmatic Notification Sound
+ * Uses Web Audio API to generate a clean notification chime.
+ * Higher reliability than base64 assets and works without external files.
+ */
+export function playNotificationSound() {
+  if (typeof window === 'undefined') return;
+  
+  try {
+    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioContextClass) return;
+    
+    const ctx = new AudioContextClass();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    
+    osc.type = 'sine';
+    // Frequency: 880Hz (A5) for a clear, piercing notification tone
+    osc.frequency.setValueAtTime(880, ctx.currentTime);
+    
+    gain.gain.setValueAtTime(0, ctx.currentTime);
+    gain.gain.linearRampToValueAtTime(0.5, ctx.currentTime + 0.1);
+    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.6);
+    
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    
+    osc.start();
+    osc.stop(ctx.currentTime + 0.7);
+    
+    // Resume context if suspended (browser security)
+    if (ctx.state === 'suspended') {
+      ctx.resume();
+    }
+  } catch (e) {
+    console.warn("Audio play blocked by browser policy", e);
+  }
+}
+
+/**
  * Returns a deterministic hex color for a driver based on their ID.
  * Used for map markers to distinguish multiple staff members.
  */
