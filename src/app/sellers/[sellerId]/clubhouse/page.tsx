@@ -1,4 +1,3 @@
-
 'use client';
 
 import { collection, query, where, doc, updateDoc, serverTimestamp, setDoc, deleteDoc } from 'firebase/firestore';
@@ -466,7 +465,7 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
                   <History className="h-3 w-3" /> History
                 </Button>
               </DialogTrigger>
-              <DialogContent className="sm:max-w-[500px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl">
+              <DialogContent className="sm:max-w-[550px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl">
                 <DialogHeader className="p-6 bg-indigo-600 text-white">
                   <DialogTitle className="font-headline font-black uppercase tracking-tight text-white flex items-center gap-2">
                     <History className="h-5 w-5" /> Your Today's Orders
@@ -494,6 +493,8 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
                         <TableRow>
                           <TableHead className="text-[9px] font-black uppercase">Ticket</TableHead>
                           <TableHead className="text-[9px] font-black uppercase">Customer</TableHead>
+                          <TableHead className="text-[9px] font-black uppercase text-right">Ack</TableHead>
+                          <TableHead className="text-[9px] font-black uppercase text-right">Dur</TableHead>
                           <TableHead className="text-[9px] font-black uppercase text-right">Order</TableHead>
                           <TableHead className="text-[9px] font-black uppercase text-right">Tip</TableHead>
                         </TableRow>
@@ -503,8 +504,14 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
                           <TableRow key={o.id}>
                             <TableCell className="font-mono font-black text-[10px]">#{getNumericOrderId(o.id)}</TableCell>
                             <TableCell>
-                              <p className="font-bold text-[10px] uppercase truncate max-w-[100px]">{o.customerName}</p>
+                              <p className="font-bold text-[10px] uppercase truncate max-w-[80px]">{o.customerName}</p>
                               <p className="text-[8px] text-muted-foreground uppercase">{o.deliveredAt ? format(o.deliveredAt.toDate(), 'h:mm a') : ''}</p>
+                            </TableCell>
+                            <TableCell className="text-right font-bold text-[10px]">
+                              {o.acknowledgedAt && o.createdAt ? `${differenceInSeconds(o.acknowledgedAt.toDate(), o.createdAt.toDate())}s` : '--'}
+                            </TableCell>
+                            <TableCell className="text-right font-bold text-[10px]">
+                              {o.deliveredAt && o.createdAt ? `${differenceInMinutes(o.deliveredAt.toDate(), o.createdAt.toDate())}m` : '--'}
                             </TableCell>
                             <TableCell className="text-right font-bold text-[10px] text-[#213147]">${o.total.toFixed(2)}</TableCell>
                             <TableCell className="text-right font-black text-[10px] text-green-600">${(o.tip || 0).toFixed(2)}</TableCell>
