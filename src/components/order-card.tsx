@@ -69,6 +69,9 @@ export function OrderCard({ order, orderNumber, onUpdateStatus, onAttach, curren
 
   const gpsStatus = getGpsStatus();
 
+  // Condition for showing the location label
+  const showLocationLabel = order.menuTypeLocation || order.menuType === 'Lane Delivery';
+
   return (
     <Card className={cn(
       'overflow-hidden flex flex-col border-2 transition-all duration-300 shadow-sm',
@@ -147,9 +150,15 @@ export function OrderCard({ order, orderNumber, onUpdateStatus, onAttach, curren
         <div className="flex flex-col gap-1 border-t pt-1.5">
           <div className="flex items-center justify-between">
             {/* DELIVERY LOCATION */}
-            <div className="flex items-center gap-1.5 text-sm font-black text-primary uppercase">
-              <MapPin className="h-3.5 w-3.5" /> {order.menuTypeLocation || 'Standard'}
-            </div>
+            {showLocationLabel ? (
+              <div className="flex items-center gap-1.5 text-sm font-black text-primary uppercase">
+                <MapPin className="h-3.5 w-3.5" /> {order.menuTypeLocation || 'Standard'}
+              </div>
+            ) : (
+              <div className="flex items-center gap-1.5 text-[8px] font-black uppercase text-muted-foreground">
+                <MapPin className="h-2.5 w-2.5 opacity-40" /> GPS Tracked
+              </div>
+            )}
             
             {/* GPS FRESHNESS INDICATOR */}
             <div className="flex items-center gap-1 text-[8px] font-black uppercase">
