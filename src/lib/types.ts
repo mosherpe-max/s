@@ -1,16 +1,16 @@
 
 import { Timestamp } from "firebase/firestore";
 
-export type SellerType = 'Private Golf Course' | 'Semi Private Golf Course' | 'Public Golf Course' | 'Bowling Center' | 'Brewery' | 'Restaurant';
+export type SellerType = 'Public Golf Course' | 'Private Golf Course' | 'Semi Private Golf Course' | 'Bowling Center';
 
 export const sellerTypes: readonly SellerType[] = [
+  'Public Golf Course',
   'Private Golf Course',
   'Semi Private Golf Course',
-  'Public Golf Course',
-  'Bowling Center',
-  'Brewery',
-  'Restaurant'
+  'Bowling Center'
 ];
+
+export type PaymentMethodType = 'Pay at Delivery' | 'Digital Payment' | 'Member Account';
 
 export interface MapUpdateSettings {
   frequencySeconds: number;
@@ -59,6 +59,7 @@ export interface Venue {
   monthlySolutionFee?: number;
   serviceStartDate?: Timestamp;
   isFoundingPartner?: boolean;
+  enabledPaymentMethods?: PaymentMethodType[];
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
@@ -109,6 +110,7 @@ export interface Seller {
   stripeAccountId?: string;
   stripeOnboardingComplete?: boolean;
   categoryVisibility?: Record<string, string[]>; // Map of Mode -> Array of Enabled Category Names
+  enabledPaymentMethods?: PaymentMethodType[];
 }
 
 export type Category = 'Featured' | 'Beer' | 'Spirits' | 'Soft Drinks' | 'Snacks' | 'Other' | 'Handhelds' | 'Appetizers' | 'Entrees' | 'Pizza' | 'Salad' | 'Dessert' | 'Kids';
@@ -219,6 +221,7 @@ export interface Order {
   deliveredAt?: Timestamp;
   assignedStaffId?: string;
   assignedStaffName?: string;
+  paymentMethod?: PaymentMethodType;
 }
 
 export interface Prospect {
@@ -273,7 +276,7 @@ export interface Lead {
   contactName: string;
   phone: string;
   email: string;
-  venueType: 'Golf Course' | 'Bowling Center' | 'Other';
+  venueType: 'Golf Course' | 'Bowling Center';
   stage: LeadStage;
   marketFitData: {
     golf?: {

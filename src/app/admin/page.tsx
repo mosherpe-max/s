@@ -116,7 +116,7 @@ import { useRouter } from 'next/navigation';
 import { useFirestore, useCollection, useMemoFirebase, useAuth, useDoc, useUser } from '@/firebase';
 import { signOut } from 'firebase/auth';
 import { collection, query, limit, doc, setDoc, serverTimestamp, where, orderBy, updateDoc, writeBatch, deleteDoc, getDoc } from 'firebase/firestore';
-import type { Seller, SolutionConfig, Order, Venue, StarterModifierGroup, StarterMenuItem, OrderFulfillmentThresholds, Lead, LeadStage } from '@/lib/types';
+import type { Seller, SolutionConfig, Order, Venue, StarterModifierGroup, StarterMenuItem, OrderFulfillmentThresholds, Lead, LeadStage, PaymentMethodType } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { cn, SUPER_ADMIN_ID } from '@/lib/utils';
 import { StylizedKoopLogo } from '@/components/header';
@@ -158,7 +158,7 @@ const US_STATES = [
 
 const leadSchema = z.object({
   venueName: z.string().min(2, 'Venue name required'),
-  venueType: z.enum(['Golf Course', 'Bowling Center', 'Other']),
+  venueType: z.enum(['Golf Course', 'Bowling Center']),
   stage: z.enum(['Cold Lead', 'On-Site Meeting', 'Demo', 'Offer', 'Closed', 'Dead']),
   streetAddress: z.string().default(''),
   city: z.string().default(''),
@@ -235,6 +235,7 @@ const venueSettingsSchema = z.object({
   stripeOnboardingComplete: z.boolean().default(false),
   payoutsEnabled: z.boolean().default(false),
   isFoundingPartner: z.boolean().default(false),
+  enabledPaymentMethods: z.array(z.string()).min(1, 'Select at least one payment method'),
 });
 
 type VenueSettingsFormData = z.infer<typeof venueSettingsSchema>;
@@ -487,7 +488,8 @@ export default function SolutionAdminPage() {
       monthlySolutionFee: 0, 
       stripeOnboardingComplete: false, 
       payoutsEnabled: false, 
-      isFoundingPartner: false 
+      isFoundingPartner: false,
+      enabledPaymentMethods: ['Pay at Delivery', 'Digital Payment']
     }
   });
 
@@ -674,6 +676,7 @@ export default function SolutionAdminPage() {
       stripeOnboardingComplete: vData?.stripeOnboardingComplete || s.stripeOnboardingComplete || false,
       payoutsEnabled: vData?.payoutsEnabled || false,
       isFoundingPartner: vData?.isFoundingPartner || s.isFoundingPartner || false,
+      enabledPaymentMethods: vData?.enabledPaymentMethods || s.enabledPaymentMethods || ['Pay at Delivery', 'Digital Payment']
     });
     setIsVenueSettingsOpen(true);
   };
@@ -695,6 +698,7 @@ export default function SolutionAdminPage() {
         stripeOnboardingComplete: data.stripeOnboardingComplete,
         payoutsEnabled: data.payoutsEnabled,
         isFoundingPartner: data.isFoundingPartner,
+        enabledPaymentMethods: data.enabledPaymentMethods,
         updatedAt: serverTimestamp()
       }, { merge: true });
 
@@ -712,6 +716,7 @@ export default function SolutionAdminPage() {
         isFoundingPartner: data.isFoundingPartner,
         stripeAccountId: data.stripeAccountId,
         stripeOnboardingComplete: data.stripeOnboardingComplete,
+        enabledPaymentMethods: data.enabledPaymentMethods,
         updatedAt: serverTimestamp()
       });
 
@@ -1519,7 +1524,7 @@ export default function SolutionAdminPage() {
                         <FormItem><FormLabel className="text-[9px] font-black uppercase">Venue Name</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl><FormMessage /></FormItem>
                       )} />
                       <FormField control={leadForm.control} name="venueType" render={({ field }) => (
-                        <FormItem><FormLabel className="text-[9px] font-black uppercase">Venue Type</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger className="h-11 border-2 font-bold"><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="Golf Course">Golf Course</SelectItem><SelectItem value="Bowling Center">Bowling Center</SelectItem><SelectItem value="Other">Other</SelectItem></SelectContent></Select></FormItem>
+                        <FormItem><FormLabel className="text-[9px] font-black uppercase">Venue Type</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger className="h-11 border-2 font-bold"><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="Golf Course">Golf Course</SelectItem><SelectItem value="Bowling Center">Bowling Center</SelectItem></SelectContent></Select></FormItem>
                       )} />
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -1976,8 +1981,6 @@ export default function SolutionAdminPage() {
                                 <SelectItem value="Private Golf Course">Private Golf Course</SelectItem>
                                 <SelectItem value="Semi Private Golf Course">Semi Private Golf Course</SelectItem>
                                 <SelectItem value="Bowling Center">Bowling Center</SelectItem>
-                                <SelectItem value="Brewery">Brewery</SelectItem>
-                                <SelectItem value="Restaurant">Restaurant</SelectItem>
                               </SelectContent>
                             </Select>
                           </FormItem>
@@ -2087,8 +2090,52 @@ export default function SolutionAdminPage() {
 
                   <div className="space-y-6">
                     <Label className="text-[10px] font-black uppercase tracking-widest text-primary flex items-center gap-2">
-                       <CreditCard className="h-3 w-3" /> Stripe Express Integration
+                       <CreditCard className="h-3 w-3" /> Payment & Commercial Terminal
                     </Label>
+                    
+                    <div className="space-y-4">
+                      <Label className="text-[9px] font-black uppercase text-muted-foreground">Authorized Payment Methods</Label>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                        {['Pay at Delivery', 'Digital Payment', 'Member Account'].map((method) => {
+                          const isGolf = venueSettingsForm.watch('type').toLowerCase().includes('golf');
+                          const isDisabled = method === 'Member Account' && !isGolf;
+                          
+                          return (
+                            <FormField
+                              key={method}
+                              control={venueSettingsForm.control}
+                              name="enabledPaymentMethods"
+                              render={({ field }) => (
+                                <FormItem 
+                                  className={cn(
+                                    "flex items-center space-x-3 space-y-0 p-3 rounded-xl border-2 bg-slate-50 transition-opacity",
+                                    isDisabled && "opacity-40 grayscale pointer-events-none"
+                                  )}
+                                >
+                                  <FormControl>
+                                    <Checkbox
+                                      checked={field.value?.includes(method)}
+                                      onCheckedChange={(checked) => {
+                                        return checked
+                                          ? field.onChange([...field.value, method])
+                                          : field.onChange(field.value?.filter((value: string) => value !== method));
+                                      }}
+                                    />
+                                  </FormControl>
+                                  <FormLabel className="text-[10px] font-black uppercase cursor-pointer">
+                                    {method}
+                                    {method === 'Member Account' && <span className="block text-[7px] text-muted-foreground">Golf Exclusive</span>}
+                                  </FormLabel>
+                                </FormItem>
+                              )}
+                            />
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <Separator className="opacity-50" />
+
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <FormField 
                         control={venueSettingsForm.control} 

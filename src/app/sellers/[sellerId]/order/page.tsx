@@ -5,7 +5,7 @@ import { useState, use, useEffect, useMemo, useRef } from 'react';
 import { collection, doc, addDoc, serverTimestamp, query, where } from 'firebase/firestore';
 import { signInAnonymously } from 'firebase/auth';
 import { useFirestore, useCollection, useMemoFirebase, useDoc, useAuth, useUser, useFirebase } from '@/firebase';
-import type { Seller, MenuItem, OrderItem, SolutionConfig, Category, Venue, StaffMember } from '@/lib/types';
+import type { Seller, MenuItem, OrderItem, SolutionConfig, Category, Venue, StaffMember, PaymentMethodType } from '@/lib/types';
 import { categories } from '@/lib/types';
 import { BuyerMenu } from '@/components/buyer-menu';
 import { OrderSummary } from '@/components/order-summary';
@@ -22,7 +22,6 @@ import {
   Store, 
   Truck,
   Building,
-  Waves,
   Home,
   Utensils,
   MapPin,
@@ -42,7 +41,8 @@ import {
   Smartphone,
   Mail,
   X,
-  ReceiptText
+  ReceiptText,
+  UserCircle
 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useCart } from '@/lib/cart-context';
@@ -141,7 +141,7 @@ function PatronIdentifyFields({ patronEmail, setPatronEmail, patronName, setPatr
               />
             </div>
             <p className="text-[8px] font-bold text-muted-foreground uppercase tracking-wider pl-1">
-              We'll text you order status updates (e.g., 'Order Ready')
+              We'll text you order status updates
             </p>
           </div>
         </div>
@@ -252,7 +252,7 @@ function StripeActionArea({
         <Checkbox id="save-info-stripe" checked={saveInfo} onCheckedChange={(val) => setSaveInfo(!!val)} className="h-5 w-5 data-[state=checked]:bg-primary" />
         <div className="text-left">
           <label htmlFor="save-info-stripe" className="text-[10px] font-black uppercase text-[#213147] cursor-pointer block leading-none">Save for faster checkout</label>
-          <p className="text-[8px] font-bold text-muted-foreground uppercase mt-1">Securely saves your contact & payment info on this device for 1-tap ordering.</p>
+          <p className="text-[8px] font-bold text-muted-foreground uppercase mt-1">Securely saves your contact & payment info on this device.</p>
         </div>
       </div>
 
@@ -297,7 +297,7 @@ function CheckoutDrawerContent({
   const [patronPhone, setPatronPhone] = useState('');
   const [saveInfo, setSaveInfo] = useState(false); 
   const [tip, setTip] = useState(0);
-  const [paymentMethod, setPaymentMethod] = useState<'Pay at Delivery' | 'Stripe' | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethodType | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [customerSessionClientSecret, setCustomerSessionClientSecret] = useState<string | null>(null);
@@ -310,6 +310,16 @@ function CheckoutDrawerContent({
 
   const disclosureCategory = getDisclosureCategory(seller?.type);
   const checkoutNotice = FEE_DISCLOSURES[disclosureCategory].checkout;
+
+  const availableMethods = useMemo(() => {
+    return seller?.enabledPaymentMethods || ['Pay at Delivery', 'Digital Payment'];
+  }, [seller]);
+
+  useEffect(() => {
+    if (availableMethods.length > 0 && !paymentMethod) {
+      setPaymentMethod(availableMethods[0]);
+    }
+  }, [availableMethods, paymentMethod]);
 
   useEffect(() => {
     const cachedName = localStorage.getItem('koop_patron_name');
@@ -328,7 +338,7 @@ function CheckoutDrawerContent({
   }, []);
 
   useEffect(() => {
-    if (paymentMethod === 'Stripe' && !isFetchingIntent && baseTotalForBackend > 0) {
+    if (paymentMethod === 'Digital Payment' && !isFetchingIntent && baseTotalForBackend > 0) {
       const fetchIntent = async () => {
         setIsFetchingIntent(true);
         try {
@@ -406,7 +416,7 @@ function CheckoutDrawerContent({
         tip,
         total: finalTotal,
         status: 'Placed',
-        paymentMethod: 'Pay at Delivery',
+        paymentMethod: paymentMethod,
         paymentStatus: 'Pending',
         menuType: selectedMenuType,
         menuTypeLocation: locationValue || null,
@@ -442,20 +452,12 @@ function CheckoutDrawerContent({
       tip,
       total: finalTotal,
       status: 'Placed',
-      paymentMethod: 'Stripe',
+      paymentMethod: 'Digital Payment',
       menuType: selectedMenuType,
       menuTypeLocation: locationValue || null,
       createdAt: serverTimestamp(),
     };
   }, [user, sellerId, activeOrderItems, subtotal, solutionFee, tax, tip, finalTotal, selectedMenuType, locationValue]);
-
-  const idForm = (
-    <PatronIdentifyFields 
-      patronEmail={patronEmail} setPatronEmail={setPatronEmail}
-      patronName={patronName} setPatronName={setPatronName}
-      patronPhone={patronPhone} setPatronPhone={setPatronPhone}
-    />
-  );
 
   return (
     <ScrollArea className="flex-1 w-full overflow-x-hidden">
@@ -494,29 +496,48 @@ function CheckoutDrawerContent({
 
         <div className="space-y-6">
           <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground px-1">DELIVERY DETAILS</h3>
-          {idForm}
+          <PatronIdentifyFields 
+            patronEmail={patronEmail} setPatronEmail={setPatronEmail}
+            patronName={patronName} setPatronName={setPatronName}
+            patronPhone={patronPhone} setPatronPhone={setPatronPhone}
+          />
         </div>
 
         <div className="space-y-4">
           <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground px-1">PAYMENT METHOD</h3>
           <RadioGroup value={paymentMethod || ''} onValueChange={(v: any) => { setPaymentMethod(v); setClientSecret(null); }} className="grid grid-cols-1 gap-3">
-            <div className={cn("flex items-center justify-between p-4 rounded-2xl border-2 transition-all cursor-pointer", paymentMethod === 'Stripe' ? "border-primary bg-primary/5 shadow-md" : "border-slate-100 hover:border-slate-200")} onClick={() => setPaymentMethod('Stripe')}>
-              <div className="flex items-center gap-4">
-                <div className={cn("p-2 rounded-lg", paymentMethod === 'Stripe' ? "bg-primary text-white" : "bg-slate-100 text-slate-400")}><CreditCard className="h-5 w-5" /></div>
-                <div className="text-left"><p className="text-xs font-black uppercase tracking-tight text-[#213147]">Digital Checkout</p><p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">SECURE CARD PAYMENT</p></div>
+            {availableMethods.includes('Digital Payment') && (
+              <div className={cn("flex items-center justify-between p-4 rounded-2xl border-2 transition-all cursor-pointer", paymentMethod === 'Digital Payment' ? "border-primary bg-primary/5 shadow-md" : "border-slate-100 hover:border-slate-200")} onClick={() => setPaymentMethod('Digital Payment')}>
+                <div className="flex items-center gap-4">
+                  <div className={cn("p-2 rounded-lg", paymentMethod === 'Digital Payment' ? "bg-primary text-white" : "bg-slate-100 text-slate-400")}><CreditCard className="h-5 w-5" /></div>
+                  <div className="text-left"><p className="text-xs font-black uppercase tracking-tight text-[#213147]">Digital Checkout</p><p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">SECURE CARD PAYMENT</p></div>
+                </div>
+                {paymentMethod === 'Digital Payment' && <Check className="h-4 w-4 text-primary" />}
               </div>
-              {paymentMethod === 'Stripe' && <Check className="h-4 w-4 text-primary" />}
-            </div>
-            <div className={cn("flex items-center justify-between p-4 rounded-2xl border-2 transition-all cursor-pointer opacity-60", paymentMethod === 'Pay at Delivery' ? "border-primary bg-primary/5" : "border-slate-100")} onClick={() => setPaymentMethod('Pay at Delivery')}>
-              <div className="flex items-center gap-4">
-                <div className={cn("p-2 rounded-lg", paymentMethod === 'Pay at Delivery' ? "bg-primary text-white" : "bg-slate-100 text-slate-400")}><Banknote className="h-5 w-5" /></div>
-                <div className="text-left"><p className="text-xs font-black uppercase tracking-tight text-[#213147]">Pay at Delivery</p><p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">CHECKOUT ON ARRIVAL</p></div>
+            )}
+            
+            {availableMethods.includes('Pay at Delivery') && (
+              <div className={cn("flex items-center justify-between p-4 rounded-2xl border-2 transition-all cursor-pointer", paymentMethod === 'Pay at Delivery' ? "border-primary bg-primary/5" : "border-slate-100 hover:border-slate-200")} onClick={() => setPaymentMethod('Pay at Delivery')}>
+                <div className="flex items-center gap-4">
+                  <div className={cn("p-2 rounded-lg", paymentMethod === 'Pay at Delivery' ? "bg-primary text-white" : "bg-slate-100 text-slate-400")}><Banknote className="h-5 w-5" /></div>
+                  <div className="text-left"><p className="text-xs font-black uppercase tracking-tight text-[#213147]">Pay at Delivery</p><p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">CHECKOUT ON ARRIVAL</p></div>
+                </div>
+                {paymentMethod === 'Pay at Delivery' && <Check className="h-4 w-4 text-primary" />}
               </div>
-              {paymentMethod === 'Pay at Delivery' && <Check className="h-4 w-4 text-primary" />}
-            </div>
+            )}
+
+            {availableMethods.includes('Member Account') && (
+              <div className={cn("flex items-center justify-between p-4 rounded-2xl border-2 transition-all cursor-pointer", paymentMethod === 'Member Account' ? "border-primary bg-primary/5" : "border-slate-100 hover:border-slate-200")} onClick={() => setPaymentMethod('Member Account')}>
+                <div className="flex items-center gap-4">
+                  <div className={cn("p-2 rounded-lg", paymentMethod === 'Member Account' ? "bg-primary text-white" : "bg-slate-100 text-slate-400")}><UserCircle className="h-5 w-5" /></div>
+                  <div className="text-left"><p className="text-xs font-black uppercase tracking-tight text-[#213147]">Member Account</p><p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">CHARGE TO HOUSE ACCOUNT</p></div>
+                </div>
+                {paymentMethod === 'Member Account' && <Check className="h-4 w-4 text-primary" />}
+              </div>
+            )}
           </RadioGroup>
 
-          {paymentMethod === 'Stripe' && (
+          {paymentMethod === 'Digital Payment' && (
             isFetchingIntent ? (
               <div className="flex flex-col items-center gap-4 py-20 animate-in fade-in duration-300">
                 <Loader2 className="h-10 w-10 animate-spin text-primary opacity-50" />
@@ -554,16 +575,16 @@ function CheckoutDrawerContent({
             ) : null
           )}
 
-          {paymentMethod === 'Pay at Delivery' && (
+          {(paymentMethod === 'Pay at Delivery' || paymentMethod === 'Member Account') && (
             <div className="space-y-6">
               <div 
                 className="flex items-center space-x-3 p-4 bg-primary/5 rounded-[2rem] border-2 border-primary/10 cursor-pointer transition-all hover:bg-primary/10 animate-in fade-in duration-500"
                 onClick={() => setSaveInfo(!saveInfo)}
               >
-                <Checkbox id="save-info-pad" checked={saveInfo} onCheckedChange={(val) => setSaveInfo(!!val)} className="h-5 w-5 data-[state=checked]:bg-primary" />
+                <Checkbox id="save-info-non-digital" checked={saveInfo} onCheckedChange={(val) => setSaveInfo(!!val)} className="h-5 w-5 data-[state=checked]:bg-primary" />
                 <div className="text-left">
-                  <label htmlFor="save-info-pad" className="text-[10px] font-black uppercase text-[#213147] cursor-pointer block leading-none">Save for faster checkout</label>
-                  <p className="text-[8px] font-bold text-muted-foreground uppercase mt-1">Securely saves your contact & payment info on this device for 1-tap ordering.</p>
+                  <label htmlFor="save-info-non-digital" className="text-[10px] font-black uppercase text-[#213147] cursor-pointer block leading-none">Save for faster checkout</label>
+                  <p className="text-[8px] font-bold text-muted-foreground uppercase mt-1">Securely saves your contact info on this device.</p>
                 </div>
               </div>
               <div className="fixed bottom-7 left-0 right-0 p-4 bg-white/80 backdrop-blur-md border-t z-50">

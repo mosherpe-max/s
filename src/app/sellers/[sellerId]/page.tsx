@@ -60,7 +60,7 @@ import {
   Calendar as CalendarIcon,
   QrCode,
   FileText,
-  Image as LucideImage,
+  LucideImage,
   Share2,
   Presentation,
   Filter,
@@ -74,7 +74,9 @@ import {
   AlertCircle,
   Info,
   User as UserIcon,
-  Star
+  Star,
+  CreditCard,
+  Banknote
 } from 'lucide-react';
 import Image from 'next/image';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
@@ -114,6 +116,7 @@ import {
 } from "@/components/ui/sheet";
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
+import { Checkbox } from '@/components/ui/checkbox';
 import { cn, SUPER_ADMIN_ID } from '@/lib/utils';
 import { 
   isToday, 
@@ -333,6 +336,9 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
     if (analyticsRange === 'today') {
       rangeStart = startOfDay(now);
       rangeEnd = endOfDay(now);
+    } else if (analyticsRange === 'mtd') {
+      rangeStart = startOfMonth(now);
+      rangeEnd = endOfMonth(now);
     } else if (analyticsRange === 'ytd') {
       rangeStart = startOfYear(now);
       rangeEnd = endOfYear(now);
@@ -919,7 +925,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                         <div className="bg-slate-50 p-4 rounded-xl flex items-start gap-3">
                           <Info className="h-4 w-4 text-slate-400 shrink-0 mt-0.5" />
                           <p className="text-[10px] text-muted-foreground font-bold uppercase leading-relaxed">
-                            Includes orders where acknowledgment exceeded {seller?.orderThresholds?.['Beverage Cart']?.maxOrderAcknowledgeSeconds || solutionConfig?.orderThresholds?.['Beverage Cart']?.maxOrderAcknowledgeSeconds}s or fulfillment exceeded {seller?.orderThresholds?.['Beverage Cart']?.maxOrderProcessingMinutes || solutionConfig?.orderThresholds?.['Beverage Cart']?.maxOrderProcessingMinutes}m.
+                            Includes orders where acknowledgment exceeded {seller?.orderThresholds?.[modes[0]]?.maxOrderAcknowledgeSeconds || solutionConfig?.orderThresholds?.[modes[0]]?.maxOrderAcknowledgeSeconds}s or fulfillment exceeded {seller?.orderThresholds?.[modes[0]]?.maxOrderProcessingMinutes || solutionConfig?.orderThresholds?.[modes[0]]?.maxOrderProcessingMinutes}m.
                           </p>
                         </div>
                       </Card>
@@ -930,7 +936,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
 
               {activeNav === 'orders' && (
                 <div className="space-y-8 animate-in fade-in duration-500">
-                  <div className="flex flex-col md:flex-row md:items-center justify-between border-b-2 pb-6 gap-4"><div className="space-y-1"><h3 className="font-headline font-black text-2xl text-[#213147] uppercase">Fulfillment Log</h3><p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Monitor establishment queue and history</p></div><div className="flex flex-wrap gap-2 items-center"><div className="relative"><Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" /><Input placeholder="Search orders..." className="pl-10 h-10 border-2 rounded-xl text-xs w-64" value={orderSearchTerm} onChange={(e) => setOrderSearchTerm(e.target.value)} /></div><Select value={orderDateRange} onValueChange={(v: any) => setOrderDateRange(v)}><SelectTrigger className="h-10 border-2 rounded-xl w-40 text-[10px] font-black uppercase tracking-widest"><CalendarIcon className="h-3 w-3 mr-2" /><SelectValue /></SelectTrigger><SelectContent><SelectItem value="today">Today</SelectItem><SelectItem value="7days">Last 7 Days</SelectItem><SelectItem value="30days">Last 30 Days</SelectItem><SelectItem value="all">All Time</SelectItem></SelectContent></Select></div></div>
+                  <div className="flex flex-col md:flex-row md:items-center justify-between border-b-2 pb-6 gap-4"><div className="space-y-1"><h3 className="font-headline font-black text-2xl text-[#213147] uppercase">Fulfillment Log</h3><p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Monitor establishment queue and history</p></div><div className="flex flex-wrap gap-2 items-center"><div className="relative"><Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" /><Input placeholder="Search orders..." className="pl-10 h-10 border-2 rounded-xl text-xs w-64" value={orderSearchTerm} onChange={(e) => setOrderSearchTerm(e.target.value)} /></div><Select value={orderDateRange} onValueChange={(v: any) => setOrderDateRange(v)}><SelectTrigger className="h-10 border-2 rounded-xl w-40 text-[10px] font-black uppercase tracking-widest"><CalendarIcon className="h-3 w-3 mr-2" /><SelectValue /></SelectTrigger><SelectContent><SelectItem value="today">Today</SelectItem><SelectItem value="7days">Last 7 Days</SelectItem><SelectItem value="30days">Last 30 Days</SelectItem><SelectItem value="all">All Time</SelectItem></Select></div></div>
                   <div className="border-2 rounded-[2.5rem] overflow-x-auto bg-white shadow-sm"><Table><TableHeader className="bg-slate-50"><TableRow><TableHead className="text-[10px] font-black uppercase h-14 px-8">Ticket</TableHead><TableHead className="text-[10px] font-black uppercase h-14">Customer</TableHead><TableHead className="text-[10px] font-black uppercase h-14">Channel</TableHead><TableHead className="text-[10px] font-black uppercase h-14">Items</TableHead><TableHead className="text-[10px] font-black uppercase h-14 text-right px-8">Status</TableHead></TableRow></TableHeader><TableBody>{filteredOrders.map(o => (<TableRow key={o.id}><TableCell className="px-8 py-5"><p className="font-mono font-black text-xs">#{o.id.slice(-5).toUpperCase()}</p><p className="text-[9px] text-muted-foreground uppercase mt-0.5">{o.createdAt ? format(o.createdAt.toDate(), 'MMM d, h:mm a') : 'Now'}</p></TableCell><TableCell><p className="font-bold text-sm text-[#213147]">{o.customerName}</p><p className="text-[9px] text-muted-foreground uppercase">{o.customerPhone}</p></TableCell><TableCell><Badge variant="outline" className="text-[8px] font-black uppercase">{o.menuType}</Badge></TableCell><TableCell><p className="text-xs font-medium text-slate-600 line-clamp-1">{o.items.map(i => `${i.quantity}x ${i.name}`).join(', ')}</p></TableCell><TableCell className="text-right px-8"><Badge className={cn("text-[9px] font-black uppercase px-3 py-1 rounded-full", o.status === 'Delivered' ? "bg-green-100 text-green-700" : "bg-indigo-100 text-indigo-700")}>{o.status}</Badge></TableCell></TableRow>))}</TableBody></Table></div>
                 </div>
               )}
@@ -1129,7 +1135,54 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                 <div className="space-y-8 animate-in fade-in duration-500">
                   <div className="flex justify-between items-center border-b-2 pb-6"><div className="space-y-1"><h3 className="font-headline font-black text-2xl text-[#213147] uppercase">Establishment Settings</h3><p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Configuration and fulfillment thresholds</p></div><Button onClick={onSaveFulfillment} disabled={isProcessingSave} className="bg-[#213147] font-black uppercase text-[10px] gap-2 h-11 px-6 shadow-xl">{isProcessingSave ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Save Fulfillment Rules</Button></div>
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    <Card className="border-2 shadow-sm p-8 space-y-8 text-left h-fit"><div className="space-y-6"><h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2"><Building className="h-4 w-4" /> Core Identity</h4><div className="grid gap-6"><div className="space-y-2 text-left"><Label className="text-[10px] font-black uppercase">Official Establishment Name</Label><Input defaultValue={seller?.courseName} onChange={(e) => updateDoc(doc(firestore!, 'sellers', sellerId), { courseName: e.target.value })} className="h-12 border-2 font-bold" /></div><div className="grid grid-cols-2 gap-6"><div className="space-y-2 text-left"><Label className="text-[10px] font-black uppercase">Establishment Type</Label><Select defaultValue={seller?.type} onValueChange={(v) => updateDoc(doc(firestore!, 'sellers', sellerId), { type: v as any })}><SelectTrigger className="h-12 border-2 font-bold"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="Public Golf Course">Public Golf Course</SelectItem><SelectItem value="Private Golf Course">Private Golf Course</SelectItem><SelectItem value="Bowling Center">Bowling Center</SelectItem></SelectContent></Select></div><div className="space-y-2 text-left"><Label className="text-[10px] font-black uppercase">Current Status</Label><div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border-2 h-12"><Switch checked={seller?.status === 'Active'} onCheckedChange={(v) => updateDoc(doc(firestore!, 'sellers', sellerId), { status: v ? 'Active' : 'Inactive' })} /><span className="text-[10px] font-black uppercase">{seller?.status}</span></div></div></div><div className="space-y-2 text-left"><Label className="text-[10px] font-black uppercase">Tax Rate (%)</Label><Input type="number" defaultValue={seller?.taxRate} onChange={(e) => updateDoc(doc(firestore!, 'sellers', sellerId), { taxRate: parseFloat(e.target.value) })} className="h-12 border-2 font-bold" /></div></div></div><Separator /><div className="space-y-6"><h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2"><MapPin className="h-4 w-4" /> Logistics Base</h4><div className="space-y-2 text-left"><Label className="text-[10px] font-black uppercase">Street Address</Label><Input defaultValue={seller?.streetAddress} className="h-12 border-2 font-bold" /></div></div></Card>
+                    <Card className="border-2 shadow-sm p-8 space-y-8 text-left h-fit">
+                      <div className="space-y-6">
+                        <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2"><Building className="h-4 w-4" /> Core Identity</h4>
+                        <div className="grid gap-6">
+                          <div className="space-y-2 text-left"><Label className="text-[10px] font-black uppercase">Establishment Name</Label><Input defaultValue={seller?.courseName} onChange={(e) => updateDoc(doc(firestore!, 'sellers', sellerId), { courseName: e.target.value })} className="h-12 border-2 font-bold" /></div>
+                          <div className="grid grid-cols-2 gap-6">
+                            <div className="space-y-2 text-left"><Label className="text-[10px] font-black uppercase">Type</Label><Select defaultValue={seller?.type} onValueChange={(v) => updateDoc(doc(firestore!, 'sellers', sellerId), { type: v as any })}><SelectTrigger className="h-12 border-2 font-bold"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="Public Golf Course">Public Golf Course</SelectItem><SelectItem value="Private Golf Course">Private Golf Course</SelectItem><SelectItem value="Semi Private Golf Course">Semi Private Golf Course</SelectItem><SelectItem value="Bowling Center">Bowling Center</SelectItem></SelectContent></Select></div>
+                            <div className="space-y-2 text-left"><Label className="text-[10px] font-black uppercase">Current Status</Label><div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border-2 h-12"><Switch checked={seller?.status === 'Active'} onCheckedChange={(v) => updateDoc(doc(firestore!, 'sellers', sellerId), { status: v ? 'Active' : 'Inactive' })} /><span className="text-[10px] font-black uppercase">{seller?.status}</span></div></div>
+                          </div>
+                        </div>
+                      </div>
+                      <Separator />
+                      <div className="space-y-6">
+                        <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2"><CreditCard className="h-4 w-4" /> Payment Controls</h4>
+                        <div className="space-y-4">
+                          <Label className="text-[9px] font-black uppercase text-muted-foreground">Authorized Payment Methods</Label>
+                          <div className="grid grid-cols-1 gap-2">
+                            {['Pay at Delivery', 'Digital Payment', 'Member Account'].map((method) => {
+                              const isGolf = seller?.type?.toLowerCase().includes('golf');
+                              const isDisabled = method === 'Member Account' && !isGolf;
+                              const isChecked = seller?.enabledPaymentMethods?.includes(method as any) || false;
+
+                              return (
+                                <div key={method} className={cn("flex items-center space-x-3 p-3 rounded-xl border-2 transition-all", isChecked ? "bg-primary/5 border-primary/20" : "bg-slate-50 border-slate-100", isDisabled && "opacity-40 grayscale pointer-events-none")}>
+                                  <Checkbox 
+                                    id={`pay-${method}`} 
+                                    checked={isChecked} 
+                                    onCheckedChange={(checked) => {
+                                      const current = seller?.enabledPaymentMethods || [];
+                                      const next = checked ? [...current, method as any] : current.filter(m => m !== method);
+                                      updateDoc(doc(firestore!, 'sellers', sellerId), { enabledPaymentMethods: next });
+                                    }}
+                                  />
+                                  <label htmlFor={`pay-${method}`} className="text-[10px] font-black uppercase cursor-pointer flex-1">
+                                    <div className="flex items-center gap-2">
+                                      {method === 'Pay at Delivery' && <Banknote className="h-3 w-3" />}
+                                      {method === 'Digital Payment' && <CreditCard className="h-3 w-3" />}
+                                      {method === 'Member Account' && <UserIcon className="h-3 w-3" />}
+                                      {method}
+                                    </div>
+                                  </label>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </div>
+                    </Card>
 
                     <Card className="border-2 shadow-sm p-8 space-y-8 text-left h-fit">
                       <div className="flex items-center justify-between"><h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2"><HeartPulse className="h-4 w-4 text-primary" /> Fulfillment Thresholds</h4><Badge variant="outline" className="text-[8px] font-black border-primary/20 bg-primary/5 text-primary uppercase">Active Channels</Badge></div>
