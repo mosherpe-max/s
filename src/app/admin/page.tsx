@@ -737,17 +737,18 @@ export default function SolutionAdminPage() {
 
     setIsProcessingSave(true);
     
-    // Explicit references for better error handling
+    // Explicit references for separate deletion calls
     const sellerRef = doc(firestore, 'sellers', venueId);
     const venueRef = doc(firestore, 'venues', venueId);
 
-    const batch = writeBatch(firestore);
-    batch.delete(sellerRef);
-    batch.delete(venueRef);
-
-    batch.commit()
+    // sequential deletion for clarity and reliability
+    deleteDoc(sellerRef)
       .then(() => {
-        toast({ title: "Establishment Terminated", description: `Record for ${venueName} has been purged from registry.` });
+        deleteDoc(venueRef);
+        toast({ 
+          title: "Establishment Terminated", 
+          description: `Record for ${venueName} has been purged from registry.` 
+        });
       })
       .catch(async (err) => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({
