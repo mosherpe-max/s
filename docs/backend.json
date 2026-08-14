@@ -32,7 +32,7 @@
         "courseName": { "type": "string" },
         "type": { 
           "type": "string",
-          "enum": ["Public Golf Course", "Private Golf Course", "Semi Private Golf Course", "Bowling Center"]
+          "enum": ["Golf Course", "Bowling Center"]
         },
         "contactEmail": { "type": "string", "format": "email" },
         "status": { "type": "string", "enum": ["Active", "Inactive"] },

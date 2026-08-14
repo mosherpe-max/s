@@ -218,7 +218,7 @@ type StarterMenuItemFormData = z.infer<typeof starterMenuItemSchema>;
 const venueSettingsSchema = z.object({
   name: z.string().min(2, 'Venue name required'),
   ownerUid: z.string().min(1, 'Owner UID required'),
-  type: z.string().min(1, 'Venue type required'),
+  type: z.enum(['Golf Course', 'Bowling Center']),
   streetAddress: z.string().min(1, 'Address required'),
   city: z.string().min(1, 'City required'),
   state: z.string().min(1, 'State required'),
@@ -472,7 +472,7 @@ export default function SolutionAdminPage() {
     defaultValues: { 
       name: '', 
       ownerUid: '', 
-      type: 'Public Golf Course',
+      type: 'Golf Course',
       streetAddress: '',
       city: '',
       state: '',
@@ -537,7 +537,7 @@ export default function SolutionAdminPage() {
           const id = Math.random().toString(36).substr(2, 9);
           const leadRef = doc(firestore, 'leads', id);
           
-          const leadType = row.venueType || row.Type || 'Other';
+          const leadType = row.venueType || row.Type || 'Golf Course';
           const stage = row.stage || row.Stage || 'Cold Lead';
 
           const leadData = {
@@ -659,7 +659,7 @@ export default function SolutionAdminPage() {
     venueSettingsForm.reset({
       name: vData?.name || s.courseName,
       ownerUid: vData?.ownerUid || '',
-      type: s.type || 'Public Golf Course',
+      type: (s.type?.includes('Golf') ? 'Golf Course' : 'Bowling Center') as any,
       streetAddress: s.streetAddress || '',
       city: s.city || '',
       state: s.state || '',
@@ -1977,9 +1977,7 @@ export default function SolutionAdminPage() {
                                 </SelectTrigger>
                               </FormControl>
                               <SelectContent>
-                                <SelectItem value="Public Golf Course">Public Golf Course</SelectItem>
-                                <SelectItem value="Private Golf Course">Private Golf Course</SelectItem>
-                                <SelectItem value="Semi Private Golf Course">Semi Private Golf Course</SelectItem>
+                                <SelectItem value="Golf Course">Golf Course</SelectItem>
                                 <SelectItem value="Bowling Center">Bowling Center</SelectItem>
                               </SelectContent>
                             </Select>
@@ -2122,7 +2120,7 @@ export default function SolutionAdminPage() {
                                       }}
                                     />
                                   </FormControl>
-                                  <FormLabel className="text-[10px] font-black uppercase cursor-pointer">
+                                  <FormLabel className="text-10px font-black uppercase cursor-pointer">
                                     {method}
                                     {method === 'Member Account' && <span className="block text-[7px] text-muted-foreground">Golf Exclusive</span>}
                                   </FormLabel>
