@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
@@ -93,9 +92,6 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
-import {
-  Table as ShadcnTable,
 } from "@/components/ui/table";
 import {
   Tabs,
@@ -219,6 +215,7 @@ const venueSettingsSchema = z.object({
   name: z.string().min(2, 'Venue name required'),
   ownerUid: z.string().min(1, 'Owner UID required'),
   type: z.enum(['Golf Course', 'Bowling Center']),
+  status: z.enum(['Active', 'Inactive']).default('Active'),
   streetAddress: z.string().min(1, 'Address required'),
   city: z.string().min(1, 'City required'),
   state: z.string().min(1, 'State required'),
@@ -473,6 +470,7 @@ export default function SolutionAdminPage() {
       name: '', 
       ownerUid: '', 
       type: 'Golf Course',
+      status: 'Active',
       streetAddress: '',
       city: '',
       state: '',
@@ -660,6 +658,7 @@ export default function SolutionAdminPage() {
       name: vData?.name || s.courseName,
       ownerUid: vData?.ownerUid || '',
       type: (s.type?.includes('Golf') ? 'Golf Course' : 'Bowling Center') as any,
+      status: s.status || 'Active',
       streetAddress: s.streetAddress || '',
       city: s.city || '',
       state: s.state || '',
@@ -705,6 +704,7 @@ export default function SolutionAdminPage() {
       await updateDoc(doc(firestore, 'sellers', selectedVenue.id), {
         courseName: data.name,
         type: data.type as any,
+        status: data.status,
         streetAddress: data.streetAddress,
         city: data.city,
         state: data.state,
@@ -724,6 +724,29 @@ export default function SolutionAdminPage() {
       setIsVenueSettingsOpen(false);
     } catch (e: any) {
       toast({ variant: "destructive", title: "Update Failed", description: e.message });
+    } finally {
+      setIsProcessingSave(false);
+    }
+  };
+
+  const handleDeleteVenue = async (venueId: string, venueName: string) => {
+    if (!firestore) return;
+    if (!confirm(`ARE YOU ABSOLUTELY SURE? This will permanently delete the establishment "${venueName}" and all associated data records.`)) return;
+
+    setIsProcessingSave(true);
+    try {
+      const batch = writeBatch(firestore);
+      
+      // 1. Delete operational profile
+      batch.delete(doc(firestore, 'sellers', venueId));
+      
+      // 2. Delete business registry
+      batch.delete(doc(firestore, 'venues', venueId));
+
+      await batch.commit();
+      toast({ title: "Establishment Terminated", description: `Record for ${venueName} has been purged from registry.` });
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Deletion Failed", description: e.message });
     } finally {
       setIsProcessingSave(false);
     }
@@ -1055,6 +1078,9 @@ export default function SolutionAdminPage() {
                                 </Button>
                                 <Button variant="ghost" size="icon" onClick={() => router.push(`/sellers/${v.id}`)} className="h-8 w-8 text-slate-400 hover:text-indigo-600">
                                   <ExternalLink className="h-4 w-4" />
+                                </Button>
+                                <Button variant="ghost" size="icon" onClick={() => handleDeleteVenue(v.id, v.courseName)} className="h-8 w-8 text-destructive hover:bg-destructive/10">
+                                  <Trash2 className="h-4 w-4" />
                                 </Button>
                               </div>
                             </TableCell>
@@ -1955,15 +1981,7 @@ export default function SolutionAdminPage() {
                         )} 
                       />
                     </div>
-                  </div>
-
-                  <Separator />
-
-                  <div className="space-y-6">
-                    <Label className="text-[10px] font-black uppercase tracking-widest text-primary flex items-center gap-2">
-                       <MapPin className="h-3 w-3" /> Establishment Logistics & Contact
-                    </Label>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <FormField 
                         control={venueSettingsForm.control} 
                         name="type" 
@@ -1986,6 +2004,36 @@ export default function SolutionAdminPage() {
                       />
                       <FormField 
                         control={venueSettingsForm.control} 
+                        name="status" 
+                        render={({ field }) => (
+                          <FormItem className="text-left">
+                            <FormLabel className="text-[9px] font-black uppercase">Operational Status</FormLabel>
+                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                              <FormControl>
+                                <SelectTrigger className="h-11 border-2 font-bold">
+                                  <SelectValue />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="Active">Active</SelectItem>
+                                <SelectItem value="Inactive">Inactive</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </FormItem>
+                        )} 
+                      />
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  <div className="space-y-6">
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-primary flex items-center gap-2">
+                       <MapPin className="h-3 w-3" /> Establishment Logistics & Contact
+                    </Label>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <FormField 
+                        control={venueSettingsForm.control} 
                         name="streetAddress" 
                         render={({ field }) => (
                           <FormItem className="text-left">
@@ -1997,8 +2045,6 @@ export default function SolutionAdminPage() {
                           </FormItem>
                         )} 
                       />
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <FormField 
                         control={venueSettingsForm.control} 
                         name="city" 
@@ -2009,6 +2055,8 @@ export default function SolutionAdminPage() {
                           </FormItem>
                         )} 
                       />
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <FormField 
                         control={venueSettingsForm.control} 
                         name="state" 
