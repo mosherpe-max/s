@@ -49,7 +49,7 @@ import type { Prospect, SalesActivity, ProspectStage } from '@/lib/types';
 
 const prospectSchema = z.object({
   venueName: z.string().min(2, 'Venue name required'),
-  venueType: z.enum(['Golf Course', 'Bowling Center', 'Brewery/Restaurant']),
+  venueType: z.enum(['Golf Course', 'Bowling Center']),
   stage: z.enum(['Contacted', 'Demo Scheduled', 'Proposal Sent', 'Closed', 'Lost']),
   contactName: z.string().min(2, 'Contact name required'),
   contactEmail: z.string().email('Valid email required'),
@@ -86,7 +86,6 @@ export default function SalesCRMPage() {
 
   const prospectsQuery = useMemoFirebase(() => {
     if (!firestore) return null;
-    // Removing orderBy to avoid index issues in prototype; sorting on client instead.
     return query(
       collection(firestore, 'prospects'), 
       where('assignedRepId', '==', currentRep.id)
@@ -95,7 +94,6 @@ export default function SalesCRMPage() {
 
   const activitiesQuery = useMemoFirebase(() => {
     if (!firestore) return null;
-    // Removing orderBy to avoid index issues in prototype; sorting on client instead.
     return query(
       collection(firestore, 'activities'), 
       where('repId', '==', currentRep.id)
@@ -114,13 +112,11 @@ export default function SalesCRMPage() {
         p.contactName.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
-    // Perform client-side sorting by updatedAt desc
     return [...list].sort((a, b) => (b.updatedAt?.toMillis?.() || 0) - (a.updatedAt?.toMillis?.() || 0));
   }, [prospects, searchTerm]);
 
   const sortedActivities = useMemo(() => {
     if (!activities) return [];
-    // Perform client-side sorting by date desc
     return [...activities].sort((a, b) => (b.date?.toMillis?.() || 0) - (a.date?.toMillis?.() || 0));
   }, [activities]);
 
@@ -432,11 +428,11 @@ export default function SalesCRMPage() {
                   <FormItem><FormLabel>Venue Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="venueType" render={({ field }) => (
-                  <FormItem><FormLabel>Venue Type</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="Golf Course">Golf Course</SelectItem><SelectItem value="Bowling Center">Bowling Center</SelectItem><SelectItem value="Brewery/Restaurant">Brewery/Restaurant</SelectItem></SelectContent></Select></FormItem>
+                  <FormItem><FormLabel>Venue Type</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="Golf Course">Golf Course</SelectItem><SelectItem value="Bowling Center">Bowling Center</SelectItem></SelectContent></Select></FormItem>
                 )} />
               </div>
               <FormField control={form.control} name="stage" render={({ field }) => (
-                <FormItem><FormLabel>Sales Stage</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="Contacted">Contacted</SelectItem><SelectItem value="Demo Scheduled">Demo Scheduled</SelectItem><SelectItem value="Proposal Sent">Proposal Sent</SelectItem><SelectItem value="Closed">Closed</SelectItem><SelectItem value="Lost">Lost</SelectItem></SelectContent></Select></FormItem>
+                <FormItem><FormLabel>Sales Stage</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="Contacted">Contacted</SelectItem><SelectItem value="Demo Scheduled">Demo Scheduled</SelectItem><SelectItem value="Proposal Sent">Proposal Sent</SelectItem><SelectItem value="Closed">Closed</SelectItem><SelectItem value="Lost">Lost</SelectItem></SelectContent></FormItem>
               )} />
               <div className="grid grid-cols-2 gap-4 border-t pt-4">
                 <FormField control={form.control} name="contactName" render={({ field }) => (
