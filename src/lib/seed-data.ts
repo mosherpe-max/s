@@ -15,11 +15,6 @@ import type { ModifierGroup, MenuItem, StarterModifierGroup, StarterMenuItem, Ve
 import { publicGolfItems, privateGolfItems, bowlingAlleyItems } from './data';
 import { PlaceHolderImages } from './placeholder-images';
 
-/**
- * Robust image retrieval helper.
- * Searches by both explicit ID and descriptive imageHint.
- * Includes a keyword-based fallback system to guarantee an image is returned.
- */
 const getImg = (hint: string) => {
   if (!PlaceHolderImages || !PlaceHolderImages.length) return '';
   const search = hint.toLowerCase();
@@ -30,7 +25,6 @@ const getImg = (hint: string) => {
   );
   if (found) return found.imageUrl;
 
-  // Robust Fallback: try to find something based on keywords if the specific hint fails
   if (search.includes('beer') || search.includes('lager') || search.includes('ipa') || search.includes('bud') || search.includes('miller') || search.includes('coors') || search.includes('modelo') || search.includes('heineken')) 
     return PlaceHolderImages.find(i => i.id === 'beer-1')?.imageUrl || '';
   if (search.includes('cocktail') || search.includes('spirit') || search.includes('vodka') || search.includes('whiskey') || search.includes('wine') || search.includes('transfusion') || search.includes('margarita')) 
@@ -62,15 +56,9 @@ const generateSlug = (name: string) => {
     .replace(/^-|-$/g, '');
 };
 
-/**
- * Master library definition for the starter modifier system.
- */
 export const GLOBAL_STARTER_LIBRARY: Omit<StarterModifierGroup, 'id'>[] = [
-  // --- UNIVERSAL ---
   { name: "Special Instructions", venueType: ["golf", "bowling"], category: "universal", selectionType: "single", required: false, sortOrder: 5, options: [{ label: "Add Note to Order", priceModifier: 0 }] },
   { name: "Allergy Flag", venueType: ["golf", "bowling"], category: "universal", selectionType: "multi", required: false, sortOrder: 6, options: [{ label: "Nut Allergy", priceModifier: 0 }, { label: "Gluten Sensitivity", priceModifier: 0 }, { label: "Dairy-Free", priceModifier: 0 }, { label: "Vegetarian", priceModifier: 0 }, { label: "Vegan", priceModifier: 0 }] },
-  
-  // --- FOOD ---
   { name: "Doneness", venueType: ["golf", "bowling"], category: "food", selectionType: "single", required: true, sortOrder: 10, options: [{ label: "Rare", priceModifier: 0 }, { label: "Medium Rare", priceModifier: 0 }, { label: "Medium", priceModifier: 0 }, { label: "Medium Well", priceModifier: 0 }, { label: "Well Done", priceModifier: 0 }] },
   { name: "Cheese", venueType: ["golf", "bowling"], category: "food", selectionType: "single", required: false, sortOrder: 11, options: [{ label: "American", priceModifier: 0 }, { label: "Cheddar", priceModifier: 0 }, { label: "Swiss", priceModifier: 0 }, { label: "Pepper Jack", priceModifier: 0 }, { label: "Provolone", priceModifier: 0 }, { label: "No Cheese", priceModifier: 0 }] },
   { name: "Toppings", venueType: ["golf", "bowling"], category: "food", selectionType: "multi", required: false, sortOrder: 12, options: [{ label: "Lettuce", priceModifier: 0 }, { label: "Tomato", priceModifier: 0 }, { label: "Onion", priceModifier: 0 }, { label: "Pickles", priceModifier: 0 }, { label: "Jalapeños", priceModifier: 0 }, { label: "Mushrooms", priceModifier: 0 }, { label: "Banana Peppers", priceModifier: 0 }, { label: "Avocado", priceModifier: 1.50 }] },
@@ -95,8 +83,6 @@ export const GLOBAL_STARTER_LIBRARY: Omit<StarterModifierGroup, 'id'>[] = [
   { name: "Mexican Add-ons", venueType: ["golf", "bowling"], category: "food", selectionType: "multi", required: false, sortOrder: 63, options: [{ label: "Salsa", priceModifier: 0 }, { label: "Sour Cream", priceModifier: 0 }, { label: "Guacamole", priceModifier: 1.50 }, { label: "Pico de Gallo", priceModifier: 0 }, { label: "Jalapeños", priceModifier: 0 }] },
   { name: "Cheese Amount", venueType: ["golf", "bowling"], category: "food", selectionType: "single", required: false, sortOrder: 62, options: [{ label: "Regular Cheese", priceModifier: 0 }, { label: "Extra Cheese", priceModifier: 1.00 }, { label: "Light Cheese", priceModifier: 0 }] },
   { name: "Soup/Chili Add-ons", venueType: ["golf", "bowling"], category: "food", selectionType: "multi", required: false, sortOrder: 64, options: [{ label: "Shredded Cheese", priceModifier: 0 }, { label: "Sour Cream", priceModifier: 0 }, { label: "Crackers", priceModifier: 0 }, { label: "Green Onion", priceModifier: 0 }] },
-
-  // --- BEVERAGE ---
   { name: "Coffee Size", venueType: ["golf", "bowling"], category: "beverage", selectionType: "single", required: true, sortOrder: 70, options: [{ label: "Small", priceModifier: 0 }, { label: "Medium", priceModifier: 0 }, { label: "Large", priceModifier: 0 }] },
   { name: "Milk Type", venueType: ["golf", "bowling"], category: "beverage", selectionType: "single", required: false, sortOrder: 71, options: [{ label: "Whole", priceModifier: 0 }, { label: "2%", priceModifier: 0 }, { label: "Skim", priceModifier: 0 }, { label: "Oat", priceModifier: 0.75 }, { label: "Almond", priceModifier: 0.75 }] },
   { name: "Sweetener", venueType: ["golf", "bowling"], category: "beverage", selectionType: "single", required: false, sortOrder: 72, options: [{ label: "Sugar", priceModifier: 0 }, { label: "Splenda", priceModifier: 0 }, { label: "Stevia", priceModifier: 0 }, { label: "None", priceModifier: 0 }] },
@@ -109,11 +95,7 @@ export const GLOBAL_STARTER_LIBRARY: Omit<StarterModifierGroup, 'id'>[] = [
   { name: "Kids Sauce", venueType: ["golf", "bowling"], category: "universal", selectionType: "single", required: false, sortOrder: 95, options: [{ label: "Ketchup", priceModifier: 0 }, { label: "Ranch", priceModifier: 0 }, { label: "BBQ", priceModifier: 0 }, { label: "No Sauce", priceModifier: 0 }] }
 ];
 
-/**
- * Master library definition for the starter menu item system.
- */
 export const getGlobalStarterMenuItems = (): Omit<StarterMenuItem, 'id'>[] => [
-  // --- GOLF: BEVERAGE CART ---
   { name: "Bud Light (canned)", description: "Chilled 12oz can.", price: 6.00, category: "alcohol", venueType: ["golf"], serviceMode: "beverageCart", imageUrl: getImg('lager can'), sortOrder: 1 },
   { name: "Miller Lite (canned)", description: "Chilled 12oz can.", price: 6.00, category: "alcohol", venueType: ["golf"], serviceMode: "beverageCart", imageUrl: getImg('lager can'), sortOrder: 2 },
   { name: "Coors Light (canned)", description: "Chilled 12oz can.", price: 6.00, category: "alcohol", venueType: ["golf"], serviceMode: "beverageCart", imageUrl: getImg('lager can'), sortOrder: 3 },
@@ -130,23 +112,16 @@ export const getGlobalStarterMenuItems = (): Omit<StarterMenuItem, 'id'>[] => [
   { name: "Hot Dog", description: "All-beef dog on a toasted bun.", price: 8.50, category: "food", venueType: ["golf"], serviceMode: "beverageCart", imageUrl: getImg('hot dog'), suggestedModifierGroups: ["Hot Dog Style", "Hot Dog Toppings"], sortOrder: 14 },
   { name: "Chips", description: "Kettle cooked sea salt.", price: 3.00, category: "food", venueType: ["golf"], serviceMode: "beverageCart", imageUrl: getImg('potato chips'), sortOrder: 15 },
   { name: "Candy Bar", description: "Snickers, Hershey's, or KitKat.", price: 2.50, category: "food", venueType: ["golf"], serviceMode: "beverageCart", imageUrl: getImg('chocolate bar'), sortOrder: 16 },
-
-  // --- GOLF: CLUBHOUSE ---
   { name: "Burger", description: "Angus beef on brioche.", price: 14.00, category: "food", venueType: ["golf"], serviceMode: "clubhouse", imageUrl: getImg('burger meal'), suggestedModifierGroups: ["Doneness", "Cheese", "Toppings", "Sauces", "Bun", "Side Swap", "Allergy Flag"], sortOrder: 100 },
   { name: "Cheeseburger", description: "Angus beef with American cheese.", price: 15.00, category: "food", venueType: ["golf"], serviceMode: "clubhouse", imageUrl: getImg('burger meal'), suggestedModifierGroups: ["Doneness", "Cheese", "Toppings", "Sauces", "Bun", "Side Swap", "Allergy Flag"], sortOrder: 101 },
   { name: "Chicken Sandwich", description: "Grilled or crispy breast.", price: 13.50, category: "food", venueType: ["golf"], serviceMode: "clubhouse", imageUrl: getImg('burger meal'), suggestedModifierGroups: ["Cheese", "Toppings", "Sauces", "Bun", "Side Swap"], sortOrder: 102 },
   { name: "Wings", description: "Jumbo wings with your choice of sauce.", price: 16.00, category: "food", venueType: ["golf"], serviceMode: "clubhouse", imageUrl: getImg('chicken wings'), suggestedModifierGroups: ["Wing Style", "Wing Sauce", "Dipping Sauce"], sortOrder: 106 },
   { name: "Nachos", description: "Loaded with cheese and jalapenos.", price: 14.00, category: "food", venueType: ["golf"], serviceMode: "clubhouse", imageUrl: getImg('loaded nachos'), suggestedModifierGroups: ["Nacho Protein", "Nacho Toppings", "Mexican Add-ons", "Cheese Amount"], sortOrder: 107 },
   { name: "Fountain Drink", description: "20oz bottomless refill.", price: 3.50, category: "beverage", venueType: ["golf"], serviceMode: "clubhouse", imageUrl: getImg('soft-drink-1'), suggestedModifierGroups: ["Drink Size"], sortOrder: 119 },
-
-  // --- BOWLING: LANESIDE ---
   { name: "Pitcher of Beer", description: "64oz cold draft for the lane.", price: 20.00, category: "alcohol", venueType: ["bowling"], serviceMode: "laneService", imageUrl: getImg('craft beer'), sortOrder: 1 },
   { name: "Stone Fired Pizza", description: "16-inch jumbo family size.", price: 22.00, category: "food", venueType: ["bowling"], serviceMode: "laneService", imageUrl: getImg('pepperoni pizza'), suggestedModifierGroups: ["Crust", "Pizza Sauce", "Pizza Toppings"], sortOrder: 2 }
 ];
 
-/**
- * Seeds core sellers.
- */
 export async function seedDemoSellers(db: Firestore) {
   const batch = writeBatch(db);
   const sellersRef = collection(db, 'sellers');
@@ -156,7 +131,7 @@ export async function seedDemoSellers(db: Firestore) {
       id: 'demo-course',
       courseName: 'The Koop National (Public)',
       type: 'Public Golf Course',
-      menuTypes: ['Beverage Cart', 'Clubhouse', 'Take Out'],
+      menuTypes: ['Beverage Cart', 'Clubhouse'],
       streetAddress: '123 Fairway Drive',
       city: 'Bloomfield',
       state: 'MI',
@@ -174,7 +149,7 @@ export async function seedDemoSellers(db: Firestore) {
       id: 'demo-private-course',
       courseName: 'Orchard Lake CC (Private)',
       type: 'Private Golf Course',
-      menuTypes: ['Clubhouse', 'Pool', 'Take Out'],
+      menuTypes: ['Clubhouse'],
       streetAddress: '5000 West Shore Dr',
       city: 'Orchard Lake',
       state: 'MI',
@@ -192,7 +167,7 @@ export async function seedDemoSellers(db: Firestore) {
       id: 'demo-bowling-alley',
       courseName: 'Strike City Lanes',
       type: 'Bowling Center',
-      menuTypes: ['Lane Delivery', 'Take Out'],
+      menuTypes: ['Lane Delivery'],
       laneCount: 24,
       streetAddress: '888 Spare Ave',
       city: 'Rochester',
@@ -216,9 +191,6 @@ export async function seedDemoSellers(db: Firestore) {
   await batch.commit();
 }
 
-/**
- * Clones modifiers for a specific venue.
- */
 export async function seedVenueModifiers(db: Firestore, sellerId: string, venueType: 'golf' | 'bowling') {
   const batch = writeBatch(db);
   const modRef = collection(db, 'modifier_groups');
@@ -245,10 +217,6 @@ export async function seedVenueModifiers(db: Firestore, sellerId: string, venueT
   await batch.commit();
 }
 
-/**
- * Seeds base menu items for a specific venue.
- * Predictably resolves modifier group IDs from names.
- */
 export async function seedVenueItems(db: Firestore, sellerId: string, items: any[]) {
   const batch = writeBatch(db);
   const menuItemsRef = collection(db, 'sellers', sellerId, 'menuItems');
@@ -259,7 +227,6 @@ export async function seedVenueItems(db: Firestore, sellerId: string, items: any
     
     if (item.suggestedModifierGroups) {
       item.suggestedModifierGroups.forEach((name: string) => {
-        // Deterministic ID resolution based on known starter library naming convention
         linkedIds.push(`${sellerId}-${generateSlug(name)}`);
       });
     }
@@ -276,9 +243,6 @@ export async function seedVenueItems(db: Firestore, sellerId: string, items: any
   await batch.commit();
 }
 
-/**
- * Seeds global libraries.
- */
 export async function seedGlobalStarterLibrary(db: Firestore) {
   const batch = writeBatch(db);
   const libraryRef = collection(db, 'starter_modifier_library');
@@ -299,58 +263,37 @@ export async function seedGlobalStarterMenuLibrary(db: Firestore) {
   await batch.commit();
 }
 
-/**
- * Global entry point for full demo reseed.
- */
 export async function seedAllDemoData(db: Firestore) {
-  // 1. Core Libraries
   await seedGlobalStarterLibrary(db);
   await seedGlobalStarterMenuLibrary(db);
-  
-  // 2. Core Sellers
   await seedDemoSellers(db);
-
-  // 3. Modifiers for Demos
   await seedVenueModifiers(db, 'demo-course', 'golf');
   await seedVenueModifiers(db, 'demo-private-course', 'golf');
   await seedVenueModifiers(db, 'demo-bowling-alley', 'bowling');
-
-  // 4. Menu Items for Demos
   await seedVenueItems(db, 'demo-course', publicGolfItems);
   await seedVenueItems(db, 'demo-private-course', privateGolfItems);
   await seedVenueItems(db, 'demo-bowling-alley', bowlingAlleyItems);
 }
 
-/**
- * Forceful system-wide staff logout.
- * Clears explicitly ALL staff locations and shift assignments.
- * NOTE: This function PRESERVES administrative settings like service mode activity toggles.
- */
 export async function resetAllVenueOperationalStatus(db: Firestore) {
   const sellersRef = collection(db, 'sellers');
   const snapshot = await getDocs(sellersRef);
   
   for (const sellerDoc of snapshot.docs) {
     const batch = writeBatch(db);
-    
-    // Explicitly purge ALL staff sub-collection records
-    // This triggers the client-side force logout via the dashboard session listeners.
     const staffRef = collection(db, 'sellers', sellerDoc.id, 'staff');
     const staffSnap = await getDocs(staffRef);
     staffSnap.forEach(sDoc => batch.update(sDoc.ref, { 
       latitude: null, 
       longitude: null, 
       lastActive: null,
-      activeMode: null // Essential: triggers force exit to login
+      activeMode: null
     }));
 
     await batch.commit();
   }
 }
 
-/**
- * Deletes all patron identity documents to start fresh.
- */
 export async function wipeAllPatronData(db: Firestore) {
   const usersRef = collection(db, 'users');
   const snapshot = await getDocs(usersRef);

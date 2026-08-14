@@ -165,7 +165,7 @@ export interface StarterMenuItem {
   price: number;
   category: 'food' | 'beverage' | 'alcohol' | string;
   venueType: string[]; // ['golf', 'bowling']
-  serviceMode: 'beverageCart' | 'clubhouse' | 'pool' | 'laneService';
+  serviceMode: 'beverageCart' | 'clubhouse' | 'laneService';
   suggestedModifierGroups?: string[];
   sortOrder: number;
   imageUrl?: string;

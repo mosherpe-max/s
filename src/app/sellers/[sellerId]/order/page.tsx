@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, use, useEffect, useMemo, useRef } from 'react';
@@ -66,9 +67,6 @@ const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY 
 const serviceTypeIcons: Record<string, any> = {
   'Beverage Cart': Zap,
   'Clubhouse': Zap,
-  'Pool': Waves,
-  'Halfway House': Home,
-  'Dine-In': Utensils,
   'Lane Delivery': MapPin,
 };
 
@@ -194,7 +192,6 @@ function StripeActionArea({
             },
             allow_redisplay: 'always'
           },
-          // HARDENED SAVE LOGIC: Handle future usage preference at confirmation to avoid Element re-mounts
           payment_method_options: {
             card: {
               setup_future_usage: saveInfo ? 'off_session' : undefined
@@ -207,7 +204,6 @@ function StripeActionArea({
       if (error) throw new Error(error.message);
 
       if (paymentIntent && (paymentIntent.status === 'succeeded' || paymentIntent.status === 'processing')) {
-        // PERSIST IDENTITY IF OPTED-IN
         if (saveInfo) {
           localStorage.setItem('koop_patron_name', patronName);
           localStorage.setItem('koop_patron_email', patronEmail);
@@ -315,7 +311,6 @@ function CheckoutDrawerContent({
   const disclosureCategory = getDisclosureCategory(seller?.type);
   const checkoutNotice = FEE_DISCLOSURES[disclosureCategory].checkout;
 
-  // LOAD CACHED IDENTITY ON MOUNT
   useEffect(() => {
     const cachedName = localStorage.getItem('koop_patron_name');
     const cachedEmail = localStorage.getItem('koop_patron_email');
@@ -332,7 +327,6 @@ function CheckoutDrawerContent({
     }
   }, []);
 
-  // FETCH INTENT - CRITICAL: Removed saveInfo from dependencies to avoid Element re-mount data loss
   useEffect(() => {
     if (paymentMethod === 'Stripe' && !isFetchingIntent && baseTotalForBackend > 0) {
       const fetchIntent = async () => {
@@ -354,7 +348,6 @@ function CheckoutDrawerContent({
             patronName: patronName || 'Guest',
             patronPhone: patronPhone.replace(/\D/g, '') || '',
             patronEmail: patronEmail || '',
-            // Pass the persistent saveInfo from state, but don't trigger re-fetch when toggled
             saveInfo, 
             stripeCustomerId
           });
@@ -646,7 +639,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
       let defaultType = seller.type.toLowerCase().includes('bowling') ? 'Lane Delivery' : 'Beverage Cart';
       if (isModeAvailable(defaultType)) updateMenuType(defaultType);
       else {
-        const firstAvailable = seller.menuTypes.filter(t => t !== 'Take Out').find(t => isModeAvailable(t));
+        const firstAvailable = seller.menuTypes.find(t => isModeAvailable(t));
         if (firstAvailable) updateMenuType(firstAvailable);
       }
     }
@@ -730,8 +723,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
     );
   }
 
-  const authorizedModes = seller?.menuTypes?.filter(t => t !== 'Take Out') || [];
-  const availableModes = authorizedModes.filter(t => isModeAvailable(t));
+  const availableModes = (seller?.menuTypes || []).filter(t => isModeAvailable(t));
 
   return (
     <div className="flex flex-col min-h-screen bg-[#F0F0F0] overflow-x-auto">
@@ -743,7 +735,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
           <div className="space-y-4 w-full">
             <h1 className="font-headline text-2xl font-black text-white uppercase tracking-tight leading-none mb-1">{seller?.courseName}</h1>
             <div className="flex wrap gap-2">
-              {authorizedModes.map((type) => {
+              {(seller?.menuTypes || []).map((type) => {
                 const Icon = serviceTypeIcons[type] || Store;
                 const available = availableModes.includes(type);
                 const isSelected = selectedMenuType === type;

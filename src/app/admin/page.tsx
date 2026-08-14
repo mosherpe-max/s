@@ -95,6 +95,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
+  Table as ShadcnTable,
+} from "@/components/ui/table";
+import {
   Tabs,
   TabsContent,
   TabsList,
@@ -204,7 +207,7 @@ const starterMenuItemSchema = z.object({
   price: z.coerce.number().min(0),
   category: z.string().min(1, 'Category required'),
   venueType: z.array(z.string()).min(1, 'Select at least one venue type'),
-  serviceMode: z.enum(['beverageCart', 'clubhouse', 'pool', 'laneService', 'takeout']),
+  serviceMode: z.enum(['beverageCart', 'clubhouse', 'laneService']),
   suggestedModifierGroups: z.array(z.string()).default([]),
   sortOrder: z.coerce.number().default(0),
   imageUrl: z.string().default(''),
@@ -493,7 +496,6 @@ export default function SolutionAdminPage() {
     setIsProcessingSave(true);
     const id = editingLead?.id || Math.random().toString(36).substr(2, 9);
     
-    // Ensure nested objects are initialized if missing
     const finalData = {
       ...data,
       id,
@@ -649,7 +651,6 @@ export default function SolutionAdminPage() {
     if (!firestore) return;
     setSelectedVenue(s);
     
-    // Fetch detailed Venue document
     const venueSnap = await getDoc(doc(firestore, 'venues', s.id));
     const vData = venueSnap.exists() ? venueSnap.data() as Venue : null;
 
@@ -681,7 +682,6 @@ export default function SolutionAdminPage() {
     if (!firestore || !selectedVenue) return;
     setIsProcessingSave(true);
     try {
-      // Update the legal Venue document
       await setDoc(doc(firestore, 'venues', selectedVenue.id), {
         venueId: selectedVenue.id,
         name: data.name,
@@ -698,7 +698,6 @@ export default function SolutionAdminPage() {
         updatedAt: serverTimestamp()
       }, { merge: true });
 
-      // Update the operational Seller document
       await updateDoc(doc(firestore, 'sellers', selectedVenue.id), {
         courseName: data.name,
         type: data.type as any,
@@ -753,7 +752,6 @@ export default function SolutionAdminPage() {
     if (!firestore) return;
     setIsInitializingLibrary(true);
     try {
-      // Import on demand to keep initial load fast
       const { seedGlobalStarterLibrary, seedGlobalStarterMenuLibrary } = await import('@/lib/seed-data');
       await seedGlobalStarterLibrary(firestore);
       await seedGlobalStarterMenuLibrary(firestore);
@@ -1121,7 +1119,6 @@ export default function SolutionAdminPage() {
                         <div className="col-span-full py-20 text-center border-2 border-dashed rounded-3xl opacity-50 bg-slate-50"><UtensilsCrossed className="h-10 w-10 mx-auto mb-4 text-slate-300" /><p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Item Library Empty. Click Initialize All above.</p></div>
                       ) : filteredItemTemplates.map(item => (
                         <Card key={item.id} className="border-2 shadow-sm group hover:border-indigo-200 transition-all bg-white text-left relative overflow-hidden">
-                          {/* Image Preview Header */}
                           <div className="relative aspect-video w-full bg-slate-100 border-b overflow-hidden">
                             {item.imageUrl ? (
                               <Image 
@@ -1180,7 +1177,6 @@ export default function SolutionAdminPage() {
                           <CardDescription className="text-[10px] font-bold uppercase text-muted-foreground">{venue.sub}</CardDescription>
                         </CardHeader>
                         <CardContent className="p-6 pt-6 flex-1 space-y-8">
-                          {/* QR CODE SECTION */}
                           <div className="flex flex-col items-center gap-3 p-5 bg-slate-50 rounded-[2rem] border-2 border-dashed group-hover:border-indigo-200 transition-colors">
                             <div className="bg-white p-2 rounded-2xl border-2 shadow-sm">
                               <img 
@@ -1194,7 +1190,6 @@ export default function SolutionAdminPage() {
                             </p>
                           </div>
 
-                          {/* LINKS SECTION */}
                           <div className="space-y-2">
                             <Button asChild variant="outline" className="w-full justify-between h-11 text-[10px] font-black uppercase tracking-widest border-2 border-slate-100 group-hover:border-indigo-100 hover:bg-indigo-50">
                               <Link href={venue.menuUrl}>
@@ -1231,7 +1226,6 @@ export default function SolutionAdminPage() {
                     </Button>
                   </div>
 
-                  {/* EMERGENCY OPERATIONS SECTION */}
                   <div className="space-y-6">
                     <h4 className="text-[12px] font-black uppercase tracking-[0.3em] text-red-600 flex items-center gap-2">
                        <Flame className="h-4 w-4" /> Emergency Operations
@@ -1279,7 +1273,6 @@ export default function SolutionAdminPage() {
                   </div>
 
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    {/* CORE IDENTITY & SUPPORT */}
                     <div className="space-y-8">
                       <Card className="border-2 p-8 space-y-8 text-left">
                         <div className="space-y-6">
@@ -1336,7 +1329,6 @@ export default function SolutionAdminPage() {
                         </div>
                       </Card>
 
-                      {/* VENUE ACTIVITY SETTINGS */}
                       <Card className="border-2 p-8 space-y-6 text-left">
                         <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
                             <Activity className="h-3 w-3 text-primary" /> Platform Inactivity Alerts
@@ -1364,9 +1356,7 @@ export default function SolutionAdminPage() {
                       </Card>
                     </div>
 
-                    {/* FULFILLMENT & SIGNAL HEALTH */}
                     <div className="space-y-8">
-                      {/* PER-MODE FULFILLMENT THRESHOLDS */}
                       <Card className="border-2 p-8 space-y-8 text-left">
                         <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
                             <HeartPulse className="h-3 w-3 text-primary" /> Default Fulfillment Thresholds
@@ -1410,7 +1400,6 @@ export default function SolutionAdminPage() {
                         ))}
                       </Card>
 
-                      {/* SIGNAL HEALTH THRESHOLDS */}
                       <Card className="border-2 p-8 space-y-6 text-left">
                         <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
                             <Satellite className="h-3 w-3" /> Signal Health Thresholds (Seconds)
@@ -1431,7 +1420,6 @@ export default function SolutionAdminPage() {
                         </div>
                       </Card>
 
-                      {/* GLOBAL MODE AUTH */}
                       <Card className="border-2 p-8 space-y-6 text-left">
                         <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
                             <Power className="h-3 w-3" /> Global Mode Authorization
@@ -1462,7 +1450,6 @@ export default function SolutionAdminPage() {
         </main>
       </div>
 
-      {/* Import Terminal Dialog */}
       <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
         <DialogContent className="sm:max-w-[500px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl">
           <DialogHeader className="p-8 bg-[#213147] text-white">
@@ -1508,7 +1495,6 @@ export default function SolutionAdminPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Sales CRM Lead Form */}
       <Dialog open={isLeadFormOpen} onOpenChange={setIsLeadFormOpen}>
         <DialogContent className="sm:max-w-[750px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
           <DialogHeader className="p-8 bg-[#213147] text-white text-left">
@@ -1660,7 +1646,6 @@ export default function SolutionAdminPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Modifier Template Form */}
       <Dialog open={isLibraryFormOpen} onOpenChange={setIsLibraryFormOpen}>
         <DialogContent className="sm:max-w-[600px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
           <DialogHeader className="p-8 bg-indigo-600 text-white text-left">
@@ -1780,7 +1765,6 @@ export default function SolutionAdminPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Menu Item Template Form */}
       <Dialog open={isItemLibraryFormOpen} onOpenChange={setIsItemLibraryFormOpen}>
         <DialogContent className="sm:max-w-[700px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
           <DialogHeader className="p-8 bg-[#213147] text-white text-left">
@@ -1867,9 +1851,7 @@ export default function SolutionAdminPage() {
                             <SelectContent>
                               <SelectItem value="beverageCart">Beverage Cart</SelectItem>
                               <SelectItem value="clubhouse">Clubhouse</SelectItem>
-                              <SelectItem value="pool">Pool</SelectItem>
                               <SelectItem value="laneService">Lane Service</SelectItem>
-                              <SelectItem value="takeout">Take Out</SelectItem>
                             </SelectContent>
                           </Select>
                         </FormItem>
@@ -1926,7 +1908,6 @@ export default function SolutionAdminPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Venue Settings Dialog (Koop Admin Mastery) */}
       <Dialog open={isVenueSettingsOpen} onOpenChange={setIsVenueSettingsOpen}>
         <DialogContent className="sm:max-w-[750px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
           <DialogHeader className="p-8 bg-[#213147] text-white text-left">
@@ -1943,7 +1924,6 @@ export default function SolutionAdminPage() {
               <Form {...venueSettingsForm}>
                 <form onSubmit={venueSettingsForm.handleSubmit(handleSaveVenueSettings)} className="space-y-10">
                   
-                  {/* 1. IDENTITY & OWNERSHIP */}
                   <div className="space-y-6">
                     <Label className="text-[10px] font-black uppercase tracking-widest text-primary flex items-center gap-2">
                        <User className="h-3 w-3" /> Identity & Ownership
@@ -1974,7 +1954,6 @@ export default function SolutionAdminPage() {
 
                   <Separator />
 
-                  {/* 2. LOGISTICS & CONTACT */}
                   <div className="space-y-6">
                     <Label className="text-[10px] font-black uppercase tracking-widest text-primary flex items-center gap-2">
                        <MapPin className="h-3 w-3" /> Establishment Logistics & Contact
@@ -2106,7 +2085,6 @@ export default function SolutionAdminPage() {
 
                   <Separator />
 
-                  {/* 3. PAYMENT GATEWAY */}
                   <div className="space-y-6">
                     <Label className="text-[10px] font-black uppercase tracking-widest text-primary flex items-center gap-2">
                        <CreditCard className="h-3 w-3" /> Stripe Express Integration
@@ -2165,14 +2143,12 @@ export default function SolutionAdminPage() {
 
                   <Separator />
 
-                  {/* 4. FINANCIAL TERMS */}
                   <div className="space-y-6">
                     <Label className="text-[10px] font-black uppercase tracking-widest text-primary flex items-center gap-2">
                        <Banknote className="h-3 w-3" /> Commercial Terms
                     </Label>
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                       {/* PLATFORM REVENUE */}
                        <div className="space-y-4">
                          <p className="text-[9px] font-black uppercase text-indigo-600 px-1 border-b border-indigo-100 pb-1">Platform Revenue</p>
                          <div className="grid grid-cols-1 gap-4">
@@ -2201,7 +2177,6 @@ export default function SolutionAdminPage() {
                          </div>
                        </div>
 
-                       {/* TRANSACTION FEES */}
                        <div className="space-y-4">
                          <p className="text-[9px] font-black uppercase text-slate-400 px-1 border-b border-slate-100 pb-1">Solution Fee (Split)</p>
                          <div className="grid grid-cols-1 gap-4">

@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useMemo, useEffect, use } from 'react';
@@ -157,8 +158,6 @@ import {
   Legend
 } from 'recharts';
 
-// --- SCHEMAS ---
-
 const staffSchema = z.object({
   name: z.string().min(2, 'Name required'),
   role: z.enum(['Staff', 'Manager']),
@@ -196,8 +195,6 @@ const modifierGroupSchema = z.object({
 
 type ModifierGroupFormData = z.infer<typeof modifierGroupSchema>;
 
-// --- UI COMPONENTS ---
-
 function NavButton({ id, label, icon: Icon, active, onClick, sidebarOpen }: { 
   id: string, label: string, icon: any, active: boolean, onClick: (id: string) => void, sidebarOpen: boolean 
 }) {
@@ -232,8 +229,6 @@ function KPICard({ label, value, sub, icon: Icon, colorClass }: { label: string,
     </Card>
   );
 }
-
-// --- MAIN PAGE ---
 
 export default function VenueAdminPage({ params }: { params: Promise<{ sellerId: string }> }) {
   const { sellerId } = use(params);
@@ -331,7 +326,6 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
   const analyticsData = useMemo(() => {
     if (!orders || !seller || !solutionConfig) return { dailyRevenue: [], topItems: [], channelSplit: [], avgFulfillment: [], operationalHealth: [] };
     
-    // 1. FILTER ORDERS BY SELECTED RANGE
     const now = new Date();
     let rangeStart = startOfMonth(now);
     let rangeEnd = endOfMonth(now);
@@ -350,7 +344,6 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
       return orderDate >= rangeStart && orderDate <= rangeEnd;
     });
 
-    // 2. REVENUE TREND (Based on Range) - Stacked by Service Mode
     let revenueData = [];
     const modes = seller.menuTypes || [];
     
@@ -395,7 +388,6 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
       });
     }
 
-    // 3. TOP ITEMS (Recalculated for range)
     const itemMap: Record<string, number> = {};
     filteredOrders.forEach(o => {
       o.items.forEach(i => {
@@ -408,7 +400,6 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
       .sort((a, b) => b.count - a.count)
       .slice(0, 5);
 
-    // 4. OPERATIONAL HEALTH (Fixed past 7 days trend for reliability)
     const activeModes = seller.menuTypes || [];
     const healthDays = [];
     for (let i = 6; i >= 0; i--) {
@@ -651,7 +642,6 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
   };
 
   const handleImpersonate = (mode: string) => {
-    // SECURITY: Set explicit administrative session marker
     localStorage.setItem('koop_is_admin_session', 'true');
     localStorage.setItem('koop_staff_id', `admin-${user?.uid}`);
     localStorage.setItem('koop_staff_name', `${user?.email?.split('@')[0]} (Admin)`);
@@ -762,7 +752,6 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                           const isActive = !!(seller as any)?.[fieldMap[mode]];
                           return (
                             <div key={mode} className={cn("p-6 rounded-[2rem] border-2 transition-all flex flex-col items-center gap-4 relative group", isActive ? "border-primary bg-primary/5 shadow-inner" : "bg-slate-50 opacity-60 grayscale")}>
-                              {/* Direct Admin Toggle */}
                               <div className="absolute top-4 right-4">
                                 <Switch 
                                   checked={isActive} 
@@ -808,7 +797,6 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                     </div>
                   </div>
 
-                  {/* COMMERCIAL PERFORMANCE */}
                   <div className="space-y-8">
                     <h4 className="text-[12px] font-black uppercase tracking-[0.3em] text-[#213147] flex items-center gap-3">
                       <DollarSign className="h-4 w-4 text-primary" /> Commercial Performance
@@ -827,7 +815,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                               <YAxis axisLine={false} tickLine={false} tick={{fontSize: 10, fontWeight: 700}} />
                               <ChartTooltip cursor={{fill: '#f8fafc'}} contentStyle={{ borderRadius: '1rem', border: '2px solid #f1f5f9' }} />
                               <Legend verticalAlign="top" align="right" iconType="circle" wrapperStyle={{ paddingBottom: 20, fontSize: 10, fontWeight: 900, textTransform: 'uppercase' }} />
-                              {seller.menuTypes.filter(m => m !== 'Take Out').map((mode, idx) => (
+                              {seller?.menuTypes?.filter(m => ['Beverage Cart', 'Clubhouse', 'Lane Delivery'].includes(m)).map((mode, idx) => (
                                 <Bar 
                                   key={mode} 
                                   stackId="a" 
@@ -860,7 +848,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                         <div className="mt-8 pt-8 border-t space-y-4">
                           <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Mode Distribution Legend</p>
                           <div className="space-y-2">
-                             {seller.menuTypes.filter(m => m !== 'Take Out').map((mode, idx) => (
+                             {seller?.menuTypes?.filter(m => ['Beverage Cart', 'Clubhouse', 'Lane Delivery'].includes(m)).map((mode, idx) => (
                                <div key={mode} className="flex items-center gap-2">
                                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: ['#E50000', '#213147', '#4F46E5'][idx % 3] }} />
                                  <span className="text-[9px] font-bold uppercase text-slate-600">{mode}</span>
@@ -874,14 +862,12 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
 
                   <Separator />
 
-                  {/* OPERATIONAL HEALTH */}
                   <div className="space-y-8 pb-10">
                     <h4 className="text-[12px] font-black uppercase tracking-[0.3em] text-[#213147] flex items-center gap-3">
                       <HeartPulse className="h-4 w-4 text-primary" /> Operational Health (Past 7 Days)
                     </h4>
                     
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                      {/* Avg Fulfillment Time */}
                       <Card className="border-2 p-8 space-y-6">
                         <div className="flex items-center justify-between">
                           <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
@@ -896,7 +882,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                               <YAxis axisLine={false} tickLine={false} tick={{fontSize: 10, fontWeight: 700}} />
                               <ChartTooltip contentStyle={{ borderRadius: '1rem', border: '2px solid #f1f5f9' }} />
                               <Legend verticalAlign="top" align="right" iconType="circle" wrapperStyle={{ paddingBottom: 20, fontSize: 10, fontWeight: 900, textTransform: 'uppercase' }} />
-                              {seller.menuTypes.filter(m => m !== 'Take Out').map((mode, idx) => (
+                              {seller?.menuTypes?.filter(m => ['Beverage Cart', 'Clubhouse', 'Lane Delivery'].includes(m)).map((mode, idx) => (
                                 <Line 
                                   key={mode} 
                                   type="monotone" 
@@ -912,7 +898,6 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                         </div>
                       </Card>
 
-                      {/* SLA Violations / Incidents */}
                       <Card className="border-2 p-8 space-y-6">
                         <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
                           <Activity className="h-3 w-3 text-primary" /> Service Level Agreement Exceptions
@@ -934,7 +919,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                         <div className="bg-slate-50 p-4 rounded-xl flex items-start gap-3">
                           <Info className="h-4 w-4 text-slate-400 shrink-0 mt-0.5" />
                           <p className="text-[10px] text-muted-foreground font-bold uppercase leading-relaxed">
-                            Includes orders where acknowledgment exceeded {seller.orderThresholds?.['Beverage Cart']?.maxOrderAcknowledgeSeconds || solutionConfig.orderThresholds?.['Beverage Cart']?.maxOrderAcknowledgeSeconds}s or fulfillment exceeded {seller.orderThresholds?.['Beverage Cart']?.maxOrderProcessingMinutes || solutionConfig.orderThresholds?.['Beverage Cart']?.maxOrderProcessingMinutes}m.
+                            Includes orders where acknowledgment exceeded {seller?.orderThresholds?.['Beverage Cart']?.maxOrderAcknowledgeSeconds || solutionConfig?.orderThresholds?.['Beverage Cart']?.maxOrderAcknowledgeSeconds}s or fulfillment exceeded {seller?.orderThresholds?.['Beverage Cart']?.maxOrderProcessingMinutes || solutionConfig?.orderThresholds?.['Beverage Cart']?.maxOrderProcessingMinutes}m.
                           </p>
                         </div>
                       </Card>
@@ -1149,7 +1134,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                     <Card className="border-2 shadow-sm p-8 space-y-8 text-left h-fit">
                       <div className="flex items-center justify-between"><h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2"><HeartPulse className="h-4 w-4 text-primary" /> Fulfillment Thresholds</h4><Badge variant="outline" className="text-[8px] font-black border-primary/20 bg-primary/5 text-primary uppercase">Active Channels</Badge></div>
                       <div className="space-y-8">
-                        {seller?.menuTypes?.filter(m => m !== 'Take Out').map((mode) => (
+                        {seller?.menuTypes?.filter(m => ['Beverage Cart', 'Clubhouse', 'Lane Delivery'].includes(m)).map((mode) => (
                           <div key={mode} className="space-y-4">
                             <div className="flex items-center gap-2 px-1"><ClipboardCheck className="h-3 w-3 text-[#213147]" /><span className="text-[9px] font-black uppercase tracking-widest text-[#213147]">{mode} Performance</span></div>
                             <div className="grid gap-4 bg-slate-50 p-6 rounded-[2rem] border-2">
@@ -1180,7 +1165,6 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
         </main>
       </div>
 
-      {/* Confirmation Dialogs */}
       <Dialog open={isStarterMenuConfirmOpen} onOpenChange={setIsStarterMenuConfirmOpen}>
         <DialogContent className="sm:max-w-[425px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
           <DialogHeader className="p-8 bg-indigo-600 text-white text-left">
@@ -1215,7 +1199,6 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
         </DialogContent>
       </Dialog>
 
-      {/* Staff Form */}
       <Dialog open={isStaffFormOpen} onOpenChange={setIsStaffFormOpen}>
         <DialogContent className="sm:max-w-[425px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
           <DialogHeader className="p-8 bg-[#213147] text-white text-left">
@@ -1273,7 +1256,6 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
         </DialogContent>
       </Dialog>
 
-      {/* Modifier Group Editor */}
       <Dialog open={isModifierGroupFormOpen} onOpenChange={setIsModifierGroupFormOpen}>
         <DialogContent className="sm:max-w-[600px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
           <DialogHeader className="p-8 bg-indigo-600 text-white text-left">
@@ -1355,7 +1337,6 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
         </DialogContent>
       </Dialog>
 
-      {/* Item Form */}
       <Dialog open={isItemFormOpen} onOpenChange={setIsItemFormOpen}>
         <DialogContent className="sm:max-w-[600px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
           <DialogHeader className="p-8 bg-primary text-white text-left">
