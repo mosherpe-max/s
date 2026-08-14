@@ -131,6 +131,8 @@ import {
 import { Checkbox } from '@/components/ui/checkbox';
 import Link from 'next/link';
 import * as XLSX from 'xlsx';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
 
 const US_STATES = [
   { code: 'AL', name: 'Alabama' }, { code: 'AK', name: 'Alaska' }, { code: 'AZ', name: 'Arizona' },
@@ -734,22 +736,50 @@ export default function SolutionAdminPage() {
     if (!confirm(`ARE YOU ABSOLUTELY SURE? This will permanently delete the establishment "${venueName}" and all associated data records.`)) return;
 
     setIsProcessingSave(true);
-    try {
-      const batch = writeBatch(firestore);
-      
-      // 1. Delete operational profile
-      batch.delete(doc(firestore, 'sellers', venueId));
-      
-      // 2. Delete business registry
-      batch.delete(doc(firestore, 'venues', venueId));
+    
+    // Explicit references for better error handling
+    const sellerRef = doc(firestore, 'sellers', venueId);
+    const venueRef = doc(firestore, 'venues', venueId);
 
-      await batch.commit();
-      toast({ title: "Establishment Terminated", description: `Record for ${venueName} has been purged from registry.` });
-    } catch (e: any) {
-      toast({ variant: "destructive", title: "Deletion Failed", description: e.message });
-    } finally {
-      setIsProcessingSave(false);
-    }
+    const batch = writeBatch(firestore);
+    batch.delete(sellerRef);
+    batch.delete(venueRef);
+
+    batch.commit()
+      .then(() => {
+        toast({ title: "Establishment Terminated", description: `Record for ${venueName} has been purged from registry.` });
+      })
+      .catch(async (err) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+          path: sellerRef.path,
+          operation: 'delete',
+        } satisfies SecurityRuleContext));
+      })
+      .finally(() => {
+        setIsProcessingSave(false);
+      });
+  };
+
+  const handleToggleVenueStatus = async (v: Seller) => {
+    if (!firestore) return;
+    const newStatus = v.status === 'Active' ? 'Inactive' : 'Active';
+    const sellerRef = doc(firestore, 'sellers', v.id);
+    
+    setIsProcessingSave(true);
+    updateDoc(sellerRef, { status: newStatus, updatedAt: serverTimestamp() })
+      .then(() => {
+        toast({ title: "Status Updated", description: `${v.courseName} is now ${newStatus}.` });
+      })
+      .catch(async (err) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+          path: sellerRef.path,
+          operation: 'update',
+          requestResourceData: { status: newStatus }
+        } satisfies SecurityRuleContext));
+      })
+      .finally(() => {
+        setIsProcessingSave(false);
+      });
   };
 
   const handleSaveLibraryItem = async (data: StarterModifierFormData) => {
@@ -999,12 +1029,12 @@ export default function SolutionAdminPage() {
                                 </TableCell>
                                 <TableCell className="px-6 py-4 text-right">
                                   <div className="flex justify-end gap-1">
-                                    <Button variant="ghost" size="icon" onClick={() => { setEditingLead(lead); leadForm.reset(lead); setIsLeadFormOpen(true); }} className="h-8 w-8 text-indigo-600">
+                                    <button onClick={() => { setEditingLead(lead); leadForm.reset(lead); setIsLeadFormOpen(true); }} className="h-8 w-8 text-indigo-600 flex items-center justify-center rounded-md hover:bg-indigo-50">
                                       <Edit className="h-4 w-4" />
-                                    </Button>
-                                    <Button variant="ghost" size="icon" onClick={() => handleDeleteLead(lead.id)} className="h-8 w-8 text-destructive">
+                                    </button>
+                                    <button onClick={() => handleDeleteLead(lead.id)} className="h-8 w-8 text-destructive flex items-center justify-center rounded-md hover:bg-destructive/10">
                                       <Trash2 className="h-4 w-4" />
-                                    </Button>
+                                    </button>
                                   </div>
                                 </TableCell>
                               </TableRow>
@@ -1042,22 +1072,23 @@ export default function SolutionAdminPage() {
                 <div className="space-y-8 animate-in fade-in duration-500">
                   <div className="flex justify-between items-center border-b-2 pb-6">
                      <h3 className="font-headline font-black text-2xl text-[#213147] uppercase">Establishment Registry</h3>
-                     <Button className="bg-indigo-600 font-black uppercase text-[10px] tracking-widest gap-2 shadow-xl h-11 px-6">
-                       <Plus className="h-4 w-4" /> Add Venue
-                     </Button>
                   </div>
-                  <div className="border-2 rounded-[2rem] overflow-auto bg-white shadow-sm">
+                  <div className="border-2 rounded-[2rem] overflow-hidden bg-white shadow-sm">
                     <Table>
                       <TableHeader className="bg-slate-50">
                         <TableRow>
                           <TableHead className="text-[10px] font-black uppercase px-6 h-12">Establishment</TableHead>
                           <TableHead className="text-[10px] font-black uppercase px-6 h-12">Type</TableHead>
-                          <TableHead className="text-[10px] font-black uppercase px-6 h-12">Status</TableHead>
+                          <TableHead className="text-[10px] font-black uppercase px-6 h-12 text-center">Status</TableHead>
                           <TableHead className="text-[10px] font-black uppercase px-6 h-12 text-right">Actions</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {venues?.map(v => (
+                        {venues?.length === 0 ? (
+                          <TableRow>
+                            <TableCell colSpan={4} className="h-40 text-center text-muted-foreground uppercase text-[10px] font-black opacity-30">No venues onboarded</TableCell>
+                          </TableRow>
+                        ) : venues?.map(v => (
                           <TableRow key={v.id} className="group">
                             <TableCell className="px-6 py-4">
                               <p className="font-black text-sm text-[#213147]">{v.courseName}</p>
@@ -1066,22 +1097,28 @@ export default function SolutionAdminPage() {
                             <TableCell className="px-6 py-4">
                               <Badge variant="outline" className="text-[8px] font-black uppercase">{v.type}</Badge>
                             </TableCell>
-                            <TableCell className="px-6 py-4">
-                              <Badge className={cn("text-[8px] font-black uppercase", v.status === 'Active' ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-400")}>
-                                {v.status}
-                              </Badge>
+                            <TableCell className="px-6 py-4 text-center">
+                              <div className="flex flex-col items-center gap-1">
+                                <Switch 
+                                  checked={v.status === 'Active'} 
+                                  onCheckedChange={() => handleToggleVenueStatus(v)}
+                                />
+                                <span className={cn("text-[8px] font-black uppercase", v.status === 'Active' ? "text-green-600" : "text-slate-400")}>
+                                  {v.status}
+                                </span>
+                              </div>
                             </TableCell>
                             <TableCell className="px-6 py-4 text-right">
-                              <div className="flex justify-end gap-2">
-                                <Button variant="ghost" size="icon" onClick={() => handleEditVenueSettings(v)} className="h-8 w-8 text-indigo-600 hover:bg-indigo-50">
+                              <div className="flex justify-end gap-1">
+                                <button onClick={() => handleEditVenueSettings(v)} className="h-8 w-8 text-indigo-600 flex items-center justify-center rounded-md hover:bg-indigo-50">
                                   <Settings className="h-4 w-4" />
-                                </Button>
-                                <Button variant="ghost" size="icon" onClick={() => router.push(`/sellers/${v.id}`)} className="h-8 w-8 text-slate-400 hover:text-indigo-600">
+                                </button>
+                                <Link href={`/sellers/${v.id}`} className="h-8 w-8 text-slate-400 flex items-center justify-center rounded-md hover:text-indigo-600 hover:bg-indigo-50">
                                   <ExternalLink className="h-4 w-4" />
-                                </Button>
-                                <Button variant="ghost" size="icon" onClick={() => handleDeleteVenue(v.id, v.courseName)} className="h-8 w-8 text-destructive hover:bg-destructive/10">
+                                </Link>
+                                <button onClick={() => handleDeleteVenue(v.id, v.courseName)} className="h-8 w-8 text-destructive flex items-center justify-center rounded-md hover:bg-destructive/10">
                                   <Trash2 className="h-4 w-4" />
-                                </Button>
+                                </button>
                               </div>
                             </TableCell>
                           </TableRow>
