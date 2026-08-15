@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
@@ -92,6 +93,14 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+} from "@/components/ui/table";
+import {
+  Table as ShadcnTable,
+  TableBody as ShadcnTableBody,
+  TableCell as ShadcnTableCell,
+  TableHead as ShadcnTableHead,
+  TableHeader as ShadcnTableHeader,
+  TableRow as ShadcnTableRow,
 } from "@/components/ui/table";
 import {
   Tabs,
@@ -737,14 +746,12 @@ export default function SolutionAdminPage() {
 
     setIsProcessingSave(true);
     
-    // Explicit references for separate deletion calls
     const sellerRef = doc(firestore, 'sellers', venueId);
     const venueRef = doc(firestore, 'venues', venueId);
 
-    // sequential deletion for clarity and reliability
     deleteDoc(sellerRef)
+      .then(() => deleteDoc(venueRef))
       .then(() => {
-        deleteDoc(venueRef);
         toast({ 
           title: "Establishment Terminated", 
           description: `Record for ${venueName} has been purged from registry.` 
@@ -994,31 +1001,31 @@ export default function SolutionAdminPage() {
                       </div>
 
                       <div className="border-2 rounded-[2rem] overflow-hidden bg-white shadow-sm">
-                        <Table>
-                          <TableHeader className="bg-slate-50">
-                            <TableRow>
-                              <TableHead className="text-[10px] font-black uppercase px-6 h-12">Venue</TableHead>
-                              <TableHead className="text-[10px] font-black uppercase px-6 h-12">Contact</TableHead>
-                              <TableHead className="text-[10px] font-black uppercase px-6 h-12">Stage</TableHead>
-                              <TableHead className="text-[10px] font-black uppercase px-6 h-12 text-right">Actions</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
+                        <ShadcnTable>
+                          <ShadcnTableHeader className="bg-slate-50">
+                            <ShadcnTableRow>
+                              <ShadcnTableHead className="text-[10px] font-black uppercase px-6 h-12">Venue</ShadcnTableHead>
+                              <ShadcnTableHead className="text-[10px] font-black uppercase px-6 h-12">Contact</ShadcnTableHead>
+                              <ShadcnTableHead className="text-[10px] font-black uppercase px-6 h-12">Stage</ShadcnTableHead>
+                              <ShadcnTableHead className="text-[10px] font-black uppercase px-6 h-12 text-right">Actions</ShadcnTableHead>
+                            </ShadcnTableRow>
+                          </ShadcnTableHeader>
+                          <ShadcnTableBody>
                             {filteredLeads.length === 0 ? (
-                              <TableRow>
-                                <TableCell colSpan={4} className="h-40 text-center text-muted-foreground uppercase text-[10px] font-black opacity-30">No leads in database</TableCell>
-                              </TableRow>
+                              <ShadcnTableRow>
+                                <ShadcnTableCell colSpan={4} className="h-40 text-center text-muted-foreground uppercase text-[10px] font-black opacity-30">No leads in database</ShadcnTableCell>
+                              </ShadcnTableRow>
                             ) : filteredLeads.map(lead => (
-                              <TableRow key={lead.id} className="group">
-                                <TableCell className="px-6 py-4">
+                              <ShadcnTableRow key={lead.id} className="group">
+                                <ShadcnTableCell className="px-6 py-4">
                                   <p className="font-black text-sm text-[#213147]">{lead.venueName}</p>
                                   <p className="text-[9px] font-bold text-muted-foreground uppercase">{lead.city}, {lead.state} {lead.county && `(${lead.county} Co)`}</p>
-                                </TableCell>
-                                <TableCell className="px-6 py-4">
+                                </ShadcnTableCell>
+                                <ShadcnTableCell className="px-6 py-4">
                                   <p className="font-bold text-xs">{lead.contactName}</p>
                                   <p className="text-[9px] text-muted-foreground">{lead.email}</p>
-                                </TableCell>
-                                <TableCell className="px-6 py-4">
+                                </ShadcnTableCell>
+                                <ShadcnTableCell className="px-6 py-4">
                                   <Badge className={cn(
                                     "text-[8px] font-black uppercase",
                                     lead.stage === 'Closed' ? "bg-green-100 text-green-700" :
@@ -1027,8 +1034,8 @@ export default function SolutionAdminPage() {
                                   )}>
                                     {lead.stage}
                                   </Badge>
-                                </TableCell>
-                                <TableCell className="px-6 py-4 text-right">
+                                </ShadcnTableCell>
+                                <ShadcnTableCell className="px-6 py-4 text-right">
                                   <div className="flex justify-end gap-1">
                                     <button onClick={() => { setEditingLead(lead); leadForm.reset(lead); setIsLeadFormOpen(true); }} className="h-8 w-8 text-indigo-600 flex items-center justify-center rounded-md hover:bg-indigo-50">
                                       <Edit className="h-4 w-4" />
@@ -1037,11 +1044,11 @@ export default function SolutionAdminPage() {
                                       <Trash2 className="h-4 w-4" />
                                     </button>
                                   </div>
-                                </TableCell>
-                              </TableRow>
+                                </ShadcnTableCell>
+                              </ShadcnTableRow>
                             ))}
-                          </TableBody>
-                        </Table>
+                          </ShadcnTableBody>
+                        </ShadcnTable>
                       </div>
                     </TabsContent>
 
@@ -1075,30 +1082,30 @@ export default function SolutionAdminPage() {
                      <h3 className="font-headline font-black text-2xl text-[#213147] uppercase">Establishment Registry</h3>
                   </div>
                   <div className="border-2 rounded-[2rem] overflow-hidden bg-white shadow-sm">
-                    <Table>
-                      <TableHeader className="bg-slate-50">
-                        <TableRow>
-                          <TableHead className="text-[10px] font-black uppercase px-6 h-12">Establishment</TableHead>
-                          <TableHead className="text-[10px] font-black uppercase px-6 h-12">Type</TableHead>
-                          <TableHead className="text-[10px] font-black uppercase px-6 h-12 text-center">Status</TableHead>
-                          <TableHead className="text-[10px] font-black uppercase px-6 h-12 text-right">Actions</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
+                    <ShadcnTable>
+                      <ShadcnTableHeader className="bg-slate-50">
+                        <ShadcnTableRow>
+                          <ShadcnTableHead className="text-[10px] font-black uppercase px-6 h-12">Establishment</ShadcnTableHead>
+                          <ShadcnTableHead className="text-[10px] font-black uppercase px-6 h-12">Type</ShadcnTableHead>
+                          <ShadcnTableHead className="text-[10px] font-black uppercase px-6 h-12 text-center">Status</ShadcnTableHead>
+                          <ShadcnTableHead className="text-[10px] font-black uppercase px-6 h-12 text-right">Actions</ShadcnTableHead>
+                        </ShadcnTableRow>
+                      </ShadcnTableHeader>
+                      <ShadcnTableBody>
                         {venues?.length === 0 ? (
-                          <TableRow>
-                            <TableCell colSpan={4} className="h-40 text-center text-muted-foreground uppercase text-[10px] font-black opacity-30">No venues onboarded</TableCell>
-                          </TableRow>
+                          <ShadcnTableRow>
+                            <ShadcnTableCell colSpan={4} className="h-40 text-center text-muted-foreground uppercase text-[10px] font-black opacity-30">No venues onboarded</ShadcnTableCell>
+                          </ShadcnTableRow>
                         ) : venues?.map(v => (
-                          <TableRow key={v.id} className="group">
-                            <TableCell className="px-6 py-4">
+                          <ShadcnTableRow key={v.id} className="group">
+                            <ShadcnTableCell className="px-6 py-4">
                               <p className="font-black text-sm text-[#213147]">{v.courseName}</p>
                               <p className="text-[9px] font-bold text-muted-foreground uppercase">{v.city}, {v.state}</p>
-                            </TableCell>
-                            <TableCell className="px-6 py-4">
+                            </ShadcnTableCell>
+                            <ShadcnTableCell className="px-6 py-4">
                               <Badge variant="outline" className="text-[8px] font-black uppercase">{v.type}</Badge>
-                            </TableCell>
-                            <TableCell className="px-6 py-4 text-center">
+                            </ShadcnTableCell>
+                            <ShadcnTableCell className="px-6 py-4 text-center">
                               <div className="flex flex-col items-center gap-1">
                                 <Switch 
                                   checked={v.status === 'Active'} 
@@ -1108,8 +1115,8 @@ export default function SolutionAdminPage() {
                                   {v.status}
                                 </span>
                               </div>
-                            </TableCell>
-                            <TableCell className="px-6 py-4 text-right">
+                            </ShadcnTableCell>
+                            <ShadcnTableCell className="px-6 py-4 text-right">
                               <div className="flex justify-end gap-1">
                                 <button onClick={() => handleEditVenueSettings(v)} className="h-8 w-8 text-indigo-600 flex items-center justify-center rounded-md hover:bg-indigo-50">
                                   <Settings className="h-4 w-4" />
@@ -1121,11 +1128,11 @@ export default function SolutionAdminPage() {
                                   <Trash2 className="h-4 w-4" />
                                 </button>
                               </div>
-                            </TableCell>
-                          </TableRow>
+                            </ShadcnTableCell>
+                          </ShadcnTableRow>
                         ))}
-                      </TableBody>
-                    </Table>
+                      </ShadcnTableBody>
+                    </ShadcnTable>
                   </div>
                 </div>
               )}
@@ -1616,7 +1623,7 @@ export default function SolutionAdminPage() {
 
                   <div className="space-y-6">
                     <Label className="text-[10px] font-black uppercase tracking-widest text-primary flex items-center gap-2">
-                       <User className="h-3 w-3" /> Contact Details
+                       <UserIcon className="h-3 w-3" /> Contact Details
                     </Label>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <FormField control={leadForm.control} name="contactName" render={({ field }) => (
@@ -1995,7 +2002,7 @@ export default function SolutionAdminPage() {
                   
                   <div className="space-y-6">
                     <Label className="text-[10px] font-black uppercase tracking-widest text-primary flex items-center gap-2">
-                       <User className="h-3 w-3" /> Identity & Ownership
+                       <UserIcon className="h-3 w-3" /> Identity & Ownership
                     </Label>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <FormField 
