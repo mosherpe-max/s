@@ -1131,7 +1131,7 @@ export default function SolutionAdminPage() {
                             </ShadcnTableCell>
                           </ShadcnTableRow>
                         ))}
-                      </ShadcnTableBody>
+                      </SubTableBody>
                     </ShadcnTable>
                   </div>
                 </div>
@@ -1519,6 +1519,19 @@ export default function SolutionAdminPage() {
                       </Card>
                     </div>
                   </div>
+
+                  <div className="bg-white/50 backdrop-blur-sm border border-slate-200 p-6 rounded-[2rem] flex items-start gap-4">
+                     <Info className="h-6 w-6 text-slate-400 shrink-0 mt-0.5" />
+                     <div className="space-y-2">
+                       <p className="text-[11px] font-black uppercase text-[#213147] tracking-widest">Analytics Scope Disclosure</p>
+                       <p className="text-[10px] text-muted-foreground font-bold uppercase leading-relaxed">
+                         {(() => {
+                           const modes = seller?.menuTypes || ['Beverage Cart', 'Clubhouse', 'Lane Delivery'];
+                           return `Reporting based on orders where acknowledgment exceeded ${seller?.orderThresholds?.[modes[0]]?.maxOrderAcknowledgeSeconds || solutionConfig?.orderThresholds?.[modes[0]]?.maxOrderAcknowledgeSeconds || 120}s or fulfillment exceeded ${seller?.orderThresholds?.[modes[0]]?.maxOrderProcessingMinutes || solutionConfig?.orderThresholds?.[modes[0]]?.maxOrderProcessingMinutes || 25}m.`;
+                         })()}
+                       </p>
+                     </div>
+                  </div>
                 </div>
               )}
             </div>
@@ -1623,7 +1636,7 @@ export default function SolutionAdminPage() {
 
                   <div className="space-y-6">
                     <Label className="text-[10px] font-black uppercase tracking-widest text-primary flex items-center gap-2">
-                       <UserIcon className="h-3 w-3" /> Contact Details
+                       <User className="h-3 w-3" /> Contact Details
                     </Label>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <FormField control={leadForm.control} name="contactName" render={({ field }) => (
@@ -2002,7 +2015,7 @@ export default function SolutionAdminPage() {
                   
                   <div className="space-y-6">
                     <Label className="text-[10px] font-black uppercase tracking-widest text-primary flex items-center gap-2">
-                       <UserIcon className="h-3 w-3" /> Identity & Ownership
+                       <User className="h-3 w-3" /> Identity & Ownership
                     </Label>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <FormField 
