@@ -45,7 +45,7 @@ import {
   Trash2,
   Calendar as CalendarIcon,
   QrCode,
-  LucideImage,
+  Image as LucideImage,
   Download,
   Package,
   Menu,
@@ -54,10 +54,11 @@ import {
   Timer,
   Activity,
   Info,
-  User as UserIcon,
+  User,
   Star,
   CreditCard,
-  Banknote
+  Banknote,
+  Percent
 } from 'lucide-react';
 import Image from 'next/image';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
@@ -66,7 +67,7 @@ import { Switch } from '@/components/ui/switch';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import {
   Select,
   SelectContent,
@@ -98,7 +99,7 @@ import {
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Checkbox } from '@/components/ui/checkbox';
-import { cn, SUPER_ADMIN_ID } from '@/lib/utils';
+import { cn, SUPER_ADMIN_ID, getNumericOrderId } from '@/lib/utils';
 import { 
   isToday, 
   format, 
@@ -126,7 +127,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { categories } from '@/lib/types';
-import type { MenuItem, Seller, Order, StaffMember, ModifierGroup, SolutionConfig, OrderFulfillmentThresholds } from '@/lib/types';
+import type { MenuItem, Seller, Order, StaffMember, ModifierGroup, SolutionConfig, OrderFulfillmentThresholds, Venue } from '@/lib/types';
 import { signOut } from 'firebase/auth';
 import { 
   BarChart, 
@@ -669,7 +670,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
     { id: "analytics", label: "Analytics", icon: BarChart3 },
     { id: "orders", label: "Orders", icon: ClipboardCheck },
-    { id: "patrons", label: "Patrons", icon: UserIcon },
+    { id: "patrons", label: "Patrons", icon: User },
     { id: "menu", label: "Menu Items", icon: UtensilsCrossed },
     { id: "modifiers", label: "Modifiers", icon: Tags },
     { id: "staff", label: "Staff", icon: Users },
@@ -963,7 +964,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                         {filteredOrders.map(o => (
                           <TableRow key={o.id}>
                             <TableCell className="px-8 py-5">
-                              <p className="font-mono font-black text-xs">#{o.id.slice(-5).toUpperCase()}</p>
+                              <p className="font-mono font-black text-xs">#{getNumericOrderId(o.id)}</p>
                               <p className="text-[9px] text-muted-foreground uppercase mt-0.5">{o.createdAt ? format(o.createdAt.toDate(), 'MMM d, h:mm a') : 'Now'}</p>
                             </TableCell>
                             <TableCell>
@@ -1021,7 +1022,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                           <TableRow>
                             <TableCell colSpan={5} className="h-60 text-center">
                                <div className="flex flex-col items-center gap-2 opacity-30">
-                                 <UserIcon className="h-10 w-10" />
+                                 <User className="h-10 w-10" />
                                  <p className="text-[10px] font-black uppercase tracking-widest">No patrons found</p>
                                </div>
                             </TableCell>
@@ -1218,7 +1219,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                                     <div className="flex items-center gap-2">
                                       {method === 'Pay at Delivery' && <Banknote className="h-3 w-3" />}
                                       {method === 'Digital Payment' && <CreditCard className="h-3 w-3" />}
-                                      {method === 'Member Account' && <UserIcon className="h-3 w-3" />}
+                                      {method === 'Member Account' && <User className="h-3 w-3" />}
                                       {method}
                                     </div>
                                   </label>

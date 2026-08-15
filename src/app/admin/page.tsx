@@ -62,7 +62,9 @@ import {
   Upload,
   FileSpreadsheet,
   Download,
-  Info
+  Info,
+  Database,
+  Image as LucideImage
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -1993,7 +1995,7 @@ export default function SolutionAdminPage() {
                   
                   <div className="space-y-6">
                     <Label className="text-[10px] font-black uppercase tracking-widest text-primary flex items-center gap-2">
-                       <UserIcon className="h-3 w-3" /> Identity & Ownership
+                       <User className="h-3 w-3" /> Identity & Ownership
                     </Label>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <FormField 
