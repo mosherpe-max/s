@@ -418,7 +418,9 @@ export default function SalesCRMPage() {
       <Dialog open={isProspectDialogOpen} onOpenChange={setIsProspectDialogOpen}>
         <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="font-headline uppercase text-indigo-600">{selectedProspect ? 'Edit Prospect' : 'Add New Prospect'}</DialogTitle>
+            <DialogTitle className="font-headline uppercase text-indigo-600">
+              {selectedProspect ? 'Edit Prospect' : 'Add New Prospect'}
+            </DialogTitle>
             <DialogDescription>Track deal stages and venue details for your pipeline.</DialogDescription>
           </DialogHeader>
           <Form {...form}>
@@ -445,6 +447,7 @@ export default function SalesCRMPage() {
                   </FormItem>
                 )} />
               </div>
+              
               <FormField control={form.control} name="stage" render={({ field }) => (
                 <FormItem>
                   <FormLabel>Sales Stage</FormLabel>
@@ -461,6 +464,7 @@ export default function SalesCRMPage() {
                   <FormMessage />
                 </FormItem>
               )} />
+              
               <div className="grid grid-cols-2 gap-4 border-t pt-4">
                 <FormField control={form.control} name="contactName" render={({ field }) => (
                   <FormItem>
@@ -477,6 +481,7 @@ export default function SalesCRMPage() {
                   </FormItem>
                 )} />
               </div>
+              
               <div className="grid grid-cols-3 gap-4 bg-muted/30 p-4 rounded-xl">
                 <FormField control={form.control} name="launchFeeQuoted" render={({ field }) => (
                   <FormItem>
@@ -497,12 +502,14 @@ export default function SalesCRMPage() {
                   </FormItem>
                 )} />
               </div>
+              
               <FormField control={form.control} name="notes" render={({ field }) => (
                 <FormItem>
                   <FormLabel>Prospect Notes</FormLabel>
                   <FormControl><Textarea {...field} /></FormControl>
                 </FormItem>
               )} />
+              
               <DialogFooter className="pt-4">
                 <Button type="submit" className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700">Save Prospect</Button>
               </DialogFooter>

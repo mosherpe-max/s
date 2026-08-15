@@ -143,7 +143,8 @@ export async function seedDemoSellers(db: Firestore) {
       contactPhone: '5551234567',
       serviceFee: 1.50,
       taxRate: 6.0,
-      status: 'Active'
+      status: 'Active',
+      enabledPaymentMethods: ['Pay at Delivery', 'Digital Payment']
     },
     {
       id: 'demo-private-course',
@@ -161,7 +162,8 @@ export async function seedDemoSellers(db: Firestore) {
       contactPhone: '5559876543',
       serviceFee: 2.00,
       taxRate: 6.0,
-      status: 'Active'
+      status: 'Active',
+      enabledPaymentMethods: ['Pay at Delivery', 'Digital Payment', 'Member Account']
     },
     {
       id: 'demo-bowling-alley',
@@ -180,7 +182,8 @@ export async function seedDemoSellers(db: Firestore) {
       contactPhone: '5554443333',
       serviceFee: 1.00,
       taxRate: 6.0,
-      status: 'Active'
+      status: 'Active',
+      enabledPaymentMethods: ['Pay at Delivery', 'Digital Payment']
     }
   ];
 
@@ -280,7 +283,7 @@ export async function resetAllVenueOperationalStatus(db: Firestore) {
   const snapshot = await getDocs(sellersRef);
   
   for (const sellerDoc of snapshot.docs) {
-    const batch = writeBatch(db);
+    const batch = db.batch();
     const staffRef = collection(db, 'sellers', sellerDoc.id, 'staff');
     const staffSnap = await getDocs(staffRef);
     staffSnap.forEach(sDoc => batch.update(sDoc.ref, { 

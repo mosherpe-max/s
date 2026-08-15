@@ -140,7 +140,6 @@ import {
   Line,
   Legend
 } from 'recharts';
-import { OrderCard } from '@/components/order-card';
 
 const staffSchema = z.object({
   name: z.string().min(2, 'Name required'),
@@ -666,14 +665,6 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
 
   const handleLogout = async () => { if (!auth) return; await signOut(auth); router.push('/login'); };
 
-  const NavContent = () => (
-    <nav className="space-y-1">
-      {NAV_ITEMS.map((item) => (
-        <NavButton key={item.id} id={item.id} label={item.label} icon={item.icon} active={activeNav === item.id} onClick={(id) => { setActiveNav(id); setMobileMenuOpen(false); }} sidebarOpen={sidebarOpen || isMobile} />
-      ))}
-    </nav>
-  );
-
   const NAV_ITEMS = [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
     { id: "analytics", label: "Analytics", icon: BarChart3 },
@@ -685,6 +676,22 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
     { id: "marketing", label: "Marketing", icon: Smartphone },
     { id: "settings", label: "Settings", icon: SettingsIcon }
   ];
+
+  const NavContent = () => (
+    <nav className="space-y-1">
+      {NAV_ITEMS.map((item) => (
+        <NavButton 
+          key={item.id} 
+          id={item.id} 
+          label={item.label} 
+          icon={item.icon} 
+          active={activeNav === item.id} 
+          onClick={(id) => { setActiveNav(id); setMobileMenuOpen(false); }} 
+          sidebarOpen={sidebarOpen || isMobile} 
+        />
+      ))}
+    </nav>
+  );
 
   if (isUserLoading || isSellerLoading) return <div className="flex flex-col items-center justify-center h-screen bg-[#213147] text-white"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>;
 
@@ -1019,7 +1026,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                                </div>
                             </TableCell>
                           </TableRow>
-                        ) : patrons.map((patron, idx) => (
+                        ) : patrons.map((patron) => (
                           <TableRow key={patron.email} className="group hover:bg-slate-50/50 transition-colors">
                             <TableCell className="px-8 py-5">
                               <div className="flex items-center gap-3">
