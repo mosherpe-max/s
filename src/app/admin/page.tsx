@@ -1131,7 +1131,7 @@ export default function SolutionAdminPage() {
                             </ShadcnTableCell>
                           </ShadcnTableRow>
                         ))}
-                      </SubTableBody>
+                      </ShadcnTableBody>
                     </ShadcnTable>
                   </div>
                 </div>
@@ -1525,10 +1525,7 @@ export default function SolutionAdminPage() {
                      <div className="space-y-2">
                        <p className="text-[11px] font-black uppercase text-[#213147] tracking-widest">Analytics Scope Disclosure</p>
                        <p className="text-[10px] text-muted-foreground font-bold uppercase leading-relaxed">
-                         {(() => {
-                           const modes = seller?.menuTypes || ['Beverage Cart', 'Clubhouse', 'Lane Delivery'];
-                           return `Reporting based on orders where acknowledgment exceeded ${seller?.orderThresholds?.[modes[0]]?.maxOrderAcknowledgeSeconds || solutionConfig?.orderThresholds?.[modes[0]]?.maxOrderAcknowledgeSeconds || 120}s or fulfillment exceeded ${seller?.orderThresholds?.[modes[0]]?.maxOrderProcessingMinutes || solutionConfig?.orderThresholds?.[modes[0]]?.maxOrderProcessingMinutes || 25}m.`;
-                         })()}
+                          Reporting based on system-wide fulfillment thresholds. Default acknowledgment window is 120s and maximum delivery duration is 25m.
                        </p>
                      </div>
                   </div>
