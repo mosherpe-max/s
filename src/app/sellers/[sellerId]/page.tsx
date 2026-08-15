@@ -11,8 +11,6 @@ import {
   updateDoc, 
   serverTimestamp, 
   deleteDoc,
-  orderBy,
-  limit,
   getDoc
 } from 'firebase/firestore';
 import { useFirestore, useDoc, useCollection, useMemoFirebase, useUser, useAuth, useFirebase } from '@/firebase';
@@ -20,58 +18,41 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { 
   LayoutDashboard,
-  ClipboardList,
   UtensilsCrossed,
   Zap,
   Users,
   BarChart3,
   Settings as SettingsIcon,
-  ChevronRight,
   Plus,
   Edit,
   Loader2,
   LogOut,
-  ShieldCheck,
   Clock,
   DollarSign,
   ShoppingBag,
   Save,
   Library,
   Power,
-  ExternalLink,
-  Truck,
-  Building,
   Tags,
   Sparkles,
   Wand2,
-  ShieldAlert,
   PanelLeft,
   ChevronRightSquare,
   TrendingUp,
-  MapPin,
   Mail,
   Phone,
   Search,
   Trash2,
-  CheckCircle2,
-  AlertTriangle,
-  Smartphone,
-  Download,
   Calendar as CalendarIcon,
   QrCode,
-  FileText,
   LucideImage,
-  Share2,
-  Presentation,
-  Filter,
-  X,
+  Download,
   Package,
   Menu,
   HeartPulse,
   ClipboardCheck,
   Timer,
   Activity,
-  AlertCircle,
   Info,
   User as UserIcon,
   Star,
@@ -85,7 +66,7 @@ import { Switch } from '@/components/ui/switch';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import {
   Select,
   SelectContent,
@@ -133,7 +114,6 @@ import {
   eachHourOfInterval,
   isSameDay,
   isSameMonth,
-  isSameYear,
   isSameHour,
   endOfMonth,
   endOfYear
@@ -160,6 +140,7 @@ import {
   Line,
   Legend
 } from 'recharts';
+import { OrderCard } from '@/components/order-card';
 
 const staffSchema = z.object({
   name: z.string().min(2, 'Name required'),
@@ -685,18 +666,6 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
 
   const handleLogout = async () => { if (!auth) return; await signOut(auth); router.push('/login'); };
 
-  const NAV_ITEMS = [
-    { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
-    { id: "analytics", label: "Analytics", icon: BarChart3 },
-    { id: "orders", label: "Orders", icon: ClipboardList },
-    { id: "patrons", label: "Patrons", icon: UserIcon },
-    { id: "menu", label: "Menu Items", icon: UtensilsCrossed },
-    { id: "modifiers", label: "Modifiers", icon: Tags },
-    { id: "staff", label: "Staff", icon: Users },
-    { id: "marketing", label: "Marketing", icon: Smartphone },
-    { id: "settings", label: "Settings", icon: SettingsIcon }
-  ];
-
   const NavContent = () => (
     <nav className="space-y-1">
       {NAV_ITEMS.map((item) => (
@@ -705,9 +674,21 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
     </nav>
   );
 
+  const NAV_ITEMS = [
+    { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
+    { id: "analytics", label: "Analytics", icon: BarChart3 },
+    { id: "orders", label: "Orders", icon: ClipboardCheck },
+    { id: "patrons", label: "Patrons", icon: UserIcon },
+    { id: "menu", label: "Menu Items", icon: UtensilsCrossed },
+    { id: "modifiers", label: "Modifiers", icon: Tags },
+    { id: "staff", label: "Staff", icon: Users },
+    { id: "marketing", label: "Marketing", icon: Smartphone },
+    { id: "settings", label: "Settings", icon: SettingsIcon }
+  ];
+
   if (isUserLoading || isSellerLoading) return <div className="flex flex-col items-center justify-center h-screen bg-[#213147] text-white"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>;
 
-  const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
+  const appBaseUrl = typeof window !== 'undefined' ? window.location.origin : '';
 
   return (
     <div className="flex flex-col h-screen overflow-x-auto bg-[#F8FAFC] text-left">
@@ -925,7 +906,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                         <div className="bg-slate-50 p-4 rounded-xl flex items-start gap-3">
                           <Info className="h-4 w-4 text-slate-400 shrink-0 mt-0.5" />
                           <p className="text-[10px] text-muted-foreground font-bold uppercase leading-relaxed">
-                            Includes orders where acknowledgment exceeded {seller?.orderThresholds?.[modes[0]]?.maxOrderAcknowledgeSeconds || solutionConfig?.orderThresholds?.[modes[0]]?.maxOrderAcknowledgeSeconds}s or fulfillment exceeded {seller?.orderThresholds?.[modes[0]]?.maxOrderProcessingMinutes || solutionConfig?.orderThresholds?.[modes[0]]?.maxOrderProcessingMinutes}m.
+                            Includes orders where acknowledgment exceeded {seller?.orderThresholds?.['Beverage Cart']?.maxOrderAcknowledgeSeconds || solutionConfig?.orderThresholds?.['Beverage Cart']?.maxOrderAcknowledgeSeconds}s or fulfillment exceeded {seller?.orderThresholds?.['Beverage Cart']?.maxOrderProcessingMinutes || solutionConfig?.orderThresholds?.['Beverage Cart']?.maxOrderProcessingMinutes}m.
                           </p>
                         </div>
                       </Card>
@@ -936,8 +917,66 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
 
               {activeNav === 'orders' && (
                 <div className="space-y-8 animate-in fade-in duration-500">
-                  <div className="flex flex-col md:flex-row md:items-center justify-between border-b-2 pb-6 gap-4"><div className="space-y-1"><h3 className="font-headline font-black text-2xl text-[#213147] uppercase">Fulfillment Log</h3><p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Monitor establishment queue and history</p></div><div className="flex flex-wrap gap-2 items-center"><div className="relative"><Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" /><Input placeholder="Search orders..." className="pl-10 h-10 border-2 rounded-xl text-xs w-64" value={orderSearchTerm} onChange={(e) => setOrderSearchTerm(e.target.value)} /></div><Select value={orderDateRange} onValueChange={(v: any) => setOrderDateRange(v)}><SelectTrigger className="h-10 border-2 rounded-xl w-40 text-[10px] font-black uppercase tracking-widest"><CalendarIcon className="h-3 w-3 mr-2" /><SelectValue /></SelectTrigger><SelectContent><SelectItem value="today">Today</SelectItem><SelectItem value="7days">Last 7 Days</SelectItem><SelectItem value="30days">Last 30 Days</SelectItem><SelectItem value="all">All Time</SelectItem></Select></div></div>
-                  <div className="border-2 rounded-[2.5rem] overflow-x-auto bg-white shadow-sm"><Table><TableHeader className="bg-slate-50"><TableRow><TableHead className="text-[10px] font-black uppercase h-14 px-8">Ticket</TableHead><TableHead className="text-[10px] font-black uppercase h-14">Customer</TableHead><TableHead className="text-[10px] font-black uppercase h-14">Channel</TableHead><TableHead className="text-[10px] font-black uppercase h-14">Items</TableHead><TableHead className="text-[10px] font-black uppercase h-14 text-right px-8">Status</TableHead></TableRow></TableHeader><TableBody>{filteredOrders.map(o => (<TableRow key={o.id}><TableCell className="px-8 py-5"><p className="font-mono font-black text-xs">#{o.id.slice(-5).toUpperCase()}</p><p className="text-[9px] text-muted-foreground uppercase mt-0.5">{o.createdAt ? format(o.createdAt.toDate(), 'MMM d, h:mm a') : 'Now'}</p></TableCell><TableCell><p className="font-bold text-sm text-[#213147]">{o.customerName}</p><p className="text-[9px] text-muted-foreground uppercase">{o.customerPhone}</p></TableCell><TableCell><Badge variant="outline" className="text-[8px] font-black uppercase">{o.menuType}</Badge></TableCell><TableCell><p className="text-xs font-medium text-slate-600 line-clamp-1">{o.items.map(i => `${i.quantity}x ${i.name}`).join(', ')}</p></TableCell><TableCell className="text-right px-8"><Badge className={cn("text-[9px] font-black uppercase px-3 py-1 rounded-full", o.status === 'Delivered' ? "bg-green-100 text-green-700" : "bg-indigo-100 text-indigo-700")}>{o.status}</Badge></TableCell></TableRow>))}</TableBody></Table></div>
+                  <div className="flex flex-col md:flex-row md:items-center justify-between border-b-2 pb-6 gap-4">
+                    <div className="space-y-1">
+                      <h3 className="font-headline font-black text-2xl text-[#213147] uppercase">Fulfillment Log</h3>
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Monitor establishment queue and history</p>
+                    </div>
+                    <div className="flex flex-wrap gap-2 items-center">
+                      <div className="relative">
+                        <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                        <Input placeholder="Search orders..." className="pl-10 h-10 border-2 rounded-xl text-xs w-64" value={orderSearchTerm} onChange={(e) => setOrderSearchTerm(e.target.value)} />
+                      </div>
+                      <Select value={orderDateRange} onValueChange={(v: any) => setOrderDateRange(v)}>
+                        <SelectTrigger className="h-10 border-2 rounded-xl w-40 text-[10px] font-black uppercase tracking-widest">
+                          <CalendarIcon className="h-3 w-3 mr-2" />
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="today">Today</SelectItem>
+                          <SelectItem value="7days">Last 7 Days</SelectItem>
+                          <SelectItem value="30days">Last 30 Days</SelectItem>
+                          <SelectItem value="all">All Time</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div className="border-2 rounded-[2.5rem] overflow-x-auto bg-white shadow-sm">
+                    <Table>
+                      <TableHeader className="bg-slate-50">
+                        <TableRow>
+                          <TableHead className="text-[10px] font-black uppercase h-14 px-8">Ticket</TableHead>
+                          <TableHead className="text-[10px] font-black uppercase h-14">Customer</TableHead>
+                          <TableHead className="text-[10px] font-black uppercase h-14">Channel</TableHead>
+                          <TableHead className="text-[10px] font-black uppercase h-14">Items</TableHead>
+                          <TableHead className="text-[10px] font-black uppercase h-14 text-right px-8">Status</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredOrders.map(o => (
+                          <TableRow key={o.id}>
+                            <TableCell className="px-8 py-5">
+                              <p className="font-mono font-black text-xs">#{o.id.slice(-5).toUpperCase()}</p>
+                              <p className="text-[9px] text-muted-foreground uppercase mt-0.5">{o.createdAt ? format(o.createdAt.toDate(), 'MMM d, h:mm a') : 'Now'}</p>
+                            </TableCell>
+                            <TableCell>
+                              <p className="font-bold text-sm text-[#213147]">{o.customerName}</p>
+                              <p className="text-[9px] text-muted-foreground uppercase">{o.customerPhone}</p>
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="outline" className="text-[8px] font-black uppercase">{o.menuType}</Badge>
+                            </TableCell>
+                            <TableCell>
+                              <p className="text-xs font-medium text-slate-600 line-clamp-1">{o.items.map(i => `${i.quantity}x ${i.name}`).join(', ')}</p>
+                            </TableCell>
+                            <TableCell className="text-right px-8">
+                              <Badge className={cn("text-[9px] font-black uppercase px-3 py-1 rounded-full", o.status === 'Delivered' ? "bg-green-100 text-green-700" : "bg-indigo-100 text-indigo-700")}>{o.status}</Badge>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
                 </div>
               )}
 
@@ -1127,7 +1166,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
               {activeNav === 'marketing' && (
                 <div className="space-y-8 animate-in fade-in duration-500">
                   <div className="flex justify-between items-center border-b-2 pb-6"><h3 className="font-headline font-black text-2xl text-[#213147] uppercase">Growth & Collateral</h3></div>
-                  <Card className="border-2 shadow-sm p-8 text-left"><div className="space-y-8"><div className="flex items-center gap-4"><div className="bg-indigo-50 p-4 rounded-[2rem] text-indigo-600 border-2"><QrCode className="h-8 w-8" /></div><div className="text-left"><h4 className="font-headline font-black text-xl uppercase">QR Terminal</h4><h4 className="text-xs text-muted-foreground">Download location-aware QR codes for placement at lanes or on carts.</h4></div></div><div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">{['Beverage Cart', 'Clubhouse', 'Lane Delivery'].filter(m => seller?.menuTypes?.includes(m)).map(mode => (<div key={mode} className="p-6 bg-slate-50 border-2 rounded-[2rem] flex flex-col items-center gap-4 group hover:border-primary transition-all"><div className="bg-white p-3 rounded-2xl border-2 shadow-sm group-hover:scale-105 transition-transform"><img src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${baseUrl}/sellers/${sellerId}/order?menuType=${encodeURIComponent(mode)}`} alt={`${mode} QR`} className="w-24 h-24" /></div><div className="text-center"><p className="text-[10px] font-black uppercase text-[#213147]">{mode}</p><Button variant="ghost" size="sm" className="h-8 mt-2 text-[8px] font-black uppercase text-primary gap-1"><Download className="h-3 w-3" /> Download</Button></div></div>))}</div></div></Card>
+                  <Card className="border-2 shadow-sm p-8 text-left"><div className="space-y-8"><div className="flex items-center gap-4"><div className="bg-indigo-50 p-4 rounded-[2rem] text-indigo-600 border-2"><QrCode className="h-8 w-8" /></div><div className="text-left"><h4 className="font-headline font-black text-xl uppercase">QR Terminal</h4><h4 className="text-xs text-muted-foreground">Download location-aware QR codes for placement at lanes or on carts.</h4></div></div><div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">{['Beverage Cart', 'Clubhouse', 'Lane Delivery'].filter(m => seller?.menuTypes?.includes(m)).map(mode => (<div key={mode} className="p-6 bg-slate-50 border-2 rounded-[2rem] flex flex-col items-center gap-4 group hover:border-primary transition-all"><div className="bg-white p-3 rounded-2xl border-2 shadow-sm group-hover:scale-105 transition-transform"><img src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${appBaseUrl}/sellers/${sellerId}/order?menuType=${encodeURIComponent(mode)}`} alt={`${mode} QR`} className="w-24 h-24" /></div><div className="text-center"><p className="text-[10px] font-black uppercase text-[#213147]">{mode}</p><Button variant="ghost" size="sm" className="h-8 mt-2 text-[8px] font-black uppercase text-primary gap-1"><Download className="h-3 w-3" /> Download</Button></div></div>))}</div></div></Card>
                 </div>
               )}
 

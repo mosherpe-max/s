@@ -422,39 +422,86 @@ export default function SalesCRMPage() {
             <DialogDescription>Track deal stages and venue details for your pipeline.</DialogDescription>
           </DialogHeader>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSaveProspect)} className="space-y-4 pt-4">
+            <form onSubmit={form.handleSubmit(onSaveProspect)} className="space-y-6 pt-4">
               <div className="grid grid-cols-2 gap-4">
                 <FormField control={form.control} name="venueName" render={({ field }) => (
-                  <FormItem><FormLabel>Venue Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                  <FormItem>
+                    <FormLabel>Venue Name</FormLabel>
+                    <FormControl><Input {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
                 )} />
                 <FormField control={form.control} name="venueType" render={({ field }) => (
-                  <FormItem><FormLabel>Venue Type</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="Golf Course">Golf Course</SelectItem><SelectItem value="Bowling Center">Bowling Center</SelectItem></SelectContent></Select></FormItem>
+                  <FormItem>
+                    <FormLabel>Venue Type</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                      <SelectContent>
+                        <SelectItem value="Golf Course">Golf Course</SelectItem>
+                        <SelectItem value="Bowling Center">Bowling Center</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
                 )} />
               </div>
               <FormField control={form.control} name="stage" render={({ field }) => (
-                <FormItem><FormLabel>Sales Stage</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="Contacted">Contacted</SelectItem><SelectItem value="Demo Scheduled">Demo Scheduled</SelectItem><SelectItem value="Proposal Sent">Proposal Sent</SelectItem><SelectItem value="Closed">Closed</SelectItem><SelectItem value="Lost">Lost</SelectItem></SelectContent></FormItem>
+                <FormItem>
+                  <FormLabel>Sales Stage</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                    <SelectContent>
+                      <SelectItem value="Contacted">Contacted</SelectItem>
+                      <SelectItem value="Demo Scheduled">Demo Scheduled</SelectItem>
+                      <SelectItem value="Proposal Sent">Proposal Sent</SelectItem>
+                      <SelectItem value="Closed">Closed</SelectItem>
+                      <SelectItem value="Lost">Lost</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
               )} />
               <div className="grid grid-cols-2 gap-4 border-t pt-4">
                 <FormField control={form.control} name="contactName" render={({ field }) => (
-                  <FormItem><FormLabel>Decision Maker</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                  <FormItem>
+                    <FormLabel>Decision Maker</FormLabel>
+                    <FormControl><Input {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
                 )} />
                 <FormField control={form.control} name="contactEmail" render={({ field }) => (
-                  <FormItem><FormLabel>Contact Email</FormLabel><FormControl><Input {...field} type="email" /></FormControl><FormMessage /></FormItem>
+                  <FormItem>
+                    <FormLabel>Contact Email</FormLabel>
+                    <FormControl><Input {...field} type="email" /></FormControl>
+                    <FormMessage />
+                  </FormItem>
                 )} />
               </div>
               <div className="grid grid-cols-3 gap-4 bg-muted/30 p-4 rounded-xl">
                 <FormField control={form.control} name="launchFeeQuoted" render={({ field }) => (
-                  <FormItem><FormLabel className="text-[10px] font-black uppercase">Launch Fee ($)</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem>
+                  <FormItem>
+                    <FormLabel className="text-[10px] font-black uppercase">Launch Fee ($)</FormLabel>
+                    <FormControl><Input type="number" {...field} /></FormControl>
+                  </FormItem>
                 )} />
                 <FormField control={form.control} name="monthlyFee" render={({ field }) => (
-                  <FormItem><FormLabel className="text-[10px] font-black uppercase">Monthly ($)</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem>
+                  <FormItem>
+                    <FormLabel className="text-[10px] font-black uppercase">Monthly ($)</FormLabel>
+                    <FormControl><Input type="number" {...field} /></FormControl>
+                  </FormItem>
                 )} />
                 <FormField control={form.control} name="estVolume" render={({ field }) => (
-                  <FormItem><FormLabel className="text-[10px] font-black uppercase">Est. Monthly Vol ($)</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem>
+                  <FormItem>
+                    <FormLabel className="text-[10px] font-black uppercase">Est. Monthly Vol ($)</FormLabel>
+                    <FormControl><Input type="number" {...field} /></FormControl>
+                  </FormItem>
                 )} />
               </div>
               <FormField control={form.control} name="notes" render={({ field }) => (
-                <FormItem><FormLabel>Prospect Notes</FormLabel><FormControl><Textarea {...field} /></FormControl></FormItem>
+                <FormItem>
+                  <FormLabel>Prospect Notes</FormLabel>
+                  <FormControl><Textarea {...field} /></FormControl>
+                </FormItem>
               )} />
               <DialogFooter className="pt-4">
                 <Button type="submit" className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700">Save Prospect</Button>
@@ -473,10 +520,25 @@ export default function SalesCRMPage() {
           <Form {...activityForm}>
             <form onSubmit={activityForm.handleSubmit(onLogActivity)} className="space-y-4 pt-2">
               <FormField control={activityForm.control} name="type" render={({ field }) => (
-                <FormItem><FormLabel>Action Type</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="Call">Call</SelectItem><SelectItem value="Email">Email</SelectItem><SelectItem value="Visit">On-site Visit</SelectItem><SelectItem value="Meeting">Meeting</SelectItem></SelectContent></Select></FormItem>
+                <FormItem>
+                  <FormLabel>Action Type</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                    <SelectContent>
+                      <SelectItem value="Call">Call</SelectItem>
+                      <SelectItem value="Email">Email</SelectItem>
+                      <SelectItem value="Visit">On-site Visit</SelectItem>
+                      <SelectItem value="Meeting">Meeting</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </FormItem>
               )} />
               <FormField control={activityForm.control} name="notes" render={({ field }) => (
-                <FormItem><FormLabel>Details</FormLabel><FormControl><Textarea {...field} placeholder="What was discussed?" /></FormControl><FormMessage /></FormItem>
+                <FormItem>
+                  <FormLabel>Details</FormLabel>
+                  <FormControl><Textarea {...field} placeholder="What was discussed?" /></FormControl>
+                  <FormMessage />
+                </FormItem>
               )} />
               <DialogFooter>
                 <Button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700">Log Action</Button>

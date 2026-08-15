@@ -17,19 +17,13 @@ import {
   Save,
   LayoutDashboard,
   BarChart3,
-  ChevronRight,
-  TrendingUp,
   DollarSign,
   ShoppingBag,
   Activity,
-  Briefcase,
-  Database,
-  Image as LucideImage,
   Trash2,
   Menu,
   Smartphone,
   PlayCircle,
-  Lock,
   Timer,
   Satellite,
   ShieldAlert,
@@ -41,11 +35,9 @@ import {
   X,
   Edit,
   UtensilsCrossed,
-  LayoutList,
   Power,
   PanelLeft,
   ChevronRightSquare,
-  Globe,
   BellRing,
   ShieldCheck,
   Mail,
@@ -63,7 +55,6 @@ import {
   Flame,
   UserX,
   QrCode,
-  ArrowRight,
   Target,
   BarChart,
   ClipboardCheck,
@@ -93,14 +84,6 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
-import {
-  Table as ShadcnTable,
-  TableBody as ShadcnTableBody,
-  TableCell as ShadcnTableCell,
-  TableHead as ShadcnTableHead,
-  TableHeader as ShadcnTableHeader,
-  TableRow as ShadcnTableRow,
 } from "@/components/ui/table";
 import {
   Tabs,
@@ -382,7 +365,7 @@ export default function SolutionAdminPage() {
   const configRef = useMemoFirebase(() => (firestore ? doc(firestore, 'solution', 'config') : null), [firestore]);
   const { data: remoteConfig } = useDoc<SolutionConfig>(configRef);
 
-  const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
+  const appBaseUrl = typeof window !== 'undefined' ? window.location.origin : '';
 
   useEffect(() => {
     if (remoteConfig) {
@@ -749,23 +732,21 @@ export default function SolutionAdminPage() {
     const sellerRef = doc(firestore, 'sellers', venueId);
     const venueRef = doc(firestore, 'venues', venueId);
 
-    deleteDoc(sellerRef)
-      .then(() => deleteDoc(venueRef))
-      .then(() => {
-        toast({ 
-          title: "Establishment Terminated", 
-          description: `Record for ${venueName} has been purged from registry.` 
-        });
-      })
-      .catch(async (err) => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-          path: sellerRef.path,
-          operation: 'delete',
-        } satisfies SecurityRuleContext));
-      })
-      .finally(() => {
-        setIsProcessingSave(false);
+    try {
+      await deleteDoc(sellerRef);
+      await deleteDoc(venueRef);
+      toast({ 
+        title: "Establishment Terminated", 
+        description: `Record for ${venueName} has been purged from registry.` 
       });
+    } catch (err: any) {
+      errorEmitter.emit('permission-error', new FirestorePermissionError({
+        path: sellerRef.path,
+        operation: 'delete',
+      } satisfies SecurityRuleContext));
+    } finally {
+      setIsProcessingSave(false);
+    }
   };
 
   const handleToggleVenueStatus = async (v: Seller) => {
@@ -1001,31 +982,31 @@ export default function SolutionAdminPage() {
                       </div>
 
                       <div className="border-2 rounded-[2rem] overflow-hidden bg-white shadow-sm">
-                        <ShadcnTable>
-                          <ShadcnTableHeader className="bg-slate-50">
-                            <ShadcnTableRow>
-                              <ShadcnTableHead className="text-[10px] font-black uppercase px-6 h-12">Venue</ShadcnTableHead>
-                              <ShadcnTableHead className="text-[10px] font-black uppercase px-6 h-12">Contact</ShadcnTableHead>
-                              <ShadcnTableHead className="text-[10px] font-black uppercase px-6 h-12">Stage</ShadcnTableHead>
-                              <ShadcnTableHead className="text-[10px] font-black uppercase px-6 h-12 text-right">Actions</ShadcnTableHead>
-                            </ShadcnTableRow>
-                          </ShadcnTableHeader>
-                          <ShadcnTableBody>
+                        <Table>
+                          <TableHeader className="bg-slate-50">
+                            <TableRow>
+                              <TableHead className="text-[10px] font-black uppercase px-6 h-12">Venue</TableHead>
+                              <TableHead className="text-[10px] font-black uppercase px-6 h-12">Contact</TableHead>
+                              <TableHead className="text-[10px] font-black uppercase px-6 h-12">Stage</TableHead>
+                              <TableHead className="text-[10px] font-black uppercase px-6 h-12 text-right">Actions</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
                             {filteredLeads.length === 0 ? (
-                              <ShadcnTableRow>
-                                <ShadcnTableCell colSpan={4} className="h-40 text-center text-muted-foreground uppercase text-[10px] font-black opacity-30">No leads in database</ShadcnTableCell>
-                              </ShadcnTableRow>
+                              <TableRow>
+                                <TableCell colSpan={4} className="h-40 text-center text-muted-foreground uppercase text-[10px] font-black opacity-30">No leads in database</TableCell>
+                              </TableRow>
                             ) : filteredLeads.map(lead => (
-                              <ShadcnTableRow key={lead.id} className="group">
-                                <ShadcnTableCell className="px-6 py-4">
+                              <TableRow key={lead.id} className="group">
+                                <TableCell className="px-6 py-4">
                                   <p className="font-black text-sm text-[#213147]">{lead.venueName}</p>
                                   <p className="text-[9px] font-bold text-muted-foreground uppercase">{lead.city}, {lead.state} {lead.county && `(${lead.county} Co)`}</p>
-                                </ShadcnTableCell>
-                                <ShadcnTableCell className="px-6 py-4">
+                                </TableCell>
+                                <TableCell className="px-6 py-4">
                                   <p className="font-bold text-xs">{lead.contactName}</p>
                                   <p className="text-[9px] text-muted-foreground">{lead.email}</p>
-                                </ShadcnTableCell>
-                                <ShadcnTableCell className="px-6 py-4">
+                                </TableCell>
+                                <TableCell className="px-6 py-4">
                                   <Badge className={cn(
                                     "text-[8px] font-black uppercase",
                                     lead.stage === 'Closed' ? "bg-green-100 text-green-700" :
@@ -1034,8 +1015,8 @@ export default function SolutionAdminPage() {
                                   )}>
                                     {lead.stage}
                                   </Badge>
-                                </ShadcnTableCell>
-                                <ShadcnTableCell className="px-6 py-4 text-right">
+                                </TableCell>
+                                <TableCell className="px-6 py-4 text-right">
                                   <div className="flex justify-end gap-1">
                                     <button onClick={() => { setEditingLead(lead); leadForm.reset(lead); setIsLeadFormOpen(true); }} className="h-8 w-8 text-indigo-600 flex items-center justify-center rounded-md hover:bg-indigo-50">
                                       <Edit className="h-4 w-4" />
@@ -1044,11 +1025,11 @@ export default function SolutionAdminPage() {
                                       <Trash2 className="h-4 w-4" />
                                     </button>
                                   </div>
-                                </ShadcnTableCell>
-                              </ShadcnTableRow>
+                                </TableCell>
+                              </TableRow>
                             ))}
-                          </ShadcnTableBody>
-                        </ShadcnTable>
+                          </TableBody>
+                        </Table>
                       </div>
                     </TabsContent>
 
@@ -1082,30 +1063,30 @@ export default function SolutionAdminPage() {
                      <h3 className="font-headline font-black text-2xl text-[#213147] uppercase">Establishment Registry</h3>
                   </div>
                   <div className="border-2 rounded-[2rem] overflow-hidden bg-white shadow-sm">
-                    <ShadcnTable>
-                      <ShadcnTableHeader className="bg-slate-50">
-                        <ShadcnTableRow>
-                          <ShadcnTableHead className="text-[10px] font-black uppercase px-6 h-12">Establishment</ShadcnTableHead>
-                          <ShadcnTableHead className="text-[10px] font-black uppercase px-6 h-12">Type</ShadcnTableHead>
-                          <ShadcnTableHead className="text-[10px] font-black uppercase px-6 h-12 text-center">Status</ShadcnTableHead>
-                          <ShadcnTableHead className="text-[10px] font-black uppercase px-6 h-12 text-right">Actions</ShadcnTableHead>
-                        </ShadcnTableRow>
-                      </ShadcnTableHeader>
-                      <ShadcnTableBody>
+                    <Table>
+                      <TableHeader className="bg-slate-50">
+                        <TableRow>
+                          <TableHead className="text-[10px] font-black uppercase px-6 h-12">Establishment</TableHead>
+                          <TableHead className="text-[10px] font-black uppercase px-6 h-12">Type</TableHead>
+                          <TableHead className="text-[10px] font-black uppercase px-6 h-12 text-center">Status</TableHead>
+                          <TableHead className="text-[10px] font-black uppercase px-6 h-12 text-right">Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
                         {venues?.length === 0 ? (
-                          <ShadcnTableRow>
-                            <ShadcnTableCell colSpan={4} className="h-40 text-center text-muted-foreground uppercase text-[10px] font-black opacity-30">No venues onboarded</ShadcnTableCell>
-                          </ShadcnTableRow>
+                          <TableRow>
+                            <TableCell colSpan={4} className="h-40 text-center text-muted-foreground uppercase text-[10px] font-black opacity-30">No venues onboarded</TableCell>
+                          </TableRow>
                         ) : venues?.map(v => (
-                          <ShadcnTableRow key={v.id} className="group">
-                            <ShadcnTableCell className="px-6 py-4">
+                          <TableRow key={v.id} className="group">
+                            <TableCell className="px-6 py-4">
                               <p className="font-black text-sm text-[#213147]">{v.courseName}</p>
                               <p className="text-[9px] font-bold text-muted-foreground uppercase">{v.city}, {v.state}</p>
-                            </ShadcnTableCell>
-                            <ShadcnTableCell className="px-6 py-4">
+                            </TableCell>
+                            <TableCell className="px-6 py-4">
                               <Badge variant="outline" className="text-[8px] font-black uppercase">{v.type}</Badge>
-                            </ShadcnTableCell>
-                            <ShadcnTableCell className="px-6 py-4 text-center">
+                            </TableCell>
+                            <TableCell className="px-6 py-4 text-center">
                               <div className="flex flex-col items-center gap-1">
                                 <Switch 
                                   checked={v.status === 'Active'} 
@@ -1115,8 +1096,8 @@ export default function SolutionAdminPage() {
                                   {v.status}
                                 </span>
                               </div>
-                            </ShadcnTableCell>
-                            <ShadcnTableCell className="px-6 py-4 text-right">
+                            </TableCell>
+                            <TableCell className="px-6 py-4 text-right">
                               <div className="flex justify-end gap-1">
                                 <button onClick={() => handleEditVenueSettings(v)} className="h-8 w-8 text-indigo-600 flex items-center justify-center rounded-md hover:bg-indigo-50">
                                   <Settings className="h-4 w-4" />
@@ -1128,11 +1109,11 @@ export default function SolutionAdminPage() {
                                   <Trash2 className="h-4 w-4" />
                                 </button>
                               </div>
-                            </ShadcnTableCell>
-                          </ShadcnTableRow>
+                            </TableCell>
+                          </TableRow>
                         ))}
-                      </ShadcnTableBody>
-                    </ShadcnTable>
+                      </TableBody>
+                    </Table>
                   </div>
                 </div>
               )}
@@ -1256,7 +1237,7 @@ export default function SolutionAdminPage() {
                           <div className="flex flex-col items-center gap-3 p-5 bg-slate-50 rounded-[2rem] border-2 border-dashed group-hover:border-indigo-200 transition-colors">
                             <div className="bg-white p-2 rounded-2xl border-2 shadow-sm">
                               <img 
-                                src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${baseUrl}${venue.menuUrl}`}
+                                src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${appBaseUrl}${venue.menuUrl}`}
                                 alt="Patron QR"
                                 className="w-24 h-24"
                               />
@@ -1525,7 +1506,7 @@ export default function SolutionAdminPage() {
                      <div className="space-y-2">
                        <p className="text-[11px] font-black uppercase text-[#213147] tracking-widest">Analytics Scope Disclosure</p>
                        <p className="text-[10px] text-muted-foreground font-bold uppercase leading-relaxed">
-                          Reporting based on system-wide fulfillment thresholds. Default acknowledgment window is 120s and maximum delivery duration is 25m.
+                          Reporting is based on global fulfillment thresholds and historical operational performance across all establishment registries.
                        </p>
                      </div>
                   </div>
@@ -2012,7 +1993,7 @@ export default function SolutionAdminPage() {
                   
                   <div className="space-y-6">
                     <Label className="text-[10px] font-black uppercase tracking-widest text-primary flex items-center gap-2">
-                       <User className="h-3 w-3" /> Identity & Ownership
+                       <UserIcon className="h-3 w-3" /> Identity & Ownership
                     </Label>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <FormField 
