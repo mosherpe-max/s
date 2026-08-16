@@ -105,10 +105,10 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useRouter } from 'next/navigation';
 import { useFirestore, useCollection, useMemoFirebase, useAuth, useDoc, useUser } from '@/firebase';
 import { signOut } from 'firebase/auth';
-import { collection, query, limit, doc, setDoc, serverTimestamp, where, orderBy, updateDoc, writeBatch, deleteDoc, getDoc } from 'firebase/firestore';
-import type { Seller, SolutionConfig, Order, Venue, StarterModifierGroup, StarterMenuItem, OrderFulfillmentThresholds, Lead, LeadStage, PaymentMethodType } from '@/lib/types';
+import { collection, doc, setDoc, serverTimestamp, where, orderBy, updateDoc, writeBatch, deleteDoc, getDoc } from 'firebase/firestore';
+import type { Seller, SolutionConfig, Venue, StarterModifierGroup, StarterMenuItem, OrderFulfillmentThresholds, Lead } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
-import { cn, SUPER_ADMIN_ID } from '@/lib/utils';
+import { cn, SUPER_ADMIN_ID, getNumericOrderId } from '@/lib/utils';
 import { StylizedKoopLogo } from '@/components/header';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useForm, useFieldArray } from 'react-hook-form';
@@ -123,7 +123,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from '@/components/ui/checkbox';
-import Link from 'next/link';
+import Link from 'link';
 import * as XLSX from 'xlsx';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';

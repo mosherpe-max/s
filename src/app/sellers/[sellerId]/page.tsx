@@ -61,7 +61,8 @@ import {
   Percent,
   Smartphone,
   X,
-  Building
+  Building,
+  ChevronLeft
 } from 'lucide-react';
 import Image from 'next/image';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
@@ -144,6 +145,8 @@ import {
   Line,
   Legend
 } from 'recharts';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
 
 const staffSchema = z.object({
   name: z.string().min(2, 'Name required'),
@@ -284,7 +287,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
     }
   }, [seller, solutionConfig]);
 
-  const onSaveFulfillment = async () => {
+  const onSaveModeSettings = async () => {
     if (!firestore || !sellerId) return;
     setIsProcessingSave(true);
     try {
@@ -292,7 +295,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
         orderThresholds: fulfillmentSettings,
         updatedAt: serverTimestamp()
       });
-      toast({ title: "Fulfillment Rules Saved" });
+      toast({ title: "Service Rules Saved" });
     } catch (e: any) {
       toast({ variant: "destructive", title: "Save Failed", description: e.message });
     } finally {
@@ -674,6 +677,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
     { id: "analytics", label: "Analytics", icon: BarChart3 },
     { id: "orders", label: "Orders", icon: ClipboardCheck },
     { id: "patrons", label: "Patrons", icon: User },
+    { id: "modes", label: "Service Modes", icon: Zap },
     { id: "menu", label: "Menu Items", icon: UtensilsCrossed },
     { id: "modifiers", label: "Modifiers", icon: Tags },
     { id: "staff", label: "Staff", icon: Users },
@@ -1045,6 +1049,114 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                 </div>
               )}
 
+              {activeNav === 'modes' && (
+                <div className="space-y-8 animate-in fade-in duration-500">
+                  <div className="flex flex-col md:flex-row md:items-center justify-between border-b-2 pb-6 gap-4">
+                    <div className="space-y-1">
+                      <h3 className="font-headline font-black text-2xl text-[#213147] uppercase">Service Mode Terminal</h3>
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Manage menu visibility and delivery channels</p>
+                    </div>
+                    <Button onClick={onSaveModeSettings} disabled={isProcessingSave} className="bg-[#213147] font-black uppercase text-[10px] gap-2 h-11 px-6 shadow-xl">
+                      {isProcessingSave ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Save Mode Settings
+                    </Button>
+                  </div>
+
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    {['Beverage Cart', 'Clubhouse', 'Lane Delivery'].filter(m => seller?.menuTypes?.includes(m)).map((mode) => {
+                      const fieldMap: any = { 'Beverage Cart': 'bevcartActive', 'Clubhouse': 'clubhouseActive', 'Lane Delivery': 'lanedeliveryActive' };
+                      const isActive = !!(seller as any)?.[fieldMap[mode]];
+                      
+                      return (
+                        <Card key={mode} className={cn("border-2 shadow-sm overflow-hidden", !isActive && "opacity-60")}>
+                          <CardHeader className="bg-slate-50 border-b py-4 flex flex-row items-center justify-between space-y-0">
+                            <div className="flex items-center gap-3">
+                              <div className={cn("p-2 rounded-xl", isActive ? "bg-primary text-white" : "bg-slate-200 text-slate-400")}>
+                                <Zap className="h-4 w-4" />
+                              </div>
+                              <div className="text-left">
+                                <CardTitle className="text-xs font-black uppercase tracking-widest">{mode}</CardTitle>
+                                <p className="text-[8px] font-bold text-muted-foreground uppercase">{isActive ? 'Receiving Orders' : 'Offline'}</p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-[9px] font-black uppercase text-muted-foreground">Mode Switch</span>
+                              <Switch checked={isActive} onCheckedChange={() => handleToggleModeStatus(mode, isActive)} />
+                            </div>
+                          </CardHeader>
+                          <CardContent className="p-6 space-y-6">
+                            <div className="space-y-4">
+                              <h4 className="text-[10px] font-black uppercase tracking-widest text-primary flex items-center gap-2">
+                                <Menu className="h-3 w-3" /> Menu Visibility
+                              </h4>
+                              <div className="grid grid-cols-2 gap-2">
+                                {categories.filter(c => c !== 'Featured').map(cat => {
+                                  const isVisible = seller?.categoryVisibility?.[mode]?.includes(cat) ?? true;
+                                  return (
+                                    <div key={cat} className="flex items-center space-x-3 p-2 rounded-lg border-2 bg-slate-50/50">
+                                      <Checkbox 
+                                        id={`${mode}-${cat}`} 
+                                        checked={isVisible} 
+                                        onCheckedChange={(checked) => {
+                                          const current = seller?.categoryVisibility?.[mode] || categories.filter(c => c !== 'Featured');
+                                          const next = checked 
+                                            ? [...current, cat]
+                                            : current.filter(c => c !== cat);
+                                          updateDoc(doc(firestore!, 'sellers', sellerId), {
+                                            [`categoryVisibility.${mode}`]: next
+                                          });
+                                        }} 
+                                      />
+                                      <label htmlFor={`${mode}-${cat}`} className="text-[9px] font-black uppercase cursor-pointer truncate">{cat}</label>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+
+                            <Separator className="opacity-50" />
+
+                            <div className="space-y-4">
+                              <h4 className="text-[10px] font-black uppercase tracking-widest text-[#213147] flex items-center gap-2">
+                                <Timer className="h-3 w-3" /> Fulfillment Rules
+                              </h4>
+                              <div className="grid grid-cols-3 gap-3">
+                                <div className="space-y-1">
+                                  <Label className="text-[8px] font-black uppercase text-muted-foreground">Ack (sec)</Label>
+                                  <Input 
+                                    type="number" 
+                                    value={fulfillmentSettings[mode]?.maxOrderAcknowledgeSeconds} 
+                                    onChange={(e) => updateThreshold(mode, 'maxOrderAcknowledgeSeconds', parseInt(e.target.value))} 
+                                    className="h-8 text-[10px] font-black border-2"
+                                  />
+                                </div>
+                                <div className="space-y-1">
+                                  <Label className="text-[8px] font-black uppercase text-muted-foreground">Warn (min)</Label>
+                                  <Input 
+                                    type="number" 
+                                    value={fulfillmentSettings[mode]?.warningOrderProcessingMinutes} 
+                                    onChange={(e) => updateThreshold(mode, 'warningOrderProcessingMinutes', parseInt(e.target.value))} 
+                                    className="h-8 text-[10px] font-black border-2"
+                                  />
+                                </div>
+                                <div className="space-y-1">
+                                  <Label className="text-[8px] font-black uppercase text-muted-foreground">Max (min)</Label>
+                                  <Input 
+                                    type="number" 
+                                    value={fulfillmentSettings[mode]?.maxOrderProcessingMinutes} 
+                                    onChange={(e) => updateThreshold(mode, 'maxOrderProcessingMinutes', parseInt(e.target.value))} 
+                                    className="h-8 text-[10px] font-black border-2"
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               {activeNav === 'menu' && (
                 <div className="space-y-6 animate-in fade-in duration-500">
                   <div className="flex justify-between items-center border-b-2 pb-4">
@@ -1139,8 +1251,44 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
 
               {activeNav === 'staff' && (
                 <div className="space-y-8 animate-in fade-in duration-500">
-                  <div className="flex justify-between items-center border-b-2 pb-6"><div className="space-y-1"><h3 className="font-headline font-black text-2xl text-[#213147] uppercase">Staff Directory</h3><p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Manage personnel and PINs</p></div><Button onClick={() => { setEditingStaff(null); staffForm.reset({ name: '', role: 'Staff', pin: '', isActive: true }); setIsStaffFormOpen(true); }} className="bg-indigo-600 h-12 px-6 font-black uppercase text-[10px] shadow-xl"><Plus className="h-4 w-4" /> Add Staff</Button></div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">{staffList?.map(s => (<Card key={s.id} className="border-2 shadow-sm group bg-white overflow-hidden text-left"><CardHeader className="p-6 pb-4 flex flex-row items-center gap-4 relative"><div className="bg-slate-100 p-3 rounded-2xl text-slate-400 group-hover:text-indigo-600 transition-colors"><Users className="h-6 w-6" /></div><div className="text-left"><p className="font-black text-sm uppercase text-[#213147]">{s.name}</p><Badge variant="secondary" className="text-[8px] font-black uppercase mt-1">{s.role}</Badge></div><Button variant="ghost" size="icon" className="absolute top-4 right-4 h-8 w-8 opacity-0 group-hover:opacity-100" onClick={() => { setEditingStaff(s); staffForm.reset(s as any); setIsStaffFormOpen(true); }}><Edit className="h-4 w-4" /></Button></CardHeader><CardContent className="p-6 pt-0 space-y-4"><div className="bg-slate-50 p-4 rounded-2xl border-2 border-slate-100 flex items-center justify-between"><div className="space-y-0.5 text-left"><p className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">Secure PIN</p><p className="text-sm font-black font-mono tracking-[0.3em]">{s.pin}</p></div><Badge className={cn("text-[8px] font-black uppercase px-2 h-4", s.isActive ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-400")}>{s.isActive ? 'Active' : 'Inactive'}</Badge></div></CardContent></Card>))}</div>
+                  <div className="flex justify-between items-center border-b-2 pb-6">
+                    <div className="space-y-1">
+                      <h3 className="font-headline font-black text-2xl text-[#213147] uppercase">Staff Directory</h3>
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Manage personnel and PINs</p>
+                    </div>
+                    <Button onClick={() => { setEditingStaff(null); staffForm.reset({ name: '', role: 'Staff', pin: '', isActive: true }); setIsStaffFormOpen(true); }} className="bg-indigo-600 h-12 px-6 font-black uppercase text-[10px] shadow-xl">
+                      <Plus className="h-4 w-4" /> Add Staff
+                    </Button>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {staffList?.map(s => (
+                      <Card key={s.id} className="border-2 shadow-sm group bg-white overflow-hidden text-left">
+                        <CardHeader className="p-6 pb-4 flex flex-row items-center gap-4 relative">
+                          <div className="bg-slate-100 p-3 rounded-2xl text-slate-400 group-hover:text-indigo-600 transition-colors">
+                            <Users className="h-6 w-6" />
+                          </div>
+                          <div className="text-left">
+                            <p className="font-black text-sm uppercase text-[#213147]">{s.name}</p>
+                            <Badge variant="secondary" className="text-[8px] font-black uppercase mt-1">{s.role}</Badge>
+                          </div>
+                          <Button variant="ghost" size="icon" className="absolute top-4 right-4 h-8 w-8 opacity-0 group-hover:opacity-100" onClick={() => { setEditingStaff(s); staffForm.reset(s as any); setIsStaffFormOpen(true); }}>
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                        </CardHeader>
+                        <CardContent className="p-6 pt-0 space-y-4">
+                          <div className="bg-slate-50 p-4 rounded-2xl border-2 border-slate-100 flex items-center justify-between">
+                            <div className="space-y-0.5 text-left">
+                              <p className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">Secure PIN</p>
+                              <p className="text-sm font-black font-mono tracking-[0.3em]">{s.pin}</p>
+                            </div>
+                            <Badge className={cn("text-[8px] font-black uppercase px-2 h-4", s.isActive ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-400")}>
+                              {s.isActive ? 'Active' : 'Inactive'}
+                            </Badge>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
                 </div>
               )}
 
@@ -1153,7 +1301,12 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
 
               {activeNav === 'settings' && (
                 <div className="space-y-8 animate-in fade-in duration-500">
-                  <div className="flex justify-between items-center border-b-2 pb-6"><div className="space-y-1"><h3 className="font-headline font-black text-2xl text-[#213147] uppercase">Establishment Settings</h3><p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Configuration and fulfillment thresholds</p></div><Button onClick={onSaveFulfillment} disabled={isProcessingSave} className="bg-[#213147] font-black uppercase text-[10px] gap-2 h-11 px-6 shadow-xl">{isProcessingSave ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Save Fulfillment Rules</Button></div>
+                  <div className="flex justify-between items-center border-b-2 pb-6">
+                    <div className="space-y-1">
+                      <h3 className="font-headline font-black text-2xl text-[#213147] uppercase">Establishment Settings</h3>
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Configuration and fulfillment thresholds</p>
+                    </div>
+                  </div>
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                     <Card className="border-2 shadow-sm p-8 space-y-8 text-left h-fit">
                       <div className="space-y-6">
@@ -1201,33 +1354,6 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                             })}
                           </div>
                         </div>
-                      </div>
-                    </Card>
-
-                    <Card className="border-2 shadow-sm p-8 space-y-8 text-left h-fit">
-                      <div className="flex items-center justify-between"><h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2"><HeartPulse className="h-4 w-4 text-primary" /> Fulfillment Thresholds</h4><Badge variant="outline" className="text-[8px] font-black border-primary/20 bg-primary/5 text-primary uppercase">Active Channels</Badge></div>
-                      <div className="space-y-8">
-                        {seller?.menuTypes?.filter(m => ['Beverage Cart', 'Clubhouse', 'Lane Delivery'].includes(m)).map((mode) => (
-                          <div key={mode} className="space-y-4">
-                            <div className="flex items-center gap-2 px-1"><ClipboardCheck className="h-3 w-3 text-[#213147]" /><span className="text-[9px] font-black uppercase tracking-widest text-[#213147]">{mode} Performance</span></div>
-                            <div className="grid gap-4 bg-slate-50 p-6 rounded-[2rem] border-2">
-                              <div className="space-y-1.5">
-                                <Label className="text-[9px] font-black uppercase text-muted-foreground">Ack Window (Seconds)</Label>
-                                <Input type="number" value={fulfillmentSettings[mode]?.maxOrderAcknowledgeSeconds} onChange={(e) => updateThreshold(mode, 'maxOrderAcknowledgeSeconds', parseInt(e.target.value))} className="h-10 border-2 font-black bg-white" />
-                              </div>
-                              <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-1.5">
-                                  <Label className="text-[9px] font-black uppercase text-muted-foreground">Warn (Min)</Label>
-                                  <Input type="number" value={fulfillmentSettings[mode]?.warningOrderProcessingMinutes} onChange={(e) => updateThreshold(mode, 'warningOrderProcessingMinutes', parseInt(e.target.value))} className="h-10 border-2 font-black bg-white" />
-                                </div>
-                                <div className="space-y-1.5">
-                                  <Label className="text-[9px] font-black uppercase text-muted-foreground">Max (Min)</Label>
-                                  <Input type="number" value={fulfillmentSettings[mode]?.maxOrderProcessingMinutes} onChange={(e) => updateThreshold(mode, 'maxOrderProcessingMinutes', parseInt(e.target.value))} className="h-10 border-2 font-black bg-white" />
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
                       </div>
                     </Card>
                   </div>
