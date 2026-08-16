@@ -1063,7 +1063,7 @@ export default function SolutionAdminPage() {
                   <div className="flex justify-between items-center border-b-2 pb-6">
                      <h3 className="font-headline font-black text-2xl text-[#213147] uppercase">Establishment Registry</h3>
                   </div>
-                  <div className="border-2 rounded-[2rem] overflow-hidden bg-white shadow-sm">
+                  <div className="border-2 rounded-[2.5rem] overflow-hidden bg-white shadow-sm">
                     <Table>
                       <TableHeader className="bg-slate-50">
                         <TableRow>
@@ -1603,7 +1603,19 @@ export default function SolutionAdminPage() {
                         <FormItem><FormLabel className="text-[9px] font-black uppercase">City</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>
                       )} />
                       <FormField control={leadForm.control} name="state" render={({ field }) => (
-                        <FormItem><FormLabel className="text-[9px] font-black uppercase">State</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger className="h-11 border-2 font-bold"><SelectValue placeholder="Select State" /></SelectTrigger></FormControl><SelectContent>{US_STATES.map(s => <SelectItem key={s.code} value={s.code}>{s.name}</SelectItem>)}</Select></FormItem>
+                        <FormItem>
+                          <FormLabel className="text-[9px] font-black uppercase">State</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger className="h-11 border-2 font-bold">
+                                <SelectValue placeholder="Select State" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {US_STATES.map(s => <SelectItem key={s.code} value={s.code}>{s.name}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                        </FormItem>
                       )} />
                       <FormField control={leadForm.control} name="zip" render={({ field }) => (
                         <FormItem><FormLabel className="text-[9px] font-black uppercase">Zip</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>

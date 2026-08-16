@@ -1662,7 +1662,6 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
         </SheetContent>
       </Sheet>
 
-      {/* Confirmation Dialogs */}
       <Dialog open={isStarterMenuConfirmOpen} onOpenChange={setIsStarterMenuConfirmOpen}>
         <DialogContent className="sm:max-w-[425px] rounded-[2.5rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
           <DialogHeader className="p-8 bg-indigo-600 text-white text-left relative">
