@@ -11,7 +11,8 @@ import {
   updateDoc, 
   serverTimestamp, 
   deleteDoc,
-  getDoc
+  getDoc,
+  writeBatch
 } from 'firebase/firestore';
 import { useFirestore, useDoc, useCollection, useMemoFirebase, useUser, useAuth, useFirebase } from '@/firebase';
 import { Button } from '@/components/ui/button';
@@ -62,7 +63,8 @@ import {
   Smartphone,
   X,
   Building,
-  ChevronLeft
+  ChevronLeft,
+  GripVertical
 } from 'lucide-react';
 import Image from 'next/image';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
@@ -131,7 +133,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { categories } from '@/lib/types';
-import type { MenuItem, Seller, Order, StaffMember, ModifierGroup, SolutionConfig, OrderFulfillmentThresholds, Venue } from '@/lib/types';
+import type { MenuItem, Seller, Order, StaffMember, ModifierGroup, SolutionConfig, OrderFulfillmentThresholds, Venue, Category } from '@/lib/types';
 import { signOut } from 'firebase/auth';
 import { 
   BarChart, 
@@ -147,6 +149,23 @@ import {
 } from 'recharts';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 const staffSchema = z.object({
   name: z.string().min(2, 'Name required'),
@@ -220,6 +239,82 @@ function KPICard({ label, value, sub, icon: Icon, colorClass }: { label: string,
   );
 }
 
+interface SortableItemProps {
+  item: MenuItem;
+  mode: string;
+  isFeatured?: boolean;
+  onToggleAvailability: (itemId: string, enabled: boolean) => void;
+  onToggleFeatured: (itemId: string, enabled: boolean) => void;
+}
+
+function SortableItem({ item, mode, isFeatured, onToggleAvailability, onToggleFeatured }: SortableItemProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging
+  } = useSortable({ id: item.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 50 : 'auto',
+    opacity: isDragging ? 0.5 : 1
+  };
+
+  const isEnabled = item.availableOn?.includes(mode);
+  const isFeatureActive = item.featuredOn?.includes(mode);
+
+  return (
+    <div 
+      ref={setNodeRef} 
+      style={style} 
+      className={cn(
+        "flex items-center gap-3 p-3 rounded-xl border-2 transition-all bg-white mb-2",
+        isEnabled ? "border-slate-100" : "opacity-50 grayscale border-dashed border-slate-200"
+      )}
+    >
+      <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing text-slate-300 hover:text-primary">
+        <GripVertical className="h-4 w-4" />
+      </div>
+      
+      <div className="relative h-10 w-10 rounded-lg overflow-hidden shrink-0 bg-slate-100 border">
+        {item.imageUrl ? (
+          <Image src={item.imageUrl} alt={item.name} fill className="object-cover" />
+        ) : (
+          <div className="flex items-center justify-center h-full text-slate-300">
+            <LucideImage className="h-5 w-5" />
+          </div>
+        )}
+      </div>
+
+      <div className="flex-1 min-w-0">
+        <p className="text-xs font-black uppercase text-[#213147] truncate">{item.name}</p>
+        <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">${item.price.toFixed(2)}</p>
+      </div>
+
+      <div className="flex items-center gap-2">
+        <button 
+          onClick={() => onToggleFeatured(item.id, !isFeatureActive)}
+          className={cn(
+            "h-8 w-8 flex items-center justify-center rounded-lg transition-colors",
+            isFeatureActive ? "text-amber-500 bg-amber-50" : "text-slate-300 hover:text-amber-500 hover:bg-amber-50"
+          )}
+        >
+          <Star className={cn("h-4 w-4", isFeatureActive && "fill-current")} />
+        </button>
+        <Switch 
+          checked={isEnabled} 
+          onCheckedChange={(val) => onToggleAvailability(item.id, val)}
+          className="data-[state=checked]:bg-green-600"
+        />
+      </div>
+    </div>
+  );
+}
+
 export default function VenueAdminPage({ params }: { params: Promise<{ sellerId: string }> }) {
   const { sellerId } = use(params);
   const { firebaseApp } = useFirebase();
@@ -248,6 +343,8 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
   const [isStarterMenuConfirmOpen, setIsStarterMenuConfirmOpen] = useState(false);
   const [isStarterItemsConfirmOpen, setIsStarterItemsConfirmOpen] = useState(false);
 
+  const [activeModeForMenu, setActiveModeForMenu] = useState<string | null>(null);
+
   const [isProcessingSave, setIsProcessingSave] = useState(false);
   const [isApplyingStarter, setIsApplyingStarter] = useState(false);
   const [isApplyingStarterItems, setIsApplyingStarterItems] = useState(false);
@@ -271,6 +368,13 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
   const { data: staffList } = useCollection<StaffMember>(staffListQuery);
 
   const [fulfillmentSettings, setFulfillmentSettings] = useState<Record<string, OrderFulfillmentThresholds>>({});
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   useEffect(() => {
     if (seller && solutionConfig) {
@@ -311,6 +415,63 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
         [field]: value
       }
     }));
+  };
+
+  const handleToggleItemAvailability = async (itemId: string, enabled: boolean) => {
+    if (!firestore || !sellerId || !activeModeForMenu) return;
+    const itemRef = doc(firestore, 'sellers', sellerId, 'menuItems', itemId);
+    const item = menuItems?.find(i => i.id === itemId);
+    if (!item) return;
+
+    const currentModes = item.availableOn || [];
+    const nextModes = enabled 
+      ? [...currentModes, activeModeForMenu]
+      : currentModes.filter(m => m !== activeModeForMenu);
+
+    updateDoc(itemRef, { availableOn: Array.from(new Set(nextModes)), updatedAt: serverTimestamp() });
+  };
+
+  const handleToggleItemFeatured = async (itemId: string, enabled: boolean) => {
+    if (!firestore || !sellerId || !activeModeForMenu) return;
+    const itemRef = doc(firestore, 'sellers', sellerId, 'menuItems', itemId);
+    const item = menuItems?.find(i => i.id === itemId);
+    if (!item) return;
+
+    const currentFeatured = item.featuredOn || [];
+    const nextFeatured = enabled 
+      ? [...currentFeatured, activeModeForMenu]
+      : currentFeatured.filter(m => m !== activeModeForMenu);
+
+    updateDoc(itemRef, { featuredOn: Array.from(new Set(nextFeatured)), updatedAt: serverTimestamp() });
+  };
+
+  const handleDragEnd = async (event: DragEndEvent, category: string, isFeatured?: boolean) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id || !activeModeForMenu || !menuItems || !firestore) return;
+
+    const itemsInCategory = menuItems
+      .filter(i => isFeatured ? i.featuredOn?.includes(activeModeForMenu) : (i.category === category && i.availableOn?.includes(activeModeForMenu)))
+      .sort((a, b) => {
+        const rankField = isFeatured ? 'featuredRanks' : 'menuRanks';
+        const rankA = a[rankField]?.[activeModeForMenu] ?? 999;
+        const rankB = b[rankField]?.[activeModeForMenu] ?? 999;
+        return rankA - rankB;
+      });
+
+    const oldIndex = itemsInCategory.findIndex(i => i.id === active.id);
+    const newIndex = itemsInCategory.findIndex(i => i.id === over.id);
+
+    const reordered = arrayMove(itemsInCategory, oldIndex, newIndex);
+    const batch = writeBatch(firestore);
+
+    reordered.forEach((item, index) => {
+      const itemRef = doc(firestore, 'sellers', sellerId, 'menuItems', item.id);
+      const rankField = isFeatured ? `featuredRanks.${activeModeForMenu}` : `menuRanks.${activeModeForMenu}`;
+      batch.update(itemRef, { [rankField]: index });
+    });
+
+    await batch.commit();
+    toast({ title: "Priority Updated" });
   };
 
   const analyticsData = useMemo(() => {
@@ -764,7 +925,10 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
 
                               <div className={cn("p-3 rounded-2xl transition-all shadow-lg", isActive ? "bg-primary text-white scale-110" : "bg-slate-200 text-slate-400")}><Zap className="h-6 w-6" /></div>
                               <div className="text-center"><p className="text-11px font-black uppercase tracking-widest text-[#213147]">{mode}</p><Badge variant="outline" className={cn("mt-2 text-[8px] font-black uppercase", isActive ? "LIVE SIGNAL" : "INACTIVE")}>{isActive ? "LIVE SIGNAL" : "INACTIVE"}</Badge></div>
-                              <Button variant="outline" size="sm" className="h-9 w-full rounded-xl text-[10px] font-black uppercase border-2 shadow-sm" onClick={() => handleImpersonate(mode)}>Enter Channel</Button>
+                              <div className="flex flex-col w-full gap-2 mt-2">
+                                <Button variant="outline" size="sm" className="h-9 rounded-xl text-[10px] font-black uppercase border-2 shadow-sm" onClick={() => handleImpersonate(mode)}>Enter Channel</Button>
+                                <Button variant="secondary" size="sm" className="h-9 rounded-xl text-[10px] font-black uppercase gap-1.5" onClick={() => setActiveModeForMenu(mode)}><UtensilsCrossed className="h-3.5 w-3.5" /> Manage Menu</Button>
+                              </div>
                             </div>
                           );
                         })}
@@ -1085,9 +1249,12 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                           </CardHeader>
                           <CardContent className="p-6 space-y-6">
                             <div className="space-y-4">
-                              <h4 className="text-[10px] font-black uppercase tracking-widest text-primary flex items-center gap-2">
-                                <Menu className="h-3 w-3" /> Menu Visibility
-                              </h4>
+                              <div className="flex items-center justify-between">
+                                <h4 className="text-[10px] font-black uppercase tracking-widest text-primary flex items-center gap-2">
+                                  <Menu className="h-3 w-3" /> Menu Control
+                                </h4>
+                                <Button variant="secondary" size="sm" className="h-7 text-[8px] font-black uppercase" onClick={() => setActiveModeForMenu(mode)}>Manage Mode Items</Button>
+                              </div>
                               <div className="grid grid-cols-2 gap-2">
                                 {categories.filter(c => c !== 'Featured').map(cat => {
                                   const isVisible = seller?.categoryVisibility?.[mode]?.includes(cat) ?? true;
@@ -1363,6 +1530,105 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
           </div>
         </main>
       </div>
+
+      <Sheet open={!!activeModeForMenu} onOpenChange={(val) => !val && setActiveModeForMenu(null)}>
+        <SheetContent side="right" className="w-full sm:max-w-2xl p-0 flex flex-col bg-[#F8FAFC]">
+          <SheetHeader className="p-6 bg-[#213147] text-white shrink-0">
+            <div className="flex items-center justify-between">
+              <div className="space-y-1 text-left">
+                <SheetTitle className="text-xl font-black uppercase text-white">Menu Manager</SheetTitle>
+                <div className="flex items-center gap-2">
+                  <Badge className="bg-primary border-0 text-[10px] font-black uppercase">{activeModeForMenu}</Badge>
+                  <span className="text-[10px] font-bold text-white/40 uppercase tracking-widest">DRAG TO PRIORITIZE</span>
+                </div>
+              </div>
+              <Button variant="ghost" size="icon" onClick={() => setActiveModeForMenu(null)} className="text-white/40 hover:text-white"><X className="h-6 w-6" /></Button>
+            </div>
+          </SheetHeader>
+          
+          <ScrollArea className="flex-1">
+            <div className="p-6 space-y-10 pb-20">
+              <div className="bg-white p-5 rounded-[2rem] border-2 shadow-sm space-y-4">
+                <div className="flex items-center gap-3 border-b-2 border-slate-50 pb-3">
+                  <div className="p-2 bg-primary/10 rounded-xl text-primary"><Star className="h-5 w-5 fill-current" /></div>
+                  <h4 className="text-xs font-black uppercase text-[#213147]">Featured Section</h4>
+                </div>
+                
+                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(e) => handleDragEnd(e, 'Featured', true)}>
+                  <SortableContext items={menuItems?.filter(i => i.featuredOn?.includes(activeModeForMenu!)).map(i => i.id) || []} strategy={verticalListSortingStrategy}>
+                    {menuItems?.filter(i => i.featuredOn?.includes(activeModeForMenu!)).length === 0 ? (
+                      <div className="py-10 text-center border-2 border-dashed rounded-2xl opacity-40"><p className="text-[10px] font-black uppercase">No Featured Items</p></div>
+                    ) : (
+                      menuItems
+                        ?.filter(i => i.featuredOn?.includes(activeModeForMenu!))
+                        .sort((a, b) => (a.featuredRanks?.[activeModeForMenu!] ?? 999) - (b.featuredRanks?.[activeModeForMenu!] ?? 999))
+                        .map(item => (
+                          <SortableItem 
+                            key={item.id} 
+                            item={item} 
+                            mode={activeModeForMenu!} 
+                            isFeatured 
+                            onToggleAvailability={handleToggleItemAvailability} 
+                            onToggleFeatured={handleToggleItemFeatured} 
+                          />
+                        ))
+                    )}
+                  </SortableContext>
+                </DndContext>
+              </div>
+
+              <div className="space-y-8">
+                {categories.filter(c => c !== 'Featured' && (seller?.categoryVisibility?.[activeModeForMenu!]?.includes(c) ?? true)).map(category => {
+                  const itemsInCategory = menuItems?.filter(i => i.category === category) || [];
+                  const modeItems = itemsInCategory
+                    .filter(i => i.availableOn?.includes(activeModeForMenu!))
+                    .sort((a, b) => (a.menuRanks?.[activeModeForMenu!] ?? 999) - (b.menuRanks?.[activeModeForMenu!] ?? 999));
+                  const otherItems = itemsInCategory.filter(i => !i.availableOn?.includes(activeModeForMenu!));
+
+                  return (
+                    <div key={category} className="space-y-4">
+                      <div className="flex items-center justify-between px-2">
+                        <h4 className="text-[11px] font-black uppercase text-[#213147] tracking-widest">{category}</h4>
+                        <Badge variant="outline" className="text-[8px] font-black uppercase">{modeItems.length} ACTIVE</Badge>
+                      </div>
+
+                      <div className="bg-slate-50/50 p-4 rounded-[2rem] border-2 space-y-4">
+                         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(e) => handleDragEnd(e, category)}>
+                          <SortableContext items={modeItems.map(i => i.id)} strategy={verticalListSortingStrategy}>
+                            {modeItems.map(item => (
+                              <SortableItem 
+                                key={item.id} 
+                                item={item} 
+                                mode={activeModeForMenu!} 
+                                onToggleAvailability={handleToggleItemAvailability} 
+                                onToggleFeatured={handleToggleItemFeatured} 
+                              />
+                            ))}
+                          </SortableContext>
+                        </DndContext>
+
+                        {otherItems.length > 0 && (
+                          <div className="pt-4 border-t-2 border-white">
+                            <p className="text-[8px] font-black text-muted-foreground uppercase tracking-widest mb-3 px-2">Inactive in Mode</p>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                              {otherItems.map(item => (
+                                <div key={item.id} className="flex items-center justify-between p-2.5 rounded-xl border-2 bg-white/50 opacity-60">
+                                   <p className="text-[10px] font-bold uppercase truncate flex-1">{item.name}</p>
+                                   <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-primary" onClick={() => handleToggleItemAvailability(item.id, true)}><Plus className="h-3 w-3" /></Button>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </ScrollArea>
+        </SheetContent>
+      </Sheet>
 
       <Dialog open={isStarterMenuConfirmOpen} onOpenChange={setIsStarterMenuConfirmOpen}>
         <DialogContent className="sm:max-w-[425px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">

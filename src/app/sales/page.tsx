@@ -43,7 +43,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Skeleton } from '@/components/ui/skeleton';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
-import { cn } from '@/lib/utils';
+import { cn, getNumericOrderId } from '@/lib/utils';
 import type { Prospect, SalesActivity, ProspectStage } from '@/lib/types';
 
 const prospectSchema = z.object({
