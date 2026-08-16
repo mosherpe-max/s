@@ -60,7 +60,8 @@ import {
   Banknote,
   Percent,
   Smartphone,
-  X
+  X,
+  Building
 } from 'lucide-react';
 import Image from 'next/image';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';

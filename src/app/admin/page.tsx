@@ -980,7 +980,7 @@ export default function SolutionAdminPage() {
                     <TabsContent value="list" className="space-y-4">
                       <div className="flex bg-white p-2 px-3 rounded-xl border-2 shadow-sm gap-3 items-center w-full max-w-md">
                         <Search className="h-4 w-4 text-muted-foreground shrink-0" />
-                        <Input placeholder="Search leads..." value={leadSearchTerm} onChange={(e) => setLeadSearchTerm(e.target.value)} className="border-0 shadow-none text-xs font-medium p-0 h-auto" />
+                        <Input placeholder="Search leads..." value={leadSearchTerm} onChange={(e) => setOrderSearchTerm(e.target.value)} className="border-0 shadow-none text-xs font-medium p-0 h-auto" />
                       </div>
 
                       <div className="border-2 rounded-[2rem] overflow-hidden bg-white shadow-sm">
