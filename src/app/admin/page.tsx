@@ -1324,7 +1324,7 @@ export default function SolutionAdminPage() {
                              <p className="text-[9px] font-bold text-indigo-600/70 uppercase">Wipes and recreates all demo venues with latest defaults</p>
                            </div>
                          </div>
-                         <Button onClick={handleReseedDemos} disabled={isReseedingDemos} className="h-12 border-2 border-indigo-200 bg-white text-indigo-700 hover:bg-amber-50 font-black uppercase text-[10px] tracking-widest gap-2">
+                         <Button onClick={handleReseedDemos} disabled={isReseedingDemos} className="h-12 border-2 border-amber-200 bg-white text-amber-700 hover:bg-amber-50 font-black uppercase text-[10px] tracking-widest gap-2">
                            {isReseedingDemos ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4" />} Reseed Demo Venues
                          </Button>
                        </Card>
@@ -1508,7 +1508,7 @@ export default function SolutionAdminPage() {
                      <div className="space-y-2">
                        <p className="text-[11px] font-black uppercase text-[#213147] tracking-widest">Analytics Scope Disclosure</p>
                        <p className="text-[10px] text-muted-foreground font-bold uppercase leading-relaxed">
-                          Reporting is based on global fulfillment thresholds and historical operational performance across all establishment registries.
+                          Reporting is based on global fulfillment thresholds and historical performance across the establishment registry.
                        </p>
                      </div>
                   </div>

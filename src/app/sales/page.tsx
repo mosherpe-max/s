@@ -22,7 +22,8 @@ import {
   MessageSquare,
   Edit,
   User,
-  Loader2
+  Loader2,
+  Save
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -512,7 +513,9 @@ export default function SalesCRMPage() {
               )} />
               
               <DialogFooter className="pt-4">
-                <Button type="submit" className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700">Save Prospect</Button>
+                <Button type="submit" className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700">
+                  <Save className="h-4 w-4 mr-2" /> Save Prospect
+                </Button>
               </DialogFooter>
             </form>
           </Form>
