@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useMemo, useEffect, use } from 'react';
@@ -119,9 +118,9 @@ import {
   eachDayOfInterval,
   eachMonthOfInterval,
   eachHourOfInterval,
+  isSameHour,
   isSameDay,
   isSameMonth,
-  isSameHour,
   endOfMonth,
   endOfYear
 } from 'date-fns';
@@ -619,6 +618,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
   const patrons = useMemo(() => {
     if (!orders) return [];
     const patronMap: Record<string, {
+      id: string;
       name: string;
       email: string;
       phone: string;
@@ -632,6 +632,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
       const key = o.customerEmail?.toLowerCase() || o.customerPhone || `guest-${o.id}`;
       if (!patronMap[key]) {
         patronMap[key] = {
+          id: key,
           name: o.customerName || 'Guest Patron',
           email: o.customerEmail || 'N/A',
           phone: o.customerPhone || 'N/A',
@@ -1170,7 +1171,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                       </TableHeader>
                       <TableBody>
                         {patrons.map((patron) => (
-                          <TableRow key={patron.email} className="group hover:bg-slate-50/50 transition-colors">
+                          <TableRow key={patron.id} className="group hover:bg-slate-50/50 transition-colors">
                             <TableCell className="px-8 py-5">
                               <div className="flex items-center gap-3">
                                 <div className="bg-[#213147] h-9 w-9 rounded-full flex items-center justify-center text-white text-xs font-black shrink-0">

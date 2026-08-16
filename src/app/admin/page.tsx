@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
@@ -86,6 +85,9 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+} from "@/components/ui/table";
+import {
+  Table as TableBase,
 } from "@/components/ui/table";
 import {
   Tabs,
