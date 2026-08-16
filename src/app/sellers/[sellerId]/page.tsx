@@ -59,7 +59,8 @@ import {
   CreditCard,
   Banknote,
   Percent,
-  Smartphone
+  Smartphone,
+  X
 } from 'lucide-react';
 import Image from 'next/image';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
@@ -757,7 +758,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                               </div>
 
                               <div className={cn("p-3 rounded-2xl transition-all shadow-lg", isActive ? "bg-primary text-white scale-110" : "bg-slate-200 text-slate-400")}><Zap className="h-6 w-6" /></div>
-                              <div className="text-center"><p className="text-11px font-black uppercase tracking-widest text-[#213147]">{mode}</p><Badge variant="outline" className={cn("mt-2 text-[8px] font-black uppercase", isActive ? "border-primary/30 text-primary bg-white" : "border-slate-200 text-slate-400")}>{isActive ? "LIVE SIGNAL" : "INACTIVE"}</Badge></div>
+                              <div className="text-center"><p className="text-11px font-black uppercase tracking-widest text-[#213147]">{mode}</p><Badge variant="outline" className={cn("mt-2 text-[8px] font-black uppercase", isActive ? "LIVE SIGNAL" : "INACTIVE")}>{isActive ? "LIVE SIGNAL" : "INACTIVE"}</Badge></div>
                               <Button variant="outline" size="sm" className="h-9 w-full rounded-xl text-[10px] font-black uppercase border-2 shadow-sm" onClick={() => handleImpersonate(mode)}>Enter Channel</Button>
                             </div>
                           );
