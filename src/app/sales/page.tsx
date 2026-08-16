@@ -109,9 +109,10 @@ export default function SalesCRMPage() {
     if (!prospects) return [];
     let list = prospects;
     if (searchTerm) {
+      const s = searchTerm.toLowerCase();
       list = list.filter(p => 
-        p.venueName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        p.contactName.toLowerCase().includes(searchTerm.toLowerCase())
+        p.venueName.toLowerCase().includes(s) ||
+        p.contactName.toLowerCase().includes(s)
       );
     }
     return [...list].sort((a, b) => (b.updatedAt?.toMillis?.() || 0) - (a.updatedAt?.toMillis?.() || 0));
