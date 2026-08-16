@@ -21,7 +21,8 @@ import {
   MessageSquare,
   Edit,
   Save,
-  TrendingUp
+  TrendingUp,
+  Loader2
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -76,6 +77,7 @@ export default function SalesCRMPage() {
   const [isActivityDialogOpen, setIsActivityDialogOpen] = useState(false);
   const [selectedProspect, setSelectedProspect] = useState<Prospect | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [isProcessing, setIsProcessing] = useState(false);
 
   useEffect(() => {
     setIsMounted(true);
@@ -157,6 +159,7 @@ export default function SalesCRMPage() {
 
   const onSaveProspect = async (data: ProspectFormData) => {
     if (!firestore) return;
+    setIsProcessing(true);
     const id = selectedProspect?.id || Math.random().toString(36).substr(2, 9);
     const prospectRef = doc(firestore, 'prospects', id);
     
@@ -175,12 +178,13 @@ export default function SalesCRMPage() {
         setIsProspectDialogOpen(false);
         setSelectedProspect(null);
         form.reset();
-      });
+      })
+      .finally(() => setIsProcessing(false));
   };
 
   const onLogActivity = async (data: ActivityFormData) => {
     if (!firestore || !selectedProspect) return;
-    
+    setIsProcessing(true);
     const activityData = {
       prospectId: selectedProspect.id,
       venueName: selectedProspect.venueName,
@@ -196,7 +200,8 @@ export default function SalesCRMPage() {
         toast({ title: 'Activity Logged' });
         setIsActivityDialogOpen(false);
         activityForm.reset();
-      });
+      })
+      .finally(() => setIsProcessing(false));
   };
 
   const handleDeleteProspect = async (id: string) => {
@@ -232,9 +237,9 @@ export default function SalesCRMPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-7xl pb-20">
+    <div className="container mx-auto px-4 py-8 max-w-7xl pb-20 text-left">
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
-        <div>
+        <div className="text-left">
           <div className="flex items-center gap-2 mb-1">
             <h1 className="font-headline text-3xl font-bold uppercase tracking-tight text-indigo-600">MY PIPELINE</h1>
             <Badge variant="outline" className="text-[10px] font-black uppercase tracking-widest bg-indigo-50 border-indigo-200 text-indigo-700">
@@ -243,7 +248,7 @@ export default function SalesCRMPage() {
           </div>
           <p className="text-muted-foreground text-sm">Welcome back, {currentRep.name}. Manage your active deals below.</p>
         </div>
-        <Button onClick={() => { setSelectedProspect(null); form.reset(); setIsProspectDialogOpen(true); }} className="bg-indigo-600 hover:bg-indigo-700">
+        <Button onClick={() => { setSelectedProspect(null); form.reset(); setIsProspectDialogOpen(true); }} className="bg-indigo-600 hover:bg-indigo-700 font-black uppercase text-[10px] tracking-widest px-6 h-11">
           <Plus className="mr-2 h-4 w-4" /> Add New Prospect
         </Button>
       </header>
@@ -252,8 +257,8 @@ export default function SalesCRMPage() {
         <Card className="shadow-sm border-2 border-indigo-100">
           <CardContent className="pt-6">
             <div className="flex items-center gap-4">
-              <div className="p-3 bg-indigo-50 rounded-xl"><Target className="h-6 w-6 text-indigo-600" /></div>
-              <div>
+              <div className="p-3 bg-indigo-50 rounded-xl text-indigo-600"><Target className="h-6 w-6" /></div>
+              <div className="text-left">
                 <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Active Prospects</p>
                 <p className="text-2xl font-headline font-black">{stats?.total || 0}</p>
               </div>
@@ -263,8 +268,8 @@ export default function SalesCRMPage() {
         <Card className="shadow-sm border-2 border-green-100">
           <CardContent className="pt-6">
             <div className="flex items-center gap-4">
-              <div className="p-3 bg-green-50 rounded-xl"><Briefcase className="h-6 w-6 text-green-600" /></div>
-              <div>
+              <div className="p-3 bg-green-50 rounded-xl text-green-600"><Briefcase className="h-6 w-6" /></div>
+              <div className="text-left">
                 <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Venues Closed</p>
                 <p className="text-2xl font-headline font-black text-green-600">{stats?.closedCount || 0}</p>
               </div>
@@ -274,8 +279,8 @@ export default function SalesCRMPage() {
         <Card className="shadow-sm border-2">
           <CardContent className="pt-6">
             <div className="flex items-center gap-4">
-              <div className="p-3 bg-slate-50 rounded-xl"><DollarSign className="h-6 w-6 text-slate-600" /></div>
-              <div>
+              <div className="p-3 bg-slate-50 rounded-xl text-slate-600"><DollarSign className="h-6 w-6" /></div>
+              <div className="text-left">
                 <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">My Pipeline Value</p>
                 <p className="text-2xl font-headline font-black text-slate-700">${stats?.pipelineValue.toLocaleString() || '0'}</p>
               </div>
@@ -285,9 +290,9 @@ export default function SalesCRMPage() {
       </div>
 
       <Tabs defaultValue="pipeline" className="space-y-6">
-        <TabsList className="bg-muted/50 p-1">
-          <TabsTrigger value="pipeline" className="text-[10px] font-black uppercase tracking-widest px-6">Pipeline</TabsTrigger>
-          <TabsTrigger value="activity" className="text-[10px] font-black uppercase tracking-widest px-6">My Activity</TabsTrigger>
+        <TabsList className="bg-muted/50 p-1 rounded-xl h-11">
+          <TabsTrigger value="pipeline" className="text-[10px] font-black uppercase tracking-widest px-8">Pipeline Registry</TabsTrigger>
+          <TabsTrigger value="activity" className="text-[10px] font-black uppercase tracking-widest px-8">Recent Interactions</TabsTrigger>
         </TabsList>
 
         <TabsContent value="pipeline" className="space-y-4">
@@ -295,72 +300,72 @@ export default function SalesCRMPage() {
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input 
-                placeholder="Search prospects..." 
-                className="pl-10" 
+                placeholder="Search prospects by venue or contact..." 
+                className="pl-10 h-11 border-2" 
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
-            <Button variant="outline" size="icon"><Filter className="h-4 w-4" /></Button>
+            <Button variant="outline" size="icon" className="h-11 w-11 border-2"><Filter className="h-4 w-4" /></Button>
           </div>
 
           <div className="grid grid-cols-1 gap-4">
             {isProspectsLoading ? (
-              [...Array(3)].map((_, i) => <Skeleton key={`p-skel-${i}`} className="h-32 w-full rounded-xl" />)
+              [...Array(3)].map((_, i) => <Skeleton key={`p-skel-${i}`} className="h-32 w-full rounded-2xl" />)
             ) : filteredProspects.length === 0 ? (
-              <div className="text-center py-20 border-2 border-dashed rounded-2xl text-muted-foreground bg-white">
+              <div className="text-center py-20 border-2 border-dashed rounded-[2.5rem] text-muted-foreground bg-white">
                 <Target className="h-12 w-12 opacity-10 mx-auto mb-4" />
-                <p className="font-medium">You don't have any prospects yet.</p>
-                <Button variant="link" onClick={() => setIsProspectDialogOpen(true)}>Add your first venue</Button>
+                <p className="font-bold uppercase text-[10px] tracking-widest">Your pipeline is currently empty</p>
+                <Button variant="link" onClick={() => setIsProspectDialogOpen(true)} className="text-indigo-600 font-black uppercase text-[9px] mt-2">Add First Prospect</Button>
               </div>
             ) : (
-              <div className="border rounded-xl overflow-hidden shadow-sm bg-white">
+              <div className="border-2 rounded-[2.5rem] overflow-hidden shadow-sm bg-white">
                 <Table>
-                  <TableHeader className="bg-muted/30">
+                  <TableHeader className="bg-slate-50">
                     <TableRow>
-                      <TableHead className="text-[10px] font-black uppercase">Venue</TableHead>
-                      <TableHead className="text-[10px] font-black uppercase">Contact</TableHead>
-                      <TableHead className="text-[10px] font-black uppercase">Stage</TableHead>
-                      <TableHead className="text-[10px] font-black uppercase text-right">Quote</TableHead>
-                      <TableHead className="text-[10px] font-black uppercase text-right">Actions</TableHead>
+                      <TableHead className="text-[10px] font-black uppercase h-12 px-6">Establishment</TableHead>
+                      <TableHead className="text-[10px] font-black uppercase h-12">Decision Maker</TableHead>
+                      <TableHead className="text-[10px] font-black uppercase h-12">Stage</TableHead>
+                      <TableHead className="text-[10px] font-black uppercase h-12 text-right">Launch Quote</TableHead>
+                      <TableHead className="text-[10px] font-black uppercase h-12 text-right px-6">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filteredProspects.map((prospect) => (
-                      <TableRow key={prospect.id} className="group">
-                        <TableCell>
-                          <div className="flex flex-col">
-                            <span className="font-bold text-sm">{prospect.venueName}</span>
-                            <span className="text-[9px] text-muted-foreground uppercase flex items-center gap-1">
-                              <MapPin className="h-2.5 w-2.5" /> {prospect.venueType}
+                      <TableRow key={prospect.id} className="group hover:bg-slate-50/50 transition-colors">
+                        <TableCell className="px-6 py-4">
+                          <div className="flex flex-col text-left">
+                            <span className="font-black text-sm text-[#213147] uppercase">{prospect.venueName}</span>
+                            <span className="text-[9px] font-bold text-muted-foreground uppercase flex items-center gap-1 mt-0.5">
+                              <MapPin className="h-2.5 w-2.5 text-primary" /> {prospect.venueType}
                             </span>
                           </div>
                         </TableCell>
                         <TableCell>
-                          <div className="flex flex-col">
-                            <span className="text-sm font-medium">{prospect.contactName}</span>
-                            <span className="text-[9px] text-muted-foreground flex items-center gap-1">
+                          <div className="flex flex-col text-left">
+                            <span className="text-xs font-bold text-slate-700">{prospect.contactName}</span>
+                            <span className="text-[9px] font-medium text-muted-foreground flex items-center gap-1">
                               <Mail className="h-2.5 w-2.5" /> {prospect.contactEmail}
                             </span>
                           </div>
                         </TableCell>
                         <TableCell>
-                          <Badge className={cn("text-[8px] font-black uppercase px-2", getStageColor(prospect.stage))}>
+                          <Badge className={cn("text-[8px] font-black uppercase px-2 h-4", getStageColor(prospect.stage))}>
                             {prospect.stage}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right">
-                          <span className="font-mono font-bold text-xs">${prospect.launchFeeQuoted.toLocaleString()}</span>
+                          <span className="font-mono font-black text-xs text-indigo-600">${prospect.launchFeeQuoted.toLocaleString()}</span>
                         </TableCell>
-                        <TableCell className="text-right">
+                        <TableCell className="text-right px-6">
                           <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-indigo-600" onClick={() => { setSelectedProspect(prospect); setIsActivityDialogOpen(true); }}>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-indigo-600 hover:bg-indigo-50" onClick={() => { setSelectedProspect(prospect); setIsActivityDialogOpen(true); }}>
                               <MessageSquare className="h-4 w-4" />
                             </Button>
-                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setSelectedProspect(prospect); form.reset(prospect); setIsProspectDialogOpen(true); }}>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-600 hover:bg-slate-100" onClick={() => { setSelectedProspect(prospect); form.reset(prospect); setIsProspectDialogOpen(true); }}>
                               <Edit className="h-4 w-4" />
                             </Button>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleDeleteProspect(prospect.id)}>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive/10" onClick={() => handleDeleteProspect(prospect.id)}>
                               <Trash2 className="h-4 w-4" />
                             </Button>
                           </div>
@@ -375,40 +380,42 @@ export default function SalesCRMPage() {
         </TabsContent>
 
         <TabsContent value="activity">
-          <div className="space-y-4">
+          <div className="space-y-4 max-w-4xl">
             {isActivitiesLoading ? (
-              [...Array(3)].map((_, i) => <Skeleton key={`act-skel-${i}`} className="h-24 w-full rounded-xl" />)
+              [...Array(3)].map((_, i) => <Skeleton key={`act-skel-${i}`} className="h-24 w-full rounded-2xl" />)
             ) : sortedActivities && sortedActivities.length > 0 ? (
               <div className="space-y-3">
                 {sortedActivities.map((activity) => (
-                  <Card key={activity.id} className="shadow-sm border-l-4 border-l-indigo-500 overflow-hidden bg-white">
-                    <CardContent className="p-4">
-                      <div className="flex justify-between items-start mb-2">
-                        <div className="flex items-center gap-3">
-                          <div className="bg-indigo-50 p-2 rounded-lg text-indigo-600">
-                            {activity.type === 'Call' && <PhoneCall className="h-4 w-4" />}
-                            {activity.type === 'Email' && <Mail className="h-4 w-4" />}
-                            {activity.type === 'Visit' && <MapPin className="h-4 w-4" />}
-                            {activity.type === 'Meeting' && <Briefcase className="h-4 w-4" />}
+                  <Card key={activity.id} className="shadow-sm border-2 overflow-hidden bg-white hover:border-indigo-200 transition-colors">
+                    <CardContent className="p-5 text-left">
+                      <div className="flex justify-between items-start mb-3">
+                        <div className="flex items-center gap-4">
+                          <div className="bg-indigo-50 p-2.5 rounded-xl text-indigo-600 border border-indigo-100">
+                            {activity.type === 'Call' && <PhoneCall className="h-4.5 w-4.5" />}
+                            {activity.type === 'Email' && <Mail className="h-4.5 w-4.5" />}
+                            {activity.type === 'Visit' && <MapPin className="h-4.5 w-4.5" />}
+                            {activity.type === 'Meeting' && <Briefcase className="h-4.5 w-4.5" />}
                           </div>
                           <div>
-                            <p className="text-sm font-bold uppercase tracking-tight">{activity.venueName}</p>
-                            <p className="text-[9px] text-muted-foreground uppercase font-black tracking-widest">{activity.type} Logged</p>
+                            <p className="text-sm font-black text-[#213147] uppercase tracking-tight">{activity.venueName}</p>
+                            <p className="text-[9px] text-muted-foreground uppercase font-black tracking-widest">{activity.type} Interaction</p>
                           </div>
                         </div>
-                        <span className="text-[10px] text-muted-foreground font-mono">
-                          {activity.date ? format(activity.date.toDate(), 'MMM d, h:mm a') : 'Just now'}
+                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest border border-slate-100 px-2 py-0.5 rounded-full">
+                          {activity.date ? format(activity.date.toDate(), 'MMM d • h:mm a') : 'Now'}
                         </span>
                       </div>
-                      <p className="text-xs text-muted-foreground leading-relaxed pl-12">{activity.notes}</p>
+                      <div className="bg-slate-50/50 p-4 rounded-xl border border-slate-100/50">
+                        <p className="text-xs text-slate-600 leading-relaxed italic">"{activity.notes}"</p>
+                      </div>
                     </CardContent>
                   </Card>
                 ))}
               </div>
             ) : (
-              <div className="text-center py-20 border-2 border-dashed rounded-2xl text-muted-foreground bg-white">
+              <div className="text-center py-20 border-2 border-dashed rounded-[2.5rem] text-muted-foreground bg-white">
                 <ClipboardList className="h-12 w-12 opacity-10 mx-auto mb-4" />
-                <p>You haven't logged any activities yet.</p>
+                <p className="font-bold uppercase text-[10px] tracking-widest">No activities have been logged yet</p>
               </div>
             )}
           </div>
@@ -416,144 +423,154 @@ export default function SalesCRMPage() {
       </Tabs>
 
       <Dialog open={isProspectDialogOpen} onOpenChange={setIsProspectDialogOpen}>
-        <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="font-headline uppercase text-indigo-600">
-              {selectedProspect ? 'Edit Prospect' : 'Add New Prospect'}
-            </DialogTitle>
-            <DialogDescription>Track deal stages and venue details for your pipeline.</DialogDescription>
+        <DialogContent className="sm:max-w-[650px] rounded-[2.5rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
+          <DialogHeader className="p-8 bg-indigo-600 text-white text-left">
+            <div className="flex items-center gap-4">
+              <div className="bg-white/20 p-3 rounded-2xl"><Target className="h-6 w-6 text-white" /></div>
+              <div className="text-left">
+                <DialogTitle className="font-headline font-black uppercase tracking-tight text-white text-xl">
+                  {selectedProspect ? 'Modify Pipeline Record' : 'New CRM Prospect'}
+                </DialogTitle>
+                <DialogDescription className="text-white/40 text-[10px] font-bold uppercase tracking-widest mt-1">Lead & Quoting Registry</DialogDescription>
+              </div>
+            </div>
           </DialogHeader>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSaveProspect)} className="space-y-6 pt-4">
-              <div className="grid grid-cols-2 gap-4">
-                <FormField control={form.control} name="venueName" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Venue Name</FormLabel>
-                    <FormControl><Input {...field} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-                <FormField control={form.control} name="venueType" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Venue Type</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
-                      <SelectContent>
-                        <SelectItem value="Golf Course">Golf Course</SelectItem>
-                        <SelectItem value="Bowling Center">Bowling Center</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-              </div>
-              
-              <FormField control={form.control} name="stage" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Sales Stage</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
-                    <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
-                    <SelectContent>
-                      <SelectItem value="Contacted">Contacted</SelectItem>
-                      <SelectItem value="Demo Scheduled">Demo Scheduled</SelectItem>
-                      <SelectItem value="Proposal Sent">Proposal Sent</SelectItem>
-                      <SelectItem value="Closed">Closed</SelectItem>
-                      <SelectItem value="Lost">Lost</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )} />
-              
-              <div className="grid grid-cols-2 gap-4 border-t pt-4">
-                <FormField control={form.control} name="contactName" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Decision Maker</FormLabel>
-                    <FormControl><Input {...field} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-                <FormField control={form.control} name="contactEmail" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Contact Email</FormLabel>
-                    <FormControl><Input {...field} type="email" /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-              </div>
-              
-              <div className="grid grid-cols-3 gap-4 bg-muted/30 p-4 rounded-xl">
-                <FormField control={form.control} name="launchFeeQuoted" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-[10px] font-black uppercase">Launch Fee ($)</FormLabel>
-                    <FormControl><Input type="number" {...field} /></FormControl>
-                  </FormItem>
-                )} />
-                <FormField control={form.control} name="monthlyFee" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-[10px] font-black uppercase">Monthly ($)</FormLabel>
-                    <FormControl><Input type="number" {...field} /></FormControl>
-                  </FormItem>
-                )} />
-                <FormField control={form.control} name="estVolume" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-[10px] font-black uppercase">Est. Monthly Vol ($)</FormLabel>
-                    <FormControl><Input type="number" {...field} /></FormControl>
-                  </FormItem>
-                )} />
-              </div>
-              
-              <FormField control={form.control} name="notes" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Prospect Notes</FormLabel>
-                  <FormControl><Textarea {...field} /></FormControl>
-                </FormItem>
-              )} />
-              
-              <DialogFooter className="pt-4">
-                <Button type="submit" className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700">
-                  <Save className="h-4 w-4 mr-2" /> Save Prospect
-                </Button>
-              </DialogFooter>
-            </form>
-          </Form>
+          <ScrollArea className="max-h-[80vh]">
+            <div className="p-8">
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSaveProspect)} className="space-y-8">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <FormField control={form.control} name="venueName" render={({ field }) => (
+                      <FormItem className="text-left">
+                        <FormLabel className="text-[10px] font-black uppercase">Establishment Name</FormLabel>
+                        <FormControl><Input {...field} className="h-12 border-2 font-bold" /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                    <FormField control={form.control} name="venueType" render={({ field }) => (
+                      <FormItem className="text-left">
+                        <FormLabel className="text-[10px] font-black uppercase">Venue Type</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl><SelectTrigger className="h-12 border-2 font-bold"><SelectValue /></SelectTrigger></FormControl>
+                          <SelectContent>
+                            <SelectItem value="Golf Course">Golf Course</SelectItem>
+                            <SelectItem value="Bowling Center">Bowling Center</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                  </div>
+                  
+                  <FormField control={form.control} name="stage" render={({ field }) => (
+                    <FormItem className="text-left">
+                      <FormLabel className="text-[10px] font-black uppercase">Pipeline Stage</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl><SelectTrigger className="h-12 border-2 font-bold"><SelectValue /></SelectTrigger></FormControl>
+                        <SelectContent>
+                          <SelectItem value="Contacted">Initial Outreach</SelectItem>
+                          <SelectItem value="Demo Scheduled">Demo Pending</SelectItem>
+                          <SelectItem value="Proposal Sent">Proposal Delivered</SelectItem>
+                          <SelectItem value="Closed">Closed / Onboarding</SelectItem>
+                          <SelectItem value="Lost">Lost Opportunity</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </FormItem>
+                  )} />
+                  
+                  <Separator />
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <FormField control={form.control} name="contactName" render={({ field }) => (
+                      <FormItem className="text-left">
+                        <FormLabel className="text-[10px] font-black uppercase">Decision Maker</FormLabel>
+                        <FormControl><Input {...field} className="h-12 border-2 font-bold" /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                    <FormField control={form.control} name="contactEmail" render={({ field }) => (
+                      <FormItem className="text-left">
+                        <FormLabel className="text-[10px] font-black uppercase">Contact Email</FormLabel>
+                        <FormControl><Input {...field} type="email" className="h-12 border-2 font-bold" /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                  </div>
+                  
+                  <div className="grid grid-cols-3 gap-4 bg-slate-50 p-6 rounded-[2rem] border-2">
+                    <FormField control={form.control} name="launchFeeQuoted" render={({ field }) => (
+                      <FormItem className="text-left">
+                        <FormLabel className="text-[9px] font-black uppercase text-muted-foreground">Setup Fee ($)</FormLabel>
+                        <FormControl><Input type="number" {...field} className="h-10 border-2 font-black" /></FormControl>
+                      </FormItem>
+                    )} />
+                    <FormField control={form.control} name="monthlyFee" render={({ field }) => (
+                      <FormItem className="text-left">
+                        <FormLabel className="text-[9px] font-black uppercase text-muted-foreground">Monthly ($)</FormLabel>
+                        <FormControl><Input type="number" {...field} className="h-10 border-2 font-black" /></FormControl>
+                      </FormItem>
+                    )} />
+                    <FormField control={form.control} name="estVolume" render={({ field }) => (
+                      <FormItem className="text-left">
+                        <FormLabel className="text-[9px] font-black uppercase text-muted-foreground">Est. GTV ($)</FormLabel>
+                        <FormControl><Input type="number" {...field} className="h-10 border-2 font-black" /></FormControl>
+                      </FormItem>
+                    )} />
+                  </div>
+                  
+                  <FormField control={form.control} name="notes" render={({ field }) => (
+                    <FormItem className="text-left">
+                      <FormLabel className="text-[10px] font-black uppercase">Rep Notes</FormLabel>
+                      <FormControl><Textarea {...field} placeholder="Specific needs, objections, or timeline details..." className="min-h-[100px] border-2 font-medium" /></FormControl>
+                    </FormItem>
+                  )} />
+                  
+                  <Button type="submit" disabled={isProcessing} className="w-full h-14 bg-[#213147] font-black uppercase tracking-widest text-[11px] gap-2 shadow-xl">
+                    {isProcessing ? <Loader2 className="animate-spin" /> : <Save className="h-4 w-4" />} Synchronize Prospect Record
+                  </Button>
+                </form>
+              </Form>
+            </div>
+          </ScrollArea>
         </DialogContent>
       </Dialog>
 
       <Dialog open={isActivityDialogOpen} onOpenChange={setIsActivityDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="font-headline uppercase text-indigo-600">Log Interaction</DialogTitle>
-            <DialogDescription>Recording interaction with {selectedProspect?.venueName}</DialogDescription>
+        <DialogContent className="sm:max-w-[500px] rounded-[2.5rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
+          <DialogHeader className="p-8 bg-indigo-600 text-white text-left">
+            <DialogTitle className="font-headline font-black uppercase tracking-tight text-white text-xl">Log Interaction</DialogTitle>
+            <DialogDescription className="text-white/40 text-[10px] font-bold uppercase tracking-widest mt-1">Record activity for {selectedProspect?.venueName}</DialogDescription>
           </DialogHeader>
-          <Form {...activityForm}>
-            <form onSubmit={activityForm.handleSubmit(onLogActivity)} className="space-y-4 pt-2">
-              <FormField control={activityForm.control} name="type" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Action Type</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
-                    <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
-                    <SelectContent>
-                      <SelectItem value="Call">Call</SelectItem>
-                      <SelectItem value="Email">Email</SelectItem>
-                      <SelectItem value="Visit">On-site Visit</SelectItem>
-                      <SelectItem value="Meeting">Meeting</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </FormItem>
-              )} />
-              <FormField control={activityForm.control} name="notes" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Details</FormLabel>
-                  <FormControl><Textarea {...field} placeholder="What was discussed?" /></FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
-              <DialogFooter>
-                <Button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700">Log Action</Button>
-              </DialogFooter>
-            </form>
-          </Form>
+          <div className="p-8">
+            <Form {...activityForm}>
+              <form onSubmit={activityForm.handleSubmit(onLogActivity)} className="space-y-6">
+                <FormField control={activityForm.control} name="type" render={({ field }) => (
+                  <FormItem className="text-left">
+                    <FormLabel className="text-[10px] font-black uppercase">Action Type</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl><SelectTrigger className="h-12 border-2 font-bold"><SelectValue /></SelectTrigger></FormControl>
+                      <SelectContent>
+                        <SelectItem value="Call">Phone Call</SelectItem>
+                        <SelectItem value="Email">Email Thread</SelectItem>
+                        <SelectItem value="Visit">On-site Walkthrough</SelectItem>
+                        <SelectItem value="Meeting">Decision Maker Meeting</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </FormItem>
+                )} />
+                <FormField control={activityForm.control} name="notes" render={({ field }) => (
+                  <FormItem className="text-left">
+                    <FormLabel className="text-[10px] font-black uppercase">Detail Log</FormLabel>
+                    <FormControl><Textarea {...field} placeholder="Summarize the discussion and next steps..." className="min-h-[120px] border-2 font-medium" /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+                <Button type="submit" disabled={isProcessing} className="w-full h-14 bg-[#213147] font-black uppercase tracking-widest text-[11px] gap-2 shadow-xl">
+                  {isProcessing ? <Loader2 className="animate-spin" /> : <Save className="h-4 w-4" />} Finalize Activity Entry
+                </Button>
+              </form>
+            </Form>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

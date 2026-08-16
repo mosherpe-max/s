@@ -273,7 +273,7 @@ function SortableItem({ item, mode, isFeatured, onToggleAvailability, onToggleFe
       style={style} 
       className={cn(
         "flex items-center gap-3 p-3 rounded-xl border-2 transition-all bg-white mb-2",
-        isEnabled ? "border-slate-100" : "opacity-50 grayscale border-dashed border-slate-200"
+        isEnabled ? "border-slate-100 shadow-sm" : "opacity-50 grayscale border-dashed border-slate-200"
       )}
     >
       <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing text-slate-300 hover:text-primary">
@@ -941,14 +941,14 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
               {activeNav === 'analytics' && (
                 <div className="space-y-12 animate-in fade-in duration-500">
                   <div className="flex flex-col md:flex-row md:items-center justify-between border-b-2 pb-6 gap-4">
-                    <div className="space-y-1">
+                    <div className="space-y-1 text-left">
                       <h3 className="font-headline font-black text-2xl text-[#213147] uppercase">Analytics</h3>
                       <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Revenue and Operational Health metrics</p>
                     </div>
                     <div className="flex gap-3">
                       <Select value={analyticsRange} onValueChange={(v: any) => setAnalyticsRange(v)}>
                         <SelectTrigger className="h-11 border-2 rounded-xl w-40 text-[10px] font-black uppercase tracking-widest bg-white">
-                          <CalendarIcon className="h-3.5 w-3.5 mr-2" />
+                          <CalendarIcon className="h-3 w-3 mr-2" />
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -1077,7 +1077,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
               {activeNav === 'orders' && (
                 <div className="space-y-8 animate-in fade-in duration-500">
                   <div className="flex flex-col md:flex-row md:items-center justify-between border-b-2 pb-6 gap-4">
-                    <div className="space-y-1">
+                    <div className="space-y-1 text-left">
                       <h3 className="font-headline font-black text-2xl text-[#213147] uppercase">Fulfillment Log</h3>
                       <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Monitor establishment queue and history</p>
                     </div>
@@ -1100,7 +1100,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                       </Select>
                     </div>
                   </div>
-                  <div className="border-2 rounded-[2.5rem] overflow-x-auto bg-white shadow-sm">
+                  <div className="border-2 rounded-[2.5rem] overflow-hidden bg-white shadow-sm overflow-x-auto">
                     <Table>
                       <TableHeader className="bg-slate-50">
                         <TableRow>
@@ -1113,17 +1113,17 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                       </TableHeader>
                       <TableBody>
                         {filteredOrders.map(o => (
-                          <TableRow key={o.id}>
+                          <TableRow key={o.id} className="group hover:bg-slate-50/50 transition-colors">
                             <TableCell className="px-8 py-5">
-                              <p className="font-mono font-black text-xs">#{getNumericOrderId(o.id)}</p>
+                              <p className="font-mono font-black text-xs text-[#213147]">#{getNumericOrderId(o.id)}</p>
                               <p className="text-[9px] text-muted-foreground uppercase mt-0.5">{o.createdAt ? format(o.createdAt.toDate(), 'MMM d, h:mm a') : 'Now'}</p>
                             </TableCell>
                             <TableCell>
-                              <p className="font-bold text-sm text-[#213147]">{o.customerName}</p>
-                              <p className="text-[9px] text-muted-foreground uppercase">{o.customerPhone}</p>
+                              <p className="font-black text-sm text-[#213147] uppercase">{o.customerName}</p>
+                              <p className="text-[9px] text-muted-foreground uppercase font-bold">{o.customerPhone}</p>
                             </TableCell>
                             <TableCell>
-                              <Badge variant="outline" className="text-[8px] font-black uppercase">{o.menuType}</Badge>
+                              <Badge variant="outline" className="text-[8px] font-black uppercase border-slate-200">{o.menuType}</Badge>
                             </TableCell>
                             <TableCell>
                               <p className="text-xs font-medium text-slate-600 line-clamp-1">{o.items.map(i => `${i.quantity}x ${i.name}`).join(', ')}</p>
@@ -1142,7 +1142,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
               {activeNav === 'patrons' && (
                 <div className="space-y-8 animate-in fade-in duration-500">
                   <div className="flex flex-col md:flex-row md:items-center justify-between border-b-2 pb-6 gap-4">
-                    <div className="space-y-1">
+                    <div className="space-y-1 text-left">
                       <h3 className="font-headline font-black text-2xl text-[#213147] uppercase">Patron Directory</h3>
                       <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Customers with saved profiles</p>
                     </div>
@@ -1157,7 +1157,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                     </div>
                   </div>
 
-                  <div className="border-2 rounded-[2.5rem] overflow-hidden bg-white shadow-sm">
+                  <div className="border-2 rounded-[2.5rem] overflow-hidden bg-white shadow-sm overflow-x-auto">
                     <Table>
                       <TableHeader className="bg-slate-50">
                         <TableRow>
@@ -1185,7 +1185,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                               </div>
                             </TableCell>
                             <TableCell>
-                              <div className="space-y-1">
+                              <div className="space-y-1 text-left">
                                 <div className="flex items-center gap-1.5 text-xs font-medium text-slate-600">
                                   <Mail className="h-3 w-3 text-muted-foreground" /> {patron.email}
                                 </div>
@@ -1216,7 +1216,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
               {activeNav === 'modes' && (
                 <div className="space-y-8 animate-in fade-in duration-500">
                   <div className="flex flex-col md:flex-row md:items-center justify-between border-b-2 pb-6 gap-4">
-                    <div className="space-y-1">
+                    <div className="space-y-1 text-left">
                       <h3 className="font-headline font-black text-2xl text-[#213147] uppercase">Service Mode Terminal</h3>
                       <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Manage menu visibility and delivery channels</p>
                     </div>
@@ -1253,7 +1253,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                                 <h4 className="text-[10px] font-black uppercase tracking-widest text-primary flex items-center gap-2">
                                   <Menu className="h-3 w-3" /> Menu Control
                                 </h4>
-                                <Button variant="secondary" size="sm" className="h-7 text-[8px] font-black uppercase" onClick={() => setActiveModeForMenu(mode)}>Manage Mode Items</Button>
+                                <Button variant="secondary" size="sm" className="h-7 text-[8px] font-black uppercase shadow-sm" onClick={() => setActiveModeForMenu(mode)}>Open Menu Manager</Button>
                               </div>
                               <div className="grid grid-cols-2 gap-2">
                                 {categories.filter(c => c !== 'Featured').map(cat => {
@@ -1264,12 +1264,12 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                                         id={`${mode}-${cat}`} 
                                         checked={isVisible} 
                                         onCheckedChange={(checked) => {
-                                          const current = seller?.categoryVisibility?.[mode] || categories.filter(c => c !== 'Featured');
-                                          const next = checked 
-                                            ? [...current, cat]
-                                            : current.filter(c => c !== cat);
+                                          const currentVisibility = seller?.categoryVisibility?.[mode] || categories.filter(c => c !== 'Featured');
+                                          const nextVisibility = checked 
+                                            ? [...currentVisibility, cat]
+                                            : currentVisibility.filter(c => c !== cat);
                                           updateDoc(doc(firestore!, 'sellers', sellerId), {
-                                            [`categoryVisibility.${mode}`]: next
+                                            [`categoryVisibility.${mode}`]: nextVisibility
                                           });
                                         }} 
                                       />
@@ -1287,7 +1287,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                                 <Timer className="h-3 w-3" /> Fulfillment Rules
                               </h4>
                               <div className="grid grid-cols-3 gap-3">
-                                <div className="space-y-1">
+                                <div className="space-y-1 text-left">
                                   <Label className="text-[8px] font-black uppercase text-muted-foreground">Ack (sec)</Label>
                                   <Input 
                                     type="number" 
@@ -1296,7 +1296,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                                     className="h-8 text-[10px] font-black border-2"
                                   />
                                 </div>
-                                <div className="space-y-1">
+                                <div className="space-y-1 text-left">
                                   <Label className="text-[8px] font-black uppercase text-muted-foreground">Warn (min)</Label>
                                   <Input 
                                     type="number" 
@@ -1305,7 +1305,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                                     className="h-8 text-[10px] font-black border-2"
                                   />
                                 </div>
-                                <div className="space-y-1">
+                                <div className="space-y-1 text-left">
                                   <Label className="text-[8px] font-black uppercase text-muted-foreground">Max (min)</Label>
                                   <Input 
                                     type="number" 
@@ -1326,17 +1326,17 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
 
               {activeNav === 'menu' && (
                 <div className="space-y-6 animate-in fade-in duration-500">
-                  <div className="flex justify-between items-center border-b-2 pb-4">
-                    <div className="space-y-1">
-                      <h3 className="font-headline font-black text-2xl text-[#213147] uppercase">Menu Item Library</h3>
-                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Manage products</p>
+                  <div className="flex flex-col md:flex-row md:items-center justify-between border-b-2 pb-4 gap-4">
+                    <div className="space-y-1 text-left">
+                      <h3 className="font-headline font-black text-2xl text-[#213147] uppercase">Master Menu Library</h3>
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Global product catalog for this establishment</p>
                     </div>
                     <div className="flex gap-2">
-                      <Button onClick={() => setIsStarterItemsConfirmOpen(true)} variant="outline" className="h-12 border-2 font-black uppercase text-[10px] gap-2">
+                      <Button onClick={() => setIsStarterItemsConfirmOpen(true)} variant="outline" className="h-12 border-2 font-black uppercase text-[10px] gap-2 bg-white">
                         <Library className="h-4 w-4 text-indigo-600" /> Apply Starter Items
                       </Button>
                       <Button onClick={() => { setEditingItem(null); itemForm.reset({ name: '', description: '', price: 0, category: 'Other', isAvailable: true, imageUrl: '', availableOn: [], featuredOn: [], modifierGroupIds: [] }); setIsItemFormOpen(true); }} className="bg-primary h-12 px-6 font-black uppercase text-[10px] gap-2 shadow-xl">
-                        <Plus className="h-4 w-4" /> Add Item
+                        <Plus className="h-4 w-4" /> Add New Product
                       </Button>
                     </div>
                   </div>
@@ -1366,9 +1366,11 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                             <Edit className="h-4 w-4" />
                           </Button>
                         </CardHeader>
-                        <CardContent className="p-4 space-y-3">
-                          <p className="text-[10px] text-muted-foreground line-clamp-2 leading-relaxed">{item.description || 'No description.'}</p>
-                          <div className="flex flex-wrap gap-1">{item.availableOn?.map(m => (<Badge key={m} variant="secondary" className="text-[7px] px-1 h-3.5 border-0 uppercase">{m.split(' ')[0]}</Badge>))}</div>
+                        <CardContent className="p-4 space-y-3 text-left">
+                          <p className="text-[10px] text-muted-foreground line-clamp-2 leading-relaxed">{item.description || 'No description provided.'}</p>
+                          <div className="flex flex-wrap gap-1">
+                            {item.availableOn?.length ? item.availableOn.map(m => (<Badge key={m} variant="secondary" className="text-[7px] px-1 h-3.5 border-0 uppercase">{m.split(' ')[0]}</Badge>)) : <span className="text-[7px] font-black text-slate-300 uppercase">Not Assigned</span>}
+                          </div>
                         </CardContent>
                       </Card>
                     ))}
@@ -1378,17 +1380,17 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
 
               {activeNav === 'modifiers' && (
                 <div className="space-y-6 animate-in fade-in duration-500">
-                  <div className="flex justify-between items-center border-b-2 pb-4">
-                    <div className="space-y-1">
-                      <h3 className="font-headline font-black text-2xl text-[#213147] uppercase">Modifier Groups</h3>
-                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Establishment customizations</p>
+                  <div className="flex flex-col md:flex-row md:items-center justify-between border-b-2 pb-4 gap-4">
+                    <div className="space-y-1 text-left">
+                      <h3 className="font-headline font-black text-2xl text-[#213147] uppercase">Customization Sets</h3>
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Global modifiers and options library</p>
                     </div>
                     <div className="flex gap-2">
-                      <Button onClick={() => setIsStarterMenuConfirmOpen(true)} variant="outline" className="h-12 border-2 font-black uppercase text-[10px] gap-2">
-                        <Tags className="h-4 w-4 text-indigo-600" /> Apply Starter Modifiers
+                      <Button onClick={() => setIsStarterMenuConfirmOpen(true)} variant="outline" className="h-12 border-2 font-black uppercase text-[10px] gap-2 bg-white">
+                        <Tags className="h-4 w-4 text-indigo-600" /> Provision Starters
                       </Button>
                       <Button onClick={() => { setEditingModifierGroup(null); modifierGroupForm.reset({ name: '', minSelection: 0, maxSelection: 1, options: [{ id: Math.random().toString(36).substr(2, 9), name: '', priceAdjustment: 0, isAvailable: true }] }); setIsModifierGroupFormOpen(true); }} className="bg-indigo-600 h-12 px-6 font-black uppercase text-[10px] gap-2 shadow-xl">
-                        <Plus className="h-4 w-4" /> Add Modifier Set
+                        <Plus className="h-4 w-4" /> New Modifier Set
                       </Button>
                     </div>
                   </div>
@@ -1407,8 +1409,8 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                             <Edit className="h-4 w-4" />
                           </Button>
                         </CardHeader>
-                        <CardContent className="p-5 flex flex-wrap gap-2">
-                          {group.options.map((opt, idx) => (<Badge key={idx} variant="outline" className="text-[9px] font-bold uppercase border-slate-100 bg-white">{opt.name} {opt.priceAdjustment > 0 && <span className="text-primary ml-1">+${opt.priceAdjustment.toFixed(2)}</span>}</Badge>))}
+                        <CardContent className="p-5 flex flex-wrap gap-2 text-left">
+                          {group.options.map((opt, idx) => (<Badge key={idx} variant="outline" className="text-[9px] font-bold uppercase border-slate-100 bg-white shadow-sm">{opt.name} {opt.priceAdjustment > 0 && <span className="text-primary ml-1">+${opt.priceAdjustment.toFixed(2)}</span>}</Badge>))}
                         </CardContent>
                       </Card>
                     ))}
@@ -1419,36 +1421,36 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
               {activeNav === 'staff' && (
                 <div className="space-y-8 animate-in fade-in duration-500">
                   <div className="flex justify-between items-center border-b-2 pb-6">
-                    <div className="space-y-1">
-                      <h3 className="font-headline font-black text-2xl text-[#213147] uppercase">Staff Directory</h3>
-                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Manage personnel and PINs</p>
+                    <div className="space-y-1 text-left">
+                      <h3 className="font-headline font-black text-2xl text-[#213147] uppercase">Personnel Registry</h3>
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Manage fulfillment staff and security PINs</p>
                     </div>
                     <Button onClick={() => { setEditingStaff(null); staffForm.reset({ name: '', role: 'Staff', pin: '', isActive: true }); setIsStaffFormOpen(true); }} className="bg-indigo-600 h-12 px-6 font-black uppercase text-[10px] shadow-xl">
-                      <Plus className="h-4 w-4" /> Add Staff
+                      <Plus className="h-4 w-4" /> New Staff Member
                     </Button>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {staffList?.map(s => (
                       <Card key={s.id} className="border-2 shadow-sm group bg-white overflow-hidden text-left">
                         <CardHeader className="p-6 pb-4 flex flex-row items-center gap-4 relative">
-                          <div className="bg-slate-100 p-3 rounded-2xl text-slate-400 group-hover:text-indigo-600 transition-colors">
+                          <div className="bg-slate-100 p-3 rounded-2xl text-slate-400 group-hover:text-indigo-600 transition-colors shadow-inner">
                             <Users className="h-6 w-6" />
                           </div>
                           <div className="text-left">
-                            <p className="font-black text-sm uppercase text-[#213147]">{s.name}</p>
-                            <Badge variant="secondary" className="text-[8px] font-black uppercase mt-1">{s.role}</Badge>
+                            <p className="font-black text-sm uppercase text-[#213147] tracking-tight">{s.name}</p>
+                            <Badge variant="secondary" className="text-[8px] font-black uppercase mt-1 px-1.5 h-4 border-0">{s.role}</Badge>
                           </div>
                           <Button variant="ghost" size="icon" className="absolute top-4 right-4 h-8 w-8 opacity-0 group-hover:opacity-100" onClick={() => { setEditingStaff(s); staffForm.reset(s as any); setIsStaffFormOpen(true); }}>
                             <Edit className="h-4 w-4" />
                           </Button>
                         </CardHeader>
                         <CardContent className="p-6 pt-0 space-y-4">
-                          <div className="bg-slate-50 p-4 rounded-2xl border-2 border-slate-100 flex items-center justify-between">
+                          <div className="bg-slate-50 p-4 rounded-2xl border-2 border-slate-100 flex items-center justify-between shadow-sm">
                             <div className="space-y-0.5 text-left">
-                              <p className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">Secure PIN</p>
-                              <p className="text-sm font-black font-mono tracking-[0.3em]">{s.pin}</p>
+                              <p className="text-[9px] font-black uppercase text-muted-foreground tracking-[0.2em]">Secure Access PIN</p>
+                              <p className="text-sm font-black font-mono tracking-[0.4em] text-indigo-600">{s.pin}</p>
                             </div>
-                            <Badge className={cn("text-[8px] font-black uppercase px-2 h-4", s.isActive ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-400")}>
+                            <Badge className={cn("text-[8px] font-black uppercase px-2 h-4 border-0", s.isActive ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-400")}>
                               {s.isActive ? 'Active' : 'Inactive'}
                             </Badge>
                           </div>
@@ -1461,58 +1463,58 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
 
               {activeNav === 'marketing' && (
                 <div className="space-y-8 animate-in fade-in duration-500">
-                  <div className="flex justify-between items-center border-b-2 pb-6"><h3 className="font-headline font-black text-2xl text-[#213147] uppercase">Growth & Collateral</h3></div>
-                  <Card className="border-2 shadow-sm p-8 text-left"><div className="space-y-8"><div className="flex items-center gap-4"><div className="bg-indigo-50 p-4 rounded-[2rem] text-indigo-600 border-2"><QrCode className="h-8 w-8" /></div><div className="text-left"><h4 className="font-headline font-black text-xl uppercase">QR Terminal</h4><h4 className="text-xs text-muted-foreground">Download location-aware QR codes.</h4></div></div><div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">{['Beverage Cart', 'Clubhouse', 'Lane Delivery'].filter(m => seller?.menuTypes?.includes(m)).map(mode => (<div key={mode} className="p-6 bg-slate-50 border-2 rounded-[2rem] flex flex-col items-center gap-4 group hover:border-primary transition-all"><div className="bg-white p-3 rounded-2xl border-2 shadow-sm group-hover:scale-105 transition-transform"><img src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${appBaseUrl}/sellers/${sellerId}/order?menuType=${encodeURIComponent(mode)}`} alt={`${mode} QR`} className="w-24 h-24" /></div><div className="text-center"><p className="text-[10px] font-black uppercase text-[#213147]">{mode}</p><Button variant="ghost" size="sm" className="h-8 mt-2 text-[8px] font-black uppercase text-primary gap-1"><Download className="h-3 w-3" /> Download</Button></div></div>))}</div></div></Card>
+                  <div className="flex justify-between items-center border-b-2 pb-6 text-left"><h3 className="font-headline font-black text-2xl text-[#213147] uppercase">Growth & Signage</h3></div>
+                  <Card className="border-2 shadow-sm p-8 text-left"><div className="space-y-10"><div className="flex items-center gap-4"><div className="bg-indigo-50 p-4 rounded-[2rem] text-indigo-600 border-2 shadow-sm"><QrCode className="h-8 w-8" /></div><div className="text-left"><h4 className="font-headline font-black text-xl uppercase tracking-tight text-[#213147]">QR Distribution Terminal</h4><h4 className="text-xs text-muted-foreground font-bold uppercase tracking-widest mt-1">Download and print location-aware order points</h4></div></div><div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">{['Beverage Cart', 'Clubhouse', 'Lane Delivery'].filter(m => seller?.menuTypes?.includes(m)).map(mode => (<div key={mode} className="p-8 bg-slate-50 border-2 rounded-[2.5rem] flex flex-col items-center gap-4 group hover:border-primary transition-all shadow-sm"><div className="bg-white p-4 rounded-2xl border-2 shadow-md group-hover:scale-105 transition-transform"><img src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${appBaseUrl}/sellers/${sellerId}/order?menuType=${encodeURIComponent(mode)}`} alt={`${mode} QR`} className="w-28 h-28" /></div><div className="text-center"><p className="text-xs font-black uppercase text-[#213147] tracking-widest">{mode}</p><Button variant="ghost" size="sm" className="h-9 mt-2 text-[9px] font-black uppercase text-primary gap-2 hover:bg-primary/10 border-2 border-transparent hover:border-primary/20"><Download className="h-3.5 w-3.5" /> Get Placard Asset</Button></div></div>))}</div></div></Card>
                 </div>
               )}
 
               {activeNav === 'settings' && (
                 <div className="space-y-8 animate-in fade-in duration-500">
                   <div className="flex justify-between items-center border-b-2 pb-6">
-                    <div className="space-y-1">
-                      <h3 className="font-headline font-black text-2xl text-[#213147] uppercase">Establishment Settings</h3>
-                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Configuration and fulfillment thresholds</p>
+                    <div className="space-y-1 text-left">
+                      <h3 className="font-headline font-black text-2xl text-[#213147] uppercase">Global Configuration</h3>
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Business profile and payment authorization</p>
                     </div>
                   </div>
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    <Card className="border-2 shadow-sm p-8 space-y-8 text-left h-fit">
+                    <Card className="border-2 shadow-sm p-8 space-y-8 text-left h-fit bg-white">
                       <div className="space-y-6">
-                        <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2"><Building className="h-4 w-4" /> Core Identity</h4>
+                        <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2"><Building className="h-4 w-4 text-primary" /> Core Business Identity</h4>
                         <div className="grid gap-6">
-                          <div className="space-y-2 text-left"><Label className="text-[10px] font-black uppercase">Establishment Name</Label><Input defaultValue={seller?.courseName} onChange={(e) => updateDoc(doc(firestore!, 'sellers', sellerId), { courseName: e.target.value })} className="h-12 border-2 font-bold" /></div>
+                          <div className="space-y-2 text-left"><Label className="text-[10px] font-black uppercase">Official Name</Label><Input defaultValue={seller?.courseName} onChange={(e) => updateDoc(doc(firestore!, 'sellers', sellerId), { courseName: e.target.value })} className="h-12 border-2 font-bold focus-visible:ring-primary" /></div>
                           <div className="grid grid-cols-2 gap-6">
-                            <div className="space-y-2 text-left"><Label className="text-[10px] font-black uppercase">Type</Label><Select defaultValue={seller?.type} onValueChange={(v) => updateDoc(doc(firestore!, 'sellers', sellerId), { type: v as any })}><SelectTrigger className="h-12 border-2 font-bold"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="Golf Course">Golf Course</SelectItem><SelectItem value="Bowling Center">Bowling Center</SelectItem></SelectContent></Select></div>
-                            <div className="space-y-2 text-left"><Label className="text-[10px] font-black uppercase">Current Status</Label><div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border-2 h-12"><Switch checked={seller?.status === 'Active'} onCheckedChange={(v) => updateDoc(doc(firestore!, 'sellers', sellerId), { status: v ? 'Active' : 'Inactive' })} /><span className="text-[10px] font-black uppercase">{seller?.status}</span></div></div>
+                            <div className="space-y-2 text-left"><Label className="text-[10px] font-black uppercase">Category</Label><Select defaultValue={seller?.type} onValueChange={(v) => updateDoc(doc(firestore!, 'sellers', sellerId), { type: v as any })}><SelectTrigger className="h-12 border-2 font-bold"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="Golf Course">Golf Course</SelectItem><SelectItem value="Bowling Center">Bowling Center</SelectItem></SelectContent></Select></div>
+                            <div className="space-y-2 text-left"><Label className="text-[10px] font-black uppercase">Operational State</Label><div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border-2 h-12 shadow-sm"><Switch checked={seller?.status === 'Active'} onCheckedChange={(v) => updateDoc(doc(firestore!, 'sellers', sellerId), { status: v ? 'Active' : 'Inactive' })} className="data-[state=checked]:bg-green-600" /><span className="text-[10px] font-black uppercase text-[#213147]">{seller?.status}</span></div></div>
                           </div>
                         </div>
                       </div>
                       <Separator />
                       <div className="space-y-6">
-                        <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2"><CreditCard className="h-4 w-4" /> Payment Controls</h4>
+                        <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2"><CreditCard className="h-4 w-4 text-primary" /> Commercial Terminal</h4>
                         <div className="space-y-4">
-                          <Label className="text-[9px] font-black uppercase text-muted-foreground">Authorized Payment Methods</Label>
-                          <div className="grid grid-cols-1 gap-2">
+                          <Label className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">Authorized Payout Methods</Label>
+                          <div className="grid grid-cols-1 gap-3">
                             {['Pay at Delivery', 'Digital Payment', 'Member Account'].map((method) => {
                               const isGolf = seller?.type?.toLowerCase().includes('golf');
                               const isDisabled = method === 'Member Account' && !isGolf;
                               const isChecked = seller?.enabledPaymentMethods?.includes(method as any) || false;
 
                               return (
-                                <div key={method} className={cn("flex items-center space-x-3 p-3 rounded-xl border-2 transition-all", isChecked ? "bg-primary/5 border-primary/20" : "bg-slate-50 border-slate-100", isDisabled && "opacity-40 grayscale pointer-events-none")}>
+                                <div key={method} className={cn("flex items-center space-x-4 p-4 rounded-2xl border-2 transition-all shadow-sm", isChecked ? "bg-primary/5 border-primary/30" : "bg-slate-50/50 border-slate-100", isDisabled && "opacity-40 grayscale pointer-events-none")}>
                                   <Checkbox 
                                     id={`pay-${method}`} 
                                     checked={isChecked} 
                                     onCheckedChange={(checked) => {
-                                      const current = seller?.enabledPaymentMethods || [];
-                                      const next = checked ? [...current, method as any] : current.filter(m => m !== method);
-                                      updateDoc(doc(firestore!, 'sellers', sellerId), { enabledPaymentMethods: next });
+                                      const currentEnabled = seller?.enabledPaymentMethods || [];
+                                      const nextEnabled = checked ? [...currentEnabled, method as any] : currentEnabled.filter(m => m !== method);
+                                      updateDoc(doc(firestore!, 'sellers', sellerId), { enabledPaymentMethods: nextEnabled });
                                     }}
                                   />
-                                  <label htmlFor={`pay-${method}`} className="text-[10px] font-black uppercase cursor-pointer flex-1">
-                                    <div className="flex items-center gap-2">
-                                      {method === 'Pay at Delivery' && <Banknote className="h-3 w-3" />}
-                                      {method === 'Digital Payment' && <CreditCard className="h-3 w-3" />}
-                                      {method === 'Member Account' && <User className="h-3 w-3" />}
+                                  <label htmlFor={`pay-${method}`} className="text-[11px] font-black uppercase cursor-pointer flex-1 select-none">
+                                    <div className="flex items-center gap-3">
+                                      {method === 'Pay at Delivery' && <Banknote className="h-4 w-4 text-slate-400" />}
+                                      {method === 'Digital Payment' && <CreditCard className="h-4 w-4 text-slate-400" />}
+                                      {method === 'Member Account' && <User className="h-4 w-4 text-slate-400" />}
                                       {method}
                                     </div>
                                   </label>
@@ -1532,52 +1534,63 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
       </div>
 
       <Sheet open={!!activeModeForMenu} onOpenChange={(val) => !val && setActiveModeForMenu(null)}>
-        <SheetContent side="right" className="w-full sm:max-w-2xl p-0 flex flex-col bg-[#F8FAFC]">
-          <SheetHeader className="p-6 bg-[#213147] text-white shrink-0">
+        <SheetContent side="right" className="w-full sm:max-w-2xl p-0 flex flex-col bg-[#F8FAFC] border-l-4 border-primary/20 outline-none">
+          <SheetHeader className="p-8 bg-[#213147] text-white shrink-0 shadow-xl relative">
             <div className="flex items-center justify-between">
-              <div className="space-y-1 text-left">
-                <SheetTitle className="text-xl font-black uppercase text-white">Menu Manager</SheetTitle>
-                <div className="flex items-center gap-2">
-                  <Badge className="bg-primary border-0 text-[10px] font-black uppercase">{activeModeForMenu}</Badge>
-                  <span className="text-[10px] font-bold text-white/40 uppercase tracking-widest">DRAG TO PRIORITIZE</span>
+              <div className="space-y-1.5 text-left">
+                <SheetTitle className="text-2xl font-black uppercase text-white tracking-tight">Menu Manager</SheetTitle>
+                <div className="flex items-center gap-3">
+                  <Badge className="bg-primary border-0 text-[10px] font-black uppercase px-2 h-5 shadow-lg">{activeModeForMenu}</Badge>
+                  <span className="text-[9px] font-bold text-white/40 uppercase tracking-[0.2em]">Live Priority Engine</span>
                 </div>
               </div>
-              <Button variant="ghost" size="icon" onClick={() => setActiveModeForMenu(null)} className="text-white/40 hover:text-white"><X className="h-6 w-6" /></Button>
+              <Button variant="ghost" size="icon" onClick={() => setActiveModeForMenu(null)} className="text-white/40 hover:text-white hover:bg-white/10 rounded-full h-10 w-10 transition-all"><X className="h-6 w-6" /></Button>
             </div>
           </SheetHeader>
           
           <ScrollArea className="flex-1">
-            <div className="p-6 space-y-10 pb-20">
-              <div className="bg-white p-5 rounded-[2rem] border-2 shadow-sm space-y-4">
-                <div className="flex items-center gap-3 border-b-2 border-slate-50 pb-3">
-                  <div className="p-2 bg-primary/10 rounded-xl text-primary"><Star className="h-5 w-5 fill-current" /></div>
-                  <h4 className="text-xs font-black uppercase text-[#213147]">Featured Section</h4>
+            <div className="p-8 space-y-12 pb-32">
+              {/* Featured Section Terminal */}
+              <div className="bg-white p-6 rounded-[2.5rem] border-2 shadow-md space-y-6 relative overflow-hidden">
+                <div className="absolute top-0 left-0 right-0 h-1.5 bg-amber-400" />
+                <div className="flex items-center justify-between border-b-2 border-slate-50 pb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2.5 bg-amber-50 rounded-xl text-amber-500 shadow-sm border border-amber-100"><Star className="h-5.5 w-5.5 fill-current" /></div>
+                    <div className="text-left">
+                      <h4 className="text-xs font-black uppercase text-[#213147] tracking-tight">Featured Terminal</h4>
+                      <p className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest">Promotion slot prioritization</p>
+                    </div>
+                  </div>
+                  <Badge variant="outline" className="text-[8px] font-black uppercase h-5 border-amber-200 text-amber-600 bg-amber-50">Priority Enabled</Badge>
                 </div>
                 
                 <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(e) => handleDragEnd(e, 'Featured', true)}>
                   <SortableContext items={menuItems?.filter(i => i.featuredOn?.includes(activeModeForMenu!)).map(i => i.id) || []} strategy={verticalListSortingStrategy}>
                     {menuItems?.filter(i => i.featuredOn?.includes(activeModeForMenu!)).length === 0 ? (
-                      <div className="py-10 text-center border-2 border-dashed rounded-2xl opacity-40"><p className="text-[10px] font-black uppercase">No Featured Items</p></div>
+                      <div className="py-12 text-center border-2 border-dashed rounded-[2rem] opacity-30 bg-slate-50/50"><p className="text-[10px] font-black uppercase tracking-widest text-slate-400">No active featured items in this channel</p></div>
                     ) : (
-                      menuItems
-                        ?.filter(i => i.featuredOn?.includes(activeModeForMenu!))
-                        .sort((a, b) => (a.featuredRanks?.[activeModeForMenu!] ?? 999) - (b.featuredRanks?.[activeModeForMenu!] ?? 999))
-                        .map(item => (
-                          <SortableItem 
-                            key={item.id} 
-                            item={item} 
-                            mode={activeModeForMenu!} 
-                            isFeatured 
-                            onToggleAvailability={handleToggleItemAvailability} 
-                            onToggleFeatured={handleToggleItemFeatured} 
-                          />
-                        ))
+                      <div className="space-y-1">
+                        {menuItems
+                          ?.filter(i => i.featuredOn?.includes(activeModeForMenu!))
+                          .sort((a, b) => (a.featuredRanks?.[activeModeForMenu!] ?? 999) - (b.featuredRanks?.[activeModeForMenu!] ?? 999))
+                          .map(item => (
+                            <SortableItem 
+                              key={item.id} 
+                              item={item} 
+                              mode={activeModeForMenu!} 
+                              isFeatured 
+                              onToggleAvailability={handleToggleItemAvailability} 
+                              onToggleFeatured={handleToggleItemFeatured} 
+                            />
+                          ))}
+                      </div>
                     )}
                   </SortableContext>
                 </DndContext>
               </div>
 
-              <div className="space-y-8">
+              {/* Standard Category Registry */}
+              <div className="space-y-12">
                 {categories.filter(c => c !== 'Featured' && (seller?.categoryVisibility?.[activeModeForMenu!]?.includes(c) ?? true)).map(category => {
                   const itemsInCategory = menuItems?.filter(i => i.category === category) || [];
                   const modeItems = itemsInCategory
@@ -1586,35 +1599,54 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                   const otherItems = itemsInCategory.filter(i => !i.availableOn?.includes(activeModeForMenu!));
 
                   return (
-                    <div key={category} className="space-y-4">
-                      <div className="flex items-center justify-between px-2">
-                        <h4 className="text-[11px] font-black uppercase text-[#213147] tracking-widest">{category}</h4>
-                        <Badge variant="outline" className="text-[8px] font-black uppercase">{modeItems.length} ACTIVE</Badge>
+                    <div key={category} className="space-y-5 group/category">
+                      <div className="flex items-center justify-between px-3">
+                        <div className="flex items-center gap-3">
+                          <div className="h-1.5 w-1.5 rounded-full bg-primary" />
+                          <h4 className="text-[13px] font-black uppercase text-[#213147] tracking-[0.1em]">{category}</h4>
+                        </div>
+                        <Badge className="bg-slate-100 text-slate-600 border-0 text-[8px] font-black uppercase px-2 h-4.5">{modeItems.length} ACTIVE</Badge>
                       </div>
 
-                      <div className="bg-slate-50/50 p-4 rounded-[2rem] border-2 space-y-4">
+                      <div className="bg-white p-6 rounded-[2.5rem] border-2 shadow-sm space-y-6 transition-all group-hover/category:border-primary/20">
                          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(e) => handleDragEnd(e, category)}>
                           <SortableContext items={modeItems.map(i => i.id)} strategy={verticalListSortingStrategy}>
-                            {modeItems.map(item => (
-                              <SortableItem 
-                                key={item.id} 
-                                item={item} 
-                                mode={activeModeForMenu!} 
-                                onToggleAvailability={handleToggleItemAvailability} 
-                                onToggleFeatured={handleToggleItemFeatured} 
-                              />
-                            ))}
+                            {modeItems.length === 0 ? (
+                               <div className="py-8 text-center border-2 border-dashed rounded-[1.5rem] opacity-20"><p className="text-[9px] font-black uppercase">No active items</p></div>
+                            ) : (
+                              modeItems.map(item => (
+                                <SortableItem 
+                                  key={item.id} 
+                                  item={item} 
+                                  mode={activeModeForMenu!} 
+                                  onToggleAvailability={handleToggleItemAvailability} 
+                                  onToggleFeatured={handleToggleItemFeatured} 
+                                />
+                              ))
+                            )}
                           </SortableContext>
                         </DndContext>
 
                         {otherItems.length > 0 && (
-                          <div className="pt-4 border-t-2 border-white">
-                            <p className="text-[8px] font-black text-muted-foreground uppercase tracking-widest mb-3 px-2">Inactive in Mode</p>
+                          <div className="pt-6 border-t-2 border-slate-50 space-y-4">
+                            <div className="flex items-center justify-between px-2">
+                               <p className="text-[9px] font-black text-muted-foreground uppercase tracking-[0.2em] flex items-center gap-2">
+                                  <ShoppingBag className="h-3 w-3" /> Master Catalog Picker
+                               </p>
+                               <span className="text-[8px] font-bold text-slate-300 uppercase">INACTIVE IN MODE</span>
+                            </div>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                               {otherItems.map(item => (
-                                <div key={item.id} className="flex items-center justify-between p-2.5 rounded-xl border-2 bg-white/50 opacity-60">
-                                   <p className="text-[10px] font-bold uppercase truncate flex-1">{item.name}</p>
-                                   <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-primary" onClick={() => handleToggleItemAvailability(item.id, true)}><Plus className="h-3 w-3" /></Button>
+                                <div key={item.id} className="flex items-center justify-between p-3 rounded-xl border-2 border-slate-50 bg-slate-50/30 transition-all hover:border-primary/30 group/picker">
+                                   <div className="flex items-center gap-3 min-w-0">
+                                      <div className="h-7 w-7 rounded bg-white border shrink-0 overflow-hidden opacity-60">
+                                         {item.imageUrl ? <Image src={item.imageUrl} alt="" width={28} height={28} className="object-cover" /> : <LucideImage className="h-3 w-3 m-auto text-slate-200" />}
+                                      </div>
+                                      <p className="text-[10px] font-black uppercase text-slate-400 truncate group-hover/picker:text-primary transition-colors">{item.name}</p>
+                                   </div>
+                                   <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-slate-300 hover:text-primary hover:bg-primary/5 rounded-lg" onClick={() => handleToggleItemAvailability(item.id, true)}>
+                                      <Plus className="h-4 w-4" />
+                                   </Button>
                                 </div>
                               ))}
                             </div>
@@ -1630,50 +1662,57 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
         </SheetContent>
       </Sheet>
 
+      {/* Confirmation Dialogs */}
       <Dialog open={isStarterMenuConfirmOpen} onOpenChange={setIsStarterMenuConfirmOpen}>
-        <DialogContent className="sm:max-w-[425px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
-          <DialogHeader className="p-8 bg-indigo-600 text-white text-left">
-            <DialogTitle className="font-headline font-black uppercase tracking-tight text-white text-xl">Apply Starter Set?</DialogTitle>
+        <DialogContent className="sm:max-w-[425px] rounded-[2.5rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
+          <DialogHeader className="p-8 bg-indigo-600 text-white text-left relative">
+             <div className="absolute top-4 right-8 opacity-20"><Tags className="h-16 w-16" /></div>
+            <DialogTitle className="font-headline font-black uppercase tracking-tight text-white text-xl">Provision Modifiers?</DialogTitle>
           </DialogHeader>
-          <div className="p-8 space-y-6">
-            <p className="text-xs text-muted-foreground leading-relaxed">This will provision common modifier groups like Doneness, Cheese options, and Drink Sizes.</p>
-            <Button onClick={handleApplyStarterMenu} disabled={isApplyingStarter} className="w-full h-14 bg-indigo-600 font-black uppercase tracking-widest text-[11px] gap-2 shadow-xl">{isApplyingStarter ? <Loader2 className="animate-spin" /> : <Sparkles className="h-4 w-4" />} Provision Modifiers Now</Button>
+          <div className="p-8 space-y-6 text-left">
+            <p className="text-xs text-muted-foreground leading-relaxed font-medium uppercase tracking-tight">This will clone industry-standard options (Doneness, Cheese, Mixers) directly to your master library. <strong className="text-indigo-600">Existing modifiers with matching IDs will be preserved.</strong></p>
+            <Button onClick={handleApplyStarterMenu} disabled={isApplyingStarter} className="w-full h-14 bg-indigo-600 font-black uppercase tracking-widest text-[11px] gap-3 shadow-xl">
+              {isApplyingStarter ? <Loader2 className="animate-spin h-4 w-4" /> : <Sparkles className="h-4 w-4" />} CLONE STARTER LIBRARY
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
 
       <Dialog open={isStarterItemsConfirmOpen} onOpenChange={setIsStarterItemsConfirmOpen}>
-        <DialogContent className="sm:max-w-[425px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
-          <DialogHeader className="p-8 bg-[#213147] text-white text-left">
-            <DialogTitle className="font-headline font-black uppercase tracking-tight text-white text-xl">Apply Starter Menu?</DialogTitle>
+        <DialogContent className="sm:max-w-[425px] rounded-[2.5rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
+          <DialogHeader className="p-8 bg-[#213147] text-white text-left relative">
+            <div className="absolute top-4 right-8 opacity-20"><Library className="h-16 w-16" /></div>
+            <DialogTitle className="font-headline font-black uppercase tracking-tight text-white text-xl">Provision Items?</DialogTitle>
           </DialogHeader>
-          <div className="p-8 space-y-6">
-            <p className="text-xs text-muted-foreground leading-relaxed">Clone industry-standard products (Burgers, Hot Dogs, Specialty Drinks) directly to your menu.</p>
-            <Button onClick={handleApplyStarterItems} disabled={isApplyingStarterItems} className="w-full h-14 bg-[#213147] font-black uppercase tracking-widest text-[11px] gap-2 shadow-xl">{isApplyingStarterItems ? <Loader2 className="animate-spin" /> : <Wand2 className="h-4 w-4 text-primary" />} Provision Menu Items</Button>
+          <div className="p-8 space-y-6 text-left">
+            <p className="text-xs text-muted-foreground leading-relaxed font-medium uppercase tracking-tight">This will populate your catalog with high-fidelity product templates (Burgers, Specialty Cocktails, Snacks) including pre-linked modifiers. <strong className="text-primary">Recommended for rapid onboarding.</strong></p>
+            <Button onClick={handleApplyStarterItems} disabled={isApplyingStarterItems} className="w-full h-14 bg-primary font-black uppercase tracking-widest text-[11px] gap-3 shadow-xl">
+              {isApplyingStarterItems ? <Loader2 className="animate-spin h-4 w-4" /> : <Wand2 className="h-4 w-4" />} CLONE MENU TEMPLATES
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
 
       <Dialog open={isStaffFormOpen} onOpenChange={setIsStaffFormOpen}>
-        <DialogContent className="sm:max-w-[425px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
+        <DialogContent className="sm:max-w-[450px] rounded-[2.5rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
           <DialogHeader className="p-8 bg-[#213147] text-white text-left">
-            <DialogTitle className="font-headline font-black uppercase tracking-tight text-white text-xl">{editingStaff ? 'Edit Personnel' : 'Add Personnel'}</DialogTitle>
+            <DialogTitle className="font-headline font-black uppercase tracking-tight text-white text-xl">{editingStaff ? 'Edit Personnel' : 'Add Fulfillment Staff'}</DialogTitle>
           </DialogHeader>
           <div className="p-8">
             <Form {...staffForm}>
               <form onSubmit={staffForm.handleSubmit(onSaveStaff)} className="space-y-6">
                 <FormField control={staffForm.control} name="name" render={({ field }) => (
-                    <FormItem className="text-left"><FormLabel className="text-[10px] font-black uppercase">Full Name</FormLabel><FormControl><Input {...field} className="h-12 border-2 font-bold" /></FormControl></FormItem>
+                    <FormItem className="text-left"><FormLabel className="text-[10px] font-black uppercase">Legal Full Name</FormLabel><FormControl><Input {...field} className="h-12 border-2 font-bold" /></FormControl></FormItem>
                   )} />
                 <div className="grid grid-cols-2 gap-4">
                   <FormField control={staffForm.control} name="role" render={({ field }) => (
-                      <FormItem className="text-left"><FormLabel className="text-[10px] font-black uppercase">Role</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger className="h-12 border-2 font-bold"><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="Staff">Fulfillment Staff</SelectItem><SelectItem value="Manager">Venue Manager</SelectItem></SelectContent></Select></FormItem>
+                      <FormItem className="text-left"><FormLabel className="text-[10px] font-black uppercase">Authorization Role</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger className="h-12 border-2 font-bold"><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="Staff">Delivery Staff</SelectItem><SelectItem value="Manager">Venue Manager</SelectItem></SelectContent></Select></FormItem>
                     )} />
                   <FormField control={staffForm.control} name="pin" render={({ field }) => (
-                      <FormItem className="text-left"><FormLabel className="text-[10px] font-black uppercase">4-Digit PIN</FormLabel><FormControl><Input {...field} maxLength={4} className="h-12 border-2 font-bold font-mono tracking-widest text-center" /></FormControl></FormItem>
+                      <FormItem className="text-left"><FormLabel className="text-[10px] font-black uppercase">Access PIN (4-Digits)</FormLabel><FormControl><Input {...field} maxLength={4} className="h-12 border-2 font-black font-mono tracking-[0.4em] text-center text-indigo-600" /></FormControl></FormItem>
                     )} />
                 </div>
-                <Button type="submit" disabled={isProcessingSave} className="w-full h-14 bg-indigo-600 font-black uppercase tracking-widest text-[11px] gap-2 shadow-xl">{isProcessingSave ? <Loader2 className="animate-spin" /> : <Save className="h-4 w-4" />} Save Personnel</Button>
+                <Button type="submit" disabled={isProcessingSave} className="w-full h-14 bg-[#213147] font-black uppercase tracking-widest text-[11px] gap-2 shadow-xl">{isProcessingSave ? <Loader2 className="animate-spin" /> : <Save className="h-4 w-4" />} Synchronize Staff Record</Button>
               </form>
             </Form>
           </div>
@@ -1681,40 +1720,42 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
       </Dialog>
 
       <Dialog open={isModifierGroupFormOpen} onOpenChange={setIsModifierGroupFormOpen}>
-        <DialogContent className="sm:max-w-[600px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
+        <DialogContent className="sm:max-w-[600px] rounded-[2.5rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
           <DialogHeader className="p-8 bg-indigo-600 text-white text-left">
-            <DialogTitle className="font-headline font-black uppercase tracking-tight text-white text-xl">{editingModifierGroup ? 'Edit Modifier Set' : 'Add Modifier Set'}</DialogTitle>
+            <DialogTitle className="font-headline font-black uppercase tracking-tight text-white text-xl">{editingModifierGroup ? 'Edit Modifier Set' : 'New Customization Set'}</DialogTitle>
           </DialogHeader>
           <ScrollArea className="max-h-[70vh]">
-            <div className="p-8">
+            <div className="p-8 text-left">
               <Form {...modifierGroupForm}>
-                <form onSubmit={modifierGroupForm.handleSubmit(onSaveModifierGroup)} className="space-y-6">
+                <form onSubmit={modifierGroupForm.handleSubmit(onSaveModifierGroup)} className="space-y-8">
                   <FormField control={modifierGroupForm.control} name="name" render={({ field }) => (
-                      <FormItem className="text-left"><FormLabel className="text-[10px] font-black uppercase">Group Name</FormLabel><FormControl><Input {...field} className="h-12 border-2 font-bold" /></FormControl></FormItem>
+                      <FormItem className="text-left"><FormLabel className="text-[10px] font-black uppercase">Group Identity (e.g. "Choose Sauce")</FormLabel><FormControl><Input {...field} className="h-12 border-2 font-bold" /></FormControl></FormItem>
                     )} />
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-2 gap-6">
                     <FormField control={modifierGroupForm.control} name="minSelection" render={({ field }) => (
-                        <FormItem className="text-left"><FormLabel className="text-[10px] font-black uppercase">Min Selection</FormLabel><FormControl><Input type="number" {...field} className="h-12 border-2 font-bold" /></FormControl></FormItem>
+                        <FormItem className="text-left"><FormLabel className="text-[10px] font-black uppercase">Min Required</FormLabel><FormControl><Input type="number" {...field} className="h-12 border-2 font-bold" /></FormControl></FormItem>
                       )} />
                     <FormField control={modifierGroupForm.control} name="maxSelection" render={({ field }) => (
                         <FormItem className="text-left"><FormLabel className="text-[10px] font-black uppercase">Max Selection</FormLabel><FormControl><Input type="number" {...field} className="h-12 border-2 font-bold" /></FormControl></FormItem>
                       )} />
                   </div>
-                  <div className="space-y-3">
-                    <div className="flex justify-between items-center px-1"><Label className="text-[10px] font-black uppercase text-indigo-600">Options</Label><Button type="button" variant="ghost" size="sm" onClick={() => appendOption({ id: Math.random().toString(36).substr(2, 9), name: '', priceAdjustment: 0, isAvailable: true })} className="text-[9px] font-black uppercase gap-1.5"><Plus className="h-3 w-3" /> Add Option</Button></div>
-                    {optionFields.map((field, index) => (
-                      <div key={field.id} className="flex gap-2 items-start bg-slate-50 p-3 rounded-xl border-2">
-                        <FormField control={modifierGroupForm.control} name={`options.${index}.name`} render={({ field }) => (
-                            <FormItem className="flex-1 text-left"><FormControl><Input {...field} placeholder="Option Name" className="h-10 border-2 font-bold bg-white" /></FormControl></FormItem>
-                          )} />
-                        <FormField control={modifierGroupForm.control} name={`options.${index}.priceAdjustment`} render={({ field }) => (
-                            <FormItem className="w-24 text-left"><FormControl><Input {...field} type="number" step="0.01" placeholder="$0.00" className="h-10 border-2 font-bold bg-white" /></FormControl></FormItem>
-                          )} />
-                        <Button type="button" variant="ghost" size="icon" onClick={() => removeOption(index)} className="h-10 w-10 text-muted-foreground hover:text-destructive"><X className="h-4 w-4" /></Button>
-                      </div>
-                    ))}
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center px-1"><Label className="text-[10px] font-black uppercase text-indigo-600 tracking-widest">Option Registry</Label><Button type="button" variant="ghost" size="sm" onClick={() => appendOption({ id: Math.random().toString(36).substr(2, 9), name: '', priceAdjustment: 0, isAvailable: true })} className="text-[9px] font-black uppercase gap-1.5 h-8 bg-indigo-50 text-indigo-700 hover:bg-indigo-100"><Plus className="h-3.5 w-3.5" /> Add Choice</Button></div>
+                    <div className="space-y-2">
+                      {optionFields.map((field, index) => (
+                        <div key={field.id} className="flex gap-2 items-start bg-slate-50 p-3 rounded-2xl border-2 border-slate-100">
+                          <FormField control={modifierGroupForm.control} name={`options.${index}.name`} render={({ field }) => (
+                              <FormItem className="flex-1 text-left"><FormControl><Input {...field} placeholder="Option Name" className="h-10 border-2 font-bold bg-white" /></FormControl></FormItem>
+                            )} />
+                          <FormField control={modifierGroupForm.control} name={`options.${index}.priceAdjustment`} render={({ field }) => (
+                              <FormItem className="w-28 text-left"><FormControl><div className="relative"><DollarSign className="absolute left-2 top-3 h-3 w-3 text-slate-300" /><Input {...field} type="number" step="0.01" placeholder="0.00" className="h-10 pl-6 border-2 font-black bg-white" /></div></FormControl></FormItem>
+                            )} />
+                          <Button type="button" variant="ghost" size="icon" onClick={() => removeOption(index)} className="h-10 w-10 text-muted-foreground hover:text-destructive shrink-0"><X className="h-4 w-4" /></Button>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                  <Button type="submit" disabled={isProcessingSave} className="w-full h-14 bg-indigo-600 font-black uppercase tracking-widest text-[11px] gap-2 shadow-xl">{isProcessingSave ? <Loader2 className="animate-spin" /> : <Save className="h-4 w-4" />} Save Modifier Set</Button>
+                  <Button type="submit" disabled={isProcessingSave} className="w-full h-14 bg-indigo-600 font-black uppercase tracking-widest text-[11px] gap-2 shadow-xl">{isProcessingSave ? <Loader2 className="animate-spin" /> : <Save className="h-4 w-4" />} Save Master Modifier</Button>
                 </form>
               </Form>
             </div>
@@ -1723,32 +1764,51 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
       </Dialog>
 
       <Dialog open={isItemFormOpen} onOpenChange={setIsItemFormOpen}>
-        <DialogContent className="sm:max-w-[600px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
-          <DialogHeader className="p-8 bg-primary text-white text-left">
-            <DialogTitle className="font-headline font-black uppercase tracking-tight text-white text-xl">{editingItem ? 'Edit Menu Item' : 'Add Menu Item'}</DialogTitle>
+        <DialogContent className="sm:max-w-[600px] rounded-[2.5rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
+          <DialogHeader className="p-8 bg-primary text-white text-left relative">
+            <div className="absolute top-4 right-8 opacity-20"><UtensilsCrossed className="h-16 w-16" /></div>
+            <DialogTitle className="font-headline font-black uppercase tracking-tight text-white text-xl">{editingItem ? 'Edit Product' : 'New Master Product'}</DialogTitle>
           </DialogHeader>
           <ScrollArea className="max-h-[70vh]">
-            <div className="p-8">
+            <div className="p-8 text-left">
               <Form {...itemForm}>
-                <form onSubmit={itemForm.handleSubmit(onSaveItem)} className="space-y-6">
+                <form onSubmit={itemForm.handleSubmit(onSaveItem)} className="space-y-8">
                   <FormField control={itemForm.control} name="name" render={({ field }) => (
-                      <FormItem className="text-left"><FormLabel className="text-[10px] font-black uppercase">Item Name</FormLabel><FormControl><Input {...field} className="h-12 border-2 font-bold" /></FormControl></FormItem>
+                      <FormItem className="text-left"><FormLabel className="text-[10px] font-black uppercase">Product Name</FormLabel><FormControl><Input {...field} className="h-12 border-2 font-bold" /></FormControl></FormItem>
                     )} />
                   <FormField control={itemForm.control} name="description" render={({ field }) => (
-                      <FormItem className="text-left"><FormLabel className="text-[10px] font-black uppercase">Description</FormLabel><FormControl><Input {...field} className="h-12 border-2 font-bold" /></FormControl></FormItem>
+                      <FormItem className="text-left"><FormLabel className="text-[10px] font-black uppercase">Patron-Facing Description</FormLabel><FormControl><Input {...field} className="h-12 border-2 font-bold" /></FormControl></FormItem>
                     )} />
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-2 gap-6">
                     <FormField control={itemForm.control} name="price" render={({ field }) => (
-                        <FormItem className="text-left"><FormLabel className="text-[10px] font-black uppercase">Price ($)</FormLabel><FormControl><Input type="number" step="0.01" {...field} className="h-12 border-2 font-bold" /></FormControl></FormItem>
+                        <FormItem className="text-left"><FormLabel className="text-[10px] font-black uppercase">Base Price ($)</FormLabel><FormControl><div className="relative"><DollarSign className="absolute left-3 top-4 h-4 w-4 text-slate-300" /><Input type="number" step="0.01" {...field} className="h-12 pl-8 border-2 font-black" /></div></FormControl></FormItem>
                       )} />
                     <FormField control={itemForm.control} name="category" render={({ field }) => (
-                        <FormItem className="text-left"><FormLabel className="text-[10px] font-black uppercase">Category</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger className="h-12 border-2 font-bold"><SelectValue /></SelectTrigger></FormControl><SelectContent>{categories.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent></Select></FormItem>
+                        <FormItem className="text-left"><FormLabel className="text-[10px] font-black uppercase">Menu Section</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger className="h-12 border-2 font-bold"><SelectValue /></SelectTrigger></FormControl><SelectContent>{categories.filter(c => c !== 'Featured').map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent></Select></FormItem>
                       )} />
                   </div>
+
+                  <div className="space-y-4">
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-primary flex items-center gap-2">
+                       <Tags className="h-3.5 w-3.5" /> Associated Modifiers
+                    </Label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-slate-50 p-4 rounded-[1.5rem] border-2">
+                      {modifierGroups?.map(group => (
+                        <FormField key={group.id} control={itemForm.control} name="modifierGroupIds" render={({ field }) => (
+                            <FormItem className="flex items-center space-x-3 space-y-0 p-2.5 rounded-xl border bg-white shadow-sm">
+                              <FormControl><Checkbox checked={field.value?.includes(group.id)} onCheckedChange={(checked) => checked ? field.onChange([...field.value, group.id]) : field.onChange(field.value.filter(v => v !== group.id))} /></FormControl>
+                              <FormLabel className="text-[9px] font-black uppercase cursor-pointer truncate">{group.name}</FormLabel>
+                            </FormItem>
+                          )} />
+                      ))}
+                      {modifierGroups?.length === 0 && <p className="col-span-full py-4 text-center text-[9px] font-bold text-muted-foreground uppercase">No modifiers in library yet.</p>}
+                    </div>
+                  </div>
+
                   <FormField control={itemForm.control} name="imageUrl" render={({ field }) => (
-                      <FormItem className="text-left"><FormLabel className="text-[10px] font-black uppercase">Image URL</FormLabel><FormControl><Input {...field} className="h-12 border-2 font-bold" /></FormControl></FormItem>
+                      <FormItem className="text-left"><FormLabel className="text-[10px] font-black uppercase">Image Asset URL</FormLabel><FormControl><div className="relative"><LucideImage className="absolute left-3 top-4 h-4 w-4 text-slate-300" /><Input {...field} placeholder="https://images.unsplash.com/..." className="h-12 pl-10 border-2 font-bold" /></div></FormControl><FormDescription className="text-[8px] uppercase tracking-widest mt-1">High-quality 1:1 square ratio recommended.</FormDescription></FormItem>
                     )} />
-                  <Button type="submit" disabled={isProcessingSave} className="w-full h-14 bg-primary font-black uppercase tracking-widest text-[11px] gap-2 shadow-xl">{isProcessingSave ? <Loader2 className="animate-spin" /> : <Save className="h-4 w-4" />} Save Item</Button>
+                  <Button type="submit" disabled={isProcessingSave} className="w-full h-14 bg-primary font-black uppercase tracking-widest text-[11px] gap-2 shadow-xl">{isProcessingSave ? <Loader2 className="animate-spin" /> : <Save className="h-4 w-4" />} Save Master Item</Button>
                 </form>
               </Form>
             </div>
