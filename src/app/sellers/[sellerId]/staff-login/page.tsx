@@ -150,7 +150,7 @@ export default function StaffLoginPage({ params }: { params: Promise<{ sellerId:
 
   const authorizedServiceModes = React.useMemo(() => {
     if (!seller) return [];
-    return (seller.menuTypes || []).filter(t => t !== 'Take Out');
+    return (seller.menuTypes || []);
   }, [seller]);
 
   return (

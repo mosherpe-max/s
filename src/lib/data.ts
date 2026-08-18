@@ -101,7 +101,7 @@ export const publicGolfItems: (Omit<MenuItem, 'id' | 'rank'> & { id?: string, ra
     price: 9.00, 
     category: 'Handhelds', 
     imageUrl: getImg('hot dog'), 
-    availableOn: ['Beverage Cart', 'Clubhouse', 'Take Out'],
+    availableOn: ['Beverage Cart', 'Clubhouse'],
     featuredOn: ['Beverage Cart'],
     isAvailable: true
   },
@@ -111,7 +111,7 @@ export const publicGolfItems: (Omit<MenuItem, 'id' | 'rank'> & { id?: string, ra
     price: 13.00, 
     category: 'Handhelds', 
     imageUrl: getImg('burger meal'), 
-    availableOn: ['Clubhouse', 'Take Out'],
+    availableOn: ['Clubhouse'],
     featuredOn: ['Clubhouse'],
     isAvailable: true
   },
@@ -126,7 +126,7 @@ export const publicGolfItems: (Omit<MenuItem, 'id' | 'rank'> & { id?: string, ra
   },
   ...commonMenuItems.map(i => ({ 
     ...i, 
-    availableOn: ['Beverage Cart', 'Clubhouse', 'Take Out'] 
+    availableOn: ['Beverage Cart', 'Clubhouse'] 
   }))
 ];
 
@@ -157,7 +157,7 @@ export const privateGolfItems: (Omit<MenuItem, 'id' | 'rank'> & { id?: string, r
     price: 15.00, 
     category: 'Handhelds', 
     imageUrl: getImg('burger meal'), 
-    availableOn: ['Clubhouse', 'Pool', 'Take Out'],
+    availableOn: ['Clubhouse', 'Pool'],
     featuredOn: ['Pool'],
     isAvailable: true
   },
@@ -181,7 +181,7 @@ export const privateGolfItems: (Omit<MenuItem, 'id' | 'rank'> & { id?: string, r
   },
   ...commonMenuItems.map(i => ({ 
     ...i, 
-    availableOn: ['Clubhouse', 'Pool', 'Take Out'] 
+    availableOn: ['Clubhouse', 'Pool'] 
   }))
 ];
 
@@ -193,7 +193,7 @@ export const bowlingAlleyItems: (Omit<MenuItem, 'id' | 'rank'> & { id?: string, 
     price: 18.00, 
     category: 'Pizza', 
     imageUrl: getImg('pepperoni pizza'), 
-    availableOn: ['Lane Delivery', 'Take Out'], 
+    availableOn: ['Lane Delivery'], 
     featuredOn: ['Lane Delivery'],
     isAvailable: true
   },
@@ -231,12 +231,12 @@ export const bowlingAlleyItems: (Omit<MenuItem, 'id' | 'rank'> & { id?: string, 
     price: 14.50, 
     category: 'Handhelds', 
     imageUrl: getImg('burger meal'), 
-    availableOn: ['Lane Delivery', 'Take Out'],
+    availableOn: ['Lane Delivery'],
     isAvailable: true
   },
   ...commonMenuItems.map(i => ({ 
     ...i, 
-    availableOn: ['Lane Delivery', 'Take Out'] 
+    availableOn: ['Lane Delivery'] 
   }))
 ];
 

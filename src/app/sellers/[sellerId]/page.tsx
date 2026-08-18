@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useMemo, useEffect, use } from 'react';
@@ -553,7 +554,6 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
       .sort((a, b) => b.count - a.count)
       .slice(0, 5);
 
-    const activeModes = seller.menuTypes || [];
     const healthDays = [];
     for (let i = 6; i >= 0; i--) {
       const d = subDays(new Date(), i);
@@ -564,7 +564,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
       const dayOrders = orders.filter(o => o.createdAt && o.createdAt.toDate() >= start && o.createdAt.toDate() <= end);
       
       const dayStats: any = { name: key };
-      activeModes.forEach(mode => {
+      modes.forEach(mode => {
         const modeOrders = dayOrders.filter(o => o.menuType === mode && o.status === 'Delivered' && o.deliveredAt);
         if (modeOrders.length > 0) {
           const totalTime = modeOrders.reduce((acc, o) => acc + differenceInMinutes(o.deliveredAt!.toDate(), o.createdAt.toDate()), 0);
@@ -1121,7 +1121,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                             </TableCell>
                             <TableCell>
                               <p className="font-black text-sm text-[#213147] uppercase">{o.customerName}</p>
-                              <p className="text-[9px] text-muted-foreground uppercase font-bold">{o.customerPhone}</p>
+                              <p className="text-[9px] font-bold text-muted-foreground uppercase font-bold">{o.customerPhone}</p>
                             </TableCell>
                             <TableCell>
                               <Badge variant="outline" className="text-[8px] font-black uppercase border-slate-200">{o.menuType}</Badge>
