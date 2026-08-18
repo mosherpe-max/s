@@ -178,60 +178,40 @@ const leadSchema = z.object({
 
 type LeadFormData = z.infer<typeof leadSchema>;
 
-const starterModifierSchema = z.object({
-  name: z.string().min(2, 'Group name required'),
-  venueType: z.array(z.string()).min(1, 'Select at least one venue type'),
-  category: z.enum(['food', 'beverage', 'universal']),
-  selectionType: z.enum(['single', 'multi']),
-  required: z.boolean().default(false),
-  sortOrder: z.coerce.number().default(0),
-  options: z.array(z.object({
-    label: z.string().min(1, 'Label required'),
-    priceModifier: z.coerce.number().min(0)
-  })).min(1, 'At least one option required')
-});
+function KPICard({ label, value, sub, icon: Icon, colorClass }: { label: string, value: string | number, sub: string, icon: any, colorClass?: string }) {
+  return (
+    <Card className="border-2 shadow-sm overflow-hidden relative h-full">
+      <div className={cn("absolute top-0 left-0 bottom-0 w-1.5", colorClass)} />
+      <CardHeader className="pb-2 pt-5 px-6">
+        <CardDescription className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+          <Icon className="h-3.5 w-3.5" /> {label}
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="pb-5 px-6 text-left">
+        <div className="text-3xl font-black font-headline tracking-tighter text-[#213147] mb-1">{value}</div>
+        <p className="text-[10px] font-bold text-muted-foreground uppercase">{sub}</p>
+      </CardContent>
+    </Card>
+  );
+}
 
-type StarterModifierFormData = z.infer<typeof starterModifierSchema>;
-
-const starterMenuItemSchema = z.object({
-  name: z.string().min(2, 'Item name required'),
-  description: z.string().default(''),
-  price: z.coerce.number().min(0),
-  category: z.string().min(1, 'Category required'),
-  venueType: z.array(z.string()).min(1, 'Select at least one venue type'),
-  serviceMode: z.enum(['beverageCart', 'clubhouse', 'laneService']),
-  suggestedModifierGroups: z.array(z.string()).default([]),
-  sortOrder: z.coerce.number().default(0),
-  imageUrl: z.string().default(''),
-});
-
-type StarterMenuItemFormData = z.infer<typeof starterMenuItemSchema>;
-
-const venueSettingsSchema = z.object({
-  name: z.string().min(2, 'Venue name required'),
-  ownerUid: z.string().min(1, 'Owner UID required'),
-  type: z.enum(['Golf Course', 'Bowling Center']),
-  status: z.enum(['Active', 'Inactive']).default('Active'),
-  streetAddress: z.string().min(1, 'Address required'),
-  city: z.string().min(1, 'City required'),
-  state: z.string().min(1, 'State required'),
-  zip: z.string().min(1, 'Zip required'),
-  contactName: z.string().min(1, 'Contact name required'),
-  contactPhone: z.string().min(1, 'Contact phone required'),
-  contactEmail: z.string().email('Valid contact email required'),
-  stripeAccountId: z.string().optional().nullable(),
-  stripeConnectId: z.string().optional().nullable(),
-  solutionFeeFixed: z.coerce.number().min(0),
-  solutionFeePercent: z.coerce.number().min(0),
-  patronConvenienceFee: z.coerce.number().min(0),
-  monthlySolutionFee: z.coerce.number().min(0),
-  stripeOnboardingComplete: z.boolean().default(false),
-  payoutsEnabled: z.boolean().default(false),
-  isFoundingPartner: z.boolean().default(false),
-  enabledPaymentMethods: z.array(z.string()).min(1, 'Select at least one payment method'),
-});
-
-type VenueSettingsFormData = z.infer<typeof venueSettingsSchema>;
+function NavButton({ id, label, icon: Icon, active, onClick, sidebarOpen }: { 
+  id: string, label: string, icon: any, active: boolean, onClick: (id: string) => void, sidebarOpen: boolean 
+}) {
+  return (
+    <button
+      onClick={() => onClick(id)}
+      className={cn(
+        "flex items-center gap-3 w-full px-4 py-3 rounded-xl transition-all duration-200 group relative text-left",
+        active ? "bg-primary/10 text-primary" : "text-slate-400 hover:bg-white/5 hover:text-white"
+      )}
+    >
+      <Icon className={cn("h-5 w-5 shrink-0", active ? "text-primary" : "group-hover:text-white")} />
+      {sidebarOpen && <span className={cn("text-[10px] font-black uppercase tracking-widest leading-none", active ? "text-primary" : "")}>{label}</span>}
+      {active && <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary rounded-r-full" />}
+    </button>
+  );
+}
 
 export default function SolutionAdminPage() {
   const firestore = useFirestore();
@@ -243,92 +223,17 @@ export default function SolutionAdminPage() {
 
   const [activeNav, setActiveNav] = useState('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   
-  const [libraryTab, setLibraryTab] = useState<'modifiers' | 'items'>('modifiers');
-  const [isLibraryFormOpen, setIsLibraryFormOpen] = useState(false);
-  const [isItemLibraryFormOpen, setIsItemLibraryFormOpen] = useState(false);
-  const [editingLibraryItem, setEditingLibraryItem] = useState<StarterModifierGroup | null>(null);
-  const [editingItemTemplate, setEditingItemTemplate] = useState<StarterMenuItem | null>(null);
-
   const [isLeadFormOpen, setIsLeadFormOpen] = useState(false);
-  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
   const [leadSearchTerm, setLeadSearchTerm] = useState('');
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const [isVenueSettingsOpen, setIsVenueSettingsOpen] = useState(false);
-  const [selectedVenue, setSelectedVenue] = useState<Seller | null>(null);
-
   const [isProcessingSave, setIsProcessingSave] = useState(false);
-  const [isInitializingLibrary, setIsInitializingLibrary] = useState(false);
-  const [isReseedingDemos, setIsReseedingDemos] = useState(false);
-  const [isResettingSystem, setIsResettingSystem] = useState(false);
-  const [isWipingPatrons, setIsWipingPatrons] = useState(false);
-  const [librarySearchTerm, setLibrarySearchTerm] = useState('');
 
-  const [configData, setConfigData] = useState<Partial<SolutionConfig>>({
-    supportEmail: '',
-    logoUrl: '',
-    dailyResetHour: 4,
-    smsNotificationsEnabled: true,
-    gpsFreshnessThresholds: { hot: 60, warm: 300, cold: 600 },
-    venueHealthSettings: {
-      warningManagerInactivityDays: 3,
-      warningVenueInactivityDays: 7
-    },
-    orderThresholds: {
-      'Beverage Cart': { maxOrderAcknowledgeSeconds: 120, warningOrderProcessingMinutes: 15, maxOrderProcessingMinutes: 25 },
-      'Clubhouse': { maxOrderAcknowledgeSeconds: 120, warningOrderProcessingMinutes: 20, maxOrderProcessingMinutes: 30 },
-      'Lane Delivery': { maxOrderAcknowledgeSeconds: 120, warningOrderProcessingMinutes: 10, maxOrderProcessingMinutes: 15 }
-    },
-    enabledModes: ['Beverage Cart', 'Clubhouse', 'Lane Delivery']
-  });
-  const [isSavingConfig, setIsSavingConfig] = useState(false);
-
-  const configRef = useMemoFirebase(() => (firestore ? doc(firestore, 'solution', 'config') : null), [firestore]);
-  const { data: remoteConfig } = useDoc<SolutionConfig>(configRef);
-
-  useEffect(() => {
-    if (remoteConfig) {
-      setConfigData({
-        ...remoteConfig,
-        gpsFreshnessThresholds: remoteConfig.gpsFreshnessThresholds || { hot: 60, warm: 300, cold: 600 },
-        venueHealthSettings: remoteConfig.venueHealthSettings || {
-          warningManagerInactivityDays: 3,
-          warningVenueInactivityDays: 7
-        },
-        orderThresholds: remoteConfig.orderThresholds || {
-          'Beverage Cart': { maxOrderAcknowledgeSeconds: 120, warningOrderProcessingMinutes: 15, maxOrderProcessingMinutes: 25 },
-          'Clubhouse': { maxOrderAcknowledgeSeconds: 120, warningOrderProcessingMinutes: 20, maxOrderProcessingMinutes: 30 },
-          'Lane Delivery': { maxOrderAcknowledgeSeconds: 120, warningOrderProcessingMinutes: 10, maxOrderProcessingMinutes: 15 }
-        },
-        enabledModes: remoteConfig.enabledModes || ['Beverage Cart', 'Clubhouse', 'Lane Delivery']
-      });
-    }
-  }, [remoteConfig]);
-
-  const libraryQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'starter_modifier_library') : null), [firestore]);
-  const itemLibQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'starter_menu_item_library') : null), [firestore]);
-  const venuesQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'sellers') : null), [firestore]);
   const leadsQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'leads') : null), [firestore]);
+  const venuesQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'sellers') : null), [firestore]);
 
-  const { data: libraryItems } = useCollection<StarterModifierGroup>(libraryQuery);
-  const { data: itemLibrary } = useCollection<StarterMenuItem>(itemLibQuery);
-  const { data: venues } = useCollection<Seller>(venuesQuery);
   const { data: leads } = useCollection<Lead>(leadsQuery);
-
-  const libraryForm = useForm<StarterModifierFormData>({
-    resolver: zodResolver(starterModifierSchema),
-    defaultValues: { name: '', venueType: ['golf', 'bowling'], category: 'food', selectionType: 'single', required: false, sortOrder: 0, options: [{ label: '', priceModifier: 0 }] }
-  });
-
-  const { fields: optionFields, append: appendOption, remove: removeOption } = useFieldArray({ control: libraryForm.control, name: "options" });
-
-  const itemLibraryForm = useForm<StarterMenuItemFormData>({
-    resolver: zodResolver(starterMenuItemSchema),
-    defaultValues: { name: '', description: '', price: 0, category: 'food', venueType: ['golf'], serviceMode: 'beverageCart', suggestedModifierGroups: [], sortOrder: 0, imageUrl: '' }
-  });
+  const { data: venues } = useCollection<Seller>(venuesQuery);
 
   const leadForm = useForm<LeadFormData>({
     resolver: zodResolver(leadSchema),
@@ -351,33 +256,6 @@ export default function SolutionAdminPage() {
     }
   });
 
-  const venueSettingsForm = useForm<VenueSettingsFormData>({
-    resolver: zodResolver(venueSettingsSchema),
-    defaultValues: { 
-      name: '', 
-      ownerUid: '', 
-      type: 'Golf Course',
-      status: 'Active',
-      streetAddress: '',
-      city: '',
-      state: '',
-      zip: '',
-      contactName: '',
-      contactPhone: '',
-      contactEmail: '',
-      stripeAccountId: '', 
-      stripeConnectId: '', 
-      solutionFeeFixed: 0, 
-      solutionFeePercent: 0, 
-      patronConvenienceFee: 150, 
-      monthlySolutionFee: 0, 
-      stripeOnboardingComplete: false, 
-      payoutsEnabled: false, 
-      isFoundingPartner: false,
-      enabledPaymentMethods: ['Pay at Delivery', 'Digital Payment']
-    }
-  });
-
   const handleSaveLead = async (data: LeadFormData) => {
     if (!firestore) return;
     setIsProcessingSave(true);
@@ -388,25 +266,12 @@ export default function SolutionAdminPage() {
       .finally(() => setIsProcessingSave(false));
   };
 
-  const handleInitializeLibrary = async () => {
-    if (!firestore) return;
-    setIsInitializingLibrary(true);
-    try {
-      const { seedGlobalStarterLibrary, seedGlobalStarterMenuLibrary } = await import('@/lib/seed-data');
-      await seedGlobalStarterLibrary(firestore);
-      await seedGlobalStarterMenuLibrary(firestore);
-      toast({ title: "Libraries Initialized" });
-    } finally { setIsInitializingLibrary(false); }
-  };
-
   const handleLogout = async () => { if (!auth) return; await signOut(auth); router.push('/login'); };
 
   const isSuperAdmin = user?.uid === SUPER_ADMIN_ID || user?.email === 'mosherpe@gmail.com';
   if (isUserLoading) return <div className="flex items-center justify-center min-h-screen"><Loader2 className="animate-spin" /></div>;
   if (!user || !isSuperAdmin) return null;
 
-  const filteredLibraryItems = (libraryItems || []).filter(item => item.name.toLowerCase().includes(librarySearchTerm.toLowerCase())).sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
-  const filteredItemTemplates = (itemLibrary || []).filter(item => item.name.toLowerCase().includes(librarySearchTerm.toLowerCase())).sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
   const filteredLeads = (leads || []).filter(l => l.venueName.toLowerCase().includes(leadSearchTerm.toLowerCase())).sort((a, b) => (b.updatedAt?.toMillis() || 0) - (a.updatedAt?.toMillis() || 0));
 
   const NAV_ITEMS = [
@@ -418,7 +283,7 @@ export default function SolutionAdminPage() {
   ];
 
   return (
-    <div className="flex h-screen bg-[#F8FAFC]">
+    <div className="flex h-screen bg-[#F8FAFC] text-left">
        <aside className={cn("bg-[#213147] hidden md:flex flex-col transition-all duration-300 relative border-r-4 border-primary/20 shrink-0", sidebarOpen ? "w-64" : "w-20")}>
           <div className="p-6 border-b border-white/5 flex items-center justify-between">
             {sidebarOpen && <StylizedKoopLogo size="md" />}
@@ -442,7 +307,6 @@ export default function SolutionAdminPage() {
                  <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                     <KPICard label="Total Venues" value={venues?.length || 0} sub="Onboarded Partners" icon={Store} colorClass="bg-indigo-600" />
                     <KPICard label="Active Markets" value={2} sub="Regional Clusters" icon={MapPin} colorClass="bg-green-600" />
-                    <KPICard label="Templates" value={(libraryItems?.length || 0) + (itemLibrary?.length || 0)} sub="Library Entities" icon={Library} colorClass="bg-primary" />
                     <KPICard label="System Health" value="100%" sub="All Feeds Live" icon={Activity} colorClass="bg-emerald-500" />
                  </div>
                )}
@@ -475,7 +339,7 @@ export default function SolutionAdminPage() {
         </main>
 
         <Dialog open={isLeadFormOpen} onOpenChange={setIsLeadFormOpen}>
-          <DialogContent className="sm:max-w-[750px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl">
+          <DialogContent className="sm:max-w-[750px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
             <DialogHeader className="p-8 bg-[#213147] text-white">
               <DialogTitle className="font-headline font-black uppercase text-xl">{editingLead ? 'Modify Prospect' : 'New CRM Prospect'}</DialogTitle>
             </DialogHeader>

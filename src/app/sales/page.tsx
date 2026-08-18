@@ -2,7 +2,7 @@
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { collection, doc, setDoc, addDoc, query, serverTimestamp, deleteDoc, where } from 'firebase/firestore';
+import { collection, doc, setDoc, query, serverTimestamp, deleteDoc, where } from 'firebase/firestore';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -39,13 +39,9 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Skeleton } from '@/components/ui/skeleton';
-import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
-import { cn, getNumericOrderId } from '@/lib/utils';
-import type { Prospect, SalesActivity, ProspectStage } from '@/lib/types';
+import type { Prospect } from '@/lib/types';
 
 const prospectSchema = z.object({
   venueName: z.string().min(2, 'Venue name required'),
@@ -80,7 +76,7 @@ export default function SalesCRMPage() {
     return query(collection(firestore, 'prospects'), where('assignedRepId', '==', currentRep.id));
   }, [firestore, currentRep.id]);
 
-  const { data: prospects, isLoading: isProspectsLoading } = useCollection<Prospect>(prospectsQuery);
+  const { data: prospects } = useCollection<Prospect>(prospectsQuery);
 
   const filteredProspects = useMemo(() => {
     if (!prospects) return [];
@@ -105,11 +101,6 @@ export default function SalesCRMPage() {
     setDoc(doc(firestore, 'prospects', id), payload, { merge: true })
       .then(() => { toast({ title: selectedProspect ? 'Prospect Updated' : 'Prospect Added' }); setIsProspectDialogOpen(false); setSelectedProspect(null); form.reset(); })
       .finally(() => setIsProcessing(false));
-  };
-
-  const handleDeleteProspect = async (id: string) => {
-    if (!firestore) return;
-    deleteDoc(doc(firestore, 'prospects', id)).then(() => toast({ title: 'Prospect Removed' }));
   };
 
   if (!isMounted) return null;
@@ -145,7 +136,7 @@ export default function SalesCRMPage() {
       </div>
 
       <Dialog open={isProspectDialogOpen} onOpenChange={setIsProspectDialogOpen}>
-        <DialogContent className="sm:max-w-[650px] rounded-[2.5rem] p-0 overflow-hidden border-2 shadow-2xl">
+        <DialogContent className="sm:max-w-[650px] rounded-[2.5rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
           <DialogHeader className="p-8 bg-indigo-600 text-white"><DialogTitle className="font-headline font-black uppercase text-xl">Manage Prospect</DialogTitle></DialogHeader>
           <div className="p-8">
             <Form {...form}>
