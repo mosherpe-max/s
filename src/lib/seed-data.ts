@@ -73,7 +73,7 @@ export const GLOBAL_STARTER_LIBRARY: Omit<StarterModifierGroup, 'id'>[] = [
   { name: "Pizza Size", venueType: ["bowling", "golf"], category: "food", selectionType: "single", required: true, sortOrder: 31, options: [{ label: "Personal", priceModifier: 0 }, { label: "Medium", priceModifier: 0 }, { label: "Large", priceModifier: 0 }] },
   { name: "Pizza Sauce", venueType: ["bowling", "golf"], category: "food", selectionType: "single", required: false, sortOrder: 32, options: [{ label: "Marinara", priceModifier: 0 }, { label: "White", priceModifier: 0 }, { label: "BBQ", priceModifier: 0 }, { label: "No Sauce", priceModifier: 0 }] },
   { name: "Pizza Toppings", venueType: ["bowling", "golf"], category: "food", selectionType: "multi", required: false, sortOrder: 33, options: [{ label: "Pepperoni", priceModifier: 0 }, { label: "Sausage", priceModifier: 0 }, { label: "Mushrooms", priceModifier: 0 }, { label: "Peppers", priceModifier: 0 }, { label: "Onions", priceModifier: 0 }, { label: "Black Olives", priceModifier: 0 }, { label: "Extra Cheese", priceModifier: 2.00 }, { label: "Jalapeños", priceModifier: 0 }] },
-  { name: "Hot Dog Toppings", venueType: ["bowling", "golf"], category: "food", selectionType: "multi", required: false, sortOrder: 41, options: [{ label: "Ketchup", priceModifier: 0 }, { label: "Mustard", priceModifier: 0 }, { label: "Relish", priceModifier: 0 }, { label: "Onions", priceModifier: 0 }, { label: "Cheese Sauce", priceModifier: 1.00 }] },
+  { name: "Hot Dog Toppings", venueType: ["bowling", "golf"], category: "food", selectionType: "single", required: false, sortOrder: 41, options: [{ label: "Ketchup", priceModifier: 0 }, { label: "Mustard", priceModifier: 0 }, { label: "Relish", priceModifier: 0 }, { label: "Onions", priceModifier: 0 }, { label: "Cheese Sauce", priceModifier: 1.00 }] },
   { name: "Dressing", venueType: ["golf", "bowling"], category: "food", selectionType: "single", required: false, sortOrder: 50, options: [{ label: "Ranch", priceModifier: 0 }, { label: "Italian", priceModifier: 0 }, { label: "Balsamic Vinaigrette", priceModifier: 0 }, { label: "Caesar", priceModifier: 0 }, { label: "On the Side", priceModifier: 0 }] },
   { name: "Coffee Size", venueType: ["golf", "bowling"], category: "beverage", selectionType: "single", required: true, sortOrder: 70, options: [{ label: "Small", priceModifier: 0 }, { label: "Medium", priceModifier: 0 }, { label: "Large", priceModifier: 0 }] },
   { name: "Milk Type", venueType: ["golf", "bowling"], category: "beverage", selectionType: "single", required: false, sortOrder: 71, options: [{ label: "Whole", priceModifier: 0 }, { label: "2%", priceModifier: 0 }, { label: "Skim", priceModifier: 0 }, { label: "Oat", priceModifier: 0.75 }, { label: "Almond", priceModifier: 0.75 }] },
@@ -251,35 +251,4 @@ export async function seedAllDemoData(db: Firestore) {
   await seedVenueItems(db, 'demo-course', publicGolfItems);
   await seedVenueItems(db, 'demo-private-course', privateGolfItems);
   await seedVenueItems(db, 'demo-bowling-alley', bowlingAlleyItems);
-}
-
-export async function resetAllVenueOperationalStatus(db: Firestore) {
-  const sellersRef = collection(db, 'sellers');
-  const snapshot = await getDocs(sellersRef);
-  
-  for (const sellerDoc of snapshot.docs) {
-    const batch = db.batch();
-    const staffRef = collection(db, 'sellers', sellerDoc.id, 'staff');
-    const staffSnap = await getDocs(staffRef);
-    staffSnap.forEach(sDoc => batch.update(sDoc.ref, { 
-      latitude: null, 
-      longitude: null, 
-      lastActive: null,
-      activeMode: null
-    }));
-
-    await batch.commit();
-  }
-}
-
-export async function wipeAllPatronData(db: Firestore) {
-  const usersRef = collection(db, 'users');
-  const snapshot = await getDocs(usersRef);
-  
-  const batch = writeBatch(db);
-  snapshot.docs.forEach(uDoc => {
-    batch.delete(uDoc.ref);
-  });
-  
-  await batch.commit();
 }

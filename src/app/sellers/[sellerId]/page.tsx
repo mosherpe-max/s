@@ -52,7 +52,8 @@ import {
   X,
   Building,
   ChevronLeft,
-  GripVertical
+  GripVertical,
+  ClipboardCheck
 } from 'lucide-react';
 import Image from 'next/image';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
@@ -205,7 +206,6 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
   
   const [orderSearchTerm, setOrderSearchTerm] = useState('');
   const [orderDateRange, setOrderDateRange] = useState<'today' | '7days' | '30days' | 'all'>('today');
-  const [analyticsRange, setAnalyticsRange] = useState<'today' | 'mtd' | 'ytd'>('mtd');
 
   const [isStaffFormOpen, setIsStaffFormOpen] = useState(false);
   const [editingStaff, setEditingStaff] = useState<StaffMember | null>(null);
@@ -228,6 +228,16 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
     defaultValues: { name: '', role: 'Staff', pin: '', isActive: true }
   });
 
+  const itemForm = useForm<ItemFormData>({
+    resolver: zodResolver(itemSchema),
+    defaultValues: { name: '', description: '', price: 0, category: '', isAvailable: true, availableOn: [], featuredOn: [], modifierGroupIds: [] }
+  });
+
+  const modifierGroupForm = useForm<ModifierGroupFormData>({
+    resolver: zodResolver(modifierGroupSchema),
+    defaultValues: { name: '', minSelection: 0, maxSelection: 1, options: [{ id: Math.random().toString(36).substr(2, 9), name: '', priceAdjustment: 0, isAvailable: true }] }
+  });
+
   const analyticsData = useMemo(() => {
     if (!orders || !seller) return { dailyRevenue: [], topItems: [], fulfillmentEfficiency: [] };
     
@@ -245,7 +255,6 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
           o.menuType === mode && 
           o.status === 'Delivered' && 
           o.createdAt && 
-          isToday(o.createdAt.toDate()) && 
           format(o.createdAt.toDate(), 'MMM d') === dayLabel
         );
         dayData[mode] = modeOrders.reduce((sum, o) => sum + (o.total || 0), 0);
