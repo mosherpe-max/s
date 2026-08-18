@@ -239,7 +239,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
   });
 
   const analyticsData = useMemo(() => {
-    if (!orders || !seller) return { dailyRevenue: [], topItems: [], fulfillmentEfficiency: [] };
+    if (!orders || !seller) return { dailyRevenue: [], topItems: [], fulfillmentEfficiency: [], revenueByMode: [] };
     
     const now = new Date();
     const modes = (seller.menuTypes || []).filter(m => m !== 'Take Out');
@@ -293,7 +293,14 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
       };
     });
 
-    return { dailyRevenue, topItems, fulfillmentEfficiency };
+    // 4. Revenue By Mode (Bar Chart)
+    const revenueByMode = modes.map(mode => {
+        const modeOrders = orders.filter(o => o.menuType === mode && o.status === 'Delivered');
+        const revenue = modeOrders.reduce((sum, o) => sum + (o.total || 0), 0);
+        return { mode, revenue };
+    });
+
+    return { dailyRevenue, topItems, fulfillmentEfficiency, revenueByMode };
   }, [orders, seller]);
 
   const onSaveStaff = async (data: StaffFormData) => {
@@ -369,7 +376,24 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                     <Card className="border-2 shadow-sm">
                       <CardHeader className="bg-slate-50 border-b py-4">
-                        <CardTitle className="text-xs font-black uppercase tracking-widest text-[#213147]">Revenue Trend</CardTitle>
+                        <CardTitle className="text-xs font-black uppercase tracking-widest text-[#213147]">Revenue by Service Mode</CardTitle>
+                      </CardHeader>
+                      <CardContent className="pt-6 h-[300px]">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={analyticsData.revenueByMode}>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                            <XAxis dataKey="mode" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 900 }} />
+                            <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 900 }} tickFormatter={(v) => `$${v}`} />
+                            <ChartTooltip formatter={(v: number) => [`$${v.toFixed(2)}`, 'Revenue']} />
+                            <Bar dataKey="revenue" fill="#E50000" radius={[4, 4, 0, 0]} />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </CardContent>
+                    </Card>
+
+                    <Card className="border-2 shadow-sm">
+                      <CardHeader className="bg-slate-50 border-b py-4">
+                        <CardTitle className="text-xs font-black uppercase tracking-widest text-[#213147]">Revenue Trend (Last 7 Days)</CardTitle>
                       </CardHeader>
                       <CardContent className="pt-6 h-[300px]">
                         <ResponsiveContainer width="100%" height="100%">
