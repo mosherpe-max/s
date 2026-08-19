@@ -1,83 +1,36 @@
 
 'use client';
 
-import React, { useState, useEffect, useMemo, useRef } from 'react';
-import Image from 'next/image';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { 
   Store, 
   Plus,
   Loader2,
   Settings2,
   MapPin,
-  Zap,
   LogOut,
-  Search,
   Users,
   Save,
   LayoutDashboard,
-  BarChart3,
-  DollarSign,
-  ShoppingBag,
   Activity,
   Trash2,
-  Menu,
-  Smartphone,
-  PlayCircle,
-  Timer,
-  Satellite,
-  ShieldAlert,
-  Settings,
-  AlertTriangle,
-  Sparkles,
-  Library,
-  Tags,
-  X,
   Edit,
-  UtensilsCrossed,
-  Power,
   PanelLeft,
   ChevronRightSquare,
-  BellRing,
-  ShieldCheck,
-  Mail,
-  Clock,
-  ExternalLink,
-  CreditCard,
-  HeartPulse,
-  ClipboardList,
-  User,
-  Percent,
-  CheckCircle2,
-  Banknote,
-  Phone,
-  Home,
-  Flame,
-  UserX,
-  QrCode,
   Target,
-  BarChart,
-  ClipboardCheck,
-  Building,
-  Upload,
-  FileSpreadsheet,
-  Download,
-  Info,
-  Database,
+  User,
   Image as LucideImage
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Separator } from '@/components/ui/separator';
 import { 
   Dialog, 
   DialogContent, 
   DialogHeader, 
   DialogTitle, 
-  DialogDescription,
-  DialogFooter 
 } from '@/components/ui/dialog';
 import {
   Table,
@@ -87,34 +40,19 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
-import { Switch } from '@/components/ui/switch';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { useRouter } from 'next/navigation';
-import { useFirestore, useCollection, useMemoFirebase, useAuth, useDoc, useUser } from '@/firebase';
+import { useFirestore, useCollection, useMemoFirebase, useAuth, useUser } from '@/firebase';
 import { signOut } from 'firebase/auth';
-import { collection, doc, setDoc, serverTimestamp, where, orderBy, updateDoc, writeBatch, deleteDoc, getDoc } from 'firebase/firestore';
-import type { Seller, SolutionConfig, Venue, StarterModifierGroup, StarterMenuItem, OrderFulfillmentThresholds, Lead } from '@/lib/types';
+import { collection, doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import type { Seller, Lead } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { cn, SUPER_ADMIN_ID, getNumericOrderId } from '@/lib/utils';
 import { StylizedKoopLogo } from '@/components/header';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { useForm, useFieldArray } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel } from '@/components/ui/form';
 import {
   Select,
   SelectContent,
@@ -122,11 +60,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Checkbox } from '@/components/ui/checkbox';
-import Link from 'next/link';
-import * as XLSX from 'xlsx';
-import { errorEmitter } from '@/firebase/error-emitter';
-import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 const US_STATES = [
   { code: 'AL', name: 'Alabama' }, { code: 'AK', name: 'Alaska' }, { code: 'AZ', name: 'Arizona' },
@@ -249,10 +183,7 @@ export default function SolutionAdminPage() {
       contactName: '',
       phone: '',
       email: '',
-      marketFitData: {
-        golf: { hasBevCart: false, hasClubhouseKitchen: false, roundsAnnually: 0, bevCartAnnualRevenue: 0 },
-        bowling: { hasBar: false, hasKitchen: false, lanesCount: 0, fbAnnualRevenue: 0 }
-      }
+      marketFitData: {}
     }
   });
 
@@ -278,7 +209,6 @@ export default function SolutionAdminPage() {
     { id: "dashboard", label: "Overview", icon: LayoutDashboard },
     { id: "sales", label: "Sales CRM", icon: Target },
     { id: "venues", label: "Venues", icon: Store },
-    { id: "library", label: "Library", icon: Library },
     { id: "system", label: "System", icon: Settings2 }
   ];
 

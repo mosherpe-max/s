@@ -11,7 +11,6 @@ import {
   updateDoc, 
   serverTimestamp, 
   deleteDoc,
-  getDoc,
   writeBatch
 } from 'firebase/firestore';
 import { useFirestore, useDoc, useCollection, useMemoFirebase, useUser, useAuth } from '@/firebase';
@@ -32,19 +31,10 @@ import {
   DollarSign,
   ShoppingBag,
   Save,
-  Library,
-  Power,
-  Tags,
   PanelLeft,
   ChevronRightSquare,
   Search,
   Trash2,
-  Calendar as CalendarIcon,
-  QrCode,
-  Image as LucideImage,
-  Download,
-  Package,
-  Menu,
   Activity,
   User,
   Star,
@@ -53,16 +43,17 @@ import {
   Building,
   ChevronLeft,
   GripVertical,
-  ClipboardCheck
+  ClipboardCheck,
+  Image as LucideImage
 } from 'lucide-react';
 import Image from 'next/image';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
-import { useForm, useFieldArray } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel } from '@/components/ui/form';
 import {
   Select,
   SelectContent,
@@ -86,14 +77,13 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { Label } from '@/components/ui/label';
-import { Separator } from '@/components/ui/separator';
+import { Checkbox } from '@/components/ui/checkbox';
 import { cn, SUPER_ADMIN_ID, getNumericOrderId } from '@/lib/utils';
 import { 
   isToday, 
   format, 
   subDays, 
   startOfDay, 
-  endOfDay, 
   differenceInMinutes, 
   differenceInSeconds
 } from 'date-fns';
@@ -104,7 +94,7 @@ import { StylizedKoopLogo } from '@/components/header';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { categories } from '@/lib/types';
-import type { MenuItem, Seller, Order, StaffMember, ModifierGroup, SolutionConfig, OrderFulfillmentThresholds } from '@/lib/types';
+import type { MenuItem, Seller, Order, StaffMember, SolutionConfig } from '@/lib/types';
 import { signOut } from 'firebase/auth';
 import { 
   BarChart, 
@@ -114,8 +104,6 @@ import {
   CartesianGrid, 
   Tooltip as ChartTooltip, 
   ResponsiveContainer,
-  LineChart,
-  Line,
   Legend
 } from 'recharts';
 import {
@@ -195,9 +183,9 @@ function KPICard({ label, value, sub, icon: Icon, colorClass }: { label: string,
 
 const getModeColor = (mode: string) => {
   switch (mode) {
-    case 'Beverage Cart': return '#E50000'; // Koop Red
-    case 'Clubhouse': return '#213147'; // Koop Navy
-    case 'Lane Delivery': return '#4f46e5'; // Indigo
+    case 'Beverage Cart': return '#E50000';
+    case 'Clubhouse': return '#213147';
+    case 'Lane Delivery': return '#4f46e5';
     default: return '#94a3b8';
   }
 };
@@ -241,20 +229,10 @@ function SortableItem({ id, item, isFeatured, onToggleFeature, onRemove }: {
         </div>
       </div>
       <div className="flex items-center gap-1">
-        <Button 
-          variant="ghost" 
-          size="icon" 
-          onClick={() => onToggleFeature(item.id)}
-          className={cn("h-8 w-8 rounded-full", isFeatured ? "text-amber-500 hover:text-amber-600" : "text-slate-200 hover:text-amber-500")}
-        >
+        <Button variant="ghost" size="icon" onClick={() => onToggleFeature(item.id)} className={cn("h-8 w-8 rounded-full", isFeatured ? "text-amber-500 hover:text-amber-600" : "text-slate-200 hover:text-amber-500")}>
           <Star className={cn("h-4 w-4", isFeatured && "fill-current")} />
         </Button>
-        <Button 
-          variant="ghost" 
-          size="icon" 
-          onClick={() => onRemove(item.id)}
-          className="h-8 w-8 rounded-full text-slate-200 hover:text-destructive"
-        >
+        <Button variant="ghost" size="icon" onClick={() => onRemove(item.id)} className="h-8 w-8 rounded-full text-slate-200 hover:text-destructive">
           <X className="h-4 w-4" />
         </Button>
       </div>
@@ -274,10 +252,8 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
   const [activeNav, setActiveNav] = useState('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  
   const [orderSearchTerm, setOrderSearchTerm] = useState('');
   const [activeModeTab, setActiveModeTab] = useState('');
-
   const [isStaffFormOpen, setIsStaffFormOpen] = useState(false);
   const [editingStaff, setEditingStaff] = useState<StaffMember | null>(null);
   const [isProcessingSave, setIsProcessingSave] = useState(false);
@@ -306,71 +282,39 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
 
   const analyticsData = useMemo(() => {
     if (!orders || !seller) return { dailyRevenue: [], topItems: [], fulfillmentEfficiency: [], revenueByMode: [], modes: [] };
-    
-    const now = new Date();
-    // EXPLICIT FILTER: REMOVE TAKE OUT
     const modes = (seller.menuTypes || []).filter(m => m !== 'Take Out');
-    
+    const now = new Date();
     const dailyRevenue = Array.from({ length: 7 }, (_, i) => {
       const date = subDays(startOfDay(now), 6 - i);
       const dayLabel = format(date, 'MMM d');
       const dayData: any = { name: dayLabel };
-      
       modes.forEach(mode => {
-        const modeOrders = orders.filter(o => 
-          o.menuType === mode && 
-          o.status === 'Delivered' && 
-          o.createdAt && 
-          format(o.createdAt.toDate(), 'MMM d') === dayLabel
-        );
+        const modeOrders = orders.filter(o => o.menuType === mode && o.status === 'Delivered' && o.createdAt && format(o.createdAt.toDate(), 'MMM d') === dayLabel);
         dayData[mode] = modeOrders.reduce((sum, o) => sum + (o.total || 0), 0);
       });
       return dayData;
     });
 
     const itemMap = new Map<string, number>();
-    orders.forEach(o => {
-      if (o.status === 'Delivered') {
-        o.items.forEach(i => {
-          itemMap.set(i.name, (itemMap.get(i.name) || 0) + i.quantity);
-        });
-      }
-    });
-    const topItems = Array.from(itemMap.entries())
-      .map(([name, volume]) => ({ name, volume }))
-      .sort((a, b) => b.volume - a.volume)
-      .slice(0, 10);
+    orders.forEach(o => { if (o.status === 'Delivered') o.items.forEach(i => itemMap.set(i.name, (itemMap.get(i.name) || 0) + i.quantity)); });
+    const topItems = Array.from(itemMap.entries()).map(([name, volume]) => ({ name, volume })).sort((a, b) => b.volume - a.volume).slice(0, 10);
 
     const fulfillmentEfficiency = modes.map(mode => {
       const modeOrders = orders.filter(o => o.menuType === mode && o.status === 'Delivered' && o.deliveredAt && o.acknowledgedAt);
-      const avgAck = modeOrders.length > 0 
-        ? modeOrders.reduce((sum, o) => sum + differenceInSeconds(o.acknowledgedAt!.toDate(), o.createdAt.toDate()), 0) / modeOrders.length
-        : 0;
-      const avgDeliver = modeOrders.length > 0
-        ? modeOrders.reduce((sum, o) => sum + differenceInMinutes(o.deliveredAt!.toDate(), o.createdAt.toDate()), 0) / modeOrders.length
-        : 0;
-      
-      return {
-        mode,
-        ackSeconds: Math.round(avgAck),
-        deliverMinutes: Math.round(avgDeliver)
-      };
+      const avgAck = modeOrders.length > 0 ? modeOrders.reduce((sum, o) => sum + differenceInSeconds(o.acknowledgedAt!.toDate(), o.createdAt.toDate()), 0) / modeOrders.length : 0;
+      const avgDeliver = modeOrders.length > 0 ? modeOrders.reduce((sum, o) => sum + differenceInMinutes(o.deliveredAt!.toDate(), o.createdAt.toDate()), 0) / modeOrders.length : 0;
+      return { mode, ackSeconds: Math.round(avgAck), deliverMinutes: Math.round(avgDeliver) };
     });
 
     const revenueByMode = modes.map(mode => {
-        const modeOrders = orders.filter(o => o.menuType === mode && o.status === 'Delivered');
-        const revenue = modeOrders.reduce((sum, o) => sum + (o.total || 0), 0);
-        return { mode, revenue };
+      const modeOrders = orders.filter(o => o.menuType === mode && o.status === 'Delivered');
+      return { mode, revenue: modeOrders.reduce((sum, o) => sum + (o.total || 0), 0) };
     });
 
     return { dailyRevenue, topItems, fulfillmentEfficiency, revenueByMode, modes };
   }, [orders, seller]);
 
-  useEffect(() => {
-    if (seller?.menuTypes?.length && !activeModeTab) {
-      setActiveModeTab(seller.menuTypes[0]);
-    }
-  }, [seller]);
+  useEffect(() => { if (seller?.menuTypes?.length && !activeModeTab) setActiveModeTab(seller.menuTypes[0]); }, [seller]);
 
   const onSaveStaff = async (data: StaffFormData) => {
     if (!firestore || !sellerId) return;
@@ -382,31 +326,20 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
 
   const handleToggleItemInMode = (itemId: string, mode: string, action: 'add' | 'remove') => {
     if (!firestore || !sellerId) return;
-    const itemRef = doc(firestore, 'sellers', sellerId, 'menuItems', itemId);
     const item = menuItems?.find(i => i.id === itemId);
     if (!item) return;
-
     const availableOn = item.availableOn || [];
-    const newAvailableOn = action === 'add' 
-      ? Array.from(new Set([...availableOn, mode]))
-      : availableOn.filter(m => m !== mode);
-
-    updateDoc(itemRef, { availableOn: newAvailableOn });
+    const newAvailableOn = action === 'add' ? Array.from(new Set([...availableOn, mode])) : availableOn.filter(m => m !== mode);
+    updateDoc(doc(firestore, 'sellers', sellerId, 'menuItems', itemId), { availableOn: newAvailableOn });
   };
 
   const handleToggleFeatureInMode = (itemId: string, mode: string) => {
     if (!firestore || !sellerId) return;
-    const itemRef = doc(firestore, 'sellers', sellerId, 'menuItems', itemId);
     const item = menuItems?.find(i => i.id === itemId);
     if (!item) return;
-
     const featuredOn = item.featuredOn || [];
-    const isFeatured = featuredOn.includes(mode);
-    const newFeaturedOn = isFeatured 
-      ? featuredOn.filter(m => m !== mode)
-      : [...featuredOn, mode];
-
-    updateDoc(itemRef, { featuredOn: newFeaturedOn });
+    const newFeaturedOn = featuredOn.includes(mode) ? featuredOn.filter(m => m !== mode) : [...featuredOn, mode];
+    updateDoc(doc(firestore, 'sellers', sellerId, 'menuItems', itemId), { featuredOn: newFeaturedOn });
   };
 
   const handleDragEnd = (event: any, category: string, mode: string) => {
@@ -416,22 +349,13 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
       const oldIndex = itemsInCat.findIndex(i => i.id === active.id);
       const newIndex = itemsInCat.findIndex(i => i.id === over.id);
       const newArray = arrayMove(itemsInCat, oldIndex, newIndex);
-      
       const batch = writeBatch(firestore!);
-      newArray.forEach((item, index) => {
-        const itemRef = doc(firestore!, 'sellers', sellerId, 'menuItems', item.id);
-        const menuRanks = item.menuRanks || {};
-        batch.update(itemRef, { [`menuRanks.${mode}`]: index + 1 });
-      });
+      newArray.forEach((item, index) => batch.update(doc(firestore!, 'sellers', sellerId, 'menuItems', item.id), { [`menuRanks.${mode}`]: index + 1 }));
       batch.commit();
     }
   };
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
-  );
-
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
   const handleLogout = async () => { if (!auth) return; await signOut(auth); router.push('/login'); };
 
   const NAV_ITEMS = [
@@ -445,13 +369,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
     { id: "settings", label: "Settings", icon: SettingsIcon }
   ];
 
-  const NavContent = () => (
-    <nav className="space-y-1">
-      {NAV_ITEMS.map((item) => (
-        <NavButton key={item.id} id={item.id} label={item.label} icon={item.icon} active={activeNav === item.id} onClick={setActiveNav} sidebarOpen={sidebarOpen} />
-      ))}
-    </nav>
-  );
+  const NavContent = () => (<nav className="space-y-1">{NAV_ITEMS.map((item) => (<NavButton key={item.id} id={item.id} label={item.label} icon={item.icon} active={activeNav === item.id} onClick={setActiveNav} sidebarOpen={sidebarOpen} />))}</nav>);
 
   if (isUserLoading || isSellerLoading) return <div className="flex flex-col items-center justify-center h-screen bg-[#213147] text-white"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>;
 
@@ -498,9 +416,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                   
                   <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     <Card className="lg:col-span-2 border-2 shadow-sm">
-                      <CardHeader className="bg-slate-50 border-b py-4">
-                        <CardTitle className="text-xs font-black uppercase tracking-widest text-[#213147]">Top Selling Items</CardTitle>
-                      </CardHeader>
+                      <CardHeader className="bg-slate-50 border-b py-4"><CardTitle className="text-xs font-black uppercase tracking-widest text-[#213147]">Top Selling Items</CardTitle></CardHeader>
                       <CardContent className="pt-6 h-[300px]">
                         <ResponsiveContainer width="100%" height="100%">
                           <BarChart data={analyticsData.topItems} layout="vertical">
@@ -520,20 +436,8 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                         <CardTitle className="text-sm font-black uppercase tracking-widest">Operational Snapshot</CardTitle>
                       </CardHeader>
                       <CardContent className="pt-8 space-y-8">
-                        <div>
-                          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40 mb-2">Today's Avg Delivery</p>
-                          <div className="flex items-end gap-2">
-                             <p className="text-4xl font-black font-headline tracking-tighter">14.2</p>
-                             <p className="text-xs font-bold uppercase text-white/60 mb-1.5">Minutes</p>
-                          </div>
-                        </div>
-                        <div>
-                          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40 mb-2">Staff Utilization</p>
-                          <div className="flex items-end gap-2">
-                             <p className="text-4xl font-black font-headline tracking-tighter">88%</p>
-                             <div className="h-3 w-3 rounded-full bg-green-500 mb-2.5 animate-pulse" />
-                          </div>
-                        </div>
+                        <div><p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40 mb-2">Today's Avg Delivery</p><div className="flex items-end gap-2"><p className="text-4xl font-black font-headline tracking-tighter">14.2</p><p className="text-xs font-bold uppercase text-white/60 mb-1.5">Minutes</p></div></div>
+                        <div><p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40 mb-2">Staff Utilization</p><div className="flex items-end gap-2"><p className="text-4xl font-black font-headline tracking-tighter">88%</p><div className="h-3 w-3 rounded-full bg-green-500 mb-2.5 animate-pulse" /></div></div>
                       </CardContent>
                     </Card>
                   </div>
@@ -546,10 +450,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                       <CardHeader className="bg-[#213147] text-white py-5 border-b">
                         <div className="flex items-center gap-3">
                           <BarChart3 className="h-5 w-5 text-primary" />
-                          <div className="text-left">
-                            <CardTitle className="text-xs font-black uppercase tracking-widest">Daily Stacked Revenue</CardTitle>
-                            <p className="text-[8px] text-white/40 uppercase tracking-widest mt-1">Revenue performance segmented by service channel</p>
-                          </div>
+                          <div className="text-left"><CardTitle className="text-xs font-black uppercase tracking-widest">Daily Stacked Revenue</CardTitle><p className="text-[8px] text-white/40 uppercase tracking-widest mt-1">Revenue performance segmented by service channel</p></div>
                         </div>
                       </CardHeader>
                       <CardContent className="pt-8 h-[400px]">
@@ -560,58 +461,11 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                             <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 900 }} tickFormatter={(v) => `$${v}`} />
                             <ChartTooltip formatter={(v: number) => [`$${v.toFixed(2)}`]} />
                             <Legend iconType="circle" />
-                            {analyticsData.modes.map((mode) => (
-                              <Bar 
-                                key={mode} 
-                                dataKey={mode} 
-                                stackId="a" 
-                                fill={getModeColor(mode)} 
-                                radius={[0, 0, 0, 0]} 
-                                barSize={40}
-                              />
-                            ))}
+                            {analyticsData.modes.map((mode) => (<Bar key={mode} dataKey={mode} stackId="a" fill={getModeColor(mode)} radius={[0, 0, 0, 0]} barSize={40} />))}
                           </BarChart>
                         </ResponsiveContainer>
                       </CardContent>
                    </Card>
-
-                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                      <Card className="border-2 shadow-sm">
-                        <CardHeader className="bg-slate-50 border-b py-4">
-                          <CardTitle className="text-xs font-black uppercase tracking-widest text-[#213147]">Total Revenue by Mode</CardTitle>
-                        </CardHeader>
-                        <CardContent className="pt-6 h-[300px]">
-                          <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={analyticsData.revenueByMode}>
-                              <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                              <XAxis dataKey="mode" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 900 }} />
-                              <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 900 }} tickFormatter={(v) => `$${v}`} />
-                              <ChartTooltip formatter={(v: number) => [`$${v.toFixed(2)}`]} />
-                              <Bar dataKey="revenue" fill="#E50000" radius={[4, 4, 0, 0]} />
-                            </BarChart>
-                          </ResponsiveContainer>
-                        </CardContent>
-                      </Card>
-
-                      <Card className="border-2 shadow-sm">
-                        <CardHeader className="bg-slate-50 border-b py-4">
-                          <CardTitle className="text-xs font-black uppercase tracking-widest text-[#213147]">Fulfillment Efficiency</CardTitle>
-                        </CardHeader>
-                        <CardContent className="pt-6 h-[300px]">
-                          <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={analyticsData.fulfillmentEfficiency}>
-                              <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                              <XAxis dataKey="mode" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 900 }} />
-                              <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 900 }} />
-                              <ChartTooltip />
-                              <Legend />
-                              <Bar dataKey="ackSeconds" name="Ack (Sec)" fill="#E50000" radius={[4, 4, 0, 0]} />
-                              <Bar dataKey="deliverMinutes" name="Deliver (Min)" fill="#213147" radius={[4, 4, 0, 0]} />
-                            </BarChart>
-                          </ResponsiveContainer>
-                        </CardContent>
-                      </Card>
-                   </div>
                 </div>
               )}
 
@@ -619,34 +473,18 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                 <div className="space-y-6 animate-in fade-in duration-500">
                   <div className="flex items-center justify-between">
                     <h2 className="text-xl font-black uppercase text-[#213147]">Fulfillment Log</h2>
-                    <div className="relative w-64">
-                      <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                      <Input placeholder="Search ticket or name..." value={orderSearchTerm} onChange={(e) => setOrderSearchTerm(e.target.value)} className="pl-10 h-10 border-2 rounded-xl" />
-                    </div>
+                    <div className="relative w-64"><Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" /><Input placeholder="Search ticket or name..." value={orderSearchTerm} onChange={(e) => setOrderSearchTerm(e.target.value)} className="pl-10 h-10 border-2 rounded-xl" /></div>
                   </div>
                   <Card className="border-2 rounded-[2rem] overflow-hidden shadow-sm bg-white">
                     <Table>
-                      <TableHeader className="bg-slate-50">
-                        <TableRow>
-                          <TableHead className="px-8 py-5 text-[10px] font-black uppercase tracking-widest">Ticket</TableHead>
-                          <TableHead className="text-[10px] font-black uppercase tracking-widest">Customer</TableHead>
-                          <TableHead className="text-[10px] font-black uppercase tracking-widest">Mode</TableHead>
-                          <TableHead className="text-[10px] font-black uppercase tracking-widest">Status</TableHead>
-                          <TableHead className="text-[10px] font-black uppercase tracking-widest text-right px-8">Total</TableHead>
-                        </TableRow>
-                      </TableHeader>
+                      <TableHeader className="bg-slate-50"><TableRow><TableHead className="px-8 py-5 text-[10px] font-black uppercase tracking-widest">Ticket</TableHead><TableHead className="text-[10px] font-black uppercase tracking-widest">Customer</TableHead><TableHead className="text-[10px] font-black uppercase tracking-widest">Mode</TableHead><TableHead className="text-[10px] font-black uppercase tracking-widest">Status</TableHead><TableHead className="text-[10px] font-black uppercase tracking-widest text-right px-8">Total</TableHead></TableRow></TableHeader>
                       <TableBody>
                         {(orders || []).filter(o => o.customerName.toLowerCase().includes(orderSearchTerm.toLowerCase())).slice(0, 50).map(o => (
                           <TableRow key={o.id} className="group hover:bg-slate-50/50 transition-colors">
                             <TableCell className="px-8 font-mono font-black text-primary text-xs">#{getNumericOrderId(o.id)}</TableCell>
                             <TableCell><div className="flex flex-col"><span className="font-bold text-sm">{o.customerName}</span><span className="text-[9px] uppercase text-muted-foreground">{o.createdAt ? format(o.createdAt.toDate(), 'MMM d, h:mm a') : ''}</span></div></TableCell>
                             <TableCell><Badge variant="outline" className="text-[8px] font-black uppercase bg-slate-100 border-slate-200">{o.menuType}</Badge></TableCell>
-                            <TableCell>
-                              <Badge className={cn(
-                                "text-[8px] font-black uppercase border-0",
-                                o.status === 'Delivered' ? "bg-green-500" : o.status === 'Cancelled' ? "bg-red-500" : "bg-primary animate-pulse"
-                              )}>{o.status}</Badge>
-                            </TableCell>
+                            <TableCell><Badge className={cn("text-[8px] font-black uppercase border-0", o.status === 'Delivered' ? "bg-green-500" : o.status === 'Cancelled' ? "bg-red-500" : "bg-primary animate-pulse")}>{o.status}</Badge></TableCell>
                             <TableCell className="text-right px-8 font-mono font-black text-sm">${o.total.toFixed(2)}</TableCell>
                           </TableRow>
                         ))}
@@ -661,18 +499,14 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                   <div className="flex items-center justify-between">
                     <h2 className="text-xl font-black uppercase text-[#213147]">Service Modes</h2>
                     <div className="flex gap-2 bg-[#213147] p-1 rounded-xl">
-                      {seller?.menuTypes?.map(mode => (
-                        <Button key={mode} variant={activeModeTab === mode ? 'default' : 'ghost'} size="sm" onClick={() => setActiveModeTab(mode)} className={cn("text-[9px] font-black uppercase tracking-widest h-9 px-4 rounded-lg", activeModeTab === mode ? "bg-primary text-white shadow-lg" : "text-white/40 hover:text-white hover:bg-white/5")}>{mode}</Button>
-                      ))}
+                      {seller?.menuTypes?.map(mode => (<Button key={mode} variant={activeModeTab === mode ? 'default' : 'ghost'} size="sm" onClick={() => setActiveModeTab(mode)} className={cn("text-[9px] font-black uppercase tracking-widest h-9 px-4 rounded-lg", activeModeTab === mode ? "bg-primary text-white shadow-lg" : "text-white/40 hover:text-white hover:bg-white/5")}>{mode}</Button>))}
                     </div>
                   </div>
 
                   <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
                     <div className="lg:col-span-1 space-y-6">
                        <Card className="border-2 shadow-sm overflow-hidden">
-                          <CardHeader className="bg-[#213147] text-white py-4 border-b">
-                            <CardTitle className="text-[10px] font-black uppercase tracking-widest">Active Channels</CardTitle>
-                          </CardHeader>
+                          <CardHeader className="bg-[#213147] text-white py-4 border-b"><CardTitle className="text-[10px] font-black uppercase tracking-widest">Active Channels</CardTitle></CardHeader>
                           <CardContent className="pt-6 space-y-4">
                             {['Beverage Cart', 'Clubhouse', 'Lane Delivery'].filter(m => seller?.menuTypes?.includes(m)).map(mode => {
                               const field = mode === 'Beverage Cart' ? 'bevcartActive' : mode === 'Clubhouse' ? 'clubhouseActive' : 'lanedeliveryActive';
@@ -685,77 +519,34 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                             })}
                           </CardContent>
                        </Card>
-
-                       <Card className="border-2 shadow-sm">
-                          <CardHeader className="bg-slate-50 border-b py-4">
-                            <CardTitle className="text-[10px] font-black uppercase tracking-widest text-[#213147]">Category Visibility</CardTitle>
-                          </CardHeader>
-                          <CardContent className="pt-6 space-y-2">
-                             {categories.filter(c => c !== 'Featured').map(cat => {
-                               const isVisible = seller?.categoryVisibility?.[activeModeTab]?.includes(cat) ?? true;
-                               return (
-                                 <div key={cat} className="flex items-center justify-between py-2 border-b last:border-0">
-                                   <span className="text-[10px] font-black uppercase text-[#213147]">{cat}</span>
-                                   <Checkbox checked={isVisible} onCheckedChange={(val) => {
-                                     const current = seller?.categoryVisibility?.[activeModeTab] || categories.filter(c => c !== 'Featured');
-                                     const next = val ? [...current, cat] : current.filter(c => c !== cat);
-                                     updateDoc(doc(firestore!, 'sellers', sellerId), { [`categoryVisibility.${activeModeTab}`]: next });
-                                   }} />
-                                 </div>
-                               );
-                             })}
-                          </CardContent>
-                       </Card>
                     </div>
 
                     <div className="lg:col-span-3 space-y-10">
-                      {categories.filter(c => c !== 'Featured').filter(c => seller?.categoryVisibility?.[activeModeTab]?.includes(c) ?? true).map(category => {
-                        const itemsInMode = (menuItems || []).filter(i => i.category === category && i.availableOn?.includes(activeModeTab))
-                          .sort((a, b) => (a.menuRanks?.[activeModeTab] || 999) - (b.menuRanks?.[activeModeTab] || 999));
+                      {categories.filter(c => c !== 'Featured').map(category => {
+                        const itemsInMode = (menuItems || []).filter(i => i.category === category && i.availableOn?.includes(activeModeTab)).sort((a, b) => (a.menuRanks?.[activeModeTab] || 999) - (b.menuRanks?.[activeModeTab] || 999));
                         const itemsInCatalog = (menuItems || []).filter(i => i.category === category && !i.availableOn?.includes(activeModeTab));
-                        
                         return (
                           <div key={category} className="space-y-4">
-                             <div className="flex items-center gap-3 border-b-2 border-slate-100 pb-2">
-                               <h3 className="font-headline font-black text-xs uppercase tracking-widest text-primary">{category}</h3>
-                               <Badge variant="outline" className="text-[8px] font-black uppercase bg-slate-50">{itemsInMode.length} Active</Badge>
-                             </div>
-
+                             <div className="flex items-center gap-3 border-b-2 border-slate-100 pb-2"><h3 className="font-headline font-black text-xs uppercase tracking-widest text-primary">{category}</h3><Badge variant="outline" className="text-[8px] font-black uppercase bg-slate-50">{itemsInMode.length} Active</Badge></div>
                              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                                 <div className="space-y-3">
                                    <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2"><Plus className="h-3 w-3" /> Pick from Catalog</p>
                                    <div className="grid gap-2">
-                                      {itemsInCatalog.length === 0 ? (
-                                        <div className="p-4 border-2 border-dashed rounded-xl flex items-center justify-center bg-slate-50/50"><p className="text-[9px] font-bold text-slate-300 uppercase">No more items in catalog</p></div>
-                                      ) : (
-                                        itemsInCatalog.map(item => (
-                                          <button key={item.id} onClick={() => handleToggleItemInMode(item.id, activeModeTab, 'add')} className="flex items-center gap-3 p-3 bg-white border-2 rounded-xl text-left hover:border-primary/30 transition-all group">
-                                            <div className="h-8 w-8 rounded-lg overflow-hidden bg-muted shrink-0">
-                                              {item.imageUrl && <Image src={item.imageUrl} alt={item.name} fill className="object-cover" />}
-                                            </div>
-                                            <span className="text-[10px] font-black uppercase text-[#213147] flex-1">{item.name}</span>
-                                            <Plus className="h-3.5 w-3.5 text-slate-200 group-hover:text-primary" />
-                                          </button>
-                                        ))
-                                      )}
+                                      {itemsInCatalog.map(item => (
+                                        <button key={item.id} onClick={() => handleToggleItemInMode(item.id, activeModeTab, 'add')} className="flex items-center gap-3 p-3 bg-white border-2 rounded-xl text-left hover:border-primary/30 transition-all group">
+                                          <div className="h-8 w-8 rounded-lg overflow-hidden bg-muted shrink-0">{item.imageUrl && <Image src={item.imageUrl} alt={item.name} fill className="object-cover" />}</div>
+                                          <span className="text-[10px] font-black uppercase text-[#213147] flex-1">{item.name}</span>
+                                          <Plus className="h-3.5 w-3.5 text-slate-200 group-hover:text-primary" />
+                                        </button>
+                                      ))}
                                    </div>
                                 </div>
-
                                 <div className="space-y-3">
                                    <p className="text-[9px] font-black uppercase tracking-widest text-[#213147] flex items-center gap-2"><GripVertical className="h-3 w-3" /> Active Priority</p>
                                    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(e) => handleDragEnd(e, category, activeModeTab)}>
                                       <SortableContext items={itemsInMode.map(i => i.id)} strategy={verticalListSortingStrategy}>
                                          <div className="grid gap-2">
-                                            {itemsInMode.map(item => (
-                                              <SortableItem 
-                                                key={item.id} 
-                                                id={item.id} 
-                                                item={item} 
-                                                isFeatured={item.featuredOn?.includes(activeModeTab) ?? false}
-                                                onToggleFeature={() => handleToggleFeatureInMode(item.id, activeModeTab)}
-                                                onRemove={() => handleToggleItemInMode(item.id, activeModeTab, 'remove')}
-                                              />
-                                            ))}
+                                            {itemsInMode.map(item => (<SortableItem key={item.id} id={item.id} item={item} isFeatured={item.featuredOn?.includes(activeModeTab) ?? false} onToggleFeature={() => handleToggleFeatureInMode(item.id, activeModeTab)} onRemove={() => handleToggleItemInMode(item.id, activeModeTab, 'remove')} />))}
                                          </div>
                                       </SortableContext>
                                    </DndContext>
@@ -769,36 +560,16 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                 </div>
               )}
 
-              {activeNav === 'menu' && (
-                <div className="space-y-6 animate-in fade-in duration-500">
-                  <div className="flex items-center justify-between">
-                    <h2 className="text-xl font-black uppercase text-[#213147]">Master Catalog</h2>
-                    <Button onClick={() => { itemForm.reset(); setIsStaffFormOpen(true); }} className="bg-primary font-black uppercase text-[10px] tracking-widest h-10 px-6"><Plus className="h-4 w-4 mr-2" /> Create Product</Button>
-                  </div>
-                  <Card className="border-2 rounded-[2rem] overflow-hidden shadow-sm bg-white">
-                    <Table>
-                      <TableHeader className="bg-slate-50">
-                        <TableRow>
-                          <TableHead className="px-8 py-5 text-[10px] font-black uppercase tracking-widest">Product</TableHead>
-                          <TableHead className="text-[10px] font-black uppercase tracking-widest">Category</TableHead>
-                          <TableHead className="text-[10px] font-black uppercase tracking-widest">Pricing</TableHead>
-                          <TableHead className="text-[10px] font-black uppercase tracking-widest">Status</TableHead>
-                          <TableHead className="text-[10px] font-black uppercase tracking-widest text-right px-8">Actions</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {(menuItems || []).sort((a, b) => a.category.localeCompare(b.category)).map(item => (
-                          <TableRow key={item.id} className="group hover:bg-slate-50/50 transition-colors">
-                            <TableCell className="px-8"><div className="flex items-center gap-4"><div className="relative h-12 w-12 rounded-2xl overflow-hidden bg-muted border shrink-0">{item.imageUrl && <Image src={item.imageUrl} alt={item.name} fill className="object-cover" />}</div><div className="flex flex-col text-left"><span className="font-bold text-sm text-[#213147] uppercase">{item.name}</span><span className="text-[9px] text-muted-foreground line-clamp-1 max-w-[200px]">{item.description}</span></div></div></TableCell>
-                            <TableCell><Badge variant="outline" className="text-[8px] font-black uppercase border-slate-200 bg-slate-100">{item.category}</Badge></TableCell>
-                            <TableCell className="font-mono font-black text-primary text-sm">${item.price.toFixed(2)}</TableCell>
-                            <TableCell><Switch checked={item.isAvailable !== false} onCheckedChange={(val) => updateDoc(doc(firestore!, 'sellers', sellerId, 'menuItems', item.id), { isAvailable: val })} className="data-[state=checked]:bg-green-500" /></TableCell>
-                            <TableCell className="text-right px-8"><div className="flex justify-end gap-1"><Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary"><Edit className="h-4 w-4" /></Button><Button variant="ghost" size="icon" onClick={() => deleteDoc(doc(firestore!, 'sellers', sellerId, 'menuItems', item.id))} className="h-8 w-8 text-muted-foreground hover:text-destructive"><Trash2 className="h-4 w-4" /></Button></div></TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </Card>
+              {activeNav === 'settings' && (
+                <div className="max-w-3xl space-y-8 animate-in fade-in duration-500">
+                    <Card className="border-2 shadow-sm p-8 space-y-8 text-left h-fit">
+                      <div className="space-y-6">
+                        <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2"><Building className="h-4 w-4" /> Core Identity</h4>
+                        <div className="grid gap-6">
+                          <div className="space-y-2 text-left"><Label className="text-[10px] font-black uppercase">Establishment Name</Label><Input defaultValue={seller?.courseName} onChange={(e) => updateDoc(doc(firestore!, 'sellers', sellerId), { courseName: e.target.value })} className="h-12 border-2 font-bold" /></div>
+                        </div>
+                      </div>
+                    </Card>
                 </div>
               )}
             </div>
@@ -817,20 +588,6 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                 <FormField control={staffForm.control} name="name" render={({ field }) => (
                   <FormItem className="text-left"><FormLabel className="text-[10px] font-black uppercase">Legal Full Name</FormLabel><FormControl><Input {...field} className="h-12 border-2 font-bold" /></FormControl></FormItem>
                 )} />
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField control={staffForm.control} name="role" render={({ field }) => (
-                    <FormItem className="text-left">
-                      <FormLabel className="text-[10px] font-black uppercase">Authorization Role</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl><SelectTrigger className="h-12 border-2 font-bold"><SelectValue /></SelectTrigger></FormControl>
-                        <SelectContent><SelectItem value="Staff">Delivery Staff</SelectItem><SelectItem value="Manager">Venue Manager</SelectItem></SelectContent>
-                      </Select>
-                    </FormItem>
-                  )} />
-                  <FormField control={staffForm.control} name="pin" render={({ field }) => (
-                    <FormItem className="text-left"><FormLabel className="text-[10px] font-black uppercase">Access PIN (4-Digits)</FormLabel><FormControl><Input {...field} maxLength={4} className="h-12 border-2 font-black font-mono tracking-[0.4em] text-center text-indigo-600" /></FormControl></FormItem>
-                  )} />
-                </div>
                 <Button type="submit" disabled={isProcessingSave} className="w-full h-14 bg-[#213147] font-black uppercase tracking-widest text-[11px] gap-2 shadow-xl">{isProcessingSave ? <Loader2 className="animate-spin" /> : <Save className="h-4 w-4" />} Synchronize Staff Record</Button>
               </form>
             </Form>
