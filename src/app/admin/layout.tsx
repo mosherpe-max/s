@@ -10,7 +10,8 @@ import {
   PanelLeft, 
   ChevronRightSquare,
   Menu,
-  ShieldCheck
+  ShieldCheck,
+  Library
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn, SUPER_ADMIN_ID } from '@/lib/utils';
@@ -32,6 +33,7 @@ const NAV_ITEMS = [
   { id: "dashboard", label: "Overview", icon: LayoutDashboard, href: "/admin/dashboard" },
   { id: "sales", label: "Sales CRM", icon: Target, href: "/admin/sales" },
   { id: "venues", label: "Venue Registry", icon: Store, href: "/admin/venues" },
+  { id: "libraries", label: "Global Libraries", icon: Library, href: "/admin/libraries" },
   { id: "system", label: "System Config", icon: Settings2, href: "/admin/system" }
 ];
 
