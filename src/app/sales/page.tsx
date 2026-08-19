@@ -137,16 +137,30 @@ export default function SalesCRMPage() {
 
       <Dialog open={isProspectDialogOpen} onOpenChange={setIsProspectDialogOpen}>
         <DialogContent className="sm:max-w-[650px] rounded-[2.5rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
-          <DialogHeader className="p-8 bg-indigo-600 text-white"><DialogTitle className="font-headline font-black uppercase text-xl">Manage Prospect</DialogTitle></DialogHeader>
+          <DialogHeader className="p-8 bg-indigo-600 text-white">
+            <DialogTitle className="font-headline font-black uppercase text-xl">Manage Prospect</DialogTitle>
+          </DialogHeader>
           <div className="p-8">
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSaveProspect)} className="space-y-8">
                 <div className="grid grid-cols-2 gap-4">
                   <FormField control={form.control} name="venueName" render={({ field }) => (
-                    <FormItem><FormLabel className="text-[10px] font-black uppercase">Establishment Name</FormLabel><FormControl><Input {...field} className="h-12 border-2 font-bold" /></FormControl></FormItem>
+                    <FormItem>
+                      <FormLabel className="text-[10px] font-black uppercase">Establishment Name</FormLabel>
+                      <FormControl><Input {...field} className="h-12 border-2 font-bold" /></FormControl>
+                    </FormItem>
                   )} />
                   <FormField control={form.control} name="venueType" render={({ field }) => (
-                    <FormItem><FormLabel className="text-[10px] font-black uppercase">Venue Type</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger className="h-12 border-2 font-bold"><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="Golf Course">Golf Course</SelectItem><SelectItem value="Bowling Center">Bowling Center</SelectItem></SelectContent></Select></FormItem>
+                    <FormItem>
+                      <FormLabel className="text-[10px] font-black uppercase">Venue Type</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl><SelectTrigger className="h-12 border-2 font-bold"><SelectValue /></SelectTrigger></FormControl>
+                        <SelectContent>
+                          <SelectItem value="Golf Course">Golf Course</SelectItem>
+                          <SelectItem value="Bowling Center">Bowling Center</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </FormItem>
                   )} />
                 </div>
                 <FormField control={form.control} name="stage" render={({ field }) => (
