@@ -89,7 +89,8 @@ const venueRegistrySchema = z.object({
   isDemo: z.boolean().default(false),
   stripeOnboardingComplete: z.boolean().default(false),
   payoutsEnabled: z.boolean().default(false),
-  menuTypes: z.array(z.string()).min(1, 'At least one service mode required')
+  menuTypes: z.array(z.string()).min(1, 'At least one service mode required'),
+  laneCount: z.coerce.number().min(0).optional()
 });
 
 type VenueRegistryData = z.infer<typeof venueRegistrySchema>;
@@ -102,6 +103,7 @@ const newVenueSchema = z.object({
   city: z.string().min(2, 'City required'),
   state: z.string().length(2, 'State code (e.g. MI)'),
   menuTypes: z.array(z.string()).min(1, 'Select at least one mode'),
+  laneCount: z.coerce.number().min(0).optional()
 });
 
 type NewVenueData = z.infer<typeof newVenueSchema>;
@@ -136,7 +138,8 @@ export default function AdminVenueRegistryPage() {
       isDemo: false,
       stripeOnboardingComplete: false,
       payoutsEnabled: false,
-      menuTypes: []
+      menuTypes: [],
+      laneCount: 0
     }
   });
 
@@ -149,7 +152,8 @@ export default function AdminVenueRegistryPage() {
       contactEmail: '',
       city: '',
       state: '',
-      menuTypes: ['Beverage Cart', 'Clubhouse']
+      menuTypes: ['Beverage Cart', 'Clubhouse'],
+      laneCount: 0
     }
   });
 
@@ -169,7 +173,8 @@ export default function AdminVenueRegistryPage() {
         isDemo: !!reg.isDemo,
         stripeOnboardingComplete: !!reg.stripeOnboardingComplete,
         payoutsEnabled: !!reg.payoutsEnabled,
-        menuTypes: seller?.menuTypes || []
+        menuTypes: seller?.menuTypes || [],
+        laneCount: seller?.laneCount || 0
       });
       setIsManagementOpen(true);
     } else {
@@ -185,10 +190,10 @@ export default function AdminVenueRegistryPage() {
     const venueRef = doc(firestore, 'venues', selectedVenue.venueId);
     const sellerRef = doc(firestore, 'sellers', selectedVenue.venueId);
 
-    const { menuTypes, ...venueData } = data;
+    const { menuTypes, laneCount, ...venueData } = data;
 
     batch.update(venueRef, { ...venueData, updatedAt: serverTimestamp() });
-    batch.update(sellerRef, { menuTypes, updatedAt: serverTimestamp() });
+    batch.update(sellerRef, { menuTypes, laneCount, updatedAt: serverTimestamp() });
 
     batch.commit()
       .then(() => {
@@ -230,7 +235,8 @@ export default function AdminVenueRegistryPage() {
       const sellerData: Partial<Seller> = {
         id: venueId, courseName: data.courseName, type: data.type, status: 'Active',
         contactEmail: data.contactEmail, city: data.city, state: data.state,
-        menuTypes: data.menuTypes, taxRate: 6.0, serviceFee: 1.50, ownerId: data.ownerUid
+        menuTypes: data.menuTypes, taxRate: 6.0, serviceFee: 1.50, ownerId: data.ownerUid,
+        laneCount: data.type === 'Bowling Center' ? data.laneCount : 0
       };
 
       const businessRef = doc(firestore, 'venues', venueId);
@@ -356,6 +362,14 @@ export default function AdminVenueRegistryPage() {
                         <FormItem className="text-left"><FormLabel className="text-[10px] font-black uppercase">Establishment Type</FormLabel>
                         <Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger className="h-12 border-2 font-bold"><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="Golf Course">Golf Course</SelectItem><SelectItem value="Bowling Center">Bowling Center</SelectItem></SelectContent></Select></FormItem>
                       )} />
+                      {onboardingForm.watch('type') === 'Bowling Center' && (
+                        <FormField control={onboardingForm.control} name="laneCount" render={({ field }) => (
+                          <FormItem className="text-left animate-in slide-in-from-top-2 duration-300">
+                            <FormLabel className="text-[10px] font-black uppercase">Number of Lanes</FormLabel>
+                            <FormControl><Input {...field} type="number" className="h-12 border-2 font-bold" /></FormControl>
+                          </FormItem>
+                        )} />
+                      )}
                     </div>
                   </div>
                   <div className="space-y-6 pt-6 border-t border-slate-100">
@@ -429,6 +443,14 @@ export default function AdminVenueRegistryPage() {
                     <div className="space-y-4 pt-6 border-t border-slate-100">
                        <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2"><ShieldCheck className="h-3 w-3" /> Status & Verification</Label>
                        <div className="grid gap-3">
+                          {sellers?.find(s => s.id === selectedVenue?.venueId)?.type === 'Bowling Center' && (
+                            <FormField control={registryForm.control} name="laneCount" render={({ field }) => (
+                              <FormItem className="text-left p-3 rounded-xl border-2 bg-slate-50 border-slate-100">
+                                <FormLabel className="text-[10px] font-black uppercase">Lane Inventory</FormLabel>
+                                <FormControl><Input {...field} type="number" className="h-10 border-2 font-bold bg-white" /></FormControl>
+                              </FormItem>
+                            )} />
+                          )}
                           <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border-2 border-slate-100">
                              <div className="flex flex-col text-left"><span className="text-[10px] font-black uppercase text-[#213147]">Demo Instance</span><span className="text-[8px] font-bold text-muted-foreground uppercase">Exclude from Global Results</span></div>
                              <FormField control={registryForm.control} name="isDemo" render={({ field }) => (<Switch checked={field.value} onCheckedChange={field.onChange} className="data-[state=checked]:bg-amber-500" />)} />
