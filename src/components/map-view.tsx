@@ -1,4 +1,3 @@
-
 'use client'
 
 import { Truck, User, AlertCircle, Loader2 } from 'lucide-react';
@@ -153,7 +152,7 @@ function MapInternal({ buyerLocation, sellerLocation, showPrimaryMarker, primary
   [buyerLocation, sellerLocation]);
 
   const getPathForType = (type: string | undefined) => {
-    if (type === 'Clubhouse' || type === 'Take Out' || type === 'Pool' || type === 'Lane Delivery') return PATH_CLUBHOUSE;
+    if (type === 'Clubhouse' || type === 'Lane Delivery') return PATH_CLUBHOUSE;
     return PATH_CART; 
   };
 

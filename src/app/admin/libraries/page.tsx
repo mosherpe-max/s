@@ -11,12 +11,7 @@ import {
   Trash2, 
   Edit,
   Loader2,
-  ChevronRight,
-  Globe,
-  Sparkles,
-  Search,
-  CheckCircle2,
-  AlertTriangle
+  Edit2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -40,7 +35,6 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
 } from "@/components/ui/dialog";
 import { Checkbox } from '@/components/ui/checkbox';
 import {
@@ -52,6 +46,12 @@ import {
 } from "@/components/ui/select";
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
+
+const SERVICE_MODE_LABELS: Record<string, string> = {
+  'beverageCart': 'Beverage Cart',
+  'clubhouse': 'Clubhouse',
+  'laneService': 'Lane Delivery'
+};
 
 export default function GlobalLibrariesPage() {
   const firestore = useFirestore();
@@ -188,7 +188,7 @@ export default function GlobalLibrariesPage() {
                           {(item.venueType || []).map(v => <Badge key={v} className="bg-indigo-600 text-white text-[7px] font-black uppercase h-4 px-1.5">{v}</Badge>)}
                         </div>
                       </TableCell>
-                      <TableCell><Badge className="bg-[#213147] text-white text-[8px] font-black uppercase">{item.serviceMode}</Badge></TableCell>
+                      <TableCell><Badge className="bg-[#213147] text-white text-[8px] font-black uppercase">{SERVICE_MODE_LABELS[item.serviceMode] || item.serviceMode}</Badge></TableCell>
                       <TableCell className="font-mono font-black text-sm text-primary">${item.price.toFixed(2)}</TableCell>
                       <TableCell className="text-right px-8">
                         <div className="flex justify-end gap-1">
