@@ -109,7 +109,7 @@ import {
   XAxis, 
   YAxis, 
   CartesianGrid, 
-  Tooltip as ChartTooltip, 
+  ChartTooltip, 
   ResponsiveContainer,
   Legend
 } from 'recharts';
@@ -870,11 +870,6 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                            <Label className="text-[9px] font-black uppercase">Sales Tax Rate (%)</Label>
                            <Input type="number" step="0.01" defaultValue={seller?.taxRate} onBlur={(e) => handleUpdateField('taxRate', parseFloat(e.target.value))} className="h-10 border-2 font-bold" />
                            <p className="text-[8px] font-medium text-muted-foreground uppercase">Applied to all digital and manual orders.</p>
-                         </div>
-                         <div className="space-y-1.5">
-                            <Label className="text-[9px] font-black uppercase">Base Service Fee Override ($)</Label>
-                            <Input type="number" step="0.50" defaultValue={seller?.serviceFee} onBlur={(e) => handleUpdateField('serviceFee', parseFloat(e.target.value))} className="h-10 border-2 font-bold" />
-                            <p className="text-[8px] font-medium text-muted-foreground uppercase">Legacy fee control. Primary fees managed by Koop Admin.</p>
                          </div>
                       </CardContent>
                     </Card>
