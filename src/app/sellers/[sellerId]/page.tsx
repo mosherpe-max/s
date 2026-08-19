@@ -352,12 +352,29 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
     return Array.from(map.values()).sort((a, b) => b.total - a.total).slice(0, 50);
   }, [orders]);
 
+  useEffect(() => {
+    if (seller && !activeModeTab) {
+      const modes = (seller.menuTypes || []).filter(m => m !== 'Take Out');
+      if (modes.length > 0) setActiveModeTab(modes[0]);
+    }
+  }, [seller, activeModeTab]);
+
   const onSaveStaff = async (data: StaffFormData) => {
     if (!firestore || !sellerId) return;
     setIsProcessingSave(true);
     const id = editingStaff?.id || Math.random().toString(36).substr(2, 9);
     setDoc(doc(firestore, 'sellers', sellerId, 'staff', id), { ...data, id, createdAt: editingStaff?.createdAt || serverTimestamp() }, { merge: true })
       .then(() => { setIsStaffFormOpen(false); setIsProcessingSave(false); toast({ title: editingStaff ? "Staff Updated" : "Staff Added" }); });
+  };
+
+  const handleToggleCategoryVisibility = (mode: string, category: string, isVisible: boolean) => {
+    if (!firestore || !sellerId || !seller) return;
+    const currentVisibility = seller.categoryVisibility?.[mode] || categories.filter(c => c !== 'Featured');
+    const newVisibility = isVisible 
+      ? Array.from(new Set([...currentVisibility, category]))
+      : currentVisibility.filter(c => c !== category);
+    
+    updateDoc(doc(firestore, 'sellers', sellerId), { [`categoryVisibility.${mode}`]: newVisibility });
   };
 
   const handleToggleItemInMode = (itemId: string, mode: string, action: 'add' | 'remove') => {
@@ -381,7 +398,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
   const handleDragEnd = (event: any, category: string, mode: string) => {
     const { active, over } = event;
     if (active && over && active.id !== over.id) {
-      const itemsInCat = (menuItems || []).filter(i => i.category === category && i.availableOn?.includes(mode));
+      const itemsInCat = (menuItems || []).filter(i => i.category === category && i.availableOn?.includes(mode)).sort((a, b) => (a.menuRanks?.[mode] || 999) - (b.menuRanks?.[mode] || 999));
       const oldIndex = itemsInCat.findIndex(i => i.id === active.id);
       const newIndex = itemsInCat.findIndex(i => i.id === over.id);
       const newArray = arrayMove(itemsInCat, oldIndex, newIndex);
@@ -627,37 +644,65 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                             })}
                           </CardContent>
                        </Card>
+
+                       <Card className="border-2 shadow-sm overflow-hidden">
+                          <CardHeader className="bg-slate-50 border-b py-4"><CardTitle className="text-[10px] font-black uppercase tracking-widest text-[#213147]">Category Filters</CardTitle></CardHeader>
+                          <CardContent className="pt-6 space-y-3">
+                            <p className="text-[9px] font-bold text-muted-foreground uppercase leading-relaxed mb-2 px-1">Enable or disable entire menu sections for the {activeModeTab} channel.</p>
+                            {categories.filter(c => c !== 'Featured').map(cat => {
+                              const isVisible = seller?.categoryVisibility?.[activeModeTab]?.includes(cat) ?? true;
+                              return (
+                                <div key={cat} className="flex items-center justify-between p-2 rounded-lg border hover:bg-slate-50 transition-colors">
+                                   <span className="text-[10px] font-black uppercase text-[#213147]">{cat}</span>
+                                   <Switch checked={isVisible} onCheckedChange={(val) => handleToggleCategoryVisibility(activeModeTab, cat, val)} className="scale-75 data-[state=checked]:bg-primary" />
+                                </div>
+                              );
+                            })}
+                          </CardContent>
+                       </Card>
                     </div>
 
                     <div className="lg:col-span-3 space-y-10">
                       {categories.filter(c => c !== 'Featured').map(category => {
+                        const isVisible = seller?.categoryVisibility?.[activeModeTab]?.includes(category) ?? true;
+                        if (!isVisible) return null;
+
                         const itemsInMode = (menuItems || []).filter(i => i.category === category && i.availableOn?.includes(activeModeTab)).sort((a, b) => (a.menuRanks?.[activeModeTab] || 999) - (b.menuRanks?.[activeModeTab] || 999));
                         const itemsInCatalog = (menuItems || []).filter(i => i.category === category && !i.availableOn?.includes(activeModeTab));
+                        
                         return (
-                          <div key={category} className="space-y-4">
+                          <div key={category} className="space-y-4 animate-in slide-in-from-right-4 duration-300">
                              <div className="flex items-center gap-3 border-b-2 border-slate-100 pb-2"><h3 className="font-headline font-black text-xs uppercase tracking-widest text-primary">{category}</h3><Badge variant="outline" className="text-[8px] font-black uppercase bg-slate-50">{itemsInMode.length} Active</Badge></div>
                              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                                 <div className="space-y-3">
                                    <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2"><Plus className="h-3 w-3" /> Pick from Catalog</p>
                                    <div className="grid gap-2">
-                                      {itemsInCatalog.map(item => (
-                                        <button key={item.id} onClick={() => handleToggleItemInMode(item.id, activeModeTab, 'add')} className="flex items-center gap-3 p-3 bg-white border-2 rounded-xl text-left hover:border-primary/30 transition-all group">
-                                          <div className="h-8 w-8 rounded-lg overflow-hidden bg-muted shrink-0">{item.imageUrl && <Image src={item.imageUrl} alt={item.name} fill className="object-cover" />}</div>
-                                          <span className="text-[10px] font-black uppercase text-[#213147] flex-1">{item.name}</span>
-                                          <Plus className="h-3.5 w-3.5 text-slate-200 group-hover:text-primary" />
-                                        </button>
-                                      ))}
+                                      {itemsInCatalog.length === 0 ? (
+                                        <div className="p-8 text-center border-2 border-dashed rounded-xl bg-slate-50/50 opacity-40"><p className="text-[8px] font-black uppercase">No more {category.toLowerCase()} in catalog</p></div>
+                                      ) : (
+                                        itemsInCatalog.map(item => (
+                                          <button key={item.id} onClick={() => handleToggleItemInMode(item.id, activeModeTab, 'add')} className="flex items-center gap-3 p-3 bg-white border-2 rounded-xl text-left hover:border-primary/30 transition-all group">
+                                            <div className="h-8 w-8 rounded-lg overflow-hidden bg-muted shrink-0 relative">{item.imageUrl && <Image src={item.imageUrl} alt={item.name} fill className="object-cover" />}</div>
+                                            <span className="text-[10px] font-black uppercase text-[#213147] flex-1">{item.name}</span>
+                                            <Plus className="h-3.5 w-3.5 text-slate-200 group-hover:text-primary" />
+                                          </button>
+                                        ))
+                                      )}
                                    </div>
                                 </div>
                                 <div className="space-y-3">
                                    <p className="text-[9px] font-black uppercase tracking-widest text-[#213147] flex items-center gap-2"><GripVertical className="h-3 w-3" /> Active Priority</p>
-                                   <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(e) => handleDragEnd(e, category, activeModeTab)}>
-                                      <SortableContext items={itemsInMode.map(i => i.id)} strategy={verticalListSortingStrategy}>
-                                         <div className="grid gap-2">
-                                            {itemsInMode.map(item => (<SortableItem key={item.id} id={item.id} item={item} isFeatured={item.featuredOn?.includes(activeModeTab) ?? false} onToggleFeature={() => handleToggleFeatureInMode(item.id, activeModeTab)} onRemove={() => handleToggleItemInMode(item.id, activeModeTab, 'remove')} />))}
-                                         </div>
-                                      </SortableContext>
-                                   </DndContext>
+                                   {itemsInMode.length === 0 ? (
+                                     <div className="p-12 text-center border-2 border-dashed rounded-xl bg-slate-50/50 opacity-40"><UtensilsCrossed className="h-6 w-6 mx-auto mb-2 text-slate-300" /><p className="text-[8px] font-black uppercase">Menu section is empty</p></div>
+                                   ) : (
+                                     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(e) => handleDragEnd(e, category, activeModeTab)}>
+                                        <SortableContext items={itemsInMode.map(i => i.id)} strategy={verticalListSortingStrategy}>
+                                           <div className="grid gap-2">
+                                              {itemsInMode.map(item => (<SortableItem key={item.id} id={item.id} item={item} isFeatured={item.featuredOn?.includes(activeModeTab) ?? false} onToggleFeature={() => handleToggleFeatureInMode(item.id, activeModeTab)} onRemove={() => handleToggleItemInMode(item.id, activeModeTab, 'remove')} />))}
+                                           </div>
+                                        </SortableContext>
+                                     </DndContext>
+                                   )}
                                 </div>
                              </div>
                           </div>
@@ -665,6 +710,79 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                       })}
                     </div>
                   </div>
+                </div>
+              )}
+
+              {activeNav === 'menu' && (
+                <div className="space-y-6 animate-in fade-in duration-500">
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-xl font-black uppercase text-[#213147]">Master Catalog</h2>
+                    <Button onClick={() => { itemForm.reset(); router.push(`/sellers/${sellerId}/menu/new`); }} className="bg-primary font-black uppercase text-xs tracking-widest"><Plus className="h-4 w-4 mr-2" /> New Product</Button>
+                  </div>
+                  <Card className="border-2 rounded-[2rem] overflow-hidden shadow-sm bg-white">
+                    <Table>
+                      <TableHeader className="bg-slate-50">
+                        <TableRow>
+                          <TableHead className="px-8 py-5 text-[10px] font-black uppercase tracking-widest">Item</TableHead>
+                          <TableHead className="text-[10px] font-black uppercase tracking-widest">Category</TableHead>
+                          <TableHead className="text-[10px] font-black uppercase tracking-widest">Price</TableHead>
+                          <TableHead className="text-[10px] font-black uppercase tracking-widest">Stock</TableHead>
+                          <TableHead className="text-right px-8 text-[10px] font-black uppercase tracking-widest">Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {(menuItems || []).sort((a, b) => a.category.localeCompare(b.category)).map(item => (
+                          <TableRow key={item.id} className="group hover:bg-slate-50/50 transition-colors">
+                            <TableCell className="px-8">
+                              <div className="flex items-center gap-3">
+                                <div className="h-10 w-10 rounded-lg overflow-hidden border relative shrink-0">
+                                  {item.imageUrl ? <Image src={item.imageUrl} alt={item.name} fill className="object-cover" /> : <LucideImage className="h-full w-full p-2 text-muted-foreground/20" />}
+                                </div>
+                                <span className="font-bold text-sm text-[#213147] uppercase">{item.name}</span>
+                              </div>
+                            </TableCell>
+                            <TableCell><Badge variant="outline" className="text-[8px] font-black uppercase bg-slate-100 border-slate-200">{item.category}</Badge></TableCell>
+                            <TableCell className="font-mono font-bold text-sm">${item.price.toFixed(2)}</TableCell>
+                            <TableCell><Switch checked={item.isAvailable !== false} onCheckedChange={(val) => updateDoc(doc(firestore!, 'sellers', sellerId, 'menuItems', item.id), { isAvailable: val })} className="scale-75 data-[state=checked]:bg-green-500" /></TableCell>
+                            <TableCell className="text-right px-8"><div className="flex justify-end gap-1"><Button variant="ghost" size="icon" className="h-8 w-8 hover:text-primary"><Edit className="h-4 w-4" /></Button><Button variant="ghost" size="icon" className="h-8 w-8 hover:text-destructive"><Trash2 className="h-4 w-4" /></Button></div></TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </Card>
+                </div>
+              )}
+
+              {activeNav === 'staff' && (
+                <div className="space-y-6 animate-in fade-in duration-500">
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-xl font-black uppercase text-[#213147]">Establishment Personnel</h2>
+                    <Button onClick={() => { setEditingStaff(null); staffForm.reset(); setIsStaffFormOpen(true); }} className="bg-[#213147] font-black uppercase text-xs tracking-widest"><Plus className="h-4 w-4 mr-2" /> Add Staff</Button>
+                  </div>
+                  <Card className="border-2 rounded-[2rem] overflow-hidden shadow-sm bg-white">
+                    <Table>
+                      <TableHeader className="bg-slate-50">
+                        <TableRow>
+                          <TableHead className="px-8 py-5 text-[10px] font-black uppercase tracking-widest">Name</TableHead>
+                          <TableHead className="text-[10px] font-black uppercase tracking-widest">Role</TableHead>
+                          <TableHead className="text-[10px] font-black uppercase tracking-widest">Access PIN</TableHead>
+                          <TableHead className="text-[10px] font-black uppercase tracking-widest">Status</TableHead>
+                          <TableHead className="text-right px-8 text-[10px] font-black uppercase tracking-widest">Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {(staffList || []).map(staff => (
+                          <TableRow key={staff.id} className="group hover:bg-slate-50/50 transition-colors">
+                            <TableCell className="px-8 font-bold text-sm uppercase">{staff.name}</TableCell>
+                            <TableCell><Badge variant="outline" className={cn("text-[8px] font-black uppercase border-0", staff.role === 'Manager' ? "bg-[#213147] text-white" : "bg-slate-100 text-slate-600")}>{staff.role}</Badge></TableCell>
+                            <TableCell><code className="bg-slate-100 px-2 py-1 rounded text-xs font-black tracking-widest">{staff.pin}</code></TableCell>
+                            <TableCell><div className="flex items-center gap-2">{staff.activeMode ? (<Badge className="bg-green-500 border-0 h-2 w-2 rounded-full p-0 animate-pulse" />) : (<Badge className="bg-slate-300 border-0 h-2 w-2 rounded-full p-0" />)}<span className="text-[10px] font-black uppercase">{staff.activeMode || 'Offline'}</span></div></TableCell>
+                            <TableCell className="text-right px-8"><div className="flex justify-end gap-1"><Button variant="ghost" size="icon" onClick={() => { setEditingStaff(staff); staffForm.reset(staff); setIsStaffFormOpen(true); }} className="h-8 w-8 hover:text-primary"><Edit className="h-4 w-4" /></Button></div></TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </Card>
                 </div>
               )}
 
@@ -696,6 +814,15 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                 <FormField control={staffForm.control} name="name" render={({ field }) => (
                   <FormItem className="text-left"><FormLabel className="text-[10px] font-black uppercase">Legal Full Name</FormLabel><FormControl><Input {...field} className="h-12 border-2 font-bold" /></FormControl></FormItem>
                 )} />
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField control={staffForm.control} name="role" render={({ field }) => (
+                    <FormItem className="text-left"><FormLabel className="text-[10px] font-black uppercase">Role</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger className="h-12 border-2 font-bold"><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="Staff">Staff</SelectItem><SelectItem value="Manager">Manager</SelectItem></SelectContent></Select></FormItem>
+                  )} />
+                  <FormField control={staffForm.control} name="pin" render={({ field }) => (
+                    <FormItem className="text-left"><FormLabel className="text-[10px] font-black uppercase">Login PIN</FormLabel><FormControl><Input {...field} maxLength={4} className="h-12 border-2 font-bold text-center tracking-[0.5em]" /></FormControl></FormItem>
+                  )} />
+                </div>
                 <Button type="submit" disabled={isProcessingSave} className="w-full h-14 bg-[#213147] font-black uppercase tracking-widest text-[11px] gap-2 shadow-xl">{isProcessingSave ? <Loader2 className="animate-spin" /> : <Save className="h-4 w-4" />} Synchronize Staff Record</Button>
               </form>
             </Form>
