@@ -45,7 +45,12 @@ import {
   ClipboardCheck,
   Menu,
   Tags,
-  Image as LucideImage
+  Image as LucideImage,
+  AlertTriangle,
+  MapPin,
+  Mail,
+  Smartphone as PhoneIcon,
+  Timer
 } from 'lucide-react';
 import Image from 'next/image';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -423,6 +428,18 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
     }
   };
 
+  const handleUpdateField = (field: string, value: any) => {
+    if (!firestore || !sellerId) return;
+    const docRef = doc(firestore, 'sellers', sellerId);
+    updateDoc(docRef, { [field]: value, updatedAt: serverTimestamp() }).catch(async (error) => {
+      errorEmitter.emit('permission-error', new FirestorePermissionError({
+        path: docRef.path,
+        operation: 'update',
+        requestResourceData: { [field]: value },
+      } satisfies SecurityRuleContext));
+    });
+  };
+
   const handleLogout = async () => { if (!auth) return; await signOut(auth); router.push('/login'); };
 
   if (isUserLoading || isSellerLoading) return <div className="flex flex-col items-center justify-center h-screen bg-[#213147] text-white"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>;
@@ -771,15 +788,186 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
               )}
 
               {activeNav === 'settings' && (
-                <div className="max-w-3xl space-y-8 animate-in fade-in duration-500">
-                    <Card className="border-2 shadow-sm p-8 space-y-8 text-left h-fit">
-                      <div className="space-y-6">
-                        <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2"><Building className="h-4 w-4" /> Core Identity</h4>
-                        <div className="grid gap-6">
-                          <div className="space-y-2 text-left"><Label className="text-[10px] font-black uppercase">Venue Name</Label><Input defaultValue={seller?.courseName} onChange={(e) => updateDoc(doc(firestore!, 'sellers', sellerId), { courseName: e.target.value })} className="h-12 border-2 font-bold" /></div>
+                <div className="max-w-4xl space-y-10 animate-in fade-in duration-500">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-primary/10 rounded-lg"><SettingsIcon className="h-6 w-6 text-primary" /></div>
+                    <h2 className="text-2xl font-black uppercase text-[#213147]">Venue Operations</h2>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    {/* CORE IDENTITY */}
+                    <Card className="border-2 shadow-sm">
+                      <CardHeader className="bg-slate-50 border-b py-4">
+                        <CardTitle className="text-[10px] font-black uppercase tracking-widest text-[#213147] flex items-center gap-2">
+                          <Building className="h-3 w-3" /> Core Identity
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="pt-6 space-y-4">
+                        <div className="space-y-1.5">
+                          <Label className="text-[9px] font-black uppercase">Venue Name</Label>
+                          <Input defaultValue={seller?.courseName} onBlur={(e) => handleUpdateField('courseName', e.target.value)} className="h-10 border-2 font-bold" />
                         </div>
-                      </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-[9px] font-black uppercase">Street Address</Label>
+                          <Input defaultValue={seller?.streetAddress} onBlur={(e) => handleUpdateField('streetAddress', e.target.value)} className="h-10 border-2 font-bold" />
+                        </div>
+                        <div className="grid grid-cols-3 gap-2">
+                          <div className="space-y-1.5"><Label className="text-[9px] font-black uppercase">City</Label><Input defaultValue={seller?.city} onBlur={(e) => handleUpdateField('city', e.target.value)} className="h-10 border-2 font-bold" /></div>
+                          <div className="space-y-1.5"><Label className="text-[9px] font-black uppercase">State</Label><Input defaultValue={seller?.state} onBlur={(e) => handleUpdateField('state', e.target.value)} className="h-10 border-2 font-bold" /></div>
+                          <div className="space-y-1.5"><Label className="text-[9px] font-black uppercase">Zip</Label><Input defaultValue={seller?.zip} onBlur={(e) => handleUpdateField('zip', e.target.value)} className="h-10 border-2 font-bold" /></div>
+                        </div>
+                      </CardContent>
                     </Card>
+
+                    {/* OPERATIONS & TAX */}
+                    <Card className="border-2 shadow-sm">
+                      <CardHeader className="bg-slate-50 border-b py-4">
+                        <CardTitle className="text-[10px] font-black uppercase tracking-widest text-[#213147] flex items-center gap-2">
+                          <DollarSign className="h-3 w-3" /> Operations & Tax
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="pt-6 space-y-4">
+                         <div className="space-y-1.5">
+                           <Label className="text-[9px] font-black uppercase">Sales Tax Rate (%)</Label>
+                           <Input type="number" step="0.01" defaultValue={seller?.taxRate} onBlur={(e) => handleUpdateField('taxRate', parseFloat(e.target.value))} className="h-10 border-2 font-bold" />
+                           <p className="text-[8px] font-medium text-muted-foreground uppercase">Applied to all digital and manual orders.</p>
+                         </div>
+                         <div className="space-y-1.5">
+                            <Label className="text-[9px] font-black uppercase">Base Service Fee Override ($)</Label>
+                            <Input type="number" step="0.50" defaultValue={seller?.serviceFee} onBlur={(e) => handleUpdateField('serviceFee', parseFloat(e.target.value))} className="h-10 border-2 font-bold" />
+                            <p className="text-[8px] font-medium text-muted-foreground uppercase">Legacy fee control. Primary fees managed by Koop Admin.</p>
+                         </div>
+                      </CardContent>
+                    </Card>
+
+                    {/* FULFILLMENT GUARDRAILS */}
+                    <Card className="border-2 shadow-sm md:col-span-2">
+                       <CardHeader className="bg-[#213147] text-white py-4 border-b">
+                          <CardTitle className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
+                            <Timer className="h-3.5 w-3.5 text-primary" /> Fulfillment Guardrails (Minutes)
+                          </CardTitle>
+                       </CardHeader>
+                       <CardContent className="pt-6">
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                             {seller?.menuTypes?.filter(m => AUTHORIZED_SERVICE_MODES.includes(m)).map(mode => (
+                               <div key={mode} className="space-y-4 p-4 rounded-xl border-2 bg-slate-50 border-slate-100">
+                                  <div className="flex items-center gap-2 border-b pb-2 mb-2">
+                                     <Zap className="h-3 w-3 text-primary" />
+                                     <span className="text-[10px] font-black uppercase tracking-tight">{mode}</span>
+                                  </div>
+                                  <div className="grid grid-cols-2 gap-4">
+                                     <div className="space-y-1.5">
+                                        <Label className="text-[8px] font-black uppercase text-amber-600">Warning (Amber)</Label>
+                                        <Input 
+                                          type="number" 
+                                          defaultValue={seller?.orderThresholds?.[mode]?.warningOrderProcessingMinutes || 15} 
+                                          onBlur={(e) => handleUpdateField(`orderThresholds.${mode}.warningOrderProcessingMinutes`, parseInt(e.target.value))}
+                                          className="h-10 border-2 font-bold text-center" 
+                                        />
+                                     </div>
+                                     <div className="space-y-1.5">
+                                        <Label className="text-[8px] font-black uppercase text-red-600">Overdue (Red)</Label>
+                                        <Input 
+                                          type="number" 
+                                          defaultValue={seller?.orderThresholds?.[mode]?.maxOrderProcessingMinutes || 25} 
+                                          onBlur={(e) => handleUpdateField(`orderThresholds.${mode}.maxOrderProcessingMinutes`, parseInt(e.target.value))}
+                                          className="h-10 border-2 font-bold text-center" 
+                                        />
+                                     </div>
+                                  </div>
+                               </div>
+                             ))}
+                          </div>
+                       </CardContent>
+                    </Card>
+
+                    {/* SIGNAL PRECISION */}
+                    <Card className="border-2 shadow-sm">
+                      <CardHeader className="bg-slate-50 border-b py-4">
+                        <CardTitle className="text-[10px] font-black uppercase tracking-widest text-[#213147] flex items-center gap-2">
+                          <Smartphone className="h-3 w-3" /> Signal Precision (Seconds)
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="pt-6 space-y-6">
+                         <div className="grid grid-cols-3 gap-3">
+                            <div className="space-y-1.5 text-center">
+                               <Label className="text-[8px] font-black uppercase text-green-600">Hot</Label>
+                               <Input 
+                                 type="number" 
+                                 defaultValue={seller?.healthSettings?.warningManagerInactivityDays || 60} 
+                                 onBlur={(e) => handleUpdateField('healthSettings.warningManagerInactivityDays', parseInt(e.target.value))}
+                                 className="h-10 border-2 font-bold text-center" 
+                               />
+                            </div>
+                            <div className="space-y-1.5 text-center">
+                               <Label className="text-[8px] font-black uppercase text-amber-500">Warm</Label>
+                               <Input 
+                                 type="number" 
+                                 defaultValue={seller?.healthSettings?.warningVenueInactivityDays || 300} 
+                                 onBlur={(e) => handleUpdateField('healthSettings.warningVenueInactivityDays', parseInt(e.target.value))}
+                                 className="h-10 border-2 font-bold text-center" 
+                               />
+                            </div>
+                            <div className="space-y-1.5 text-center">
+                               <Label className="text-[8px] font-black uppercase text-red-500">Cold</Label>
+                               <Input 
+                                 type="number" 
+                                 defaultValue={600} 
+                                 disabled
+                                 className="h-10 border-2 font-bold text-center opacity-50" 
+                               />
+                            </div>
+                         </div>
+                         <p className="text-[9px] font-medium text-muted-foreground uppercase text-center leading-relaxed">
+                           Determines when a patron's GPS marker changes color based on last signal heartbeat.
+                         </p>
+                      </CardContent>
+                    </Card>
+
+                    {/* CONTACT & SUPPORT */}
+                    <Card className="border-2 shadow-sm">
+                      <CardHeader className="bg-slate-50 border-b py-4">
+                        <CardTitle className="text-[10px] font-black uppercase tracking-widest text-[#213147] flex items-center gap-2">
+                          <Mail className="h-3 w-3" /> Contact & Personnel
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="pt-6 space-y-4">
+                        <div className="space-y-1.5">
+                          <Label className="text-[9px] font-black uppercase">Primary Manager Name</Label>
+                          <Input defaultValue={seller?.contactName} onBlur={(e) => handleUpdateField('contactName', e.target.value)} className="h-10 border-2 font-bold" />
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div className="space-y-1.5"><Label className="text-[9px] font-black uppercase">Admin Email</Label><Input type="email" defaultValue={seller?.contactEmail} onBlur={(e) => handleUpdateField('contactEmail', e.target.value)} className="h-10 border-2 font-bold" /></div>
+                          <div className="space-y-1.5"><Label className="text-[9px] font-black uppercase">Admin Phone</Label><Input type="tel" defaultValue={seller?.contactPhone} onBlur={(e) => handleUpdateField('contactPhone', e.target.value)} className="h-10 border-2 font-bold" /></div>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    {/* MAP COORDINATES */}
+                    <Card className="border-2 shadow-sm md:col-span-2 bg-slate-50/50">
+                       <CardHeader className="py-4 border-b">
+                          <CardTitle className="text-[10px] font-black uppercase tracking-widest text-[#213147] flex items-center gap-2">
+                            <MapPin className="h-3 w-3" /> Static Map Anchors
+                          </CardTitle>
+                       </CardHeader>
+                       <CardContent className="pt-6">
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
+                             <div className="space-y-1.5">
+                               <Label className="text-[9px] font-black uppercase">Anchor Latitude</Label>
+                               <Input type="number" step="0.000001" defaultValue={seller?.latitude} onBlur={(e) => handleUpdateField('latitude', parseFloat(e.target.value))} className="h-11 border-2 font-bold bg-white" />
+                             </div>
+                             <div className="space-y-1.5">
+                               <Label className="text-[9px] font-black uppercase">Anchor Longitude</Label>
+                               <Input type="number" step="0.000001" defaultValue={seller?.longitude} onBlur={(e) => handleUpdateField('longitude', parseFloat(e.target.value))} className="h-11 border-2 font-bold bg-white" />
+                             </div>
+                             <div className="bg-white p-4 rounded-xl border-2 border-slate-100 flex items-center gap-3">
+                                <AlertTriangle className="h-5 w-5 text-amber-500" />
+                                <div className="text-left"><p className="text-[9px] font-black uppercase text-[#213147]">Coordinate Accuracy</p><p className="text-[8px] font-medium text-muted-foreground uppercase leading-tight">These drive the default satellite center point for patrons.</p></div>
+                             </div>
+                          </div>
+                       </CardContent>
+                    </Card>
+                  </div>
                 </div>
               )}
             </div>
