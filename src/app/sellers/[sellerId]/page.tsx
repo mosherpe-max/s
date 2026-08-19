@@ -61,7 +61,7 @@ import { Switch } from '@/components/ui/switch';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Form, FormControl, FormField, FormItem, FormLabel } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel } from '@/components/form';
 import {
   Select,
   SelectContent,
@@ -109,7 +109,7 @@ import {
   XAxis, 
   YAxis, 
   CartesianGrid, 
-  ChartTooltip, 
+  Tooltip, 
   ResponsiveContainer,
   Legend
 } from 'recharts';
@@ -511,7 +511,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                             <CartesianGrid strokeDasharray="3 3" horizontal={false} />
                             <XAxis type="number" hide />
                             <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{ fontSize: 9, fontWeight: 900 }} width={120} />
-                            <ChartTooltip />
+                            <Tooltip />
                             <Bar dataKey="volume" fill="#213147" radius={[0, 4, 4, 0]} />
                           </BarChart>
                         </ResponsiveContainer>
@@ -556,7 +556,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                             <CartesianGrid strokeDasharray="3 3" vertical={false} />
                             <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 900 }} />
                             <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 900 }} tickFormatter={(v) => `$${v}`} />
-                            <ChartTooltip formatter={(v: number) => [`$${v.toFixed(2)}`]} />
+                            <Tooltip formatter={(v: number) => [`$${v.toFixed(2)}`]} />
                             <Legend iconType="circle" />
                             {analyticsData.modes.map((mode) => (
                               <Bar key={mode} dataKey={mode} stackId="a" fill={getModeColor(mode)} radius={[0, 0, 0, 0]} barSize={40} />
@@ -587,7 +587,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                       <TableHeader className="bg-slate-50">
                         <TableRow>
                           <TableHead className="px-8 py-5 text-[10px] font-black uppercase tracking-widest">Ticket</TableHead>
-                          <TableHead className="text-[10px] font-black uppercase tracking-widest">Customer</TableHead>
+                          <TableHead className="text-[10px) font-black uppercase tracking-widest">Customer</TableHead>
                           <TableHead className="text-[10px] font-black uppercase tracking-widest">Mode</TableHead>
                           <TableHead className="text-[10px] font-black uppercase tracking-widest">Status</TableHead>
                           <TableHead className="text-[10px] font-black uppercase tracking-widest text-right px-8">Total</TableHead>
@@ -1045,3 +1045,4 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
     </div>
   );
 }
+
