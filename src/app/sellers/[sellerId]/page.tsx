@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useMemo, useEffect, use } from 'react';
@@ -457,7 +456,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
           <StylizedKoopLogo size="sm" colorClass="text-[#213147]" />
           <div className="flex flex-col text-left">
             <h1 className="text-sm font-black text-[#213147] uppercase tracking-tight leading-none mb-1 truncate max-w-[200px]">{seller?.courseName}</h1>
-            <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest leading-none">Establishment Admin</p>
+            <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest leading-none">Venue Admin</p>
           </div>
         </div>
         <button onClick={handleLogout} className="p-2 text-muted-foreground hover:text-destructive transition-colors flex items-center gap-2"><span className="text-[10px] font-black uppercase tracking-widest hidden sm:inline">Release Device</span><LogOut className="h-5 w-5" /></button>
@@ -741,7 +740,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
               {activeNav === 'staff' && (
                 <div className="space-y-6 animate-in fade-in duration-500">
                   <div className="flex items-center justify-between">
-                    <h2 className="text-xl font-black uppercase text-[#213147]">Establishment Personnel</h2>
+                    <h2 className="text-xl font-black uppercase text-[#213147]">Venue Personnel</h2>
                     <Button onClick={() => { setEditingStaff(null); staffForm.reset(); setIsStaffFormOpen(true); }} className="bg-[#213147] font-black uppercase text-xs tracking-widest"><Plus className="h-4 w-4 mr-2" /> Add Staff</Button>
                   </div>
                   <Card className="border-2 rounded-[2rem] overflow-hidden shadow-sm bg-white">
@@ -777,7 +776,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                       <div className="space-y-6">
                         <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2"><Building className="h-4 w-4" /> Core Identity</h4>
                         <div className="grid gap-6">
-                          <div className="space-y-2 text-left"><Label className="text-[10px] font-black uppercase">Establishment Name</Label><Input defaultValue={seller?.courseName} onChange={(e) => updateDoc(doc(firestore!, 'sellers', sellerId), { courseName: e.target.value })} className="h-12 border-2 font-bold" /></div>
+                          <div className="space-y-2 text-left"><Label className="text-[10px] font-black uppercase">Venue Name</Label><Input defaultValue={seller?.courseName} onChange={(e) => updateDoc(doc(firestore!, 'sellers', sellerId), { courseName: e.target.value })} className="h-12 border-2 font-bold" /></div>
                         </div>
                       </div>
                     </Card>

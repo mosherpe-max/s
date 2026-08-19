@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -282,7 +281,7 @@ export default function LoginPage() {
 
               <div className="bg-amber-50 border border-amber-100 p-3 rounded-xl">
                 <p className="text-[9px] text-amber-800 font-bold uppercase tracking-wide leading-relaxed text-center">
-                  This gateway is restricted to authorized solution personnel and establishment managers.
+                  This gateway is restricted to authorized solution personnel and venue managers.
                 </p>
               </div>
 

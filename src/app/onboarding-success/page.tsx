@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useEffect, Suspense } from 'react';
@@ -13,7 +12,7 @@ function SuccessContent() {
   const venueId = searchParams.get('venueId');
 
   useEffect(() => {
-    // Automatically redirect back to the establishment admin after a few seconds
+    // Automatically redirect back to the venue admin after a few seconds
     const timer = setTimeout(() => {
       if (venueId) {
         router.push(`/sellers/${venueId}`);

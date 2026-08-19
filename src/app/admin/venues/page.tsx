@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState } from 'react';
@@ -252,7 +251,7 @@ export default function AdminVenueRegistryPage() {
       batch.set(businessRef, businessData);
       await batch.commit();
 
-      toast({ title: "Establishment Created" });
+      toast({ title: "Venue Created" });
       setIsNewVenueOpen(false);
       onboardingForm.reset();
     } catch (e: any) {
@@ -280,12 +279,12 @@ export default function AdminVenueRegistryPage() {
             <Store className="h-6 w-6 text-primary" />
           </div>
           <div className="text-left">
-            <h2 className="text-2xl font-black uppercase text-[#213147]">Establishment Registry</h2>
+            <h2 className="text-2xl font-black uppercase text-[#213147]">Venue Registry</h2>
             <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Global Partner Oversight</p>
           </div>
         </div>
         <Button onClick={() => setIsNewVenueOpen(true)} className="bg-[#213147] font-black uppercase text-[10px] tracking-widest h-11 px-6 rounded-xl gap-2 shadow-lg">
-          <Plus className="h-4 w-4" /> Add Establishment
+          <Plus className="h-4 w-4" /> Add Venue
         </Button>
       </div>
 
@@ -293,7 +292,7 @@ export default function AdminVenueRegistryPage() {
         <Table>
           <TableHeader className="bg-slate-50">
             <TableRow>
-              <TableHead className="px-8 py-5 text-[10px] font-black uppercase tracking-widest">Establishment</TableHead>
+              <TableHead className="px-8 py-5 text-[10px] font-black uppercase tracking-widest">Venue</TableHead>
               <TableHead className="text-[10px] font-black uppercase tracking-widest">Type</TableHead>
               <TableHead className="text-[10px] font-black uppercase tracking-widest">Authorized Modes</TableHead>
               <TableHead className="text-[10px] font-black uppercase tracking-widest">Operational Status</TableHead>
@@ -349,7 +348,7 @@ export default function AdminVenueRegistryPage() {
       <Dialog open={isNewVenueOpen} onOpenChange={setIsNewVenueOpen}>
         <DialogContent className="sm:max-w-[550px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
           <DialogHeader className="p-8 bg-[#213147] text-white">
-            <DialogTitle className="font-headline font-black uppercase text-xl">Establishment Onboarding</DialogTitle>
+            <DialogTitle className="font-headline font-black uppercase text-xl">Venue Onboarding</DialogTitle>
           </DialogHeader>
           <ScrollArea className="max-h-[80vh]">
             <div className="p-8">
@@ -362,7 +361,7 @@ export default function AdminVenueRegistryPage() {
                         <FormItem className="text-left"><FormLabel className="text-[10px] font-black uppercase">Venue Name</FormLabel><FormControl><Input {...field} className="h-12 border-2 font-bold" /></FormControl></FormItem>
                       )} />
                       <FormField control={onboardingForm.control} name="type" render={({ field }) => (
-                        <FormItem className="text-left"><FormLabel className="text-[10px] font-black uppercase">Establishment Type</FormLabel>
+                        <FormItem className="text-left"><FormLabel className="text-[10px] font-black uppercase">Venue Type</FormLabel>
                         <Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger className="h-12 border-2 font-bold"><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="Golf Course">Golf Course</SelectItem><SelectItem value="Bowling Center">Bowling Center</SelectItem></SelectContent></Select></FormItem>
                       )} />
                       {onboardingForm.watch('type') === 'Bowling Center' && (
@@ -396,7 +395,7 @@ export default function AdminVenueRegistryPage() {
                     )} />
                   </div>
                   <Button type="submit" disabled={isProcessing} className="w-full h-14 bg-primary font-black uppercase tracking-widest text-[11px] gap-2 shadow-xl rounded-2xl">
-                    {isProcessing ? <Loader2 className="animate-spin" /> : <Save className="h-4 w-4" />} Authorize Establishment
+                    {isProcessing ? <Loader2 className="animate-spin" /> : <Save className="h-4 w-4" />} Authorize Venue
                   </Button>
                 </form>
               </Form>
@@ -408,7 +407,7 @@ export default function AdminVenueRegistryPage() {
       <Dialog open={isManagementOpen} onOpenChange={setIsManagementOpen}>
         <DialogContent className="sm:max-w-[550px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
           <DialogHeader className="p-8 bg-[#213147] text-white">
-            <DialogTitle className="font-headline font-black uppercase text-xl">Establishment Controls</DialogTitle>
+            <DialogTitle className="font-headline font-black uppercase text-xl">Venue Controls</DialogTitle>
           </DialogHeader>
           <ScrollArea className="max-h-[80vh]">
             <div className="p-8 space-y-10">
@@ -502,7 +501,7 @@ export default function AdminVenueRegistryPage() {
           <AlertDialogFooter className="mt-8 gap-3">
             <AlertDialogCancel className="rounded-xl font-black uppercase text-[10px] tracking-widest border-2 h-12">Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleConfirmDelete} className="bg-destructive hover:bg-destructive/90 rounded-xl font-black uppercase text-[10px] tracking-widest h-12 px-8" disabled={isProcessing}>
-              {isProcessing ? <Loader2 className="animate-spin mr-2" /> : <Trash2 className="h-3.5 w-3.5 mr-2" />} Terminate Establishment
+              {isProcessing ? <Loader2 className="animate-spin mr-2" /> : <Trash2 className="h-3.5 w-3.5 mr-2" />} Terminate Venue
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

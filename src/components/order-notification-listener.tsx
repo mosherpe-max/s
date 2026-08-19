@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useEffect, useRef } from 'react';
@@ -93,7 +92,7 @@ export function OrderNotificationListener() {
         case 'Preparing':
           toast({ 
             title: title(<CheckCircle2 className="h-5 w-5 text-primary" />, 'Order Confirmed'), 
-            description: 'Establishment received your order.', 
+            description: 'Venue received your order.', 
             action: trackAction 
           });
           break;
