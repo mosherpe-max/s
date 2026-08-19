@@ -17,13 +17,15 @@ import {
   AlertTriangle,
   User,
   MapPin,
-  Mail
+  Mail,
+  CheckCircle2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { Checkbox } from '@/components/ui/checkbox';
 import { 
   Dialog, 
   DialogContent, 
@@ -57,15 +59,21 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, doc, updateDoc, setDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, doc, updateDoc, setDoc, deleteDoc, serverTimestamp, writeBatch } from 'firebase/firestore';
 import type { Seller, Venue } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Form, FormControl, FormField, FormItem, FormLabel } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormDescription } from '@/components/ui/form';
 import { cn } from '@/lib/utils';
+
+const SERVICE_MODES = [
+  { id: 'Beverage Cart', label: 'Beverage Cart' },
+  { id: 'Clubhouse', label: 'Clubhouse' },
+  { id: 'Lane Delivery', label: 'Lane Delivery' }
+];
 
 // Schema for updating financial registry
 const venueRegistrySchema = z.object({
@@ -77,6 +85,7 @@ const venueRegistrySchema = z.object({
   isFoundingPartner: z.boolean().default(false),
   stripeOnboardingComplete: z.boolean().default(false),
   payoutsEnabled: z.boolean().default(false),
+  menuTypes: z.array(z.string()).min(1, 'At least one service mode required')
 });
 
 type VenueRegistryData = z.infer<typeof venueRegistrySchema>;
@@ -89,6 +98,7 @@ const newVenueSchema = z.object({
   contactEmail: z.string().email('Valid email required'),
   city: z.string().min(2, 'City required'),
   state: z.string().length(2, 'State code (e.g. MI)'),
+  menuTypes: z.array(z.string()).min(1, 'Select at least one mode'),
 });
 
 type NewVenueData = z.infer<typeof newVenueSchema>;
@@ -120,6 +130,7 @@ export default function AdminVenueRegistryPage() {
       isFoundingPartner: false,
       stripeOnboardingComplete: false,
       payoutsEnabled: false,
+      menuTypes: []
     }
   });
 
@@ -132,11 +143,14 @@ export default function AdminVenueRegistryPage() {
       contactEmail: '',
       city: '',
       state: '',
+      menuTypes: ['Beverage Cart', 'Clubhouse']
     }
   });
 
   const handleEditVenue = (venueId: string) => {
     const reg = venuesRegistry?.find(v => v.venueId === venueId);
+    const seller = sellers?.find(s => s.id === venueId);
+    
     if (reg) {
       setSelectedVenue(reg);
       registryForm.reset({
@@ -148,6 +162,7 @@ export default function AdminVenueRegistryPage() {
         isFoundingPartner: !!reg.isFoundingPartner,
         stripeOnboardingComplete: !!reg.stripeOnboardingComplete,
         payoutsEnabled: !!reg.payoutsEnabled,
+        menuTypes: seller?.menuTypes || []
       });
       setIsManagementOpen(true);
     } else {
@@ -158,10 +173,20 @@ export default function AdminVenueRegistryPage() {
   const onSaveVenueRegistry = async (data: VenueRegistryData) => {
     if (!firestore || !selectedVenue) return;
     setIsProcessing(true);
+    
+    const batch = writeBatch(firestore);
     const venueRef = doc(firestore, 'venues', selectedVenue.venueId);
-    updateDoc(venueRef, { ...data, updatedAt: serverTimestamp() })
+    const sellerRef = doc(firestore, 'sellers', selectedVenue.venueId);
+
+    // Filter data for each collection
+    const { menuTypes, ...venueData } = data;
+
+    batch.update(venueRef, { ...venueData, updatedAt: serverTimestamp() });
+    batch.update(sellerRef, { menuTypes, updatedAt: serverTimestamp() });
+
+    batch.commit()
       .then(() => {
-        toast({ title: "Registry Synchronized", description: "Financial settings persisted." });
+        toast({ title: "Registry Synchronized", description: "Financial settings and service modes persisted." });
         setIsManagementOpen(false);
       })
       .finally(() => setIsProcessing(false));
@@ -175,6 +200,8 @@ export default function AdminVenueRegistryPage() {
     const venueId = data.courseName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
     
     try {
+      const batch = writeBatch(firestore);
+
       // 1. Create Operational Profile
       const sellerRef = doc(firestore, 'sellers', venueId);
       const sellerData: Partial<Seller> = {
@@ -185,7 +212,7 @@ export default function AdminVenueRegistryPage() {
         contactEmail: data.contactEmail,
         city: data.city,
         state: data.state,
-        menuTypes: data.type === 'Golf Course' ? ['Beverage Cart', 'Clubhouse'] : ['Lane Delivery'],
+        menuTypes: data.menuTypes,
         taxRate: 6.0,
         serviceFee: 1.50,
         ownerId: data.ownerUid
@@ -207,8 +234,10 @@ export default function AdminVenueRegistryPage() {
         updatedAt: serverTimestamp() as any,
       };
 
-      await setDoc(sellerRef, { ...sellerData, updatedAt: serverTimestamp() });
-      await setDoc(businessRef, businessData);
+      batch.set(sellerRef, { ...sellerData, updatedAt: serverTimestamp() });
+      batch.set(businessRef, businessData);
+
+      await batch.commit();
 
       toast({ title: "Establishment Created", description: "Operational and financial records initialized." });
       setIsNewVenueOpen(false);
@@ -258,8 +287,8 @@ export default function AdminVenueRegistryPage() {
             <TableRow>
               <TableHead className="px-8 py-5 text-[10px] font-black uppercase tracking-widest">Establishment</TableHead>
               <TableHead className="text-[10px] font-black uppercase tracking-widest">Type</TableHead>
+              <TableHead className="text-[10px] font-black uppercase tracking-widest">Authorized Modes</TableHead>
               <TableHead className="text-[10px] font-black uppercase tracking-widest">Operational Status</TableHead>
-              <TableHead className="text-[10px] font-black uppercase tracking-widest">Financial Status</TableHead>
               <TableHead className="text-right px-8 text-[10px] font-black uppercase tracking-widest">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -276,6 +305,13 @@ export default function AdminVenueRegistryPage() {
                   </TableCell>
                   <TableCell><Badge className="bg-[#213147] text-white text-[8px] font-black uppercase border-0">{v.type}</Badge></TableCell>
                   <TableCell>
+                    <div className="flex flex-wrap gap-1">
+                      {(v.menuTypes || []).map(mode => (
+                        <Badge key={mode} variant="outline" className="text-[7px] font-black uppercase bg-white border-primary/20 text-primary">{mode}</Badge>
+                      ))}
+                    </div>
+                  </TableCell>
+                  <TableCell>
                      <div className="flex flex-col gap-1">
                         <Badge variant={v.status === 'Active' ? 'default' : 'outline'} className={cn("text-[8px] font-black uppercase w-fit", v.status === 'Active' ? "bg-green-500" : "text-slate-400")}>
                           {v.status}
@@ -283,19 +319,10 @@ export default function AdminVenueRegistryPage() {
                         {registry?.isFoundingPartner && <Badge className="bg-amber-500 text-white text-[7px] font-black uppercase w-fit">Founding Partner</Badge>}
                      </div>
                   </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      {registry?.stripeOnboardingComplete ? (
-                        <Badge className="bg-emerald-500 text-white border-0 text-[7px] font-black uppercase">Stripe: Verified</Badge>
-                      ) : (
-                        <Badge variant="outline" className="text-[7px] font-black uppercase text-amber-600 border-amber-200 bg-amber-50">Stripe: Pending</Badge>
-                      )}
-                    </div>
-                  </TableCell>
                   <TableCell className="text-right px-8">
                     <div className="flex justify-end gap-2">
                        <Button variant="outline" size="sm" onClick={() => handleEditVenue(v.id)} className="h-8 text-[9px] font-black uppercase tracking-widest border-2 gap-1.5 rounded-lg">
-                          <DollarSign className="h-3 w-3" /> Fees
+                          <Edit className="h-3 w-3" /> Manage
                        </Button>
                        <Button variant="ghost" size="icon" onClick={() => setVenueToDelete(v.id)} className="h-8 w-8 text-muted-foreground hover:text-destructive rounded-lg">
                           <Trash2 className="h-4 w-4" />
@@ -316,47 +343,101 @@ export default function AdminVenueRegistryPage() {
             <DialogTitle className="font-headline font-black uppercase text-xl">Establishment Onboarding</DialogTitle>
             <DialogDescription className="text-white/40 text-[10px] font-bold uppercase tracking-widest mt-1">Initialize new operational & financial registry</DialogDescription>
           </DialogHeader>
-          <div className="p-8">
-            <Form {...onboardingForm}>
-              <form onSubmit={onboardingForm.handleSubmit(handleCreateVenue)} className="space-y-6">
-                <div className="space-y-6">
-                  <div className="grid grid-cols-1 gap-4">
-                    <FormField control={onboardingForm.control} name="courseName" render={({ field }) => (
-                      <FormItem className="text-left">
-                        <FormLabel className="text-[10px] font-black uppercase">Venue Name</FormLabel>
-                        <FormControl><Input {...field} placeholder="e.g. Pine Valley Golf Club" className="h-12 border-2 font-bold" /></FormControl>
-                      </FormItem>
-                    )} />
-                    <FormField control={onboardingForm.control} name="type" render={({ field }) => (
-                      <FormItem className="text-left">
-                        <FormLabel className="text-[10px] font-black uppercase">Establishment Type</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                          <FormControl><SelectTrigger className="h-12 border-2 font-bold"><SelectValue /></SelectTrigger></FormControl>
-                          <SelectContent>
-                            <SelectItem value="Golf Course">Golf Course</SelectItem>
-                            <SelectItem value="Bowling Center">Bowling Center</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </FormItem>
-                    )} />
+          <ScrollArea className="max-h-[80vh]">
+            <div className="p-8">
+              <Form {...onboardingForm}>
+                <form onSubmit={onboardingForm.handleSubmit(handleCreateVenue)} className="space-y-8">
+                  <div className="space-y-6">
+                    <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2">
+                      <Store className="h-3 w-3" /> Identity & Type
+                    </Label>
+                    <div className="grid grid-cols-1 gap-4">
+                      <FormField control={onboardingForm.control} name="courseName" render={({ field }) => (
+                        <FormItem className="text-left">
+                          <FormLabel className="text-[10px] font-black uppercase">Venue Name</FormLabel>
+                          <FormControl><Input {...field} placeholder="e.g. Pine Valley Golf Club" className="h-12 border-2 font-bold" /></FormControl>
+                        </FormItem>
+                      )} />
+                      <FormField control={onboardingForm.control} name="type" render={({ field }) => (
+                        <FormItem className="text-left">
+                          <FormLabel className="text-[10px] font-black uppercase">Establishment Type</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl><SelectTrigger className="h-12 border-2 font-bold"><SelectValue /></SelectTrigger></FormControl>
+                            <SelectContent>
+                              <SelectItem value="Golf Course">Golf Course</SelectItem>
+                              <SelectItem value="Bowling Center">Bowling Center</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </FormItem>
+                      )} />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <FormField control={onboardingForm.control} name="city" render={({ field }) => (
+                        <FormItem className="text-left">
+                          <FormLabel className="text-[10px] font-black uppercase">City</FormLabel>
+                          <FormControl><Input {...field} className="h-12 border-2 font-bold" /></FormControl>
+                        </FormItem>
+                      )} />
+                      <FormField control={onboardingForm.control} name="state" render={({ field }) => (
+                        <FormItem className="text-left">
+                          <FormLabel className="text-[10px] font-black uppercase">State (2 Letter)</FormLabel>
+                          <FormControl><Input {...field} maxLength={2} className="h-12 border-2 font-bold uppercase text-center" /></FormControl>
+                        </FormItem>
+                      )} />
+                    </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <FormField control={onboardingForm.control} name="city" render={({ field }) => (
-                      <FormItem className="text-left">
-                        <FormLabel className="text-[10px] font-black uppercase">City</FormLabel>
-                        <FormControl><Input {...field} className="h-12 border-2 font-bold" /></FormControl>
-                      </FormItem>
-                    )} />
-                    <FormField control={onboardingForm.control} name="state" render={({ field }) => (
-                      <FormItem className="text-left">
-                        <FormLabel className="text-[10px] font-black uppercase">State (2 Letter)</FormLabel>
-                        <FormControl><Input {...field} maxLength={2} className="h-12 border-2 font-bold uppercase text-center" /></FormControl>
-                      </FormItem>
-                    )} />
+                  <div className="space-y-6 pt-6 border-t border-slate-100">
+                    <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2">
+                      <Zap className="h-3 w-3" /> Authorized Modes
+                    </Label>
+                    <FormField
+                      control={onboardingForm.control}
+                      name="menuTypes"
+                      render={() => (
+                        <FormItem>
+                          <div className="grid gap-3">
+                            {SERVICE_MODES.map((mode) => (
+                              <FormField
+                                key={mode.id}
+                                control={onboardingForm.control}
+                                name="menuTypes"
+                                render={({ field }) => {
+                                  return (
+                                    <FormItem
+                                      key={mode.id}
+                                      className="flex flex-row items-center space-x-3 space-y-0 p-4 rounded-xl border-2 bg-slate-50 border-slate-100"
+                                    >
+                                      <FormControl>
+                                        <Checkbox
+                                          checked={field.value?.includes(mode.id)}
+                                          onCheckedChange={(checked) => {
+                                            return checked
+                                              ? field.onChange([...field.value, mode.id])
+                                              : field.onChange(
+                                                  field.value?.filter(
+                                                    (value) => value !== mode.id
+                                                  )
+                                                )
+                                          }}
+                                        />
+                                      </FormControl>
+                                      <FormLabel className="text-[10px] font-black uppercase text-[#213147] cursor-pointer">
+                                        {mode.label}
+                                      </FormLabel>
+                                    </FormItem>
+                                  )
+                                }}
+                              />
+                            ))}
+                          </div>
+                        </FormItem>
+                      )}
+                    />
                   </div>
 
-                  <div className="space-y-4 pt-4 border-t border-slate-100">
+                  <div className="space-y-4 pt-6 border-t border-slate-100">
                     <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2">
                       <User className="h-3 w-3" /> Identity Mapping
                     </Label>
@@ -374,14 +455,14 @@ export default function AdminVenueRegistryPage() {
                       </FormItem>
                     )} />
                   </div>
-                </div>
 
-                <Button type="submit" disabled={isProcessing} className="w-full h-14 bg-primary font-black uppercase tracking-widest text-[11px] gap-2 shadow-xl rounded-2xl">
-                  {isProcessing ? <Loader2 className="animate-spin" /> : <Save className="h-4 w-4" />} Authorize Establishment
-                </Button>
-              </form>
-            </Form>
-          </div>
+                  <Button type="submit" disabled={isProcessing} className="w-full h-14 bg-primary font-black uppercase tracking-widest text-[11px] gap-2 shadow-xl rounded-2xl">
+                    {isProcessing ? <Loader2 className="animate-spin" /> : <Save className="h-4 w-4" />} Authorize Establishment
+                  </Button>
+                </form>
+              </Form>
+            </div>
+          </ScrollArea>
         </DialogContent>
       </Dialog>
 
@@ -389,14 +470,63 @@ export default function AdminVenueRegistryPage() {
       <Dialog open={isManagementOpen} onOpenChange={setIsManagementOpen}>
         <DialogContent className="sm:max-w-[550px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
           <DialogHeader className="p-8 bg-[#213147] text-white">
-            <DialogTitle className="font-headline font-black uppercase text-xl">Financial Controls</DialogTitle>
+            <DialogTitle className="font-headline font-black uppercase text-xl">Establishment Controls</DialogTitle>
           </DialogHeader>
           <ScrollArea className="max-h-[80vh]">
             <div className="p-8">
                <Form {...registryForm}>
                  <form onSubmit={registryForm.handleSubmit(onSaveVenueRegistry)} className="space-y-8">
                     <div className="space-y-6">
-                       <Label className="text-[10px] font-black uppercase tracking-widest text-primary flex items-center gap-2">
+                       <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2">
+                         <Zap className="h-3 w-3" /> Authorized Modes
+                       </Label>
+                       <FormField
+                          control={registryForm.control}
+                          name="menuTypes"
+                          render={() => (
+                            <FormItem>
+                              <div className="grid gap-3">
+                                {SERVICE_MODES.map((mode) => (
+                                  <FormField
+                                    key={mode.id}
+                                    control={registryForm.control}
+                                    name="menuTypes"
+                                    render={({ field }) => {
+                                      return (
+                                        <FormItem
+                                          key={mode.id}
+                                          className="flex flex-row items-center space-x-3 space-y-0 p-4 rounded-xl border-2 bg-slate-50 border-slate-100"
+                                        >
+                                          <FormControl>
+                                            <Checkbox
+                                              checked={field.value?.includes(mode.id)}
+                                              onCheckedChange={(checked) => {
+                                                return checked
+                                                  ? field.onChange([...field.value, mode.id])
+                                                  : field.onChange(
+                                                      field.value?.filter(
+                                                        (value) => value !== mode.id
+                                                      )
+                                                    )
+                                              }}
+                                            />
+                                          </FormControl>
+                                          <FormLabel className="text-[10px] font-black uppercase text-[#213147] cursor-pointer">
+                                            {mode.label}
+                                          </FormLabel>
+                                        </FormItem>
+                                      )
+                                    }}
+                                  />
+                                ))}
+                              </div>
+                            </FormItem>
+                          )}
+                        />
+                    </div>
+
+                    <div className="space-y-6 pt-6 border-t border-slate-100">
+                       <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2">
                          <DollarSign className="h-3 w-3" /> Transaction Model
                        </Label>
                        <div className="grid grid-cols-2 gap-4">
@@ -423,7 +553,7 @@ export default function AdminVenueRegistryPage() {
                     </div>
 
                     <div className="space-y-6 pt-6 border-t border-slate-100">
-                       <Label className="text-[10px] font-black uppercase tracking-widest text-primary flex items-center gap-2">
+                       <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2">
                          <Zap className="h-3 w-3" /> SaaS Subscription
                        </Label>
                        <FormField control={registryForm.control} name="monthlySolutionFee" render={({ field }) => (
@@ -435,7 +565,7 @@ export default function AdminVenueRegistryPage() {
                     </div>
 
                     <div className="space-y-4 pt-6 border-t border-slate-100">
-                       <Label className="text-[10px] font-black uppercase tracking-widest text-primary flex items-center gap-2">
+                       <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2">
                          <ShieldCheck className="h-3 w-3" /> Status & Verification
                        </Label>
                        <div className="grid gap-3">
@@ -496,3 +626,4 @@ export default function AdminVenueRegistryPage() {
     </div>
   );
 }
+
