@@ -22,7 +22,8 @@ import {
   FlaskConical,
   Copy,
   Sparkles,
-  Power
+  Power,
+  Timer
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -92,7 +93,9 @@ const venueRegistrySchema = z.object({
   payoutsEnabled: z.boolean().default(false),
   menuTypes: z.array(z.string()).min(1, 'At least one service mode required'),
   laneCount: z.coerce.number().min(0).optional(),
-  status: z.enum(['Active', 'Inactive']).default('Active')
+  status: z.enum(['Active', 'Inactive']).default('Active'),
+  latitude: z.coerce.number(),
+  longitude: z.coerce.number()
 });
 
 type VenueRegistryData = z.infer<typeof venueRegistrySchema>;
@@ -142,7 +145,9 @@ export default function AdminVenueRegistryPage() {
       payoutsEnabled: false,
       menuTypes: [],
       laneCount: 0,
-      status: 'Active'
+      status: 'Active',
+      latitude: 0,
+      longitude: 0
     }
   });
 
@@ -178,7 +183,9 @@ export default function AdminVenueRegistryPage() {
         payoutsEnabled: !!reg.payoutsEnabled,
         menuTypes: seller?.menuTypes || [],
         laneCount: seller?.laneCount || 0,
-        status: seller?.status || 'Active'
+        status: seller?.status || 'Active',
+        latitude: seller?.latitude || 0,
+        longitude: seller?.longitude || 0
       });
       setIsManagementOpen(true);
     } else {
@@ -194,10 +201,10 @@ export default function AdminVenueRegistryPage() {
     const venueRef = doc(firestore, 'venues', selectedVenue.venueId);
     const sellerRef = doc(firestore, 'sellers', selectedVenue.venueId);
 
-    const { menuTypes, laneCount, status, ...venueData } = data;
+    const { menuTypes, laneCount, status, latitude, longitude, ...venueData } = data;
 
     batch.update(venueRef, { ...venueData, updatedAt: serverTimestamp() });
-    batch.update(sellerRef, { menuTypes, laneCount, status, updatedAt: serverTimestamp() });
+    batch.update(sellerRef, { menuTypes, laneCount, status, latitude, longitude, updatedAt: serverTimestamp() });
 
     batch.commit()
       .then(() => {
@@ -240,7 +247,9 @@ export default function AdminVenueRegistryPage() {
         id: venueId, courseName: data.courseName, type: data.type, status: 'Active',
         contactEmail: data.contactEmail, city: data.city, state: data.state,
         menuTypes: data.menuTypes, taxRate: 6.0, serviceFee: 1.50, ownerId: data.ownerUid,
-        laneCount: data.type === 'Bowling Center' ? data.laneCount : 0
+        laneCount: data.type === 'Bowling Center' ? data.laneCount : 0,
+        latitude: 0,
+        longitude: 0
       };
 
       const businessRef = doc(firestore, 'venues', venueId);
@@ -441,9 +450,27 @@ export default function AdminVenueRegistryPage() {
                             <FormItem className="text-left"><FormLabel className="text-[9px] font-black uppercase">Koop % Fee</FormLabel><FormControl><Input {...field} type="number" step="0.1" className="h-11 border-2 font-bold" /></FormControl></FormItem>
                           )} />
                        </div>
-                       <FormField control={registryForm.control} name="patronConvenienceFee" render={({ field }) => (
-                        <FormItem className="text-left"><FormLabel className="text-[9px] font-black uppercase">Patron Convenience Fee (Cents)</FormLabel><FormControl><Input {...field} type="number" className="h-11 border-2 font-bold" /></FormControl></FormItem>
-                       )} />
+                       <div className="grid grid-cols-2 gap-4">
+                          <FormField control={registryForm.control} name="patronConvenienceFee" render={({ field }) => (
+                            <FormItem className="text-left"><FormLabel className="text-[9px] font-black uppercase">Patron Conv. Fee (Cents)</FormLabel><FormControl><Input {...field} type="number" className="h-11 border-2 font-bold" /></FormControl></FormItem>
+                          )} />
+                          <FormField control={registryForm.control} name="monthlySolutionFee" render={({ field }) => (
+                            <FormItem className="text-left"><FormLabel className="text-[9px] font-black uppercase">Monthly Fee ($)</FormLabel><FormControl><Input {...field} type="number" className="h-11 border-2 font-bold" /></FormControl></FormItem>
+                          )} />
+                       </div>
+                    </div>
+
+                    <div className="space-y-4 pt-6 border-t border-slate-100">
+                       <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2"><MapPin className="h-3 w-3" /> Static Map Anchors</Label>
+                       <div className="grid grid-cols-2 gap-4">
+                          <FormField control={registryForm.control} name="latitude" render={({ field }) => (
+                            <FormItem className="text-left"><FormLabel className="text-[9px] font-black uppercase">Latitude</FormLabel><FormControl><Input {...field} type="number" step="0.000001" className="h-11 border-2 font-bold" /></FormControl></FormItem>
+                          )} />
+                          <FormField control={registryForm.control} name="longitude" render={({ field }) => (
+                            <FormItem className="text-left"><FormLabel className="text-[9px] font-black uppercase">Longitude</FormLabel><FormControl><Input {...field} type="number" step="0.000001" className="h-11 border-2 font-bold" /></FormControl></FormItem>
+                          )} />
+                       </div>
+                       <p className="text-[8px] font-medium text-muted-foreground uppercase px-1">Coordinates used as default center for patrons.</p>
                     </div>
 
                     <div className="space-y-4 pt-6 border-t border-slate-100">

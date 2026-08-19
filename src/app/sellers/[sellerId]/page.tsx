@@ -50,7 +50,8 @@ import {
   MapPin,
   Mail,
   Smartphone as PhoneIcon,
-  Timer
+  Timer,
+  Lock
 } from 'lucide-react';
 import Image from 'next/image';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -99,7 +100,7 @@ import { StylizedKoopLogo } from '@/components/header';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { categories } from '@/lib/types';
-import type { MenuItem, Seller, Order, StaffMember, SolutionConfig, ModifierGroup } from '@/lib/types';
+import type { MenuItem, Seller, Order, StaffMember, SolutionConfig, ModifierGroup, Venue } from '@/lib/types';
 import { signOut } from 'firebase/auth';
 import { 
   BarChart, 
@@ -268,6 +269,9 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
   // RULES OF HOOKS
   const sellerRef = useMemoFirebase(() => (firestore ? doc(firestore, 'sellers', sellerId) : null), [firestore, sellerId]);
   const { data: seller, isLoading: isSellerLoading } = useDoc<Seller>(sellerRef);
+
+  const venueRef = useMemoFirebase(() => (firestore ? doc(firestore, 'venues', sellerId) : null), [firestore, sellerId]);
+  const { data: venue, isLoading: isVenueLoading } = useDoc<Venue>(venueRef);
 
   const ordersQuery = useMemoFirebase(() => (firestore ? query(collection(firestore, 'orders'), where('sellerId', '==', sellerId)) : null), [firestore, sellerId]);
   const { data: orders } = useCollection<Order>(ordersQuery);
@@ -442,7 +446,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
 
   const handleLogout = async () => { if (!auth) return; await signOut(auth); router.push('/login'); };
 
-  if (isUserLoading || isSellerLoading) return <div className="flex flex-col items-center justify-center h-screen bg-[#213147] text-white"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>;
+  if (isUserLoading || isSellerLoading || isVenueLoading) return <div className="flex flex-col items-center justify-center h-screen bg-[#213147] text-white"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>;
 
   const NAV_ITEMS = [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -789,9 +793,11 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
 
               {activeNav === 'settings' && (
                 <div className="max-w-4xl space-y-10 animate-in fade-in duration-500">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-primary/10 rounded-lg"><SettingsIcon className="h-6 w-6 text-primary" /></div>
-                    <h2 className="text-2xl font-black uppercase text-[#213147]">Venue Operations</h2>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-primary/10 rounded-lg"><SettingsIcon className="h-6 w-6 text-primary" /></div>
+                      <h2 className="text-2xl font-black uppercase text-[#213147]">Venue Operations</h2>
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -819,11 +825,43 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                       </CardContent>
                     </Card>
 
+                    {/* BILLING & SOLUTION FEES (READ ONLY) */}
+                    <Card className="border-2 shadow-sm border-primary/20 bg-primary/5">
+                      <CardHeader className="bg-primary/10 border-b py-4">
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="text-[10px] font-black uppercase tracking-widest text-primary flex items-center gap-2">
+                            <DollarSign className="h-3 w-3" /> Billing & Solution Fees
+                          </CardTitle>
+                          <Lock className="h-3 w-3 text-primary/40" />
+                        </div>
+                      </CardHeader>
+                      <CardContent className="pt-6 space-y-6">
+                        <div className="space-y-1.5">
+                          <Label className="text-[9px] font-black uppercase text-primary/60">Koop Patron Convenience Fee</Label>
+                          <div className="h-10 px-3 flex items-center bg-white border-2 rounded-md font-mono font-black text-sm text-[#213147]">
+                            ${((venue?.patronConvenienceFee || 0) / 100).toFixed(2)}
+                          </div>
+                          <p className="text-[8px] font-bold text-muted-foreground uppercase leading-tight">Paid by patrons at checkout to support the solution.</p>
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-[9px] font-black uppercase text-primary/60">Monthly Subscription</Label>
+                          <div className="h-10 px-3 flex items-center bg-white border-2 rounded-md font-mono font-black text-sm text-[#213147]">
+                            ${(venue?.monthlySolutionFee || 0).toFixed(2)}
+                          </div>
+                          <p className="text-[8px] font-bold text-muted-foreground uppercase leading-tight">Fixed monthly fee for venue operational access.</p>
+                        </div>
+                        <div className="bg-primary/10 p-3 rounded-lg flex items-start gap-2">
+                          <Info className="h-3 w-3 text-primary shrink-0 mt-0.5" />
+                          <p className="text-[8px] font-bold text-primary uppercase leading-relaxed">Fees are managed globally by Koop. Contact support to request changes.</p>
+                        </div>
+                      </CardContent>
+                    </Card>
+
                     {/* OPERATIONS & TAX */}
                     <Card className="border-2 shadow-sm">
                       <CardHeader className="bg-slate-50 border-b py-4">
                         <CardTitle className="text-[10px] font-black uppercase tracking-widest text-[#213147] flex items-center gap-2">
-                          <DollarSign className="h-3 w-3" /> Operations & Tax
+                          <Timer className="h-3 w-3" /> Operations & Tax
                         </CardTitle>
                       </CardHeader>
                       <CardContent className="pt-6 space-y-4">
@@ -844,7 +882,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                     <Card className="border-2 shadow-sm md:col-span-2">
                        <CardHeader className="bg-[#213147] text-white py-4 border-b">
                           <CardTitle className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
-                            <Timer className="h-3.5 w-3.5 text-primary" /> Fulfillment Guardrails (Minutes)
+                            <Clock className="h-3.5 w-3.5 text-primary" /> Fulfillment Guardrails (Minutes)
                           </CardTitle>
                        </CardHeader>
                        <CardContent className="pt-6">
@@ -924,7 +962,39 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                       </CardContent>
                     </Card>
 
-                    {/* CONTACT & SUPPORT */}
+                    {/* MAP COORDINATES (READ ONLY) */}
+                    <Card className="border-2 shadow-sm border-slate-200 bg-slate-50/50">
+                       <CardHeader className="py-4 border-b">
+                          <div className="flex items-center justify-between">
+                            <CardTitle className="text-[10px] font-black uppercase tracking-widest text-[#213147] flex items-center gap-2">
+                              <MapPin className="h-3 w-3" /> Static Map Anchors
+                            </CardTitle>
+                            <Lock className="h-3 w-3 text-muted-foreground/30" />
+                          </div>
+                       </CardHeader>
+                       <CardContent className="pt-6">
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
+                             <div className="space-y-1.5">
+                               <Label className="text-[9px] font-black uppercase opacity-60">Anchor Latitude</Label>
+                               <div className="h-11 px-3 flex items-center bg-white border-2 rounded-md font-mono font-bold text-xs text-[#213147]">
+                                 {seller?.latitude}
+                               </div>
+                             </div>
+                             <div className="space-y-1.5">
+                               <Label className="text-[9px] font-black uppercase opacity-60">Anchor Longitude</Label>
+                               <div className="h-11 px-3 flex items-center bg-white border-2 rounded-md font-mono font-bold text-xs text-[#213147]">
+                                 {seller?.longitude}
+                               </div>
+                             </div>
+                             <div className="bg-white p-4 rounded-xl border-2 border-slate-100 flex items-center gap-3">
+                                <AlertTriangle className="h-5 w-5 text-amber-500" />
+                                <div className="text-left"><p className="text-[9px] font-black uppercase text-[#213147]">Relocation Required?</p><p className="text-[8px] font-medium text-muted-foreground uppercase leading-tight">Contact Koop Admin to update your primary satellite anchors.</p></div>
+                             </div>
+                          </div>
+                       </CardContent>
+                    </Card>
+
+                    {/* CONTACT & PERSONNEL */}
                     <Card className="border-2 shadow-sm">
                       <CardHeader className="bg-slate-50 border-b py-4">
                         <CardTitle className="text-[10px] font-black uppercase tracking-widest text-[#213147] flex items-center gap-2">
@@ -941,31 +1011,6 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                           <div className="space-y-1.5"><Label className="text-[9px] font-black uppercase">Admin Phone</Label><Input type="tel" defaultValue={seller?.contactPhone} onBlur={(e) => handleUpdateField('contactPhone', e.target.value)} className="h-10 border-2 font-bold" /></div>
                         </div>
                       </CardContent>
-                    </Card>
-
-                    {/* MAP COORDINATES */}
-                    <Card className="border-2 shadow-sm md:col-span-2 bg-slate-50/50">
-                       <CardHeader className="py-4 border-b">
-                          <CardTitle className="text-[10px] font-black uppercase tracking-widest text-[#213147] flex items-center gap-2">
-                            <MapPin className="h-3 w-3" /> Static Map Anchors
-                          </CardTitle>
-                       </CardHeader>
-                       <CardContent className="pt-6">
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
-                             <div className="space-y-1.5">
-                               <Label className="text-[9px] font-black uppercase">Anchor Latitude</Label>
-                               <Input type="number" step="0.000001" defaultValue={seller?.latitude} onBlur={(e) => handleUpdateField('latitude', parseFloat(e.target.value))} className="h-11 border-2 font-bold bg-white" />
-                             </div>
-                             <div className="space-y-1.5">
-                               <Label className="text-[9px] font-black uppercase">Anchor Longitude</Label>
-                               <Input type="number" step="0.000001" defaultValue={seller?.longitude} onBlur={(e) => handleUpdateField('longitude', parseFloat(e.target.value))} className="h-11 border-2 font-bold bg-white" />
-                             </div>
-                             <div className="bg-white p-4 rounded-xl border-2 border-slate-100 flex items-center gap-3">
-                                <AlertTriangle className="h-5 w-5 text-amber-500" />
-                                <div className="text-left"><p className="text-[9px] font-black uppercase text-[#213147]">Coordinate Accuracy</p><p className="text-[8px] font-medium text-muted-foreground uppercase leading-tight">These drive the default satellite center point for patrons.</p></div>
-                             </div>
-                          </div>
-                       </CardContent>
                     </Card>
                   </div>
                 </div>
