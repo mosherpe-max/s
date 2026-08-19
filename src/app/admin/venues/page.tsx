@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState } from 'react';
@@ -71,7 +72,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormDescription } from '@/components/ui/form';
-import { cn } from '@/lib/utils';
+import { cn, AUTHORIZED_SERVICE_MODES } from '@/lib/utils';
 
 const SERVICE_MODES = [
   { id: 'Beverage Cart', label: 'Beverage Cart' },
@@ -313,7 +314,9 @@ export default function AdminVenueRegistryPage() {
                   <TableCell><Badge className="bg-[#213147] text-white text-[8px] font-black uppercase border-0">{v.type}</Badge></TableCell>
                   <TableCell>
                     <div className="flex flex-wrap gap-1">
-                      {(v.menuTypes || []).map(mode => (
+                      {(v.menuTypes || [])
+                        .filter(mode => AUTHORIZED_SERVICE_MODES.includes(mode))
+                        .map(mode => (
                         <Badge key={mode} variant="outline" className="text-[7px] font-black uppercase bg-white border-primary/20 text-primary">{mode}</Badge>
                       ))}
                     </div>

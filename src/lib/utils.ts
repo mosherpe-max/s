@@ -8,6 +8,12 @@ import { twMerge } from "tailwind-merge"
  */
 export const SUPER_ADMIN_ID = 'o9vAQy0aFRPSNPoG0ETvjiGt9If1';
 
+/**
+ * Global Source of Truth for Authorized Service Modes.
+ * "Takeout" and "Pool" are explicitly deprecated and excluded.
+ */
+export const AUTHORIZED_SERVICE_MODES = ['Beverage Cart', 'Clubhouse', 'Lane Delivery'];
+
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }

@@ -79,7 +79,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { Label } from '@/components/ui/label';
-import { cn, SUPER_ADMIN_ID, getNumericOrderId } from '@/lib/utils';
+import { cn, SUPER_ADMIN_ID, getNumericOrderId, AUTHORIZED_SERVICE_MODES } from '@/lib/utils';
 import { 
   isToday, 
   format, 
@@ -290,7 +290,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
   const analyticsData = useMemo(() => {
     if (!orders || !seller) return { dailyRevenue: [], topItems: [], fulfillmentEfficiency: [], revenueByMode: [], modes: [] };
     
-    const modes = (seller.menuTypes || []);
+    const modes = (seller.menuTypes || []).filter(m => AUTHORIZED_SERVICE_MODES.includes(m));
     const now = new Date();
     
     const dailyRevenue = Array.from({ length: 7 }, (_, i) => {
@@ -350,7 +350,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
 
   useEffect(() => {
     if (seller && !activeModeTab) {
-      const modes = (seller.menuTypes || []);
+      const modes = (seller.menuTypes || []).filter(m => AUTHORIZED_SERVICE_MODES.includes(m));
       if (modes.length > 0) setActiveModeTab(modes[0]);
     }
   }, [seller, activeModeTab]);
@@ -602,7 +602,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                   <div className="flex items-center justify-between">
                     <h2 className="text-xl font-black uppercase text-[#213147]">Service Modes</h2>
                     <div className="flex gap-2 bg-[#213147] p-1 rounded-xl">
-                      {seller?.menuTypes?.map(mode => (
+                      {seller?.menuTypes?.filter(m => AUTHORIZED_SERVICE_MODES.includes(m)).map(mode => (
                         <Button key={mode} variant={activeModeTab === mode ? 'default' : 'ghost'} size="sm" onClick={() => setActiveModeTab(mode)} className={cn("text-[9px] font-black uppercase tracking-widest h-9 px-4 rounded-lg", activeModeTab === mode ? "bg-primary text-white shadow-lg" : "text-white/40 hover:text-white hover:bg-white/5")}>{mode}</Button>
                       ))}
                     </div>
