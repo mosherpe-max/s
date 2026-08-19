@@ -7,7 +7,8 @@ import {
   MapPin, 
   Activity, 
   Target,
-  ArrowRight
+  ArrowRight,
+  ShieldCheck
 } from 'lucide-react';
 import {
   Table,
@@ -16,7 +17,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from '@/components/ui/badge';
-import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { useFirestore, useCollection, useMemoFirebase, useAuth } from '@/firebase';
 import { collection } from 'firebase/firestore';
 import type { Seller, Lead } from '@/lib/types';
 import { cn } from '@/lib/utils';
@@ -40,6 +41,7 @@ function KPICard({ label, value, sub, icon: Icon, colorClass }: { label: string,
 }
 
 export default function AdminDashboardPage() {
+  const auth = useAuth();
   const firestore = useFirestore();
   const leadsQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'leads') : null), [firestore]);
   const venuesQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'sellers') : null), [firestore]);
@@ -110,7 +112,7 @@ export default function AdminDashboardPage() {
                    </div>
                 </div>
                 <p className="text-[9px] font-bold text-white/20 uppercase tracking-widest text-center pt-4">
-                  Session Identity: {auth?.currentUser?.uid}
+                  Session Identity: {auth?.currentUser?.uid || 'Initializing...'}
                 </p>
              </CardContent>
           </Card>

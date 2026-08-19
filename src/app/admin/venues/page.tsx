@@ -217,7 +217,7 @@ export default function AdminVenueRegistryPage() {
                     </div>
 
                     <div className="space-y-4 pt-6 border-t">
-                       <Label className="text-[10px] font-black uppercase tracking-widest text-primary flex items-center gap-2"><ShieldCheck className="h-3 w-3" /> Partner Status</Clabel>
+                       <Label className="text-[10px] font-black uppercase tracking-widest text-primary flex items-center gap-2"><ShieldCheck className="h-3 w-3" /> Partner Status</Label>
                        <div className="grid gap-3">
                           <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border-2 border-slate-100">
                              <span className="text-[10px] font-black uppercase text-[#213147]">Founding Partner</span>
