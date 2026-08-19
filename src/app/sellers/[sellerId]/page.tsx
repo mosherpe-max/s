@@ -51,7 +51,8 @@ import {
   Mail,
   Smartphone as PhoneIcon,
   Timer,
-  Lock
+  Lock,
+  Info
 } from 'lucide-react';
 import Image from 'next/image';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -1021,7 +1022,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
       </div>
 
       <Dialog open={isStaffFormOpen} onOpenChange={setIsStaffFormOpen}>
-        <DialogContent className="sm:max-w-[450px] rounded-[2.5rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
+        <DialogContent className="sm:max-w-[450px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
           <DialogHeader className="p-8 bg-[#213147] text-white text-left">
             <DialogTitle className="font-headline font-black uppercase tracking-tight text-white text-xl">{editingStaff ? 'Edit Personnel' : 'Add Fulfillment Staff'}</DialogTitle>
           </DialogHeader>
