@@ -44,6 +44,7 @@ import {
   ChevronLeft,
   GripVertical,
   ClipboardCheck,
+  Menu,
   Image as LucideImage
 } from 'lucide-react';
 import Image from 'next/image';
@@ -77,7 +78,6 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { Label } from '@/components/ui/label';
-import { Checkbox } from '@/components/ui/checkbox';
 import { cn, SUPER_ADMIN_ID, getNumericOrderId } from '@/lib/utils';
 import { 
   isToday, 
@@ -282,6 +282,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
 
   const analyticsData = useMemo(() => {
     if (!orders || !seller) return { dailyRevenue: [], topItems: [], fulfillmentEfficiency: [], revenueByMode: [], modes: [] };
+    // EXPLICIT FILTER: Remove 'Take Out' from all analytics logic
     const modes = (seller.menuTypes || []).filter(m => m !== 'Take Out');
     const now = new Date();
     const dailyRevenue = Array.from({ length: 7 }, (_, i) => {
@@ -314,7 +315,12 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
     return { dailyRevenue, topItems, fulfillmentEfficiency, revenueByMode, modes };
   }, [orders, seller]);
 
-  useEffect(() => { if (seller?.menuTypes?.length && !activeModeTab) setActiveModeTab(seller.menuTypes[0]); }, [seller]);
+  useEffect(() => { 
+    if (seller?.menuTypes?.length) {
+      const validModes = seller.menuTypes.filter(m => m !== 'Take Out');
+      if (validModes.length > 0 && !activeModeTab) setActiveModeTab(validModes[0]);
+    }
+  }, [seller]);
 
   const onSaveStaff = async (data: StaffFormData) => {
     if (!firestore || !sellerId) return;
@@ -344,7 +350,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
 
   const handleDragEnd = (event: any, category: string, mode: string) => {
     const { active, over } = event;
-    if (active.id !== over.id) {
+    if (active && over && active.id !== over.id) {
       const itemsInCat = (menuItems || []).filter(i => i.category === category && i.availableOn?.includes(mode));
       const oldIndex = itemsInCat.findIndex(i => i.id === active.id);
       const newIndex = itemsInCat.findIndex(i => i.id === over.id);
@@ -499,7 +505,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                   <div className="flex items-center justify-between">
                     <h2 className="text-xl font-black uppercase text-[#213147]">Service Modes</h2>
                     <div className="flex gap-2 bg-[#213147] p-1 rounded-xl">
-                      {seller?.menuTypes?.map(mode => (<Button key={mode} variant={activeModeTab === mode ? 'default' : 'ghost'} size="sm" onClick={() => setActiveModeTab(mode)} className={cn("text-[9px] font-black uppercase tracking-widest h-9 px-4 rounded-lg", activeModeTab === mode ? "bg-primary text-white shadow-lg" : "text-white/40 hover:text-white hover:bg-white/5")}>{mode}</Button>))}
+                      {seller?.menuTypes?.filter(m => m !== 'Take Out').map(mode => (<Button key={mode} variant={activeModeTab === mode ? 'default' : 'ghost'} size="sm" onClick={() => setActiveModeTab(mode)} className={cn("text-[9px] font-black uppercase tracking-widest h-9 px-4 rounded-lg", activeModeTab === mode ? "bg-primary text-white shadow-lg" : "text-white/40 hover:text-white hover:bg-white/5")}>{mode}</Button>))}
                     </div>
                   </div>
 

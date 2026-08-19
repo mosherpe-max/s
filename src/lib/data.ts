@@ -148,7 +148,7 @@ export const privateGolfItems: (Omit<MenuItem, 'id' | 'rank'> & { id?: string, r
     price: 18.00, 
     category: 'Appetizers', 
     imageUrl: getImg('blue cocktail'), 
-    availableOn: ['Clubhouse', 'Pool'],
+    availableOn: ['Clubhouse'],
     isAvailable: true
   },
   { 
@@ -157,8 +157,7 @@ export const privateGolfItems: (Omit<MenuItem, 'id' | 'rank'> & { id?: string, r
     price: 15.00, 
     category: 'Handhelds', 
     imageUrl: getImg('burger meal'), 
-    availableOn: ['Clubhouse', 'Pool'],
-    featuredOn: ['Pool'],
+    availableOn: ['Clubhouse'],
     isAvailable: true
   },
   { 
@@ -176,12 +175,12 @@ export const privateGolfItems: (Omit<MenuItem, 'id' | 'rank'> & { id?: string, r
     price: 12.00, 
     category: 'Salad', 
     imageUrl: getImg('grilled salmon'), 
-    availableOn: ['Clubhouse', 'Pool'],
+    availableOn: ['Clubhouse'],
     isAvailable: true
   },
   ...commonMenuItems.map(i => ({ 
     ...i, 
-    availableOn: ['Clubhouse', 'Pool'] 
+    availableOn: ['Clubhouse'] 
   }))
 ];
 

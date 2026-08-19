@@ -245,7 +245,13 @@ export default function SolutionAdminPage() {
                  <div className="space-y-6">
                     <div className="flex justify-between items-center">
                       <h2 className="text-2xl font-black uppercase text-[#213147]">Sales CRM</h2>
-                      <Button onClick={() => { setEditingLead(null); leadForm.reset(); setIsLeadFormOpen(true); }} className="bg-primary uppercase font-black text-xs tracking-widest"><Plus className="h-4 w-4 mr-2" /> New Lead</Button>
+                      <div className="flex gap-4">
+                        <div className="relative">
+                          <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                          <Input placeholder="Search Leads..." value={leadSearchTerm} onChange={(e) => setLeadSearchTerm(e.target.value)} className="pl-10 h-10 border-2 rounded-xl" />
+                        </div>
+                        <Button onClick={() => { setEditingLead(null); leadForm.reset(); setIsLeadFormOpen(true); }} className="bg-primary uppercase font-black text-xs tracking-widest"><Plus className="h-4 w-4 mr-2" /> New Lead</Button>
+                      </div>
                     </div>
                     <div className="border-2 rounded-[2rem] overflow-hidden bg-white shadow-sm">
                       <Table>
