@@ -4,14 +4,9 @@ import {
   doc, 
   writeBatch, 
   serverTimestamp, 
-  getDocs, 
-  query, 
-  where,
-  Firestore,
-  setDoc,
-  deleteDoc
+  Firestore
 } from 'firebase/firestore';
-import type { ModifierGroup, MenuItem, StarterModifierGroup, StarterMenuItem, VenueHealthSettings, Seller } from './types';
+import type { MenuItem, StarterModifierGroup, StarterMenuItem, Seller } from './types';
 import { publicGolfItems, privateGolfItems, bowlingAlleyItems } from './data';
 import { PlaceHolderImages } from './placeholder-images';
 
@@ -25,26 +20,16 @@ const getImg = (hint: string) => {
   );
   if (found) return found.imageUrl;
 
-  if (search.includes('beer') || search.includes('lager') || search.includes('ipa') || search.includes('bud') || search.includes('miller') || search.includes('coors') || search.includes('modelo') || search.includes('heineken')) 
+  if (search.includes('beer') || search.includes('lager') || search.includes('ipa')) 
     return PlaceHolderImages.find(i => i.id === 'beer-1')?.imageUrl || '';
-  if (search.includes('cocktail') || search.includes('spirit') || search.includes('vodka') || search.includes('whiskey') || search.includes('wine') || search.includes('transfusion') || search.includes('margarita')) 
+  if (search.includes('cocktail') || search.includes('spirit') || search.includes('vodka') || search.includes('whiskey')) 
     return PlaceHolderImages.find(i => i.id === 'cocktail-blue')?.imageUrl || '';
-  if (search.includes('soda') || search.includes('cola') || search.includes('water') || search.includes('drink') || search.includes('tea') || search.includes('lemonade') || search.includes('gatorade') || search.includes('palmer') || search.includes('coffee')) 
+  if (search.includes('soda') || search.includes('cola') || search.includes('water')) 
     return PlaceHolderImages.find(i => i.id === 'soft-drink-1')?.imageUrl || '';
-  if (search.includes('burger') || search.includes('sandwich') || search.includes('wrap') || search.includes('tender') || search.includes('tenders')) 
+  if (search.includes('burger') || search.includes('sandwich')) 
     return PlaceHolderImages.find(i => i.id === 'burger')?.imageUrl || '';
   if (search.includes('pizza')) 
     return PlaceHolderImages.find(i => i.id === 'pizza')?.imageUrl || '';
-  if (search.includes('hot dog') || search.includes('dog')) 
-    return PlaceHolderImages.find(i => i.id === 'hotdog')?.imageUrl || '';
-  if (search.includes('wings') || search.includes('wing')) 
-    return PlaceHolderImages.find(i => i.id === 'wings')?.imageUrl || '';
-  if (search.includes('nacho') || search.includes('nachos') || search.includes('quesadilla')) 
-    return PlaceHolderImages.find(i => i.id === 'nachos')?.imageUrl || '';
-  if (search.includes('chips') || search.includes('snack') || search.includes('candy') || search.includes('pretzel')) 
-    return PlaceHolderImages.find(i => i.id === 'snack-1')?.imageUrl || '';
-  if (search.includes('salad') || search.includes('fruit') || search.includes('salmon')) 
-    return PlaceHolderImages.find(i => i.id === 'salmon')?.imageUrl || '';
   
   return PlaceHolderImages[0]?.imageUrl || '';
 };
@@ -58,43 +43,15 @@ const generateSlug = (name: string) => {
 
 export const GLOBAL_STARTER_LIBRARY: Omit<StarterModifierGroup, 'id'>[] = [
   { name: "Special Instructions", venueType: ["golf", "bowling"], category: "universal", selectionType: "single", required: false, sortOrder: 5, options: [{ label: "Add Note to Order", priceModifier: 0 }] },
-  { name: "Allergy Flag", venueType: ["golf", "bowling"], category: "universal", selectionType: "multi", required: false, sortOrder: 6, options: [{ label: "Nut Allergy", priceModifier: 0 }, { label: "Gluten Sensitivity", priceModifier: 0 }, { label: "Dairy-Free", priceModifier: 0 }, { label: "Vegetarian", priceModifier: 0 }, { label: "Vegan", priceModifier: 0 }] },
+  { name: "Allergy Flag", venueType: ["golf", "bowling"], category: "universal", selectionType: "multi", required: false, sortOrder: 6, options: [{ label: "Nut Allergy", priceModifier: 0 }, { label: "Gluten Sensitivity", priceModifier: 0 }, { label: "Dairy-Free", priceModifier: 0 }] },
   { name: "Doneness", venueType: ["golf", "bowling"], category: "food", selectionType: "single", required: true, sortOrder: 10, options: [{ label: "Rare", priceModifier: 0 }, { label: "Medium Rare", priceModifier: 0 }, { label: "Medium", priceModifier: 0 }, { label: "Medium Well", priceModifier: 0 }, { label: "Well Done", priceModifier: 0 }] },
-  { name: "Cheese", venueType: ["golf", "bowling"], category: "food", selectionType: "single", required: false, sortOrder: 11, options: [{ label: "American", priceModifier: 0 }, { label: "Cheddar", priceModifier: 0 }, { label: "Swiss", priceModifier: 0 }, { label: "Pepper Jack", priceModifier: 0 }, { label: "Provolone", priceModifier: 0 }, { label: "No Cheese", priceModifier: 0 }] },
-  { name: "Toppings", venueType: ["golf", "bowling"], category: "food", selectionType: "multi", required: false, sortOrder: 12, options: [{ label: "Lettuce", priceModifier: 0 }, { label: "Tomato", priceModifier: 0 }, { label: "Onion", priceModifier: 0 }, { label: "Pickles", priceModifier: 0 }, { label: "Jalapeños", priceModifier: 0 }, { label: "Mushrooms", priceModifier: 0 }, { label: "Banana Peppers", priceModifier: 0 }, { label: "Avocado", priceModifier: 1.50 }] },
-  { name: "Sauces", venueType: ["golf", "bowling"], category: "food", selectionType: "multi", required: false, sortOrder: 13, options: [{ label: "Ketchup", priceModifier: 0 }, { label: "Mustard", priceModifier: 0 }, { label: "Mayo", priceModifier: 0 }, { label: "Ranch", priceModifier: 0 }, { label: "BBQ", priceModifier: 0 }, { label: "Buffalo", priceModifier: 0 }, { label: "Honey Mustard", priceModifier: 0 }, { label: "Hot Sauce", priceModifier: 0 }, { label: "No Sauce", priceModifier: 0 }] },
-  { name: "Bun", venueType: ["golf", "bowling"], category: "food", selectionType: "single", required: false, sortOrder: 14, options: [{ label: "Regular Bun", priceModifier: 0 }, { label: "Pretzel Bun", priceModifier: 0 }, { label: "Lettuce Wrap", priceModifier: 0 }, { label: "Gluten-Free Bun", priceModifier: 2.00 }, { label: "No Bun", priceModifier: 0 }] },
-  { name: "Side Swap", venueType: ["golf", "bowling"], category: "food", selectionType: "single", required: false, sortOrder: 15, options: [{ label: "Fries", priceModifier: 0 }, { label: "Onion Rings", priceModifier: 1.50 }, { label: "Side Salad", priceModifier: 0 }, { label: "Coleslaw", priceModifier: 0 }, { label: "Fruit Cup", priceModifier: 0 }, { label: "Chips", priceModifier: 0 }, { label: "No Side", priceModifier: 0 }] },
-  { name: "Dipping Sauce", venueType: ["golf", "bowling"], category: "food", selectionType: "single", required: false, sortOrder: 16, options: [{ label: "Marinara", priceModifier: 0 }, { label: "Ranch", priceModifier: 0 }, { label: "Cheese Sauce", priceModifier: 0 }, { label: "Honey Mustard", priceModifier: 0 }, { label: "BBQ", priceModifier: 0 }, { label: "No Sauce", priceModifier: 0 }] },
-  { name: "Wrap Sauce", venueType: ["golf", "bowling"], category: "food", selectionType: "single", required: false, sortOrder: 17, options: [{ label: "Caesar Dressing", priceModifier: 0 }, { label: "Buffalo", priceModifier: 0 }, { label: "Ranch", priceModifier: 0 }, { label: "Chipotle Mayo", priceModifier: 0 }, { label: "No Sauce", priceModifier: 0 }] },
-  { name: "Wing Style", venueType: ["golf", "bowling"], category: "food", selectionType: "single", required: true, sortOrder: 20, options: [{ label: "Bone-In", priceModifier: 0 }, { label: "Boneless", priceModifier: 0 }] },
-  { name: "Wing Sauce", venueType: ["golf", "bowling"], category: "food", selectionType: "single", required: true, sortOrder: 21, options: [{ label: "Buffalo Mild", priceModifier: 0 }, { label: "Buffalo Medium", priceModifier: 0 }, { label: "Buffalo Hot", priceModifier: 0 }, { label: "BBQ", priceModifier: 0 }, { label: "Honey BBQ", priceModifier: 0 }, { label: "Honey Mustard", priceModifier: 0 }, { label: "Garlic Parmesan", priceModifier: 0 }, { label: "Dry Rub", priceModifier: 0 }, { label: "Plain/Naked", priceModifier: 0 }] },
-  { name: "Crust", venueType: ["bowling", "golf"], category: "food", selectionType: "single", required: true, sortOrder: 30, options: [{ label: "Thin", priceModifier: 0 }, { label: "Regular", priceModifier: 0 }, { label: "Deep Dish", priceModifier: 0 }] },
-  { name: "Pizza Size", venueType: ["bowling", "golf"], category: "food", selectionType: "single", required: true, sortOrder: 31, options: [{ label: "Personal", priceModifier: 0 }, { label: "Medium", priceModifier: 0 }, { label: "Large", priceModifier: 0 }] },
-  { name: "Pizza Sauce", venueType: ["bowling", "golf"], category: "food", selectionType: "single", required: false, sortOrder: 32, options: [{ label: "Marinara", priceModifier: 0 }, { label: "White", priceModifier: 0 }, { label: "BBQ", priceModifier: 0 }, { label: "No Sauce", priceModifier: 0 }] },
-  { name: "Pizza Toppings", venueType: ["bowling", "golf"], category: "food", selectionType: "multi", required: false, sortOrder: 33, options: [{ label: "Pepperoni", priceModifier: 0 }, { label: "Sausage", priceModifier: 0 }, { label: "Mushrooms", priceModifier: 0 }, { label: "Peppers", priceModifier: 0 }, { label: "Onions", priceModifier: 0 }, { label: "Black Olives", priceModifier: 0 }, { label: "Extra Cheese", priceModifier: 2.00 }, { label: "Jalapeños", priceModifier: 0 }] },
-  { name: "Hot Dog Toppings", venueType: ["bowling", "golf"], category: "food", selectionType: "single", required: false, sortOrder: 41, options: [{ label: "Ketchup", priceModifier: 0 }, { label: "Mustard", priceModifier: 0 }, { label: "Relish", priceModifier: 0 }, { label: "Onions", priceModifier: 0 }, { label: "Cheese Sauce", priceModifier: 1.00 }] },
-  { name: "Dressing", venueType: ["golf", "bowling"], category: "food", selectionType: "single", required: false, sortOrder: 50, options: [{ label: "Ranch", priceModifier: 0 }, { label: "Italian", priceModifier: 0 }, { label: "Balsamic Vinaigrette", priceModifier: 0 }, { label: "Caesar", priceModifier: 0 }, { label: "On the Side", priceModifier: 0 }] },
-  { name: "Coffee Size", venueType: ["golf", "bowling"], category: "beverage", selectionType: "single", required: true, sortOrder: 70, options: [{ label: "Small", priceModifier: 0 }, { label: "Medium", priceModifier: 0 }, { label: "Large", priceModifier: 0 }] },
-  { name: "Milk Type", venueType: ["golf", "bowling"], category: "beverage", selectionType: "single", required: false, sortOrder: 71, options: [{ label: "Whole", priceModifier: 0 }, { label: "2%", priceModifier: 0 }, { label: "Skim", priceModifier: 0 }, { label: "Oat", priceModifier: 0.75 }, { label: "Almond", priceModifier: 0.75 }] },
-  { name: "Sweetener", venueType: ["golf", "bowling"], category: "beverage", selectionType: "single", required: false, sortOrder: 72, options: [{ label: "Sugar", priceModifier: 0 }, { label: "Splenda", priceModifier: 0 }, { label: "Stevia", priceModifier: 0 }, { label: "None", priceModifier: 0 }] },
-  { name: "Beer Bucket Quantity", venueType: ["golf", "bowling"], category: "beverage", selectionType: "single", required: true, sortOrder: 100, options: [{ label: "3-pack", priceModifier: 0 }, { label: "5-pack", priceModifier: 0 }, { label: "6-pack", priceModifier: 0 }] },
-  { name: "Mixer", venueType: ["golf", "bowling"], category: "beverage", selectionType: "single", required: false, sortOrder: 91, options: [{ label: "Club Soda", priceModifier: 0 }, { label: "Tonic", priceModifier: 0 }, { label: "Cranberry", priceModifier: 0 }, { label: "OJ", priceModifier: 0 }, { label: "Coke", priceModifier: 0 }, { label: "Water", priceModifier: 0 }] },
-  { name: "Pour Size", venueType: ["golf", "bowling"], category: "beverage", selectionType: "single", required: false, sortOrder: 92, options: [{ label: "Single", priceModifier: 0 }, { label: "Double", priceModifier: 4.00 }] }
+  { name: "Cheese", venueType: ["golf", "bowling"], category: "food", selectionType: "single", required: false, sortOrder: 11, options: [{ label: "American", priceModifier: 0 }, { label: "Cheddar", priceModifier: 0 }, { label: "Swiss", priceModifier: 0 }, { label: "No Cheese", priceModifier: 0 }] },
+  { name: "Mixer", venueType: ["golf", "bowling"], category: "beverage", selectionType: "single", required: false, sortOrder: 91, options: [{ label: "Club Soda", priceModifier: 0 }, { label: "Tonic", priceModifier: 0 }, { label: "Coke", priceModifier: 0 }, { label: "Water", priceModifier: 0 }] }
 ];
 
 export const getGlobalStarterMenuItems = (): Omit<StarterMenuItem, 'id'>[] => [
   { name: "Bud Light (canned)", description: "Chilled 12oz can.", price: 6.00, category: "Beer", venueType: ["golf"], serviceMode: "beverageCart", imageUrl: getImg('lager can'), sortOrder: 1 },
-  { name: "Miller Lite (canned)", description: "Chilled 12oz can.", price: 6.00, category: "Beer", venueType: ["golf"], serviceMode: "beverageCart", imageUrl: getImg('lager can'), sortOrder: 2 },
-  { name: "Craft/Local Beer (canned)", description: "Rotating seasonal selection.", price: 8.00, category: "Beer", venueType: ["golf"], serviceMode: "beverageCart", imageUrl: getImg('craft beer'), sortOrder: 6 },
-  { name: "Beer Bucket", description: "Choice of domestic cans on ice.", price: 24.00, category: "Beer", venueType: ["golf"], serviceMode: "beverageCart", imageUrl: getImg('craft beer'), suggestedModifierGroups: ["Beer Bucket Quantity"], sortOrder: 9 },
-  { name: "Cocktail", description: "Premium spirit with your choice of mixer.", price: 11.00, category: "Spirits", venueType: ["golf"], serviceMode: "beverageCart", imageUrl: getImg('blue cocktail'), suggestedModifierGroups: ["Mixer", "Pour Size"], sortOrder: 10 },
-  { name: "Gatorade", description: "Fruit Punch or Orange.", price: 4.50, category: "Soft Drinks", venueType: ["golf"], serviceMode: "beverageCart", imageUrl: getImg('cola can'), sortOrder: 11 },
-  { name: "Bottled Water", description: "Purified spring water.", price: 3.00, category: "Soft Drinks", venueType: ["golf"], serviceMode: "beverageCart", imageUrl: getImg('water bottle'), sortOrder: 12 },
-  { name: "Hot Dog", description: "All-beef dog on a toasted bun.", price: 8.50, category: "Handhelds", venueType: ["golf"], serviceMode: "beverageCart", imageUrl: getImg('hot dog'), suggestedModifierGroups: ["Hot Dog Toppings"], sortOrder: 14 },
-  { name: "Burger", description: "Angus beef on brioche.", price: 14.00, category: "Handhelds", venueType: ["golf"], serviceMode: "clubhouse", imageUrl: getImg('burger meal'), suggestedModifierGroups: ["Doneness", "Cheese", "Toppings", "Sauces", "Bun", "Side Swap", "Allergy Flag"], sortOrder: 100 },
-  { name: "Wings", description: "Jumbo wings with your choice of sauce.", price: 16.00, category: "Appetizers", venueType: ["golf"], serviceMode: "clubhouse", imageUrl: getImg('chicken wings'), suggestedModifierGroups: ["Wing Style", "Wing Sauce", "Dipping Sauce"], sortOrder: 106 },
-  { name: "Stone Fired Pizza", description: "16-inch jumbo family size.", price: 22.00, category: "Pizza", venueType: ["bowling"], serviceMode: "laneService", imageUrl: getImg('pepperoni pizza'), suggestedModifierGroups: ["Crust", "Pizza Sauce", "Pizza Toppings"], sortOrder: 2 }
+  { name: "Stone Fired Pizza", description: "16-inch jumbo family size.", price: 22.00, category: "Pizza", venueType: ["bowling"], serviceMode: "laneService", imageUrl: getImg('pepperoni pizza'), sortOrder: 2 }
 ];
 
 export async function seedDemoSellers(db: Firestore) {
@@ -115,10 +72,11 @@ export async function seedDemoSellers(db: Firestore) {
       longitude: -83.2458,
       contactName: 'General Manager',
       contactEmail: 'gm@koop-demo.com',
-      contactPhone: '5551234567',
       serviceFee: 1.50,
       taxRate: 6.0,
       status: 'Active',
+      bevcartActive: true,
+      clubhouseActive: true,
       enabledPaymentMethods: ['Pay at Delivery', 'Digital Payment']
     },
     {
@@ -129,15 +87,14 @@ export async function seedDemoSellers(db: Firestore) {
       streetAddress: '5000 West Shore Dr',
       city: 'Orchard Lake',
       state: 'MI',
-      zip: '48324',
       latitude: 42.5719,
       longitude: -83.3552,
       contactName: 'Club Manager',
       contactEmail: 'club@koop-demo.com',
-      contactPhone: '5559876543',
       serviceFee: 2.00,
       taxRate: 6.0,
       status: 'Active',
+      clubhouseActive: true,
       enabledPaymentMethods: ['Pay at Delivery', 'Digital Payment', 'Member Account']
     },
     {
@@ -149,15 +106,14 @@ export async function seedDemoSellers(db: Firestore) {
       streetAddress: '888 Spare Ave',
       city: 'Rochester',
       state: 'MI',
-      zip: '48307',
       latitude: 42.6808,
       longitude: -83.1338,
       contactName: 'Floor Manager',
       contactEmail: 'manager@strikecity.com',
-      contactPhone: '5554443333',
       serviceFee: 1.00,
       taxRate: 6.0,
       status: 'Active',
+      lanedeliveryActive: true,
       enabledPaymentMethods: ['Pay at Delivery', 'Digital Payment']
     }
   ];

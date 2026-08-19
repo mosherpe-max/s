@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { 
   Store, 
@@ -20,6 +20,7 @@ import {
   ChevronRightSquare,
   Target,
   User,
+  Search,
   Image as LucideImage
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -290,7 +291,12 @@ export default function SolutionAdminPage() {
                           <FormItem><FormLabel className="text-[9px] font-black uppercase">Venue Name</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>
                         )} />
                         <FormField control={leadForm.control} name="venueType" render={({ field }) => (
-                          <FormItem><FormLabel className="text-[9px] font-black uppercase">Venue Type</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger className="h-11 border-2 font-bold"><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="Golf Course">Golf Course</SelectItem><SelectItem value="Bowling Center">Bowling Center</SelectItem></SelectContent></Select></FormItem>
+                          <FormItem><FormLabel className="text-[9px] font-black uppercase">Venue Type</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl><SelectTrigger className="h-11 border-2 font-bold"><SelectValue /></SelectTrigger></FormControl>
+                            <SelectContent><SelectItem value="Golf Course">Golf Course</SelectItem><SelectItem value="Bowling Center">Bowling Center</SelectItem></SelectContent>
+                          </Select>
+                          </FormItem>
                         )} />
                       </div>
                       <div className="grid grid-cols-3 gap-4">

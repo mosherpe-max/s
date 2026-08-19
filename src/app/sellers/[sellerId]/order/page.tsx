@@ -1,11 +1,11 @@
 
 'use client';
 
-import { useState, use, useEffect, useMemo, useRef } from 'react';
+import { useState, use, useEffect, useMemo } from 'react';
 import { collection, doc, addDoc, serverTimestamp, query, where } from 'firebase/firestore';
 import { signInAnonymously } from 'firebase/auth';
 import { useFirestore, useCollection, useMemoFirebase, useDoc, useAuth, useUser, useFirebase } from '@/firebase';
-import type { Seller, MenuItem, OrderItem, SolutionConfig, Category, Venue, StaffMember, PaymentMethodType } from '@/lib/types';
+import type { Seller, MenuItem, OrderItem, SolutionConfig, Venue, StaffMember, PaymentMethodType } from '@/lib/types';
 import { categories } from '@/lib/types';
 import { BuyerMenu } from '@/components/buyer-menu';
 import { OrderSummary } from '@/components/order-summary';
@@ -16,40 +16,31 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetClose, SheetDescription } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetClose } from '@/components/ui/sheet';
 import { 
   Loader2, 
   Store, 
-  Truck,
-  Building,
-  Home,
-  Utensils,
-  MapPin,
-  ShoppingBasket,
-  ShoppingBag,
-  CreditCard,
-  Banknote,
-  Check,
-  AlertTriangle,
-  Info,
-  ShoppingCart,
-  Satellite,
-  ChevronLeft,
-  Clock,
-  Zap,
-  User,
-  Smartphone,
-  Mail,
-  X,
-  ReceiptText,
-  UserCircle
+  MapPin, 
+  ShoppingBag, 
+  CreditCard, 
+  Banknote, 
+  Check, 
+  AlertTriangle, 
+  Info, 
+  ShoppingCart, 
+  ChevronLeft, 
+  Zap, 
+  User, 
+  Smartphone, 
+  Mail, 
+  X, 
+  UserCircle 
 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useCart } from '@/lib/cart-context';
-import { Label } from '@/components/ui/label';
-import { RadioGroup } from '@/components/ui/radio-group';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
+import { RadioGroup } from '@/components/ui/radio-group';
 import { mockBuyerLocation } from '@/lib/data';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, useStripe, useElements } from '@stripe/react-stripe-js';
@@ -639,7 +630,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
   };
 
   const isModeAvailable = (type: string) => {
-    if (!seller) return false;
+    if (!seller || type === 'Take Out') return false; // STRICT FILTER
     const isGloballyAuthorized = !solutionConfig || (solutionConfig.enabledModes?.includes(type) ?? true);
     if (!isGloballyAuthorized) return false;
     const isVenueAuthorized = seller.menuTypes.includes(type);
@@ -660,7 +651,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
       let defaultType = seller.type.toLowerCase().includes('bowling') ? 'Lane Delivery' : 'Beverage Cart';
       if (isModeAvailable(defaultType)) updateMenuType(defaultType);
       else {
-        const firstAvailable = seller.menuTypes.find(t => isModeAvailable(t));
+        const firstAvailable = (seller.menuTypes || []).filter(m => m !== 'Take Out').find(t => isModeAvailable(t));
         if (firstAvailable) updateMenuType(firstAvailable);
       }
     }
@@ -756,7 +747,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
           <div className="space-y-4 w-full">
             <h1 className="font-headline text-2xl font-black text-white uppercase tracking-tight leading-none mb-1">{seller?.courseName}</h1>
             <div className="flex wrap gap-2">
-              {(seller?.menuTypes || []).map((type) => {
+              {(seller?.menuTypes || []).filter(m => m !== 'Take Out').map((type) => {
                 const Icon = serviceTypeIcons[type] || Store;
                 const available = availableModes.includes(type);
                 const isSelected = selectedMenuType === type;

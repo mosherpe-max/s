@@ -2,35 +2,21 @@
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { collection, doc, setDoc, query, serverTimestamp, deleteDoc, where } from 'firebase/firestore';
+import { collection, doc, setDoc, query, serverTimestamp, where } from 'firebase/firestore';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
 import { 
-  Briefcase, 
-  Target, 
-  PhoneCall, 
-  Mail, 
-  MapPin, 
   Plus, 
-  Filter, 
-  Search, 
-  ClipboardList, 
-  DollarSign,
-  Trash2,
-  MessageSquare,
   Edit,
   Save,
-  TrendingUp,
   Loader2
 } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel } from '@/components/ui/form';
 import {
   Select,
   SelectContent,
@@ -128,7 +114,7 @@ export default function SalesCRMPage() {
                 <TableCell className="px-6 py-4"><p className="font-black text-sm">{p.venueName}</p><p className="text-[9px] uppercase text-muted-foreground">{p.venueType}</p></TableCell>
                 <TableCell><p className="text-xs font-bold">{p.contactName}</p></TableCell>
                 <TableCell><Badge className="text-[8px] font-black uppercase">{p.stage}</Badge></TableCell>
-                <TableCell className="text-right px-6"><Button variant="ghost" size="icon" onClick={() => { setSelectedProspect(p); form.reset(p); setIsProspectDialogOpen(true); }}><Edit className="h-4 w-4" /></Button></TableCell>
+                <TableCell className="text-right px-8"><Button variant="ghost" size="icon" onClick={() => { setSelectedProspect(p); form.reset(p); setIsProspectDialogOpen(true); }}><Edit className="h-4 w-4" /></Button></TableCell>
               </TableRow>
             ))}
           </TableBody>

@@ -45,6 +45,7 @@ import {
   GripVertical,
   ClipboardCheck,
   Menu,
+  Tags,
   Image as LucideImage
 } from 'lucide-react';
 import Image from 'next/image';
@@ -94,7 +95,7 @@ import { StylizedKoopLogo } from '@/components/header';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { categories } from '@/lib/types';
-import type { MenuItem, Seller, Order, StaffMember, SolutionConfig } from '@/lib/types';
+import type { MenuItem, Seller, Order, StaffMember, SolutionConfig, ModifierGroup } from '@/lib/types';
 import { signOut } from 'firebase/auth';
 import { 
   BarChart, 
@@ -145,6 +146,14 @@ const itemSchema = z.object({
 });
 
 type ItemFormData = z.infer<typeof itemSchema>;
+
+const modifierGroupSchema = z.object({
+  name: z.string().min(2, 'Name required'),
+  minSelection: z.coerce.number().min(0),
+  maxSelection: z.coerce.number().min(1),
+});
+
+type ModifierGroupFormData = z.infer<typeof modifierGroupSchema>;
 
 function NavButton({ id, label, icon: Icon, active, onClick, sidebarOpen }: { 
   id: string, label: string, icon: any, active: boolean, onClick: (id: string) => void, sidebarOpen: boolean 
@@ -223,7 +232,7 @@ function SortableItem({ id, item, isFeatured, onToggleFeature, onRemove }: {
         <div className="relative h-10 w-10 rounded-lg overflow-hidden bg-muted border shrink-0">
           {item.imageUrl && <Image src={item.imageUrl} alt={item.name} fill className="object-cover" />}
         </div>
-        <div>
+        <div className="text-left">
           <p className="text-[11px] font-black uppercase text-[#213147] leading-none mb-1">{item.name}</p>
           <p className="text-[9px] font-bold text-muted-foreground uppercase">${item.price.toFixed(2)}</p>
         </div>
@@ -270,6 +279,9 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
   const menuItemsQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'sellers', sellerId, 'menuItems') : null), [firestore, sellerId]);
   const { data: menuItems } = useCollection<MenuItem>(menuItemsQuery);
 
+  const modifierGroupsQuery = useMemoFirebase(() => (firestore ? query(collection(firestore, 'modifier_groups'), where('sellerId', '==', sellerId)) : null), [firestore, sellerId]);
+  const { data: modifierGroups } = useCollection<ModifierGroup>(modifierGroupsQuery);
+
   const staffForm = useForm<StaffFormData>({
     resolver: zodResolver(staffSchema),
     defaultValues: { name: '', role: 'Staff', pin: '', isActive: true }
@@ -280,11 +292,18 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
     defaultValues: { name: '', description: '', price: 0, category: '', isAvailable: true, availableOn: [], featuredOn: [], modifierGroupIds: [] }
   });
 
+  const modifierGroupForm = useForm<ModifierGroupFormData>({
+    resolver: zodResolver(modifierGroupSchema),
+    defaultValues: { name: '', minSelection: 0, maxSelection: 1 }
+  });
+
   const analyticsData = useMemo(() => {
     if (!orders || !seller) return { dailyRevenue: [], topItems: [], fulfillmentEfficiency: [], revenueByMode: [], modes: [] };
-    // EXPLICIT FILTER: Remove 'Take Out' from all analytics logic
+    
+    // STRICT FILTER: Scrub 'Take Out' from all analytics logic
     const modes = (seller.menuTypes || []).filter(m => m !== 'Take Out');
     const now = new Date();
+    
     const dailyRevenue = Array.from({ length: 7 }, (_, i) => {
       const date = subDays(startOfDay(now), 6 - i);
       const dayLabel = format(date, 'MMM d');
@@ -307,12 +326,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
       return { mode, ackSeconds: Math.round(avgAck), deliverMinutes: Math.round(avgDeliver) };
     });
 
-    const revenueByMode = modes.map(mode => {
-      const modeOrders = orders.filter(o => o.menuType === mode && o.status === 'Delivered');
-      return { mode, revenue: modeOrders.reduce((sum, o) => sum + (o.total || 0), 0) };
-    });
-
-    return { dailyRevenue, topItems, fulfillmentEfficiency, revenueByMode, modes };
+    return { dailyRevenue, topItems, fulfillmentEfficiency, modes };
   }, [orders, seller]);
 
   useEffect(() => { 
@@ -370,6 +384,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
     { id: "orders", label: "Fulfillment Log", icon: ClipboardCheck },
     { id: "modes", label: "Service Modes", icon: Zap },
     { id: "menu", label: "Menu Items", icon: UtensilsCrossed },
+    { id: "modifiers", label: "Modifiers", icon: Tags },
     { id: "staff", label: "Staff", icon: Users },
     { id: "marketing", label: "Marketing", icon: Smartphone },
     { id: "settings", label: "Settings", icon: SettingsIcon }
@@ -381,6 +396,30 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
 
   const deliveredToday = orders?.filter(o => o.status === 'Delivered' && o.createdAt && isToday(o.createdAt.toDate())) || [];
   const netRevenueToday = deliveredToday.reduce((sum, o) => sum + (o.total || 0), 0);
+
+  // Group orders for Patron Directory to prevent duplicate keys
+  const patrons = useMemo(() => {
+    if (!orders) return [];
+    const map = new Map<string, { email: string, name: string, phone: string, count: number, total: number, id: string }>();
+    orders.forEach(o => {
+      const key = o.customerEmail || o.customerPhone || o.buyerProfileId;
+      const existing = map.get(key);
+      if (existing) {
+        existing.count++;
+        existing.total += o.total;
+      } else {
+        map.set(key, { 
+          id: key,
+          email: o.customerEmail || 'N/A', 
+          name: o.customerName || 'Guest', 
+          phone: o.customerPhone || 'N/A', 
+          count: 1, 
+          total: o.total 
+        });
+      }
+    });
+    return Array.from(map.values()).sort((a, b) => b.total - a.total).slice(0, 50);
+  }, [orders]);
 
   return (
     <div className="flex flex-col h-screen overflow-x-auto bg-[#F8FAFC] text-left">
@@ -439,11 +478,20 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                     <Card className="border-2 shadow-sm bg-[#213147] text-white">
                       <CardHeader className="border-b border-white/5 py-6">
                         <div className="bg-primary/20 p-2 rounded-xl w-fit mb-3"><Activity className="h-5 w-5 text-primary" /></div>
-                        <CardTitle className="text-sm font-black uppercase tracking-widest">Operational Snapshot</CardTitle>
+                        <CardTitle className="text-sm font-black uppercase tracking-widest">Patron Directory</CardTitle>
                       </CardHeader>
-                      <CardContent className="pt-8 space-y-8">
-                        <div><p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40 mb-2">Today's Avg Delivery</p><div className="flex items-end gap-2"><p className="text-4xl font-black font-headline tracking-tighter">14.2</p><p className="text-xs font-bold uppercase text-white/60 mb-1.5">Minutes</p></div></div>
-                        <div><p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40 mb-2">Staff Utilization</p><div className="flex items-end gap-2"><p className="text-4xl font-black font-headline tracking-tighter">88%</p><div className="h-3 w-3 rounded-full bg-green-500 mb-2.5 animate-pulse" /></div></div>
+                      <CardContent className="pt-4 p-0">
+                         <div className="divide-y divide-white/5">
+                            {patrons.slice(0, 5).map(p => (
+                              <div key={p.id} className="p-4 flex items-center justify-between hover:bg-white/5 transition-colors">
+                                <div className="text-left">
+                                  <p className="text-[11px] font-black uppercase tracking-tight leading-none mb-1">{p.name}</p>
+                                  <p className="text-[8px] font-bold text-white/40 uppercase tracking-widest">{p.count} Orders</p>
+                                </div>
+                                <p className="text-[11px] font-mono font-black text-primary">${p.total.toFixed(2)}</p>
+                              </div>
+                            ))}
+                         </div>
                       </CardContent>
                     </Card>
                   </div>
@@ -467,11 +515,46 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                             <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 900 }} tickFormatter={(v) => `$${v}`} />
                             <ChartTooltip formatter={(v: number) => [`$${v.toFixed(2)}`]} />
                             <Legend iconType="circle" />
-                            {analyticsData.modes.map((mode) => (<Bar key={mode} dataKey={mode} stackId="a" fill={getModeColor(mode)} radius={[0, 0, 0, 0]} barSize={40} />))}
+                            {analyticsData.modes.map((mode) => (
+                              <Bar key={mode} dataKey={mode} stackId="a" fill={getModeColor(mode)} radius={[0, 0, 0, 0]} barSize={40} />
+                            ))}
                           </BarChart>
                         </ResponsiveContainer>
                       </CardContent>
                    </Card>
+
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                      <Card className="border-2 shadow-sm">
+                         <CardHeader className="bg-slate-50 border-b py-4"><CardTitle className="text-[10px] font-black uppercase tracking-widest">Fulfillment Efficiency</CardTitle></CardHeader>
+                         <CardContent className="pt-6 h-[300px]">
+                            <ResponsiveContainer width="100%" height="100%">
+                               <BarChart data={analyticsData.fulfillmentEfficiency}>
+                                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                                  <XAxis dataKey="mode" axisLine={false} tickLine={false} tick={{ fontSize: 8, fontWeight: 900 }} />
+                                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 8, fontWeight: 900 }} />
+                                  <ChartTooltip />
+                                  <Bar dataKey="deliverMinutes" name="Total Duration (m)" fill="#213147" radius={[4, 4, 0, 0]} />
+                                  <Bar dataKey="ackSeconds" name="Ack Time (s)" fill="#E50000" radius={[4, 4, 0, 0]} />
+                               </BarChart>
+                            </ResponsiveContainer>
+                         </CardContent>
+                      </Card>
+
+                      <Card className="border-2 shadow-sm">
+                         <CardHeader className="bg-slate-50 border-b py-4"><CardTitle className="text-[10px] font-black uppercase tracking-widest">Top Selling Items</CardTitle></CardHeader>
+                         <CardContent className="pt-6 h-[300px]">
+                            <ResponsiveContainer width="100%" height="100%">
+                               <BarChart data={analyticsData.topItems} layout="vertical">
+                                  <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                                  <XAxis type="number" hide />
+                                  <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{ fontSize: 8, fontWeight: 900 }} width={100} />
+                                  <ChartTooltip />
+                                  <Bar dataKey="volume" fill="#E50000" radius={[0, 4, 4, 0]} />
+                               </BarChart>
+                            </ResponsiveContainer>
+                         </CardContent>
+                      </Card>
+                   </div>
                 </div>
               )}
 
@@ -505,7 +588,9 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                   <div className="flex items-center justify-between">
                     <h2 className="text-xl font-black uppercase text-[#213147]">Service Modes</h2>
                     <div className="flex gap-2 bg-[#213147] p-1 rounded-xl">
-                      {seller?.menuTypes?.filter(m => m !== 'Take Out').map(mode => (<Button key={mode} variant={activeModeTab === mode ? 'default' : 'ghost'} size="sm" onClick={() => setActiveModeTab(mode)} className={cn("text-[9px] font-black uppercase tracking-widest h-9 px-4 rounded-lg", activeModeTab === mode ? "bg-primary text-white shadow-lg" : "text-white/40 hover:text-white hover:bg-white/5")}>{mode}</Button>))}
+                      {seller?.menuTypes?.filter(m => m !== 'Take Out').map(mode => (
+                        <Button key={mode} variant={activeModeTab === mode ? 'default' : 'ghost'} size="sm" onClick={() => setActiveModeTab(mode)} className={cn("text-[9px] font-black uppercase tracking-widest h-9 px-4 rounded-lg", activeModeTab === mode ? "bg-primary text-white shadow-lg" : "text-white/40 hover:text-white hover:bg-white/5")}>{mode}</Button>
+                      ))}
                     </div>
                   </div>
 
