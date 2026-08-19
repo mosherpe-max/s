@@ -20,12 +20,21 @@ import {
   Target,
   User,
   Search,
-  Image as LucideImage
+  CheckCircle2,
+  AlertTriangle,
+  Mail,
+  Smartphone,
+  Globe,
+  DollarSign,
+  ShieldCheck,
+  Zap,
+  Info
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import { 
   Dialog, 
   DialogContent, 
@@ -41,18 +50,18 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useRouter } from 'next/navigation';
-import { useFirestore, useCollection, useMemoFirebase, useAuth, useUser } from '@/firebase';
+import { useFirestore, useCollection, useMemoFirebase, useAuth, useUser, useDoc } from '@/firebase';
 import { signOut } from 'firebase/auth';
-import { collection, doc, setDoc, serverTimestamp } from 'firebase/firestore';
-import type { Seller, Lead } from '@/lib/types';
+import { collection, doc, setDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
+import type { Seller, Lead, SolutionConfig, Venue } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
-import { cn, SUPER_ADMIN_ID, getNumericOrderId } from '@/lib/utils';
+import { cn, SUPER_ADMIN_ID } from '@/lib/utils';
 import { StylizedKoopLogo } from '@/components/header';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Form, FormControl, FormField, FormItem, FormLabel } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import {
   Select,
   SelectContent,
@@ -163,11 +172,14 @@ export default function SolutionAdminPage() {
   const [leadSearchTerm, setLeadSearchTerm] = useState('');
   const [isProcessingSave, setIsProcessingSave] = useState(false);
 
+  // Queries
   const leadsQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'leads') : null), [firestore]);
   const venuesQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'sellers') : null), [firestore]);
+  const configRef = useMemoFirebase(() => (firestore ? doc(firestore, 'solution', 'config') : null), [firestore]);
 
   const { data: leads } = useCollection<Lead>(leadsQuery);
   const { data: venues } = useCollection<Seller>(venuesQuery);
+  const { data: config, isLoading: isConfigLoading } = useDoc<SolutionConfig>(configRef);
 
   const leadForm = useForm<LeadFormData>({
     resolver: zodResolver(leadSchema),
@@ -193,15 +205,33 @@ export default function SolutionAdminPage() {
     const id = editingLead?.id || Math.random().toString(36).substr(2, 9);
     const finalData = { ...data, id, updatedAt: serverTimestamp(), createdAt: editingLead?.createdAt || serverTimestamp() };
     setDoc(doc(firestore, 'leads', id), finalData, { merge: true })
-      .then(() => { toast({ title: editingLead ? "Lead Updated" : "Lead Created" }); setIsLeadFormOpen(false); setEditingLead(null); })
+      .then(() => { 
+        toast({ title: editingLead ? "Lead Updated" : "Lead Created" }); 
+        setIsLeadFormOpen(false); 
+        setEditingLead(null); 
+      })
       .finally(() => setIsProcessingSave(false));
   };
 
-  const handleLogout = async () => { if (!auth) return; await signOut(auth); router.push('/login'); };
+  const handleUpdateConfig = async (field: string, value: any) => {
+    if (!firestore || !config) return;
+    updateDoc(doc(firestore, 'solution', 'config'), { [field]: value, updatedAt: serverTimestamp() })
+      .then(() => toast({ title: "System Config Updated" }));
+  };
+
+  const handleLogout = async () => { 
+    if (!auth) return; 
+    await signOut(auth); 
+    router.push('/login'); 
+  };
 
   const isSuperAdmin = user?.uid === SUPER_ADMIN_ID || user?.email === 'mosherpe@gmail.com';
-  if (isUserLoading) return <div className="flex items-center justify-center min-h-screen"><Loader2 className="animate-spin" /></div>;
-  if (!user || !isSuperAdmin) return null;
+  
+  if (isUserLoading) return <div className="flex items-center justify-center min-h-screen"><Loader2 className="animate-spin text-primary h-12 w-12" /></div>;
+  if (!user || !isSuperAdmin) {
+    if (!isUserLoading && !user) router.push('/login');
+    return null;
+  }
 
   const filteredLeads = (leads || []).filter(l => l.venueName.toLowerCase().includes(leadSearchTerm.toLowerCase())).sort((a, b) => (b.updatedAt?.toMillis() || 0) - (a.updatedAt?.toMillis() || 0));
 
@@ -228,21 +258,51 @@ export default function SolutionAdminPage() {
                ))}
              </nav>
           </ScrollArea>
+          <div className="p-4 border-t border-white/5">
+             <Button variant="ghost" className="w-full justify-start text-white/40 hover:text-white gap-3 px-4 h-12" onClick={handleLogout}>
+               <LogOut className="h-4 w-4" />
+               {sidebarOpen && <span className="text-[10px] font-black uppercase tracking-widest">Terminate Session</span>}
+             </Button>
+          </div>
         </aside>
 
         <main className="flex-1 overflow-auto">
           <div className="p-8">
-             <div className="max-w-7xl mx-auto space-y-8">
+             <div className="max-w-7xl mx-auto space-y-8 pb-20">
                {activeNav === 'dashboard' && (
-                 <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                    <KPICard label="Total Venues" value={venues?.length || 0} sub="Onboarded Partners" icon={Store} colorClass="bg-indigo-600" />
-                    <KPICard label="Active Markets" value={2} sub="Regional Clusters" icon={MapPin} colorClass="bg-green-600" />
-                    <KPICard label="System Health" value="100%" sub="All Feeds Live" icon={Activity} colorClass="bg-emerald-500" />
+                 <div className="space-y-8 animate-in fade-in duration-500">
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                      <KPICard label="Total Venues" value={venues?.length || 0} sub="Onboarded Partners" icon={Store} colorClass="bg-indigo-600" />
+                      <KPICard label="Active Markets" value={2} sub="Regional Clusters" icon={MapPin} colorClass="bg-green-600" />
+                      <KPICard label="System Health" value="100%" sub="All Feeds Live" icon={Activity} colorClass="bg-emerald-500" />
+                      <KPICard label="Total Prospects" value={leads?.length || 0} sub="In Sales Pipeline" icon={Target} colorClass="bg-primary" />
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                      <Card className="border-2 shadow-sm">
+                        <CardHeader className="bg-slate-50 border-b py-4"><CardTitle className="text-xs font-black uppercase tracking-widest text-[#213147]">Recent Lead Activity</CardTitle></CardHeader>
+                        <CardContent className="p-0">
+                          <Table>
+                            <TableBody>
+                              {filteredLeads.slice(0, 5).map(lead => (
+                                <TableRow key={lead.id}>
+                                  <TableCell className="px-6 py-4">
+                                    <p className="font-black text-sm">{lead.venueName}</p>
+                                    <p className="text-[9px] uppercase text-muted-foreground">{lead.city}, {lead.state}</p>
+                                  </TableCell>
+                                  <TableCell><Badge variant="outline" className="text-[8px] font-black uppercase">{lead.stage}</Badge></TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </CardContent>
+                      </Card>
+                    </div>
                  </div>
                )}
 
                {activeNav === 'sales' && (
-                 <div className="space-y-6">
+                 <div className="space-y-6 animate-in fade-in duration-500">
                     <div className="flex justify-between items-center">
                       <h2 className="text-2xl font-black uppercase text-[#213147]">Sales CRM</h2>
                       <div className="flex gap-4">
@@ -255,19 +315,111 @@ export default function SolutionAdminPage() {
                     </div>
                     <div className="border-2 rounded-[2rem] overflow-hidden bg-white shadow-sm">
                       <Table>
-                        <TableHeader><TableRow><TableHead className="px-6">Venue</TableHead><TableHead>Contact</TableHead><TableHead>Stage</TableHead><TableHead className="text-right px-6">Actions</TableHead></TableRow></TableHeader>
+                        <TableHeader className="bg-slate-50">
+                          <TableRow>
+                            <TableHead className="px-6 py-5 text-[10px] font-black uppercase tracking-widest">Venue</TableHead>
+                            <TableHead className="text-[10px] font-black uppercase tracking-widest">Contact</TableHead>
+                            <TableHead className="text-[10px] font-black uppercase tracking-widest">Stage</TableHead>
+                            <TableHead className="text-right px-6 text-[10px] font-black uppercase tracking-widest">Actions</TableHead>
+                          </TableRow>
+                        </TableHeader>
                         <TableBody>
                           {filteredLeads.map(lead => (
-                            <TableRow key={lead.id}>
+                            <TableRow key={lead.id} className="group hover:bg-slate-50/50 transition-colors">
                               <TableCell className="px-6 py-4"><p className="font-black text-sm">{lead.venueName}</p><p className="text-[9px] uppercase text-muted-foreground">{lead.city}, {lead.state}</p></TableCell>
                               <TableCell><p className="font-bold text-xs">{lead.contactName}</p><p className="text-[9px] text-muted-foreground">{lead.email}</p></TableCell>
-                              <TableCell><Badge variant="outline" className="text-[8px] font-black uppercase">{lead.stage}</Badge></TableCell>
+                              <TableCell><Badge variant="outline" className="text-[8px] font-black uppercase bg-slate-100">{lead.stage}</Badge></TableCell>
                               <TableCell className="text-right px-6"><Button variant="ghost" size="icon" onClick={() => { setEditingLead(lead); leadForm.reset(lead); setIsLeadFormOpen(true); }}><Edit className="h-4 w-4" /></Button></TableCell>
                             </TableRow>
                           ))}
                         </TableBody>
                       </Table>
                     </div>
+                 </div>
+               )}
+
+               {activeNav === 'venues' && (
+                 <div className="space-y-6 animate-in fade-in duration-500">
+                    <h2 className="text-2xl font-black uppercase text-[#213147]">Venue Registry</h2>
+                    <div className="border-2 rounded-[2rem] overflow-hidden bg-white shadow-sm">
+                      <Table>
+                        <TableHeader className="bg-slate-50">
+                          <TableRow>
+                            <TableHead className="px-8 py-5 text-[10px] font-black uppercase tracking-widest">Establishment</TableHead>
+                            <TableHead className="text-[10px] font-black uppercase tracking-widest">Type</TableHead>
+                            <TableHead className="text-[10px] font-black uppercase tracking-widest">Status</TableHead>
+                            <TableHead className="text-right px-8 text-[10px] font-black uppercase tracking-widest">Direct Access</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {(venues || []).map(v => (
+                            <TableRow key={v.id} className="group hover:bg-slate-50/50 transition-colors">
+                              <TableCell className="px-8 py-4">
+                                <p className="font-black text-sm uppercase">{v.courseName}</p>
+                                <p className="text-[9px] uppercase text-muted-foreground">{v.city}, {v.state}</p>
+                              </TableCell>
+                              <TableCell><Badge className="bg-[#213147] text-white text-[8px] font-black uppercase border-0">{v.type}</Badge></TableCell>
+                              <TableCell><Badge variant={v.status === 'Active' ? 'default' : 'outline'} className={cn("text-[8px] font-black uppercase", v.status === 'Active' ? "bg-green-500" : "text-slate-400")}>{v.status}</Badge></TableCell>
+                              <TableCell className="text-right px-8"><Button variant="outline" size="sm" asChild className="h-8 text-[9px] font-black uppercase tracking-widest border-2"><a href={`/sellers/${v.id}`}>Manage Portal</a></Button></TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                 </div>
+               )}
+
+               {activeNav === 'system' && (
+                 <div className="max-w-3xl space-y-8 animate-in fade-in duration-500">
+                    <h2 className="text-2xl font-black uppercase text-[#213147]">System Configuration</h2>
+                    
+                    <Card className="border-2 shadow-sm p-8 space-y-8 text-left">
+                       <div className="space-y-6">
+                         <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2"><Zap className="h-4 w-4" /> Operational Engine</h4>
+                         <div className="grid gap-6">
+                            <div className="space-y-2">
+                               <Label className="text-[10px] font-black uppercase">Daily Operational Reset Hour (EST)</Label>
+                               <div className="flex gap-4 items-center">
+                                  <Input 
+                                    type="number" 
+                                    min="0" max="23" 
+                                    defaultValue={config?.dailyResetHour || 4} 
+                                    className="h-12 border-2 font-bold w-24 text-center"
+                                    onBlur={(e) => handleUpdateConfig('dailyResetHour', parseInt(e.target.value))}
+                                  />
+                                  <p className="text-[9px] text-muted-foreground uppercase font-medium max-w-xs">The hour at which all staff shifts are system-terminated and stale orders cancelled.</p>
+                               </div>
+                            </div>
+                            
+                            <div className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border-2 border-slate-100">
+                               <div className="text-left">
+                                  <p className="text-xs font-black uppercase text-[#213147]">Twilio SMS Notifications</p>
+                                  <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">GLOBAL TOGGLE FOR PATRON UPDATES</p>
+                               </div>
+                               <Switch 
+                                  checked={config?.smsNotificationsEnabled !== false} 
+                                  onCheckedChange={(val) => handleUpdateConfig('smsNotificationsEnabled', val)}
+                                  className="data-[state=checked]:bg-green-500"
+                               />
+                            </div>
+                         </div>
+                       </div>
+
+                       <div className="space-y-6 pt-6 border-t">
+                         <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2"><Globe className="h-4 w-4" /> Support & Branding</h4>
+                         <div className="grid gap-6">
+                            <div className="space-y-2">
+                               <Label className="text-[10px] font-black uppercase">Global Support Email</Label>
+                               <Input 
+                                  defaultValue={config?.supportEmail} 
+                                  onBlur={(e) => handleUpdateConfig('supportEmail', e.target.value)}
+                                  className="h-12 border-2 font-bold"
+                                  placeholder="support@kooporders.com"
+                               />
+                            </div>
+                         </div>
+                       </div>
+                    </Card>
                  </div>
                )}
              </div>
@@ -306,7 +458,7 @@ export default function SolutionAdminPage() {
                           <FormItem>
                             <FormLabel className="text-[9px] font-black uppercase">State</FormLabel>
                             <Select onValueChange={field.onChange} defaultValue={field.value}>
-                              <FormControl><SelectTrigger className="h-11 border-2 font-bold"><SelectValue placeholder="Select State" /></SelectTrigger></FormControl>
+                              <FormControl><SelectTrigger className="h-11 border-2 font-bold"><SelectValue placeholder="State" /></SelectTrigger></FormControl>
                               <SelectContent>
                                 {US_STATES.map(s => <SelectItem key={s.code} value={s.code}>{s.name}</SelectItem>)}
                               </SelectContent>
