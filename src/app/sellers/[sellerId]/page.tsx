@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useMemo, useEffect, use } from 'react';
@@ -122,6 +123,8 @@ import {
   useSortable,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
 
 const staffSchema = z.object({
   name: z.string().min(2, 'Name required'),
@@ -292,16 +295,6 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
     defaultValues: { name: '', description: '', price: 0, category: '', isAvailable: true, availableOn: [], featuredOn: [], modifierGroupIds: [] }
   });
 
-  const modifierGroupForm = useForm<ModifierGroupFormData>({
-    resolver: zodResolver(modifierGroupSchema),
-    defaultValues: { name: '', minSelection: 0, maxSelection: 1 }
-  });
-
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }), 
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
-  );
-
   const analyticsData = useMemo(() => {
     if (!orders || !seller) return { dailyRevenue: [], topItems: [], fulfillmentEfficiency: [], revenueByMode: [], modes: [] };
     
@@ -337,7 +330,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
     if (!orders) return [];
     const map = new Map<string, { email: string, name: string, phone: string, count: number, total: number, id: string }>();
     orders.forEach(o => {
-      const key = o.customerEmail || o.customerPhone || o.buyerProfileId || `anon-${o.id}`;
+      const key = `${o.customerEmail || ''}-${o.customerPhone || ''}-${o.buyerProfileId || 'anon'}`;
       const existing = map.get(key);
       if (existing) {
         existing.count++;
@@ -353,12 +346,15 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
         });
       }
     });
-    // Ensure uniqueness for React keys
     return Array.from(map.values())
-      .map((p, idx) => ({ ...p, uniqueId: `${p.id}-${idx}` }))
       .sort((a, b) => b.total - a.total)
       .slice(0, 50);
   }, [orders]);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }), 
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
 
   useEffect(() => {
     if (seller && !activeModeTab) {
@@ -391,7 +387,17 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
     if (!item) return;
     const availableOn = item.availableOn || [];
     const newAvailableOn = action === 'add' ? Array.from(new Set([...availableOn, mode])) : availableOn.filter(m => m !== mode);
-    updateDoc(doc(firestore, 'sellers', sellerId, 'menuItems', itemId), { availableOn: newAvailableOn });
+    
+    const updateData = { availableOn: newAvailableOn };
+    const docRef = doc(firestore, 'sellers', sellerId, 'menuItems', itemId);
+
+    updateDoc(docRef, updateData).catch(async (serverError) => {
+      errorEmitter.emit('permission-error', new FirestorePermissionError({
+        path: docRef.path,
+        operation: 'update',
+        requestResourceData: updateData,
+      } satisfies SecurityRuleContext));
+    });
   };
 
   const handleToggleFeatureInMode = (itemId: string, mode: string) => {
@@ -400,7 +406,17 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
     if (!item) return;
     const featuredOn = item.featuredOn || [];
     const newFeaturedOn = featuredOn.includes(mode) ? featuredOn.filter(m => m !== mode) : [...featuredOn, mode];
-    updateDoc(doc(firestore, 'sellers', sellerId, 'menuItems', itemId), { featuredOn: newFeaturedOn });
+    
+    const updateData = { featuredOn: newFeaturedOn };
+    const docRef = doc(firestore, 'sellers', sellerId, 'menuItems', itemId);
+
+    updateDoc(docRef, updateData).catch(async (serverError) => {
+      errorEmitter.emit('permission-error', new FirestorePermissionError({
+        path: docRef.path,
+        operation: 'update',
+        requestResourceData: updateData,
+      } satisfies SecurityRuleContext));
+    });
   };
 
   const handleDragEnd = (event: any, category: string, mode: string) => {
@@ -418,6 +434,8 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
 
   const handleLogout = async () => { if (!auth) return; await signOut(auth); router.push('/login'); };
 
+  if (isUserLoading || isSellerLoading) return <div className="flex flex-col items-center justify-center h-screen bg-[#213147] text-white"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>;
+
   const NAV_ITEMS = [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
     { id: "analytics", label: "Analytics", icon: BarChart3 },
@@ -431,9 +449,6 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
   ];
 
   const NavContent = () => (<nav className="space-y-1">{NAV_ITEMS.map((item) => (<NavButton key={item.id} id={item.id} label={item.label} icon={item.icon} active={activeNav === item.id} onClick={setActiveNav} sidebarOpen={sidebarOpen} />))}</nav>);
-
-  // EARLY RETURNS AFTER HOOKS
-  if (isUserLoading || isSellerLoading) return <div className="flex flex-col items-center justify-center h-screen bg-[#213147] text-white"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>;
 
   const deliveredToday = orders?.filter(o => o.status === 'Delivered' && o.createdAt && isToday(o.createdAt.toDate())) || [];
   const netRevenueToday = deliveredToday.reduce((sum, o) => sum + (o.total || 0), 0);
@@ -500,7 +515,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                       <CardContent className="pt-4 p-0">
                          <div className="divide-y divide-white/5">
                             {patrons.slice(0, 5).map(p => (
-                              <div key={p.uniqueId} className="p-4 flex items-center justify-between hover:bg-white/5 transition-colors">
+                              <div key={p.id} className="p-4 flex items-center justify-between hover:bg-white/5 transition-colors">
                                 <div className="text-left">
                                   <p className="text-[11px] font-black uppercase tracking-tight leading-none mb-1">{p.name}</p>
                                   <p className="text-[8px] font-bold text-white/40 uppercase tracking-widest">{p.count} Orders</p>
