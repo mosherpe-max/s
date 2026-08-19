@@ -45,17 +45,29 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const auth = useAuth();
   const { user, isUserLoading } = useUser();
 
+  const isSuperAdmin = user?.uid === SUPER_ADMIN_ID || user?.email === 'mosherpe@gmail.com';
+
+  useEffect(() => {
+    if (!isUserLoading && (!user || !isSuperAdmin)) {
+      router.push('/login');
+    }
+  }, [user, isUserLoading, isSuperAdmin, router]);
+
   const handleLogout = async () => {
     if (!auth) return;
     await signOut(auth);
     router.push('/login');
   };
 
-  const isSuperAdmin = user?.uid === SUPER_ADMIN_ID || user?.email === 'mosherpe@gmail.com';
+  if (isUserLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-[#213147]">
+        <ShieldCheck className="h-12 w-12 animate-spin text-primary" />
+      </div>
+    );
+  }
 
-  if (isUserLoading) return <div className="flex h-screen items-center justify-center bg-[#213147]"><ShieldCheck className="h-12 w-12 animate-spin text-primary" /></div>;
   if (!user || !isSuperAdmin) {
-    if (!isUserLoading && !user) router.push('/login');
     return null;
   }
 
