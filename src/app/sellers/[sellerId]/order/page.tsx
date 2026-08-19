@@ -737,7 +737,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
   const availableModes = (seller?.menuTypes || []).filter(t => isModeAvailable(t));
 
   return (
-    <div className="flex flex-col min-h-screen bg-[#F0F0F0]">
+    <div className="flex flex-col min-h-screen bg-[#F0F0F0] overflow-x-hidden">
       <header className="relative w-full min-h-[22vh] flex flex-col bg-[#213147] overflow-hidden shrink-0 pt-8 pb-8 px-6 text-left">
         <div className="absolute inset-0 z-0 opacity-10 pointer-events-none">
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full border-[30px] border-white" />

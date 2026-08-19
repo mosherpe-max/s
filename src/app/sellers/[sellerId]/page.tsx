@@ -296,10 +296,11 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
     defaultValues: { name: '', minSelection: 0, maxSelection: 1 }
   });
 
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
+
   const analyticsData = useMemo(() => {
     if (!orders || !seller) return { dailyRevenue: [], topItems: [], fulfillmentEfficiency: [], revenueByMode: [], modes: [] };
     
-    // STRICT FILTER: Scrub 'Take Out' from all analytics logic
     const modes = (seller.menuTypes || []).filter(m => m !== 'Take Out');
     const now = new Date();
     
@@ -328,12 +329,29 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
     return { dailyRevenue, topItems, fulfillmentEfficiency, modes };
   }, [orders, seller]);
 
-  useEffect(() => { 
-    if (seller?.menuTypes?.length) {
-      const validModes = seller.menuTypes.filter(m => m !== 'Take Out');
-      if (validModes.length > 0 && !activeModeTab) setActiveModeTab(validModes[0]);
-    }
-  }, [seller]);
+  const patrons = useMemo(() => {
+    if (!orders) return [];
+    const map = new Map<string, { email: string, name: string, phone: string, count: number, total: number, id: string }>();
+    orders.forEach(o => {
+      // Identity grouping key based on contact or anonymous ID
+      const key = o.customerEmail || o.customerPhone || o.buyerProfileId || `anon-${o.id}`;
+      const existing = map.get(key);
+      if (existing) {
+        existing.count++;
+        existing.total += o.total;
+      } else {
+        map.set(key, { 
+          id: key,
+          email: o.customerEmail || 'N/A', 
+          name: o.customerName || 'Guest', 
+          phone: o.customerPhone || 'N/A', 
+          count: 1, 
+          total: o.total 
+        });
+      }
+    });
+    return Array.from(map.values()).sort((a, b) => b.total - a.total).slice(0, 50);
+  }, [orders]);
 
   const onSaveStaff = async (data: StaffFormData) => {
     if (!firestore || !sellerId) return;
@@ -374,7 +392,6 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
     }
   };
 
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
   const handleLogout = async () => { if (!auth) return; await signOut(auth); router.push('/login'); };
 
   const NAV_ITEMS = [
@@ -395,30 +412,6 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
 
   const deliveredToday = orders?.filter(o => o.status === 'Delivered' && o.createdAt && isToday(o.createdAt.toDate())) || [];
   const netRevenueToday = deliveredToday.reduce((sum, o) => sum + (o.total || 0), 0);
-
-  // Group orders for Patron Directory to prevent duplicate keys
-  const patrons = useMemo(() => {
-    if (!orders) return [];
-    const map = new Map<string, { email: string, name: string, phone: string, count: number, total: number, id: string }>();
-    orders.forEach(o => {
-      const key = o.customerEmail || o.customerPhone || o.buyerProfileId || 'guest';
-      const existing = map.get(key);
-      if (existing) {
-        existing.count++;
-        existing.total += o.total;
-      } else {
-        map.set(key, { 
-          id: key,
-          email: o.customerEmail || 'N/A', 
-          name: o.customerName || 'Guest', 
-          phone: o.customerPhone || 'N/A', 
-          count: 1, 
-          total: o.total 
-        });
-      }
-    });
-    return Array.from(map.values()).sort((a, b) => b.total - a.total).slice(0, 50);
-  }, [orders]);
 
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-[#F8FAFC] text-left">

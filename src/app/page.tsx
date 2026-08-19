@@ -24,7 +24,7 @@ export default function HomePage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#213147] text-white font-body selection:bg-red-600 selection:text-white overflow-x-auto">
+    <div className="min-h-screen bg-[#213147] text-white font-body selection:bg-red-600 selection:text-white overflow-x-hidden">
       {/* HERO SECTION - Visible Immediately */}
       <section className="relative min-h-[90vh] flex flex-col justify-center px-6 md:px-12 py-20 overflow-hidden">
         {/* Animated Background Elements */}
@@ -244,7 +244,7 @@ export default function HomePage() {
         <div className="relative z-10">
           <h2 className="font-headline text-5xl md:text-8xl font-black uppercase mb-6 tracking-tighter leading-none">Ready to Take<br />More Orders?</h2>
           <p className="text-lg md:text-xl text-[#8a9ab0] max-w-[500px] mx-auto mb-12 leading-relaxed">Join golf courses and bowling centers already using Koop to capture more revenue with zero POS headaches.</p>
-          <div className="flex flex-wrap justify-center gap-4">
+          <div className="flex wrap justify-center gap-4">
             <a href="mailto:sales@kooporders.com" className="font-headline text-sm md:text-base font-bold uppercase tracking-widest bg-[#E50000] hover:bg-[#c40000] text-white px-12 py-5 rounded transition-all shadow-2xl">
               Request a Demo
             </a>
