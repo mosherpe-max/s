@@ -61,7 +61,7 @@ import { Switch } from '@/components/ui/switch';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Form, FormControl, FormField, FormItem, FormLabel } from '@/components/form';
+import { Form, FormControl, FormField, FormItem, FormLabel } from '@/components/ui/form';
 import {
   Select,
   SelectContent,
@@ -1045,4 +1045,3 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
     </div>
   );
 }
-
