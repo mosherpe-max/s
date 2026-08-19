@@ -57,6 +57,7 @@ export interface Venue {
   monthlySolutionFee?: number;
   serviceStartDate?: Timestamp;
   isFoundingPartner?: boolean;
+  isDemo?: boolean;
   enabledPaymentMethods?: PaymentMethodType[];
   createdAt: Timestamp;
   updatedAt: Timestamp;

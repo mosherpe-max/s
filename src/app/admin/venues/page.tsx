@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState } from 'react';
@@ -18,7 +19,8 @@ import {
   User,
   MapPin,
   Mail,
-  CheckCircle2
+  CheckCircle2,
+  FlaskConical
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -83,6 +85,7 @@ const venueRegistrySchema = z.object({
   patronConvenienceFee: z.coerce.number().min(0),
   monthlySolutionFee: z.coerce.number().min(0),
   isFoundingPartner: z.boolean().default(false),
+  isDemo: z.boolean().default(false),
   stripeOnboardingComplete: z.boolean().default(false),
   payoutsEnabled: z.boolean().default(false),
   menuTypes: z.array(z.string()).min(1, 'At least one service mode required')
@@ -128,6 +131,7 @@ export default function AdminVenueRegistryPage() {
       patronConvenienceFee: 0,
       monthlySolutionFee: 0,
       isFoundingPartner: false,
+      isDemo: false,
       stripeOnboardingComplete: false,
       payoutsEnabled: false,
       menuTypes: []
@@ -160,6 +164,7 @@ export default function AdminVenueRegistryPage() {
         patronConvenienceFee: reg.patronConvenienceFee || 0,
         monthlySolutionFee: reg.monthlySolutionFee || 0,
         isFoundingPartner: !!reg.isFoundingPartner,
+        isDemo: !!reg.isDemo,
         stripeOnboardingComplete: !!reg.stripeOnboardingComplete,
         payoutsEnabled: !!reg.payoutsEnabled,
         menuTypes: seller?.menuTypes || []
@@ -228,6 +233,7 @@ export default function AdminVenueRegistryPage() {
         solutionFeePercent: 2.9,
         patronConvenienceFee: 150, // Default $1.50
         monthlySolutionFee: 49,
+        isDemo: false,
         stripeOnboardingComplete: false,
         payoutsEnabled: false,
         createdAt: serverTimestamp() as any,
@@ -316,7 +322,8 @@ export default function AdminVenueRegistryPage() {
                         <Badge variant={v.status === 'Active' ? 'default' : 'outline'} className={cn("text-[8px] font-black uppercase w-fit", v.status === 'Active' ? "bg-green-500" : "text-slate-400")}>
                           {v.status}
                         </Badge>
-                        {registry?.isFoundingPartner && <Badge className="bg-amber-500 text-white text-[7px] font-black uppercase w-fit">Founding Partner</Badge>}
+                        {registry?.isFoundingPartner && <Badge className="bg-indigo-600 text-white text-[7px] font-black uppercase w-fit">Founding Partner</Badge>}
+                        {registry?.isDemo && <Badge variant="outline" className="text-[7px] font-black uppercase w-fit border-amber-500/50 text-amber-600 bg-amber-50 gap-1.5"><FlaskConical className="h-2 w-2" /> Demo Instance</Badge>}
                      </div>
                   </TableCell>
                   <TableCell className="text-right px-8">
@@ -570,6 +577,15 @@ export default function AdminVenueRegistryPage() {
                        </Label>
                        <div className="grid gap-3">
                           <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border-2 border-slate-100">
+                             <div className="flex flex-col text-left">
+                               <span className="text-[10px] font-black uppercase text-[#213147]">Demo Instance</span>
+                               <span className="text-[8px] font-bold text-muted-foreground uppercase">Exclude from Global Results</span>
+                             </div>
+                             <FormField control={registryForm.control} name="isDemo" render={({ field }) => (
+                               <Switch checked={field.value} onCheckedChange={field.onChange} className="data-[state=checked]:bg-amber-500" />
+                             )} />
+                          </div>
+                          <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border-2 border-slate-100">
                              <span className="text-[10px] font-black uppercase text-[#213147]">Founding Partner</span>
                              <FormField control={registryForm.control} name="isFoundingPartner" render={({ field }) => (
                                <Switch checked={field.value} onCheckedChange={field.onChange} className="data-[state=checked]:bg-green-500" />
@@ -626,4 +642,3 @@ export default function AdminVenueRegistryPage() {
     </div>
   );
 }
-

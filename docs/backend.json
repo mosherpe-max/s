@@ -18,6 +18,7 @@
         "stripeOnboardingComplete": { "type": "boolean" },
         "payoutsEnabled": { "type": "boolean" },
         "isFoundingPartner": { "type": "boolean" },
+        "isDemo": { "type": "boolean", "description": "Flag to mark as a demo/test environment to exclude from sitewide results." },
         "createdAt": { "type": "string", "format": "date-time" },
         "updatedAt": { "type": "string", "format": "date-time" }
       },
