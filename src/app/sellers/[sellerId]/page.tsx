@@ -333,7 +333,6 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
     if (!orders) return [];
     const map = new Map<string, { email: string, name: string, phone: string, count: number, total: number, id: string }>();
     orders.forEach(o => {
-      // Identity grouping key based on contact or anonymous ID
       const key = o.customerEmail || o.customerPhone || o.buyerProfileId || `anon-${o.id}`;
       const existing = map.get(key);
       if (existing) {
@@ -554,21 +553,47 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                 <div className="space-y-6 animate-in fade-in duration-500">
                   <div className="flex items-center justify-between">
                     <h2 className="text-xl font-black uppercase text-[#213147]">Fulfillment Log</h2>
-                    <div className="relative w-64"><Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" /><Input placeholder="Search ticket or name..." value={orderSearchTerm} onChange={(e) => setOrderSearchTerm(e.target.value)} className="pl-10 h-10 border-2 rounded-xl" /></div>
+                    <div className="relative w-64">
+                      <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                      <Input 
+                        placeholder="Search ticket or name..." 
+                        value={orderSearchTerm} 
+                        onChange={(e) => setOrderSearchTerm(e.target.value)} 
+                        className="pl-10 h-10 border-2 rounded-xl" 
+                      />
+                    </div>
                   </div>
                   <Card className="border-2 rounded-[2rem] overflow-hidden shadow-sm bg-white">
                     <Table>
-                      <TableHeader className="bg-slate-50"><TableRow><TableHead className="px-8 py-5 text-[10px] font-black uppercase tracking-widest">Ticket</TableHead><TableHead className="text-[10px] font-black uppercase tracking-widest">Customer</TableHead><TableHead className="text-[10px] font-black uppercase tracking-widest">Mode</TableHead><TableHead className="text-[10px] font-black uppercase tracking-widest">Status</TableHead><TableHead className="text-[10px] font-black uppercase tracking-widest text-right px-8">Total</TableHead></TableRow></TableHeader>
+                      <TableHeader className="bg-slate-50">
+                        <TableRow>
+                          <TableHead className="px-8 py-5 text-[10px] font-black uppercase tracking-widest">Ticket</TableHead>
+                          <TableHead className="text-[10px] font-black uppercase tracking-widest">Customer</TableHead>
+                          <TableHead className="text-[10px] font-black uppercase tracking-widest">Mode</TableHead>
+                          <TableHead className="text-[10px] font-black uppercase tracking-widest">Status</TableHead>
+                          <TableHead className="text-[10px] font-black uppercase tracking-widest text-right px-8">Total</TableHead>
+                        </TableRow>
+                      </TableHeader>
                       <TableBody>
-                        {(orders || []).filter(o => o.customerName.toLowerCase().includes(orderSearchTerm.toLowerCase())).slice(0, 50).map(o => (
-                          <TableRow key={o.id} className="group hover:bg-slate-50/50 transition-colors">
-                            <TableCell className="px-8 font-mono font-black text-primary text-xs">#{getNumericOrderId(o.id)}</TableCell>
-                            <TableCell><div className="flex flex-col"><span className="font-bold text-sm">{o.customerName}</span><span className="text-[9px] uppercase text-muted-foreground">{o.createdAt ? format(o.createdAt.toDate(), 'MMM d, h:mm a') : ''}</span></div></TableCell>
-                            <TableCell><Badge variant="outline" className="text-[8px] font-black uppercase bg-slate-100 border-slate-200">{o.menuType}</Badge></TableCell>
-                            <TableCell><Badge className={cn("text-[8px] font-black uppercase border-0", o.status === 'Delivered' ? "bg-green-500" : o.status === 'Cancelled' ? "bg-red-500" : "bg-primary animate-pulse")}>{o.status}</Badge></TableCell>
-                            <TableCell className="text-right px-8 font-mono font-black text-sm">${o.total.toFixed(2)}</TableCell>
-                          </TableRow>
-                        ))}
+                        {(orders || [])
+                          .filter(o => o.customerName.toLowerCase().includes(orderSearchTerm.toLowerCase()))
+                          .sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0))
+                          .slice(0, 100)
+                          .map(o => (
+                            <TableRow key={o.id} className="group hover:bg-slate-50/50 transition-colors">
+                              <TableCell className="px-8 font-mono font-black text-primary text-xs">#{getNumericOrderId(o.id)}</TableCell>
+                              <TableCell>
+                                <div className="flex flex-col">
+                                  <span className="font-bold text-sm">{o.customerName}</span>
+                                  <span className="text-[9px] uppercase text-muted-foreground">{o.createdAt ? format(o.createdAt.toDate(), 'MMM d, h:mm a') : ''}</span>
+                                </div>
+                              </TableCell>
+                              <TableCell><Badge variant="outline" className="text-[8px] font-black uppercase bg-slate-100 border-slate-200">{o.menuType}</Badge></TableCell>
+                              <TableCell><Badge className={cn("text-[8px] font-black uppercase border-0", o.status === 'Delivered' ? "bg-green-500" : o.status === 'Cancelled' ? "bg-red-500" : "bg-primary animate-pulse")}>{o.status}</Badge></TableCell>
+                              <TableCell className="text-right px-8 font-mono font-black text-sm">${o.total.toFixed(2)}</TableCell>
+                            </TableRow>
+                          ))
+                        }
                       </TableBody>
                     </Table>
                   </Card>
