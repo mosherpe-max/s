@@ -21,7 +21,8 @@ import {
   CheckCircle2,
   FlaskConical,
   Copy,
-  Sparkles
+  Sparkles,
+  Power
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -90,7 +91,8 @@ const venueRegistrySchema = z.object({
   stripeOnboardingComplete: z.boolean().default(false),
   payoutsEnabled: z.boolean().default(false),
   menuTypes: z.array(z.string()).min(1, 'At least one service mode required'),
-  laneCount: z.coerce.number().min(0).optional()
+  laneCount: z.coerce.number().min(0).optional(),
+  status: z.enum(['Active', 'Inactive']).default('Active')
 });
 
 type VenueRegistryData = z.infer<typeof venueRegistrySchema>;
@@ -139,7 +141,8 @@ export default function AdminVenueRegistryPage() {
       stripeOnboardingComplete: false,
       payoutsEnabled: false,
       menuTypes: [],
-      laneCount: 0
+      laneCount: 0,
+      status: 'Active'
     }
   });
 
@@ -174,7 +177,8 @@ export default function AdminVenueRegistryPage() {
         stripeOnboardingComplete: !!reg.stripeOnboardingComplete,
         payoutsEnabled: !!reg.payoutsEnabled,
         menuTypes: seller?.menuTypes || [],
-        laneCount: seller?.laneCount || 0
+        laneCount: seller?.laneCount || 0,
+        status: seller?.status || 'Active'
       });
       setIsManagementOpen(true);
     } else {
@@ -190,10 +194,10 @@ export default function AdminVenueRegistryPage() {
     const venueRef = doc(firestore, 'venues', selectedVenue.venueId);
     const sellerRef = doc(firestore, 'sellers', selectedVenue.venueId);
 
-    const { menuTypes, laneCount, ...venueData } = data;
+    const { menuTypes, laneCount, status, ...venueData } = data;
 
     batch.update(venueRef, { ...venueData, updatedAt: serverTimestamp() });
-    batch.update(sellerRef, { menuTypes, laneCount, updatedAt: serverTimestamp() });
+    batch.update(sellerRef, { menuTypes, laneCount, status, updatedAt: serverTimestamp() });
 
     batch.commit()
       .then(() => {
@@ -445,6 +449,19 @@ export default function AdminVenueRegistryPage() {
                     <div className="space-y-4 pt-6 border-t border-slate-100">
                        <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2"><ShieldCheck className="h-3 w-3" /> Status & Verification</Label>
                        <div className="grid gap-3">
+                          <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border-2 border-slate-100">
+                             <div className="flex flex-col text-left">
+                               <span className="text-[10px] font-black uppercase text-[#213147]">Operational Activation</span>
+                               <span className="text-[8px] font-bold text-muted-foreground uppercase">Enable global solution access</span>
+                             </div>
+                             <FormField control={registryForm.control} name="status" render={({ field }) => (
+                               <Switch 
+                                 checked={field.value === 'Active'} 
+                                 onCheckedChange={(checked) => field.onChange(checked ? 'Active' : 'Inactive')} 
+                                 className="data-[state=checked]:bg-green-600" 
+                               />
+                             )} />
+                          </div>
                           {sellers?.find(s => s.id === selectedVenue?.venueId)?.type === 'Bowling Center' && (
                             <FormField control={registryForm.control} name="laneCount" render={({ field }) => (
                               <FormItem className="text-left p-3 rounded-xl border-2 bg-slate-50 border-slate-100">
