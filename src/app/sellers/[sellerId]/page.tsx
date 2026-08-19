@@ -266,6 +266,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
   const [editingStaff, setEditingStaff] = useState<StaffMember | null>(null);
   const [isProcessingSave, setIsProcessingSave] = useState(false);
 
+  // RULES OF HOOKS: All hooks must be defined before any early returns
   const sellerRef = useMemoFirebase(() => (firestore ? doc(firestore, 'sellers', sellerId) : null), [firestore, sellerId]);
   const { data: seller, isLoading: isSellerLoading } = useDoc<Seller>(sellerRef);
 
@@ -296,7 +297,10 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
     defaultValues: { name: '', minSelection: 0, maxSelection: 1 }
   });
 
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }), 
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
 
   const analyticsData = useMemo(() => {
     if (!orders || !seller) return { dailyRevenue: [], topItems: [], fulfillmentEfficiency: [], revenueByMode: [], modes: [] };
@@ -349,7 +353,11 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
         });
       }
     });
-    return Array.from(map.values()).sort((a, b) => b.total - a.total).slice(0, 50);
+    // Ensure uniqueness for React keys
+    return Array.from(map.values())
+      .map((p, idx) => ({ ...p, uniqueId: `${p.id}-${idx}` }))
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 50);
   }, [orders]);
 
   useEffect(() => {
@@ -424,6 +432,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
 
   const NavContent = () => (<nav className="space-y-1">{NAV_ITEMS.map((item) => (<NavButton key={item.id} id={item.id} label={item.label} icon={item.icon} active={activeNav === item.id} onClick={setActiveNav} sidebarOpen={sidebarOpen} />))}</nav>);
 
+  // EARLY RETURNS AFTER HOOKS
   if (isUserLoading || isSellerLoading) return <div className="flex flex-col items-center justify-center h-screen bg-[#213147] text-white"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>;
 
   const deliveredToday = orders?.filter(o => o.status === 'Delivered' && o.createdAt && isToday(o.createdAt.toDate())) || [];
@@ -491,7 +500,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                       <CardContent className="pt-4 p-0">
                          <div className="divide-y divide-white/5">
                             {patrons.slice(0, 5).map(p => (
-                              <div key={p.id} className="p-4 flex items-center justify-between hover:bg-white/5 transition-colors">
+                              <div key={p.uniqueId} className="p-4 flex items-center justify-between hover:bg-white/5 transition-colors">
                                 <div className="text-left">
                                   <p className="text-[11px] font-black uppercase tracking-tight leading-none mb-1">{p.name}</p>
                                   <p className="text-[8px] font-bold text-white/40 uppercase tracking-widest">{p.count} Orders</p>
@@ -593,7 +602,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                       </TableHeader>
                       <TableBody>
                         {(orders || [])
-                          .filter(o => o.customerName.toLowerCase().includes(orderSearchTerm.toLowerCase()))
+                          .filter(o => o.customerName.toLowerCase().includes(orderSearchTerm.toLowerCase()) || getNumericOrderId(o.id).includes(orderSearchTerm))
                           .sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0))
                           .slice(0, 100)
                           .map(o => (
@@ -675,6 +684,29 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                              <div className="flex items-center gap-3 border-b-2 border-slate-100 pb-2"><h3 className="font-headline font-black text-xs uppercase tracking-widest text-primary">{category}</h3><Badge variant="outline" className="text-[8px] font-black uppercase bg-slate-50">{itemsInMode.length} Active</Badge></div>
                              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                                 <div className="space-y-3">
+                                   <p className="text-[9px] font-black uppercase tracking-widest text-[#213147] flex items-center gap-2"><GripVertical className="h-3 w-3" /> Active Priority</p>
+                                   {itemsInMode.length === 0 ? (
+                                     <div className="p-12 text-center border-2 border-dashed rounded-xl bg-slate-50/50 opacity-40"><UtensilsCrossed className="h-6 w-6 mx-auto mb-2 text-slate-300" /><p className="text-[8px] font-black uppercase">Menu section is empty</p></div>
+                                   ) : (
+                                     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(e) => handleDragEnd(e, category, activeModeTab)}>
+                                        <SortableContext items={itemsInMode.map(i => i.id)} strategy={verticalListSortingStrategy}>
+                                           <div className="grid gap-2">
+                                              {itemsInMode.map(item => (
+                                                <SortableItem 
+                                                  key={item.id} 
+                                                  id={item.id} 
+                                                  item={item} 
+                                                  isFeatured={item.featuredOn?.includes(activeModeTab) ?? false} 
+                                                  onToggleFeature={() => handleToggleFeatureInMode(item.id, activeModeTab)} 
+                                                  onRemove={() => handleToggleItemInMode(item.id, activeModeTab, 'remove')} 
+                                                />
+                                              ))}
+                                           </div>
+                                        </SortableContext>
+                                     </DndContext>
+                                   )}
+                                </div>
+                                <div className="space-y-3">
                                    <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2"><Plus className="h-3 w-3" /> Pick from Catalog</p>
                                    <div className="grid gap-2">
                                       {itemsInCatalog.length === 0 ? (
@@ -689,20 +721,6 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                                         ))
                                       )}
                                    </div>
-                                </div>
-                                <div className="space-y-3">
-                                   <p className="text-[9px] font-black uppercase tracking-widest text-[#213147] flex items-center gap-2"><GripVertical className="h-3 w-3" /> Active Priority</p>
-                                   {itemsInMode.length === 0 ? (
-                                     <div className="p-12 text-center border-2 border-dashed rounded-xl bg-slate-50/50 opacity-40"><UtensilsCrossed className="h-6 w-6 mx-auto mb-2 text-slate-300" /><p className="text-[8px] font-black uppercase">Menu section is empty</p></div>
-                                   ) : (
-                                     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(e) => handleDragEnd(e, category, activeModeTab)}>
-                                        <SortableContext items={itemsInMode.map(i => i.id)} strategy={verticalListSortingStrategy}>
-                                           <div className="grid gap-2">
-                                              {itemsInMode.map(item => (<SortableItem key={item.id} id={item.id} item={item} isFeatured={item.featuredOn?.includes(activeModeTab) ?? false} onToggleFeature={() => handleToggleFeatureInMode(item.id, activeModeTab)} onRemove={() => handleToggleItemInMode(item.id, activeModeTab, 'remove')} />))}
-                                           </div>
-                                        </SortableContext>
-                                     </DndContext>
-                                   )}
                                 </div>
                              </div>
                           </div>
@@ -744,7 +762,12 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                             <TableCell><Badge variant="outline" className="text-[8px] font-black uppercase bg-slate-100 border-slate-200">{item.category}</Badge></TableCell>
                             <TableCell className="font-mono font-bold text-sm">${item.price.toFixed(2)}</TableCell>
                             <TableCell><Switch checked={item.isAvailable !== false} onCheckedChange={(val) => updateDoc(doc(firestore!, 'sellers', sellerId, 'menuItems', item.id), { isAvailable: val })} className="scale-75 data-[state=checked]:bg-green-500" /></TableCell>
-                            <TableCell className="text-right px-8"><div className="flex justify-end gap-1"><Button variant="ghost" size="icon" className="h-8 w-8 hover:text-primary"><Edit className="h-4 w-4" /></Button><Button variant="ghost" size="icon" className="h-8 w-8 hover:text-destructive"><Trash2 className="h-4 w-4" /></Button></div></TableCell>
+                            <TableCell className="text-right px-8">
+                              <div className="flex justify-end gap-1">
+                                <Button variant="ghost" size="icon" className="h-8 w-8 hover:text-primary" onClick={() => router.push(`/sellers/${sellerId}/menu/${item.id}`)}><Edit className="h-4 w-4" /></Button>
+                                <Button variant="ghost" size="icon" className="h-8 w-8 hover:text-destructive" onClick={() => deleteDoc(doc(firestore!, 'sellers', sellerId, 'menuItems', item.id))}><Trash2 className="h-4 w-4" /></Button>
+                              </div>
+                            </TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
