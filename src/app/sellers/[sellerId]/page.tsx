@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useMemo, useEffect, use } from 'react';
@@ -402,7 +401,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
     if (!orders) return [];
     const map = new Map<string, { email: string, name: string, phone: string, count: number, total: number, id: string }>();
     orders.forEach(o => {
-      const key = o.customerEmail || o.customerPhone || o.buyerProfileId;
+      const key = o.customerEmail || o.customerPhone || o.buyerProfileId || 'guest';
       const existing = map.get(key);
       if (existing) {
         existing.count++;
@@ -422,7 +421,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
   }, [orders]);
 
   return (
-    <div className="flex flex-col h-screen overflow-x-auto bg-[#F8FAFC] text-left">
+    <div className="flex flex-col h-screen overflow-hidden bg-[#F8FAFC] text-left">
       <header className="h-16 bg-white border-b-2 flex items-center justify-between px-8 shrink-0 z-30 shadow-sm relative text-left">
         <div className="flex items-center gap-4">
           <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
