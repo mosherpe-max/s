@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, use, useEffect, useMemo } from 'react';
@@ -629,7 +630,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
   };
 
   const isModeAvailable = (type: string) => {
-    if (!seller || type === 'Take Out') return false; // STRICT FILTER
+    if (!seller) return false;
     const isGloballyAuthorized = !solutionConfig || (solutionConfig.enabledModes?.includes(type) ?? true);
     if (!isGloballyAuthorized) return false;
     const isVenueAuthorized = seller.menuTypes.includes(type);
@@ -650,7 +651,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
       let defaultType = seller.type.toLowerCase().includes('bowling') ? 'Lane Delivery' : 'Beverage Cart';
       if (isModeAvailable(defaultType)) updateMenuType(defaultType);
       else {
-        const firstAvailable = (seller.menuTypes || []).filter(m => m !== 'Take Out').find(t => isModeAvailable(t));
+        const firstAvailable = (seller.menuTypes || []).find(t => isModeAvailable(t));
         if (firstAvailable) updateMenuType(firstAvailable);
       }
     }
@@ -746,7 +747,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
           <div className="space-y-4 w-full">
             <h1 className="font-headline text-2xl font-black text-white uppercase tracking-tight leading-none mb-1">{seller?.courseName}</h1>
             <div className="flex wrap gap-2">
-              {(seller?.menuTypes || []).filter(m => m !== 'Take Out').map((type) => {
+              {(seller?.menuTypes || []).map((type) => {
                 const Icon = serviceTypeIcons[type] || Store;
                 const available = availableModes.includes(type);
                 const isSelected = selectedMenuType === type;

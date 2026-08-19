@@ -75,7 +75,7 @@ service cloud.firestore {
       // Allow location and status updates for authenticated staff
       allow update: if isSignedIn() && 
                     request.resource.data.diff(request.resource.data).affectedKeys()
-                    .hasOnly(['latitude', 'longitude', 'lastActive', 'bevcartActive', 'clubhouseActive', 'lanedeliveryActive', 'takeoutActive']);
+                    .hasOnly(['latitude', 'longitude', 'lastActive', 'bevcartActive', 'clubhouseActive', 'lanedeliveryActive']);
 
       match /staff/{staffId} {
         allow read, write: if true;
