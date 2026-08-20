@@ -738,15 +738,13 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
 
   return (
     <div className="flex flex-col min-h-screen bg-[#F0F0F0] relative">
-      <header className="relative w-full flex flex-col bg-[#213147] overflow-hidden shrink-0 pt-6 pb-6 px-6 text-left">
+      <header className="relative w-full flex flex-col bg-[#213147] overflow-hidden shrink-0 pt-4 pb-4 px-6 text-left">
         <div className="absolute inset-0 z-0 opacity-10 pointer-events-none">
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full border-[30px] border-white" />
         </div>
-        <div className="relative z-10 flex flex-col items-start text-left space-y-4 max-w-2xl w-full mx-auto">
-          {/* Identity Section: Venue Name and Cart vertically aligned */}
+        <div className="relative z-10 flex flex-col items-start text-left space-y-4 max-w-2xl w-full mx-auto pt-2">
           <div className="flex items-center justify-between w-full gap-4">
             <h1 className="font-headline text-2xl font-black text-white uppercase tracking-tight leading-none truncate flex-1">{seller?.courseName}</h1>
-            
             <Button 
               variant="ghost" 
               className="flex items-center gap-2 h-11 px-3 text-white hover:bg-white/10 relative group bg-white/5 rounded-xl border border-white/10 shrink-0"
@@ -797,20 +795,17 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
       {availableModes.includes(selectedMenuType) ? (
         <>
           <div className="sticky top-0 z-[35] bg-white/95 backdrop-blur-md border-b-2 shadow-sm w-full">
-            <div className="max-w-2xl mx-auto px-4 py-3 space-y-3">
-              {/* Dynamic Context Label */}
-              <div className="flex items-center justify-center text-center px-2 py-0.5 animate-in fade-in slide-in-from-top-1 duration-500">
+            <div className="max-w-2xl mx-auto px-0 py-3 space-y-3">
+              <div className="flex items-center justify-center text-center px-4 py-0.5 animate-in fade-in slide-in-from-top-1 duration-500">
                 <p className="text-[9px] font-black uppercase tracking-tight text-[#213147]">
                   <span className="opacity-40">Ordering from:</span> {seller?.courseName} <span className="text-primary">{selectedMenuType}</span>
                 </p>
               </div>
 
-              {/* Enhanced Scrollable Categories */}
-              <div className="relative -mx-4">
-                {/* Left Indicator Gradient */}
-                <div className="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-white to-transparent z-10 pointer-events-none" />
-                
-                <div className="flex gap-2 overflow-x-auto no-scrollbar py-1 px-8">
+              <div className="relative overflow-hidden">
+                <div 
+                  className="flex gap-2 overflow-x-auto no-scrollbar py-1 px-4 [mask-image:linear-gradient(to_right,transparent,black_20px,black_calc(100%-20px),transparent)]"
+                >
                   {currentCategories.map((cat) => (
                     <button 
                       key={cat} 
@@ -826,9 +821,6 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
                     </button>
                   ))}
                 </div>
-
-                {/* Right Indicator Gradient */}
-                <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-white to-transparent z-10 pointer-events-none" />
               </div>
             </div>
           </div>
