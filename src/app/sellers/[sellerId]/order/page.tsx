@@ -729,7 +729,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
     return (
       <div className="flex flex-col min-h-screen bg-background items-center justify-center">
         <Loader2 className="animate-spin h-10 w-10 text-primary" />
-        <p className="mt-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground">Initializing Menu...</p>
+        <p className="mt-4 text-[10px] font-black uppercase tracking_widest text-muted-foreground">Initializing Menu...</p>
       </div>
     );
   }
@@ -797,22 +797,39 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
       {availableModes.includes(selectedMenuType) ? (
         <>
           <div className="sticky top-0 z-[35] bg-white/95 backdrop-blur-md border-b-2 shadow-sm w-full">
-            <div className="max-w-2xl mx-auto px-4 py-3">
-              <div className="flex gap-2 overflow-x-auto no-scrollbar py-1">
-                {currentCategories.map((cat) => (
-                  <button 
-                    key={cat} 
-                    onClick={() => scrollToCategory(cat)} 
-                    className={cn(
-                      "whitespace-nowrap px-4 py-1.5 rounded-full border-2 text-[9px] font-black uppercase tracking-widest transition-all active:scale-95", 
-                      activeCategory === cat 
-                        ? (cat === 'Featured' ? "bg-[#213147] border-[#213147] text-white shadow-md scale-105" : "bg-primary border-primary text-white shadow-md scale-105") 
-                        : (cat === 'Featured' ? "bg-[#213147]/5 border-[#213147]/20 text-[#213147] hover:bg-[#213147]/10" : "bg-slate-50 border-slate-100 text-slate-500 hover:border-primary/30 hover:text-primary")
-                    )}
-                  >
-                    {cat}
-                  </button>
-                ))}
+            <div className="max-w-2xl mx-auto px-4 py-3 space-y-3">
+              {/* Dynamic Context Label */}
+              <div className="flex flex-col items-center justify-center text-center px-2 animate-in fade-in slide-in-from-top-1 duration-500">
+                <p className="text-[10px] font-black uppercase tracking-[0.15em] text-[#213147]/40 leading-none">You are ordering from</p>
+                <p className="text-[11px] font-black uppercase tracking-tight text-[#213147] mt-1">
+                  {seller?.courseName} <span className="text-primary">{selectedMenuType}</span>
+                </p>
+              </div>
+
+              {/* Enhanced Scrollable Categories */}
+              <div className="relative -mx-4">
+                {/* Left Indicator Gradient */}
+                <div className="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-white to-transparent z-10 pointer-events-none" />
+                
+                <div className="flex gap-2 overflow-x-auto no-scrollbar py-1 px-8">
+                  {currentCategories.map((cat) => (
+                    <button 
+                      key={cat} 
+                      onClick={() => scrollToCategory(cat)} 
+                      className={cn(
+                        "whitespace-nowrap px-4 py-1.5 rounded-full border-2 text-[9px] font-black uppercase tracking-widest transition-all active:scale-95 shrink-0", 
+                        activeCategory === cat 
+                          ? (cat === 'Featured' ? "bg-[#213147] border-[#213147] text-white shadow-md scale-105" : "bg-primary border-primary text-white shadow-md scale-105") 
+                          : (cat === 'Featured' ? "bg-[#213147]/5 border-[#213147]/20 text-[#213147] hover:bg-[#213147]/10" : "bg-slate-50 border-slate-100 text-slate-500 hover:border-primary/30 hover:text-primary")
+                      )}
+                    >
+                      {cat}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Right Indicator Gradient */}
+                <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-white to-transparent z-10 pointer-events-none" />
               </div>
             </div>
           </div>
