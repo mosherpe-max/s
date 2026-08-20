@@ -288,12 +288,6 @@ export default function LaneSideServerDashboardPage({ params }: { params: Promis
               <div className="flex items-center gap-1.5">
                 <Badge className="bg-primary/20 text-primary border-0 h-4 px-1.5 text-[8px] font-black uppercase tracking-widest">Lane Delivery</Badge>
               </div>
-              <div className="flex items-center gap-1.5 border-l border-white/10 pl-3">
-                <User className="h-2.5 w-2.5 text-white/40" />
-                <span className="text-[9px] font-black text-white/60 uppercase tracking-widest leading-none">
-                  {currentStaffName}
-                </span>
-              </div>
               {notificationPermission === 'granted' && (
                 <Badge className="bg-green-500/20 text-green-400 border-0 h-3 px-1 text-[6px] font-black uppercase tracking-widest gap-1">
                   <BellRing className="h-2 w-2" /> Alerts Active
@@ -302,9 +296,16 @@ export default function LaneSideServerDashboardPage({ params }: { params: Promis
             </div>
           </div>
         </div>
-        <div className="flex items-center space-x-3">
+        <div className="flex items-center space-x-5">
           <Switch checked={isServerActive} onCheckedChange={handleToggleActive} className="data-[state=checked]:bg-green-600" />
-          <Button variant="ghost" size="icon" onClick={() => handleExitTerminal('root')} className="text-white/40 hover:text-white" disabled={isExiting}><LogOut className="h-4 w-4" /></Button>
+          <button 
+            onClick={() => handleExitTerminal('root')} 
+            className="flex flex-col items-center gap-1 text-white/40 hover:text-white transition-colors"
+            disabled={isExiting}
+          >
+            <LogOut className="h-4 w-4" />
+            <span className="text-[7px] font-black uppercase tracking-widest leading-none truncate max-w-[60px]">{currentStaffName}</span>
+          </button>
         </div>
       </header>
 
