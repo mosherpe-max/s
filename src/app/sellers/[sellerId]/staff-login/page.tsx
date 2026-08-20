@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Loader2, Lock, Smartphone, User, ShieldCheck, ChevronRight, X, Eraser, CheckCircle2, Truck, Building, Users, MapPin, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { cn } from '@/lib/utils';
+import { cn, AUTHORIZED_SERVICE_MODES } from '@/lib/utils';
 import type { Seller, StaffMember } from '@/lib/types';
 import { StylizedKoopLogo } from '@/components/header';
 import Link from 'next/link';
@@ -150,7 +150,7 @@ export default function StaffLoginPage({ params }: { params: Promise<{ sellerId:
 
   const authorizedServiceModes = React.useMemo(() => {
     if (!seller) return [];
-    return (seller.menuTypes || []);
+    return (seller.menuTypes || []).filter(mode => AUTHORIZED_SERVICE_MODES.includes(mode));
   }, [seller]);
 
   return (

@@ -45,7 +45,7 @@ import { mockBuyerLocation } from '@/lib/data';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, useStripe, useElements } from '@stripe/react-stripe-js';
 import { StripeCheckoutForm } from '@/components/stripe-checkout-form';
-import { cn } from '@/lib/utils';
+import { cn, AUTHORIZED_SERVICE_MODES } from '@/lib/utils';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { Badge } from '@/components/ui/badge';
 import { StylizedKoopLogo } from '@/components/header';
@@ -735,7 +735,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
     );
   }
 
-  const availableModes = (seller?.menuTypes || []).filter(t => isModeAvailable(t));
+  const availableModes = (seller?.menuTypes || []).filter(t => AUTHORIZED_SERVICE_MODES.includes(t)).filter(t => isModeAvailable(t));
 
   return (
     <div className="flex flex-col min-h-screen bg-[#F0F0F0] overflow-x-hidden">
@@ -747,16 +747,18 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
           <div className="space-y-4 w-full">
             <h1 className="font-headline text-2xl font-black text-white uppercase tracking-tight leading-none mb-1">{seller?.courseName}</h1>
             <div className="flex wrap gap-2">
-              {(seller?.menuTypes || []).map((type) => {
-                const Icon = serviceTypeIcons[type] || Store;
-                const available = availableModes.includes(type);
-                const isSelected = selectedMenuType === type;
-                return (
-                  <button key={type} disabled={!available} onClick={() => updateMenuType(type)} className={cn("flex items-center gap-2 px-4 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all shadow-lg", isSelected ? "bg-primary text-white scale-105" : (available ? "bg-white/10 text-white hover:bg-white/20" : "bg-white/5 text-white/20 grayscale cursor-not-allowed border border-white/5"))}>
-                    <Icon className="h-3.5 w-3.5" /> {type}
-                  </button>
-                );
-              })}
+              {(seller?.menuTypes || [])
+                .filter(t => AUTHORIZED_SERVICE_MODES.includes(t))
+                .map((type) => {
+                  const Icon = serviceTypeIcons[type] || Store;
+                  const available = availableModes.includes(type);
+                  const isSelected = selectedMenuType === type;
+                  return (
+                    <button key={type} disabled={!available} onClick={() => updateMenuType(type)} className={cn("flex items-center gap-2 px-4 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all shadow-lg", isSelected ? "bg-primary text-white scale-105" : (available ? "bg-white/10 text-white hover:bg-white/20" : "bg-white/5 text-white/20 grayscale cursor-not-allowed border border-white/5"))}>
+                      <Icon className="h-3.5 w-3.5" /> {type}
+                    </button>
+                  );
+                })}
             </div>
           </div>
           <div className="space-y-1.5">
