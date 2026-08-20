@@ -799,10 +799,9 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
           <div className="sticky top-0 z-[35] bg-white/95 backdrop-blur-md border-b-2 shadow-sm w-full">
             <div className="max-w-2xl mx-auto px-4 py-3 space-y-3">
               {/* Dynamic Context Label */}
-              <div className="flex flex-col items-center justify-center text-center px-2 animate-in fade-in slide-in-from-top-1 duration-500">
-                <p className="text-[10px] font-black uppercase tracking-[0.15em] text-[#213147]/40 leading-none">You are ordering from</p>
-                <p className="text-[11px] font-black uppercase tracking-tight text-[#213147] mt-1">
-                  {seller?.courseName} <span className="text-primary">{selectedMenuType}</span>
+              <div className="flex items-center justify-center text-center px-2 py-0.5 animate-in fade-in slide-in-from-top-1 duration-500">
+                <p className="text-[9px] font-black uppercase tracking-tight text-[#213147]">
+                  <span className="opacity-40">Ordering from:</span> {seller?.courseName} <span className="text-primary">{selectedMenuType}</span>
                 </p>
               </div>
 
