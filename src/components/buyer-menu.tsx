@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import type { OrderItem, MenuItem, Category } from '@/lib/types';
 import { Image as LucideImage, Plus, Minus, Star, Settings2 } from 'lucide-react';
 import { categoryIcons } from './icons';
-import Image from 'image';
+import Image from 'next/image';
 import { cn } from '@/lib/utils';
 
 interface BuyerMenuProps {
@@ -155,7 +155,7 @@ export function BuyerMenu({
                                 variant="ghost"
                                 size="icon"
                                 onClick={() => onOpenModifiers(item)}
-                                className="h-8 w-8 rounded-lg transition-all text-primary bg-white shadow-sm hover:bg-white active:scale-95"
+                                className="h-7 w-7 rounded-lg transition-all text-primary bg-white shadow-sm hover:bg-white active:scale-95"
                               >
                                 <Plus className="h-3.5 w-3.5" />
                               </Button>
@@ -173,9 +173,9 @@ export function BuyerMenu({
                                     variant="ghost"
                                     size="icon"
                                     onClick={() => handleQuantityChange(item, -1)}
-                                    className="h-7 w-7 rounded-lg hover:bg-white transition-colors bg-white/50 shadow-sm"
+                                    className="h-6 w-6 rounded-lg hover:bg-white transition-colors bg-white/50 shadow-sm"
                                   >
-                                    <Minus className="h-3.5 w-3.5" />
+                                    <Minus className="h-3 w-3" />
                                   </Button>
                                   <span className="text-[9px] font-black w-4 text-center text-[#213147]">
                                     {totalQuantity}
@@ -184,9 +184,9 @@ export function BuyerMenu({
                                     variant="ghost"
                                     size="icon"
                                     onClick={() => handleQuantityChange(item, 1)}
-                                    className="h-7 w-7 rounded-lg transition-colors text-primary bg-white shadow-sm hover:bg-white"
+                                    className="h-6 w-6 rounded-lg transition-colors text-primary bg-white shadow-sm hover:bg-white"
                                   >
-                                    <Plus className="h-3.5 w-3.5" />
+                                    <Plus className="h-3 w-3" />
                                   </Button>
                                 </>
                               ) : (
@@ -194,9 +194,9 @@ export function BuyerMenu({
                                   variant="ghost"
                                   size="icon"
                                   onClick={() => handleQuantityChange(item, 1)}
-                                  className="h-8 w-8 rounded-lg transition-colors text-primary bg-white shadow-sm hover:bg-white active:scale-95"
+                                  className="h-7 w-7 rounded-lg transition-colors text-primary bg-white shadow-sm hover:bg-white active:scale-95"
                                 >
-                                  <Plus className="h-4 w-4" />
+                                  <Plus className="h-3.5 w-3.5" />
                                 </Button>
                               )}
                             </div>
