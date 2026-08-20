@@ -738,31 +738,15 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
 
   return (
     <div className="flex flex-col min-h-screen bg-[#F0F0F0] relative">
-      <header className="relative w-full min-h-[22vh] flex flex-col bg-[#213147] overflow-hidden shrink-0 pt-8 pb-8 px-6 text-left">
+      <header className="relative w-full min-h-[22vh] flex flex-col bg-[#213147] overflow-hidden shrink-0 pt-10 pb-8 px-6 text-left">
         <div className="absolute inset-0 z-0 opacity-10 pointer-events-none">
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full border-[30px] border-white" />
         </div>
         <div className="relative z-10 flex flex-col items-start text-left space-y-6 max-w-2xl w-full mx-auto">
-          <div className="flex items-start justify-between w-full gap-4">
-            <div className="space-y-4 flex-1">
-              <h1 className="font-headline text-2xl font-black text-white uppercase tracking-tight leading-none mb-1">{seller?.courseName}</h1>
-              <div className="flex wrap gap-2">
-                {(seller?.menuTypes || [])
-                  .filter(t => AUTHORIZED_SERVICE_MODES.includes(t))
-                  .map((type) => {
-                    const Icon = serviceTypeIcons[type] || Store;
-                    const available = availableModes.includes(type);
-                    const isSelected = selectedMenuType === type;
-                    return (
-                      <button key={type} disabled={!available} onClick={() => updateMenuType(type)} className={cn("flex items-center gap-2 px-4 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all shadow-lg", isSelected ? "bg-primary text-white scale-105" : (available ? "bg-white/10 text-white hover:bg-white/20" : "bg-white/5 text-white/20 grayscale cursor-not-allowed border border-white/5"))}>
-                        <Icon className="h-3.5 w-3.5" /> {type}
-                      </button>
-                    );
-                  })}
-              </div>
-            </div>
+          {/* Identity Section: Venue Name and Cart vertically aligned */}
+          <div className="flex items-center justify-between w-full gap-4">
+            <h1 className="font-headline text-2xl font-black text-white uppercase tracking-tight leading-none truncate flex-1">{seller?.courseName}</h1>
             
-            {/* INTEGRATED CART ICON IN HERO HEADER */}
             <Button 
               variant="ghost" 
               className="flex items-center gap-2 h-11 px-3 text-white hover:bg-white/10 relative group bg-white/5 rounded-xl border border-white/10 shrink-0"
@@ -782,6 +766,22 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
               </div>
             </Button>
           </div>
+
+          <div className="flex wrap gap-2">
+            {(seller?.menuTypes || [])
+              .filter(t => AUTHORIZED_SERVICE_MODES.includes(t))
+              .map((type) => {
+                const Icon = serviceTypeIcons[type] || Store;
+                const available = availableModes.includes(type);
+                const isSelected = selectedMenuType === type;
+                return (
+                  <button key={type} disabled={!available} onClick={() => updateMenuType(type)} className={cn("flex items-center gap-2 px-4 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all shadow-lg", isSelected ? "bg-primary text-white scale-105" : (available ? "bg-white/10 text-white hover:bg-white/20" : "bg-white/5 text-white/20 grayscale cursor-not-allowed border border-white/5"))}>
+                    <Icon className="h-3.5 w-3.5" /> {type}
+                  </button>
+                );
+              })}
+          </div>
+
           <div className="space-y-1.5">
             <p className="text-[10px] font-black uppercase tracking-[0.1em] text-white flex items-center gap-1.5">
               <Info className="h-2.5 w-2.5 shrink-0 text-primary" /> 
@@ -796,7 +796,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
 
       {availableModes.includes(selectedMenuType) ? (
         <>
-          <div className="sticky top-16 z-[35] bg-white/95 backdrop-blur-md border-b-2 shadow-sm w-full">
+          <div className="sticky top-0 z-[35] bg-white/95 backdrop-blur-md border-b-2 shadow-sm w-full">
             <div className="max-w-2xl mx-auto px-4 py-3">
               <div className="flex gap-2 overflow-x-auto no-scrollbar py-1">
                 {currentCategories.map((cat) => (

@@ -184,6 +184,9 @@ export function AppHeader() {
 
   if (!isMounted || isAdminRoute) return null;
 
+  // On the Ordering Screen, we remove the top Koop header entirely to focus on the venue
+  if (isMenuPage) return null;
+
   if (isHomePage) {
     return (
       <header className="sticky top-0 z-40 bg-[#213147] border-b-2 border-[#E50000] shadow-md h-20 flex items-center justify-between px-6 shrink-0">
@@ -192,17 +195,6 @@ export function AppHeader() {
           <StylizedKoopLogo size="lg" />
         </div>
         <HomeNavigationMenu />
-      </header>
-    );
-  }
-
-  // Simplified header for Patron ordering screen
-  if (isMenuPage) {
-    return (
-      <header className="sticky top-0 z-40 bg-[#213147] shadow-md h-16 shrink-0">
-        <div className="container mx-auto h-full flex items-center justify-center px-4">
-          <StylizedKoopLogo size="md" />
-        </div>
       </header>
     );
   }
@@ -260,7 +252,6 @@ export function AppHeader() {
           </div>
 
           <div className="flex justify-end shrink-0">
-            {/* The cart button is handled locally in the menu hero for the ordering page */}
             {!isMenuPage && totalItems > 0 && (
               <Button 
                 variant="ghost" 
