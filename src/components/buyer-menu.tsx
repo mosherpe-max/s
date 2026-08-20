@@ -77,7 +77,7 @@ export function BuyerMenu({
           <section 
             key={category} 
             id={category.toLowerCase().replace(/\s+/g, '-')}
-            className="scroll-mt-32 space-y-3"
+            className="scroll-mt-32 space-y-4"
           >
             <div className="flex items-center gap-2 px-1">
               {category === 'Featured' ? (
@@ -101,8 +101,8 @@ export function BuyerMenu({
                     key={item.id} 
                     className="bg-white rounded-[1.5rem] border shadow-sm overflow-hidden flex flex-col transition-all active:scale-[0.98] group"
                   >
-                    {/* Immersive Image */}
-                    <div className="relative aspect-square w-full bg-muted shrink-0 shadow-sm border-b">
+                    {/* Immersive Image - Aspect Square fixed to prevent jumping */}
+                    <div className="relative aspect-square w-full bg-muted shrink-0 shadow-sm border-b overflow-hidden">
                       {item.imageUrl ? (
                         <Image 
                           src={item.imageUrl} 
@@ -117,7 +117,7 @@ export function BuyerMenu({
                         </div>
                       )}
                       {hasModifiers && (
-                        <div className="absolute top-2 right-2 bg-white/90 backdrop-blur-sm p-1.5 rounded-lg border shadow-sm">
+                        <div className="absolute top-2 right-2 bg-white/90 backdrop-blur-sm p-1.5 rounded-lg border shadow-sm z-10">
                           <Settings2 className="h-3 w-3 text-[#213147]" />
                         </div>
                       )}
@@ -125,63 +125,68 @@ export function BuyerMenu({
 
                     {/* Content Area */}
                     <div className="p-4 flex flex-col flex-1 min-w-0">
-                      <p className="font-black text-xs leading-tight text-[#213147] uppercase tracking-tight line-clamp-2">
+                      <p className="font-black text-[11px] leading-tight text-[#213147] uppercase tracking-tight">
                         {item.name}
                       </p>
                       {item.description && (
-                        <p className="text-[9px] text-muted-foreground font-medium line-clamp-1 mt-1 uppercase tracking-tighter">
+                        <p className="text-[8px] text-muted-foreground font-bold mt-1.5 uppercase tracking-tighter leading-normal">
                           {item.description}
                         </p>
                       )}
                       
-                      <div className="mt-auto pt-4 flex items-center justify-between">
-                        <div className="flex flex-col">
-                          <span className="font-mono text-sm font-black text-primary leading-none">
+                      <div className="mt-auto pt-5 flex items-center justify-between gap-2">
+                        <div className="flex flex-col shrink-0">
+                          <span className="font-mono text-[13px] font-black text-primary leading-none">
                             ${item.price.toFixed(2)}
                           </span>
                           {hasModifiers && (
-                            <span className="text-[7px] font-black text-muted-foreground uppercase tracking-widest mt-1">Options Available</span>
+                            <span className="text-[7px] font-black text-muted-foreground uppercase tracking-widest mt-1">Options</span>
                           )}
                         </div>
 
-                        {/* Controls */}
-                        <div className="flex items-center gap-1 shrink-0">
+                        {/* Stepper Controls */}
+                        <div className="flex items-center shrink-0">
                           {hasModifiers ? (
-                            <div className="flex items-center gap-1 bg-muted/30 p-1 rounded-xl border border-muted">
+                            <div className="flex items-center gap-1.5 bg-muted/40 p-1 rounded-xl border border-muted/60 shadow-inner">
                               {totalQuantity > 0 && (
-                                <span className="text-xs font-black w-6 text-center text-[#213147]">{totalQuantity}</span>
+                                <span className="text-[10px] font-black w-5 text-center text-[#213147]">{totalQuantity}</span>
                               )}
                               <Button
                                 variant="ghost"
                                 size="icon"
                                 onClick={() => onOpenModifiers(item)}
-                                className="h-9 w-9 rounded-lg transition-colors text-primary bg-white shadow-sm hover:bg-white"
+                                className="h-9 w-9 rounded-lg transition-all text-primary bg-white shadow-sm hover:bg-white active:scale-95"
                               >
-                                <Plus className="h-5 w-5" />
+                                <Plus className="h-4 w-4" />
                               </Button>
                             </div>
                           ) : (
-                            <div className="flex items-center gap-1 bg-muted/30 p-1 rounded-xl border border-muted min-h-[48px]">
+                            <div className={cn(
+                              "flex items-center gap-1 p-1 rounded-xl border transition-all duration-300",
+                              totalQuantity > 0 
+                                ? "bg-primary/5 border-primary/20 shadow-inner" 
+                                : "bg-muted/30 border-muted"
+                            )}>
                               {totalQuantity > 0 ? (
                                 <>
                                   <Button
                                     variant="ghost"
                                     size="icon"
                                     onClick={() => handleQuantityChange(item, -1)}
-                                    className="h-9 w-9 rounded-lg hover:bg-white transition-colors"
+                                    className="h-8 w-8 rounded-lg hover:bg-white transition-colors bg-white/50 shadow-sm"
                                   >
-                                    <Minus className="h-5 w-5" />
+                                    <Minus className="h-4 w-4" />
                                   </Button>
-                                  <span className="text-sm font-black w-6 text-center text-[#213147]">
+                                  <span className="text-[10px] font-black w-5 text-center text-[#213147]">
                                     {totalQuantity}
                                   </span>
                                   <Button
                                     variant="ghost"
                                     size="icon"
                                     onClick={() => handleQuantityChange(item, 1)}
-                                    className="h-9 w-9 rounded-lg transition-colors text-primary hover:bg-white"
+                                    className="h-8 w-8 rounded-lg transition-colors text-primary bg-white shadow-sm hover:bg-white"
                                   >
-                                    <Plus className="h-5 w-5" />
+                                    <Plus className="h-4 w-4" />
                                   </Button>
                                 </>
                               ) : (
@@ -189,7 +194,7 @@ export function BuyerMenu({
                                   variant="ghost"
                                   size="icon"
                                   onClick={() => handleQuantityChange(item, 1)}
-                                  className="h-9 w-9 rounded-lg transition-colors text-primary bg-white shadow-sm hover:bg-white"
+                                  className="h-9 w-9 rounded-lg transition-colors text-primary bg-white shadow-sm hover:bg-white active:scale-95"
                                 >
                                   <Plus className="h-5 w-5" />
                                 </Button>
