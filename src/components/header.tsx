@@ -176,7 +176,39 @@ export function AppHeader() {
     setIsMounted(true);
   }, []);
 
-  const sellerId = useMemo(() => {
+  const isMenuPage = pathname?.endsWith('/order');
+  const isHomePage = pathname === '/';
+  
+  const isAdminRoute = pathname?.startsWith('/admin') || 
+                      (pathname?.startsWith('/sellers/') && !pathname.includes('/order') && !pathname.includes('/staff-login'));
+
+  if (!isMounted || isAdminRoute) return null;
+
+  if (isHomePage) {
+    return (
+      <header className="sticky top-0 z-40 bg-[#213147] border-b-2 border-[#E50000] shadow-md h-20 flex items-center justify-between px-6 shrink-0">
+        <div className="w-10" /> 
+        <div className="flex-1 flex justify-center">
+          <StylizedKoopLogo size="lg" />
+        </div>
+        <HomeNavigationMenu />
+      </header>
+    );
+  }
+
+  // Simplified header for Patron ordering screen
+  if (isMenuPage) {
+    return (
+      <header className="sticky top-0 z-40 bg-[#213147] shadow-md h-16 shrink-0">
+        <div className="container mx-auto h-full flex items-center justify-center px-4">
+          <StylizedKoopLogo size="md" />
+        </div>
+      </header>
+    );
+  }
+
+  // Fallback for standard tracking and detail pages
+  const sellerId = (() => {
     if (pathname) {
       const parts = pathname.split('/');
       const sellerIndex = parts.indexOf('sellers');
@@ -185,7 +217,7 @@ export function AppHeader() {
       }
     }
     return searchParams.get('sellerId');
-  }, [pathname, searchParams]);
+  })();
 
   const orderId = searchParams.get('id');
   const menuTypeParam = searchParams.get('menuType');
@@ -203,27 +235,7 @@ export function AppHeader() {
   const { data: seller, isLoading: isSellerLoading } = useDoc(sellerRef);
   const { data: order } = useDoc(orderRef);
 
-  const isAdminRoute = pathname?.startsWith('/admin') || 
-                      (pathname?.startsWith('/sellers/') && !pathname.includes('/order') && !pathname.includes('/staff-login'));
-
-  if (!isMounted || isAdminRoute) return null;
-
-  const isHomePage = pathname === '/';
-  const isMenuPage = pathname?.includes('/order') && !pathname?.includes('/track');
-  
   const activeMenuType = menuTypeParam || order?.menuType;
-
-  if (isHomePage) {
-    return (
-      <header className="sticky top-0 z-40 bg-[#213147] border-b-2 border-[#E50000] shadow-md h-20 flex items-center justify-between px-6 shrink-0">
-        <div className="w-10" /> 
-        <div className="flex-1 flex justify-center">
-          <StylizedKoopLogo size="lg" />
-        </div>
-        <HomeNavigationMenu />
-      </header>
-    );
-  }
 
   return (
     <header className="sticky top-0 z-40 bg-[#213147] border-b-2 border-[#E50000] shadow-md h-16 shrink-0">
@@ -248,24 +260,17 @@ export function AppHeader() {
           </div>
 
           <div className="flex justify-end shrink-0">
-            {isMenuPage && (
+            {/* The cart button is handled locally in the menu hero for the ordering page */}
+            {!isMenuPage && totalItems > 0 && (
               <Button 
                 variant="ghost" 
-                className="flex items-center gap-2 h-11 px-3 text-white hover:bg-white/10 relative group"
+                className="flex items-center gap-2 h-11 px-3 text-white relative"
                 onClick={() => setIsCartOpen(true)}
               >
-                <div className="flex flex-col items-end leading-none mr-0.5">
-                  <span className="text-[8px] uppercase font-black text-white/40 tracking-widest group-hover:text-white/60">Cart</span>
-                  <span className="text-xs font-mono font-black text-white">${total.toFixed(2)}</span>
-                </div>
-                <div className="relative">
-                  <ShoppingCart className="h-5 w-5 text-white" />
-                  {totalItems > 0 && (
-                    <span className="absolute -top-2 -right-2 bg-red-600 text-white text-[9px] font-black rounded-full w-4 h-4 flex items-center justify-center shadow-lg animate-in zoom-in duration-300">
-                      {totalItems}
-                    </span>
-                  )}
-                </div>
+                <ShoppingCart className="h-5 w-5 text-white" />
+                <span className="absolute -top-1 -right-1 bg-red-600 text-white text-[8px] font-black rounded-full w-3.5 h-3.5 flex items-center justify-center">
+                  {totalItems}
+                </span>
               </Button>
             )}
           </div>

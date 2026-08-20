@@ -743,22 +743,44 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full border-[30px] border-white" />
         </div>
         <div className="relative z-10 flex flex-col items-start text-left space-y-6 max-w-2xl w-full mx-auto">
-          <div className="space-y-4 w-full">
-            <h1 className="font-headline text-2xl font-black text-white uppercase tracking-tight leading-none mb-1">{seller?.courseName}</h1>
-            <div className="flex wrap gap-2">
-              {(seller?.menuTypes || [])
-                .filter(t => AUTHORIZED_SERVICE_MODES.includes(t))
-                .map((type) => {
-                  const Icon = serviceTypeIcons[type] || Store;
-                  const available = availableModes.includes(type);
-                  const isSelected = selectedMenuType === type;
-                  return (
-                    <button key={type} disabled={!available} onClick={() => updateMenuType(type)} className={cn("flex items-center gap-2 px-4 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all shadow-lg", isSelected ? "bg-primary text-white scale-105" : (available ? "bg-white/10 text-white hover:bg-white/20" : "bg-white/5 text-white/20 grayscale cursor-not-allowed border border-white/5"))}>
-                      <Icon className="h-3.5 w-3.5" /> {type}
-                    </button>
-                  );
-                })}
+          <div className="flex items-start justify-between w-full gap-4">
+            <div className="space-y-4 flex-1">
+              <h1 className="font-headline text-2xl font-black text-white uppercase tracking-tight leading-none mb-1">{seller?.courseName}</h1>
+              <div className="flex wrap gap-2">
+                {(seller?.menuTypes || [])
+                  .filter(t => AUTHORIZED_SERVICE_MODES.includes(t))
+                  .map((type) => {
+                    const Icon = serviceTypeIcons[type] || Store;
+                    const available = availableModes.includes(type);
+                    const isSelected = selectedMenuType === type;
+                    return (
+                      <button key={type} disabled={!available} onClick={() => updateMenuType(type)} className={cn("flex items-center gap-2 px-4 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all shadow-lg", isSelected ? "bg-primary text-white scale-105" : (available ? "bg-white/10 text-white hover:bg-white/20" : "bg-white/5 text-white/20 grayscale cursor-not-allowed border border-white/5"))}>
+                        <Icon className="h-3.5 w-3.5" /> {type}
+                      </button>
+                    );
+                  })}
+              </div>
             </div>
+            
+            {/* INTEGRATED CART ICON IN HERO HEADER */}
+            <Button 
+              variant="ghost" 
+              className="flex items-center gap-2 h-11 px-3 text-white hover:bg-white/10 relative group bg-white/5 rounded-xl border border-white/10 shrink-0"
+              onClick={() => setIsCartOpen(true)}
+            >
+              <div className="flex flex-col items-end leading-none mr-0.5">
+                <span className="text-[8px] uppercase font-black text-white/40 tracking-widest group-hover:text-white/60">Cart</span>
+                <span className="text-xs font-mono font-black text-white">${total.toFixed(2)}</span>
+              </div>
+              <div className="relative">
+                <ShoppingCart className="h-5 w-5 text-white" />
+                {totalItems > 0 && (
+                  <span className="absolute -top-2 -right-2 bg-red-600 text-white text-[9px] font-black rounded-full w-4 h-4 flex items-center justify-center shadow-lg animate-in zoom-in duration-300">
+                    {totalItems}
+                  </span>
+                )}
+              </div>
+            </Button>
           </div>
           <div className="space-y-1.5">
             <p className="text-[10px] font-black uppercase tracking-[0.1em] text-white flex items-center gap-1.5">
