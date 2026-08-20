@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import type { OrderItem, MenuItem, Category } from '@/lib/types';
 import { Image as LucideImage, Plus, Minus, Star, Settings2 } from 'lucide-react';
 import { categoryIcons } from './icons';
-import Image from 'next/image';
+import Image from 'image';
 import { cn } from '@/lib/utils';
 
 interface BuyerMenuProps {
@@ -134,7 +134,7 @@ export function BuyerMenu({
                         </p>
                       )}
                       
-                      <div className="mt-auto pt-5 flex items-center justify-between gap-2">
+                      <div className="mt-auto pt-5 flex items-center justify-between gap-1">
                         <div className="flex flex-col shrink-0">
                           <span className="font-mono text-[13px] font-black text-primary leading-none">
                             ${item.price.toFixed(2)}
@@ -144,25 +144,25 @@ export function BuyerMenu({
                           )}
                         </div>
 
-                        {/* Stepper Controls */}
+                        {/* Stepper Controls - Refined sizes for mobile stability */}
                         <div className="flex items-center shrink-0">
                           {hasModifiers ? (
-                            <div className="flex items-center gap-1.5 bg-muted/40 p-1 rounded-xl border border-muted/60 shadow-inner">
+                            <div className="flex items-center gap-1 bg-muted/40 p-0.5 rounded-xl border border-muted/60 shadow-inner">
                               {totalQuantity > 0 && (
-                                <span className="text-[10px] font-black w-5 text-center text-[#213147]">{totalQuantity}</span>
+                                <span className="text-[9px] font-black w-4 text-center text-[#213147]">{totalQuantity}</span>
                               )}
                               <Button
                                 variant="ghost"
                                 size="icon"
                                 onClick={() => onOpenModifiers(item)}
-                                className="h-9 w-9 rounded-lg transition-all text-primary bg-white shadow-sm hover:bg-white active:scale-95"
+                                className="h-8 w-8 rounded-lg transition-all text-primary bg-white shadow-sm hover:bg-white active:scale-95"
                               >
-                                <Plus className="h-4 w-4" />
+                                <Plus className="h-3.5 w-3.5" />
                               </Button>
                             </div>
                           ) : (
                             <div className={cn(
-                              "flex items-center gap-1 p-1 rounded-xl border transition-all duration-300",
+                              "flex items-center gap-0.5 p-0.5 rounded-xl border transition-all duration-300",
                               totalQuantity > 0 
                                 ? "bg-primary/5 border-primary/20 shadow-inner" 
                                 : "bg-muted/30 border-muted"
@@ -173,20 +173,20 @@ export function BuyerMenu({
                                     variant="ghost"
                                     size="icon"
                                     onClick={() => handleQuantityChange(item, -1)}
-                                    className="h-8 w-8 rounded-lg hover:bg-white transition-colors bg-white/50 shadow-sm"
+                                    className="h-7 w-7 rounded-lg hover:bg-white transition-colors bg-white/50 shadow-sm"
                                   >
-                                    <Minus className="h-4 w-4" />
+                                    <Minus className="h-3.5 w-3.5" />
                                   </Button>
-                                  <span className="text-[10px] font-black w-5 text-center text-[#213147]">
+                                  <span className="text-[9px] font-black w-4 text-center text-[#213147]">
                                     {totalQuantity}
                                   </span>
                                   <Button
                                     variant="ghost"
                                     size="icon"
                                     onClick={() => handleQuantityChange(item, 1)}
-                                    className="h-8 w-8 rounded-lg transition-colors text-primary bg-white shadow-sm hover:bg-white"
+                                    className="h-7 w-7 rounded-lg transition-colors text-primary bg-white shadow-sm hover:bg-white"
                                   >
-                                    <Plus className="h-4 w-4" />
+                                    <Plus className="h-3.5 w-3.5" />
                                   </Button>
                                 </>
                               ) : (
@@ -194,9 +194,9 @@ export function BuyerMenu({
                                   variant="ghost"
                                   size="icon"
                                   onClick={() => handleQuantityChange(item, 1)}
-                                  className="h-9 w-9 rounded-lg transition-colors text-primary bg-white shadow-sm hover:bg-white active:scale-95"
+                                  className="h-8 w-8 rounded-lg transition-colors text-primary bg-white shadow-sm hover:bg-white active:scale-95"
                                 >
-                                  <Plus className="h-5 w-5" />
+                                  <Plus className="h-4 w-4" />
                                 </Button>
                               )}
                             </div>
