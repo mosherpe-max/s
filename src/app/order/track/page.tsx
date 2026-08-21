@@ -1,4 +1,3 @@
-
 'use client';
 
 import { Suspense, useEffect, useRef, useState, useMemo } from 'react';
@@ -27,7 +26,7 @@ import {
   RefreshCcw,
   Satellite
 } from 'lucide-react';
-import { getNumericOrderId, playNotificationSound, calculateDistance } from '@/lib/utils';
+import { cn, getNumericOrderId, playNotificationSound, calculateDistance } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
@@ -57,7 +56,7 @@ function OrderTrackingContent() {
 
   const staffRef = useMemoFirebase(() => {
     if (!firestore || !order?.sellerId || !order?.assignedStaffId) return null;
-    return doc(firestore, 'sellers', sellerId, 'staff', order.assignedStaffId);
+    return doc(firestore, 'sellers', order.sellerId, 'staff', order.assignedStaffId);
   }, [firestore, order?.sellerId, order?.assignedStaffId]);
   const { data: assignedStaff } = useDoc<StaffMember>(staffRef);
 
