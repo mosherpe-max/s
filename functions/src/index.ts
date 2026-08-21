@@ -16,60 +16,82 @@ const db = getFirestore();
 
 /**
  * performOperationalReset
- * Internal helper that contains the core logic for scrubbing staff sessions
- * and cancelling stale orders across all sellers.
+ * High-performance system-wide sweep using bulk queries and parallel batching.
+ * Scrubs all active staff sessions and cancels stale orders.
  */
 async function performOperationalReset() {
-  logger.info("[performOperationalReset] STARTING SYSTEM-WIDE SWEEP");
-
-  const sellers = await db.collection('sellers').get();
-  if (sellers.empty) {
-    logger.info("[performOperationalReset] No sellers found. Sweep complete.");
-    return { status: 'no_sellers' };
-  }
+  logger.info("[performOperationalReset] STARTING OPTIMIZED SYSTEM SWEEP");
 
   let totalStaffReset = 0;
   let totalOrdersCancelled = 0;
 
-  for (const sellerDoc of sellers.docs) {
-    const sellerId = sellerDoc.id;
-    const batch = db.batch();
+  try {
+    // 1. FETCH ALL TARGETS IN PARALLEL
+    // We fetch ALL staff that are active and ALL orders that are pending in two quick queries.
+    const [staffSnapshot, ordersSnapshot] = await Promise.all([
+      db.collectionGroup('staff').where('activeMode', '!=', null).get(),
+      db.collection('orders').where('status', 'in', ['Placed', 'Preparing', 'Out for Delivery']).get()
+    ]);
 
-    // 1. STAFF SESSION TERMINATION
-    const staffRef = db.collection('sellers').doc(sellerId).collection('staff');
-    const staffSnapshot = await staffRef.get();
+    const allDocs = [...staffSnapshot.docs, ...ordersSnapshot.docs];
+    
+    if (allDocs.length === 0) {
+      logger.info("[performOperationalReset] No active targets found. Sweep complete.");
+      return { status: 'no_action_needed', totalStaffReset: 0, totalOrdersCancelled: 0 };
+    }
+
+    // 2. PROCESS IN ATOMIC BATCHES (Firestore limit: 500 per batch)
+    const batches: Promise<any>[] = [];
+    let currentBatch = db.batch();
+    let writeCount = 0;
+
+    // Reset Staff
     staffSnapshot.forEach(sDoc => {
-      batch.update(sDoc.ref, { 
+      currentBatch.update(sDoc.ref, { 
         activeMode: null, 
         latitude: null, 
         longitude: null, 
         lastActive: FieldValue.serverTimestamp() 
       });
       totalStaffReset++;
+      writeCount++;
+      if (writeCount === 500) {
+        batches.push(currentBatch.commit());
+        currentBatch = db.batch();
+        writeCount = 0;
+      }
     });
 
-    // 2. CANCEL STALE ORDERS
-    const ordersRef = db.collection('orders');
-    const staleOrders = await ordersRef
-      .where('sellerId', '==', sellerId)
-      .where('status', 'in', ['Placed', 'Preparing', 'Out for Delivery'])
-      .get();
-      
-    staleOrders.forEach(oDoc => {
-      batch.update(oDoc.ref, { 
+    // Cancel Orders
+    ordersSnapshot.forEach(oDoc => {
+      currentBatch.update(oDoc.ref, { 
         status: 'Cancelled', 
-        notes: 'Operational Reset: Cancelled at end of business day.',
+        notes: 'Operational Reset: Terminal system sweep.',
         updatedAt: FieldValue.serverTimestamp() 
       });
       totalOrdersCancelled++;
+      writeCount++;
+      if (writeCount === 500) {
+        batches.push(currentBatch.commit());
+        currentBatch = db.batch();
+        writeCount = 0;
+      }
     });
 
-    await batch.commit();
-    logger.info(`[performOperationalReset] Reset complete for venue: ${sellerId}`);
-  }
+    if (writeCount > 0) {
+      batches.push(currentBatch.commit());
+    }
 
-  logger.info(`[performOperationalReset] Global sweep finalized. Staff: ${totalStaffReset}, Orders: ${totalOrdersCancelled}`);
-  return { status: 'success', totalStaffReset, totalOrdersCancelled };
+    // 3. EXECUTE ALL WRITES IN PARALLEL
+    await Promise.all(batches);
+
+    logger.info(`[performOperationalReset] Finalized. Staff Reset: ${totalStaffReset}, Orders Cancelled: ${totalOrdersCancelled}`);
+    return { status: 'success', totalStaffReset, totalOrdersCancelled };
+    
+  } catch (err: any) {
+    logger.error("[performOperationalReset] Critical Failure during sweep:", err);
+    throw err;
+  }
 }
 
 /**
