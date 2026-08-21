@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useRef, useState, useMemo } from 'react';
 import { collection, query, doc, updateDoc, serverTimestamp, where } from 'firebase/firestore';
-import { useCollection, useDoc, useFirestore, useMemoFirebase, useUser } from '@/firebase';
+import { useCollection, useDoc, useFirestore, useMemoFirebase } from '@/firebase';
 import type { Order, Seller, StaffMember } from '@/lib/types';
 import { MapView } from '@/components/map-view';
 import { OrderStatus } from '@/components/order-status';
@@ -17,7 +17,6 @@ import {
   Info, 
   Smartphone, 
   Zap, 
-  Edit2, 
   PartyPopper, 
   Heart, 
   BellRing, 
@@ -44,7 +43,6 @@ function OrderTrackingContent() {
   const [now, setNow] = useState<Date>(new Date());
   const [notificationPermission, setNotificationPermission] = useState<string>('default');
 
-  // Rules of hooks must be followed
   const orderRef = useMemoFirebase(() => (firestore && orderId ? doc(firestore, 'orders', orderId) : null), [firestore, orderId]);
   const { data: order, isLoading: isOrderLoading } = useDoc<Order>(orderRef);
 
@@ -57,7 +55,6 @@ function OrderTrackingContent() {
   }, [firestore, order?.sellerId, order?.assignedStaffId]);
   const { data: assignedStaff } = useDoc<StaffMember>(staffRef);
 
-  // Fetch all active orders for this seller and mode to calculate queue position
   const activeOrdersQuery = useMemoFirebase(() => {
     if (!firestore || !order?.sellerId || !order?.menuType) return null;
     return query(
@@ -80,26 +77,21 @@ function OrderTrackingContent() {
   const isBowling = seller?.type?.toLowerCase().includes('bowling');
   const isDelivered = order?.status === 'Delivered';
 
-  // Heartbeat for signal staleness
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 10000);
     return () => clearInterval(timer);
   }, []);
 
-  // Request Notification Permissions on mount
   useEffect(() => {
     if (typeof window !== 'undefined' && "Notification" in window) {
       setNotificationPermission(Notification.permission);
     }
   }, []);
 
-  // Implement Screen Wake Lock
   useEffect(() => {
     const isEmbedded = typeof window !== 'undefined' && window.self !== window.top;
-
     const requestWakeLock = async () => {
       if (isEmbedded || typeof window === 'undefined') return;
-
       if ('wakeLock' in navigator && order && !isDelivered && isGolf) {
         try {
           const nav = navigator as any;
@@ -111,9 +103,7 @@ function OrderTrackingContent() {
         }
       }
     };
-
     requestWakeLock();
-
     return () => {
       if (wakeLockRef.current) {
         wakeLockRef.current.release().catch(() => {});
@@ -122,10 +112,8 @@ function OrderTrackingContent() {
     };
   }, [order?.status, isGolf, isDelivered]);
 
-  // GPS Tracking for Delivery
   useEffect(() => {
     if (!order || !firestore || isDelivered) return;
-
     if (typeof window !== 'undefined' && navigator.geolocation) {
       watchIdRef.current = navigator.geolocation.watchPosition(
         (position) => {
@@ -178,30 +166,7 @@ function OrderTrackingContent() {
 
   return (
     <div className="flex flex-col min-h-screen bg-[#F8FAFC]">
-      {/* 1. TOP STICKY STATUS BAR */}
-      <div className="sticky top-0 z-[60] bg-white border-b-2 shadow-sm">
-        <div className="p-4 max-w-2xl mx-auto w-full space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex flex-col">
-              <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Order Ticket</span>
-              <div className="flex items-center gap-2 mt-1">
-                <Badge className="bg-[#213147] text-white font-black text-xs px-3">#{getNumericOrderId(order.id)}</Badge>
-                {queuePosition !== null && !isDelivered && (
-                   <Badge variant="outline" className="text-[10px] font-black uppercase border-primary/20 bg-primary/5 text-primary">
-                     {queuePosition === 1 ? 'Next in Queue' : `${queuePosition}${queuePosition === 2 ? 'nd' : queuePosition === 3 ? 'rd' : 'th'} in Queue`}
-                   </Badge>
-                )}
-              </div>
-            </div>
-            <Link href={`/sellers/${order.sellerId}/order`} className="flex items-center gap-1.5 text-[9px] font-black uppercase text-primary hover:text-primary/80 transition-colors">
-              <ChevronLeft className="h-3 w-3" /> New Order
-            </Link>
-          </div>
-          <OrderStatus currentStatus={order.status} />
-        </div>
-      </div>
-
-      {/* 2. MAP / COMPLETION VIEW */}
+      {/* 1. MAP / COMPLETION VIEW (Primary focus at top) */}
       {!isBowling && (
         <div className="h-[35vh] relative border-b-2 shadow-sm shrink-0 overflow-hidden bg-slate-900">
           {isDelivered ? (
@@ -239,28 +204,48 @@ function OrderTrackingContent() {
         </div>
       )}
 
-      {/* 3. DETAILS & FEEDBACK */}
+      {/* 2. DETAILS & STATUS */}
       <div className="p-4 space-y-4 max-w-2xl mx-auto w-full pb-24 flex-1">
         
+        {/* RE-INTEGRATED STATUS BAR CARD */}
+        <Card className="shadow-md overflow-hidden border-2 border-slate-100 animate-in slide-in-from-top-4 duration-500">
+          <CardContent className="p-5 space-y-5">
+            <div className="flex items-center justify-between">
+              <div className="flex flex-col">
+                <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Live Delivery Feed</span>
+                <div className="flex items-center gap-2 mt-1">
+                  <Badge className="bg-[#213147] text-white font-black text-xs px-3">#{getNumericOrderId(order.id)}</Badge>
+                  {queuePosition !== null && !isDelivered && (
+                    <Badge variant="outline" className="text-[10px] font-black uppercase border-primary/20 bg-primary/5 text-primary">
+                      {queuePosition === 1 ? 'Next' : `${queuePosition}${queuePosition === 2 ? 'nd' : queuePosition === 3 ? 'rd' : 'th'}`} in Queue
+                    </Badge>
+                  )}
+                </div>
+              </div>
+              <Link href={`/sellers/${order.sellerId}/order`} className="flex items-center gap-1.5 text-[9px] font-black uppercase text-primary hover:underline">
+                <ChevronLeft className="h-3 w-3" /> New Order
+              </Link>
+            </div>
+            <OrderStatus currentStatus={order.status} />
+          </CardContent>
+        </Card>
+
         {/* WAKE LOCK & LIVE SYNC NOTIFICATION */}
         {!isDelivered && isGolf && (
-          <div className="bg-[#213147] rounded-2xl p-4 shadow-xl border-t-2 border-primary/30 flex items-center gap-4 animate-in slide-in-from-top-4 duration-700">
+          <div className="bg-[#213147] rounded-2xl p-4 shadow-xl border-t-2 border-primary/30 flex items-center gap-4">
             <div className="bg-primary/20 p-2.5 rounded-xl shrink-0">
               <Zap className="h-5 w-5 text-primary animate-pulse" />
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-0.5">
-                <p className="text-[10px] font-black text-white uppercase tracking-widest">Live Feed Active</p>
+                <p className="text-[10px] font-black text-white uppercase tracking-widest">Signal Precision Active</p>
                 <div className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
               </div>
               <p className="text-[10px] font-bold text-white/60 uppercase leading-relaxed">
-                Your device is locked open for precise delivery. Keep this window visible.
+                Your device is locked open for precise delivery.
               </p>
             </div>
-            <div className="shrink-0 flex flex-col items-center">
-              <Smartphone className="h-5 w-5 text-white/20 mb-0.5" />
-              <span className="text-[8px] font-black text-white/40 uppercase tracking-tighter">Stay Active</span>
-            </div>
+            <Smartphone className="h-5 w-5 text-white/20" />
           </div>
         )}
 
@@ -270,17 +255,11 @@ function OrderTrackingContent() {
              <div className="flex items-center gap-3">
                <BellRing className="h-5 w-5 text-amber-600" />
                <div className="text-left">
-                 <p className="text-[10px] font-black uppercase text-amber-700">Enable Arrival Alerts</p>
+                 <p className="text-[10px] font-black uppercase text-amber-700">Arrival Alerts</p>
                  <p className="text-[8px] font-bold text-amber-600/70 uppercase">Get sound alerts for driver arrival</p>
                </div>
              </div>
-             <Button 
-                size="sm" 
-                className="bg-amber-600 h-8 text-[9px] font-black uppercase tracking-widest" 
-                onClick={handleEnableNotifications}
-             >
-               Enable
-             </Button>
+             <Button size="sm" className="bg-amber-600 h-8 text-[9px] font-black uppercase tracking-widest" onClick={handleEnableNotifications}>Enable</Button>
           </div>
         )}
 
