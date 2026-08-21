@@ -17,33 +17,42 @@ const db = getFirestore();
 /**
  * performOperationalReset
  * High-performance system-wide sweep using bulk queries and parallel batching.
- * Scrubs all active staff sessions and cancels stale orders.
+ * 1. Scrubs all active staff sessions.
+ * 2. Cancels stale orders.
+ * 3. Deactivates all service channels (Closes shops).
  */
 async function performOperationalReset() {
   logger.info("[performOperationalReset] STARTING OPTIMIZED SYSTEM SWEEP");
 
   let totalStaffReset = 0;
   let totalOrdersCancelled = 0;
+  let totalVenuesDeactivated = 0;
 
   try {
     // 1. FETCH ALL TARGETS IN PARALLEL
-    // We fetch ALL staff that are active and ALL orders that are pending in two quick queries.
-    const [staffSnapshot, ordersSnapshot] = await Promise.all([
+    const [staffSnapshot, ordersSnapshot, sellersSnapshot] = await Promise.all([
       db.collectionGroup('staff').where('activeMode', '!=', null).get(),
-      db.collection('orders').where('status', 'in', ['Placed', 'Preparing', 'Out for Delivery']).get()
+      db.collection('orders').where('status', 'in', ['Placed', 'Preparing', 'Out for Delivery']).get(),
+      db.collection('sellers').get()
     ]);
 
-    const allDocs = [...staffSnapshot.docs, ...ordersSnapshot.docs];
-    
-    if (allDocs.length === 0) {
-      logger.info("[performOperationalReset] No active targets found. Sweep complete.");
-      return { status: 'no_action_needed', totalStaffReset: 0, totalOrdersCancelled: 0 };
+    if (staffSnapshot.empty && ordersSnapshot.empty && sellersSnapshot.empty) {
+      logger.info("[performOperationalReset] No targets found. Sweep complete.");
+      return { status: 'no_action_needed', totalStaffReset: 0, totalOrdersCancelled: 0, totalVenuesDeactivated: 0 };
     }
 
     // 2. PROCESS IN ATOMIC BATCHES (Firestore limit: 500 per batch)
     const batches: Promise<any>[] = [];
     let currentBatch = db.batch();
     let writeCount = 0;
+
+    const checkBatch = () => {
+      if (writeCount >= 490) {
+        batches.push(currentBatch.commit());
+        currentBatch = db.batch();
+        writeCount = 0;
+      }
+    };
 
     // Reset Staff
     staffSnapshot.forEach(sDoc => {
@@ -55,11 +64,7 @@ async function performOperationalReset() {
       });
       totalStaffReset++;
       writeCount++;
-      if (writeCount === 500) {
-        batches.push(currentBatch.commit());
-        currentBatch = db.batch();
-        writeCount = 0;
-      }
+      checkBatch();
     });
 
     // Cancel Orders
@@ -71,11 +76,20 @@ async function performOperationalReset() {
       });
       totalOrdersCancelled++;
       writeCount++;
-      if (writeCount === 500) {
-        batches.push(currentBatch.commit());
-        currentBatch = db.batch();
-        writeCount = 0;
-      }
+      checkBatch();
+    });
+
+    // Deactivate Venue Channels (Close the shops)
+    sellersSnapshot.forEach(vDoc => {
+      currentBatch.update(vDoc.ref, {
+        bevcartActive: false,
+        clubhouseActive: false,
+        lanedeliveryActive: false,
+        updatedAt: FieldValue.serverTimestamp()
+      });
+      totalVenuesDeactivated++;
+      writeCount++;
+      checkBatch();
     });
 
     if (writeCount > 0) {
@@ -85,8 +99,13 @@ async function performOperationalReset() {
     // 3. EXECUTE ALL WRITES IN PARALLEL
     await Promise.all(batches);
 
-    logger.info(`[performOperationalReset] Finalized. Staff Reset: ${totalStaffReset}, Orders Cancelled: ${totalOrdersCancelled}`);
-    return { status: 'success', totalStaffReset, totalOrdersCancelled };
+    logger.info(`[performOperationalReset] Finalized. Staff: ${totalStaffReset}, Orders: ${totalOrdersCancelled}, Venues: ${totalVenuesDeactivated}`);
+    return { 
+      status: 'success', 
+      totalStaffReset, 
+      totalOrdersCancelled, 
+      totalVenuesDeactivated 
+    };
     
   } catch (err: any) {
     logger.error("[performOperationalReset] Critical Failure during sweep:", err);
@@ -199,7 +218,6 @@ export const createPaymentIntent = onCall({
 /**
  * dailyOperationalReset
  * Scheduled sweep to clear all staff sessions and active orders system-wide.
- * Runs at the top of every hour, but only executes logic on the resetHour (default 4 AM EST).
  */
 export const dailyOperationalReset = onSchedule({ 
   schedule: "0 * * * *", 
@@ -209,7 +227,6 @@ export const dailyOperationalReset = onSchedule({
   const configSnap = await db.collection('solution').doc('config').get();
   const resetHour = configSnap.exists ? (configSnap.data()?.dailyResetHour ?? 4) : 4;
   
-  // Precise EST check
   const nowInEst = new Date(new Date().toLocaleString("en-US", { timeZone: "America/New_York" }));
   if (nowInEst.getHours() !== resetHour) {
     logger.info(`[dailyOperationalReset] Current hour ${nowInEst.getHours()} is not reset hour ${resetHour}. Skipping.`);
@@ -226,7 +243,6 @@ export const dailyOperationalReset = onSchedule({
 export const manualOperationalReset = onCall({ 
   region: 'us-central1' 
 }, async (request) => {
-  // Check for admin identity
   if (!request.auth) {
     throw new HttpsError('unauthenticated', 'Unauthorized access.');
   }
@@ -271,12 +287,10 @@ export const onGuestOrderStatusUpdate = onDocumentWritten({
     if (!beforeData) {
       if (data.status === 'Placed') body = `Order received! Track live: ${link}`;
     } else {
-      // STATUS UPDATES
       if (data.status !== beforeData.status && data.status === 'Out for Delivery') {
         body = `Order out for delivery! Track live: ${link}`;
       }
       
-      // REFRESH LOCATION REQUEST
       if (data.refreshRequestedAt && (!beforeData.refreshRequestedAt || data.refreshRequestedAt.toMillis() !== beforeData.refreshRequestedAt.toMillis())) {
         body = `We are on our way with your order! Please click this link to refresh your delivery location: ${link}`;
       }
@@ -336,7 +350,6 @@ export const handleStripeWebhook = onRequest({
 
 /**
  * applyStarterMenu / applyStarterItems
- * Administrative cloning tools.
  */
 export const applyStarterMenu = onCall({ region: 'us-central1' }, async (request) => {
   const { venueId, venueType } = request.data || {};
