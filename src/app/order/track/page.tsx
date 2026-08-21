@@ -166,9 +166,31 @@ function OrderTrackingContent() {
 
   return (
     <div className="flex flex-col min-h-screen bg-[#F8FAFC]">
-      {/* 1. MAP / COMPLETION VIEW (Primary focus at top) */}
+      {/* 1. PRIMARY STATUS TILE AT TOP */}
+      <div className="bg-white border-b-2 shadow-sm shrink-0 z-20">
+        <div className="max-w-2xl mx-auto p-5 space-y-4">
+          <div className="flex flex-col items-center text-center space-y-3">
+            <h2 className="font-headline text-[13px] font-black uppercase tracking-tight text-[#213147] leading-tight max-w-[85%] mx-auto">
+              Thanks for ordering from {seller?.courseName} {order.menuType} Service
+            </h2>
+            <div className="flex items-center gap-2">
+              <Badge className="bg-[#213147] text-white font-black text-xs px-3 rounded-md">
+                #{getNumericOrderId(order.id)}
+              </Badge>
+              {queuePosition !== null && !isDelivered && (
+                <Badge variant="outline" className="text-[10px] font-black uppercase border-primary/20 bg-primary/5 text-primary rounded-md">
+                  {queuePosition === 1 ? 'Next' : `${queuePosition}${queuePosition === 2 ? 'nd' : queuePosition === 3 ? 'rd' : 'th'}`} in Queue
+                </Badge>
+              )}
+            </div>
+          </div>
+          <OrderStatus currentStatus={order.status} />
+        </div>
+      </div>
+
+      {/* 2. MAP / COMPLETION VIEW */}
       {!isBowling && (
-        <div className="h-[35vh] relative border-b-2 shadow-sm shrink-0 overflow-hidden bg-slate-900">
+        <div className="h-[35vh] relative border-b shadow-sm shrink-0 overflow-hidden bg-slate-900">
           {isDelivered ? (
             <div className="absolute inset-0 bg-[#213147] flex flex-col items-center justify-center text-center p-6 space-y-4 animate-in fade-in duration-700">
                <div className="absolute inset-0 z-0 opacity-10 pointer-events-none">
@@ -204,31 +226,17 @@ function OrderTrackingContent() {
         </div>
       )}
 
-      {/* 2. DETAILS & STATUS */}
+      {/* 3. DETAILS & CONTROLS */}
       <div className="p-4 space-y-4 max-w-2xl mx-auto w-full pb-24 flex-1">
         
-        {/* RE-INTEGRATED STATUS BAR CARD */}
-        <Card className="shadow-md overflow-hidden border-2 border-slate-100 animate-in slide-in-from-top-4 duration-500">
-          <CardContent className="p-5 space-y-5">
-            <div className="flex items-center justify-between">
-              <div className="flex flex-col">
-                <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Live Delivery Feed</span>
-                <div className="flex items-center gap-2 mt-1">
-                  <Badge className="bg-[#213147] text-white font-black text-xs px-3">#{getNumericOrderId(order.id)}</Badge>
-                  {queuePosition !== null && !isDelivered && (
-                    <Badge variant="outline" className="text-[10px] font-black uppercase border-primary/20 bg-primary/5 text-primary">
-                      {queuePosition === 1 ? 'Next' : `${queuePosition}${queuePosition === 2 ? 'nd' : queuePosition === 3 ? 'rd' : 'th'}`} in Queue
-                    </Badge>
-                  )}
-                </div>
-              </div>
-              <Link href={`/sellers/${order.sellerId}/order`} className="flex items-center gap-1.5 text-[9px] font-black uppercase text-primary hover:underline">
-                <ChevronLeft className="h-3 w-3" /> New Order
-              </Link>
-            </div>
-            <OrderStatus currentStatus={order.status} />
-          </CardContent>
-        </Card>
+        {/* NEW ORDER / NAVIGATION LINK */}
+        {!isDelivered && (
+          <div className="flex justify-start px-1">
+            <Link href={`/sellers/${order.sellerId}/order`} className="flex items-center gap-1.5 text-[9px] font-black uppercase text-primary hover:underline transition-all">
+              <ChevronLeft className="h-3 w-3" /> Back to Menu
+            </Link>
+          </div>
+        )}
 
         {/* WAKE LOCK & LIVE SYNC NOTIFICATION */}
         {!isDelivered && isGolf && (
@@ -263,23 +271,6 @@ function OrderTrackingContent() {
           </div>
         )}
 
-        {/* VENUE IDENTITY CARD */}
-        {!isDelivered && (
-          <div className="bg-white rounded-2xl p-5 border-2 border-slate-100 shadow-sm flex items-center gap-4">
-            <div className="bg-primary/10 p-2 rounded-xl shrink-0">
-              <Heart className="h-5 w-5 text-primary fill-primary/20" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="font-headline font-black text-sm uppercase tracking-tight text-[#213147]">
-                Ordering from {seller?.courseName}
-              </p>
-              <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mt-0.5 flex items-center gap-1.5">
-                <Store className="h-2.5 w-2.5" /> {order.menuType} Service
-              </p>
-            </div>
-          </div>
-        )}
-
         {isBowling && isDelivered && (
           <Card className="bg-[#213147] border-0 shadow-xl overflow-hidden rounded-[2.5rem]">
             <CardContent className="p-8 flex flex-col items-center text-center space-y-6">
@@ -299,7 +290,7 @@ function OrderTrackingContent() {
           </Card>
         )}
 
-        <Card className="shadow-md">
+        <Card className="shadow-md border-2 border-slate-100">
           <CardHeader className="py-3 px-6 bg-muted/30 border-b flex flex-row items-center justify-between">
             <h3 className="text-[10px] font-black uppercase tracking-widest">Order Details</h3>
             {isBowling && order.menuTypeLocation && (
