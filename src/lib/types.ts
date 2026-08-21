@@ -33,6 +33,7 @@ export interface SolutionConfig {
   dailyResetHour?: number; // 0-23
   smsNotificationsEnabled?: boolean;
   gpsRefreshIntervalSeconds?: number;
+  patronGpsStaleThresholdSeconds?: number;
   gpsFreshnessThresholds?: {
     hot: number;
     warm: number;
@@ -209,6 +210,7 @@ export interface Order {
     longitude: number;
   };
   lastGpsUpdate?: Timestamp;
+  refreshRequestedAt?: Timestamp;
   items: OrderItem[];
   subtotal: number;
   serviceFee: number;

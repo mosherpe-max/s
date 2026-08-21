@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Suspense, useEffect, useRef, useState, useMemo } from 'react';
@@ -22,13 +23,16 @@ import {
   ArrowRight, 
   MapPin, 
   ChevronLeft,
-  Store
+  Store,
+  RefreshCcw,
+  Satellite
 } from 'lucide-react';
-import { getNumericOrderId, playNotificationSound } from '@/lib/utils';
+import { getNumericOrderId, playNotificationSound, calculateDistance } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { FEE_DISCLOSURES, getDisclosureCategory } from '@/config/fee-disclosures';
+import { differenceInSeconds } from 'date-fns';
 
 function OrderTrackingContent() {
   const firestore = useFirestore();
@@ -53,7 +57,7 @@ function OrderTrackingContent() {
 
   const staffRef = useMemoFirebase(() => {
     if (!firestore || !order?.sellerId || !order?.assignedStaffId) return null;
-    return doc(firestore, 'sellers', order.sellerId, 'staff', order.assignedStaffId);
+    return doc(firestore, 'sellers', sellerId, 'staff', order.assignedStaffId);
   }, [firestore, order?.sellerId, order?.assignedStaffId]);
   const { data: assignedStaff } = useDoc<StaffMember>(staffRef);
 
@@ -79,8 +83,9 @@ function OrderTrackingContent() {
   const isBowling = seller?.type?.toLowerCase().includes('bowling');
   const isDelivered = order?.status === 'Delivered';
 
+  // HIGH-PRECISION COUNTER: Update 'now' every second for the signal counter
   useEffect(() => {
-    const timer = setInterval(() => setNow(new Date()), 10000);
+    const timer = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
 
@@ -114,28 +119,46 @@ function OrderTrackingContent() {
     };
   }, [order?.status, isGolf, isDelivered]);
 
+  const broadcastCurrentLocation = (position: GeolocationPosition) => {
+    if (!order || !firestore || isDelivered) return;
+    const nowTime = Date.now();
+    const syncInterval = (solutionConfig?.gpsRefreshIntervalSeconds || 30) * 1000;
+    
+    // Throttle unless moved significantly
+    if (nowTime - lastBroadcastTimeRef.current < syncInterval) return;
+
+    lastBroadcastTimeRef.current = nowTime;
+    updateDoc(doc(firestore, 'orders', order.id), { 
+      deliveryLocation: { latitude: position.coords.latitude, longitude: position.coords.longitude },
+      lastGpsUpdate: serverTimestamp() 
+    });
+  };
+
   useEffect(() => {
     if (!order || !firestore || isDelivered) return;
     if (typeof window !== 'undefined' && navigator.geolocation) {
       watchIdRef.current = navigator.geolocation.watchPosition(
-        (position) => {
-          const nowTime = Date.now();
-          const syncInterval = (solutionConfig?.gpsRefreshIntervalSeconds || 30) * 1000;
-          
-          if (nowTime - lastBroadcastTimeRef.current < syncInterval) return;
-
-          lastBroadcastTimeRef.current = nowTime;
-          updateDoc(doc(firestore, 'orders', order.id), { 
-            deliveryLocation: { latitude: position.coords.latitude, longitude: position.coords.longitude },
-            lastGpsUpdate: serverTimestamp() 
-          });
-        },
+        broadcastCurrentLocation,
         null,
         { enableHighAccuracy: true }
       );
     }
     return () => { if (watchIdRef.current) navigator.geolocation.clearWatch(watchIdRef.current); };
   }, [order?.status, order?.id, firestore, isDelivered, solutionConfig?.gpsRefreshIntervalSeconds]);
+
+  const handleManualRefresh = () => {
+    if (typeof window !== 'undefined' && navigator.geolocation) {
+      toast({ title: "Refreshing Signal", description: "Updating your location on the map..." });
+      navigator.geolocation.getCurrentPosition(
+        (p) => {
+          broadcastCurrentLocation(p);
+          toast({ title: "Signal Restored", description: "Your location is now up to date." });
+        },
+        () => toast({ variant: "destructive", title: "Signal Failed", description: "Please check your GPS settings." }),
+        { enableHighAccuracy: true }
+      );
+    }
+  };
 
   const handleUpdateLane = (lane: string) => {
     if (!firestore || !order) return;
@@ -171,6 +194,12 @@ function OrderTrackingContent() {
   const isDriverAttached = order.status !== 'Placed' && order.status !== 'Cancelled';
   const driverLocation = assignedStaff?.latitude ? { latitude: assignedStaff.latitude, longitude: assignedStaff.longitude } : (seller?.latitude ? { latitude: seller.latitude, longitude: seller.longitude } : null);
   const showBilateral = isDriverAttached && !!driverLocation;
+
+  // Signal Freshness Calculation
+  const lastGpsTime = order.lastGpsUpdate?.toDate();
+  const secondsSinceUpdate = lastGpsTime ? differenceInSeconds(now, lastGpsTime) : 999;
+  const staleThreshold = solutionConfig?.patronGpsStaleThresholdSeconds || 120;
+  const isSignalStale = secondsSinceUpdate >= staleThreshold;
 
   return (
     <div className="flex flex-col min-h-screen bg-[#F8FAFC]">
@@ -232,29 +261,53 @@ function OrderTrackingContent() {
       {/* 3. DETAILS & CONTROLS */}
       <div className="p-4 space-y-4 max-w-2xl mx-auto w-full pb-24 flex-1">
         
+        {/* TOP NAVIGATION LINK */}
         {!isDelivered && (
-          <div className="flex justify-start px-1">
-            <Link href={`/sellers/${order.sellerId}/order`} className="flex items-center gap-1.5 text-[9px] font-black uppercase text-primary hover:underline transition-all">
-              <ChevronLeft className="h-3 w-3" /> Back to Menu
+          <div className="flex justify-start px-1 mb-2">
+            <Link href={`/sellers/${order.sellerId}/order`} className="flex items-center gap-1.5 text-[10px] font-black uppercase text-primary hover:underline transition-all bg-primary/5 px-3 py-1.5 rounded-full border border-primary/10">
+              <ChevronLeft className="h-3.5 w-3.5" /> Return to Menu
             </Link>
           </div>
         )}
 
+        {/* SIGNAL FRESHNESS COUNTER (GOLF ONLY) */}
         {!isDelivered && isGolf && (
-          <div className="bg-[#213147] rounded-2xl p-4 shadow-xl border-t-2 border-primary/30 flex items-center gap-4">
-            <div className="bg-primary/20 p-2.5 rounded-xl shrink-0">
-              <Zap className="h-5 w-5 text-primary animate-pulse" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-0.5">
-                <p className="text-[10px] font-black text-white uppercase tracking-widest">Signal Precision Active</p>
-                <div className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
+          <div className={cn(
+            "rounded-2xl p-4 shadow-md border-2 transition-all duration-500 flex items-center justify-between gap-4",
+            isSignalStale ? "bg-red-50 border-red-200" : "bg-green-50 border-green-200"
+          )}>
+            <div className="flex items-center gap-3">
+              <div className={cn(
+                "p-2 rounded-xl shrink-0",
+                isSignalStale ? "bg-red-500 text-white animate-pulse" : "bg-green-500 text-white"
+              )}>
+                <Satellite className="h-5 w-5" />
               </div>
-              <p className="text-[10px] font-bold text-white/60 uppercase leading-relaxed">
-                Your device is locked open for precise delivery.
-              </p>
+              <div className="text-left">
+                <p className={cn(
+                  "text-[10px] font-black uppercase tracking-widest",
+                  isSignalStale ? "text-red-700" : "text-green-700"
+                )}>
+                  Location update {secondsSinceUpdate}s ago
+                </p>
+                <p className={cn(
+                  "text-[8px] font-bold uppercase",
+                  isSignalStale ? "text-red-600/70" : "text-green-600/70"
+                )}>
+                  {isSignalStale ? "Driver may struggle to find you" : "High-precision lock active"}
+                </p>
+              </div>
             </div>
-            <Smartphone className="h-5 w-5 text-white/20" />
+            {isSignalStale && (
+              <Button 
+                size="sm" 
+                variant="outline" 
+                onClick={handleManualRefresh}
+                className="h-9 px-3 bg-white border-red-200 text-red-600 font-black uppercase text-[9px] gap-2 hover:bg-red-50"
+              >
+                <RefreshCcw className="h-3 w-3" /> Refresh
+              </Button>
+            )}
           </div>
         )}
 
@@ -273,7 +326,7 @@ function OrderTrackingContent() {
 
         <Card className="shadow-md border-2 border-slate-100">
           <CardHeader className="py-3 px-6 bg-muted/30 border-b flex flex-row items-center justify-between">
-            <div className="flex flex-col">
+            <div className="flex flex-col text-left">
               <h3 className="text-[10px] font-black uppercase tracking-widest">Order Details</h3>
               <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mt-0.5">
                 Ticket #{getNumericOrderId(order.id)}
@@ -312,7 +365,7 @@ function OrderTrackingContent() {
               </div>
             )}
           </CardHeader>
-          <CardContent className="pt-6 space-y-6">
+          <CardContent className="pt-6 space-y-6 text-left">
             <div className="space-y-2">
               <p className="text-[9px] font-black text-muted-foreground uppercase">Items</p>
               {order.items.map(i => (
@@ -376,7 +429,7 @@ function OrderTrackingContent() {
 
         <div className="bg-white/50 backdrop-blur-sm border border-slate-200 p-4 rounded-2xl flex items-start gap-3">
           <Info className="h-4 w-4 text-slate-400 shrink-0 mt-0.5" />
-          <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-tight leading-relaxed">
+          <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-tight leading-relaxed text-left">
             {statusNotice}
           </p>
         </div>

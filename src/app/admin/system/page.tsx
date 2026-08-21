@@ -12,7 +12,8 @@ import {
   Smartphone,
   ShieldCheck,
   AlertTriangle,
-  Radio
+  Radio,
+  Timer
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -91,7 +92,7 @@ export default function AdminSystemConfigPage() {
                <Radio className="h-4 w-4" /> Signal & Location Dynamics
              </h4>
              
-             <div className="space-y-4">
+             <div className="space-y-6">
                 <div className="space-y-2">
                    <Label className="text-[10px] font-black uppercase">Global GPS Broadcast Interval (Seconds)</Label>
                    <div className="flex gap-4 items-center">
@@ -108,7 +109,25 @@ export default function AdminSystemConfigPage() {
                    </div>
                 </div>
 
-                <div className="grid grid-cols-3 gap-4 pt-2">
+                <div className="space-y-2 border-t-2 border-slate-50 pt-6">
+                   <Label className="text-[10px] font-black uppercase flex items-center gap-2">
+                     <Timer className="h-3 w-3 text-primary" /> Patron GPS Stale Threshold (Seconds)
+                   </Label>
+                   <div className="flex gap-4 items-center">
+                      <Input 
+                        type="number" 
+                        min="30" max="600" 
+                        defaultValue={config?.patronGpsStaleThresholdSeconds || 120} 
+                        className="h-12 border-2 font-bold w-24 text-center"
+                        onBlur={(e) => handleUpdateConfig('patronGpsStaleThresholdSeconds', parseInt(e.target.value))}
+                      />
+                      <p className="text-[9px] text-muted-foreground uppercase font-medium max-w-xs leading-relaxed">
+                        Determines when the patron counter turns RED and the "Refresh Location" button appears. Default is 120s.
+                      </p>
+                   </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-4 pt-2 border-t-2 border-slate-50 pt-6">
                   <div className="space-y-1.5">
                     <Label className="text-[8px] font-black uppercase text-green-600">Hot Threshold (s)</Label>
                     <Input 
