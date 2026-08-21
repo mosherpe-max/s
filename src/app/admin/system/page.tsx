@@ -1,7 +1,7 @@
 
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { 
   Settings2, 
@@ -13,21 +13,27 @@ import {
   ShieldCheck,
   AlertTriangle,
   Radio,
-  Timer
+  Timer,
+  RefreshCcw,
+  History
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { useFirestore, useDoc, useMemoFirebase } from '@/firebase';
+import { useFirestore, useDoc, useMemoFirebase, useFirebaseApp } from '@/firebase';
 import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 import type { SolutionConfig } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 
 export default function AdminSystemConfigPage() {
+  const { firebaseApp } = useFirebaseApp();
   const firestore = useFirestore();
   const { toast } = useToast();
   
+  const [isResetting, setIsResetting] = useState(false);
+
   const configRef = useMemoFirebase(() => (firestore ? doc(firestore, 'solution', 'config') : null), [firestore]);
   const { data: config, isLoading } = useDoc<SolutionConfig>(configRef);
 
@@ -37,6 +43,30 @@ export default function AdminSystemConfigPage() {
       [field]: value, 
       updatedAt: serverTimestamp() 
     }).then(() => toast({ title: "System Config Updated" }));
+  };
+
+  const handleManualReset = async () => {
+    if (!firebaseApp) return;
+    setIsResetting(true);
+    const functions = getFunctions(firebaseApp, 'us-central1');
+    const resetFunc = httpsCallable(functions, 'manualOperationalReset');
+
+    try {
+      const result = await resetFunc();
+      const data = result.data as any;
+      toast({ 
+        title: "Global Reset Complete", 
+        description: `Scrubbed ${data.totalStaffReset} staff and ${data.totalOrdersCancelled} orders.` 
+      });
+    } catch (e: any) {
+      toast({ 
+        variant: "destructive", 
+        title: "Reset Failed", 
+        description: e.message 
+      });
+    } finally {
+      setIsResetting(false);
+    }
   };
 
   if (isLoading) return <div className="p-20 flex flex-col items-center gap-4"><Loader2 className="animate-spin h-8 w-8 text-primary" /><p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Fetching Global State...</p></div>;
@@ -57,7 +87,7 @@ export default function AdminSystemConfigPage() {
                <Zap className="h-4 w-4" /> Operational Engine
              </h4>
              <div className="grid gap-6">
-                <div className="space-y-2">
+                <div className="space-y-4">
                    <Label className="text-[10px] font-black uppercase">Daily Operational Reset Hour (EST)</Label>
                    <div className="flex gap-4 items-center">
                       <Input 
@@ -67,10 +97,20 @@ export default function AdminSystemConfigPage() {
                         className="h-12 border-2 font-bold w-24 text-center"
                         onBlur={(e) => handleUpdateConfig('dailyResetHour', parseInt(e.target.value))}
                       />
-                      <p className="text-[9px] text-muted-foreground uppercase font-medium max-w-xs">
-                        The hour at which all staff shifts are system-terminated and stale orders cancelled.
-                      </p>
+                      <Button 
+                        onClick={handleManualReset}
+                        disabled={isResetting}
+                        variant="outline"
+                        className="h-12 px-6 border-2 font-black uppercase text-[10px] tracking-widest gap-2 bg-slate-50 hover:bg-slate-100"
+                      >
+                        {isResetting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCcw className="h-3.5 w-3.5" />}
+                        Force Global Reset
+                      </Button>
                    </div>
+                   <p className="text-[9px] text-muted-foreground uppercase font-medium max-w-lg leading-relaxed">
+                      The hour at which all staff shifts are system-terminated and stale orders cancelled. 
+                      Use <strong className="text-[#213147]">Force Global Reset</strong> to trigger this logic immediately for testing.
+                   </p>
                 </div>
                 
                 <div className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border-2 border-slate-100">

@@ -15,6 +15,64 @@ initializeApp();
 const db = getFirestore();
 
 /**
+ * performOperationalReset
+ * Internal helper that contains the core logic for scrubbing staff sessions
+ * and cancelling stale orders across all sellers.
+ */
+async function performOperationalReset() {
+  logger.info("[performOperationalReset] STARTING SYSTEM-WIDE SWEEP");
+
+  const sellers = await db.collection('sellers').get();
+  if (sellers.empty) {
+    logger.info("[performOperationalReset] No sellers found. Sweep complete.");
+    return { status: 'no_sellers' };
+  }
+
+  let totalStaffReset = 0;
+  let totalOrdersCancelled = 0;
+
+  for (const sellerDoc of sellers.docs) {
+    const sellerId = sellerDoc.id;
+    const batch = db.batch();
+
+    // 1. STAFF SESSION TERMINATION
+    const staffRef = db.collection('sellers').doc(sellerId).collection('staff');
+    const staffSnapshot = await staffRef.get();
+    staffSnapshot.forEach(sDoc => {
+      batch.update(sDoc.ref, { 
+        activeMode: null, 
+        latitude: null, 
+        longitude: null, 
+        lastActive: FieldValue.serverTimestamp() 
+      });
+      totalStaffReset++;
+    });
+
+    // 2. CANCEL STALE ORDERS
+    const ordersRef = db.collection('orders');
+    const staleOrders = await ordersRef
+      .where('sellerId', '==', sellerId)
+      .where('status', 'in', ['Placed', 'Preparing', 'Out for Delivery'])
+      .get();
+      
+    staleOrders.forEach(oDoc => {
+      batch.update(oDoc.ref, { 
+        status: 'Cancelled', 
+        notes: 'Operational Reset: Cancelled at end of business day.',
+        updatedAt: FieldValue.serverTimestamp() 
+      });
+      totalOrdersCancelled++;
+    });
+
+    await batch.commit();
+    logger.info(`[performOperationalReset] Reset complete for venue: ${sellerId}`);
+  }
+
+  logger.info(`[performOperationalReset] Global sweep finalized. Staff: ${totalStaffReset}, Orders: ${totalOrdersCancelled}`);
+  return { status: 'success', totalStaffReset, totalOrdersCancelled };
+}
+
+/**
  * createPaymentIntent
  * Securely generates a Stripe Client Secret and Customer Session for zero-friction checkout.
  */
@@ -120,7 +178,6 @@ export const createPaymentIntent = onCall({
  * dailyOperationalReset
  * Scheduled sweep to clear all staff sessions and active orders system-wide.
  * Runs at the top of every hour, but only executes logic on the resetHour (default 4 AM EST).
- * This function preserves Venue Admin settings (like bevcartActive status).
  */
 export const dailyOperationalReset = onSchedule({ 
   schedule: "0 * * * *", 
@@ -137,52 +194,26 @@ export const dailyOperationalReset = onSchedule({
     return;
   }
 
-  logger.info(`[dailyOperationalReset] STARTING SYSTEM-WIDE SWEEP FOR RESET HOUR: ${resetHour}`);
+  await performOperationalReset();
+});
 
-  // Fetch all sellers to ensure comprehensive cleanup
-  const sellers = await db.collection('sellers').get();
-  if (sellers.empty) {
-    logger.info("[dailyOperationalReset] No sellers found. Sweep complete.");
-    return;
+/**
+ * manualOperationalReset
+ * Callable trigger for the reset logic, enabling testing and manual overrides by admins.
+ */
+export const manualOperationalReset = onCall({ 
+  region: 'us-central1' 
+}, async (request) => {
+  // Check for admin identity
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'Unauthorized access.');
   }
-
-  for (const sellerDoc of sellers.docs) {
-    const sellerId = sellerDoc.id;
-    const batch = db.batch();
-
-    // STAFF SESSION TERMINATION
-    // Clears shift assignments and locations. The activeMode = null triggers the client-side force logout.
-    const staffRef = db.collection('sellers').doc(sellerId).collection('staff');
-    const staffSnapshot = await staffRef.get();
-    staffSnapshot.forEach(sDoc => {
-      batch.update(sDoc.ref, { 
-        activeMode: null, 
-        latitude: null, 
-        longitude: null, 
-        lastActive: FieldValue.serverTimestamp() 
-      });
-    });
-
-    // CANCEL STALE ORDERS
-    const ordersRef = db.collection('orders');
-    const staleOrders = await ordersRef
-      .where('sellerId', '==', sellerId)
-      .where('status', 'in', ['Placed', 'Preparing', 'Out for Delivery'])
-      .get();
-      
-    staleOrders.forEach(oDoc => {
-      batch.update(oDoc.ref, { 
-        status: 'Cancelled', 
-        notes: 'Operational Reset: Cancelled at end of business day.',
-        updatedAt: FieldValue.serverTimestamp() 
-      });
-    });
-
-    await batch.commit();
-    logger.info(`[dailyOperationalReset] Reset complete for venue: ${sellerId} (${staffSnapshot.size} staff, ${staleOrders.size} orders). Settings preserved.`);
+  
+  try {
+    return await performOperationalReset();
+  } catch (e: any) {
+    throw new HttpsError('internal', e.message);
   }
-
-  logger.info("[dailyOperationalReset] Global operational sweep finalized.");
 });
 
 /**
