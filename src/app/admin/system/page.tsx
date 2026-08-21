@@ -1,3 +1,4 @@
+
 'use client';
 
 import React from 'react';
@@ -10,7 +11,8 @@ import {
   Loader2,
   Smartphone,
   ShieldCheck,
-  AlertTriangle
+  AlertTriangle,
+  Radio
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -86,35 +88,54 @@ export default function AdminSystemConfigPage() {
 
            <div className="space-y-6 pt-6 border-t">
              <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2">
-               <Smartphone className="h-4 w-4" /> Signal Thresholds (Seconds)
+               <Radio className="h-4 w-4" /> Signal & Location Dynamics
              </h4>
-             <div className="grid grid-cols-3 gap-4">
-                <div className="space-y-1.5">
-                   <Label className="text-[8px] font-black uppercase text-green-600">Hot (Green)</Label>
-                   <Input 
-                      type="number" 
-                      defaultValue={config?.gpsFreshnessThresholds?.hot || 60} 
-                      onBlur={(e) => handleUpdateConfig('gpsFreshnessThresholds.hot', parseInt(e.target.value))}
-                      className="h-10 border-2 font-bold text-center"
-                   />
+             
+             <div className="space-y-4">
+                <div className="space-y-2">
+                   <Label className="text-[10px] font-black uppercase">Global GPS Broadcast Interval (Seconds)</Label>
+                   <div className="flex gap-4 items-center">
+                      <Input 
+                        type="number" 
+                        min="5" max="300" 
+                        defaultValue={config?.gpsRefreshIntervalSeconds || 30} 
+                        className="h-12 border-2 font-bold w-24 text-center"
+                        onBlur={(e) => handleUpdateConfig('gpsRefreshIntervalSeconds', parseInt(e.target.value))}
+                      />
+                      <p className="text-[9px] text-muted-foreground uppercase font-medium max-w-xs leading-relaxed">
+                        Frequency of location updates from patron and driver devices. Lower values increase precision but use more battery.
+                      </p>
+                   </div>
                 </div>
-                <div className="space-y-1.5">
-                   <Label className="text-[8px] font-black uppercase text-amber-500">Warm (Amber)</Label>
-                   <Input 
-                      type="number" 
-                      defaultValue={config?.gpsFreshnessThresholds?.warm || 300} 
-                      onBlur={(e) => handleUpdateConfig('gpsFreshnessThresholds.warm', parseInt(e.target.value))}
-                      className="h-10 border-2 font-bold text-center"
-                   />
-                </div>
-                <div className="space-y-1.5">
-                   <Label className="text-[8px] font-black uppercase text-red-500">Cold (Red)</Label>
-                   <Input 
-                      type="number" 
-                      defaultValue={config?.gpsFreshnessThresholds?.cold || 600} 
-                      onBlur={(e) => handleUpdateConfig('gpsFreshnessThresholds.cold', parseInt(e.target.value))}
-                      className="h-10 border-2 font-bold text-center"
-                   />
+
+                <div className="grid grid-cols-3 gap-4 pt-2">
+                  <div className="space-y-1.5">
+                    <Label className="text-[8px] font-black uppercase text-green-600">Hot Threshold (s)</Label>
+                    <Input 
+                        type="number" 
+                        defaultValue={config?.gpsFreshnessThresholds?.hot || 60} 
+                        onBlur={(e) => handleUpdateConfig('gpsFreshnessThresholds.hot', parseInt(e.target.value))}
+                        className="h-10 border-2 font-bold text-center"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-[8px] font-black uppercase text-amber-500">Warm Threshold (s)</Label>
+                    <Input 
+                        type="number" 
+                        defaultValue={config?.gpsFreshnessThresholds?.warm || 300} 
+                        onBlur={(e) => handleUpdateConfig('gpsFreshnessThresholds.warm', parseInt(e.target.value))}
+                        className="h-10 border-2 font-bold text-center"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-[8px] font-black uppercase text-red-500">Cold Threshold (s)</Label>
+                    <Input 
+                        type="number" 
+                        defaultValue={config?.gpsFreshnessThresholds?.cold || 600} 
+                        onBlur={(e) => handleUpdateConfig('gpsFreshnessThresholds.cold', parseInt(e.target.value))}
+                        className="h-10 border-2 font-bold text-center"
+                    />
+                  </div>
                 </div>
              </div>
            </div>

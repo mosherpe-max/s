@@ -1,3 +1,4 @@
+
 'use client';
 
 import { collection, query, where, doc, updateDoc, serverTimestamp, setDoc, deleteDoc } from 'firebase/firestore';
@@ -269,13 +270,16 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
     if (!firestore || !sellerId || !user || isExiting) return;
     
     const nowTime = Date.now();
-    const syncInterval = (solutionConfig?.mapUpdateSettings?.['Beverage Cart']?.frequencySeconds || 15) * 1000;
+    // System-wide GPS broadcast frequency
+    const syncInterval = (solutionConfig?.gpsRefreshIntervalSeconds || 30) * 1000;
     
     if (lastBroadcastRef.current) {
       const distance = calculateDistance(lat, lng, lastBroadcastRef.current.lat, lastBroadcastRef.current.lng);
       const timeElapsed = nowTime - lastBroadcastRef.current.time;
-      if (distance < 5 && timeElapsed < 60000) return;
-      if (timeElapsed < syncInterval) return;
+      // High-precision override: if distance > 5m, we update regardless of interval to ensure tracking accuracy
+      if (distance < 5 && timeElapsed < syncInterval) return;
+      // Standard interval enforcement
+      if (timeElapsed < syncInterval && distance < 5) return;
     }
 
     lastBroadcastRef.current = { lat, lng, time: nowTime };

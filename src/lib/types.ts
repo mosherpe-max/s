@@ -32,6 +32,7 @@ export interface SolutionConfig {
   mapUpdateSettings?: Record<string, MapUpdateSettings>;
   dailyResetHour?: number; // 0-23
   smsNotificationsEnabled?: boolean;
+  gpsRefreshIntervalSeconds?: number;
   gpsFreshnessThresholds?: {
     hot: number;
     warm: number;

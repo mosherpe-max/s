@@ -1,9 +1,10 @@
+
 'use client';
 
 import { Suspense, useEffect, useRef, useState, useMemo } from 'react';
 import { collection, query, doc, updateDoc, serverTimestamp, where } from 'firebase/firestore';
 import { useCollection, useDoc, useFirestore, useMemoFirebase } from '@/firebase';
-import type { Order, Seller, StaffMember } from '@/lib/types';
+import type { Order, Seller, StaffMember, SolutionConfig } from '@/lib/types';
 import { MapView } from '@/components/map-view';
 import { OrderStatus } from '@/components/order-status';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
@@ -38,8 +39,12 @@ function OrderTrackingContent() {
   
   const watchIdRef = useRef<number | null>(null);
   const wakeLockRef = useRef<any>(null);
+  const lastBroadcastTimeRef = useRef<number>(0);
   const [now, setNow] = useState<Date>(new Date());
   const [notificationPermission, setNotificationPermission] = useState<string>('default');
+
+  const configRef = useMemoFirebase(() => (firestore ? doc(firestore, 'solution', 'config') : null), [firestore]);
+  const { data: solutionConfig } = useDoc<SolutionConfig>(configRef);
 
   const orderRef = useMemoFirebase(() => (firestore && orderId ? doc(firestore, 'orders', orderId) : null), [firestore, orderId]);
   const { data: order, isLoading: isOrderLoading } = useDoc<Order>(orderRef);
@@ -115,6 +120,13 @@ function OrderTrackingContent() {
     if (typeof window !== 'undefined' && navigator.geolocation) {
       watchIdRef.current = navigator.geolocation.watchPosition(
         (position) => {
+          const nowTime = Date.now();
+          const syncInterval = (solutionConfig?.gpsRefreshIntervalSeconds || 30) * 1000;
+          
+          // Enforce broadcast frequency from System Config
+          if (nowTime - lastBroadcastTimeRef.current < syncInterval) return;
+
+          lastBroadcastTimeRef.current = nowTime;
           updateDoc(doc(firestore, 'orders', order.id), { 
             deliveryLocation: { latitude: position.coords.latitude, longitude: position.coords.longitude },
             lastGpsUpdate: serverTimestamp() 
@@ -125,7 +137,7 @@ function OrderTrackingContent() {
       );
     }
     return () => { if (watchIdRef.current) navigator.geolocation.clearWatch(watchIdRef.current); };
-  }, [order?.status, order?.id, firestore, isDelivered]);
+  }, [order?.status, order?.id, firestore, isDelivered, solutionConfig?.gpsRefreshIntervalSeconds]);
 
   const handleUpdateLane = (lane: string) => {
     if (!firestore || !order) return;

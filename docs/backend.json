@@ -70,6 +70,7 @@
         "mapUpdateSettings": { "type": "object" },
         "dailyResetHour": { "type": "number", "description": "The hour (0-23) at which all venue sessions are reset." },
         "smsNotificationsEnabled": { "type": "boolean", "description": "Global toggle for Twilio SMS order updates." },
+        "gpsRefreshIntervalSeconds": { "type": "number", "description": "Global frequency for device location broadcasting to Firestore." },
         "gpsFreshnessThresholds": {
           "type": "object",
           "properties": {
