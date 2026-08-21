@@ -50,7 +50,9 @@ export default function RootLayout({
       <body className={cn("font-body antialiased min-h-screen flex flex-col pb-7")}>
         <FirebaseClientProvider>
           <CartProvider>
-            <NavigationStateTracker />
+            <Suspense fallback={null}>
+              <NavigationStateTracker />
+            </Suspense>
             <OrderNotificationListener />
             <Suspense fallback={<div className="h-16 bg-[#213147] border-b-2 border-[#E50000]" />}>
               <AppHeader />

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, use, useEffect, useMemo } from 'react';
+import { useState, use, useEffect, useMemo, Suspense } from 'react';
 import { collection, doc, addDoc, serverTimestamp, query, where } from 'firebase/firestore';
 import { signInAnonymously } from 'firebase/auth';
 import { useFirestore, useCollection, useMemoFirebase, useDoc, useAuth, useUser, useFirebase } from '@/firebase';
@@ -601,8 +601,7 @@ function CheckoutDrawerContent({
   );
 }
 
-export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId: string }> }) {
-  const { sellerId } = use(params);
+function BuyerOrderContent({ sellerId }: { sellerId: string }) {
   const firestore = useFirestore();
   const router = useRouter();
   const pathname = usePathname();
@@ -892,5 +891,20 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
         </SheetContent>
       </Sheet>
     </div>
+  );
+}
+
+export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId: string }> }) {
+  const { sellerId } = use(params);
+
+  return (
+    <Suspense fallback={
+      <div className="flex flex-col min-h-screen bg-background items-center justify-center">
+        <Loader2 className="animate-spin h-10 w-10 text-primary" />
+        <p className="mt-4 text-[10px] font-black uppercase tracking_widest text-muted-foreground">Synchronizing Menu Feed...</p>
+      </div>
+    }>
+      <BuyerOrderContent sellerId={sellerId} />
+    </Suspense>
   );
 }
