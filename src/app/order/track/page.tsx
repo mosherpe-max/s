@@ -23,7 +23,9 @@ import {
   ChevronLeft,
   Store,
   RefreshCcw,
-  Satellite
+  Satellite,
+  Sun,
+  Moon
 } from 'lucide-react';
 import { cn, getNumericOrderId, calculateDistance } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -42,6 +44,7 @@ function OrderTrackingContent() {
   const wakeLockRef = useRef<any>(null);
   const lastBroadcastTimeRef = useRef<number>(0);
   const [now, setNow] = useState<Date>(new Date());
+  const [isWakeLockActive, setIsWakeLockActive] = useState(true);
 
   const configRef = useMemoFirebase(() => (firestore ? doc(firestore, 'solution', 'config') : null), [firestore]);
   const { data: solutionConfig } = useDoc<SolutionConfig>(configRef);
@@ -88,12 +91,31 @@ function OrderTrackingContent() {
 
   useEffect(() => {
     const isEmbedded = typeof window !== 'undefined' && window.self !== window.top;
-    const requestWakeLock = async () => {
+    
+    const releaseLock = async () => {
+      if (wakeLockRef.current) {
+        try {
+          await wakeLockRef.current.release();
+          wakeLockRef.current = null;
+        } catch (err) {
+          console.warn('Wake Lock release failed:', err);
+        }
+      }
+    };
+
+    const requestLock = async () => {
       if (isEmbedded || typeof window === 'undefined') return;
+      
+      // If user has manually disabled wake lock, release it if active
+      if (!isWakeLockActive) {
+        await releaseLock();
+        return;
+      }
+
       if ('wakeLock' in navigator && order && !isDelivered && isGolf) {
         try {
           const nav = navigator as any;
-          if (nav.wakeLock) {
+          if (nav.wakeLock && !wakeLockRef.current) {
             wakeLockRef.current = await nav.wakeLock.request('screen');
           }
         } catch (err) {
@@ -101,14 +123,13 @@ function OrderTrackingContent() {
         }
       }
     };
-    requestWakeLock();
+
+    requestLock();
+
     return () => {
-      if (wakeLockRef.current) {
-        wakeLockRef.current.release().catch(() => {});
-        wakeLockRef.current = null;
-      }
+      releaseLock();
     };
-  }, [order?.status, isGolf, isDelivered]);
+  }, [order?.status, isGolf, isDelivered, isWakeLockActive]);
 
   const broadcastCurrentLocation = (position: GeolocationPosition) => {
     if (!order || !firestore || isDelivered) return;
@@ -202,6 +223,28 @@ function OrderTrackingContent() {
       {/* 2. MAP / COMPLETION VIEW */}
       {!isBowling && (
         <div className="h-[35vh] relative border-b shadow-sm shrink-0 overflow-hidden bg-slate-900">
+          {/* WAKE LOCK TOGGLE (GOLF ONLY) */}
+          {!isDelivered && isGolf && (
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setIsWakeLockActive(!isWakeLockActive)}
+              className="absolute top-3 left-3 z-30 h-8 px-3 rounded-full bg-white/90 backdrop-blur-md shadow-lg border-2 border-white flex items-center gap-2 group hover:bg-white transition-all active:scale-95"
+            >
+              {isWakeLockActive ? (
+                <>
+                  <Sun className="h-3.5 w-3.5 text-amber-500 fill-amber-500 animate-pulse" />
+                  <span className="text-[9px] font-black uppercase tracking-widest text-[#213147]">Screen staying on</span>
+                </>
+              ) : (
+                <>
+                  <Moon className="h-3.5 w-3.5 text-slate-400 fill-slate-400" />
+                  <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Screen can sleep</span>
+                </>
+              )}
+            </Button>
+          )}
+
           {isDelivered ? (
             <div className="absolute inset-0 bg-[#213147] flex flex-col items-center justify-center text-center p-6 space-y-4 animate-in fade-in duration-700">
                <div className="absolute inset-0 z-0 opacity-10 pointer-events-none">
