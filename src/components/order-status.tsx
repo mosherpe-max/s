@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import React from 'react';
 import { cn } from '@/lib/utils';
 import type { Order } from '@/lib/types';
 import { Check, Clock, Timer, Truck, CheckCircle2 } from 'lucide-react';
@@ -19,67 +19,45 @@ const steps = [
 
 export function OrderStatus({ currentStatus }: OrderStatusProps) {
   const currentStatusIndex = steps.findIndex(s => s.id === currentStatus);
-  
-  // Progress Width calculation:
-  // Placed = 25% 
-  // Preparing = 50%
-  // Out for Delivery = 75%
-  // Delivered = 100%
-  const progressWidth = useMemo(() => {
-    if (currentStatusIndex === -1) return 0;
-    return ((currentStatusIndex + 1) / steps.length) * 100;
-  }, [currentStatusIndex]);
 
   return (
-    <div className="w-full space-y-4">
-      {/* MAIN PROGRESS BAR */}
-      <div className="relative">
-        <div className="relative h-2 w-full bg-slate-100 rounded-full overflow-hidden border shadow-inner">
-          <div 
-            className="absolute inset-y-0 left-0 bg-primary transition-all duration-1000 ease-out flex items-center justify-end overflow-hidden"
-            style={{ width: `${progressWidth}%` }}
-          >
-            {/* High-fidelity striped animation for active status */}
-            {currentStatus !== 'Delivered' && (
-              <div className="h-full w-full bg-[linear-gradient(45deg,rgba(255,255,255,0.15)_25%,transparent_25%,transparent_50%,rgba(255,255,255,0.15)_50%,rgba(255,255,255,0.15)_75%,transparent_75%,transparent)] bg-[length:1rem_1rem] animate-[progress-bar-stripes_1s_linear_infinite]" />
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* MILESTONE GRID */}
-      <div className="grid grid-cols-4 gap-1">
+    <div className="w-full">
+      {/* MILESTONE GRID - The primary segmented progress indicator */}
+      <div className="grid grid-cols-4 gap-1.5">
         {steps.map((step, index) => {
           const isCompleted = index < currentStatusIndex;
           const isCurrent = index === currentStatusIndex;
           const isActive = index <= currentStatusIndex;
 
           return (
-            <div key={step.id} className="space-y-2 flex flex-col items-center">
-              {/* Vertical Tick */}
+            <div key={step.id} className="space-y-2.5 flex flex-col items-center">
+              {/* Segment Segment / Vertical Tick */}
               <div className={cn(
-                "h-1 w-full rounded-full transition-all duration-500",
+                "h-1.5 w-full rounded-full transition-all duration-700 relative overflow-hidden",
                 isActive ? "bg-primary" : "bg-slate-200"
-              )} />
+              )}>
+                {isCurrent && currentStatus !== 'Delivered' && (
+                  <div className="absolute inset-0 bg-[linear-gradient(45deg,rgba(255,255,255,0.2)_25%,transparent_25%,transparent_50%,rgba(255,255,255,0.2)_50%,rgba(255,255,255,0.2)_75%,transparent_75%,transparent)] bg-[length:1rem_1rem] animate-[progress-bar-stripes_1s_linear_infinite]" />
+                )}
+              </div>
               
               {/* Label & Icon */}
               <div className={cn(
-                "flex flex-col items-center gap-1 transition-opacity duration-300",
-                isActive ? "opacity-100" : "opacity-30"
+                "flex flex-col items-center gap-1.5 transition-all duration-500",
+                isActive ? "opacity-100 scale-100" : "opacity-30 scale-95"
               )}>
                 <span className={cn(
-                  "text-[8px] font-black uppercase tracking-tighter text-center leading-none",
+                  "text-[8px] font-black uppercase tracking-tighter text-center leading-tight h-5 flex items-center",
                   isCurrent ? "text-primary" : "text-[#213147]"
                 )}>
                   {step.label}
                 </span>
-                {isCompleted ? (
-                  <Check className="h-2 w-2 text-primary" />
-                ) : isCurrent ? (
-                  <div className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
-                ) : (
-                  <div className="h-1 w-1 rounded-full bg-slate-300" />
-                )}
+                <div className={cn(
+                  "flex items-center justify-center rounded-full transition-colors",
+                  isCurrent ? "h-2 w-2 bg-primary animate-pulse" : (isCompleted ? "" : "h-1 w-1 bg-slate-400")
+                )}>
+                  {isCompleted && <Check className="h-2.5 w-2.5 text-primary" />}
+                </div>
               </div>
             </div>
           );

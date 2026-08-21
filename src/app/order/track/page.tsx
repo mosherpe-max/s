@@ -122,7 +122,6 @@ function OrderTrackingContent() {
           const nowTime = Date.now();
           const syncInterval = (solutionConfig?.gpsRefreshIntervalSeconds || 30) * 1000;
           
-          // Enforce broadcast frequency from System Config
           if (nowTime - lastBroadcastTimeRef.current < syncInterval) return;
 
           lastBroadcastTimeRef.current = nowTime;
@@ -177,21 +176,16 @@ function OrderTrackingContent() {
     <div className="flex flex-col min-h-screen bg-[#F8FAFC]">
       {/* 1. PRIMARY STATUS TILE AT TOP */}
       <div className="bg-white border-b-2 shadow-sm shrink-0 z-20">
-        <div className="max-w-2xl mx-auto p-5 space-y-4">
-          <div className="flex flex-col items-center text-center space-y-3">
-            <h2 className="font-headline text-[13px] font-black uppercase tracking-tight text-[#213147] leading-tight max-w-[85%] mx-auto">
+        <div className="max-w-2xl mx-auto p-6 space-y-6">
+          <div className="flex flex-col items-center text-center space-y-4">
+            <h2 className="font-headline text-sm font-black uppercase tracking-tight text-[#213147] leading-tight max-w-[90%] mx-auto">
               Thanks for ordering from {seller?.courseName} {order.menuType} Service
             </h2>
-            <div className="flex items-center gap-2">
-              <Badge className="bg-[#213147] text-white font-black text-xs px-3 rounded-md">
-                #{getNumericOrderId(order.id)}
+            {queuePosition !== null && !isDelivered && (
+              <Badge variant="outline" className="text-[10px] font-black uppercase border-primary/20 bg-primary/5 text-primary rounded-md px-3 h-6">
+                {queuePosition === 1 ? 'You are Next' : `${queuePosition}${queuePosition === 2 ? 'nd' : queuePosition === 3 ? 'rd' : 'th'} in Delivery Queue`}
               </Badge>
-              {queuePosition !== null && !isDelivered && (
-                <Badge variant="outline" className="text-[10px] font-black uppercase border-primary/20 bg-primary/5 text-primary rounded-md">
-                  {queuePosition === 1 ? 'Next' : `${queuePosition}${queuePosition === 2 ? 'nd' : queuePosition === 3 ? 'rd' : 'th'}`} in Queue
-                </Badge>
-              )}
-            </div>
+            )}
           </div>
           <OrderStatus currentStatus={order.status} />
         </div>
@@ -238,7 +232,6 @@ function OrderTrackingContent() {
       {/* 3. DETAILS & CONTROLS */}
       <div className="p-4 space-y-4 max-w-2xl mx-auto w-full pb-24 flex-1">
         
-        {/* NEW ORDER / NAVIGATION LINK */}
         {!isDelivered && (
           <div className="flex justify-start px-1">
             <Link href={`/sellers/${order.sellerId}/order`} className="flex items-center gap-1.5 text-[9px] font-black uppercase text-primary hover:underline transition-all">
@@ -247,7 +240,6 @@ function OrderTrackingContent() {
           </div>
         )}
 
-        {/* WAKE LOCK & LIVE SYNC NOTIFICATION */}
         {!isDelivered && isGolf && (
           <div className="bg-[#213147] rounded-2xl p-4 shadow-xl border-t-2 border-primary/30 flex items-center gap-4">
             <div className="bg-primary/20 p-2.5 rounded-xl shrink-0">
@@ -266,7 +258,6 @@ function OrderTrackingContent() {
           </div>
         )}
 
-        {/* NOTIFICATION STATUS INDICATOR */}
         {notificationPermission !== 'granted' && !isDelivered && (
           <div className="bg-amber-50 rounded-2xl p-4 border-2 border-amber-200 flex items-center justify-between gap-4">
              <div className="flex items-center gap-3">
@@ -280,28 +271,14 @@ function OrderTrackingContent() {
           </div>
         )}
 
-        {isBowling && isDelivered && (
-          <Card className="bg-[#213147] border-0 shadow-xl overflow-hidden rounded-[2.5rem]">
-            <CardContent className="p-8 flex flex-col items-center text-center space-y-6">
-              <div className="bg-primary/20 p-4 rounded-3xl">
-                <CheckCircle2 className="h-10 w-10 text-primary" />
-              </div>
-              <div>
-                <h2 className="font-headline text-2xl font-black uppercase text-white tracking-tight leading-none">Order Filled</h2>
-                <p className="text-white/40 text-[10px] font-bold uppercase tracking-[0.2em] mt-3">Thanks for ordering from your lane</p>
-              </div>
-              <Button asChild size="lg" className="w-full h-14 bg-primary hover:bg-primary/90 text-white font-black uppercase tracking-widest gap-2 shadow-2xl rounded-2xl">
-                <Link href={`/sellers/${order.sellerId}/order`}>
-                  New Order <ShoppingBag className="h-5 w-5" />
-                </Link>
-              </Button>
-            </CardContent>
-          </Card>
-        )}
-
         <Card className="shadow-md border-2 border-slate-100">
           <CardHeader className="py-3 px-6 bg-muted/30 border-b flex flex-row items-center justify-between">
-            <h3 className="text-[10px] font-black uppercase tracking-widest">Order Details</h3>
+            <div className="flex flex-col">
+              <h3 className="text-[10px] font-black uppercase tracking-widest">Order Details</h3>
+              <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mt-0.5">
+                Ticket #{getNumericOrderId(order.id)}
+              </p>
+            </div>
             {isBowling && order.menuTypeLocation && (
               <div className="flex items-center gap-2">
                 <Badge className="bg-primary text-white font-black uppercase text-[10px] px-2">
@@ -397,7 +374,6 @@ function OrderTrackingContent() {
           </CardContent>
         </Card>
 
-        {/* FEE DISCLOSURE */}
         <div className="bg-white/50 backdrop-blur-sm border border-slate-200 p-4 rounded-2xl flex items-start gap-3">
           <Info className="h-4 w-4 text-slate-400 shrink-0 mt-0.5" />
           <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-tight leading-relaxed">
