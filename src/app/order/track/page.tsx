@@ -18,7 +18,6 @@ import {
   Smartphone, 
   Zap, 
   PartyPopper, 
-  BellRing, 
   ArrowRight, 
   MapPin, 
   ChevronLeft,
@@ -26,7 +25,7 @@ import {
   RefreshCcw,
   Satellite
 } from 'lucide-react';
-import { cn, getNumericOrderId, playNotificationSound, calculateDistance } from '@/lib/utils';
+import { cn, getNumericOrderId, calculateDistance } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
@@ -43,7 +42,6 @@ function OrderTrackingContent() {
   const wakeLockRef = useRef<any>(null);
   const lastBroadcastTimeRef = useRef<number>(0);
   const [now, setNow] = useState<Date>(new Date());
-  const [notificationPermission, setNotificationPermission] = useState<string>('default');
 
   const configRef = useMemoFirebase(() => (firestore ? doc(firestore, 'solution', 'config') : null), [firestore]);
   const { data: solutionConfig } = useDoc<SolutionConfig>(configRef);
@@ -73,7 +71,7 @@ function OrderTrackingContent() {
 
   const queuePosition = useMemo(() => {
     if (!activeOrders || !order) return null;
-    const sortedOrders = [...activeOrders].sort((a, b) => (a.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
+    const sortedOrders = [...activeOrders].sort((a, b) => (a.createdAt?.toMillis?.() || 0) - (b.createdAt?.toMillis?.() || 0));
     const position = sortedOrders.findIndex(o => o.id === order.id);
     return position === -1 ? null : position + 1;
   }, [activeOrders, order]);
@@ -86,12 +84,6 @@ function OrderTrackingContent() {
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(timer);
-  }, []);
-
-  useEffect(() => {
-    if (typeof window !== 'undefined' && "Notification" in window) {
-      setNotificationPermission(Notification.permission);
-    }
   }, []);
 
   useEffect(() => {
@@ -168,18 +160,6 @@ function OrderTrackingContent() {
     }).then(() => {
       toast({ title: "Lane Updated", description: `Staff will now deliver to ${newLocation}.` });
     });
-  };
-
-  const handleEnableNotifications = () => {
-    if (typeof window !== 'undefined' && "Notification" in window) {
-      Notification.requestPermission().then(permission => {
-        setNotificationPermission(permission);
-        if (permission === 'granted') {
-          playNotificationSound();
-          toast({ title: "Alerts Enabled", description: "You will now receive sound alerts when your driver arrives." });
-        }
-      });
-    }
   };
 
   const disclosureCategory = getDisclosureCategory(seller?.type);
@@ -298,19 +278,6 @@ function OrderTrackingContent() {
                 <RefreshCcw className="h-3 w-3" /> Refresh
               </Button>
             )}
-          </div>
-        )}
-
-        {notificationPermission !== 'granted' && !isDelivered && (
-          <div className="bg-amber-50 rounded-2xl p-4 border-2 border-amber-200 flex items-center justify-between gap-4">
-             <div className="flex items-center gap-3">
-               <BellRing className="h-5 w-5 text-amber-600" />
-               <div className="text-left">
-                 <p className="text-[10px] font-black uppercase text-amber-700">Arrival Alerts</p>
-                 <p className="text-[8px] font-bold text-amber-600/70 uppercase">Get sound alerts for driver arrival</p>
-               </div>
-             </div>
-             <Button size="sm" className="bg-amber-600 h-8 text-[9px] font-black uppercase tracking-widest" onClick={handleEnableNotifications}>Enable</Button>
           </div>
         )}
 
