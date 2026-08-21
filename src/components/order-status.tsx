@@ -49,7 +49,10 @@ export function OrderStatus({ currentStatus, isDark }: OrderStatusProps) {
               )}>
                 <span className={cn(
                   "text-[8px] font-black uppercase tracking-tighter text-center leading-tight h-5 flex items-center",
-                  isCurrent ? "text-primary" : (isDark ? "text-white/70" : "text-[#213147]")
+                  // VISIBILITY OPTIMIZATION: Ensure text is white in dark mode to prevent red-on-blue vibration
+                  isCurrent 
+                    ? (isDark ? "text-white" : "text-primary") 
+                    : (isDark ? "text-white/70" : "text-[#213147]")
                 )}>
                   {step.label}
                 </span>
@@ -57,7 +60,12 @@ export function OrderStatus({ currentStatus, isDark }: OrderStatusProps) {
                   "flex items-center justify-center rounded-full transition-colors",
                   isCurrent ? "h-2 w-2 bg-primary animate-pulse" : (isCompleted ? "" : (isDark ? "h-1 w-1 bg-white/40" : "h-1 w-1 bg-slate-400"))
                 )}>
-                  {isCompleted && <Check className="h-2.5 w-2.5 text-primary" />}
+                  {isCompleted && (
+                    <Check className={cn(
+                      "h-2.5 w-2.5",
+                      isDark ? "text-white" : "text-primary"
+                    )} />
+                  )}
                 </div>
               </div>
             </div>
