@@ -182,25 +182,7 @@ export function AppHeader() {
   const isAdminRoute = pathname?.startsWith('/admin') || 
                       (pathname?.startsWith('/sellers/') && !pathname.includes('/order') && !pathname.includes('/staff-login'));
 
-  if (!isMounted || isAdminRoute) return null;
-
-  // On the Ordering Screen, we remove the top Koop header entirely to focus on the venue
-  if (isMenuPage) return null;
-
-  if (isHomePage) {
-    return (
-      <header className="sticky top-0 z-40 bg-[#213147] border-b-2 border-[#E50000] shadow-md h-20 flex items-center justify-between px-6 shrink-0">
-        <div className="w-10" /> 
-        <div className="flex-1 flex justify-center">
-          <StylizedKoopLogo size="lg" />
-        </div>
-        <HomeNavigationMenu />
-      </header>
-    );
-  }
-
-  // Fallback for standard tracking and detail pages
-  const sellerId = (() => {
+  const sellerId = useMemo(() => {
     if (pathname) {
       const parts = pathname.split('/');
       const sellerIndex = parts.indexOf('sellers');
@@ -209,7 +191,7 @@ export function AppHeader() {
       }
     }
     return searchParams.get('sellerId');
-  })();
+  }, [pathname, searchParams]);
 
   const orderId = searchParams.get('id');
   const menuTypeParam = searchParams.get('menuType');
@@ -226,6 +208,24 @@ export function AppHeader() {
 
   const { data: seller, isLoading: isSellerLoading } = useDoc(sellerRef);
   const { data: order } = useDoc(orderRef);
+
+  // Early returns must come AFTER all hook calls
+  if (!isMounted || isAdminRoute) return null;
+
+  // On the Ordering Screen, we remove the top Koop header entirely to focus on the venue
+  if (isMenuPage) return null;
+
+  if (isHomePage) {
+    return (
+      <header className="sticky top-0 z-40 bg-[#213147] border-b-2 border-[#E50000] shadow-md h-20 flex items-center justify-between px-6 shrink-0">
+        <div className="w-10" /> 
+        <div className="flex-1 flex justify-center">
+          <StylizedKoopLogo size="lg" />
+        </div>
+        <HomeNavigationMenu />
+      </header>
+    );
+  }
 
   const activeMenuType = menuTypeParam || order?.menuType;
 
@@ -252,18 +252,18 @@ export function AppHeader() {
           </div>
 
           <div className="flex justify-end shrink-0">
-            {!isMenuPage && totalItems > 0 && (
-              <Button 
-                variant="ghost" 
-                className="flex items-center gap-2 h-11 px-3 text-white relative"
-                onClick={() => setIsCartOpen(true)}
-              >
-                <ShoppingCart className="h-5 w-5 text-white" />
+            <Button 
+              variant="ghost" 
+              className="flex items-center gap-2 h-11 px-3 text-white relative"
+              onClick={() => setIsCartOpen(true)}
+            >
+              <ShoppingCart className="h-5 w-5 text-white" />
+              {totalItems > 0 && (
                 <span className="absolute -top-1 -right-1 bg-red-600 text-white text-[8px] font-black rounded-full w-3.5 h-3.5 flex items-center justify-center">
                   {totalItems}
                 </span>
-              </Button>
-            )}
+              )}
+            </Button>
           </div>
         </div>
       </div>
