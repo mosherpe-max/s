@@ -1,9 +1,9 @@
-
 'use client';
 
 import React, { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { StylizedKoopLogo } from './header';
+import Link from 'next/link';
 
 interface BrandingFooterProps {
   className?: string;
@@ -34,7 +34,9 @@ export function BrandingFooter({ className }: BrandingFooterProps) {
         <span className="font-body text-[9px] font-bold uppercase tracking-[0.2em] text-[#8a9ab0]">
           POWERED BY
         </span>
-        <StylizedKoopLogo size="sm" />
+        <Link href="/" className="hover:opacity-80 transition-opacity active:scale-95">
+          <StylizedKoopLogo size="sm" />
+        </Link>
       </div>
     </footer>
   );
