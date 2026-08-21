@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 import { FirebaseClientProvider } from '@/firebase';
 import { CartProvider } from '@/lib/cart-context';
 import { OrderNotificationListener } from '@/components/order-notification-listener';
+import { NavigationStateTracker } from '@/components/navigation-state-tracker';
 import { BrandingFooter } from '@/components/branding-footer';
 
 export const metadata: Metadata = {
@@ -49,6 +50,7 @@ export default function RootLayout({
       <body className={cn("font-body antialiased min-h-screen flex flex-col pb-7")}>
         <FirebaseClientProvider>
           <CartProvider>
+            <NavigationStateTracker />
             <OrderNotificationListener />
             <Suspense fallback={<div className="h-16 bg-[#213147] border-b-2 border-[#E50000]" />}>
               <AppHeader />
