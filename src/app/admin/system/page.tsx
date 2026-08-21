@@ -102,10 +102,19 @@ export default function AdminSystemConfigPage() {
                         onClick={handleManualReset}
                         disabled={isResetting}
                         variant="outline"
-                        className="h-12 px-6 border-2 font-black uppercase text-[10px] tracking-widest gap-2 bg-slate-50 hover:bg-slate-100 min-w-[180px]"
+                        className="h-12 px-6 border-2 font-black uppercase text-[10px] tracking-widest gap-2 bg-slate-50 hover:bg-slate-100 min-w-[200px]"
                       >
-                        {isResetting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCcw className="h-3.5 w-3.5" />}
-                        {isResetting ? "Executing..." : "Force Global Reset"}
+                        {isResetting ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                            <span>Resetting...</span>
+                          </>
+                        ) : (
+                          <>
+                            <RefreshCcw className="h-3.5 w-3.5" />
+                            <span>Force Global Reset</span>
+                          </>
+                        )}
                       </Button>
                    </div>
                    <p className="text-[9px] text-muted-foreground uppercase font-medium max-w-lg leading-relaxed">
