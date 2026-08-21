@@ -12,9 +12,9 @@ interface OrderStatusProps {
 
 const steps = [
   { id: 'Placed', label: 'Placed', icon: Clock },
-  { id: 'Preparing', label: 'Prep', icon: Timer },
-  { id: 'Out for Delivery', label: 'In Transit', icon: Truck },
-  { id: 'Delivered', label: 'Done', icon: CheckCircle2 }
+  { id: 'Preparing', label: 'Acknowledged', icon: Timer },
+  { id: 'Out for Delivery', label: 'Out for Delivery', icon: Truck },
+  { id: 'Delivered', label: 'Delivered', icon: CheckCircle2 }
 ];
 
 export function OrderStatus({ currentStatus }: OrderStatusProps) {
