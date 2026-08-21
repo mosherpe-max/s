@@ -106,7 +106,6 @@ function OrderTrackingContent() {
     const requestLock = async () => {
       if (isEmbedded || typeof window === 'undefined') return;
       
-      // If user has manually disabled wake lock, release it if active
       if (!isWakeLockActive) {
         await releaseLock();
         return;
@@ -136,7 +135,6 @@ function OrderTrackingContent() {
     const nowTime = Date.now();
     const syncInterval = (solutionConfig?.gpsRefreshIntervalSeconds || 30) * 1000;
     
-    // Throttle unless moved significantly
     if (nowTime - lastBroadcastTimeRef.current < syncInterval) return;
 
     lastBroadcastTimeRef.current = nowTime;
@@ -195,7 +193,6 @@ function OrderTrackingContent() {
   const driverLocation = assignedStaff?.latitude ? { latitude: assignedStaff.latitude, longitude: assignedStaff.longitude } : (seller?.latitude ? { latitude: seller.latitude, longitude: seller.longitude } : null);
   const showBilateral = isDriverAttached && !!driverLocation;
 
-  // Signal Freshness Calculation
   const lastGpsTime = order.lastGpsUpdate?.toDate();
   const secondsSinceUpdate = lastGpsTime ? differenceInSeconds(now, lastGpsTime) : 999;
   const staleThreshold = solutionConfig?.patronGpsStaleThresholdSeconds || 120;
@@ -203,27 +200,26 @@ function OrderTrackingContent() {
 
   return (
     <div className="flex flex-col min-h-screen bg-[#F8FAFC]">
-      {/* 1. PRIMARY STATUS TILE AT TOP */}
-      <div className="bg-white border-b-2 shadow-sm shrink-0 z-20">
+      {/* 1. PRIMARY STATUS TILE AT TOP - Koop Blue Background */}
+      <div className="bg-[#213147] border-b-2 border-primary/20 shadow-lg shrink-0 z-20">
         <div className="max-w-2xl mx-auto p-6 space-y-6">
           <div className="flex flex-col items-center text-center space-y-4">
-            <h2 className="font-headline text-sm font-black uppercase tracking-tight text-[#213147] leading-tight max-w-[90%] mx-auto">
+            <h2 className="font-headline text-sm font-black uppercase tracking-tight text-white leading-tight max-w-[90%] mx-auto">
               Thanks for ordering from {seller?.courseName} {order.menuType} Service
             </h2>
             {queuePosition !== null && !isDelivered && (
-              <Badge variant="outline" className="text-[10px] font-black uppercase border-primary/20 bg-primary/5 text-primary rounded-md px-3 h-6">
+              <Badge variant="outline" className="text-[10px] font-black uppercase border-white/20 bg-white/5 text-white rounded-md px-3 h-6">
                 {queuePosition === 1 ? 'You are Next' : `${queuePosition}${queuePosition === 2 ? 'nd' : queuePosition === 3 ? 'rd' : 'th'} in Delivery Queue`}
               </Badge>
             )}
           </div>
-          <OrderStatus currentStatus={order.status} />
+          <OrderStatus currentStatus={order.status} isDark />
         </div>
       </div>
 
       {/* 2. MAP / COMPLETION VIEW */}
       {!isBowling && (
         <div className="h-[35vh] relative border-b shadow-sm shrink-0 overflow-hidden bg-slate-900">
-          {/* WAKE LOCK TOGGLE (GOLF ONLY) */}
           {!isDelivered && isGolf && (
             <Button
               variant="secondary"
@@ -283,7 +279,6 @@ function OrderTrackingContent() {
       {/* 3. DETAILS & CONTROLS */}
       <div className="p-4 space-y-4 max-w-2xl mx-auto w-full pb-24 flex-1">
         
-        {/* SIGNAL FRESHNESS COUNTER (GOLF ONLY) */}
         {!isDelivered && isGolf && (
           <div className={cn(
             "rounded-2xl p-4 shadow-md border-2 transition-all duration-500 flex items-center justify-between gap-4",
