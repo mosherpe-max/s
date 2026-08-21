@@ -11,7 +11,22 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { ShoppingBag, Loader2, Info, Smartphone, Zap, Edit2, PartyPopper, Heart, BellRing, ArrowRight, MapPin, User, ChevronLeft } from 'lucide-react';
+import { 
+  ShoppingBag, 
+  Loader2, 
+  Info, 
+  Smartphone, 
+  Zap, 
+  Edit2, 
+  PartyPopper, 
+  Heart, 
+  BellRing, 
+  ArrowRight, 
+  MapPin, 
+  User, 
+  ChevronLeft,
+  Store
+} from 'lucide-react';
 import { getNumericOrderId, playNotificationSound } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Separator } from '@/components/ui/separator';
@@ -75,14 +90,6 @@ function OrderTrackingContent() {
   useEffect(() => {
     if (typeof window !== 'undefined' && "Notification" in window) {
       setNotificationPermission(Notification.permission);
-      if (Notification.permission === "default") {
-        Notification.requestPermission().then(permission => {
-          setNotificationPermission(permission);
-          if (permission === 'granted') {
-             playNotificationSound();
-          }
-        });
-      }
     }
   }, []);
 
@@ -143,6 +150,18 @@ function OrderTrackingContent() {
     }).then(() => {
       toast({ title: "Lane Updated", description: `Staff will now deliver to ${newLocation}.` });
     });
+  };
+
+  const handleEnableNotifications = () => {
+    if (typeof window !== 'undefined' && "Notification" in window) {
+      Notification.requestPermission().then(permission => {
+        setNotificationPermission(permission);
+        if (permission === 'granted') {
+          playNotificationSound();
+          toast({ title: "Alerts Enabled", description: "You will now receive sound alerts when your driver arrives." });
+        }
+      });
+    }
   };
 
   const disclosureCategory = getDisclosureCategory(seller?.type);
@@ -258,11 +277,7 @@ function OrderTrackingContent() {
              <Button 
                 size="sm" 
                 className="bg-amber-600 h-8 text-[9px] font-black uppercase tracking-widest" 
-                onClick={() => {
-                  if (typeof window !== 'undefined' && 'Notification' in window) {
-                    Notification.requestPermission().then(p => setNotificationPermission(p));
-                  }
-                }}
+                onClick={handleEnableNotifications}
              >
                Enable
              </Button>
