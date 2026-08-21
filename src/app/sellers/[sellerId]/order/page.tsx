@@ -151,7 +151,8 @@ function StripeActionArea({
   patronPhone,
   stripeCustomerId,
   saveInfo,
-  setSaveInfo
+  setSaveInfo,
+  isFormValid
 }: any) {
   const stripe = useStripe();
   const elements = useElements();
@@ -162,8 +163,7 @@ function StripeActionArea({
   const handleStripePayment = async () => {
     if (!stripe || !elements || !clientSecret || !firestore) return;
     
-    const isContactValid = patronName.length >= 2 && patronPhone.replace(/\D/g, '').length >= 10 && patronEmail.includes('@');
-    if (!isContactValid) {
+    if (!isFormValid) {
       toast({ variant: 'destructive', title: 'Details Required', description: 'Please complete your contact info to receive tracking updates.' });
       return;
     }
@@ -246,19 +246,21 @@ function StripeActionArea({
         </div>
       </div>
 
-      <div className="fixed bottom-7 left-0 right-0 p-4 bg-white/80 backdrop-blur-md border-t z-50">
-        <div className="max-w-xl mx-auto px-2">
-          <Button 
-            size="lg" 
-            className="w-full h-14 font-black uppercase tracking-widest gap-2 shadow-xl" 
-            onClick={handleStripePayment}
-            disabled={isProcessing || !isStripeReady}
-          >
-            {isProcessing ? <Loader2 className="animate-spin" /> : <CreditCard className="h-5 w-5" />} 
-            PAY & PLACE ORDER
-          </Button>
+      {isFormValid && (
+        <div className="fixed bottom-7 left-0 right-0 p-4 bg-white/80 backdrop-blur-md border-t z-50 animate-in slide-in-from-bottom-4 duration-500">
+          <div className="max-w-xl mx-auto px-2">
+            <Button 
+              size="lg" 
+              className="w-full h-14 font-black uppercase tracking-widest gap-2 shadow-xl" 
+              onClick={handleStripePayment}
+              disabled={isProcessing || !isStripeReady}
+            >
+              {isProcessing ? <Loader2 className="animate-spin" /> : <CreditCard className="h-5 w-5" />} 
+              PAY & PLACE ORDER
+            </Button>
+          </div>
         </div>
-      </div>
+      )}
       <CheckoutBrandingBar />
     </div>
   );
@@ -300,6 +302,10 @@ function CheckoutDrawerContent({
 
   const disclosureCategory = getDisclosureCategory(seller?.type);
   const checkoutNotice = FEE_DISCLOSURES[disclosureCategory].checkout;
+
+  const isContactValid = patronName.length >= 2 && patronPhone.replace(/\D/g, '').length >= 10 && patronEmail.includes('@');
+  const isLocationValid = selectedMenuType !== 'Lane Delivery' || !!locationValue;
+  const isFormValid = isContactValid && isLocationValid && !!paymentMethod;
 
   const availableMethods = useMemo(() => {
     return seller?.enabledPaymentMethods || ['Pay at Delivery', 'Digital Payment'];
@@ -372,8 +378,7 @@ function CheckoutDrawerContent({
 
   const handleManualOrder = async () => {
     if (!firestore || activeOrderItems.length === 0) return;
-    const isContactValid = patronName.length >= 2 && patronPhone.replace(/\D/g, '').length >= 10 && patronEmail.includes('@');
-    if (!isContactValid) {
+    if (!isFormValid) {
       toast({ variant: 'destructive', title: 'Details Required', description: 'Please complete your contact info to receive tracking updates.' });
       return;
     }
@@ -560,6 +565,7 @@ function CheckoutDrawerContent({
                   stripeCustomerId={stripeCustomerId}
                   saveInfo={saveInfo}
                   setSaveInfo={setSaveInfo}
+                  isFormValid={isFormValid}
                 />
               </Elements>
             ) : null
@@ -577,13 +583,15 @@ function CheckoutDrawerContent({
                   <p className="text-[8px] font-bold text-muted-foreground uppercase mt-1">Securely saves your contact info on this device.</p>
                 </div>
               </div>
-              <div className="fixed bottom-7 left-0 right-0 p-4 bg-white/80 backdrop-blur-md border-t z-50">
-                <div className="max-w-xl mx-auto px-2">
-                  <Button size="lg" className="w-full h-14 font-black uppercase tracking-widest gap-2 shadow-xl" onClick={handleManualOrder} disabled={isProcessing}>
-                    {isProcessing ? <Loader2 className="animate-spin" /> : <ShoppingBag className="h-5 w-5" />} PLACE ORDER
-                  </Button>
+              {isFormValid && (
+                <div className="fixed bottom-7 left-0 right-0 p-4 bg-white/80 backdrop-blur-md border-t z-50 animate-in slide-in-from-bottom-4 duration-500">
+                  <div className="max-w-xl mx-auto px-2">
+                    <Button size="lg" className="w-full h-14 font-black uppercase tracking-widest gap-2 shadow-xl" onClick={handleManualOrder} disabled={isProcessing}>
+                      {isProcessing ? <Loader2 className="animate-spin" /> : <ShoppingBag className="h-5 w-5" />} PLACE ORDER
+                    </Button>
+                  </div>
                 </div>
-              </div>
+              )}
               <CheckoutBrandingBar />
             </div>
           )}
@@ -750,17 +758,19 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
               className="flex items-center gap-2 h-11 px-3 text-white hover:bg-white/10 relative group bg-white/5 rounded-xl border border-white/10 shrink-0"
               onClick={() => setIsCartOpen(true)}
             >
-              <div className="flex flex-col items-end leading-none mr-0.5">
-                <span className="text-[8px] uppercase font-black text-white/40 tracking-widest group-hover:text-white/60">Cart</span>
-                <span className="text-xs font-mono font-black text-white">${total.toFixed(2)}</span>
-              </div>
-              <div className="relative">
-                <ShoppingCart className="h-5 w-5 text-white" />
-                {totalItems > 0 && (
-                  <span className="absolute -top-2 -right-2 bg-red-600 text-white text-[9px] font-black rounded-full w-4 h-4 flex items-center justify-center shadow-lg animate-in zoom-in duration-300">
-                    {totalItems}
-                  </span>
-                )}
+              <div className="flex items-center gap-2">
+                <div className="flex flex-col items-end leading-none mr-0.5">
+                  <span className="text-[8px] uppercase font-black text-white/40 tracking-widest group-hover:text-white/60">Cart</span>
+                  <span className="text-xs font-mono font-black text-white">${total.toFixed(2)}</span>
+                </div>
+                <div className="relative">
+                  <ShoppingCart className="h-5 w-5 text-white" />
+                  {totalItems > 0 && (
+                    <span className="absolute -top-2 -right-2 bg-red-600 text-white text-[9px] font-black rounded-full w-4 h-4 flex items-center justify-center shadow-lg animate-in zoom-in duration-300">
+                      {totalItems}
+                    </span>
+                  )}
+                </div>
               </div>
             </Button>
           </div>
