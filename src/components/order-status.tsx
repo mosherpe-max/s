@@ -32,28 +32,6 @@ export function OrderStatus({ currentStatus }: OrderStatusProps) {
 
   return (
     <div className="w-full space-y-4">
-      {/* HEADER: Current Status Highlight */}
-      <div className="flex items-center justify-between px-1">
-        <div className="flex items-center gap-2">
-           <div className="p-1.5 bg-primary/10 rounded-lg">
-             <span className="text-primary">
-               {React.createElement(steps[currentStatusIndex]?.icon || Clock, { className: "h-3.5 w-3.5" })}
-             </span>
-           </div>
-           <div className="flex flex-col text-left">
-             <span className="text-[10px] font-black uppercase tracking-widest text-[#213147] leading-none mb-0.5">
-               Status: {steps[currentStatusIndex]?.label || currentStatus}
-             </span>
-             <span className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest">Live Delivery Feed</span>
-           </div>
-        </div>
-        <div className="flex flex-col items-end">
-          <span className="text-[10px] font-black uppercase tracking-widest text-primary">
-            {Math.round(progressWidth)}%
-          </span>
-        </div>
-      </div>
-
       {/* MAIN PROGRESS BAR */}
       <div className="relative">
         <div className="relative h-2 w-full bg-slate-100 rounded-full overflow-hidden border shadow-inner">

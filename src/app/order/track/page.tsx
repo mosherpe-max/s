@@ -18,11 +18,9 @@ import {
   Smartphone, 
   Zap, 
   PartyPopper, 
-  Heart, 
   BellRing, 
   ArrowRight, 
   MapPin, 
-  User, 
   ChevronLeft,
   Store
 } from 'lucide-react';
