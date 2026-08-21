@@ -217,8 +217,16 @@ export const onGuestOrderStatusUpdate = onDocumentWritten({
 
     if (!beforeData) {
       if (data.status === 'Placed') body = `Order received! Track live: ${link}`;
-    } else if (data.status !== beforeData.status && data.status === 'Out for Delivery') {
-      body = `Order out for delivery! Track live: ${link}`;
+    } else {
+      // STATUS UPDATES
+      if (data.status !== beforeData.status && data.status === 'Out for Delivery') {
+        body = `Order out for delivery! Track live: ${link}`;
+      }
+      
+      // REFRESH LOCATION REQUEST
+      if (data.refreshRequestedAt && (!beforeData.refreshRequestedAt || data.refreshRequestedAt.toMillis() !== beforeData.refreshRequestedAt.toMillis())) {
+        body = `We are on our way with your order! Please click this link to refresh your delivery location: ${link}`;
+      }
     }
 
     if (body) {

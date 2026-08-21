@@ -6,7 +6,7 @@ import type { Order, OrderFulfillmentThresholds } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from './ui/card';
 import { Separator } from './ui/separator';
 import { Button } from './ui/button';
-import { Clock, AlertTriangle, ChevronRight, CheckCircle2, Truck, Timer, Satellite, User, UserPlus, MapPin } from 'lucide-react';
+import { Clock, AlertTriangle, ChevronRight, CheckCircle2, Truck, Timer, Satellite, User, UserPlus, MapPin, MessageSquare } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { cn, getNumericOrderId } from '@/lib/utils';
 
@@ -15,9 +15,11 @@ interface OrderCardProps {
   orderNumber: number;
   onUpdateStatus: (id: string, currentStatus: string) => void;
   onAttach?: (id: string) => void;
+  onRefreshLocation?: (id: string) => void;
   currentStaffId?: string;
   thresholds?: OrderFulfillmentThresholds;
   now: number;
+  smsEnabled?: boolean;
 }
 
 const getStatusConfig = (status: Order['status']) => {
@@ -38,7 +40,17 @@ const DEFAULT_THRESHOLDS: OrderFulfillmentThresholds = {
   maxOrderProcessingMinutes: 25 
 };
 
-export function OrderCard({ order, orderNumber, onUpdateStatus, onAttach, currentStaffId, thresholds, now }: OrderCardProps) {
+export function OrderCard({ 
+  order, 
+  orderNumber, 
+  onUpdateStatus, 
+  onAttach, 
+  onRefreshLocation,
+  currentStaffId, 
+  thresholds, 
+  now,
+  smsEnabled 
+}: OrderCardProps) {
   const statusInfo = getStatusConfig(order.status);
   
   // Calculate Order Duration
@@ -71,6 +83,9 @@ export function OrderCard({ order, orderNumber, onUpdateStatus, onAttach, curren
 
   // Condition for showing the location label
   const showLocationLabel = order.menuTypeLocation || order.menuType === 'Lane Delivery';
+
+  // SMS Availability for location refresh
+  const canSendRefreshRequest = smsEnabled && onRefreshLocation && (order.status === 'Preparing' || order.status === 'Out for Delivery');
 
   return (
     <Card className={cn(
@@ -189,7 +204,19 @@ export function OrderCard({ order, orderNumber, onUpdateStatus, onAttach, curren
       </CardContent>
 
       {/* COMPACT FOOTER */}
-      <CardFooter className="p-1 bg-slate-50 border-t gap-1">
+      <CardFooter className="p-1 bg-slate-50 border-t flex gap-1">
+        {canSendRefreshRequest && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onRefreshLocation(order.id)}
+            className="h-7 px-2 text-[8px] font-black uppercase tracking-widest border-primary/20 text-primary hover:bg-primary/5 gap-1"
+            title="Request Location Refresh via SMS"
+          >
+            <MessageSquare className="h-2.5 w-2.5" />
+            Ping GPS
+          </Button>
+        )}
         <Button 
           variant={isOverdue ? "destructive" : "default"}
           className="flex-1 h-7 text-[8px] font-black uppercase tracking-widest gap-1 rounded-sm" 

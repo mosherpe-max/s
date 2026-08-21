@@ -138,8 +138,6 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
       const timeElapsed = nowTime - lastBroadcastRef.current.time;
       // High-precision override: update if moved > 5m regardless of interval
       if (distance < 5 && timeElapsed < syncInterval) return;
-      // Standard interval enforcement
-      if (timeElapsed < syncInterval && distance < 5) return;
     }
 
     lastBroadcastRef.current = { lat, lng, time: nowTime };
@@ -336,6 +334,14 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
     const staffName = localStorage.getItem('koop_staff_name');
     if (!staffId || !staffName) return;
     updateDoc(doc(firestore, 'orders', orderId), { assignedStaffId: staffId, assignedStaffName: staffName, updatedAt: serverTimestamp() });
+  };
+
+  const handleRefreshLocation = (orderId: string) => {
+    if (!firestore) return;
+    const orderRef = doc(firestore, 'orders', orderId);
+    updateDoc(orderRef, { refreshRequestedAt: serverTimestamp(), updatedAt: serverTimestamp() })
+      .then(() => toast({ title: "SMS Dispatched", description: "Asking patron to refresh their location signal." }))
+      .catch(() => toast({ variant: "destructive", title: "Refresh Failed", description: "Unable to reach patron device." }));
   };
 
   const mappedBuyers = useMemo(() => {
@@ -535,7 +541,19 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
               {isLoading ? <Skeleton className="h-40 w-full" /> : clubhouseOrders.length === 0 ? (
                 <div className="col-span-full py-20 text-center text-muted-foreground opacity-40"><Building className="h-10 w-10 mx-auto mb-2" /><p className="text-[10px] font-black uppercase tracking-[0.2em]">No active orders</p></div>
               ) : (
-                clubhouseOrders.map((order, index) => (<OrderCard key={order.id} order={order} orderNumber={index + 1} now={now} onUpdateStatus={handleUpdateOrderStatus} onAttach={handleAttachOrder} thresholds={primarySeller?.orderThresholds?.[order.menuType]} />))
+                clubhouseOrders.map((order, index) => (
+                  <OrderCard 
+                    key={order.id} 
+                    order={order} 
+                    orderNumber={index + 1} 
+                    now={now} 
+                    onUpdateStatus={handleUpdateOrderStatus} 
+                    onAttach={handleAttachOrder} 
+                    onRefreshLocation={handleRefreshLocation}
+                    thresholds={primarySeller?.orderThresholds?.[order.menuType]} 
+                    smsEnabled={solutionConfig?.smsNotificationsEnabled !== false}
+                  />
+                ))
               )}
             </div>
           </div>

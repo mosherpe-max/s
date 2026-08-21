@@ -278,8 +278,6 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
       const timeElapsed = nowTime - lastBroadcastRef.current.time;
       // High-precision override: if distance > 5m, we update regardless of interval to ensure tracking accuracy
       if (distance < 5 && timeElapsed < syncInterval) return;
-      // Standard interval enforcement
-      if (timeElapsed < syncInterval && distance < 5) return;
     }
 
     lastBroadcastRef.current = { lat, lng, time: nowTime };
@@ -361,6 +359,14 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
     updateDoc(orderRef, updateData).catch(async (error) => {
       errorEmitter.emit('permission-error', new FirestorePermissionError({ path: orderRef.path, operation: 'update', requestResourceData: updateData } satisfies SecurityRuleContext));
     });
+  };
+
+  const handleRefreshLocation = (orderId: string) => {
+    if (!firestore) return;
+    const orderRef = doc(firestore, 'orders', orderId);
+    updateDoc(orderRef, { refreshRequestedAt: serverTimestamp(), updatedAt: serverTimestamp() })
+      .then(() => toast({ title: "SMS Dispatched", description: "Asking patron to refresh their location signal." }))
+      .catch(() => toast({ variant: "destructive", title: "Refresh Failed", description: "Unable to reach patron device." }));
   };
 
   const mappedBuyers = useMemo(() => {
@@ -569,8 +575,10 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
                     now={now} 
                     onUpdateStatus={handleUpdateOrderStatus}
                     onAttach={handleAttachOrder}
+                    onRefreshLocation={handleRefreshLocation}
                     currentStaffId={currentStaffId}
                     thresholds={primarySeller?.orderThresholds?.[order.menuType]}
+                    smsEnabled={solutionConfig?.smsNotificationsEnabled !== false}
                   />
                 ))
               )}
