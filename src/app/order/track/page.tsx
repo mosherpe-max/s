@@ -1,30 +1,25 @@
-
 'use client';
 
-import { Suspense, useEffect, useRef, useState, use } from 'react';
-import { collection, query, orderBy, limit, doc, updateDoc, serverTimestamp, where } from 'firebase/firestore';
+import { Suspense, useEffect, useRef, useState, useMemo } from 'react';
+import { collection, query, doc, updateDoc, serverTimestamp, where } from 'firebase/firestore';
 import { useCollection, useDoc, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import type { Order, Seller, StaffMember } from '@/lib/types';
 import { MapView } from '@/components/map-view';
 import { OrderStatus } from '@/components/order-status';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Separator } from '@/components/ui/separator';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { ShoppingBag, MapPin, Loader2, Store, ClipboardList, Satellite, Info, Smartphone, Zap, Edit2, CheckCircle2, ArrowRight, PartyPopper, Heart, BellRing } from 'lucide-react';
+import { ShoppingBag, Loader2, Info, Smartphone, Zap, Edit2, PartyPopper, Heart, BellRing, ArrowRight, MapPin, User, ChevronLeft } from 'lucide-react';
 import { getNumericOrderId, playNotificationSound } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { cn } from '@/lib/utils';
+import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
-import { differenceInSeconds } from 'date-fns';
 import { FEE_DISCLOSURES, getDisclosureCategory } from '@/config/fee-disclosures';
 
 function OrderTrackingContent() {
   const firestore = useFirestore();
-  const { user } = useUser();
   const searchParams = useSearchParams();
   const orderId = searchParams.get('id');
   const { toast } = useToast();
@@ -34,6 +29,7 @@ function OrderTrackingContent() {
   const [now, setNow] = useState<Date>(new Date());
   const [notificationPermission, setNotificationPermission] = useState<string>('default');
 
+  // Rules of hooks must be followed
   const orderRef = useMemoFirebase(() => (firestore && orderId ? doc(firestore, 'orders', orderId) : null), [firestore, orderId]);
   const { data: order, isLoading: isOrderLoading } = useDoc<Order>(orderRef);
 
@@ -42,9 +38,28 @@ function OrderTrackingContent() {
 
   const staffRef = useMemoFirebase(() => {
     if (!firestore || !order?.sellerId || !order?.assignedStaffId) return null;
-    return doc(firestore, 'sellers', sellerId, 'staff', order.assignedStaffId);
+    return doc(firestore, 'sellers', order.sellerId, 'staff', order.assignedStaffId);
   }, [firestore, order?.sellerId, order?.assignedStaffId]);
   const { data: assignedStaff } = useDoc<StaffMember>(staffRef);
+
+  // Fetch all active orders for this seller and mode to calculate queue position
+  const activeOrdersQuery = useMemoFirebase(() => {
+    if (!firestore || !order?.sellerId || !order?.menuType) return null;
+    return query(
+      collection(firestore, 'orders'),
+      where('sellerId', '==', order.sellerId),
+      where('menuType', '==', order.menuType),
+      where('status', 'in', ['Placed', 'Preparing', 'Out for Delivery'])
+    );
+  }, [firestore, order?.sellerId, order?.menuType]);
+  const { data: activeOrders } = useCollection<Order>(activeOrdersQuery);
+
+  const queuePosition = useMemo(() => {
+    if (!activeOrders || !order) return null;
+    const sortedOrders = [...activeOrders].sort((a, b) => (a.createdAt?.toMillis?.() || 0) - (b.createdAt?.toMillis?.() || 0));
+    const position = sortedOrders.findIndex(o => o.id === order.id);
+    return position === -1 ? null : position + 1;
+  }, [activeOrders, order]);
 
   const isGolf = seller?.type?.toLowerCase().includes('golf');
   const isBowling = seller?.type?.toLowerCase().includes('bowling');
@@ -58,13 +73,12 @@ function OrderTrackingContent() {
 
   // Request Notification Permissions on mount
   useEffect(() => {
-    if ("Notification" in window) {
+    if (typeof window !== 'undefined' && "Notification" in window) {
       setNotificationPermission(Notification.permission);
       if (Notification.permission === "default") {
         Notification.requestPermission().then(permission => {
           setNotificationPermission(permission);
           if (permission === 'granted') {
-             // Audible verification to confirm sound is working
              playNotificationSound();
           }
         });
@@ -72,12 +86,12 @@ function OrderTrackingContent() {
     }
   }, []);
 
-  // Implement Screen Wake Lock - ONLY FOR GOLF COURSES (Release when delivered)
+  // Implement Screen Wake Lock
   useEffect(() => {
     const isEmbedded = typeof window !== 'undefined' && window.self !== window.top;
 
     const requestWakeLock = async () => {
-      if (isEmbedded) return;
+      if (isEmbedded || typeof window === 'undefined') return;
 
       if ('wakeLock' in navigator && order && !isDelivered && isGolf) {
         try {
@@ -86,7 +100,7 @@ function OrderTrackingContent() {
             wakeLockRef.current = await nav.wakeLock.request('screen');
           }
         } catch (err) {
-          console.warn('Wake Lock request denied or unsupported by policy:', err);
+          console.warn('Wake Lock request denied:', err);
         }
       }
     };
@@ -101,10 +115,11 @@ function OrderTrackingContent() {
     };
   }, [order?.status, isGolf, isDelivered]);
 
+  // GPS Tracking for Delivery
   useEffect(() => {
     if (!order || !firestore || isDelivered) return;
 
-    if (navigator.geolocation) {
+    if (typeof window !== 'undefined' && navigator.geolocation) {
       watchIdRef.current = navigator.geolocation.watchPosition(
         (position) => {
           updateDoc(doc(firestore, 'orders', order.id), { 
@@ -135,20 +150,41 @@ function OrderTrackingContent() {
 
   const isLoading = isOrderLoading || isSellerLoading;
 
-  if (isLoading) return <div className="flex-1 flex items-center justify-center p-8"><Loader2 className="animate-spin h-10 w-10 text-primary" /></div>;
-  if (!order) return <div className="p-8 text-center"><p>Order not found.</p><Button asChild className="mt-4"><Link href="/">Back Home</Link></Button></div>;
+  if (isLoading) return <div className="flex-1 flex items-center justify-center p-8 min-h-screen bg-[#213147]"><Loader2 className="animate-spin h-10 w-10 text-primary" /></div>;
+  if (!order) return <div className="p-8 text-center min-h-screen bg-[#213147] flex flex-col items-center justify-center text-white"><p>Order not found.</p><Button asChild className="mt-4"><Link href="/">Back Home</Link></Button></div>;
 
   const isDriverAttached = order.status !== 'Placed' && order.status !== 'Cancelled';
-  
-  // DRIVER GPS LOGIC: Prefer assigned staff document, fallback to venue root coordinates
   const driverLocation = assignedStaff?.latitude ? { latitude: assignedStaff.latitude, longitude: assignedStaff.longitude } : (seller?.latitude ? { latitude: seller.latitude, longitude: seller.longitude } : null);
   const showBilateral = isDriverAttached && !!driverLocation;
 
   return (
-    <div className="flex flex-col min-h-screen bg-muted/10">
-      {/* Top Section: Map or Completion Message */}
+    <div className="flex flex-col min-h-screen bg-[#F8FAFC]">
+      {/* 1. TOP STICKY STATUS BAR */}
+      <div className="sticky top-0 z-[60] bg-white border-b-2 shadow-sm">
+        <div className="p-4 max-w-2xl mx-auto w-full space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex flex-col">
+              <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Order Ticket</span>
+              <div className="flex items-center gap-2 mt-1">
+                <Badge className="bg-[#213147] text-white font-black text-xs px-3">#{getNumericOrderId(order.id)}</Badge>
+                {queuePosition !== null && !isDelivered && (
+                   <Badge variant="outline" className="text-[10px] font-black uppercase border-primary/20 bg-primary/5 text-primary">
+                     {queuePosition === 1 ? 'Next in Queue' : `${queuePosition}${queuePosition === 2 ? 'nd' : queuePosition === 3 ? 'rd' : 'th'} in Queue`}
+                   </Badge>
+                )}
+              </div>
+            </div>
+            <Link href={`/sellers/${order.sellerId}/order`} className="flex items-center gap-1.5 text-[9px] font-black uppercase text-primary hover:text-primary/80 transition-colors">
+              <ChevronLeft className="h-3 w-3" /> New Order
+            </Link>
+          </div>
+          <OrderStatus currentStatus={order.status} />
+        </div>
+      </div>
+
+      {/* 2. MAP / COMPLETION VIEW */}
       {!isBowling && (
-        <div className="h-[33vh] relative border-b-2 shadow-sm shrink-0 overflow-hidden">
+        <div className="h-[35vh] relative border-b-2 shadow-sm shrink-0 overflow-hidden bg-slate-900">
           {isDelivered ? (
             <div className="absolute inset-0 bg-[#213147] flex flex-col items-center justify-center text-center p-6 space-y-4 animate-in fade-in duration-700">
                <div className="absolute inset-0 z-0 opacity-10 pointer-events-none">
@@ -159,8 +195,8 @@ function OrderTrackingContent() {
                   <PartyPopper className="h-10 w-10 text-primary" />
                 </div>
                 <div>
-                  <h2 className="font-headline text-2xl font-black uppercase text-white tracking-tight">Order Complete</h2>
-                  <p className="text-white/60 text-xs font-bold uppercase tracking-widest mt-1">Thank you for ordering at {seller?.courseName}</p>
+                  <h2 className="font-headline text-2xl font-black uppercase text-white tracking-tight leading-none">Order Delivered</h2>
+                  <p className="text-white/60 text-xs font-bold uppercase tracking-widest mt-3">Enjoy your time at {seller?.courseName}</p>
                 </div>
                 <Button asChild className="h-12 px-8 bg-primary hover:bg-primary/90 text-white font-black uppercase tracking-widest gap-2 shadow-2xl rounded-full">
                   <Link href={`/sellers/${order.sellerId}/order`}>
@@ -184,9 +220,10 @@ function OrderTrackingContent() {
         </div>
       )}
 
+      {/* 3. DETAILS & FEEDBACK */}
       <div className="p-4 space-y-4 max-w-2xl mx-auto w-full pb-24 flex-1">
         
-        {/* WAKE LOCK & LIVE SYNC NOTIFICATION - ONLY FOR GOLF COURSES */}
+        {/* WAKE LOCK & LIVE SYNC NOTIFICATION */}
         {!isDelivered && isGolf && (
           <div className="bg-[#213147] rounded-2xl p-4 shadow-xl border-t-2 border-primary/30 flex items-center gap-4 animate-in slide-in-from-top-4 duration-700">
             <div className="bg-primary/20 p-2.5 rounded-xl shrink-0">
@@ -194,16 +231,16 @@ function OrderTrackingContent() {
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-0.5">
-                <p className="text-[10px] font-black text-white uppercase tracking-widest">Live Sync Active</p>
+                <p className="text-[10px] font-black text-white uppercase tracking-widest">Live Feed Active</p>
                 <div className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
               </div>
               <p className="text-[10px] font-bold text-white/60 uppercase leading-relaxed">
-                Screen is locked open for precision. Keep this page visible for the best delivery service.
+                Your device is locked open for precise delivery. Keep this window visible.
               </p>
             </div>
             <div className="shrink-0 flex flex-col items-center">
               <Smartphone className="h-5 w-5 text-white/20 mb-0.5" />
-              <span className="text-[8px] font-black text-white/40 uppercase tracking-tighter">Locked</span>
+              <span className="text-[8px] font-black text-white/40 uppercase tracking-tighter">Stay Active</span>
             </div>
           </div>
         )}
@@ -214,26 +251,36 @@ function OrderTrackingContent() {
              <div className="flex items-center gap-3">
                <BellRing className="h-5 w-5 text-amber-600" />
                <div className="text-left">
-                 <p className="text-[10px] font-black uppercase text-amber-700">Enable Audible Alerts</p>
-                 <p className="text-[8px] font-bold text-amber-600/70 uppercase">Get sound alerts for order updates</p>
+                 <p className="text-[10px] font-black uppercase text-amber-700">Enable Arrival Alerts</p>
+                 <p className="text-[8px] font-bold text-amber-600/70 uppercase">Get sound alerts for driver arrival</p>
                </div>
              </div>
-             <Button size="sm" className="bg-amber-600 h-8 text-[9px] font-black uppercase tracking-widest" onClick={() => Notification.requestPermission()}>Enable</Button>
+             <Button 
+                size="sm" 
+                className="bg-amber-600 h-8 text-[9px] font-black uppercase tracking-widest" 
+                onClick={() => {
+                  if (typeof window !== 'undefined' && 'Notification' in window) {
+                    Notification.requestPermission().then(p => setNotificationPermission(p));
+                  }
+                }}
+             >
+               Enable
+             </Button>
           </div>
         )}
 
-        {/* THANK YOU MESSAGE FROM VENUE */}
+        {/* VENUE IDENTITY CARD */}
         {!isDelivered && (
-          <div className="bg-white rounded-2xl p-5 border-2 border-slate-100 shadow-sm flex items-center gap-4 animate-in fade-in duration-500">
+          <div className="bg-white rounded-2xl p-5 border-2 border-slate-100 shadow-sm flex items-center gap-4">
             <div className="bg-primary/10 p-2 rounded-xl shrink-0">
               <Heart className="h-5 w-5 text-primary fill-primary/20" />
             </div>
             <div className="flex-1 min-w-0">
               <p className="font-headline font-black text-sm uppercase tracking-tight text-[#213147]">
-                Thank you from {seller?.courseName}!
+                Ordering from {seller?.courseName}
               </p>
-              <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mt-0.5">
-                We appreciate your order. Our staff is working to fulfill it now.
+              <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mt-0.5 flex items-center gap-1.5">
+                <Store className="h-2.5 w-2.5" /> {order.menuType} Service
               </p>
             </div>
           </div>
@@ -246,7 +293,7 @@ function OrderTrackingContent() {
                 <CheckCircle2 className="h-10 w-10 text-primary" />
               </div>
               <div>
-                <h2 className="font-headline text-2xl font-black uppercase text-white tracking-tight leading-none">Enjoy Your Delivery!</h2>
+                <h2 className="font-headline text-2xl font-black uppercase text-white tracking-tight leading-none">Order Filled</h2>
                 <p className="text-white/40 text-[10px] font-bold uppercase tracking-[0.2em] mt-3">Thanks for ordering from your lane</p>
               </div>
               <Button asChild size="lg" className="w-full h-14 bg-primary hover:bg-primary/90 text-white font-black uppercase tracking-widest gap-2 shadow-2xl rounded-2xl">
@@ -258,69 +305,50 @@ function OrderTrackingContent() {
           </Card>
         )}
 
-        <Card className="shadow-lg overflow-hidden">
-          <CardHeader className="py-3 px-6 flex flex-row items-center justify-between border-b bg-muted/20">
-            <div className="flex flex-col">
-              <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Order Status</span>
-              {isBowling && order.menuTypeLocation && (
-                <div className="flex items-center gap-2 mt-1">
-                  <Badge className="bg-primary text-white font-black uppercase tracking-tight text-[11px] px-3">
-                    {order.menuTypeLocation}
-                  </Badge>
-                  {!isDelivered && (
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <button className="flex items-center gap-1 text-[9px] font-black uppercase text-primary hover:text-primary/80 transition-colors">
-                          <Edit2 className="h-2.5 w-2.5" /> Change
-                        </button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-64 p-4 rounded-[1.5rem]">
-                        <div className="space-y-3">
-                          <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest text-center">Correct Your Lane</p>
-                          <div className="grid grid-cols-5 gap-1.5">
-                            {Array.from({ length: seller?.laneCount || 20 }, (_, i) => (i + 1).toString()).map(l => (
-                              <Button 
-                                key={l} 
-                                variant={order.menuTypeLocation === `Lane ${l}` ? 'default' : 'outline'} 
-                                size="sm" 
-                                onClick={() => handleUpdateLane(l)} 
-                                className="h-8 p-0 text-[10px] font-bold"
-                              >
-                                {l}
-                              </Button>
-                            ))}
-                          </div>
-                        </div>
-                      </PopoverContent>
-                    </Popover>
-                  )}
-                </div>
-              )}
-            </div>
-            <Badge variant="outline" className="font-mono text-[9px]">#{getNumericOrderId(order.id)}</Badge>
-          </CardHeader>
-          <CardContent className="px-6 py-5">
-            <OrderStatus currentStatus={order.status} />
-          </CardContent>
-        </Card>
-
         <Card className="shadow-md">
-          <CardHeader className="py-3 px-6 bg-muted/30 border-b">
-            <h3 className="text-[10px] font-black uppercase tracking-widest">Details</h3>
+          <CardHeader className="py-3 px-6 bg-muted/30 border-b flex flex-row items-center justify-between">
+            <h3 className="text-[10px] font-black uppercase tracking-widest">Order Details</h3>
+            {isBowling && order.menuTypeLocation && (
+              <div className="flex items-center gap-2">
+                <Badge className="bg-primary text-white font-black uppercase text-[10px] px-2">
+                  {order.menuTypeLocation}
+                </Badge>
+                {!isDelivered && (
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <button className="text-[9px] font-black uppercase text-primary underline">Edit</button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-64 p-4 rounded-[1.5rem]">
+                      <div className="space-y-3">
+                        <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest text-center">Correct Your Lane</p>
+                        <div className="grid grid-cols-5 gap-1.5">
+                          {Array.from({ length: seller?.laneCount || 20 }, (_, i) => (i + 1).toString()).map(l => (
+                            <Button 
+                              key={l} 
+                              variant={order.menuTypeLocation === `Lane ${l}` ? 'default' : 'outline'} 
+                              size="sm" 
+                              onClick={() => handleUpdateLane(l)} 
+                              className="h-8 p-0 text-[10px] font-bold"
+                            >
+                              {l}
+                            </Button>
+                          ))}
+                        </div>
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                )}
+              </div>
+            )}
           </CardHeader>
           <CardContent className="pt-6 space-y-6">
-            <div className="grid grid-cols-2 gap-4">
-              <div><p className="text-[9px] font-black text-muted-foreground uppercase">Venue</p><p className="text-xs font-bold">{seller?.courseName}</p></div>
-              <div className="text-right"><p className="text-[9px] font-black text-muted-foreground uppercase">Service</p><p className="text-xs font-bold">{order.menuType}</p></div>
-            </div>
-            
             <div className="space-y-2">
               <p className="text-[9px] font-black text-muted-foreground uppercase">Items</p>
               {order.items.map(i => (
                 <div key={i.cartId} className="space-y-1">
                   <div className="flex justify-between text-xs font-medium">
-                    <span>{i.quantity}x {i.name}</span>
-                    <span className="font-mono">${(i.price * i.quantity).toFixed(2)}</span>
+                    <span className="font-bold uppercase">{i.quantity}x {i.name}</span>
+                    <span className="font-mono text-muted-foreground">${(i.price * i.quantity).toFixed(2)}</span>
                   </div>
                   {i.selectedModifiers && Object.values(i.selectedModifiers).flat().length > 0 && (
                     <div className="flex wrap gap-1 pl-4">
@@ -352,15 +380,13 @@ function OrderTrackingContent() {
                </div>
                <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
                  <div className="flex items-center gap-1.5">
-                   <span>Convenience Fee</span>
+                   <span>Platform Fee</span>
                    <Popover>
                     <PopoverTrigger asChild>
-                      <button className="text-slate-300 hover:text-primary transition-colors">
-                        <Info className="h-3 w-3" />
-                      </button>
+                      <button className="text-slate-300 hover:text-primary"><Info className="h-3 w-3" /></button>
                     </PopoverTrigger>
-                    <PopoverContent className="text-[10px] normal-case tracking-normal p-3 rounded-xl max-w-[200px]">
-                      This fee supports the mobile ordering solution and real-time delivery logistics.
+                    <PopoverContent className="text-[10px] normal-case p-3 rounded-xl max-w-[200px]">
+                      Supports the mobile ordering solution and real-time delivery logistics.
                     </PopoverContent>
                    </Popover>
                  </div>
@@ -371,14 +397,14 @@ function OrderTrackingContent() {
             <Separator />
             
             <div className="flex justify-between font-black text-lg uppercase tracking-tight text-[#213147]">
-              <span>Total</span>
+              <span>Total Paid</span>
               <span className="text-primary">${order.total.toFixed(2)}</span>
             </div>
           </CardContent>
         </Card>
 
-        {/* Convenience Fee Notice */}
-        <div className="bg-white/50 backdrop-blur-sm border border-slate-200 p-4 rounded-2xl flex items-start gap-3 animate-in fade-in slide-in-from-bottom-2 duration-500">
+        {/* FEE DISCLOSURE */}
+        <div className="bg-white/50 backdrop-blur-sm border border-slate-200 p-4 rounded-2xl flex items-start gap-3">
           <Info className="h-4 w-4 text-slate-400 shrink-0 mt-0.5" />
           <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-tight leading-relaxed">
             {statusNotice}
@@ -391,7 +417,7 @@ function OrderTrackingContent() {
 
 export default function OrderTrackingPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8 text-primary" /></div>}>
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-[#213147]"><Loader2 className="animate-spin h-10 w-10 text-primary" /></div>}>
       <OrderTrackingContent />
     </Suspense>
   );

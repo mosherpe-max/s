@@ -176,12 +176,6 @@ export function AppHeader() {
     setIsMounted(true);
   }, []);
 
-  const isMenuPage = pathname?.endsWith('/order');
-  const isHomePage = pathname === '/';
-  
-  const isAdminRoute = pathname?.startsWith('/admin') || 
-                      (pathname?.startsWith('/sellers/') && !pathname.includes('/order') && !pathname.includes('/staff-login'));
-
   const sellerId = useMemo(() => {
     if (pathname) {
       const parts = pathname.split('/');
@@ -210,10 +204,17 @@ export function AppHeader() {
   const { data: order } = useDoc(orderRef);
 
   // Early returns must come AFTER all hook calls
-  if (!isMounted || isAdminRoute) return null;
+  if (!isMounted) return null;
 
-  // On the Ordering Screen, we remove the top Koop header entirely to focus on the venue
-  if (isMenuPage) return null;
+  const isMenuPage = pathname?.endsWith('/order');
+  const isTrackPage = pathname?.endsWith('/order/track');
+  const isHomePage = pathname === '/';
+  
+  const isAdminRoute = pathname?.startsWith('/admin') || 
+                      (pathname?.startsWith('/sellers/') && !pathname.includes('/order') && !pathname.includes('/staff-login'));
+
+  // On the Ordering and Tracking Screen, we remove the top Koop header entirely to focus on the venue/order
+  if (isMenuPage || isTrackPage || isAdminRoute) return null;
 
   if (isHomePage) {
     return (
