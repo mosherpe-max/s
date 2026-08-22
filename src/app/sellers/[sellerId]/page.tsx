@@ -590,40 +590,17 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                         })}
                      </div>
                   </div>
-                  
-                  <div className="grid grid-cols-1 gap-8">
-                    <Card className="border-2 shadow-sm bg-[#213147] text-white">
-                      <CardHeader className="border-b border-white/5 py-6">
-                        <div className="bg-primary/20 p-2 rounded-xl w-fit mb-3"><Activity className="h-5 w-5 text-primary" /></div>
-                        <CardTitle className="text-sm font-black uppercase tracking-widest">Patron Directory</CardTitle>
-                      </CardHeader>
-                      <CardContent className="pt-4 p-0">
-                         <div className="divide-y divide-white/5">
-                            {patrons.slice(0, 5).map(p => (
-                              <div key={p.id} className="p-4 flex items-center justify-between hover:bg-white/5 transition-colors">
-                                <div className="text-left">
-                                  <p className="text-[11px] font-black uppercase tracking-tight leading-none mb-1">{p.name}</p>
-                                  <p className="text-[8px] font-bold text-white/40 uppercase tracking-widest">{p.count} Orders</p>
-                                </div>
-                                <p className="text-[11px] font-mono font-black text-primary">${p.total.toFixed(2)}</p>
-                              </div>
-                            ))}
-                         </div>
-                      </CardContent>
-                    </Card>
-                  </div>
-                </div>
-              )}
 
-              {activeNav === 'analytics' && (
-                <div className="space-y-8 animate-in fade-in duration-500">
-                   <Card className="border-2 shadow-sm">
-                      <CardHeader className="bg-[#213147] text-white py-5 border-b">
-                        <div className="flex items-center gap-3">
-                          <BarChart3 className="h-5 w-5 text-primary" />
-                          <div className="text-left"><CardTitle className="text-xs font-black uppercase tracking-widest">Daily Stacked Revenue</CardTitle><p className="text-[8px] text-white/40 uppercase tracking-widest mt-1">Revenue performance segmented by service channel</p></div>
-                        </div>
-                      </CardHeader>
+                  {/* REVENUE OVERVIEW - BOTTOM OF DASHBOARD */}
+                  <div className="space-y-6">
+                    <div className="flex items-center gap-3">
+                       <div className="p-2 bg-indigo-50 rounded-lg text-indigo-600"><BarChart3 className="h-6 w-6" /></div>
+                       <div className="text-left">
+                          <h2 className="text-xl font-black uppercase text-[#213147]">Revenue Overview</h2>
+                          <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">7-Day Stacked Performance</p>
+                       </div>
+                    </div>
+                    <Card className="border-2 shadow-sm">
                       <CardContent className="pt-8 h-[400px]">
                         <ResponsiveContainer width="100%" height="100%">
                           <BarChart data={analyticsData.dailyRevenue}>
@@ -637,6 +614,57 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                             ))}
                           </BarChart>
                         </ResponsiveContainer>
+                      </CardContent>
+                    </Card>
+                  </div>
+                </div>
+              )}
+
+              {activeNav === 'analytics' && (
+                <div className="space-y-12 animate-in fade-in duration-500">
+                   <div className="flex items-center gap-3">
+                      <div className="p-2 bg-primary/10 rounded-lg"><Activity className="h-6 w-6 text-primary" /></div>
+                      <div className="text-left">
+                         <h2 className="text-xl font-black uppercase text-[#213147]">Business Intelligence</h2>
+                         <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">Historical Trends & Patron Analytics</p>
+                      </div>
+                   </div>
+
+                   <Card className="border-2 shadow-sm bg-[#213147] text-white overflow-hidden">
+                      <CardHeader className="border-b border-white/5 py-6">
+                        <div className="flex items-center gap-3">
+                          <Users className="h-5 w-5 text-primary" />
+                          <CardTitle className="text-sm font-black uppercase tracking-widest">Patron Directory</CardTitle>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="p-0">
+                         <Table>
+                            <TableHeader className="bg-white/5">
+                               <TableRow className="border-white/5 hover:bg-transparent">
+                                  <TableHead className="text-[9px] font-black uppercase text-white/40 px-8">Patron Identity</TableHead>
+                                  <TableHead className="text-[9px] font-black uppercase text-white/40">Frequency</TableHead>
+                                  <TableHead className="text-[9px] font-black uppercase text-white/40 text-right px-8">LTV (Net Revenue)</TableHead>
+                               </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                               {patrons.length === 0 ? (
+                                 <TableRow><TableCell colSpan={3} className="py-20 text-center text-white/20 uppercase text-[10px] font-black">No patron history recorded</TableCell></TableRow>
+                               ) : patrons.map(p => (
+                                 <TableRow key={p.id} className="border-white/5 hover:bg-white/5 transition-colors">
+                                   <TableCell className="px-8">
+                                     <div className="text-left">
+                                       <p className="text-[11px] font-black uppercase tracking-tight leading-none mb-1">{p.name}</p>
+                                       <p className="text-[8px] font-bold text-white/40 uppercase tracking-widest">{p.email} • {p.phone}</p>
+                                     </div>
+                                   </TableCell>
+                                   <TableCell>
+                                      <Badge variant="outline" className="text-[8px] font-black uppercase bg-white/5 border-white/10 text-white/60">{p.count} Orders</Badge>
+                                   </TableCell>
+                                   <TableCell className="text-right px-8 font-mono font-black text-primary text-sm">${p.total.toFixed(2)}</TableCell>
+                                 </TableRow>
+                               ))}
+                            </TableBody>
+                         </Table>
                       </CardContent>
                    </Card>
                 </div>
