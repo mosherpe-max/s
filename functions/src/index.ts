@@ -267,22 +267,34 @@ export const onGuestOrderStatusUpdate = onDocumentWritten({
     if (!beforeData) {
       if (data.status === 'Placed') body = `Order received! Track live: ${link}`;
     } else {
-      if (data.status !== beforeData.status && data.status === 'Out for Delivery') {
-        body = `Order out for delivery! Track live: ${link}`;
+      // 1. STATUS CHANGE ALERTS
+      if (data.status !== beforeData.status) {
+        if (data.status === 'Preparing') body = `Order confirmed! We're getting it ready: ${link}`;
+        if (data.status === 'Out for Delivery') body = `Order out for delivery! Track live: ${link}`;
       }
       
-      // STAFF GPS PING REQUEST - Refined comparison for reliability
+      // 2. STAFF GPS PING REQUEST (Manual Location Refresh)
       const currentPing = data.refreshRequestedAt;
       const previousPing = beforeData.refreshRequestedAt;
-      if (currentPing && (!previousPing || currentPing.toMillis() !== previousPing.toMillis())) {
+      
+      // Check for timestamp updates on the refreshRequestedAt field
+      const isPingTriggered = currentPing && (!previousPing || currentPing.toMillis() !== previousPing.toMillis());
+      
+      if (isPingTriggered) {
         body = `Hey! Your Koop order is on the way — tap to help us find you: ${link}`;
       }
     }
 
     if (body) {
-      const to = String(data.customerPhone).length === 10 ? `+1${data.customerPhone}` : `+${data.customerPhone}`;
-      await client.messages.create({ body, from: fromNumber, to });
-      logger.info(`[onGuestOrderStatusUpdate] SMS sent to ${to}: ${body}`);
+      // Robust Phone Sanitization
+      const cleanPhone = String(data.customerPhone).replace(/\D/g, '');
+      if (cleanPhone.length >= 10) {
+        const to = cleanPhone.length === 10 ? `+1${cleanPhone}` : `+${cleanPhone}`;
+        await client.messages.create({ body, from: fromNumber, to });
+        logger.info(`[onGuestOrderStatusUpdate] SMS sent to ${to}: ${body}`);
+      } else {
+        logger.warn(`[onGuestOrderStatusUpdate] Invalid phone number skipped: ${data.customerPhone}`);
+      }
     }
   } catch (err) {
     logger.error("Twilio Task Failed", err);

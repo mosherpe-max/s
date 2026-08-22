@@ -121,21 +121,26 @@ export const onGuestOrderStatusUpdate = onDocumentWritten({
             if (data.status === 'Placed') body = `Order received! Track live: ${link}`;
         }
         else {
-            if (data.status !== beforeData.status && data.status === 'Out for Delivery') {
-                body = `Order out for delivery! Track live: ${link}`;
+            // 1. Status Change Alerts
+            if (data.status !== beforeData.status) {
+                if (data.status === 'Preparing') body = `Order confirmed! We're getting it ready: ${link}`;
+                if (data.status === 'Out for Delivery') body = `Order out for delivery! Track live: ${link}`;
             }
-            // STAFF GPS PING REQUEST
+            // 2. STAFF GPS PING REQUEST
             const currentPing = data.refreshRequestedAt;
             const previousPing = beforeData.refreshRequestedAt;
-            if (currentPing && (!previousPing || currentPing.toMillis() !== previousPing.toMillis())) {
+            const isPingTriggered = currentPing && (!previousPing || currentPing.toMillis() !== previousPing.toMillis());
+            if (isPingTriggered) {
                 body = `Hey! Your Koop order is on the way — tap to help us find you: ${link}`;
             }
         }
         if (body) {
             const cleanPhone = String(data.customerPhone).replace(/\D/g, '');
-            const to = cleanPhone.length === 10 ? `+1${cleanPhone}` : `+${cleanPhone}`;
-            await client.messages.create({ body, from: fromNumber, to });
-            logger.info(`[onGuestOrderStatusUpdate] SMS sent to ${to}: ${body}`);
+            if (cleanPhone.length >= 10) {
+              const to = cleanPhone.length === 10 ? `+1${cleanPhone}` : `+${cleanPhone}`;
+              await client.messages.create({ body, from: fromNumber, to });
+              logger.info(`[onGuestOrderStatusUpdate] SMS sent to ${to}: ${body}`);
+            }
         }
     }
     catch (err) {
