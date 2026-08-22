@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useMemo, useEffect, use } from 'react';
@@ -52,7 +53,9 @@ import {
   Smartphone as PhoneIcon,
   Timer,
   Lock,
-  Info
+  Info,
+  CheckCircle2,
+  History
 } from 'lucide-react';
 import Image from 'next/image';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -283,21 +286,8 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
   const menuItemsQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'sellers', sellerId, 'menuItems') : null), [firestore, sellerId]);
   const { data: menuItems } = useCollection<MenuItem>(menuItemsQuery);
 
-  const modifierGroupsQuery = useMemoFirebase(() => (firestore ? query(collection(firestore, 'modifier_groups'), where('sellerId', '==', sellerId)) : null), [firestore, sellerId]);
-  const { data: modifierGroups } = useCollection<ModifierGroup>(modifierGroupsQuery);
-
-  const staffForm = useForm<StaffFormData>({
-    resolver: zodResolver(staffSchema),
-    defaultValues: { name: '', role: 'Staff', pin: '', isActive: true }
-  });
-
-  const itemForm = useForm<ItemFormData>({
-    resolver: zodResolver(itemSchema),
-    defaultValues: { name: '', description: '', price: 0, category: '', isAvailable: true, availableOn: [], featuredOn: [], modifierGroupIds: [] }
-  });
-
   const analyticsData = useMemo(() => {
-    if (!orders || !seller) return { dailyRevenue: [], topItems: [], fulfillmentEfficiency: [], revenueByMode: [], modes: [] };
+    if (!orders || !seller) return { dailyRevenue: [], topItems: [], fulfillmentEfficiency: [], revenueByMode: [], modes: [], realTimeOperations: {} };
     
     const modes = (seller.menuTypes || []).filter(m => AUTHORIZED_SERVICE_MODES.includes(m));
     const now = new Date();
@@ -308,7 +298,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
       const dayData: any = { name: dayLabel };
       modes.forEach(mode => {
         const modeOrders = orders.filter(o => o.menuType === mode && o.status === 'Delivered' && o.createdAt && format(o.createdAt.toDate(), 'MMM d') === dayLabel);
-        dayData[mode] = modeOrders.reduce((sum, o) => sum + (o.total || 0), 0);
+        dayData[mode] = modeOrders.reduce((sum, o) => sum + (o.total - (o.serviceFee || 0)), 0);
       });
       return dayData;
     });
@@ -324,8 +314,39 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
       return { mode, ackSeconds: Math.round(avgAck), deliverMinutes: Math.round(avgDeliver) };
     });
 
-    return { dailyRevenue, topItems, fulfillmentEfficiency, modes };
-  }, [orders, seller]);
+    // MODE SPECIFIC REAL-TIME ANALYTICS (TODAY)
+    const realTimeOperations: Record<string, any> = {};
+    modes.forEach(mode => {
+      const modeOrdersToday = orders.filter(o => o.menuType === mode && o.createdAt && isToday(o.createdAt.toDate()));
+      const deliveredToday = modeOrdersToday.filter(o => o.status === 'Delivered');
+      
+      const thresholds = seller.orderThresholds?.[mode] || { maxOrderAcknowledgeSeconds: 120, warningOrderProcessingMinutes: 15, maxOrderProcessingMinutes: 25 };
+      
+      // Acknowledge Metrics
+      const acknowledged = modeOrdersToday.filter(o => o.acknowledgedAt);
+      const avgAck = acknowledged.length > 0 ? acknowledged.reduce((sum, o) => sum + differenceInSeconds(o.acknowledgedAt!.toDate(), o.createdAt.toDate()), 0) / acknowledged.length : 0;
+      const exceedMaxAckCount = acknowledged.filter(o => differenceInSeconds(o.acknowledgedAt!.toDate(), o.createdAt.toDate()) > thresholds.maxOrderAcknowledgeSeconds).length;
+
+      // Duration Metrics
+      const fulfilled = deliveredToday.filter(o => o.deliveredAt);
+      const avgDuration = fulfilled.length > 0 ? fulfilled.reduce((sum, o) => sum + differenceInMinutes(o.deliveredAt!.toDate(), o.createdAt.toDate()), 0) / fulfilled.length : 0;
+      const exceedWarnCount = fulfilled.filter(o => differenceInMinutes(o.deliveredAt!.toDate(), o.createdAt.toDate()) > thresholds.warningOrderProcessingMinutes).length;
+      const exceedMaxCount = fulfilled.filter(o => differenceInMinutes(o.deliveredAt!.toDate(), o.createdAt.toDate()) > thresholds.maxOrderProcessingMinutes).length;
+
+      realTimeOperations[mode] = {
+        avgAck: Math.round(avgAck),
+        exceedMaxAckCount,
+        avgDuration: parseFloat(avgDuration.toFixed(1)),
+        exceedWarnCount,
+        exceedMaxCount,
+        orderCount: modeOrdersToday.length,
+        totalNetRevenue: modeOrdersToday.reduce((sum, o) => sum + (o.total - (o.serviceFee || 0)), 0),
+        activeStaff: staffList?.filter(s => s.activeMode === mode).map(s => s.name) || []
+      };
+    });
+
+    return { dailyRevenue, topItems, fulfillmentEfficiency, modes, realTimeOperations };
+  }, [orders, seller, staffList]);
 
   const patrons = useMemo(() => {
     if (!orders) return [];
@@ -335,7 +356,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
       const existing = map.get(key);
       if (existing) {
         existing.count++;
-        existing.total += o.total;
+        existing.total += (o.total - (o.serviceFee || 0));
       } else {
         map.set(key, { 
           id: key,
@@ -343,7 +364,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
           name: o.customerName || 'Guest', 
           phone: o.customerPhone || 'N/A', 
           count: 1, 
-          total: o.total 
+          total: (o.total - (o.serviceFee || 0))
         });
       }
     });
@@ -447,6 +468,16 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
 
   const handleLogout = async () => { if (!auth) return; await signOut(auth); router.push('/login'); };
 
+  const staffForm = useForm<StaffFormData>({
+    resolver: zodResolver(staffSchema),
+    defaultValues: { name: '', role: 'Staff', pin: '', isActive: true }
+  });
+
+  const itemForm = useForm<ItemFormData>({
+    resolver: zodResolver(itemSchema),
+    defaultValues: { name: '', description: '', price: 0, category: '', isAvailable: true, availableOn: [], featuredOn: [], modifierGroupIds: [] }
+  });
+
   if (isUserLoading || isSellerLoading || isVenueLoading) return <div className="flex flex-col items-center justify-center h-screen bg-[#213147] text-white"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>;
 
   const NAV_ITEMS = [
@@ -462,7 +493,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
   const NavContent = () => (<nav className="space-y-1">{NAV_ITEMS.map((item) => (<NavButton key={item.id} id={item.id} label={item.label} icon={item.icon} active={activeNav === item.id} onClick={setActiveNav} sidebarOpen={sidebarOpen} />))}</nav>);
 
   const deliveredToday = orders?.filter(o => o.status === 'Delivered' && o.createdAt && isToday(o.createdAt.toDate())) || [];
-  const netRevenueToday = deliveredToday.reduce((sum, o) => sum + (o.total || 0), 0);
+  const netRevenueToday = deliveredToday.reduce((sum, o) => sum + (o.total - (o.serviceFee || 0)), 0);
 
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-[#F8FAFC] text-left">
@@ -494,7 +525,95 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
           <div className="p-8">
             <div className="max-w-6xl mx-auto space-y-8 pb-24 text-left min-w-0">
               {activeNav === 'dashboard' && (
-                <div className="space-y-8 animate-in fade-in duration-500">
+                <div className="space-y-12 animate-in fade-in duration-500">
+                  {/* REAL-TIME OPERATIONS SUITE */}
+                  <div className="space-y-6">
+                     <div className="flex items-center gap-3">
+                        <div className="p-2 bg-primary/10 rounded-lg"><Activity className="h-6 w-6 text-primary" /></div>
+                        <div className="text-left">
+                           <h2 className="text-xl font-black uppercase text-[#213147]">Live Operations</h2>
+                           <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">Real-Time Mode Performance & Control</p>
+                        </div>
+                     </div>
+                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        {analyticsData.modes.map(mode => {
+                           const stats = analyticsData.realTimeOperations[mode];
+                           const field = mode === 'Beverage Cart' ? 'bevcartActive' : mode === 'Clubhouse' ? 'clubhouseActive' : 'lanedeliveryActive';
+                           const isActive = !!seller?.[field as keyof Seller];
+                           
+                           return (
+                              <Card key={mode} className={cn("border-2 shadow-sm overflow-hidden", isActive ? "border-slate-100" : "opacity-60 border-dashed")}>
+                                 <CardHeader className={cn("py-4 flex flex-row items-center justify-between", isActive ? "bg-slate-50" : "bg-muted/30")}>
+                                    <div className="flex items-center gap-2">
+                                       <div className={cn("w-2 h-2 rounded-full", isActive ? "bg-green-500 animate-pulse" : "bg-slate-300")} />
+                                       <CardTitle className="text-[10px] font-black uppercase tracking-widest text-[#213147]">{mode}</CardTitle>
+                                    </div>
+                                    <Switch 
+                                       checked={isActive} 
+                                       onCheckedChange={(val) => updateDoc(doc(firestore!, 'sellers', sellerId), { [field]: val })} 
+                                       className="data-[state=checked]:bg-green-500 scale-75" 
+                                    />
+                                 </CardHeader>
+                                 <CardContent className="p-6 space-y-6">
+                                    <div className="grid grid-cols-2 gap-4 border-b pb-6">
+                                       <div className="space-y-1">
+                                          <p className="text-[8px] font-black uppercase text-muted-foreground">Order Count</p>
+                                          <p className="text-xl font-black text-[#213147]">{stats?.orderCount || 0}</p>
+                                       </div>
+                                       <div className="space-y-1 text-right">
+                                          <p className="text-[8px] font-black uppercase text-muted-foreground">Net Today</p>
+                                          <p className="text-xl font-black text-primary font-mono">${(stats?.totalNetRevenue || 0).toFixed(2)}</p>
+                                       </div>
+                                    </div>
+
+                                    <div className="space-y-4">
+                                       <div className="flex justify-between items-start">
+                                          <div className="space-y-1">
+                                             <p className="text-[8px] font-black uppercase text-muted-foreground flex items-center gap-1"><Timer className="h-2 w-2" /> Acknowledge</p>
+                                             <div className="flex items-baseline gap-1">
+                                                <span className="text-sm font-black">{stats?.avgAck || 0}s</span>
+                                                <span className="text-[8px] font-bold text-muted-foreground uppercase">Avg</span>
+                                             </div>
+                                          </div>
+                                          {stats?.exceedMaxAckCount > 0 && (
+                                             <Badge variant="destructive" className="h-4 px-1 text-[7px] font-black uppercase">Exceed: {stats.exceedMaxAckCount}</Badge>
+                                          )}
+                                       </div>
+
+                                       <div className="flex justify-between items-start">
+                                          <div className="space-y-1">
+                                             <p className="text-[8px] font-black uppercase text-muted-foreground flex items-center gap-1"><Clock className="h-2 w-2" /> Duration</p>
+                                             <div className="flex items-baseline gap-1">
+                                                <span className="text-sm font-black">{stats?.avgDuration || 0}m</span>
+                                                <span className="text-[8px] font-bold text-muted-foreground uppercase">Avg</span>
+                                             </div>
+                                          </div>
+                                          <div className="flex flex-col items-end gap-1">
+                                             {stats?.exceedWarnCount > 0 && <Badge className="bg-amber-500 text-white h-4 px-1 text-[7px] font-black uppercase">Warn: {stats.exceedWarnCount}</Badge>}
+                                             {stats?.exceedMaxCount > 0 && <Badge variant="destructive" className="h-4 px-1 text-[7px] font-black uppercase">Late: {stats.exceedMaxCount}</Badge>}
+                                          </div>
+                                       </div>
+                                    </div>
+
+                                    <div className="pt-4 border-t-2 border-dashed">
+                                       <p className="text-[8px] font-black uppercase text-muted-foreground mb-2 flex items-center gap-1"><Users className="h-2 w-2" /> Active Staff</p>
+                                       {stats?.activeStaff.length > 0 ? (
+                                          <div className="flex flex-wrap gap-1">
+                                             {stats.activeStaff.map((name: string) => (
+                                                <Badge key={name} variant="outline" className="text-[7px] font-black uppercase bg-slate-50 border-slate-200">{name}</Badge>
+                                             ))}
+                                          </div>
+                                       ) : (
+                                          <p className="text-[8px] font-bold text-muted-foreground uppercase italic">No staff on-shift</p>
+                                       )}
+                                    </div>
+                                 </CardContent>
+                              </Card>
+                           );
+                        })}
+                     </div>
+                  </div>
+
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                     <KPICard label="Net Revenue" value={`$${netRevenueToday.toFixed(2)}`} sub="Excluding Platform Fees" icon={DollarSign} colorClass="bg-green-500" />
                     <KPICard label="Active Tickets" value={orders?.filter(o => ['Placed', 'Preparing', 'Out for Delivery'].includes(o.status)).length || 0} sub="Pending Delivery" icon={Clock} colorClass="bg-primary" />
@@ -587,10 +706,10 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                       <TableHeader className="bg-slate-50">
                         <TableRow>
                           <TableHead className="px-8 py-5 text-[10px] font-black uppercase tracking-widest">Ticket</TableHead>
-                          <TableHead className="text-[10px) font-black uppercase tracking-widest">Customer</TableHead>
+                          <TableHead className="text-[10px] font-black uppercase tracking-widest">Customer</TableHead>
                           <TableHead className="text-[10px] font-black uppercase tracking-widest">Mode</TableHead>
                           <TableHead className="text-[10px] font-black uppercase tracking-widest">Status</TableHead>
-                          <TableHead className="text-[10px] font-black uppercase tracking-widest text-right px-8">Total</TableHead>
+                          <TableHead className="text-[10px] font-black uppercase tracking-widest text-right px-8">Net Total</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -608,7 +727,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                               </TableCell>
                               <TableCell><Badge variant="outline" className="text-[8px] font-black uppercase bg-slate-100 border-slate-200">{o.menuType}</Badge></TableCell>
                               <TableCell><Badge className={cn("text-[8px] font-black uppercase border-0", o.status === 'Delivered' ? "bg-green-500" : o.status === 'Cancelled' ? "bg-red-500" : "bg-primary animate-pulse")}>{o.status}</Badge></TableCell>
-                              <TableCell className="text-right px-8 font-mono font-black text-sm">${o.total.toFixed(2)}</TableCell>
+                              <TableCell className="text-right px-8 font-mono font-black text-sm">${(o.total - (o.serviceFee || 0)).toFixed(2)}</TableCell>
                             </TableRow>
                           ))
                         }
@@ -718,7 +837,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                 <div className="space-y-6 animate-in fade-in duration-500">
                   <div className="flex items-center justify-between">
                     <h2 className="text-xl font-black uppercase text-[#213147]">Master Catalog</h2>
-                    <Button onClick={() => { itemForm.reset(); toast({ title: "Module Restoring..." }); }} className="bg-primary font-black uppercase text-xs tracking-widest"><Plus className="h-4 w-4 mr-2" /> New Product</Button>
+                    <Button onClick={() => { itemForm.reset(); toast({ title: "Product Module Initializing..." }); }} className="bg-primary font-black uppercase text-xs tracking-widest"><Plus className="h-4 w-4 mr-2" /> New Product</Button>
                   </div>
                   <Card className="border-2 rounded-[2rem] overflow-hidden shadow-sm bg-white">
                     <Table>
@@ -878,7 +997,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                     <Card className="border-2 shadow-sm md:col-span-2">
                        <CardHeader className="bg-[#213147] text-white py-4 border-b">
                           <CardTitle className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
-                            <Clock className="h-3.5 w-3.5 text-primary" /> Fulfillment Guardrails (Minutes)
+                            <Clock className="h-3.5 w-3.5 text-primary" /> Fulfillment Guardrails
                           </CardTitle>
                        </CardHeader>
                        <CardContent className="pt-6">
@@ -889,73 +1008,41 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                                      <Zap className="h-3 w-3 text-primary" />
                                      <span className="text-[10px] font-black uppercase tracking-tight">{mode}</span>
                                   </div>
-                                  <div className="grid grid-cols-2 gap-4">
+                                  <div className="space-y-4">
                                      <div className="space-y-1.5">
-                                        <Label className="text-[8px] font-black uppercase text-amber-600">Warning (Amber)</Label>
+                                        <Label className="text-[8px] font-black uppercase">Max Ack. Time (Seconds)</Label>
                                         <Input 
                                           type="number" 
-                                          defaultValue={seller?.orderThresholds?.[mode]?.warningOrderProcessingMinutes || 15} 
-                                          onBlur={(e) => handleUpdateField(`orderThresholds.${mode}.warningOrderProcessingMinutes`, parseInt(e.target.value))}
+                                          defaultValue={seller?.orderThresholds?.[mode]?.maxOrderAcknowledgeSeconds || 120} 
+                                          onBlur={(e) => handleUpdateField(`orderThresholds.${mode}.maxOrderAcknowledgeSeconds`, parseInt(e.target.value))}
                                           className="h-10 border-2 font-bold text-center" 
                                         />
                                      </div>
-                                     <div className="space-y-1.5">
-                                        <Label className="text-[8px] font-black uppercase text-red-600">Overdue (Red)</Label>
-                                        <Input 
-                                          type="number" 
-                                          defaultValue={seller?.orderThresholds?.[mode]?.maxOrderProcessingMinutes || 25} 
-                                          onBlur={(e) => handleUpdateField(`orderThresholds.${mode}.maxOrderProcessingMinutes`, parseInt(e.target.value))}
-                                          className="h-10 border-2 font-bold text-center" 
-                                        />
+                                     <div className="grid grid-cols-2 gap-4">
+                                       <div className="space-y-1.5">
+                                          <Label className="text-[8px] font-black uppercase text-amber-600">Warn (Min)</Label>
+                                          <Input 
+                                            type="number" 
+                                            defaultValue={seller?.orderThresholds?.[mode]?.warningOrderProcessingMinutes || 15} 
+                                            onBlur={(e) => handleUpdateField(`orderThresholds.${mode}.warningOrderProcessingMinutes`, parseInt(e.target.value))}
+                                            className="h-10 border-2 font-bold text-center" 
+                                          />
+                                       </div>
+                                       <div className="space-y-1.5">
+                                          <Label className="text-[8px] font-black uppercase text-red-600">Max (Min)</Label>
+                                          <Input 
+                                            type="number" 
+                                            defaultValue={seller?.orderThresholds?.[mode]?.maxOrderProcessingMinutes || 25} 
+                                            onBlur={(e) => handleUpdateField(`orderThresholds.${mode}.maxOrderProcessingMinutes`, parseInt(e.target.value))}
+                                            className="h-10 border-2 font-bold text-center" 
+                                          />
+                                       </div>
                                      </div>
                                   </div>
                                </div>
                              ))}
                           </div>
                        </CardContent>
-                    </Card>
-
-                    {/* SIGNAL PRECISION */}
-                    <Card className="border-2 shadow-sm">
-                      <CardHeader className="bg-slate-50 border-b py-4">
-                        <CardTitle className="text-[10px] font-black uppercase tracking-widest text-[#213147] flex items-center gap-2">
-                          <Smartphone className="h-3 w-3" /> Signal Precision (Seconds)
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent className="pt-6 space-y-6">
-                         <div className="grid grid-cols-3 gap-3">
-                            <div className="space-y-1.5 text-center">
-                               <Label className="text-[8px] font-black uppercase text-green-600">Hot</Label>
-                               <Input 
-                                 type="number" 
-                                 defaultValue={seller?.healthSettings?.warningManagerInactivityDays || 60} 
-                                 onBlur={(e) => handleUpdateField('healthSettings.warningManagerInactivityDays', parseInt(e.target.value))}
-                                 className="h-10 border-2 font-bold text-center" 
-                               />
-                            </div>
-                            <div className="space-y-1.5 text-center">
-                               <Label className="text-[8px] font-black uppercase text-amber-500">Warm</Label>
-                               <Input 
-                                 type="number" 
-                                 defaultValue={seller?.healthSettings?.warningVenueInactivityDays || 300} 
-                                 onBlur={(e) => handleUpdateField('healthSettings.warningVenueInactivityDays', parseInt(e.target.value))}
-                                 className="h-10 border-2 font-bold text-center" 
-                               />
-                            </div>
-                            <div className="space-y-1.5 text-center">
-                               <Label className="text-[8px] font-black uppercase text-red-500">Cold</Label>
-                               <Input 
-                                 type="number" 
-                                 defaultValue={600} 
-                                 disabled
-                                 className="h-10 border-2 font-bold text-center opacity-50" 
-                               />
-                            </div>
-                         </div>
-                         <p className="text-[9px] font-medium text-muted-foreground uppercase text-center leading-relaxed">
-                           Determines when a patron's GPS marker changes color based on last signal heartbeat.
-                         </p>
-                      </CardContent>
                     </Card>
 
                     {/* MAP COORDINATES (READ ONLY) */}
@@ -984,7 +1071,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                              </div>
                              <div className="bg-white p-4 rounded-xl border-2 border-slate-100 flex items-center gap-3">
                                 <AlertTriangle className="h-5 w-5 text-amber-500" />
-                                <div className="text-left"><p className="text-[9px] font-black uppercase text-[#213147]">Relocation Required?</p><p className="text-[8px] font-medium text-muted-foreground uppercase leading-tight">Contact Koop Admin to update your primary satellite anchors.</p></div>
+                                <div className="text-left"><p className="text-[9px] font-black uppercase text-[#213147]">Relocation Required?</p><p className="text-[8px] font-medium text-muted-foreground uppercase leading-tight">Contact Koop Admin to update anchors.</p></div>
                              </div>
                           </div>
                        </CardContent>
