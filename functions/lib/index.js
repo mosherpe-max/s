@@ -195,6 +195,7 @@ export const onGuestOrderStatusUpdate = onDocumentWritten({
         const beforeData = event.data?.before?.exists ? event.data.before.data() : null;
         
         if (beforeData) {
+            // 1. STATUS CHANGE ALERTS
             if (data.status !== beforeData.status) {
                 if (data.status === 'Preparing')
                     body = `Order confirmed! We're getting it ready: ${link}`;
@@ -204,12 +205,13 @@ export const onGuestOrderStatusUpdate = onDocumentWritten({
                     body = `Order delivered! Enjoy your time at the venue: ${link}`;
             }
 
-            if (!body && data.refreshRequestedAt) {
-                const oldTime = beforeData.refreshRequestedAt ? (beforeData.refreshRequestedAt.seconds || 0) : 0;
-                const newTime = data.refreshRequestedAt.seconds || 0;
-                if (newTime > oldTime) {
-                    body = `Hey! Your Koop order is on the way - tap to help us find you: ${link}`;
-                }
+            // 2. MANUAL "PIN" REQUEST
+            const oldReq = beforeData.refreshRequestedAt;
+            const newReq = data.refreshRequestedAt;
+            const isNewPinRequest = newReq && (!oldReq || newReq.seconds !== oldReq.seconds || newReq.nanoseconds !== oldReq.nanoseconds);
+
+            if (!body && isNewPinRequest) {
+                body = `Hey! Your Koop order is on the way — tap to help us find you: ${link}`;
             }
         }
         if (body) {

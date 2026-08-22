@@ -218,13 +218,18 @@ export const onGuestOrderStatusUpdate = onDocumentWritten({
       }
       
       // 2. MANUAL "PIN" REQUEST
-      if (!body && data.refreshRequestedAt) {
-          const oldTime = beforeData.refreshRequestedAt ? (beforeData.refreshRequestedAt.seconds || 0) : 0;
-          const newTime = data.refreshRequestedAt.seconds || 0;
-          
-          if (newTime > oldTime) {
-            body = `Hey! Your Koop order is on the way - tap to help us find you: ${link}`;
-          }
+      // Using value-based comparison for the timestamp object to detect any new Pin hit
+      const oldReq = beforeData.refreshRequestedAt;
+      const newReq = data.refreshRequestedAt;
+      
+      const isNewPinRequest = newReq && (
+        !oldReq || 
+        (newReq.seconds !== oldReq.seconds) || 
+        (newReq.nanoseconds !== oldReq.nanoseconds)
+      );
+
+      if (!body && isNewPinRequest) {
+        body = `Hey! Your Koop order is on the way — tap to help us find you: ${link}`;
       }
     }
 
