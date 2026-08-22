@@ -143,6 +143,14 @@ export default function LaneSideServerDashboardPage({ params }: { params: Promis
     }
   };
 
+  const handleRefreshLocation = (orderId: string) => {
+    if (!firestore) return;
+    const orderRef = doc(firestore, 'orders', orderId);
+    updateDoc(orderRef, { refreshRequestedAt: serverTimestamp(), updatedAt: serverTimestamp() })
+      .then(() => toast({ title: "SMS Dispatched", description: "Asking patron to refresh their location signal." }))
+      .catch(() => toast({ variant: "destructive", title: "Refresh Failed", description: "Unable to reach patron device." }));
+  };
+
   const activeOrdersQuery = useMemoFirebase(() => {
     if (!firestore || !sellerId) return null;
     return query(
@@ -412,7 +420,19 @@ export default function LaneSideServerDashboardPage({ params }: { params: Promis
               ) : lanesideOrders.length === 0 ? (
                 <div className="col-span-full py-40 text-center text-muted-foreground opacity-40"><Package className="h-16 w-16 mx-auto mb-4" /><p className="text-[10px] font-black uppercase tracking-[0.2em]">No active lane deliveries</p></div>
               ) : (
-                lanesideOrders.map((order, index) => (<OrderCard key={order.id} order={order} orderNumber={index + 1} now={now} onUpdateStatus={handleUpdateOrderStatus} onAttach={handleAttachOrder} thresholds={primarySeller?.orderThresholds?.[order.menuType]} />))
+                lanesideOrders.map((order, index) => (
+                  <OrderCard 
+                    key={order.id} 
+                    order={order} 
+                    orderNumber={index + 1} 
+                    now={now} 
+                    onUpdateStatus={handleUpdateOrderStatus} 
+                    onAttach={handleAttachOrder} 
+                    onRefreshLocation={handleRefreshLocation}
+                    thresholds={primarySeller?.orderThresholds?.[order.menuType]} 
+                    smsEnabled={solutionConfig?.smsNotificationsEnabled !== false}
+                  />
+                ))
               )}
             </div>
           </div>

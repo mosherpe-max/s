@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -84,8 +83,8 @@ export function OrderCard({
   // Condition for showing the location label
   const showLocationLabel = order.menuTypeLocation || order.menuType === 'Lane Delivery';
 
-  // SMS Availability for location refresh
-  const canSendRefreshRequest = smsEnabled && onRefreshLocation && (order.status === 'Preparing' || order.status === 'Out for Delivery');
+  // SMS Availability for location refresh - Allowed in Placed, Preparing, or Out for Delivery
+  const canSendRefreshRequest = !!(smsEnabled && onRefreshLocation && (order.status === 'Placed' || order.status === 'Preparing' || order.status === 'Out for Delivery'));
 
   return (
     <Card className={cn(
@@ -209,7 +208,7 @@ export function OrderCard({
           <Button
             variant="outline"
             size="sm"
-            onClick={() => onRefreshLocation(order.id)}
+            onClick={() => onRefreshLocation!(order.id)}
             className={cn(
               "h-7 px-2 text-[8px] font-black uppercase tracking-widest border-2 gap-1 rounded-sm transition-all",
               gpsStatus.isStale 
