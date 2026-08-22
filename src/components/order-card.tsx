@@ -72,11 +72,11 @@ export function OrderCard({
 
   // GPS Freshness UI Config
   const getGpsStatus = () => {
-    if (gpsMinutesElapsed === null) return { label: 'NO GPS', color: 'text-slate-300' };
-    if (gpsMinutesElapsed < 1) return { label: 'LIVE', color: 'text-green-500' };
-    if (gpsMinutesElapsed < 3) return { label: `${gpsMinutesElapsed}m ago`, color: 'text-green-500' };
-    if (gpsMinutesElapsed < 6) return { label: `${gpsMinutesElapsed}m ago`, color: 'text-amber-500' };
-    return { label: `${gpsMinutesElapsed}m ago`, color: 'text-red-500' };
+    if (gpsMinutesElapsed === null) return { label: 'NO GPS', color: 'text-slate-300', isStale: false };
+    if (gpsMinutesElapsed < 1) return { label: 'LIVE', color: 'text-green-500', isStale: false };
+    if (gpsMinutesElapsed < 3) return { label: `${gpsMinutesElapsed}m ago`, color: 'text-green-500', isStale: false };
+    if (gpsMinutesElapsed < 5) return { label: `${gpsMinutesElapsed}m ago`, color: 'text-amber-500', isStale: true };
+    return { label: `${gpsMinutesElapsed}m ago`, color: 'text-red-500', isStale: true };
   };
 
   const gpsStatus = getGpsStatus();
@@ -210,11 +210,16 @@ export function OrderCard({
             variant="outline"
             size="sm"
             onClick={() => onRefreshLocation(order.id)}
-            className="h-7 px-2 text-[8px] font-black uppercase tracking-widest border-primary/20 text-primary hover:bg-primary/5 gap-1"
-            title="Request Location Refresh via SMS"
+            className={cn(
+              "h-7 px-2 text-[8px] font-black uppercase tracking-widest border-2 gap-1 rounded-sm transition-all",
+              gpsStatus.isStale 
+                ? "bg-red-600 border-red-600 text-white animate-pulse hover:bg-red-700" 
+                : "border-primary/20 text-primary hover:bg-primary/5"
+            )}
+            title="Ping patron for fresh location"
           >
-            <MessageSquare className="h-2.5 w-2.5" />
-            Ping GPS
+            <MapPin className="h-2.5 w-2.5" />
+            Pin
           </Button>
         )}
         <Button 

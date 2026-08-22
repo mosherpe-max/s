@@ -271,8 +271,9 @@ export const onGuestOrderStatusUpdate = onDocumentWritten({
         body = `Order out for delivery! Track live: ${link}`;
       }
       
+      // STAFF GPS PING REQUEST
       if (data.refreshRequestedAt && (!beforeData.refreshRequestedAt || data.refreshRequestedAt.toMillis() !== beforeData.refreshRequestedAt.toMillis())) {
-        body = `We are on our way with your order! Please click this link to refresh your delivery location: ${link}`;
+        body = `Hey! Your Koop order is on the way — tap to help us find you: ${link}`;
       }
     }
 
