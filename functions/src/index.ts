@@ -17,9 +17,6 @@ const db = getFirestore();
 /**
  * performOperationalReset
  * High-performance system-wide sweep using bulk queries and parallel batching.
- * 1. Scrubs all active staff sessions.
- * 2. Cancels stale orders.
- * NOTE: Does NOT affect venue channel settings (bevcartActive, etc) to preserve admin config.
  */
 async function performOperationalReset() {
   logger.info("[performOperationalReset] STARTING ROBUST SYSTEM SWEEP");
@@ -28,7 +25,6 @@ async function performOperationalReset() {
   let totalOrdersCancelled = 0;
 
   try {
-    // 1. FETCH BASE TARGETS
     const [sellersSnapshot, ordersSnapshot] = await Promise.all([
       db.collection('sellers').get(),
       db.collection('orders').where('status', 'in', ['Placed', 'Preparing', 'Out for Delivery']).get()
@@ -44,7 +40,6 @@ async function performOperationalReset() {
       writeCount = 0;
     };
 
-    // 2. CANCEL ACTIVE ORDERS
     ordersSnapshot.forEach(oDoc => {
       currentBatch.update(oDoc.ref, { 
         status: 'Cancelled', 
@@ -56,7 +51,6 @@ async function performOperationalReset() {
       if (writeCount >= 450) commitAndReset();
     });
 
-    // 3. RESET STAFF SESSIONS (Venue-by-venue to avoid index dependency)
     for (const sellerDoc of sellersSnapshot.docs) {
       const staffSnapshot = await sellerDoc.ref.collection('staff').where('activeMode', '!=', null).get();
       staffSnapshot.forEach(sDoc => {
@@ -76,17 +70,10 @@ async function performOperationalReset() {
       batches.push(currentBatch.commit());
     }
 
-    // 4. EXECUTE ALL WRITES
     await Promise.all(batches);
-
     logger.info(`[performOperationalReset] Finalized. Staff: ${totalStaffReset}, Orders: ${totalOrdersCancelled}`);
     
-    return { 
-      status: 'success', 
-      totalStaffReset, 
-      totalOrdersCancelled 
-    };
-    
+    return { status: 'success', totalStaffReset, totalOrdersCancelled };
   } catch (err: any) {
     logger.error("[performOperationalReset] Critical Failure during sweep:", err);
     throw err;
@@ -95,14 +82,14 @@ async function performOperationalReset() {
 
 /**
  * createPaymentIntent
- * Securely generates a Stripe Client Secret and Customer Session for zero-friction checkout.
+ * Securely generates a Stripe Client Secret.
  */
 export const createPaymentIntent = onCall({
   secrets: ["STRIPE_SECRET_KEY"],
   region: 'us-central1',
 }, async (request) => {
   try {
-    const { amount, sellerId, patronName, patronPhone, patronEmail, saveInfo, stripeCustomerId: clientProvidedCustomerId } = request.data || {};
+    const { amount, sellerId, patronName, patronPhone, patronEmail, stripeCustomerId: clientProvidedCustomerId } = request.data || {};
     const buyerUid = request.auth?.uid;
 
     if (!amount || amount <= 0) throw new HttpsError('invalid-argument', 'Invalid amount.');
@@ -113,16 +100,13 @@ export const createPaymentIntent = onCall({
 
     const stripe = new Stripe(apiKey, { apiVersion: '2025-01-27.acacia' as any });
 
-    // 1. VENUE RESOLUTION
     const sellerDoc = await db.collection('sellers').doc(sellerId).get();
     const venueStripeAccountId = sellerDoc.data()?.stripeAccountId;
     if (!venueStripeAccountId) {
       throw new HttpsError('failed-precondition', 'Venue is not configured for digital payments.');
     }
 
-    let stripeCustomerId: string | undefined = clientProvidedCustomerId;
-
-    // 2. IDENTITY SYNC
+    let stripeCustomerId = clientProvidedCustomerId;
     if (!stripeCustomerId && buyerUid) {
       const userDoc = await db.collection('users').doc(buyerUid).get();
       if (userDoc.exists && userDoc.data()?.stripeCustomerId) {
@@ -130,51 +114,26 @@ export const createPaymentIntent = onCall({
       }
     }
 
-    // 3. CUSTOMER CREATION
     if (!stripeCustomerId) {
       const customer = await stripe.customers.create({ 
         email: patronEmail || undefined, 
         name: patronName || 'Guest Patron', 
-        description: 'Koop Guest Patron',
         metadata: { buyerUid: buyerUid || 'anonymous' } 
       });
       stripeCustomerId = customer.id;
     }
 
-    // 4. PERSISTENCE
-    if (buyerUid && stripeCustomerId) {
-      await db.collection('users').doc(buyerUid).set({ 
-        stripeCustomerId, 
-        email: patronEmail || '',
-        displayName: patronName || '',
-        updatedAt: FieldValue.serverTimestamp()
-      }, { merge: true });
-    }
-
-    // 5. CUSTOMER SESSION
     const customerSession = await stripe.customerSessions.create({
       customer: stripeCustomerId,
-      components: { 
-        payment_element: { 
-          enabled: true, 
-          features: { 
-            payment_method_save: 'enabled', 
-            payment_method_redisplay: 'enabled' 
-          } 
-        } 
-      }
+      components: { payment_element: { enabled: true, features: { payment_method_save: 'enabled', payment_method_redisplay: 'enabled' } } }
     });
 
-    // 6. INTENT
     const paymentIntent = await stripe.paymentIntents.create({
       amount: Math.round(amount * 100),
       currency: 'usd',
       customer: stripeCustomerId,
-      setup_future_usage: saveInfo ? 'off_session' : undefined,
       automatic_payment_methods: { enabled: true },
-      transfer_data: {
-        destination: venueStripeAccountId,
-      },
+      transfer_data: { destination: venueStripeAccountId },
       metadata: { 
         sellerId, 
         buyerUid: buyerUid || 'anonymous', 
@@ -197,7 +156,6 @@ export const createPaymentIntent = onCall({
 
 /**
  * dailyOperationalReset
- * Scheduled sweep to clear all staff sessions and active orders system-wide.
  */
 export const dailyOperationalReset = onSchedule({ 
   schedule: "0 * * * *", 
@@ -206,37 +164,22 @@ export const dailyOperationalReset = onSchedule({
 }, async () => {
   const configSnap = await db.collection('solution').doc('config').get();
   const resetHour = configSnap.exists ? (configSnap.data()?.dailyResetHour ?? 4) : 4;
-  
   const nowInEst = new Date(new Date().toLocaleString("en-US", { timeZone: "America/New_York" }));
-  if (nowInEst.getHours() !== resetHour) {
-    logger.info(`[dailyOperationalReset] Current hour ${nowInEst.getHours()} is not reset hour ${resetHour}. Skipping.`);
-    return;
-  }
-
+  if (nowInEst.getHours() !== resetHour) return;
   await performOperationalReset();
 });
 
 /**
  * manualOperationalReset
- * Callable trigger for the reset logic, enabling testing and manual overrides by admins.
  */
-export const manualOperationalReset = onCall({ 
-  region: 'us-central1' 
-}, async (request) => {
-  if (!request.auth) {
-    throw new HttpsError('unauthenticated', 'Unauthorized access.');
-  }
-  
-  try {
-    return await performOperationalReset();
-  } catch (e: any) {
-    throw new HttpsError('internal', e.message);
-  }
+export const manualOperationalReset = onCall({ region: 'us-central1' }, async (request) => {
+  if (!request.auth) throw new HttpsError('unauthenticated', 'Unauthorized access.');
+  return await performOperationalReset();
 });
 
 /**
  * onGuestOrderStatusUpdate
- * Triggers on order changes to send SMS updates.
+ * Dispatches SMS updates via Twilio for both status changes and manual location pings.
  */
 export const onGuestOrderStatusUpdate = onDocumentWritten({ 
   document: "orders/{orderId}", 
@@ -261,7 +204,6 @@ export const onGuestOrderStatusUpdate = onDocumentWritten({
     const client = twilio(accountSid, authToken);
     let body = "";
     const link = `https://koop.app/orders/${event.params.orderId}`;
-
     const beforeData = event.data?.before?.exists ? event.data.before.data() : null;
 
     if (!beforeData) {
@@ -277,33 +219,32 @@ export const onGuestOrderStatusUpdate = onDocumentWritten({
       const currentPing = data.refreshRequestedAt;
       const previousPing = beforeData.refreshRequestedAt;
       
-      // Check for timestamp updates on the refreshRequestedAt field
-      const isPingTriggered = currentPing && (!previousPing || currentPing.toMillis() !== previousPing.toMillis());
+      // Check if refreshRequestedAt timestamp has changed or was newly added
+      const isPingTriggered = currentPing && (!previousPing || 
+        (typeof currentPing.toMillis === 'function' && typeof previousPing.toMillis === 'function' && currentPing.toMillis() !== previousPing.toMillis()) ||
+        (currentPing !== previousPing));
       
       if (isPingTriggered) {
-        body = `Hey! Your Koop order is on the way — tap to help us find you: ${link}`;
+        body = `Hey! Your Koop order is on the way - tap to help us find you: ${link}`;
       }
     }
 
     if (body) {
-      // Robust Phone Sanitization
       const cleanPhone = String(data.customerPhone).replace(/\D/g, '');
       if (cleanPhone.length >= 10) {
         const to = cleanPhone.length === 10 ? `+1${cleanPhone}` : `+${cleanPhone}`;
         await client.messages.create({ body, from: fromNumber, to });
         logger.info(`[onGuestOrderStatusUpdate] SMS sent to ${to}: ${body}`);
-      } else {
-        logger.warn(`[onGuestOrderStatusUpdate] Invalid phone number skipped: ${data.customerPhone}`);
       }
     }
   } catch (err) {
-    logger.error("Twilio Task Failed", err);
+    logger.error("Twilio Trigger Failed", err);
   }
 });
 
 /**
  * handleStripeWebhook
- * Consumes Stripe events to create orders in Firestore.
+ * Updates existing order payment status instead of creating duplicate records.
  */
 export const handleStripeWebhook = onRequest({ 
   secrets: ["STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET"], 
@@ -323,73 +264,39 @@ export const handleStripeWebhook = onRequest({
     const event = stripe.webhooks.constructEvent(req.rawBody, sig, webhookSecret);
     if (event.type === 'payment_intent.succeeded') {
       const pi = event.data.object as Stripe.PaymentIntent;
-      const meta = pi.metadata || {};
-      await db.collection('orders').add({
-        customerName: meta.customerName || 'Guest', 
-        customerPhone: meta.customerPhone || '', 
-        customerEmail: meta.customerEmail || '',
-        status: "Placed", 
-        sellerId: meta.sellerId || '', 
-        buyerProfileId: meta.buyerUid || 'anonymous',
-        stripePaymentIntentId: pi.id, 
-        total: (pi.amount || 0) / 100, 
-        createdAt: FieldValue.serverTimestamp(), 
-        updatedAt: FieldValue.serverTimestamp()
-      });
+      
+      // RESOLUTION LOGIC: Find the existing order created by the client
+      const existingQuery = await db.collection('orders').where('stripePaymentIntentId', '==', pi.id).limit(1).get();
+      
+      if (!existingQuery.empty) {
+        // Update existing
+        await existingQuery.docs[0].ref.update({
+          paymentStatus: 'Succeeded',
+          updatedAt: FieldValue.serverTimestamp()
+        });
+        logger.info(`[handleStripeWebhook] Updated existing order ${existingQuery.docs[0].id}`);
+      } else {
+        // Fallback: Create minimal record if client-side write failed
+        const meta = pi.metadata || {};
+        await db.collection('orders').add({
+          customerName: meta.customerName || 'Guest', 
+          customerPhone: meta.customerPhone || '', 
+          customerEmail: meta.customerEmail || '',
+          status: "Placed", 
+          sellerId: meta.sellerId || '', 
+          buyerProfileId: meta.buyerUid || 'anonymous',
+          stripePaymentIntentId: pi.id, 
+          total: (pi.amount || 0) / 100, 
+          paymentStatus: 'Succeeded',
+          createdAt: FieldValue.serverTimestamp(), 
+          updatedAt: FieldValue.serverTimestamp()
+        });
+        logger.info(`[handleStripeWebhook] Created fallback order record for PI ${pi.id}`);
+      }
     }
     res.status(200).send({ received: true });
   } catch (err: any) { 
     logger.error("Stripe Webhook Error", err);
     res.status(400).send(`Webhook Error: ${err.message}`); 
   }
-});
-
-/**
- * applyStarterMenu / applyStarterItems
- */
-export const applyStarterMenu = onCall({ region: 'us-central1' }, async (request) => {
-  const { venueId, venueType } = request.data || {};
-  if (!venueId || !venueType) throw new HttpsError('invalid-argument', 'venueId and venueType required.');
-  try {
-    const snapshot = await db.collection('starter_modifier_library').where('venueType', 'array-contains', venueType.toLowerCase()).get();
-    if (snapshot.empty) return { totalCreated: 0, status: 'no_templates_found' };
-    const batch = db.batch();
-    snapshot.docs.forEach(docSnap => {
-      const template = docSnap.data();
-      const groupId = `${venueId}-${docSnap.id}`;
-      batch.set(db.collection('modifier_groups').doc(groupId), {
-        id: groupId, sellerId: venueId, name: template.name,
-        minSelection: template.required ? 1 : 0,
-        maxSelection: template.selectionType === 'single' ? 1 : 99,
-        options: template.options.map((opt: any) => ({
-          id: String(opt.label).toLowerCase().replace(/\s+/g, '-'),
-          name: opt.label, priceAdjustment: opt.priceModifier, isAvailable: true
-        })),
-        updatedAt: FieldValue.serverTimestamp()
-      }, { merge: true });
-    });
-    await batch.commit();
-    return { totalCreated: snapshot.size, status: 'success' };
-  } catch (e: any) { throw new HttpsError('internal', e.message); }
-});
-
-export const applyStarterItems = onCall({ region: 'us-central1' }, async (request) => {
-  const { venueId, venueType } = request.data || {};
-  if (!venueId || !venueType) throw new HttpsError('invalid-argument', 'venueId and venueType required.');
-  try {
-    const itemSnap = await db.collection('starter_menu_item_library').where('venueType', 'array-contains', venueType.toLowerCase()).get();
-    if (itemSnap.empty) return { totalCreated: 0, status: 'no_templates_found' };
-    const batch = db.batch();
-    const venueItemsRef = db.collection('sellers').doc(venueId).collection('menuItems');
-    itemSnap.docs.forEach((docSnap, index) => {
-      const template = docSnap.data();
-      const itemId = `${venueId}-${docSnap.id}`;
-      batch.set(venueItemsRef.doc(itemId), {
-        ...template, id: itemId, availableOn: [template.serviceMode === 'beverageCart' ? 'Beverage Cart' : template.serviceMode === 'clubhouse' ? 'Clubhouse' : 'Lane Delivery'],
-        rank: index + 1, createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp()
-      }, { merge: true });
-    });
-    await batch.commit();
-    return { totalCreated: itemSnap.size, status: 'success' };
-  } catch (e: any) { throw new HttpsError('internal', e.message); }
 });

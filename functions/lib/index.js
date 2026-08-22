@@ -1,6 +1,7 @@
 
 import { onRequest, onCall, HttpsError } from "firebase-functions/v2/https";
 import { onDocumentWritten } from "firebase-functions/v2/firestore";
+import { onSchedule } from "firebase-functions/v2/scheduler";
 import * as logger from "firebase-functions/logger";
 import { initializeApp } from "firebase-admin/app";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
@@ -14,6 +15,65 @@ initializeApp();
 const db = getFirestore();
 
 /**
+ * performOperationalReset
+ */
+async function performOperationalReset() {
+    logger.info("[performOperationalReset] STARTING ROBUST SYSTEM SWEEP");
+    let totalStaffReset = 0;
+    let totalOrdersCancelled = 0;
+    try {
+        const [sellersSnapshot, ordersSnapshot] = await Promise.all([
+            db.collection('sellers').get(),
+            db.collection('orders').where('status', 'in', ['Placed', 'Preparing', 'Out for Delivery']).get()
+        ]);
+        const batches = [];
+        let currentBatch = db.batch();
+        let writeCount = 0;
+        const commitAndReset = () => {
+            batches.push(currentBatch.commit());
+            currentBatch = db.batch();
+            writeCount = 0;
+        };
+        ordersSnapshot.forEach(oDoc => {
+            currentBatch.update(oDoc.ref, {
+                status: 'Cancelled',
+                notes: 'Operational Reset: Terminal system sweep.',
+                updatedAt: FieldValue.serverTimestamp()
+            });
+            totalOrdersCancelled++;
+            writeCount++;
+            if (writeCount >= 450)
+                commitAndReset();
+        });
+        for (const sellerDoc of sellersSnapshot.docs) {
+            const staffSnapshot = await sellerDoc.ref.collection('staff').where('activeMode', '!=', null).get();
+            staffSnapshot.forEach(sDoc => {
+                currentBatch.update(sDoc.ref, {
+                    activeMode: null,
+                    latitude: null,
+                    longitude: null,
+                    lastActive: FieldValue.serverTimestamp()
+                });
+                totalStaffReset++;
+                writeCount++;
+                if (writeCount >= 450)
+                    commitAndReset();
+            });
+        }
+        if (writeCount > 0) {
+            batches.push(currentBatch.commit());
+        }
+        await Promise.all(batches);
+        logger.info(`[performOperationalReset] Finalized. Staff: ${totalStaffReset}, Orders: ${totalOrdersCancelled}`);
+        return { status: 'success', totalStaffReset, totalOrdersCancelled };
+    }
+    catch (err) {
+        logger.error("[performOperationalReset] Critical Failure during sweep:", err);
+        throw err;
+    }
+}
+
+/**
  * createPaymentIntent
  */
 export const createPaymentIntent = onCall({
@@ -21,16 +81,21 @@ export const createPaymentIntent = onCall({
     region: 'us-central1',
 }, async (request) => {
     try {
-        const { amount, sellerId, patronName, patronPhone, patronEmail, saveInfo, stripeCustomerId: clientProvidedCustomerId } = request.data || {};
+        const { amount, sellerId, patronName, patronPhone, patronEmail, stripeCustomerId: clientProvidedCustomerId } = request.data || {};
         const buyerUid = request.auth?.uid;
-        if (!amount || amount <= 0) throw new HttpsError('invalid-argument', 'Invalid amount.');
-        if (!sellerId) throw new HttpsError('invalid-argument', 'Missing sellerId.');
+        if (!amount || amount <= 0)
+            throw new HttpsError('invalid-argument', 'Invalid amount.');
+        if (!sellerId)
+            throw new HttpsError('invalid-argument', 'Missing sellerId.');
         const apiKey = process.env.STRIPE_SECRET_KEY;
-        if (!apiKey) throw new HttpsError('failed-precondition', 'Gateway not configured.');
+        if (!apiKey)
+            throw new HttpsError('failed-precondition', 'Gateway not configured.');
         const stripe = new Stripe(apiKey, { apiVersion: '2025-01-27.acacia' });
         const sellerDoc = await db.collection('sellers').doc(sellerId).get();
         const venueStripeAccountId = sellerDoc.data()?.stripeAccountId;
-        if (!venueStripeAccountId) throw new HttpsError('failed-precondition', 'Venue is not configured for digital payments.');
+        if (!venueStripeAccountId) {
+            throw new HttpsError('failed-precondition', 'Venue is not configured for digital payments.');
+        }
         let stripeCustomerId = clientProvidedCustomerId;
         if (!stripeCustomerId && buyerUid) {
             const userDoc = await db.collection('users').doc(buyerUid).get();
@@ -42,36 +107,18 @@ export const createPaymentIntent = onCall({
             const customer = await stripe.customers.create({
                 email: patronEmail || undefined,
                 name: patronName || 'Guest Patron',
-                description: 'Koop Guest Patron',
                 metadata: { buyerUid: buyerUid || 'anonymous' }
             });
             stripeCustomerId = customer.id;
         }
-        if (buyerUid && stripeCustomerId) {
-            await db.collection('users').doc(buyerUid).set({
-                stripeCustomerId,
-                email: patronEmail || '',
-                displayName: patronName || '',
-                updatedAt: FieldValue.serverTimestamp()
-            }, { merge: true });
-        }
         const customerSession = await stripe.customerSessions.create({
             customer: stripeCustomerId,
-            components: {
-                payment_element: {
-                    enabled: true,
-                    features: {
-                        payment_method_save: 'enabled',
-                        payment_method_redisplay: 'enabled'
-                    }
-                }
-            }
+            components: { payment_element: { enabled: true, features: { payment_method_save: 'enabled', payment_method_redisplay: 'enabled' } } }
         });
         const paymentIntent = await stripe.paymentIntents.create({
             amount: Math.round(amount * 100),
             currency: 'usd',
             customer: stripeCustomerId,
-            setup_future_usage: saveInfo ? 'off_session' : undefined,
             automatic_payment_methods: { enabled: true },
             transfer_data: { destination: venueStripeAccountId },
             metadata: {
@@ -103,48 +150,55 @@ export const onGuestOrderStatusUpdate = onDocumentWritten({
     region: 'us-central1',
 }, async (event) => {
     const after = event.data?.after;
-    if (!after || !after.exists) return;
+    if (!after || !after.exists)
+        return;
     try {
         const configSnap = await db.collection('solution').doc('config').get();
-        if (configSnap.exists && configSnap.data()?.smsNotificationsEnabled === false) return;
+        if (configSnap.exists && configSnap.data()?.smsNotificationsEnabled === false)
+            return;
         const data = after.data();
-        if (!data?.customerPhone) return;
+        if (!data?.customerPhone)
+            return;
         const accountSid = process.env.TWILIO_ACCOUNT_SID;
         const authToken = process.env.TWILIO_AUTH_TOKEN;
         const fromNumber = process.env.TWILIO_FROM_NUMBER;
-        if (!accountSid || !authToken || !fromNumber) return;
+        if (!accountSid || !authToken || !fromNumber)
+            return;
         const client = twilio(accountSid, authToken);
         let body = "";
         const link = `https://koop.app/orders/${event.params.orderId}`;
         const beforeData = event.data?.before?.exists ? event.data.before.data() : null;
         if (!beforeData) {
-            if (data.status === 'Placed') body = `Order received! Track live: ${link}`;
+            if (data.status === 'Placed')
+                body = `Order received! Track live: ${link}`;
         }
         else {
-            // 1. Status Change Alerts
             if (data.status !== beforeData.status) {
-                if (data.status === 'Preparing') body = `Order confirmed! We're getting it ready: ${link}`;
-                if (data.status === 'Out for Delivery') body = `Order out for delivery! Track live: ${link}`;
+                if (data.status === 'Preparing')
+                    body = `Order confirmed! We're getting it ready: ${link}`;
+                if (data.status === 'Out for Delivery')
+                    body = `Order out for delivery! Track live: ${link}`;
             }
-            // 2. STAFF GPS PING REQUEST
             const currentPing = data.refreshRequestedAt;
             const previousPing = beforeData.refreshRequestedAt;
-            const isPingTriggered = currentPing && (!previousPing || currentPing.toMillis() !== previousPing.toMillis());
+            const isPingTriggered = currentPing && (!previousPing || 
+                (typeof currentPing.toMillis === 'function' && typeof previousPing.toMillis === 'function' && currentPing.toMillis() !== previousPing.toMillis()) ||
+                (currentPing !== previousPing));
             if (isPingTriggered) {
-                body = `Hey! Your Koop order is on the way — tap to help us find you: ${link}`;
+                body = `Hey! Your Koop order is on the way - tap to help us find you: ${link}`;
             }
         }
         if (body) {
             const cleanPhone = String(data.customerPhone).replace(/\D/g, '');
             if (cleanPhone.length >= 10) {
-              const to = cleanPhone.length === 10 ? `+1${cleanPhone}` : `+${cleanPhone}`;
-              await client.messages.create({ body, from: fromNumber, to });
-              logger.info(`[onGuestOrderStatusUpdate] SMS sent to ${to}: ${body}`);
+                const to = cleanPhone.length === 10 ? `+1${cleanPhone}` : `+${cleanPhone}`;
+                await client.messages.create({ body, from: fromNumber, to });
+                logger.info(`[onGuestOrderStatusUpdate] SMS sent to ${to}: ${body}`);
             }
         }
     }
     catch (err) {
-        logger.error("Twilio Task Failed", err);
+        logger.error("Twilio Trigger Failed", err);
     }
 });
 
@@ -167,19 +221,28 @@ export const handleStripeWebhook = onRequest({
         const event = stripe.webhooks.constructEvent(req.rawBody, sig, webhookSecret);
         if (event.type === 'payment_intent.succeeded') {
             const pi = event.data.object;
-            const meta = pi.metadata || {};
-            await db.collection('orders').add({
-                customerName: meta.customerName || 'Guest',
-                customerPhone: meta.customerPhone || '',
-                customerEmail: meta.customerEmail || '',
-                status: "Placed",
-                sellerId: meta.sellerId || '',
-                buyerProfileId: meta.buyerUid || 'anonymous',
-                stripePaymentIntentId: pi.id,
-                total: (pi.amount || 0) / 100,
-                createdAt: FieldValue.serverTimestamp(),
-                updatedAt: FieldValue.serverTimestamp()
-            });
+            const existingQuery = await db.collection('orders').where('stripePaymentIntentId', '==', pi.id).limit(1).get();
+            if (!existingQuery.empty) {
+                await existingQuery.docs[0].ref.update({
+                    paymentStatus: 'Succeeded',
+                    updatedAt: FieldValue.serverTimestamp()
+                });
+            } else {
+                const meta = pi.metadata || {};
+                await db.collection('orders').add({
+                    customerName: meta.customerName || 'Guest',
+                    customerPhone: meta.customerPhone || '',
+                    customerEmail: meta.customerEmail || '',
+                    status: "Placed",
+                    sellerId: meta.sellerId || '',
+                    buyerProfileId: meta.buyerUid || 'anonymous',
+                    stripePaymentIntentId: pi.id,
+                    total: (pi.amount || 0) / 100,
+                    paymentStatus: 'Succeeded',
+                    createdAt: FieldValue.serverTimestamp(),
+                    updatedAt: FieldValue.serverTimestamp()
+                });
+            }
         }
         res.status(200).send({ received: true });
     }
