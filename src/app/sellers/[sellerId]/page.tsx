@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useMemo, useEffect, use } from 'react';
@@ -29,14 +28,12 @@ import {
   LogOut,
   Clock,
   DollarSign,
-  ShoppingBag,
   Save,
   PanelLeft,
   ChevronRightSquare,
   Search,
   Trash2,
   Activity,
-  User,
   Star,
   Smartphone,
   X,
@@ -45,17 +42,13 @@ import {
   GripVertical,
   ClipboardCheck,
   Menu,
-  Tags,
   Image as LucideImage,
   AlertTriangle,
   MapPin,
   Mail,
-  Smartphone as PhoneIcon,
   Timer,
   Lock,
   Info,
-  CheckCircle2,
-  History,
   Truck
 } from 'lucide-react';
 import Image from 'next/image';
@@ -700,7 +693,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                       <TableBody>
                         {(orders || [])
                           .filter(o => o.customerName.toLowerCase().includes(orderSearchTerm.toLowerCase()) || getNumericOrderId(o.id).includes(orderSearchTerm))
-                          .sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0))
+                          .sort((a, b) => (b.updatedAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0))
                           .map(o => (
                             <TableRow key={o.id} className="group hover:bg-slate-50/50 transition-colors">
                               <TableCell className="px-8 font-mono font-black text-primary text-xs">#{getNumericOrderId(o.id)}</TableCell>
