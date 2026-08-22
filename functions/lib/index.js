@@ -204,19 +204,13 @@ export const onGuestOrderStatusUpdate = onDocumentWritten({
                     body = `Order delivered! Enjoy your time at the venue: ${link}`;
             }
 
-            const getSeconds = (ts) => {
-                if (!ts) return 0;
-                if (typeof ts.seconds === 'number') return ts.seconds;
-                if (typeof ts._seconds === 'number') return ts._seconds;
-                if (typeof ts.toMillis === 'function') return Math.floor(ts.toMillis() / 1000);
-                return 0;
-            };
-
-            const currentPingSec = getSeconds(data.refreshRequestedAt);
-            const previousPingSec = getSeconds(beforeData.refreshRequestedAt);
-            
-            if (!body && currentPingSec > 0 && currentPingSec !== previousPingSec) {
-                body = `Hey! Your Koop order is on the way - tap to help us find you: ${link}`;
+            if (!body) {
+                const oldPing = beforeData.refreshRequestedAt;
+                const newPing = data.refreshRequestedAt;
+                const pingChanged = newPing && (!oldPing || (newPing._seconds !== oldPing._seconds) || (newPing.seconds !== oldPing.seconds));
+                if (pingChanged) {
+                    body = `Hey! Your Koop order is on the way - tap to help us find you: ${link}`;
+                }
             }
         }
         if (body) {

@@ -179,9 +179,7 @@ export const manualOperationalReset = onCall({ region: 'us-central1' }, async (r
 
 /**
  * onGuestOrderStatusUpdate
- * Dispatches SMS updates via Twilio for:
- * 1. Status changes (Preparing, Out for Delivery, Delivered)
- * 2. Manual "Pin" requests (Manual Location Refresh)
+ * Dispatches SMS updates via Twilio for key fulfillment stages.
  */
 export const onGuestOrderStatusUpdate = onDocumentWritten({ 
   document: "orders/{orderId}", 
@@ -221,21 +219,19 @@ export const onGuestOrderStatusUpdate = onDocumentWritten({
       }
       
       // 2. MANUAL "PIN" REQUEST (Manual Location Refresh)
-      // Robust detection of Timestamp change across different SDK representations
-      const getSeconds = (ts: any) => {
-        if (!ts) return 0;
-        if (typeof ts.seconds === 'number') return ts.seconds;
-        if (typeof ts._seconds === 'number') return ts._seconds;
-        if (typeof ts.toMillis === 'function') return Math.floor(ts.toMillis() / 1000);
-        return 0;
-      };
+      // Logic refactored to match the working status comparison pattern
+      if (!body) {
+          const oldPing = beforeData.refreshRequestedAt;
+          const newPing = data.refreshRequestedAt;
+          
+          // Check if the pin timestamp has been updated or newly set
+          const pingChanged = newPing && (!oldPing || 
+            (newPing._seconds !== oldPing._seconds) || 
+            (newPing.seconds !== oldPing.seconds));
 
-      const currentPingSec = getSeconds(data.refreshRequestedAt);
-      const previousPingSec = getSeconds(beforeData.refreshRequestedAt);
-      
-      // If we haven't already set a body from a status change, check for a manual pin
-      if (!body && currentPingSec > 0 && currentPingSec !== previousPingSec) {
-        body = `Hey! Your Koop order is on the way - tap to help us find you: ${link}`;
+          if (pingChanged) {
+            body = `Hey! Your Koop order is on the way - tap to help us find you: ${link}`;
+          }
       }
     }
 
