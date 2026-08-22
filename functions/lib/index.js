@@ -204,11 +204,10 @@ export const onGuestOrderStatusUpdate = onDocumentWritten({
                     body = `Order delivered! Enjoy your time at the venue: ${link}`;
             }
 
-            if (!body) {
-                const oldPing = beforeData.refreshRequestedAt;
-                const newPing = data.refreshRequestedAt;
-                const pingChanged = newPing && (!oldPing || (newPing._seconds !== oldPing._seconds) || (newPing.seconds !== oldPing.seconds));
-                if (pingChanged) {
+            if (!body && data.refreshRequestedAt) {
+                const oldTime = beforeData.refreshRequestedAt ? (beforeData.refreshRequestedAt.seconds || 0) : 0;
+                const newTime = data.refreshRequestedAt.seconds || 0;
+                if (newTime > oldTime) {
                     body = `Hey! Your Koop order is on the way - tap to help us find you: ${link}`;
                 }
             }

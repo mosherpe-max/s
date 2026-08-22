@@ -82,7 +82,6 @@ async function performOperationalReset() {
 
 /**
  * createPaymentIntent
- * Securely generates a Stripe Client Secret.
  */
 export const createPaymentIntent = onCall({
   secrets: ["STRIPE_SECRET_KEY"],
@@ -207,7 +206,7 @@ export const onGuestOrderStatusUpdate = onDocumentWritten({
     const beforeData = event.data?.before?.exists ? event.data.before.data() : null;
 
     if (beforeData) {
-      // 1. STATUS CHANGE ALERTS (Only Preparing, Out for Delivery, Delivered)
+      // 1. STATUS CHANGE ALERTS
       if (data.status !== beforeData.status) {
         if (data.status === 'Preparing') {
           body = `Order confirmed! We're getting it ready: ${link}`;
@@ -218,28 +217,20 @@ export const onGuestOrderStatusUpdate = onDocumentWritten({
         }
       }
       
-      // 2. MANUAL "PIN" REQUEST (Manual Location Refresh)
-      // Logic refactored to match the working status comparison pattern
-      if (!body) {
-          const oldPing = beforeData.refreshRequestedAt;
-          const newPing = data.refreshRequestedAt;
+      // 2. MANUAL "PIN" REQUEST
+      if (!body && data.refreshRequestedAt) {
+          const oldTime = beforeData.refreshRequestedAt ? (beforeData.refreshRequestedAt.seconds || 0) : 0;
+          const newTime = data.refreshRequestedAt.seconds || 0;
           
-          // Check if the pin timestamp has been updated or newly set
-          const pingChanged = newPing && (!oldPing || 
-            (newPing._seconds !== oldPing._seconds) || 
-            (newPing.seconds !== oldPing.seconds));
-
-          if (pingChanged) {
+          if (newTime > oldTime) {
             body = `Hey! Your Koop order is on the way - tap to help us find you: ${link}`;
           }
       }
     }
 
     if (body) {
-      // TWILIO PHONE CLEANING
       const cleanPhone = String(data.customerPhone).replace(/\D/g, '');
       if (cleanPhone.length >= 10) {
-        // Correct formatting: +1 for 10-digit US/Canada, + for others
         const to = cleanPhone.length === 10 ? `+1${cleanPhone}` : `+${cleanPhone}`;
         await client.messages.create({ body, from: fromNumber, to });
         logger.info(`[onGuestOrderStatusUpdate] SMS sent to ${to}: ${body}`);
@@ -252,7 +243,6 @@ export const onGuestOrderStatusUpdate = onDocumentWritten({
 
 /**
  * handleStripeWebhook
- * Updates existing order payment status instead of creating duplicate records.
  */
 export const handleStripeWebhook = onRequest({ 
   secrets: ["STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET"], 
@@ -272,19 +262,14 @@ export const handleStripeWebhook = onRequest({
     const event = stripe.webhooks.constructEvent(req.rawBody, sig, webhookSecret);
     if (event.type === 'payment_intent.succeeded') {
       const pi = event.data.object as Stripe.PaymentIntent;
-      
-      // RESOLUTION LOGIC: Find the existing order created by the client
       const existingQuery = await db.collection('orders').where('stripePaymentIntentId', '==', pi.id).limit(1).get();
       
       if (!existingQuery.empty) {
-        // Update existing
         await existingQuery.docs[0].ref.update({
           paymentStatus: 'Succeeded',
           updatedAt: FieldValue.serverTimestamp()
         });
-        logger.info(`[handleStripeWebhook] Updated existing order ${existingQuery.docs[0].id}`);
       } else {
-        // Fallback: Create minimal record if client-side write failed
         const meta = pi.metadata || {};
         await db.collection('orders').add({
           customerName: meta.customerName || 'Guest', 
@@ -299,7 +284,6 @@ export const handleStripeWebhook = onRequest({
           createdAt: FieldValue.serverTimestamp(), 
           updatedAt: FieldValue.serverTimestamp()
         });
-        logger.info(`[handleStripeWebhook] Created fallback order record for PI ${pi.id}`);
       }
     }
     res.status(200).send({ received: true });
