@@ -247,7 +247,6 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
   const [editingStaff, setEditingStaff] = useState<StaffMember | null>(null);
   const [isProcessingSave, setIsProcessingSave] = useState(false);
 
-  // RULES OF HOOKS
   const sellerRef = useMemoFirebase(() => (firestore ? doc(firestore, 'sellers', sellerId) : null), [firestore, sellerId]);
   const { data: seller, isLoading: isSellerLoading } = useDoc<Seller>(sellerRef);
 
@@ -264,7 +263,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
   const { data: menuItems } = useCollection<MenuItem>(menuItemsQuery);
 
   const analyticsData = useMemo(() => {
-    if (!orders || !seller) return { dailyRevenue: [], topItems: [], fulfillmentEfficiency: [], revenueByMode: [], modes: [], realTimeOperations: {} };
+    if (!orders || !seller) return { dailyRevenue: [], fulfillmentEfficiency: [], revenueByMode: [], modes: [], realTimeOperations: {} };
     
     const modes = (seller.menuTypes || []).filter(m => AUTHORIZED_SERVICE_MODES.includes(m));
     const now = new Date();
@@ -280,10 +279,6 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
       return dayData;
     });
 
-    const itemMap = new Map<string, number>();
-    orders.forEach(o => { if (o.status === 'Delivered') o.items.forEach(i => itemMap.set(i.name, (itemMap.get(i.name) || 0) + i.quantity)); });
-    const topItems = Array.from(itemMap.entries()).map(([name, volume]) => ({ name, volume })).sort((a, b) => b.volume - a.volume).slice(0, 10);
-
     const fulfillmentEfficiency = modes.map(mode => {
       const modeOrders = orders.filter(o => o.menuType === mode && o.status === 'Delivered' && o.deliveredAt && o.acknowledgedAt);
       const avgAck = modeOrders.length > 0 ? modeOrders.reduce((sum, o) => sum + differenceInSeconds(o.acknowledgedAt!.toDate(), o.createdAt.toDate()), 0) / modeOrders.length : 0;
@@ -291,7 +286,6 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
       return { mode, ackSeconds: Math.round(avgAck), deliverMinutes: Math.round(avgDeliver) };
     });
 
-    // MODE SPECIFIC REAL-TIME ANALYTICS (TODAY)
     const realTimeOperations: Record<string, any> = {};
     modes.forEach(mode => {
       const modeOrdersToday = orders.filter(o => o.menuType === mode && o.createdAt && isToday(o.createdAt.toDate()));
@@ -299,12 +293,10 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
       
       const thresholds = seller.orderThresholds?.[mode] || { maxOrderAcknowledgeSeconds: 120, warningOrderProcessingMinutes: 15, maxOrderProcessingMinutes: 25 };
       
-      // Acknowledge Metrics
       const acknowledged = modeOrdersToday.filter(o => o.acknowledgedAt);
       const avgAck = acknowledged.length > 0 ? acknowledged.reduce((sum, o) => sum + differenceInSeconds(o.acknowledgedAt!.toDate(), o.createdAt.toDate()), 0) / acknowledged.length : 0;
       const exceedMaxAckCount = acknowledged.filter(o => differenceInSeconds(o.acknowledgedAt!.toDate(), o.createdAt.toDate()) > thresholds.maxOrderAcknowledgeSeconds).length;
 
-      // Duration Metrics
       const fulfilled = deliveredToday.filter(o => o.deliveredAt);
       const avgDuration = fulfilled.length > 0 ? fulfilled.reduce((sum, o) => sum + differenceInMinutes(o.deliveredAt!.toDate(), o.createdAt.toDate()), 0) / fulfilled.length : 0;
       const exceedWarnCount = fulfilled.filter(o => differenceInMinutes(o.deliveredAt!.toDate(), o.createdAt.toDate()) > thresholds.warningOrderProcessingMinutes).length;
@@ -322,7 +314,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
       };
     });
 
-    return { dailyRevenue, topItems, fulfillmentEfficiency, modes, realTimeOperations };
+    return { dailyRevenue, fulfillmentEfficiency, modes, realTimeOperations };
   }, [orders, seller, staffList]);
 
   const patrons = useMemo(() => {
@@ -599,22 +591,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                      </div>
                   </div>
                   
-                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    <Card className="lg:col-span-2 border-2 shadow-sm">
-                      <CardHeader className="bg-slate-50 border-b py-4"><CardTitle className="text-xs font-black uppercase tracking-widest text-[#213147]">Top Selling Items</CardTitle></CardHeader>
-                      <CardContent className="pt-6 h-[300px]">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={analyticsData.topItems} layout="vertical">
-                            <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                            <XAxis type="number" hide />
-                            <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{ fontSize: 9, fontWeight: 900 }} width={120} />
-                            <Tooltip />
-                            <Bar dataKey="volume" fill="#213147" radius={[0, 4, 4, 0]} />
-                          </BarChart>
-                        </ResponsiveContainer>
-                      </CardContent>
-                    </Card>
-
+                  <div className="grid grid-cols-1 gap-8">
                     <Card className="border-2 shadow-sm bg-[#213147] text-white">
                       <CardHeader className="border-b border-white/5 py-6">
                         <div className="bg-primary/20 p-2 rounded-xl w-fit mb-3"><Activity className="h-5 w-5 text-primary" /></div>
