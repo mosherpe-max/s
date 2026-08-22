@@ -14,7 +14,8 @@ import {
   Radio,
   Timer,
   RefreshCcw,
-  History
+  History,
+  Clock
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -25,6 +26,7 @@ import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import type { SolutionConfig } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
+import { AUTHORIZED_SERVICE_MODES } from '@/lib/utils';
 
 export default function AdminSystemConfigPage() {
   const { firebaseApp } = useFirebaseApp();
@@ -73,7 +75,7 @@ export default function AdminSystemConfigPage() {
 
   return (
     <div className="p-8 animate-in fade-in duration-500 text-left">
-      <div className="max-w-3xl mx-auto space-y-8 pb-20">
+      <div className="max-w-4xl mx-auto space-y-8 pb-20">
         <div className="flex items-center gap-3">
           <div className="p-2 bg-primary/10 rounded-lg">
             <Settings2 className="h-6 w-6 text-primary" />
@@ -81,7 +83,8 @@ export default function AdminSystemConfigPage() {
           <h2 className="text-2xl font-black uppercase text-[#213147]">System Configuration</h2>
         </div>
         
-        <Card className="border-2 shadow-sm p-8 space-y-8 text-left">
+        <Card className="border-2 shadow-sm p-8 space-y-12 text-left">
+           {/* OPERATIONAL ENGINE */}
            <div className="space-y-6">
              <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2">
                <Zap className="h-4 w-4" /> Operational Engine
@@ -136,7 +139,59 @@ export default function AdminSystemConfigPage() {
              </div>
            </div>
 
-           <div className="space-y-6 pt-6 border-t">
+           {/* MASTER FULFILLMENT DEFAULTS */}
+           <div className="space-y-6 pt-10 border-t">
+              <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2">
+                <Clock className="h-4 w-4" /> Master Fulfillment Defaults
+              </h4>
+              <p className="text-[9px] text-muted-foreground uppercase font-medium max-w-lg leading-relaxed">
+                Initial thresholds applied to new venues. Venue managers can override these values in their own dashboard.
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {AUTHORIZED_SERVICE_MODES.map(mode => (
+                  <div key={mode} className="space-y-4 p-4 rounded-xl border-2 bg-slate-50 border-slate-100">
+                    <div className="flex items-center gap-2 border-b pb-2 mb-2">
+                       <Zap className="h-3 w-3 text-primary" />
+                       <span className="text-[10px] font-black uppercase tracking-tight">{mode}</span>
+                    </div>
+                    <div className="space-y-4">
+                       <div className="space-y-1.5">
+                          <Label className="text-[8px] font-black uppercase">Max Ack. (s)</Label>
+                          <Input 
+                            type="number" 
+                            defaultValue={config?.orderThresholds?.[mode]?.maxOrderAcknowledgeSeconds || 120} 
+                            onBlur={(e) => handleUpdateConfig(`orderThresholds.${mode}.maxOrderAcknowledgeSeconds`, parseInt(e.target.value))}
+                            className="h-10 border-2 font-bold text-center" 
+                          />
+                       </div>
+                       <div className="grid grid-cols-2 gap-4">
+                         <div className="space-y-1.5">
+                            <Label className="text-[8px] font-black uppercase text-amber-600">Warn (m)</Label>
+                            <Input 
+                              type="number" 
+                              defaultValue={config?.orderThresholds?.[mode]?.warningOrderProcessingMinutes || 15} 
+                              onBlur={(e) => handleUpdateConfig(`orderThresholds.${mode}.warningOrderProcessingMinutes`, parseInt(e.target.value))}
+                              className="h-10 border-2 font-bold text-center" 
+                            />
+                         </div>
+                         <div className="space-y-1.5">
+                            <Label className="text-[8px] font-black uppercase text-red-600">Max (m)</Label>
+                            <Input 
+                              type="number" 
+                              defaultValue={config?.orderThresholds?.[mode]?.maxOrderProcessingMinutes || 25} 
+                              onBlur={(e) => handleUpdateConfig(`orderThresholds.${mode}.maxOrderProcessingMinutes`, parseInt(e.target.value))}
+                              className="h-10 border-2 font-bold text-center" 
+                            />
+                         </div>
+                       </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+           </div>
+
+           {/* SIGNAL & LOCATION DYNAMICS */}
+           <div className="space-y-6 pt-10 border-t">
              <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2">
                <Radio className="h-4 w-4" /> Signal & Location Dynamics
              </h4>
@@ -182,9 +237,9 @@ export default function AdminSystemConfigPage() {
                    </Label>
                    <p className="text-[9px] text-muted-foreground uppercase font-medium max-w-lg leading-relaxed">
                       Controls the color-coding of map markers based on last device activity. 
-                      <span className="text-green-600 font-bold"> HOT (Green)</span>, 
-                      <span className="text-amber-500 font-bold"> WARM (Amber)</span>, 
-                      <span className="text-red-500 font-bold"> COLD (Red)</span>. 
+                      <span className="text-green-600 font-bold"> HOT (Green)</span> indicates a very recent update, 
+                      <span className="text-amber-500 font-bold"> WARM (Amber)</span> indicates the signal is aging, and 
+                      <span className="text-red-500 font-bold"> COLD (Red)</span> means the device hasn't checked in for several minutes. 
                       Gray indicates a lost signal beyond the Cold limit.
                    </p>
                    <div className="grid grid-cols-3 gap-4 pt-2">
@@ -207,7 +262,7 @@ export default function AdminSystemConfigPage() {
                        />
                      </div>
                      <div className="space-y-1.5">
-                       <Label className="text-[8px] font-black uppercase text-red-500">Cold Threshold (s)</Label>
+                       <Label className="text-[8px] font-black uppercase text-red-600">Cold Threshold (s)</Label>
                        <Input 
                            type="number" 
                            defaultValue={config?.gpsFreshnessThresholds?.cold || 600} 
@@ -220,7 +275,8 @@ export default function AdminSystemConfigPage() {
              </div>
            </div>
 
-           <div className="space-y-6 pt-6 border-t">
+           {/* SUPPORT & BRANDING */}
+           <div className="space-y-6 pt-10 border-t">
              <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2">
                <Globe className="h-4 w-4" /> Support & Branding
              </h4>

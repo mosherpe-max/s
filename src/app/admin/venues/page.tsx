@@ -64,7 +64,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useFirestore, useCollection, useMemoFirebase, useFirebaseApp } from '@/firebase';
-import { collection, doc, updateDoc, setDoc, deleteDoc, serverTimestamp, writeBatch } from 'firebase/firestore';
+import { collection, doc, updateDoc, setDoc, deleteDoc, serverTimestamp, writeBatch, getDoc } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import type { Seller, Venue } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
@@ -241,6 +241,10 @@ export default function AdminVenueRegistryPage() {
     const venueId = data.courseName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
     
     try {
+      // 1. Fetch Global System Defaults for thresholds
+      const configSnap = await getDoc(doc(firestore, 'solution', 'config'));
+      const masterDefaults = configSnap.exists() ? configSnap.data()?.orderThresholds : {};
+
       const batch = writeBatch(firestore);
       const sellerRef = doc(firestore, 'sellers', venueId);
       const sellerData: Partial<Seller> = {
@@ -249,7 +253,8 @@ export default function AdminVenueRegistryPage() {
         menuTypes: data.menuTypes, taxRate: 6.0, serviceFee: 1.50, ownerId: data.ownerUid,
         laneCount: data.type === 'Bowling Center' ? data.laneCount : 0,
         latitude: 0,
-        longitude: 0
+        longitude: 0,
+        orderThresholds: masterDefaults || {} // Apply solution defaults
       };
 
       const businessRef = doc(firestore, 'venues', venueId);
