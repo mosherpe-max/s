@@ -89,7 +89,11 @@ import {
   subDays, 
   startOfDay, 
   differenceInMinutes, 
-  differenceInSeconds
+  differenceInSeconds,
+  startOfMonth,
+  startOfYear,
+  addDays,
+  addMonths
 } from 'date-fns';
 import { useRouter } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
@@ -108,7 +112,9 @@ import {
   CartesianGrid, 
   Tooltip, 
   ResponsiveContainer,
-  Legend
+  Legend,
+  ComposedChart,
+  Line
 } from 'recharts';
 import {
   DndContext,
@@ -247,6 +253,10 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
   const [editingStaff, setEditingStaff] = useState<StaffMember | null>(null);
   const [isProcessingSave, setIsProcessingSave] = useState(false);
 
+  // Analytics Controls
+  const [analyticsTimeframe, setAnalyticsTimeframe] = useState<'7d' | 'month' | 'year'>('7d');
+  const [analyticsMode, setAnalyticsMode] = useState<string>('All');
+
   const sellerRef = useMemoFirebase(() => (firestore ? doc(firestore, 'sellers', sellerId) : null), [firestore, sellerId]);
   const { data: seller, isLoading: isSellerLoading } = useDoc<Seller>(sellerRef);
 
@@ -279,13 +289,6 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
       return dayData;
     });
 
-    const fulfillmentEfficiency = modes.map(mode => {
-      const modeOrders = orders.filter(o => o.menuType === mode && o.status === 'Delivered' && o.deliveredAt && o.acknowledgedAt);
-      const avgAck = modeOrders.length > 0 ? modeOrders.reduce((sum, o) => sum + differenceInSeconds(o.acknowledgedAt!.toDate(), o.createdAt.toDate()), 0) / modeOrders.length : 0;
-      const avgDeliver = modeOrders.length > 0 ? modeOrders.reduce((sum, o) => sum + differenceInMinutes(o.deliveredAt!.toDate(), o.createdAt.toDate()), 0) / modeOrders.length : 0;
-      return { mode, ackSeconds: Math.round(avgAck), deliverMinutes: Math.round(avgDeliver) };
-    });
-
     const realTimeOperations: Record<string, any> = {};
     modes.forEach(mode => {
       const modeOrdersToday = orders.filter(o => o.menuType === mode && o.createdAt && isToday(o.createdAt.toDate()));
@@ -314,8 +317,137 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
       };
     });
 
-    return { dailyRevenue, fulfillmentEfficiency, modes, realTimeOperations };
+    return { dailyRevenue, modes, realTimeOperations };
   }, [orders, seller, staffList]);
+
+  // Comprehensive Analytics Data Generation
+  const analyticsTimeframeData = useMemo(() => {
+    if (!orders || !seller) return { revenue: [], acknowledgement: [], duration: [], modes: [] };
+    
+    const now = new Date();
+    let interval: { start: Date, end: Date };
+    let formatStr: string;
+    let step: 'day' | 'month';
+
+    if (analyticsTimeframe === '7d') {
+      interval = { start: subDays(startOfDay(now), 6), end: now };
+      formatStr = 'MMM d';
+      step = 'day';
+    } else if (analyticsTimeframe === 'month') {
+      interval = { start: startOfMonth(now), end: now };
+      formatStr = 'MMM d';
+      step = 'day';
+    } else {
+      interval = { start: startOfYear(now), end: now };
+      formatStr = 'MMM';
+      step = 'month';
+    }
+
+    const labels: { label: string, date: Date }[] = [];
+    let curr = new Date(interval.start);
+    if (step === 'day') {
+      while (curr <= interval.end) {
+        labels.push({ label: format(curr, formatStr), date: new Date(curr) });
+        curr = addDays(curr, 1);
+      }
+    } else {
+      while (curr <= interval.end) {
+        labels.push({ label: format(curr, formatStr), date: new Date(curr) });
+        curr = addMonths(curr, 1);
+      }
+    }
+
+    const modes = (seller.menuTypes || []).filter(m => AUTHORIZED_SERVICE_MODES.includes(m));
+
+    const revenueData = labels.map(({ label, date }) => {
+      const data: any = { name: label };
+      const dayStart = startOfDay(date);
+      const dayEnd = step === 'day' ? addDays(dayStart, 1) : addMonths(dayStart, 1);
+      
+      const filteredOrders = orders.filter(o => 
+        o.status === 'Delivered' && 
+        o.createdAt && 
+        o.createdAt.toDate() >= dayStart && 
+        o.createdAt.toDate() < dayEnd
+      );
+      
+      if (analyticsMode === 'All') {
+        modes.forEach(mode => {
+          const modeOrders = filteredOrders.filter(o => o.menuType === mode);
+          data[mode] = modeOrders.reduce((sum, o) => sum + (o.total - (o.serviceFee || 0)), 0);
+        });
+      } else {
+        const modeOrders = filteredOrders.filter(o => o.menuType === analyticsMode);
+        data[analyticsMode] = modeOrders.reduce((sum, o) => sum + (o.total - (o.serviceFee || 0)), 0);
+      }
+      return data;
+    });
+
+    const ackData = labels.map(({ label, date }) => {
+      const data: any = { name: label };
+      const dayStart = startOfDay(date);
+      const dayEnd = step === 'day' ? addDays(dayStart, 1) : addMonths(dayStart, 1);
+      
+      const targetModes = analyticsMode === 'All' ? modes : [analyticsMode];
+      
+      const filteredOrders = orders.filter(o => 
+        targetModes.includes(o.menuType) && 
+        o.createdAt && 
+        o.createdAt.toDate() >= dayStart && 
+        o.createdAt.toDate() < dayEnd
+      );
+      
+      const ackOrders = filteredOrders.filter(o => o.acknowledgedAt);
+      const avgAck = ackOrders.length > 0 ? ackOrders.reduce((sum, o) => sum + differenceInSeconds(o.acknowledgedAt!.toDate(), o.createdAt.toDate()), 0) / ackOrders.length : 0;
+      
+      const thresholds = seller.orderThresholds || {};
+      const exceedCount = ackOrders.filter(o => {
+        const modeT = thresholds[o.menuType]?.maxOrderAcknowledgeSeconds || 120;
+        return differenceInSeconds(o.acknowledgedAt!.toDate(), o.createdAt.toDate()) > modeT;
+      }).length;
+
+      data.avgSeconds = Math.round(avgAck);
+      data.exceedCount = exceedCount;
+      return data;
+    });
+
+    const durData = labels.map(({ label, date }) => {
+      const data: any = { name: label };
+      const dayStart = startOfDay(date);
+      const dayEnd = step === 'day' ? addDays(dayStart, 1) : addMonths(dayStart, 1);
+      
+      const targetModes = analyticsMode === 'All' ? modes : [analyticsMode];
+      
+      const filteredOrders = orders.filter(o => 
+        targetModes.includes(o.menuType) && 
+        o.status === 'Delivered' &&
+        o.deliveredAt &&
+        o.createdAt && 
+        o.createdAt.toDate() >= dayStart && 
+        o.createdAt.toDate() < dayEnd
+      );
+      
+      const avgDur = filteredOrders.length > 0 ? filteredOrders.reduce((sum, o) => sum + differenceInMinutes(o.deliveredAt!.toDate(), o.createdAt.toDate()), 0) / filteredOrders.length : 0;
+      
+      const thresholds = seller.orderThresholds || {};
+      const exceedWarn = filteredOrders.filter(o => {
+        const modeT = thresholds[o.menuType]?.warningOrderProcessingMinutes || 15;
+        return differenceInMinutes(o.deliveredAt!.toDate(), o.createdAt.toDate()) > modeT;
+      }).length;
+      
+      const exceedMax = filteredOrders.filter(o => {
+        const modeT = thresholds[o.menuType]?.maxOrderProcessingMinutes || 25;
+        return differenceInMinutes(o.deliveredAt!.toDate(), o.createdAt.toDate()) > modeT;
+      }).length;
+
+      data.avgMinutes = parseFloat(avgDur.toFixed(1));
+      data.exceedWarn = exceedWarn;
+      data.exceedMax = exceedMax;
+      return data;
+    });
+
+    return { revenue: revenueData, acknowledgement: ackData, duration: durData, modes };
+  }, [orders, seller, analyticsTimeframe, analyticsMode]);
 
   const patrons = useMemo(() => {
     if (!orders) return [];
@@ -622,15 +754,126 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
 
               {activeNav === 'analytics' && (
                 <div className="space-y-12 animate-in fade-in duration-500">
-                   <div className="flex items-center gap-3">
-                      <div className="p-2 bg-primary/10 rounded-lg"><Activity className="h-6 w-6 text-primary" /></div>
-                      <div className="text-left">
-                         <h2 className="text-xl font-black uppercase text-[#213147]">Business Intelligence</h2>
-                         <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">Historical Trends & Patron Analytics</p>
+                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+                      <div className="flex items-center gap-3">
+                         <div className="p-2 bg-primary/10 rounded-lg"><Activity className="h-6 w-6 text-primary" /></div>
+                         <div className="text-left">
+                            <h2 className="text-xl font-black uppercase text-[#213147]">Business Intelligence</h2>
+                            <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">Deep Performance Analysis</p>
+                         </div>
+                      </div>
+
+                      <div className="flex items-center gap-3 bg-white border-2 p-1.5 rounded-2xl shadow-sm">
+                         <div className="flex gap-1 border-r pr-3 mr-1">
+                            {['7d', 'month', 'year'].map(t => (
+                               <Button 
+                                 key={t} 
+                                 variant={analyticsTimeframe === t ? 'default' : 'ghost'} 
+                                 size="sm" 
+                                 onClick={() => setAnalyticsTimeframe(t as any)}
+                                 className={cn("h-8 text-[9px] font-black uppercase tracking-widest rounded-lg", analyticsTimeframe === t ? "bg-[#213147]" : "text-slate-400")}
+                               >
+                                 {t === '7d' ? '7 Days' : t === 'month' ? 'Month' : 'Year'}
+                               </Button>
+                            ))}
+                         </div>
+                         <Select value={analyticsMode} onValueChange={setAnalyticsMode}>
+                            <SelectTrigger className="h-8 w-40 border-0 shadow-none font-black uppercase text-[9px] tracking-widest bg-slate-50">
+                               <SelectValue placeholder="All Modes" />
+                            </SelectTrigger>
+                            <SelectContent>
+                               <SelectItem value="All" className="text-[10px] font-black uppercase">All Channels</SelectItem>
+                               {analyticsTimeframeData.modes.map(m => (
+                                 <SelectItem key={m} value={m} className="text-[10px] font-black uppercase">{m}</SelectItem>
+                               ))}
+                            </SelectContent>
+                         </Select>
                       </div>
                    </div>
 
-                   <Card className="border-2 shadow-sm bg-[#213147] text-white overflow-hidden">
+                   <div className="grid grid-cols-1 gap-12">
+                      {/* CHART 1: REVENUE TREND */}
+                      <Card className="border-2 shadow-sm overflow-hidden">
+                         <CardHeader className="bg-slate-50 border-b py-4">
+                            <div className="flex items-center justify-between">
+                               <div className="flex items-center gap-2">
+                                  <DollarSign className="h-3.5 w-3.5 text-primary" />
+                                  <CardTitle className="text-[10px] font-black uppercase tracking-widest text-[#213147]">Revenue Distribution</CardTitle>
+                               </div>
+                               <Badge variant="outline" className="text-[8px] font-black uppercase bg-white">{analyticsMode === 'All' ? 'Stacked' : analyticsMode}</Badge>
+                            </div>
+                         </CardHeader>
+                         <CardContent className="pt-10 h-[350px]">
+                            <ResponsiveContainer width="100%" height="100%">
+                               <BarChart data={analyticsTimeframeData.revenue}>
+                                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 9, fontWeight: 900 }} />
+                                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 9, fontWeight: 900 }} tickFormatter={(v) => `$${v}`} />
+                                  <Tooltip formatter={(v: number) => [`$${v.toFixed(2)}`]} />
+                                  <Legend iconType="circle" />
+                                  {analyticsMode === 'All' ? (
+                                    analyticsTimeframeData.modes.map(mode => (
+                                      <Bar key={mode} dataKey={mode} stackId="a" fill={getModeColor(mode)} radius={[0, 0, 0, 0]} barSize={analyticsTimeframe === 'year' ? 40 : 20} />
+                                    ))
+                                  ) : (
+                                    <Bar dataKey={analyticsMode} fill={getModeColor(analyticsMode)} radius={[4, 4, 0, 0]} barSize={analyticsTimeframe === 'year' ? 40 : 20} />
+                                  )}
+                               </BarChart>
+                            </ResponsiveContainer>
+                         </CardContent>
+                      </Card>
+
+                      {/* CHART 2: ACKNOWLEDGEMENT LOGISTICS */}
+                      <Card className="border-2 shadow-sm overflow-hidden">
+                         <CardHeader className="bg-slate-50 border-b py-4">
+                            <div className="flex items-center gap-2">
+                               <Timer className="h-3.5 w-3.5 text-indigo-600" />
+                               <CardTitle className="text-[10px] font-black uppercase tracking-widest text-[#213147]">Acknowledgement Responsiveness</CardTitle>
+                            </div>
+                         </CardHeader>
+                         <CardContent className="pt-10 h-[350px]">
+                            <ResponsiveContainer width="100%" height="100%">
+                               <ComposedChart data={analyticsTimeframeData.acknowledgement}>
+                                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 9, fontWeight: 900 }} />
+                                  <YAxis yAxisId="left" axisLine={false} tickLine={false} tick={{ fontSize: 9, fontWeight: 900 }} tickFormatter={(v) => `${v}s`} />
+                                  <YAxis yAxisId="right" orientation="right" axisLine={false} tickLine={false} tick={{ fontSize: 9, fontWeight: 900 }} />
+                                  <Tooltip />
+                                  <Legend />
+                                  <Bar yAxisId="left" name="Avg Seconds" dataKey="avgSeconds" fill="#4f46e5" radius={[4, 4, 0, 0]} barSize={20} />
+                                  <Line yAxisId="right" name="Exceeding Limit" type="monotone" dataKey="exceedCount" stroke="#ef4444" strokeWidth={3} dot={{ r: 4, fill: '#ef4444' }} />
+                               </ComposedChart>
+                            </ResponsiveContainer>
+                         </CardContent>
+                      </Card>
+
+                      {/* CHART 3: DURATION EFFICIENCY */}
+                      <Card className="border-2 shadow-sm overflow-hidden">
+                         <CardHeader className="bg-slate-50 border-b py-4">
+                            <div className="flex items-center gap-2">
+                               <Truck className="h-3.5 w-3.5 text-primary" />
+                               <CardTitle className="text-[10px] font-black uppercase tracking-widest text-[#213147]">Fulfillment Lifecycle Efficiency</CardTitle>
+                            </div>
+                         </CardHeader>
+                         <CardContent className="pt-10 h-[350px]">
+                            <ResponsiveContainer width="100%" height="100%">
+                               <ComposedChart data={analyticsTimeframeData.duration}>
+                                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 9, fontWeight: 900 }} />
+                                  <YAxis yAxisId="left" axisLine={false} tickLine={false} tick={{ fontSize: 9, fontWeight: 900 }} tickFormatter={(v) => `${v}m`} />
+                                  <YAxis yAxisId="right" orientation="right" axisLine={false} tickLine={false} tick={{ fontSize: 9, fontWeight: 900 }} />
+                                  <Tooltip />
+                                  <Legend />
+                                  <Bar yAxisId="left" name="Avg Minutes" dataKey="avgMinutes" fill="#213147" radius={[4, 4, 0, 0]} barSize={20} />
+                                  <Line yAxisId="right" name="Warning Alert" type="monotone" dataKey="exceedWarn" stroke="#f59e0b" strokeWidth={2} dot={{ r: 3 }} />
+                                  <Line yAxisId="right" name="Late Alert" type="monotone" dataKey="exceedMax" stroke="#ef4444" strokeWidth={2} dot={{ r: 3 }} />
+                               </ComposedChart>
+                            </ResponsiveContainer>
+                         </CardContent>
+                      </Card>
+                   </div>
+
+                   <Card className="border-2 shadow-sm bg-[#213147] text-white overflow-hidden mt-12">
                       <CardHeader className="border-b border-white/5 py-6">
                         <div className="flex items-center gap-3">
                           <Users className="h-5 w-5 text-primary" />
