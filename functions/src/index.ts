@@ -271,8 +271,10 @@ export const onGuestOrderStatusUpdate = onDocumentWritten({
         body = `Order out for delivery! Track live: ${link}`;
       }
       
-      // STAFF GPS PING REQUEST
-      if (data.refreshRequestedAt && (!beforeData.refreshRequestedAt || data.refreshRequestedAt.toMillis() !== beforeData.refreshRequestedAt.toMillis())) {
+      // STAFF GPS PING REQUEST - Refined comparison for reliability
+      const currentPing = data.refreshRequestedAt;
+      const previousPing = beforeData.refreshRequestedAt;
+      if (currentPing && (!previousPing || currentPing.toMillis() !== previousPing.toMillis())) {
         body = `Hey! Your Koop order is on the way — tap to help us find you: ${link}`;
       }
     }
@@ -280,6 +282,7 @@ export const onGuestOrderStatusUpdate = onDocumentWritten({
     if (body) {
       const to = String(data.customerPhone).length === 10 ? `+1${data.customerPhone}` : `+${data.customerPhone}`;
       await client.messages.create({ body, from: fromNumber, to });
+      logger.info(`[onGuestOrderStatusUpdate] SMS sent to ${to}: ${body}`);
     }
   } catch (err) {
     logger.error("Twilio Task Failed", err);

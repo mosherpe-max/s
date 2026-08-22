@@ -6,191 +6,180 @@ import { initializeApp } from "firebase-admin/app";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import Stripe from 'stripe';
 import twilio from 'twilio';
+
 /**
  * Initialize the Firebase Admin SDK.
  */
 initializeApp();
 const db = getFirestore();
+
 /**
  * createPaymentIntent
- * Securely generates a Stripe Client Secret for the patron checkout.
  */
 export const createPaymentIntent = onCall({
     secrets: ["STRIPE_SECRET_KEY"],
     region: 'us-central1',
 }, async (request) => {
-    const { amount, sellerId, patronName, patronPhone, patronEmail } = request.data;
-    // 1. Validation
-    if (!amount || amount <= 0) {
-        logger.error("[createPaymentIntent] Invalid amount received:", { amount });
-        throw new HttpsError('invalid-argument', 'A valid positive amount is required for checkout.');
-    }
-    if (!sellerId) {
-        logger.error("[createPaymentIntent] Missing sellerId in request.");
-        throw new HttpsError('invalid-argument', 'Establishment identity is required for routing.');
-    }
-    // 2. Stripe Initialization
-    const apiKey = process.env.STRIPE_SECRET_KEY;
-    if (!apiKey) {
-        logger.error("[createPaymentIntent] STRIPE_SECRET_KEY is missing from environment/secrets.");
-        throw new HttpsError('failed-precondition', 'The payment gateway is not configured. Please contact support.');
-    }
-    const stripe = new Stripe(apiKey, {
-        apiVersion: '2025-01-27.acacia',
-    });
     try {
-        logger.info(`[createPaymentIntent] Creating intent for $${amount} (Venue: ${sellerId})`);
-        // 3. Create Intent
+        const { amount, sellerId, patronName, patronPhone, patronEmail, saveInfo, stripeCustomerId: clientProvidedCustomerId } = request.data || {};
+        const buyerUid = request.auth?.uid;
+        if (!amount || amount <= 0) throw new HttpsError('invalid-argument', 'Invalid amount.');
+        if (!sellerId) throw new HttpsError('invalid-argument', 'Missing sellerId.');
+        const apiKey = process.env.STRIPE_SECRET_KEY;
+        if (!apiKey) throw new HttpsError('failed-precondition', 'Gateway not configured.');
+        const stripe = new Stripe(apiKey, { apiVersion: '2025-01-27.acacia' });
+        const sellerDoc = await db.collection('sellers').doc(sellerId).get();
+        const venueStripeAccountId = sellerDoc.data()?.stripeAccountId;
+        if (!venueStripeAccountId) throw new HttpsError('failed-precondition', 'Venue is not configured for digital payments.');
+        let stripeCustomerId = clientProvidedCustomerId;
+        if (!stripeCustomerId && buyerUid) {
+            const userDoc = await db.collection('users').doc(buyerUid).get();
+            if (userDoc.exists && userDoc.data()?.stripeCustomerId) {
+                stripeCustomerId = userDoc.data()?.stripeCustomerId;
+            }
+        }
+        if (!stripeCustomerId) {
+            const customer = await stripe.customers.create({
+                email: patronEmail || undefined,
+                name: patronName || 'Guest Patron',
+                description: 'Koop Guest Patron',
+                metadata: { buyerUid: buyerUid || 'anonymous' }
+            });
+            stripeCustomerId = customer.id;
+        }
+        if (buyerUid && stripeCustomerId) {
+            await db.collection('users').doc(buyerUid).set({
+                stripeCustomerId,
+                email: patronEmail || '',
+                displayName: patronName || '',
+                updatedAt: FieldValue.serverTimestamp()
+            }, { merge: true });
+        }
+        const customerSession = await stripe.customerSessions.create({
+            customer: stripeCustomerId,
+            components: {
+                payment_element: {
+                    enabled: true,
+                    features: {
+                        payment_method_save: 'enabled',
+                        payment_method_redisplay: 'enabled'
+                    }
+                }
+            }
+        });
         const paymentIntent = await stripe.paymentIntents.create({
-            amount: Math.round(amount * 100), // Convert dollars to cents
+            amount: Math.round(amount * 100),
             currency: 'usd',
-            automatic_payment_methods: {
-                enabled: true,
-            },
+            customer: stripeCustomerId,
+            setup_future_usage: saveInfo ? 'off_session' : undefined,
+            automatic_payment_methods: { enabled: true },
+            transfer_data: { destination: venueStripeAccountId },
             metadata: {
                 sellerId,
-                buyerUid: request.auth?.uid || 'anonymous',
+                buyerUid: buyerUid || 'anonymous',
                 customerName: patronName || 'Guest',
                 customerPhone: patronPhone || '',
                 customerEmail: patronEmail || ''
             }
         });
-        if (!paymentIntent.client_secret) {
-            throw new Error("Stripe failed to generate a client secret.");
-        }
         return {
             clientSecret: paymentIntent.client_secret,
+            customerSessionClientSecret: customerSession.client_secret,
+            stripeCustomerId
         };
     }
     catch (err) {
-        logger.error(`[createPaymentIntent] Stripe API Error:`, {
-            message: err.message,
-            code: err.code,
-            type: err.type
-        });
-        throw new HttpsError('internal', err.message || 'Unable to initialize secure payment environment.');
+        logger.error("Stripe PI Error", err);
+        throw new HttpsError('internal', err.message || 'Internal payment gateway error.');
     }
 });
-/**
- * handleStripeWebhook
- * Secure HTTP endpoint for Stripe event ingestion.
- */
-export const handleStripeWebhook = onRequest({
-    secrets: ["STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET"],
-    region: 'us-central1',
-}, async (req, res) => {
-    const signature = req.headers['stripe-signature'];
-    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
-    const apiKey = process.env.STRIPE_SECRET_KEY;
-    if (!signature || !webhookSecret || !apiKey) {
-        logger.error("[handleStripeWebhook] Missing signature or secret configuration.");
-        res.status(400).send("Webhook Error: Missing configuration");
-        return;
-    }
-    const stripe = new Stripe(apiKey);
-    let event;
-    try {
-        event = stripe.webhooks.constructEvent(req.rawBody, signature, webhookSecret);
-    }
-    catch (err) {
-        logger.error(`[handleStripeWebhook] Signature verification failed: ${err.message}`);
-        res.status(400).send(`Webhook Error: ${err.message}`);
-        return;
-    }
-    // Handle successful payments from the PaymentElement flow
-    if (event.type === 'payment_intent.succeeded') {
-        const paymentIntent = event.data.object;
-        const metadata = paymentIntent.metadata || {};
-        logger.info(`[handleStripeWebhook] Processing successful PaymentIntent: ${paymentIntent.id}`);
-        try {
-            const orderData = {
-                customerName: metadata.customerName || 'Guest Patron',
-                customerPhone: metadata.customerPhone || null,
-                customerEmail: metadata.customerEmail || null,
-                status: "received",
-                sellerId: metadata.sellerId || null,
-                buyerProfileId: metadata.buyerUid || null,
-                stripePaymentIntentId: paymentIntent.id,
-                total: (paymentIntent.amount || 0) / 100,
-                createdAt: FieldValue.serverTimestamp(),
-                updatedAt: FieldValue.serverTimestamp(),
-            };
-            const orderRef = await db.collection('orders').add(orderData);
-            logger.info(`[handleStripeWebhook] Successfully created order ${orderRef.id} for PI ${paymentIntent.id}`);
-        }
-        catch (err) {
-            logger.error(`[handleStripeWebhook] Firestore ingestion failed: ${err.message}`);
-            res.status(500).send("Internal Server Error during Firestore write");
-            return;
-        }
-    }
-    res.status(200).send({ received: true });
-});
+
 /**
  * onGuestOrderStatusUpdate
- * Triggers on any creation or update to an order document.
- * Manages patron SMS notifications via Twilio.
  */
 export const onGuestOrderStatusUpdate = onDocumentWritten({
     document: "orders/{orderId}",
     secrets: ["TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN", "TWILIO_FROM_NUMBER"],
     region: 'us-central1',
 }, async (event) => {
-    const orderId = event.params.orderId;
-    const before = event.data?.before;
     const after = event.data?.after;
-    if (!after || !after.exists)
-        return;
-    const afterData = after.data();
-    const customerPhone = afterData?.customerPhone;
-    const status = afterData?.status;
-    if (!customerPhone) {
-        logger.info(`[onGuestOrderStatusUpdate] No phone number for order ${orderId}. Skipping SMS.`);
-        return;
-    }
-    const accountSid = process.env.TWILIO_ACCOUNT_SID;
-    const authToken = process.env.TWILIO_AUTH_TOKEN;
-    const fromNumber = process.env.TWILIO_FROM_NUMBER;
-    if (!accountSid || !authToken || !fromNumber) {
-        logger.error("[onGuestOrderStatusUpdate] Twilio credentials missing from Secret Manager.");
-        return;
-    }
-    const client = twilio(accountSid, authToken);
-    let messageBody = "";
-    // High-fidelity tracking link
-    const trackingLink = `https://koop.app/orders/${orderId}`;
-    if (!before || !before.exists) {
-        // RULE 1: INITIAL CREATION
-        if (status === 'received' || status === 'Placed') {
-            messageBody = `Thanks for your order! We've received it and it's in our queue. Track live: ${trackingLink}`;
+    if (!after || !after.exists) return;
+    try {
+        const configSnap = await db.collection('solution').doc('config').get();
+        if (configSnap.exists && configSnap.data()?.smsNotificationsEnabled === false) return;
+        const data = after.data();
+        if (!data?.customerPhone) return;
+        const accountSid = process.env.TWILIO_ACCOUNT_SID;
+        const authToken = process.env.TWILIO_AUTH_TOKEN;
+        const fromNumber = process.env.TWILIO_FROM_NUMBER;
+        if (!accountSid || !authToken || !fromNumber) return;
+        const client = twilio(accountSid, authToken);
+        let body = "";
+        const link = `https://koop.app/orders/${event.params.orderId}`;
+        const beforeData = event.data?.before?.exists ? event.data.before.data() : null;
+        if (!beforeData) {
+            if (data.status === 'Placed') body = `Order received! Track live: ${link}`;
         }
-    }
-    else {
-        // STATUS UPDATES
-        const beforeData = before.data();
-        const oldStatus = beforeData?.status;
-        if (status !== oldStatus) {
-            if (status === 'Out for Delivery') {
-                // RULE 2: DISPATCH
-                messageBody = `Your order is out for delivery! A runner is on the way. Track live: ${trackingLink}`;
+        else {
+            if (data.status !== beforeData.status && data.status === 'Out for Delivery') {
+                body = `Order out for delivery! Track live: ${link}`;
+            }
+            // STAFF GPS PING REQUEST
+            const currentPing = data.refreshRequestedAt;
+            const previousPing = beforeData.refreshRequestedAt;
+            if (currentPing && (!previousPing || currentPing.toMillis() !== previousPing.toMillis())) {
+                body = `Hey! Your Koop order is on the way — tap to help us find you: ${link}`;
             }
         }
-    }
-    if (messageBody) {
-        try {
-            // Robust US phone formatting
-            const cleanPhone = customerPhone.replace(/\D/g, '');
+        if (body) {
+            const cleanPhone = String(data.customerPhone).replace(/\D/g, '');
             const to = cleanPhone.length === 10 ? `+1${cleanPhone}` : `+${cleanPhone}`;
-            await client.messages.create({
-                body: messageBody,
-                from: fromNumber,
-                to: to
-            });
-            logger.info(`[onGuestOrderStatusUpdate] SMS sent to ${to} for order ${orderId} (Status: ${status})`);
+            await client.messages.create({ body, from: fromNumber, to });
+            logger.info(`[onGuestOrderStatusUpdate] SMS sent to ${to}: ${body}`);
         }
-        catch (error) {
-            logger.error(`[onGuestOrderStatusUpdate] Twilio dispatch failed for ${orderId}: ${error.message}`);
-        }
+    }
+    catch (err) {
+        logger.error("Twilio Task Failed", err);
     }
 });
-//# sourceMappingURL=index.js.map
+
+/**
+ * handleStripeWebhook
+ */
+export const handleStripeWebhook = onRequest({
+    secrets: ["STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET"],
+    region: 'us-central1',
+}, async (req, res) => {
+    const sig = req.headers['stripe-signature'];
+    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+    const stripeKey = process.env.STRIPE_SECRET_KEY;
+    if (!sig || !webhookSecret || !stripeKey) {
+        res.status(400).send("Webhook configuration missing.");
+        return;
+    }
+    const stripe = new Stripe(stripeKey, { apiVersion: '2025-01-27.acacia' });
+    try {
+        const event = stripe.webhooks.constructEvent(req.rawBody, sig, webhookSecret);
+        if (event.type === 'payment_intent.succeeded') {
+            const pi = event.data.object;
+            const meta = pi.metadata || {};
+            await db.collection('orders').add({
+                customerName: meta.customerName || 'Guest',
+                customerPhone: meta.customerPhone || '',
+                customerEmail: meta.customerEmail || '',
+                status: "Placed",
+                sellerId: meta.sellerId || '',
+                buyerProfileId: meta.buyerUid || 'anonymous',
+                stripePaymentIntentId: pi.id,
+                total: (pi.amount || 0) / 100,
+                createdAt: FieldValue.serverTimestamp(),
+                updatedAt: FieldValue.serverTimestamp()
+            });
+        }
+        res.status(200).send({ received: true });
+    }
+    catch (err) {
+        logger.error("Stripe Webhook Error", err);
+        res.status(400).send(`Webhook Error: ${err.message}`);
+    }
+});
