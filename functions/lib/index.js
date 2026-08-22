@@ -168,23 +168,22 @@ export const onGuestOrderStatusUpdate = onDocumentWritten({
         let body = "";
         const link = `https://koop.app/orders/${event.params.orderId}`;
         const beforeData = event.data?.before?.exists ? event.data.before.data() : null;
-        if (!beforeData) {
-            if (data.status === 'Placed')
-                body = `Order received! Track live: ${link}`;
-        }
-        else {
+        
+        if (beforeData) {
             if (data.status !== beforeData.status) {
                 if (data.status === 'Preparing')
                     body = `Order confirmed! We're getting it ready: ${link}`;
                 if (data.status === 'Out for Delivery')
                     body = `Order out for delivery! Track live: ${link}`;
+                if (data.status === 'Delivered')
+                    body = `Order delivered! Enjoy your time at the venue: ${link}`;
             }
             const currentPing = data.refreshRequestedAt;
             const previousPing = beforeData.refreshRequestedAt;
-            const isPingTriggered = currentPing && (!previousPing || 
-                (typeof currentPing.toMillis === 'function' && typeof previousPing.toMillis === 'function' && currentPing.toMillis() !== previousPing.toMillis()) ||
-                (currentPing !== previousPing));
-            if (isPingTriggered) {
+            const currentPingMs = currentPing?.toMillis ? currentPing.toMillis() : (currentPing instanceof Date ? currentPing.getTime() : 0);
+            const previousPingMs = previousPing?.toMillis ? previousPing.toMillis() : (previousPing instanceof Date ? previousPing.getTime() : 0);
+            
+            if (currentPingMs > 0 && currentPingMs !== previousPingMs) {
                 body = `Hey! Your Koop order is on the way - tap to help us find you: ${link}`;
             }
         }
@@ -231,7 +230,7 @@ export const handleStripeWebhook = onRequest({
                 const meta = pi.metadata || {};
                 await db.collection('orders').add({
                     customerName: meta.customerName || 'Guest',
-                    customerPhone: meta.customerPhone || '',
+                    customerPhone: (meta.customerPhone || '').replace(/\D/g, ''),
                     customerEmail: meta.customerEmail || '',
                     status: "Placed",
                     sellerId: meta.sellerId || '',

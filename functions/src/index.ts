@@ -179,7 +179,8 @@ export const manualOperationalReset = onCall({ region: 'us-central1' }, async (r
 
 /**
  * onGuestOrderStatusUpdate
- * Dispatches SMS updates via Twilio for both status changes and manual location pings.
+ * Dispatches SMS updates via Twilio for status changes (Preparing, Out for Delivery, Delivered)
+ * and manual location pings.
  */
 export const onGuestOrderStatusUpdate = onDocumentWritten({ 
   document: "orders/{orderId}", 
@@ -206,25 +207,22 @@ export const onGuestOrderStatusUpdate = onDocumentWritten({
     const link = `https://koop.app/orders/${event.params.orderId}`;
     const beforeData = event.data?.before?.exists ? event.data.before.data() : null;
 
-    if (!beforeData) {
-      if (data.status === 'Placed') body = `Order received! Track live: ${link}`;
-    } else {
+    if (beforeData) {
       // 1. STATUS CHANGE ALERTS
       if (data.status !== beforeData.status) {
         if (data.status === 'Preparing') body = `Order confirmed! We're getting it ready: ${link}`;
         if (data.status === 'Out for Delivery') body = `Order out for delivery! Track live: ${link}`;
+        if (data.status === 'Delivered') body = `Order delivered! Enjoy your time at the venue: ${link}`;
       }
       
       // 2. STAFF GPS PING REQUEST (Manual Location Refresh)
       const currentPing = data.refreshRequestedAt;
       const previousPing = beforeData.refreshRequestedAt;
       
-      // Check if refreshRequestedAt timestamp has changed or was newly added
-      const isPingTriggered = currentPing && (!previousPing || 
-        (typeof currentPing.toMillis === 'function' && typeof previousPing.toMillis === 'function' && currentPing.toMillis() !== previousPing.toMillis()) ||
-        (currentPing !== previousPing));
+      const currentPingMs = currentPing?.toMillis ? currentPing.toMillis() : (currentPing instanceof Date ? currentPing.getTime() : 0);
+      const previousPingMs = previousPing?.toMillis ? previousPing.toMillis() : (previousPing instanceof Date ? previousPing.getTime() : 0);
       
-      if (isPingTriggered) {
+      if (currentPingMs > 0 && currentPingMs !== previousPingMs) {
         body = `Hey! Your Koop order is on the way - tap to help us find you: ${link}`;
       }
     }
@@ -280,7 +278,7 @@ export const handleStripeWebhook = onRequest({
         const meta = pi.metadata || {};
         await db.collection('orders').add({
           customerName: meta.customerName || 'Guest', 
-          customerPhone: meta.customerPhone || '', 
+          customerPhone: (meta.customerPhone || '').replace(/\D/g, ''), 
           customerEmail: meta.customerEmail || '',
           status: "Placed", 
           sellerId: meta.sellerId || '', 
