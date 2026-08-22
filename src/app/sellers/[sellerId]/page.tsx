@@ -55,7 +55,8 @@ import {
   Lock,
   Info,
   CheckCircle2,
-  History
+  History,
+  Truck
 } from 'lucide-react';
 import Image from 'next/image';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -495,6 +496,15 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
   const deliveredToday = orders?.filter(o => o.status === 'Delivered' && o.createdAt && isToday(o.createdAt.toDate())) || [];
   const netRevenueToday = deliveredToday.reduce((sum, o) => sum + (o.total - (o.serviceFee || 0)), 0);
 
+  const getModeIcon = (mode: string) => {
+    switch (mode) {
+      case 'Beverage Cart': return Truck;
+      case 'Clubhouse': return Building;
+      case 'Lane Delivery': return MapPin;
+      default: return Zap;
+    }
+  };
+
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-[#F8FAFC] text-left">
       <header className="h-16 bg-white border-b-2 flex items-center justify-between px-8 shrink-0 z-30 shadow-sm relative text-left">
@@ -540,12 +550,14 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                            const stats = analyticsData.realTimeOperations[mode];
                            const field = mode === 'Beverage Cart' ? 'bevcartActive' : mode === 'Clubhouse' ? 'clubhouseActive' : 'lanedeliveryActive';
                            const isActive = !!seller?.[field as keyof Seller];
+                           const ModeIcon = getModeIcon(mode);
                            
                            return (
                               <Card key={mode} className={cn("border-2 shadow-sm overflow-hidden", isActive ? "border-slate-100" : "opacity-60 border-dashed")}>
                                  <CardHeader className={cn("py-4 flex flex-row items-center justify-between", isActive ? "bg-slate-50" : "bg-muted/30")}>
                                     <div className="flex items-center gap-2">
                                        <div className={cn("w-2 h-2 rounded-full", isActive ? "bg-green-500 animate-pulse" : "bg-slate-300")} />
+                                       <ModeIcon className="h-3.5 w-3.5 text-[#213147]/40" />
                                        <CardTitle className="text-[10px] font-black uppercase tracking-widest text-[#213147]">{mode}</CardTitle>
                                     </div>
                                     <Switch 
