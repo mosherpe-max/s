@@ -177,23 +177,6 @@ function NavButton({ id, label, icon: Icon, active, onClick, sidebarOpen }: {
   );
 }
 
-function KPICard({ label, value, sub, icon: Icon, colorClass }: { label: string, value: string | number, sub: string, icon: any, colorClass?: string }) {
-  return (
-    <Card className="border-2 shadow-sm overflow-hidden relative h-full">
-      <div className={cn("absolute top-0 left-0 bottom-0 w-1.5", colorClass)} />
-      <CardHeader className="pb-2 pt-5 px-6">
-        <CardDescription className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
-          <Icon className="h-3.5 w-3.5" /> {label}
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="pb-5 px-6 text-left">
-        <div className="text-3xl font-black font-headline tracking-tighter text-[#213147] mb-1">{value}</div>
-        <p className="text-[10px] font-bold text-muted-foreground uppercase">{sub}</p>
-      </CardContent>
-    </Card>
-  );
-}
-
 const getModeColor = (mode: string) => {
   switch (mode) {
     case 'Beverage Cart': return '#E50000';
@@ -493,9 +476,6 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
 
   const NavContent = () => (<nav className="space-y-1">{NAV_ITEMS.map((item) => (<NavButton key={item.id} id={item.id} label={item.label} icon={item.icon} active={activeNav === item.id} onClick={setActiveNav} sidebarOpen={sidebarOpen} />))}</nav>);
 
-  const deliveredToday = orders?.filter(o => o.status === 'Delivered' && o.createdAt && isToday(o.createdAt.toDate())) || [];
-  const netRevenueToday = deliveredToday.reduce((sum, o) => sum + (o.total - (o.serviceFee || 0)), 0);
-
   const getModeIcon = (mode: string) => {
     switch (mode) {
       case 'Beverage Cart': return Truck;
@@ -624,13 +604,6 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                            );
                         })}
                      </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                    <KPICard label="Net Revenue" value={`$${netRevenueToday.toFixed(2)}`} sub="Excluding Platform Fees" icon={DollarSign} colorClass="bg-green-500" />
-                    <KPICard label="Active Tickets" value={orders?.filter(o => ['Placed', 'Preparing', 'Out for Delivery'].includes(o.status)).length || 0} sub="Pending Delivery" icon={Clock} colorClass="bg-primary" />
-                    <KPICard label="Today's Volume" value={orders?.filter(o => o.createdAt && isToday(o.createdAt.toDate())).length || 0} sub="Orders Processed" icon={ShoppingBag} colorClass="bg-indigo-600" />
-                    <KPICard label="Staff Active" value={staffList?.filter(s => s.activeMode).length || 0} sub="On-Shift (Today)" icon={Users} colorClass="bg-slate-700" />
                   </div>
                   
                   <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
