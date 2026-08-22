@@ -19,14 +19,13 @@ const db = getFirestore();
  * High-performance system-wide sweep using bulk queries and parallel batching.
  * 1. Scrubs all active staff sessions.
  * 2. Cancels stale orders.
- * 3. Deactivates all service channels (Closes shops).
+ * NOTE: Does NOT affect venue channel settings (bevcartActive, etc) to preserve admin config.
  */
 async function performOperationalReset() {
   logger.info("[performOperationalReset] STARTING ROBUST SYSTEM SWEEP");
 
   let totalStaffReset = 0;
   let totalOrdersCancelled = 0;
-  let totalVenuesDeactivated = 0;
 
   try {
     // 1. FETCH BASE TARGETS
@@ -45,20 +44,7 @@ async function performOperationalReset() {
       writeCount = 0;
     };
 
-    // 2. DEACTIVATE VENUE CHANNELS (Close the shops)
-    sellersSnapshot.forEach(vDoc => {
-      currentBatch.update(vDoc.ref, {
-        bevcartActive: false,
-        clubhouseActive: false,
-        lanedeliveryActive: false,
-        updatedAt: FieldValue.serverTimestamp()
-      });
-      totalVenuesDeactivated++;
-      writeCount++;
-      if (writeCount >= 450) commitAndReset();
-    });
-
-    // 3. CANCEL ACTIVE ORDERS
+    // 2. CANCEL ACTIVE ORDERS
     ordersSnapshot.forEach(oDoc => {
       currentBatch.update(oDoc.ref, { 
         status: 'Cancelled', 
@@ -70,9 +56,7 @@ async function performOperationalReset() {
       if (writeCount >= 450) commitAndReset();
     });
 
-    // 4. RESET STAFF SESSIONS (Venue-by-venue to avoid index dependency)
-    // We use a for-of loop with sequential awaits for the sub-queries to ensure reliability,
-    // but the actual writes are still batched for speed.
+    // 3. RESET STAFF SESSIONS (Venue-by-venue to avoid index dependency)
     for (const sellerDoc of sellersSnapshot.docs) {
       const staffSnapshot = await sellerDoc.ref.collection('staff').where('activeMode', '!=', null).get();
       staffSnapshot.forEach(sDoc => {
@@ -92,16 +76,15 @@ async function performOperationalReset() {
       batches.push(currentBatch.commit());
     }
 
-    // 5. EXECUTE ALL WRITES
+    // 4. EXECUTE ALL WRITES
     await Promise.all(batches);
 
-    logger.info(`[performOperationalReset] Finalized. Staff: ${totalStaffReset}, Orders: ${totalOrdersCancelled}, Venues: ${totalVenuesDeactivated}`);
+    logger.info(`[performOperationalReset] Finalized. Staff: ${totalStaffReset}, Orders: ${totalOrdersCancelled}`);
     
     return { 
       status: 'success', 
       totalStaffReset, 
-      totalOrdersCancelled, 
-      totalVenuesDeactivated 
+      totalOrdersCancelled 
     };
     
   } catch (err: any) {

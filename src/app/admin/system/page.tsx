@@ -56,7 +56,7 @@ export default function AdminSystemConfigPage() {
       const data = result.data as any;
       toast({ 
         title: "Global Reset Complete", 
-        description: `Scrubbed ${data.totalStaffReset} staff, ${data.totalOrdersCancelled} orders, and closed ${data.totalVenuesDeactivated} shops.` 
+        description: `Scrubbed ${data.totalStaffReset} staff and ${data.totalOrdersCancelled} orders. Venue channel settings preserved.` 
       });
     } catch (e: any) {
       console.error("Reset Error:", e);
