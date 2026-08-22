@@ -142,6 +142,31 @@ export const createPaymentIntent = onCall({
 });
 
 /**
+ * dailyOperationalReset
+ */
+export const dailyOperationalReset = onSchedule({
+    schedule: "0 * * * *",
+    timeZone: "America/New_York",
+    region: 'us-central1'
+}, async () => {
+    const configSnap = await db.collection('solution').doc('config').get();
+    const resetHour = configSnap.exists ? (configSnap.data()?.dailyResetHour ?? 4) : 4;
+    const nowInEst = new Date(new Date().toLocaleString("en-US", { timeZone: "America/New_York" }));
+    if (nowInEst.getHours() !== resetHour)
+        return;
+    await performOperationalReset();
+});
+
+/**
+ * manualOperationalReset
+ */
+export const manualOperationalReset = onCall({ region: 'us-central1' }, async (request) => {
+    if (!request.auth)
+        throw new HttpsError('unauthenticated', 'Unauthorized access.');
+    return await performOperationalReset();
+});
+
+/**
  * onGuestOrderStatusUpdate
  */
 export const onGuestOrderStatusUpdate = onDocumentWritten({
@@ -173,17 +198,24 @@ export const onGuestOrderStatusUpdate = onDocumentWritten({
             if (data.status !== beforeData.status) {
                 if (data.status === 'Preparing')
                     body = `Order confirmed! We're getting it ready: ${link}`;
-                if (data.status === 'Out for Delivery')
+                else if (data.status === 'Out for Delivery')
                     body = `Order out for delivery! Track live: ${link}`;
-                if (data.status === 'Delivered')
+                else if (data.status === 'Delivered')
                     body = `Order delivered! Enjoy your time at the venue: ${link}`;
             }
-            const currentPing = data.refreshRequestedAt;
-            const previousPing = beforeData.refreshRequestedAt;
-            const currentPingMs = currentPing?.toMillis ? currentPing.toMillis() : (currentPing instanceof Date ? currentPing.getTime() : 0);
-            const previousPingMs = previousPing?.toMillis ? previousPing.toMillis() : (previousPing instanceof Date ? previousPing.getTime() : 0);
+
+            const getSeconds = (ts) => {
+                if (!ts) return 0;
+                if (typeof ts.seconds === 'number') return ts.seconds;
+                if (typeof ts._seconds === 'number') return ts._seconds;
+                if (typeof ts.toMillis === 'function') return Math.floor(ts.toMillis() / 1000);
+                return 0;
+            };
+
+            const currentPingSec = getSeconds(data.refreshRequestedAt);
+            const previousPingSec = getSeconds(beforeData.refreshRequestedAt);
             
-            if (currentPingMs > 0 && currentPingMs !== previousPingMs) {
+            if (!body && currentPingSec > 0 && currentPingSec !== previousPingSec) {
                 body = `Hey! Your Koop order is on the way - tap to help us find you: ${link}`;
             }
         }

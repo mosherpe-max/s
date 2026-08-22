@@ -179,8 +179,9 @@ export const manualOperationalReset = onCall({ region: 'us-central1' }, async (r
 
 /**
  * onGuestOrderStatusUpdate
- * Dispatches SMS updates via Twilio for status changes (Preparing, Out for Delivery, Delivered)
- * and manual location pings.
+ * Dispatches SMS updates via Twilio for:
+ * 1. Status changes (Preparing, Out for Delivery, Delivered)
+ * 2. Manual "Pin" requests (Manual Location Refresh)
  */
 export const onGuestOrderStatusUpdate = onDocumentWritten({ 
   document: "orders/{orderId}", 
@@ -208,28 +209,41 @@ export const onGuestOrderStatusUpdate = onDocumentWritten({
     const beforeData = event.data?.before?.exists ? event.data.before.data() : null;
 
     if (beforeData) {
-      // 1. STATUS CHANGE ALERTS
+      // 1. STATUS CHANGE ALERTS (Only Preparing, Out for Delivery, Delivered)
       if (data.status !== beforeData.status) {
-        if (data.status === 'Preparing') body = `Order confirmed! We're getting it ready: ${link}`;
-        if (data.status === 'Out for Delivery') body = `Order out for delivery! Track live: ${link}`;
-        if (data.status === 'Delivered') body = `Order delivered! Enjoy your time at the venue: ${link}`;
+        if (data.status === 'Preparing') {
+          body = `Order confirmed! We're getting it ready: ${link}`;
+        } else if (data.status === 'Out for Delivery') {
+          body = `Order out for delivery! Track live: ${link}`;
+        } else if (data.status === 'Delivered') {
+          body = `Order delivered! Enjoy your time at the venue: ${link}`;
+        }
       }
       
-      // 2. STAFF GPS PING REQUEST (Manual Location Refresh)
-      const currentPing = data.refreshRequestedAt;
-      const previousPing = beforeData.refreshRequestedAt;
+      // 2. MANUAL "PIN" REQUEST (Manual Location Refresh)
+      // Robust detection of Timestamp change across different SDK representations
+      const getSeconds = (ts: any) => {
+        if (!ts) return 0;
+        if (typeof ts.seconds === 'number') return ts.seconds;
+        if (typeof ts._seconds === 'number') return ts._seconds;
+        if (typeof ts.toMillis === 'function') return Math.floor(ts.toMillis() / 1000);
+        return 0;
+      };
+
+      const currentPingSec = getSeconds(data.refreshRequestedAt);
+      const previousPingSec = getSeconds(beforeData.refreshRequestedAt);
       
-      const currentPingMs = currentPing?.toMillis ? currentPing.toMillis() : (currentPing instanceof Date ? currentPing.getTime() : 0);
-      const previousPingMs = previousPing?.toMillis ? previousPing.toMillis() : (previousPing instanceof Date ? previousPing.getTime() : 0);
-      
-      if (currentPingMs > 0 && currentPingMs !== previousPingMs) {
+      // If we haven't already set a body from a status change, check for a manual pin
+      if (!body && currentPingSec > 0 && currentPingSec !== previousPingSec) {
         body = `Hey! Your Koop order is on the way - tap to help us find you: ${link}`;
       }
     }
 
     if (body) {
+      // TWILIO PHONE CLEANING
       const cleanPhone = String(data.customerPhone).replace(/\D/g, '');
       if (cleanPhone.length >= 10) {
+        // Correct formatting: +1 for 10-digit US/Canada, + for others
         const to = cleanPhone.length === 10 ? `+1${cleanPhone}` : `+${cleanPhone}`;
         await client.messages.create({ body, from: fromNumber, to });
         logger.info(`[onGuestOrderStatusUpdate] SMS sent to ${to}: ${body}`);
