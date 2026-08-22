@@ -49,7 +49,8 @@ import {
   Timer,
   Lock,
   Info,
-  Truck
+  Truck,
+  Download
 } from 'lucide-react';
 import Image from 'next/image';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -134,6 +135,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
+import * as XLSX from 'xlsx';
 
 const staffSchema = z.object({
   name: z.string().min(2, 'Name required'),
@@ -473,6 +475,27 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
       .sort((a, b) => b.total - a.total)
       .slice(0, 50);
   }, [orders]);
+
+  const handleExportPatrons = () => {
+    if (!patrons || patrons.length === 0) return;
+    
+    const exportData = patrons.map(p => ({
+      'Customer Name': p.name,
+      'Email Address': p.email,
+      'Phone Number': p.phone,
+      'Total Orders': p.count,
+      'LTV (Net Revenue)': p.total
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(exportData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Patron Directory');
+    
+    const fileName = `${seller?.courseName?.replace(/\s+/g, '_') || 'Venue'}_Patron_History_${format(new Date(), 'yyyy-MM-dd')}.xlsx`;
+    XLSX.writeFile(workbook, fileName);
+    
+    toast({ title: "Excel Export Complete", description: `Saved patron directory to ${fileName}` });
+  };
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }), 
@@ -875,9 +898,19 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
 
                    <Card className="border-2 shadow-sm bg-[#213147] text-white overflow-hidden mt-12">
                       <CardHeader className="border-b border-white/5 py-6">
-                        <div className="flex items-center gap-3">
-                          <Users className="h-5 w-5 text-primary" />
-                          <CardTitle className="text-sm font-black uppercase tracking-widest">Patron Directory</CardTitle>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <Users className="h-5 w-5 text-primary" />
+                            <CardTitle className="text-sm font-black uppercase tracking-widest">Patron Directory</CardTitle>
+                          </div>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={handleExportPatrons}
+                            className="h-8 text-[9px] font-black uppercase tracking-widest border-white/10 bg-white/5 text-white hover:bg-white/10 hover:text-white gap-2"
+                          >
+                            <Download className="h-3 w-3" /> Export Excel
+                          </Button>
                         </div>
                       </CardHeader>
                       <CardContent className="p-0">
