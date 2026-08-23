@@ -4,7 +4,7 @@ import { useState, use, useEffect, useMemo, Suspense } from 'react';
 import { collection, doc, addDoc, serverTimestamp, query, where } from 'firebase/firestore';
 import { signInAnonymously } from 'firebase/auth';
 import { useFirestore, useCollection, useMemoFirebase, useDoc, useAuth, useUser, useFirebase } from '@/firebase';
-import type { Seller, MenuItem, OrderItem, SolutionConfig, Venue, StaffMember, PaymentMethodType } from '@/lib/types';
+import type { Seller, MenuItem, OrderItem, SolutionConfig, Venue, StaffMember, PaymentMethodType, Order } from '@/lib/types';
 import { categories } from '@/lib/types';
 import { BuyerMenu } from '@/components/buyer-menu';
 import { OrderSummary } from '@/components/order-summary';
@@ -16,6 +16,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetClose, SheetTrigger } from '@/components/ui/sheet';
+import Link from 'next/link';
 import { 
   Loader2, 
   Store, 
@@ -33,7 +34,8 @@ import {
   Smartphone, 
   Mail, 
   X, 
-  UserCircle 
+  UserCircle,
+  ChevronRight
 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useCart } from '@/lib/cart-context';
@@ -612,6 +614,7 @@ function BuyerOrderContent({ sellerId }: { sellerId: string }) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const { user } = useUser();
   const { orderItems, updateItem, isCartOpen, setIsCartOpen, clearCart, totalItems, total } = useCart();
   
   const menuTypeFromUrl = searchParams.get('menuType');
@@ -634,6 +637,22 @@ function BuyerOrderContent({ sellerId }: { sellerId: string }) {
 
   const menuItemsQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'sellers', sellerId, 'menuItems') : null), [firestore, sellerId]);
   const { data: menuItems, isLoading: areItemsLoading } = useCollection<MenuItem>(menuItemsQuery);
+
+  // FETCH ACTIVE ORDERS FOR CURRENT PATRON SESSION
+  const activeOrdersQuery = useMemoFirebase(() => {
+    if (!firestore || !user?.uid) return null;
+    return query(
+      collection(firestore, 'orders'),
+      where('buyerProfileId', '==', user.uid),
+      where('status', 'in', ['Placed', 'Preparing', 'Out for Delivery'])
+    );
+  }, [firestore, user?.uid]);
+  const { data: userActiveOrders } = useCollection<Order>(activeOrdersQuery);
+
+  const activeTrackingOrder = useMemo(() => {
+    if (!userActiveOrders || userActiveOrders.length === 0) return null;
+    return [...userActiveOrders].sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0))[0];
+  }, [userActiveOrders]);
 
   const updateMenuType = (type: string) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -804,6 +823,30 @@ function BuyerOrderContent({ sellerId }: { sellerId: string }) {
               {menuNotice}
             </p>
           </div>
+
+          {/* ACTIVE ORDER PERSISTENCE LINK */}
+          {activeTrackingOrder && (
+            <Link 
+              href={`/order/track?id=${activeTrackingOrder.id}&sellerId=${sellerId}`}
+              className="w-full mt-2 group animate-in slide-in-from-bottom-2 duration-500"
+            >
+              <div className="bg-primary/20 hover:bg-primary/30 border border-primary/40 rounded-2xl p-3 flex items-center justify-between transition-all active:scale-[0.98]">
+                <div className="flex items-center gap-3">
+                  <div className="bg-primary p-2 rounded-xl animate-pulse shadow-lg">
+                    <MapPin className="h-4 w-4 text-white" />
+                  </div>
+                  <div className="text-left">
+                    <p className="text-[10px] font-black uppercase text-white tracking-widest leading-none mb-1.5">Track Active Order</p>
+                    <div className="flex items-center gap-2">
+                       <Badge variant="outline" className="text-[7px] font-black uppercase border-white/20 bg-white/5 text-white/80 h-3.5 px-1.5">{activeTrackingOrder.status}</Badge>
+                       <p className="text-[8px] font-bold text-white/40 uppercase tracking-widest">Live Delivery Updates</p>
+                    </div>
+                  </div>
+                </div>
+                <ChevronRight className="h-4 w-4 text-white/40 group-hover:text-white transition-colors" />
+              </div>
+            </Link>
+          )}
         </div>
       </header>
 
@@ -907,7 +950,7 @@ export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId:
     <Suspense fallback={
       <div className="flex flex-col min-h-screen bg-background items-center justify-center">
         <Loader2 className="animate-spin h-10 w-10 text-primary" />
-        <p className="mt-4 text-[10px] font-black uppercase tracking_widest text-muted-foreground">Synchronizing Menu Feed...</p>
+        <p className="mt-4 text-[10px] font-black uppercase tracking_widest text-muted-foreground">Initializing Menu Feed...</p>
       </div>
     }>
       <BuyerOrderContent sellerId={sellerId} />
