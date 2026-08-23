@@ -182,6 +182,7 @@ function StripeActionArea({
             },
             allow_redisplay: 'always'
           },
+          payment_method_data_save: saveInfo ? 'always' : 'never',
           payment_method_options: {
             card: {
               setup_future_usage: saveInfo ? 'off_session' : undefined
@@ -283,6 +284,7 @@ function CheckoutDrawerContent({
   const auth = useAuth();
   const { user } = useUser();
   const { toast } = useToast();
+  const { updateItem, removeItem } = useCart();
   
   const [patronEmail, setPatronEmail] = useState('');
   const [patronName, setPatronName] = useState('');
@@ -465,7 +467,11 @@ function CheckoutDrawerContent({
           </SheetClose>
         </div>
 
-        <OrderSummary items={activeOrderItems} onUpdateItem={() => {}} onRemoveItem={() => {}} />
+        <OrderSummary 
+          items={activeOrderItems} 
+          onUpdateItem={updateItem} 
+          onRemoveItem={removeItem} 
+        />
         
         {selectedMenuType === 'Lane Delivery' && seller?.laneCount && (
           <div className="space-y-4">
