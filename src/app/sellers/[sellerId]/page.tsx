@@ -259,6 +259,10 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
   const [baseUrl, setBaseUrl] = useState('');
   const [isDownloading, setIsDownloading] = useState(false);
 
+  // Missing Analytics States
+  const [analyticsTimeframe, setAnalyticsTimeframe] = useState<'7d' | 'month' | 'year'>('7d');
+  const [analyticsMode, setAnalyticsMode] = useState<string>('All');
+
   useEffect(() => {
     if (typeof window !== 'undefined') {
       setBaseUrl(window.location.origin);
