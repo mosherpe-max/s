@@ -50,7 +50,9 @@ import {
   Lock,
   Info,
   Truck,
-  Download
+  Download,
+  QrCode,
+  Copy
 } from 'lucide-react';
 import Image from 'next/image';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -254,10 +256,14 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
   const [isStaffFormOpen, setIsStaffFormOpen] = useState(false);
   const [editingStaff, setEditingStaff] = useState<StaffMember | null>(null);
   const [isProcessingSave, setIsProcessingSave] = useState(false);
+  const [baseUrl, setBaseUrl] = useState('');
+  const [isDownloading, setIsDownloading] = useState(false);
 
-  // Analytics Controls
-  const [analyticsTimeframe, setAnalyticsTimeframe] = useState<'7d' | 'month' | 'year'>('7d');
-  const [analyticsMode, setAnalyticsMode] = useState<string>('All');
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setBaseUrl(window.location.origin);
+    }
+  }, []);
 
   const sellerRef = useMemoFirebase(() => (firestore ? doc(firestore, 'sellers', sellerId) : null), [firestore, sellerId]);
   const { data: seller, isLoading: isSellerLoading } = useDoc<Seller>(sellerRef);
@@ -591,6 +597,30 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
   };
 
   const handleLogout = async () => { if (!auth) return; await signOut(auth); router.push('/login'); };
+
+  const handleDownloadStaffQr = async () => {
+    const url = `${baseUrl}/sellers/${sellerId}/staff-login`;
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=1000x1000&data=${encodeURIComponent(url)}&ecc=H`;
+    
+    setIsDownloading(true);
+    try {
+      const response = await fetch(qrUrl);
+      const blob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = `${seller?.courseName?.replace(/\s+/g, '_')}_Staff_Portal_QR.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(downloadUrl);
+      toast({ title: "QR Code Downloaded", description: "Saved to your device for printing." });
+    } catch (e) {
+      toast({ variant: "destructive", title: "Download Failed", description: "Could not retrieve the QR image." });
+    } finally {
+      setIsDownloading(false);
+    }
+  };
 
   const staffForm = useForm<StaffFormData>({
     resolver: zodResolver(staffSchema),
@@ -1138,11 +1168,76 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
               )}
 
               {activeNav === 'staff' && (
-                <div className="space-y-6 animate-in fade-in duration-500">
-                  <div className="flex items-center justify-between">
-                    <h2 className="text-xl font-black uppercase text-[#213147]">Venue Personnel</h2>
-                    <Button onClick={() => { setEditingStaff(null); staffForm.reset(); setIsStaffFormOpen(true); }} className="bg-[#213147] font-black uppercase text-xs tracking-widest"><Plus className="h-4 w-4 mr-2" /> Add Staff</Button>
+                <div className="space-y-12 animate-in fade-in duration-500">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-primary/10 rounded-lg"><Users className="h-6 w-6 text-primary" /></div>
+                      <div className="text-left">
+                        <h2 className="text-xl font-black uppercase text-[#213147]">Venue Personnel</h2>
+                        <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">Terminal Access & Staff Management</p>
+                      </div>
+                    </div>
+                    <Button onClick={() => { setEditingStaff(null); staffForm.reset(); setIsStaffFormOpen(true); }} className="bg-[#213147] font-black uppercase text-xs tracking-widest shadow-lg rounded-xl h-11 px-6"><Plus className="h-4 w-4 mr-2" /> Add Fulfillment Staff</Button>
                   </div>
+
+                  {/* STAFF ACCESS POINT - QR CODE */}
+                  <Card className="border-2 shadow-sm overflow-hidden bg-slate-50/50">
+                    <CardHeader className="bg-white border-b py-6 px-8">
+                       <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                             <div className="p-2 bg-[#213147]/5 rounded-lg">
+                               <QrCode className="h-5 w-5 text-[#213147]" />
+                             </div>
+                             <div className="text-left">
+                                <CardTitle className="text-xs font-black uppercase tracking-widest text-[#213147]">Staff Access Point</CardTitle>
+                                <CardDescription className="text-[8px] font-bold uppercase tracking-widest">Secure Dashboard Entrance</CardDescription>
+                             </div>
+                          </div>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            disabled={isDownloading || !baseUrl}
+                            onClick={handleDownloadStaffQr}
+                            className="h-9 text-[9px] font-black uppercase tracking-widest border-2 gap-2 bg-white hover:bg-slate-50 transition-all rounded-lg"
+                          >
+                            {isDownloading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Download className="h-3 w-3" />} Download QR for Print
+                          </Button>
+                       </div>
+                    </CardHeader>
+                    <CardContent className="p-8">
+                       <div className="flex flex-col md:flex-row items-center gap-10">
+                          <div className="bg-white p-4 rounded-[2rem] shadow-xl border-4 border-white shrink-0">
+                             {baseUrl ? (
+                               <img 
+                                 src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(`${baseUrl}/sellers/${sellerId}/staff-login`)}&ecc=H`}
+                                 alt="Staff Login QR"
+                                 className="w-40 h-40 rounded-2xl"
+                               />
+                             ) : <Skeleton className="w-40 h-40 rounded-2xl" />}
+                          </div>
+                          <div className="space-y-6 flex-1 text-center md:text-left">
+                             <div className="space-y-2">
+                                <h3 className="font-headline font-black text-sm uppercase tracking-tight text-[#213147]">Login Procedure for Staff</h3>
+                                <p className="text-[11px] text-muted-foreground font-medium leading-relaxed uppercase">
+                                   Post this QR code in secure areas. Staff scan to access the login terminal, where they enter their 4-digit PIN and select their shift role.
+                                </p>
+                             </div>
+                             <div className="flex flex-col sm:flex-row gap-3">
+                                <div className="bg-white px-4 py-3 rounded-xl border-2 border-slate-100 flex-1 flex items-center justify-between">
+                                   <div className="flex items-center gap-2">
+                                      <Smartphone className="h-4 w-4 text-primary" />
+                                      <span className="font-mono text-[9px] font-black text-muted-foreground truncate max-w-[150px]">{baseUrl}/sellers/{sellerId}/staff-login</span>
+                                   </div>
+                                   <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg" onClick={() => { navigator.clipboard.writeText(`${baseUrl}/sellers/${sellerId}/staff-login`); toast({ title: "Link Copied" }); }}>
+                                      <Copy className="h-3.5 w-3.5 text-slate-400" />
+                                   </Button>
+                                </div>
+                             </div>
+                          </div>
+                       </div>
+                    </CardContent>
+                  </Card>
+
                   <Card className="border-2 rounded-[2rem] overflow-hidden shadow-sm bg-white">
                     <Table>
                       <TableHeader className="bg-slate-50">
