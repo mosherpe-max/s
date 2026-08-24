@@ -52,7 +52,11 @@ import {
   Truck,
   Download,
   QrCode,
-  Copy
+  Copy,
+  Megaphone,
+  Share2,
+  FileText,
+  Palette
 } from 'lucide-react';
 import Image from 'next/image';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -259,7 +263,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
   const [baseUrl, setBaseUrl] = useState('');
   const [isDownloading, setIsDownloading] = useState(false);
 
-  // Missing Analytics States
+  // Analytics States
   const [analyticsTimeframe, setAnalyticsTimeframe] = useState<'7d' | 'month' | 'year'>('7d');
   const [analyticsMode, setAnalyticsMode] = useState<string>('All');
 
@@ -626,6 +630,35 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
     }
   };
 
+  const handleDownloadPatronQr = async () => {
+    if (!seller?.qrSecret) {
+      toast({ variant: "destructive", title: "Access Key Missing", description: "Initialize QR access in the Koop Admin panel first." });
+      return;
+    }
+    
+    const url = `${baseUrl}/sellers/${sellerId}/order?key=${seller.qrSecret}`;
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=2000x2000&data=${encodeURIComponent(url)}&ecc=H`;
+    
+    setIsDownloading(true);
+    try {
+      const response = await fetch(qrUrl);
+      const blob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = `${seller?.courseName?.replace(/\s+/g, '_')}_Patron_Menu_QR.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(downloadUrl);
+      toast({ title: "Menu QR Downloaded", description: "High-resolution image saved for printing assets." });
+    } catch (e) {
+      toast({ variant: "destructive", title: "Download Failed", description: "Could not retrieve the QR image." });
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
   const staffForm = useForm<StaffFormData>({
     resolver: zodResolver(staffSchema),
     defaultValues: { name: '', role: 'Staff', pin: '', isActive: true }
@@ -641,6 +674,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
   const NAV_ITEMS = [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
     { id: "analytics", label: "Analytics", icon: BarChart3 },
+    { id: "marketing", label: "Marketing", icon: Megaphone },
     { id: "orders", label: "Fulfillment Log", icon: ClipboardCheck },
     { id: "modes", label: "Service Modes", icon: Zap },
     { id: "menu", label: "Menu Items", icon: UtensilsCrossed },
@@ -658,6 +692,8 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
       default: return Zap;
     }
   };
+
+  const patronMenuUrl = seller?.qrSecret ? `${baseUrl}/sellers/${sellerId}/order?key=${seller.qrSecret}` : '';
 
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-[#F8FAFC] text-left">
@@ -690,7 +726,6 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
             <div className="max-w-6xl mx-auto space-y-8 pb-24 text-left min-w-0">
               {activeNav === 'dashboard' && (
                 <div className="space-y-12 animate-in fade-in duration-500">
-                  {/* REAL-TIME OPERATIONS SUITE */}
                   <div className="space-y-6">
                      <div className="flex items-center gap-3">
                         <div className="p-2 bg-primary/10 rounded-lg"><Activity className="h-6 w-6 text-primary" /></div>
@@ -780,7 +815,6 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                      </div>
                   </div>
 
-                  {/* REVENUE OVERVIEW - BOTTOM OF DASHBOARD */}
                   <div className="space-y-6">
                     <div className="flex items-center gap-3">
                        <div className="p-2 bg-indigo-50 rounded-lg text-indigo-600"><BarChart3 className="h-6 w-6" /></div>
@@ -849,7 +883,6 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                    </div>
 
                    <div className="grid grid-cols-1 gap-12">
-                      {/* CHART 1: REVENUE TREND */}
                       <Card className="border-2 shadow-sm overflow-hidden">
                          <CardHeader className="bg-slate-50 border-b py-4">
                             <div className="flex items-center justify-between">
@@ -880,7 +913,6 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                          </CardContent>
                       </Card>
 
-                      {/* CHART 2: ACKNOWLEDGEMENT LOGISTICS */}
                       <Card className="border-2 shadow-sm overflow-hidden">
                          <CardHeader className="bg-slate-50 border-b py-4">
                             <div className="flex items-center gap-2">
@@ -904,7 +936,6 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                          </CardContent>
                       </Card>
 
-                      {/* CHART 3: DURATION EFFICIENCY */}
                       <Card className="border-2 shadow-sm overflow-hidden">
                          <CardHeader className="bg-slate-50 border-b py-4">
                             <div className="flex items-center gap-2">
@@ -929,54 +960,122 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                          </CardContent>
                       </Card>
                    </div>
+                </div>
+              )}
 
-                   <Card className="border-2 shadow-sm bg-[#213147] text-white overflow-hidden mt-12">
-                      <CardHeader className="border-b border-white/5 py-6">
+              {activeNav === 'marketing' && (
+                <div className="space-y-12 animate-in fade-in duration-500">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-primary/10 rounded-lg"><Megaphone className="h-6 w-6 text-primary" /></div>
+                    <div className="text-left">
+                      <h2 className="text-xl font-black uppercase text-[#213147]">Marketing Assets</h2>
+                      <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">Promote your mobile ordering solution</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    {/* PATRON MENU QR CARD */}
+                    <Card className="border-2 shadow-sm overflow-hidden bg-slate-50/50">
+                      <CardHeader className="bg-white border-b py-6 px-8">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3">
-                            <Users className="h-5 w-5 text-primary" />
-                            <CardTitle className="text-sm font-black uppercase tracking-widest">Patron Directory</CardTitle>
+                            <div className="p-2 bg-primary/5 rounded-lg">
+                              <QrCode className="h-5 w-5 text-primary" />
+                            </div>
+                            <div className="text-left">
+                              <CardTitle className="text-xs font-black uppercase tracking-widest text-[#213147]">Patron Menu Access</CardTitle>
+                              <CardDescription className="text-[8px] font-bold uppercase tracking-widest">Cart Placards & Table Tents</CardDescription>
+                            </div>
                           </div>
                           <Button 
                             variant="outline" 
                             size="sm" 
-                            onClick={handleExportPatrons}
-                            className="h-8 text-[9px] font-black uppercase tracking-widest border-white/10 bg-white/5 text-white hover:bg-white/10 hover:text-white gap-2"
+                            disabled={isDownloading || !patronMenuUrl}
+                            onClick={handleDownloadPatronQr}
+                            className="h-9 text-[9px] font-black uppercase tracking-widest border-2 gap-2 bg-white hover:bg-slate-50 rounded-lg"
                           >
-                            <Download className="h-3 w-3" /> Export Excel
+                            {isDownloading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Download className="h-3 w-3" />} Download PNG
                           </Button>
                         </div>
                       </CardHeader>
-                      <CardContent className="p-0">
-                         <Table>
-                            <TableHeader className="bg-white/5">
-                               <TableRow className="border-white/5 hover:bg-transparent">
-                                  <TableHead className="text-[9px] font-black uppercase text-white/40 px-8">Patron Identity</TableHead>
-                                  <TableHead className="text-[9px] font-black uppercase text-white/40">Frequency</TableHead>
-                                  <TableHead className="text-[9px] font-black uppercase text-white/40 text-right px-8">LTV (Net Revenue)</TableHead>
-                               </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                               {patrons.length === 0 ? (
-                                 <TableRow><TableCell colSpan={3} className="py-20 text-center text-white/20 uppercase text-[10px] font-black">No patron history recorded</TableCell></TableRow>
-                               ) : patrons.map(p => (
-                                 <TableRow key={p.id} className="border-white/5 hover:bg-white/5 transition-colors">
-                                   <TableCell className="px-8">
-                                     <div className="text-left">
-                                       <p className="text-[11px] font-black uppercase tracking-tight leading-none mb-1">{p.name}</p>
-                                       <p className="text-[8px] font-bold text-white/40 uppercase tracking-widest">{p.email} • {p.phone}</p>
-                                     </div>
-                                   </TableCell>
-                                   <TableCell>
-                                      <Badge variant="outline" className="text-[8px] font-black uppercase bg-white/5 border-white/10 text-white/60">{p.count} Orders</Badge>
-                                   </TableCell>
-                                   <TableCell className="text-right px-8 font-mono font-black text-primary text-sm">${p.total.toFixed(2)}</TableCell>
-                                 </TableRow>
-                               ))}
-                            </TableBody>
-                         </Table>
+                      <CardContent className="p-8">
+                        <div className="flex flex-col md:flex-row items-center gap-10">
+                          <div className="bg-white p-4 rounded-[2rem] shadow-xl border-4 border-white shrink-0">
+                            {patronMenuUrl ? (
+                              <img 
+                                src={`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(patronMenuUrl)}&ecc=H`}
+                                alt="Patron Menu QR"
+                                className="w-40 h-40 rounded-2xl"
+                              />
+                            ) : (
+                              <div className="w-40 h-40 flex flex-col items-center justify-center text-center p-4 bg-muted rounded-2xl">
+                                <AlertTriangle className="h-8 w-8 text-amber-500 mb-2" />
+                                <p className="text-[8px] font-black uppercase leading-tight">Key Inactive</p>
+                              </div>
+                            )}
+                          </div>
+                          <div className="space-y-6 flex-1 text-center md:text-left">
+                            <div className="space-y-2">
+                              <h3 className="font-headline font-black text-sm uppercase tracking-tight text-[#213147]">High-Res Printing Assets</h3>
+                              <p className="text-[11px] text-muted-foreground font-medium leading-relaxed uppercase">
+                                This QR code contains your unique secure access key. Use the high-resolution download for cart stickers, bar coasters, and fairway yardage markers.
+                              </p>
+                            </div>
+                            <div className="bg-white px-4 py-3 rounded-xl border-2 border-slate-100 flex items-center justify-between">
+                              <div className="flex items-center gap-2 overflow-hidden">
+                                <Share2 className="h-4 w-4 text-primary shrink-0" />
+                                <span className="font-mono text-[9px] font-black text-muted-foreground truncate">{patronMenuUrl || 'Key Pending...'}</span>
+                              </div>
+                              {patronMenuUrl && (
+                                <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg" onClick={() => { navigator.clipboard.writeText(patronMenuUrl); toast({ title: "Menu Link Copied" }); }}>
+                                  <Copy className="h-3.5 w-3.5 text-slate-400" />
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
                       </CardContent>
-                   </Card>
+                    </Card>
+
+                    {/* COLLATERAL PREVIEWS */}
+                    <div className="grid grid-cols-1 gap-6">
+                      <Card className="border-2 shadow-sm flex items-center justify-between p-6 group hover:border-primary/20 transition-all cursor-pointer">
+                        <div className="flex items-center gap-4">
+                          <div className="p-3 bg-indigo-50 rounded-xl text-indigo-600">
+                            <Palette className="h-6 w-6" />
+                          </div>
+                          <div className="text-left">
+                            <p className="font-black text-sm uppercase text-[#213147]">Social Media Asset Kit</p>
+                            <p className="text-[9px] font-bold text-muted-foreground uppercase">Coming Soon: IG Stories & FB Post Templates</p>
+                          </div>
+                        </div>
+                        <Button variant="ghost" size="icon" className="opacity-20 group-hover:opacity-100 transition-opacity"><ChevronLeft className="rotate-180 h-4 w-4" /></Button>
+                      </Card>
+
+                      <Card className="border-2 shadow-sm flex items-center justify-between p-6 group hover:border-primary/20 transition-all cursor-pointer">
+                        <div className="flex items-center gap-4">
+                          <div className="p-3 bg-green-50 rounded-xl text-green-600">
+                            <FileText className="h-6 w-6" />
+                          </div>
+                          <div className="text-left">
+                            <p className="font-black text-sm uppercase text-[#213147]">Email Blast Templates</p>
+                            <p className="text-[9px] font-bold text-muted-foreground uppercase">Launch announcement HTML for members</p>
+                          </div>
+                        </div>
+                        <Button variant="ghost" size="icon" className="opacity-20 group-hover:opacity-100 transition-opacity"><ChevronLeft className="rotate-180 h-4 w-4" /></Button>
+                      </Card>
+                      
+                      <div className="bg-amber-50 border-2 border-amber-100 p-6 rounded-[2rem] flex items-start gap-4">
+                        <Info className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+                        <div className="text-left">
+                          <p className="text-[10px] font-black uppercase text-amber-700 leading-tight mb-1">Signage Tip</p>
+                          <p className="text-[9px] font-medium text-amber-800 leading-relaxed uppercase">
+                            Printing on UV-resistant vinyl is recommended for cart signage to prevent sun fading on the course.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               )}
 
@@ -1013,8 +1112,8 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                             <TableRow key={o.id} className="group hover:bg-slate-50/50 transition-colors">
                               <TableCell className="px-8 font-mono font-black text-primary text-xs">#{getNumericOrderId(o.id)}</TableCell>
                               <TableCell>
-                                <div className="flex flex-col">
-                                  <span className="font-bold text-sm">{o.customerName}</span>
+                                <div className="flex flex-col text-left">
+                                  <span className="font-bold text-sm uppercase">{o.customerName}</span>
                                   <span className="text-[9px] uppercase text-muted-foreground">{o.createdAt ? format(o.createdAt.toDate(), 'MMM d, h:mm a') : ''}</span>
                                 </div>
                               </TableCell>
@@ -1184,7 +1283,6 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                     <Button onClick={() => { setEditingStaff(null); staffForm.reset(); setIsStaffFormOpen(true); }} className="bg-[#213147] font-black uppercase text-xs tracking-widest shadow-lg rounded-xl h-11 px-6"><Plus className="h-4 w-4 mr-2" /> Add Fulfillment Staff</Button>
                   </div>
 
-                  {/* STAFF ACCESS POINT - QR CODE */}
                   <Card className="border-2 shadow-sm overflow-hidden bg-slate-50/50">
                     <CardHeader className="bg-white border-b py-6 px-8">
                        <div className="flex items-center justify-between">
@@ -1208,7 +1306,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                           </Button>
                        </div>
                     </CardHeader>
-                    <CardContent className="p-8">
+                    <CardContent className="p-8 text-center md:text-left">
                        <div className="flex flex-col md:flex-row items-center gap-10">
                           <div className="bg-white p-4 rounded-[2rem] shadow-xl border-4 border-white shrink-0">
                              {baseUrl ? (
@@ -1219,7 +1317,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                                />
                              ) : <Skeleton className="w-40 h-40 rounded-2xl" />}
                           </div>
-                          <div className="space-y-6 flex-1 text-center md:text-left">
+                          <div className="space-y-6 flex-1">
                              <div className="space-y-2">
                                 <h3 className="font-headline font-black text-sm uppercase tracking-tight text-[#213147]">Login Procedure for Staff</h3>
                                 <p className="text-[11px] text-muted-foreground font-medium leading-relaxed uppercase">
@@ -1279,7 +1377,6 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    {/* CORE IDENTITY */}
                     <Card className="border-2 shadow-sm">
                       <CardHeader className="bg-slate-50 border-b py-4">
                         <CardTitle className="text-[10px] font-black uppercase tracking-widest text-[#213147] flex items-center gap-2">
@@ -1303,7 +1400,6 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                       </CardContent>
                     </Card>
 
-                    {/* BILLING & SOLUTION FEES (READ ONLY) */}
                     <Card className="border-2 shadow-sm border-primary/20 bg-primary/5">
                       <CardHeader className="bg-primary/10 border-b py-4">
                         <div className="flex items-center justify-between">
@@ -1328,129 +1424,6 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                           </div>
                           <p className="text-[8px] font-bold text-muted-foreground uppercase leading-tight">Fixed monthly fee for venue operational access.</p>
                         </div>
-                        <div className="bg-primary/10 p-3 rounded-lg flex items-start gap-2">
-                          <Info className="h-3 w-3 text-primary shrink-0 mt-0.5" />
-                          <p className="text-[8px] font-bold text-primary uppercase leading-relaxed">Fees are managed globally by Koop. Contact support to request changes.</p>
-                        </div>
-                      </CardContent>
-                    </Card>
-
-                    {/* OPERATIONS & TAX */}
-                    <Card className="border-2 shadow-sm">
-                      <CardHeader className="bg-slate-50 border-b py-4">
-                        <CardTitle className="text-[10px] font-black uppercase tracking-widest text-[#213147] flex items-center gap-2">
-                          <Timer className="h-3 w-3" /> Operations & Tax
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent className="pt-6 space-y-4">
-                         <div className="space-y-1.5">
-                           <Label className="text-[9px] font-black uppercase">Sales Tax Rate (%)</Label>
-                           <Input type="number" step="0.01" defaultValue={seller?.taxRate} onBlur={(e) => handleUpdateField('taxRate', parseFloat(e.target.value))} className="h-10 border-2 font-bold" />
-                           <p className="text-[8px] font-medium text-muted-foreground uppercase">Applied to all digital and manual orders.</p>
-                         </div>
-                      </CardContent>
-                    </Card>
-
-                    {/* FULFILLMENT GUARDRAILS */}
-                    <Card className="border-2 shadow-sm md:col-span-2">
-                       <CardHeader className="bg-[#213147] text-white py-4 border-b">
-                          <CardTitle className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
-                            <Clock className="h-3.5 w-3.5 text-primary" /> Fulfillment Guardrails
-                          </CardTitle>
-                       </CardHeader>
-                       <CardContent className="pt-6">
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                             {seller?.menuTypes?.filter(m => AUTHORIZED_SERVICE_MODES.includes(m)).map(mode => (
-                               <div key={mode} className="space-y-4 p-4 rounded-xl border-2 bg-slate-50 border-slate-100">
-                                  <div className="flex items-center gap-2 border-b pb-2 mb-2">
-                                     <Zap className="h-3 w-3 text-primary" />
-                                     <span className="text-[10px] font-black uppercase tracking-tight">{mode}</span>
-                                  </div>
-                                  <div className="space-y-4">
-                                     <div className="space-y-1.5">
-                                        <Label className="text-[8px] font-black uppercase">Max Ack. Time (Seconds)</Label>
-                                        <Input 
-                                          type="number" 
-                                          defaultValue={seller?.orderThresholds?.[mode]?.maxOrderAcknowledgeSeconds || 120} 
-                                          onBlur={(e) => handleUpdateField(`orderThresholds.${mode}.maxOrderAcknowledgeSeconds`, parseInt(e.target.value))}
-                                          className="h-10 border-2 font-bold text-center" 
-                                        />
-                                     </div>
-                                     <div className="grid grid-cols-2 gap-4">
-                                       <div className="space-y-1.5">
-                                          <Label className="text-[8px] font-black uppercase text-amber-600">Warn (Min)</Label>
-                                          <Input 
-                                            type="number" 
-                                            defaultValue={seller?.orderThresholds?.[mode]?.warningOrderProcessingMinutes || 15} 
-                                            onBlur={(e) => handleUpdateField(`orderThresholds.${mode}.warningOrderProcessingMinutes`, parseInt(e.target.value))}
-                                            className="h-10 border-2 font-bold text-center" 
-                                          />
-                                       </div>
-                                       <div className="space-y-1.5">
-                                          <Label className="text-[8px] font-black uppercase text-red-600">Max (Min)</Label>
-                                          <Input 
-                                            type="number" 
-                                            defaultValue={seller?.orderThresholds?.[mode]?.maxOrderProcessingMinutes || 25} 
-                                            onBlur={(e) => handleUpdateField(`orderThresholds.${mode}.maxOrderProcessingMinutes`, parseInt(e.target.value))}
-                                            className="h-10 border-2 font-bold text-center" 
-                                          />
-                                       </div>
-                                     </div>
-                                  </div>
-                               </div>
-                             ))}
-                          </div>
-                       </CardContent>
-                    </Card>
-
-                    {/* MAP COORDINATES (READ ONLY) */}
-                    <Card className="border-2 shadow-sm border-slate-200 bg-slate-50/50">
-                       <CardHeader className="py-4 border-b">
-                          <div className="flex items-center justify-between">
-                            <CardTitle className="text-[10px] font-black uppercase tracking-widest text-[#213147] flex items-center gap-2">
-                              <MapPin className="h-3 w-3" /> Static Map Anchors
-                            </CardTitle>
-                            <Lock className="h-3 w-3 text-muted-foreground/30" />
-                          </div>
-                       </CardHeader>
-                       <CardContent className="pt-6">
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
-                             <div className="space-y-1.5">
-                               <Label className="text-[9px] font-black uppercase opacity-60">Anchor Latitude</Label>
-                               <div className="h-11 px-3 flex items-center bg-white border-2 rounded-md font-mono font-bold text-xs text-[#213147]">
-                                 {seller?.latitude}
-                               </div>
-                             </div>
-                             <div className="space-y-1.5">
-                               <Label className="text-[9px] font-black uppercase opacity-60">Anchor Longitude</Label>
-                               <div className="h-11 px-3 flex items-center bg-white border-2 rounded-md font-mono font-bold text-xs text-[#213147]">
-                                 {seller?.longitude}
-                               </div>
-                             </div>
-                             <div className="bg-white p-4 rounded-xl border-2 border-slate-100 flex items-center gap-3">
-                                <AlertTriangle className="h-5 w-5 text-amber-500" />
-                                <div className="text-left"><p className="text-[9px] font-black uppercase text-[#213147]">Relocation Required?</p><p className="text-[8px] font-medium text-muted-foreground uppercase leading-tight">Contact Koop Admin to update anchors.</p></div>
-                             </div>
-                          </div>
-                       </CardContent>
-                    </Card>
-
-                    {/* CONTACT & PERSONNEL */}
-                    <Card className="border-2 shadow-sm">
-                      <CardHeader className="bg-slate-50 border-b py-4">
-                        <CardTitle className="text-[10px] font-black uppercase tracking-widest text-[#213147] flex items-center gap-2">
-                          <Mail className="h-3 w-3" /> Contact & Personnel
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent className="pt-6 space-y-4">
-                        <div className="space-y-1.5">
-                          <Label className="text-[9px] font-black uppercase">Primary Manager Name</Label>
-                          <Input defaultValue={seller?.contactName} onBlur={(e) => handleUpdateField('contactName', e.target.value)} className="h-10 border-2 font-bold" />
-                        </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          <div className="space-y-1.5"><Label className="text-[9px] font-black uppercase">Admin Email</Label><Input type="email" defaultValue={seller?.contactEmail} onBlur={(e) => handleUpdateField('contactEmail', e.target.value)} className="h-10 border-2 font-bold" /></div>
-                          <div className="space-y-1.5"><Label className="text-[9px] font-black uppercase">Admin Phone</Label><Input type="tel" defaultValue={seller?.contactPhone} onBlur={(e) => handleUpdateField('contactPhone', e.target.value)} className="h-10 border-2 font-bold" /></div>
-                        </div>
                       </CardContent>
                     </Card>
                   </div>
@@ -1463,7 +1436,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
 
       <Dialog open={isStaffFormOpen} onOpenChange={setIsStaffFormOpen}>
         <DialogContent className="sm:max-w-[450px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
-          <DialogHeader className="p-8 bg-[#213147] text-white text-left">
+          <DialogHeader className="p-8 bg-[#213147] text-white">
             <DialogTitle className="font-headline font-black uppercase tracking-tight text-white text-xl">{editingStaff ? 'Edit Personnel' : 'Add Fulfillment Staff'}</DialogTitle>
           </DialogHeader>
           <div className="p-8">
@@ -1481,7 +1454,9 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                     <FormItem className="text-left"><FormLabel className="text-[10px] font-black uppercase">Login PIN</FormLabel><FormControl><Input {...field} maxLength={4} className="h-12 border-2 font-bold text-center tracking-[0.5em]" /></FormControl></FormItem>
                   )} />
                 </div>
-                <Button type="submit" disabled={isProcessingSave} className="w-full h-14 bg-[#213147] font-black uppercase tracking-widest text-[11px] gap-2 shadow-xl">{isProcessingSave ? <Loader2 className="animate-spin" /> : <Save className="h-4 w-4" />} Synchronize Staff Record</Button>
+                <Button type="submit" disabled={isProcessingSave} className="w-full h-14 bg-[#213147] font-black uppercase tracking-widest text-[11px] gap-2 shadow-xl">
+                  {isProcessingSave ? <Loader2 className="animate-spin" /> : <Save className="h-4 w-4" />} Synchronize Staff Record
+                </Button>
               </form>
             </Form>
           </div>
@@ -1490,3 +1465,4 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
     </div>
   );
 }
+
