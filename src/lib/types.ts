@@ -112,6 +112,8 @@ export interface Seller {
   stripeOnboardingComplete?: boolean;
   categoryVisibility?: Record<string, string[]>; // Map of Mode -> Array of Enabled Category Names
   enabledPaymentMethods?: PaymentMethodType[];
+  qrActive?: boolean;
+  qrSecret?: string;
 }
 
 export type Category = 'Featured' | 'Beer' | 'Spirits' | 'Soft Drinks' | 'Snacks' | 'Other' | 'Handhelds' | 'Appetizers' | 'Entrees' | 'Pizza' | 'Salad' | 'Dessert' | 'Kids';

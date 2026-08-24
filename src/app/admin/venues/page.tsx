@@ -1,6 +1,7 @@
+
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { 
   Store, 
@@ -23,7 +24,11 @@ import {
   Copy,
   Sparkles,
   Power,
-  Timer
+  Timer,
+  QrCode,
+  RefreshCcw,
+  XCircle,
+  Download
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -124,6 +129,13 @@ export default function AdminVenueRegistryPage() {
   const [selectedVenue, setSelectedVenue] = useState<Venue | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isCloning, setIsCloning] = useState(false);
+  const [baseUrl, setBaseUrl] = useState('');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setBaseUrl(window.location.origin);
+    }
+  }, []);
 
   const sellersQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'sellers') : null), [firestore]);
   const venuesQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'venues') : null), [firestore]);
@@ -241,7 +253,6 @@ export default function AdminVenueRegistryPage() {
     const venueId = data.courseName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
     
     try {
-      // 1. Fetch Global System Defaults for thresholds
       const configSnap = await getDoc(doc(firestore, 'solution', 'config'));
       const masterDefaults = configSnap.exists() ? configSnap.data()?.orderThresholds : {};
 
@@ -254,7 +265,9 @@ export default function AdminVenueRegistryPage() {
         laneCount: data.type === 'Bowling Center' ? data.laneCount : 0,
         latitude: 0,
         longitude: 0,
-        orderThresholds: masterDefaults || {} // Apply solution defaults
+        orderThresholds: masterDefaults || {},
+        qrActive: true,
+        qrSecret: Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15)
       };
 
       const businessRef = doc(firestore, 'venues', venueId);
@@ -277,6 +290,26 @@ export default function AdminVenueRegistryPage() {
     } finally { setIsProcessing(false); }
   };
 
+  const handleQrAction = async (action: 'regenerate' | 'revoke') => {
+    if (!firestore || !selectedVenue) return;
+    const sellerRef = doc(firestore, 'sellers', selectedVenue.venueId);
+    
+    const updateData: any = { updatedAt: serverTimestamp() };
+    if (action === 'regenerate') {
+      updateData.qrSecret = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+      updateData.qrActive = true;
+    } else {
+      updateData.qrActive = false;
+    }
+
+    updateDoc(sellerRef, updateData).then(() => {
+      toast({ 
+        title: action === 'regenerate' ? "QR Regenerated" : "QR Revoked",
+        description: action === 'regenerate' ? "New security key assigned. Old QR codes are now invalid." : "QR access channel deactivated."
+      });
+    });
+  };
+
   const handleConfirmDelete = async () => {
     if (!firestore || !venueToDelete) return;
     setIsProcessing(true);
@@ -288,6 +321,11 @@ export default function AdminVenueRegistryPage() {
       toast({ variant: "destructive", title: "Termination Failed", description: e.message });
     } finally { setIsProcessing(false); setVenueToDelete(null); }
   };
+
+  const currentSeller = sellers?.find(s => s.id === selectedVenue?.venueId);
+  const qrUrl = currentSeller?.qrActive && currentSeller?.qrSecret 
+    ? `${baseUrl}/sellers/${currentSeller.id}/order?key=${currentSeller.qrSecret}`
+    : '';
 
   return (
     <div className="p-8 space-y-6 animate-in fade-in duration-500 text-left">
@@ -429,8 +467,73 @@ export default function AdminVenueRegistryPage() {
           </DialogHeader>
           <ScrollArea className="max-h-[80vh]">
             <div className="p-8 space-y-10">
+               {/* QR LOGISTICS SECTION */}
+               <div className="space-y-6">
+                  <Label className="text-[11px] font-black uppercase tracking-[0.3em] text-primary flex items-center gap-2">
+                    <QrCode className="h-4 w-4" /> QR Access Logistics
+                  </Label>
+                  
+                  <Card className="border-2 border-slate-100 bg-slate-50 overflow-hidden rounded-2xl">
+                    <CardContent className="p-6 flex flex-col items-center text-center gap-6">
+                      {qrUrl ? (
+                        <div className="space-y-6 w-full">
+                          <div className="bg-white p-4 rounded-[2rem] shadow-xl border-4 border-white inline-block">
+                             <img 
+                               src={`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrUrl)}`}
+                               alt="Venue Menu QR"
+                               className="w-48 h-48 rounded-2xl"
+                             />
+                          </div>
+                          
+                          <div className="space-y-3">
+                            <div className="flex items-center gap-2 bg-white p-3 rounded-xl border-2 border-slate-100">
+                               <Input value={qrUrl} readOnly className="h-8 border-0 bg-transparent font-mono text-[9px] font-bold text-muted-foreground" />
+                               <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => { navigator.clipboard.writeText(qrUrl); toast({ title: "Link Copied" }); }}>
+                                  <Copy className="h-3.5 w-3.5" />
+                               </Button>
+                            </div>
+                            <p className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest px-2">
+                              This link contains a unique security secret. Revoking it will immediately disable all printed codes.
+                            </p>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-3 pt-2">
+                             <Button 
+                               variant="outline" 
+                               size="sm" 
+                               onClick={() => handleQrAction('regenerate')}
+                               className="h-10 text-[9px] font-black uppercase tracking-widest border-2 gap-1.5 hover:bg-primary/5 hover:text-primary transition-all"
+                             >
+                               <RefreshCcw className="h-3 w-3" /> Regenerate
+                             </Button>
+                             <Button 
+                               variant="outline" 
+                               size="sm" 
+                               onClick={() => handleQrAction('revoke')}
+                               className="h-10 text-[9px] font-black uppercase tracking-widest border-2 gap-1.5 text-destructive hover:bg-destructive/5"
+                             >
+                               <XCircle className="h-3 w-3" /> Revoke Access
+                             </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="py-8 space-y-4">
+                           <AlertTriangle className="h-12 w-12 text-amber-500 mx-auto" />
+                           <div className="space-y-1">
+                              <p className="text-sm font-black uppercase tracking-tight text-[#213147]">QR Access Inactive</p>
+                              <p className="text-[9px] font-bold text-muted-foreground uppercase max-w-[200px]">This venue currently has no secure access channel initialized.</p>
+                           </div>
+                           <Button onClick={() => handleQrAction('regenerate')} className="bg-primary font-black uppercase text-[10px] tracking-widest h-10 px-6 rounded-xl gap-2">
+                              <Plus className="h-4 w-4" /> Create New QR Code
+                           </Button>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+               </div>
+
                <Form {...registryForm}>
-                 <form onSubmit={registryForm.handleSubmit(onSaveVenueRegistry)} className="space-y-8">
+                 <form onSubmit={registryForm.handleSubmit(onSaveVenueRegistry)} className="space-y-8 pt-10 border-t-4 border-slate-100">
                     <div className="space-y-6">
                        <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2"><Zap className="h-3 w-3" /> Authorized Modes</Label>
                        <div className="grid gap-3">

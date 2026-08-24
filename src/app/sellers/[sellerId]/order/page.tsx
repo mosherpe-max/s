@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, use, useEffect, useMemo, Suspense } from 'react';
@@ -35,7 +36,10 @@ import {
   Mail, 
   X, 
   UserCircle,
-  ChevronRight
+  ChevronRight,
+  ShieldAlert,
+  ArrowLeft,
+  Lock
 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useCart } from '@/lib/cart-context';
@@ -618,6 +622,7 @@ function BuyerOrderContent({ sellerId }: { sellerId: string }) {
   const { orderItems, updateItem, isCartOpen, setIsCartOpen, clearCart, totalItems, total } = useCart();
   
   const menuTypeFromUrl = searchParams.get('menuType');
+  const keyParam = searchParams.get('key');
   const selectedMenuType = menuTypeFromUrl || '';
   const [locationValue, setLocationValue] = useState<string>('');
   const [activeCategory, setActiveCategory] = useState<string>('Featured');
@@ -637,6 +642,17 @@ function BuyerOrderContent({ sellerId }: { sellerId: string }) {
 
   const menuItemsQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'sellers', sellerId, 'menuItems') : null), [firestore, sellerId]);
   const { data: menuItems, isLoading: areItemsLoading } = useCollection<MenuItem>(menuItemsQuery);
+
+  // SECURE ACCESS CHECK
+  const isAccessValid = useMemo(() => {
+    if (!seller || isSellerLoading) return true; // Wait for load
+    // Legacy support for demos or older venues without keys
+    if (!seller.qrSecret) return true;
+    // If QR is deactivated, deny access
+    if (seller.qrActive === false) return false;
+    // If key exists, it must match
+    return seller.qrSecret === keyParam;
+  }, [seller, isSellerLoading, keyParam]);
 
   // FETCH ACTIVE ORDERS FOR CURRENT PATRON SESSION
   const activeOrdersQuery = useMemoFirebase(() => {
@@ -678,7 +694,7 @@ function BuyerOrderContent({ sellerId }: { sellerId: string }) {
   };
 
   useEffect(() => {
-    if (!menuTypeFromUrl && seller && !isSellerLoading && staffList) {
+    if (!menuTypeFromUrl && seller && !isSellerLoading && staffList && isAccessValid) {
       let defaultType = seller.type.toLowerCase().includes('bowling') ? 'Lane Delivery' : 'Beverage Cart';
       if (isModeAvailable(defaultType)) updateMenuType(defaultType);
       else {
@@ -686,7 +702,7 @@ function BuyerOrderContent({ sellerId }: { sellerId: string }) {
         if (firstAvailable) updateMenuType(firstAvailable);
       }
     }
-  }, [seller, solutionConfig, menuTypeFromUrl, isSellerLoading, staffList]);
+  }, [seller, solutionConfig, menuTypeFromUrl, isSellerLoading, staffList, isAccessValid]);
 
   useEffect(() => {
     const options = { root: null, rootMargin: '-160px 0px -50% 0px', threshold: 0 };
@@ -762,6 +778,24 @@ function BuyerOrderContent({ sellerId }: { sellerId: string }) {
       <div className="flex flex-col min-h-screen bg-background items-center justify-center">
         <Loader2 className="animate-spin h-10 w-10 text-primary" />
         <p className="mt-4 text-[10px] font-black uppercase tracking_widest text-muted-foreground">Initializing Menu...</p>
+      </div>
+    );
+  }
+
+  // ACCESS DENIED RENDER
+  if (!isAccessValid) {
+    return (
+      <div className="flex flex-col min-h-screen bg-[#213147] items-center justify-center p-8 text-center text-white">
+        <div className="bg-red-500/10 p-10 rounded-[3rem] border-2 border-red-500/20 shadow-2xl mb-8 animate-in zoom-in-95 duration-500">
+           <Lock className="h-16 w-16 text-red-500 mx-auto mb-6" />
+           <h2 className="font-headline font-black text-2xl uppercase tracking-tight mb-3">Secure Access Required</h2>
+           <p className="text-white/60 text-sm font-medium leading-relaxed max-w-xs mx-auto">
+             This QR code link is either expired or invalid. Please scan the official Koop signage at your location.
+           </p>
+        </div>
+        <Button variant="ghost" asChild className="text-white/40 hover:text-white uppercase text-[10px] font-black tracking-widest gap-2">
+           <Link href="/"><ArrowLeft className="h-3 w-3" /> Return to Home</Link>
+        </Button>
       </div>
     );
   }
