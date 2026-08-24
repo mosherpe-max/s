@@ -96,7 +96,7 @@ export default function HomePage() {
         <div className="reveal opacity-0 translate-y-8 transition-all duration-700 ease-out bg-[#213147] px-8 md:px-16 py-24 relative overflow-hidden group border-r border-white/5">
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_30%_30%,rgba(229,0,0,0.08),transparent_60%)] opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
           
-          <div className="relative z-10">
+          <div className="relative z-10 text-left">
             <span className="text-6xl mb-6 block drop-shadow-[0_0_20px_rgba(229,0,0,0.3)]">⛳</span>
             <div className="font-headline text-[13px] font-bold uppercase tracking-[0.2em] text-[#E50000] mb-3">Golf Courses</div>
             <h2 className="font-headline text-4xl md:text-5xl font-black uppercase leading-none mb-5 text-white">
@@ -113,8 +113,8 @@ export default function HomePage() {
               ))}
             </ul>
             <div className="flex flex-col gap-3">
-              <Link href="/sellers/demo-course/order?menuType=Beverage Cart&key=public-golf-demo" className="font-headline text-sm font-bold uppercase tracking-widest bg-[#E50000] hover:bg-[#c40000] text-white py-4 rounded text-center transition-colors">
-                Public Golf Menu Demo
+              <Link href="/sellers/demo-course/order?menuType=Beverage Cart&key=public-golf-demo" className="font-headline text-sm font-bold uppercase tracking-widest bg-[#E50000] hover:bg-[#c40000] text-white py-4 rounded text-center transition-colors shadow-xl">
+                Launch Golf Menu Demo
               </Link>
             </div>
           </div>
@@ -124,8 +124,8 @@ export default function HomePage() {
         <div className="reveal opacity-0 translate-y-8 transition-all duration-700 delay-100 ease-out bg-[#213147] px-8 md:px-16 py-24 relative overflow-hidden group">
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_70%_30%,rgba(229,0,0,0.08),transparent_60%)] opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
           
-          <div className="relative z-10">
-            <span className="text-6xl mb-6 block drop-shadow-[0_0_20px_rgba(229,0,0,0.3)]">🎳</span>
+          <div className="relative z-10 text-left">
+            <span className="text-6xl mb-6 block drop-shadow-[0_0_20px_rgba(229,0,0,0.3)]"> bowling</span>
             <div className="font-headline text-[13px] font-bold uppercase tracking-[0.2em] text-[#E50000] mb-3">Bowling Centers</div>
             <h2 className="font-headline text-4xl md:text-5xl font-black uppercase leading-none mb-5 text-white">
               Order From<br />the Lane
@@ -140,8 +140,8 @@ export default function HomePage() {
                 </li>
               ))}
             </ul>
-            <Link href="/sellers/demo-bowling-alley/order?menuType=Lane Delivery&key=bowling-demo" className="font-headline text-sm font-bold uppercase tracking-widest bg-[#E50000] hover:bg-[#c40000] text-white py-4 rounded text-center transition-colors block">
-              Bowling Center Demo
+            <Link href="/sellers/demo-bowling-alley/order?menuType=Lane Delivery&key=bowling-demo" className="font-headline text-sm font-bold uppercase tracking-widest bg-[#E50000] hover:bg-[#c40000] text-white py-4 rounded text-center transition-colors block shadow-xl">
+              Launch Bowling Demo
             </Link>
           </div>
         </div>
@@ -149,11 +149,11 @@ export default function HomePage() {
 
       {/* HOW IT WORKS */}
       <section id="how" className="px-6 md:px-12 py-24 md:py-32 bg-[#213147]">
-        <div className="font-headline text-[13px] font-bold uppercase tracking-[0.2em] text-[#E50000] mb-4">Simple by Design</div>
-        <h2 className="font-headline text-4xl md:text-6xl font-black uppercase leading-tight mb-6">Up and Running<br />in Days, Not Months</h2>
-        <p className="text-lg text-[#8a9ab0] max-w-[520px] mb-16 leading-relaxed">No POS integration. No IT department. No long contracts. Koop is built to go live fast and stay out of your way.</p>
+        <div className="font-headline text-[13px] font-bold uppercase tracking-[0.2em] text-[#E50000] mb-4 text-left">Simple by Design</div>
+        <h2 className="font-headline text-4xl md:text-6xl font-black uppercase leading-tight mb-6 text-left">Up and Running<br />in Days, Not Months</h2>
+        <p className="text-lg text-[#8a9ab0] max-w-[520px] mb-16 leading-relaxed text-left">No POS integration. No IT department. No long contracts. Koop is built to go live fast and stay out of your way.</p>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-12 relative">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-12 relative text-left">
           {/* Connecting Line (Desktop) */}
           <div className="absolute top-9 left-[12%] right-[12%] h-0.5 bg-gradient-to-r from-[#E50000] to-transparent hidden lg:block" />
           
@@ -179,7 +179,7 @@ export default function HomePage() {
         <div className="font-headline text-[13px] font-bold uppercase tracking-[0.2em] text-[#E50000] mb-4 text-center md:text-left">Why Koop Works</div>
         <h2 className="font-headline text-4xl md:text-6xl font-black uppercase leading-tight mb-6 text-center md:text-left">Built for the Way<br />Venues Actually Operate</h2>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 mt-16 border border-white/5">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 mt-16 border border-white/5 text-left">
           {[
             { i: '🚫', t: 'No POS Integration', d: 'Koop doesn\'t touch your existing point-of-sale system. Zero IT work, zero configuration risk.' },
             { i: '💳', t: 'Patrons Pay the Fee', d: 'A small convenience fee is charged to the patron at checkout — not to you. Your venue keeps 100%.' },
@@ -200,10 +200,10 @@ export default function HomePage() {
 
       {/* PRICING */}
       <section id="pricing" className="px-6 md:px-12 py-24 md:py-32 bg-[#213147]">
-        <div className="font-headline text-[13px] font-bold uppercase tracking-[0.2em] text-[#E50000] mb-4">Transparent Pricing</div>
-        <h2 className="font-headline text-4xl md:text-6xl font-black uppercase leading-tight mb-16">Simple. Straightforward.</h2>
+        <div className="font-headline text-[13px] font-bold uppercase tracking-[0.2em] text-[#E50000] mb-4 text-left">Transparent Pricing</div>
+        <h2 className="font-headline text-4xl md:text-6xl font-black uppercase leading-tight mb-16 text-left">Simple. Straightforward.</h2>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-start text-left">
           <div className="space-y-6">
             {[
               { n: '01', t: 'Launch Fee', d: 'One-time setup covering menu build, QR code generation, marketing materials, and live staff training.' },

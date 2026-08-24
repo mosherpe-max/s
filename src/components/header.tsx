@@ -21,7 +21,8 @@ import {
   Store,
   LayoutDashboard,
   ShoppingCart,
-  ShieldCheck
+  ShieldCheck,
+  ShoppingBag
 } from 'lucide-react';
 import {
   Sheet,
@@ -121,6 +122,7 @@ function HomeNavigationMenu() {
                 <p className="text-[9px] font-black text-white/40 uppercase tracking-[0.2em]">Public Golf Demo</p>
               </div>
               <div className="grid gap-2">
+                <MenuLink href="/sellers/demo-course/order?menuType=Beverage Cart&key=public-golf-demo" label="Patron Menu" icon={ShoppingBag} />
                 <MenuLink href="/sellers/demo-course" label="Venue Admin" icon={LayoutDashboard} />
                 <MenuLink href="/sellers/demo-course/staff-login" label="Staff Entry" icon={ShieldCheck} />
               </div>
@@ -132,6 +134,7 @@ function HomeNavigationMenu() {
                 <p className="text-[9px] font-black text-white/40 uppercase tracking-[0.2em]">Bowling Alley Demo</p>
               </div>
               <div className="grid gap-2">
+                <MenuLink href="/sellers/demo-bowling-alley/order?menuType=Lane Delivery&key=bowling-demo" label="Patron Menu" icon={ShoppingBag} />
                 <MenuLink href="/sellers/demo-bowling-alley" label="Venue Admin" icon={LayoutDashboard} />
                 <MenuLink href="/sellers/demo-bowling-alley/staff-login" label="Staff Entry" icon={ShieldCheck} />
               </div>
