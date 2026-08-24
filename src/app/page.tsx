@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useEffect } from 'react';
@@ -112,11 +113,8 @@ export default function HomePage() {
               ))}
             </ul>
             <div className="flex flex-col gap-3">
-              <Link href="/sellers/demo-course/order?menuType=Beverage Cart" className="font-headline text-sm font-bold uppercase tracking-widest bg-[#E50000] hover:bg-[#c40000] text-white py-4 rounded text-center transition-colors">
+              <Link href="/sellers/demo-course/order?menuType=Beverage Cart&key=public-golf-demo" className="font-headline text-sm font-bold uppercase tracking-widest bg-[#E50000] hover:bg-[#c40000] text-white py-4 rounded text-center transition-colors">
                 Public Golf Menu Demo
-              </Link>
-              <Link href="/sellers/demo-private-course/order?menuType=Clubhouse" className="font-headline text-sm font-bold uppercase tracking-widest border-2 border-white/30 hover:border-white text-[#F0F0F0] py-4 rounded text-center transition-colors">
-                Private Golf Menu Demo
               </Link>
             </div>
           </div>
@@ -142,7 +140,7 @@ export default function HomePage() {
                 </li>
               ))}
             </ul>
-            <Link href="/sellers/demo-bowling-alley/order?menuType=Lane Delivery" className="font-headline text-sm font-bold uppercase tracking-widest bg-[#E50000] hover:bg-[#c40000] text-white py-4 rounded text-center transition-colors block">
+            <Link href="/sellers/demo-bowling-alley/order?menuType=Lane Delivery&key=bowling-demo" className="font-headline text-sm font-bold uppercase tracking-widest bg-[#E50000] hover:bg-[#c40000] text-white py-4 rounded text-center transition-colors block">
               Bowling Center Demo
             </Link>
           </div>

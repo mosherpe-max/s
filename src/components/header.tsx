@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -122,17 +123,6 @@ function HomeNavigationMenu() {
               <div className="grid gap-2">
                 <MenuLink href="/sellers/demo-course" label="Venue Admin" icon={LayoutDashboard} />
                 <MenuLink href="/sellers/demo-course/staff-login" label="Staff Entry" icon={ShieldCheck} />
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              <div className="flex items-center gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
-                <p className="text-[9px] font-black text-white/40 uppercase tracking-[0.2em]">Private Golf Demo</p>
-              </div>
-              <div className="grid gap-2">
-                <MenuLink href="/sellers/demo-private-course" label="Venue Admin" icon={LayoutDashboard} />
-                <MenuLink href="/sellers/demo-private-course/staff-login" label="Staff Entry" icon={ShieldCheck} />
               </div>
             </div>
 

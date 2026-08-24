@@ -77,6 +77,8 @@ export async function seedDemoSellers(db: Firestore) {
       status: 'Active',
       bevcartActive: true,
       clubhouseActive: true,
+      qrActive: true,
+      qrSecret: 'public-golf-demo',
       enabledPaymentMethods: ['Pay at Delivery', 'Digital Payment']
     },
     {
@@ -95,6 +97,8 @@ export async function seedDemoSellers(db: Firestore) {
       taxRate: 6.0,
       status: 'Active',
       clubhouseActive: true,
+      qrActive: true,
+      qrSecret: 'private-golf-demo',
       enabledPaymentMethods: ['Pay at Delivery', 'Digital Payment', 'Member Account']
     },
     {
@@ -114,6 +118,8 @@ export async function seedDemoSellers(db: Firestore) {
       taxRate: 6.0,
       status: 'Active',
       lanedeliveryActive: true,
+      qrActive: true,
+      qrSecret: 'bowling-demo',
       enabledPaymentMethods: ['Pay at Delivery', 'Digital Payment']
     }
   ];
