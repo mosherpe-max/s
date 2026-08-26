@@ -643,16 +643,21 @@ function BuyerOrderContent({ sellerId }: { sellerId: string }) {
   const menuItemsQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'sellers', sellerId, 'menuItems') : null), [firestore, sellerId]);
   const { data: menuItems, isLoading: areItemsLoading } = useCollection<MenuItem>(menuItemsQuery);
 
-  // SECURE ACCESS CHECK
+  // SECURE ACCESS CHECK WITH PROTOTYPING BYPASS
   const isAccessValid = useMemo(() => {
-    if (!seller || isSellerLoading) return true; // Wait for load
-    // Legacy support for demos or older venues without keys
+    if (!seller || isSellerLoading) return true;
+    
+    // Explicit bypass for prototyping links
+    if (sellerId === 'demo-course' && keyParam === 'public-golf-demo') return true;
+    if (sellerId === 'demo-bowling-alley' && keyParam === 'bowling-demo') return true;
+
+    // Legacy support for venues without keys
     if (!seller.qrSecret) return true;
-    // If QR is deactivated, deny access
+    // If QR is explicitly deactivated, deny access
     if (seller.qrActive === false) return false;
-    // If key exists, it must match
+    // If key exists, it must match the URL param
     return seller.qrSecret === keyParam;
-  }, [seller, isSellerLoading, keyParam]);
+  }, [seller, isSellerLoading, keyParam, sellerId]);
 
   // FETCH ACTIVE ORDERS FOR CURRENT PATRON SESSION
   const activeOrdersQuery = useMemoFirebase(() => {
@@ -678,10 +683,15 @@ function BuyerOrderContent({ sellerId }: { sellerId: string }) {
 
   const isModeAvailable = (type: string) => {
     if (!seller) return false;
+
+    // Prototyping Bypass: Demos are always "Online" to allow exploration
+    if (sellerId.startsWith('demo-')) return true;
+
     const isGloballyAuthorized = !solutionConfig || (solutionConfig.enabledModes?.includes(type) ?? true);
     if (!isGloballyAuthorized) return false;
     const isVenueAuthorized = seller.menuTypes.includes(type);
     if (!isVenueAuthorized) return false;
+    
     let isChannelOpen = true;
     switch(type) {
       case 'Beverage Cart': isChannelOpen = !!seller.bevcartActive; break;
@@ -689,6 +699,8 @@ function BuyerOrderContent({ sellerId }: { sellerId: string }) {
       case 'Lane Delivery': isChannelOpen = !!seller.lanedeliveryActive; break;
     }
     if (!isChannelOpen) return false;
+
+    // Production constraint: Staff must be active to take orders
     const activeStaff = staffList?.filter(s => s.activeMode === type && s.isActive !== false);
     return (activeStaff && activeStaff.length > 0) || false;
   };
