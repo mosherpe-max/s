@@ -336,7 +336,6 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
     return { dailyRevenue, modes, realTimeOperations };
   }, [orders, seller, staffList]);
 
-  // Comprehensive Analytics Data Generation
   const analyticsTimeframeData = useMemo(() => {
     if (!orders || !seller) return { revenue: [], acknowledgement: [], duration: [], modes: [] };
     
@@ -527,8 +526,23 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
     if (!firestore || !sellerId) return;
     setIsProcessingSave(true);
     const id = editingStaff?.id || Math.random().toString(36).substr(2, 9);
-    setDoc(doc(firestore, 'sellers', sellerId, 'staff', id), { ...data, id, createdAt: editingStaff?.createdAt || serverTimestamp() }, { merge: true })
-      .then(() => { setIsStaffFormOpen(false); setIsProcessingSave(false); toast({ title: editingStaff ? "Staff Updated" : "Staff Added" }); });
+    const docRef = doc(firestore, 'sellers', sellerId, 'staff', id);
+    const payload = { ...data, id, createdAt: editingStaff?.createdAt || serverTimestamp() };
+    
+    setDoc(docRef, payload, { merge: true })
+      .then(() => { 
+        setIsStaffFormOpen(false); 
+        setIsProcessingSave(false); 
+        toast({ title: editingStaff ? "Staff Updated" : "Staff Added" }); 
+      })
+      .catch(async (error) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+          path: docRef.path,
+          operation: editingStaff ? 'update' : 'create',
+          requestResourceData: payload,
+        } satisfies SecurityRuleContext));
+        setIsProcessingSave(false);
+      });
   };
 
   const handleToggleCategoryVisibility = (mode: string, category: string, isVisible: boolean) => {
@@ -538,7 +552,16 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
       ? Array.from(new Set([...currentVisibility, category]))
       : currentVisibility.filter(c => c !== category);
     
-    updateDoc(doc(firestore, 'sellers', sellerId), { [`categoryVisibility.${mode}`]: newVisibility });
+    const docRef = doc(firestore, 'sellers', sellerId);
+    const updateData = { [`categoryVisibility.${mode}`]: newVisibility };
+    
+    updateDoc(docRef, updateData).catch(async (error) => {
+      errorEmitter.emit('permission-error', new FirestorePermissionError({
+        path: docRef.path,
+        operation: 'update',
+        requestResourceData: updateData,
+      } satisfies SecurityRuleContext));
+    });
   };
 
   const handleToggleItemInMode = (itemId: string, mode: string, action: 'add' | 'remove') => {
@@ -588,7 +611,14 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
       const newArray = arrayMove(itemsInCat, oldIndex, newIndex);
       const batch = writeBatch(firestore!);
       newArray.forEach((item, index) => batch.update(doc(firestore!, 'sellers', sellerId, 'menuItems', item.id), { [`menuRanks.${mode}`]: index + 1 }));
-      batch.commit();
+      
+      batch.commit().catch(async (error) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+          path: `sellers/${sellerId}/menuItems`,
+          operation: 'update',
+          requestResourceData: { category, mode, newRanks: true }
+        } satisfies SecurityRuleContext));
+      });
     }
   };
 
@@ -751,7 +781,17 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                                     </div>
                                     <Switch 
                                        checked={isActive} 
-                                       onCheckedChange={(val) => updateDoc(doc(firestore!, 'sellers', sellerId), { [field]: val })} 
+                                       onCheckedChange={(val) => {
+                                         const docRef = doc(firestore!, 'sellers', sellerId);
+                                         const updateData = { [field]: val };
+                                         updateDoc(docRef, updateData).catch(async (error) => {
+                                           errorEmitter.emit('permission-error', new FirestorePermissionError({
+                                             path: docRef.path,
+                                             operation: 'update',
+                                             requestResourceData: updateData,
+                                           } satisfies SecurityRuleContext));
+                                         });
+                                       }} 
                                        className="data-[state=checked]:bg-green-500 scale-75" 
                                     />
                                  </CardHeader>
@@ -1150,7 +1190,21 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                               return (
                                 <div key={mode} className="flex items-center justify-between p-3 rounded-xl border-2 bg-slate-50 border-slate-100">
                                    <div className="text-left"><p className="text-[10px] font-black uppercase text-[#213147]">{mode}</p><p className="text-[8px] font-bold text-muted-foreground uppercase">{seller?.[field as keyof Seller] ? 'OPEN' : 'CLOSED'}</p></div>
-                                   <Switch checked={!!seller?.[field as keyof Seller]} onCheckedChange={(val) => updateDoc(doc(firestore!, 'sellers', sellerId), { [field]: val })} className="data-[state=checked]:bg-green-500" />
+                                   <Switch 
+                                     checked={!!seller?.[field as keyof Seller]} 
+                                     onCheckedChange={(val) => {
+                                       const docRef = doc(firestore!, 'sellers', sellerId);
+                                       const updateData = { [field]: val };
+                                       updateDoc(docRef, updateData).catch(async (error) => {
+                                         errorEmitter.emit('permission-error', new FirestorePermissionError({
+                                           path: docRef.path,
+                                           operation: 'update',
+                                           requestResourceData: updateData,
+                                         } satisfies SecurityRuleContext));
+                                       });
+                                     }} 
+                                     className="data-[state=checked]:bg-green-500" 
+                                   />
                                 </div>
                               );
                             })}
@@ -1255,11 +1309,42 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                             </TableCell>
                             <TableCell><Badge variant="outline" className="text-[8px] font-black uppercase bg-slate-100 border-slate-200">{item.category}</Badge></TableCell>
                             <TableCell className="font-mono font-bold text-sm">${item.price.toFixed(2)}</TableCell>
-                            <TableCell><Switch checked={item.isAvailable !== false} onCheckedChange={(val) => updateDoc(doc(firestore!, 'sellers', sellerId, 'menuItems', item.id), { isAvailable: val })} className="scale-75 data-[state=checked]:bg-green-500" /></TableCell>
+                            <TableCell>
+                              <Switch 
+                                checked={item.isAvailable !== false} 
+                                onCheckedChange={(val) => {
+                                  const docRef = doc(firestore!, 'sellers', sellerId, 'menuItems', item.id);
+                                  const updateData = { isAvailable: val };
+                                  updateDoc(docRef, updateData).catch(async (error) => {
+                                    errorEmitter.emit('permission-error', new FirestorePermissionError({
+                                      path: docRef.path,
+                                      operation: 'update',
+                                      requestResourceData: updateData,
+                                    } satisfies SecurityRuleContext));
+                                  });
+                                }} 
+                                className="scale-75 data-[state=checked]:bg-green-500" 
+                              />
+                            </TableCell>
                             <TableCell className="text-right px-8">
                               <div className="flex justify-end gap-1">
                                 <Button variant="ghost" size="icon" className="h-8 w-8 hover:text-primary"><Edit className="h-4 w-4" /></Button>
-                                <Button variant="ghost" size="icon" className="h-8 w-8 hover:text-destructive" onClick={() => deleteDoc(doc(firestore!, 'sellers', sellerId, 'menuItems', item.id))}><Trash2 className="h-4 w-4" /></Button>
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  className="h-8 w-8 hover:text-destructive" 
+                                  onClick={() => {
+                                    const docRef = doc(firestore!, 'sellers', sellerId, 'menuItems', item.id);
+                                    deleteDoc(docRef).catch(async (error) => {
+                                      errorEmitter.emit('permission-error', new FirestorePermissionError({
+                                        path: docRef.path,
+                                        operation: 'delete',
+                                      } satisfies SecurityRuleContext));
+                                    });
+                                  }}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
                               </div>
                             </TableCell>
                           </TableRow>
@@ -1448,7 +1533,10 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                 <div className="grid grid-cols-2 gap-4">
                   <FormField control={staffForm.control} name="role" render={({ field }) => (
                     <FormItem className="text-left"><FormLabel className="text-[10px] font-black uppercase">Role</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger className="h-12 border-2 font-bold"><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="Staff">Staff</SelectItem><SelectItem value="Manager">Manager</SelectItem></SelectContent></Select></FormItem>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl><SelectTrigger className="h-12 border-2 font-bold"><SelectValue /></SelectTrigger></FormControl>
+                      <SelectContent><SelectItem value="Staff">Staff</SelectItem><SelectItem value="Manager">Manager</SelectItem></SelectContent>
+                    </Select></FormItem>
                   )} />
                   <FormField control={staffForm.control} name="pin" render={({ field }) => (
                     <FormItem className="text-left"><FormLabel className="text-[10px] font-black uppercase">Login PIN</FormLabel><FormControl><Input {...field} maxLength={4} className="h-12 border-2 font-bold text-center tracking-[0.5em]" /></FormControl></FormItem>

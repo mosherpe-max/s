@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -71,6 +70,8 @@ import {
 import { useFirestore, useCollection, useMemoFirebase, useFirebaseApp } from '@/firebase';
 import { collection, doc, updateDoc, setDoc, deleteDoc, serverTimestamp, writeBatch, getDoc } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
 import type { Seller, Venue } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -223,6 +224,13 @@ export default function AdminVenueRegistryPage() {
         toast({ title: "Registry Synchronized" });
         setIsManagementOpen(false);
       })
+      .catch(async (error) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+          path: venueRef.path,
+          operation: 'update',
+          requestResourceData: venueData,
+        } satisfies SecurityRuleContext));
+      })
       .finally(() => setIsProcessing(false));
   };
 
@@ -280,14 +288,22 @@ export default function AdminVenueRegistryPage() {
 
       batch.set(sellerRef, { ...sellerData, updatedAt: serverTimestamp() });
       batch.set(businessRef, businessData);
-      await batch.commit();
+      batch.commit().then(() => {
+        toast({ title: "Venue Created" });
+        setIsNewVenueOpen(false);
+        onboardingForm.reset();
+      }).catch(async (error) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+          path: sellerRef.path,
+          operation: 'create',
+          requestResourceData: sellerData,
+        } satisfies SecurityRuleContext));
+      }).finally(() => setIsProcessing(false));
 
-      toast({ title: "Venue Created" });
-      setIsNewVenueOpen(false);
-      onboardingForm.reset();
     } catch (e: any) {
       toast({ variant: "destructive", title: "Onboarding Failed", description: e.message });
-    } finally { setIsProcessing(false); }
+      setIsProcessing(false);
+    }
   };
 
   const handleQrAction = async (action: 'regenerate' | 'revoke') => {
@@ -307,19 +323,37 @@ export default function AdminVenueRegistryPage() {
         title: action === 'regenerate' ? "QR Regenerated" : "QR Revoked",
         description: action === 'regenerate' ? "New security key assigned. Old QR codes are now invalid." : "QR access channel deactivated."
       });
+    }).catch(async (error) => {
+      errorEmitter.emit('permission-error', new FirestorePermissionError({
+        path: sellerRef.path,
+        operation: 'update',
+        requestResourceData: updateData,
+      } satisfies SecurityRuleContext));
     });
   };
 
   const handleConfirmDelete = async () => {
     if (!firestore || !venueToDelete) return;
     setIsProcessing(true);
-    try {
-      await deleteDoc(doc(firestore, 'sellers', venueToDelete));
-      await deleteDoc(doc(firestore, 'venues', venueToDelete));
-      toast({ title: "Registry Terminated" });
-    } catch (e: any) {
-      toast({ variant: "destructive", title: "Termination Failed", description: e.message });
-    } finally { setIsProcessing(false); setVenueToDelete(null); }
+    
+    const sellerRef = doc(firestore, 'sellers', venueToDelete);
+    const venueRef = doc(firestore, 'venues', venueToDelete);
+
+    deleteDoc(sellerRef)
+      .then(() => deleteDoc(venueRef))
+      .then(() => {
+        toast({ title: "Registry Terminated" });
+      })
+      .catch(async (error) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+          path: sellerRef.path,
+          operation: 'delete',
+        } satisfies SecurityRuleContext));
+      })
+      .finally(() => {
+        setIsProcessing(false);
+        setVenueToDelete(null);
+      });
   };
 
   const currentSeller = sellers?.find(s => s.id === selectedVenue?.venueId);
