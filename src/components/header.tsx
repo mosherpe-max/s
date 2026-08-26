@@ -1,4 +1,3 @@
-
 'use client';
 
 import Link from 'next/link';
@@ -22,7 +21,8 @@ import {
   LayoutDashboard,
   ShoppingCart,
   ShieldCheck,
-  ShoppingBag
+  ShoppingBag,
+  ArrowLeftRight
 } from 'lucide-react';
 import {
   Sheet,
@@ -89,24 +89,35 @@ export function StylizedKoopLogo({ size = 'md', colorClass = 'text-white' }: { s
   );
 }
 
-function HomeNavigationMenu() {
+/**
+ * Global Navigator
+ * Provides prototyping shortcuts and internal access across the entire solution.
+ */
+function GlobalNavigator({ darkTrigger = false }: { darkTrigger?: boolean }) {
   return (
     <Sheet>
       <SheetTrigger asChild>
-        <Button variant="ghost" size="icon" className="text-white hover:bg-white/10 h-10 w-10">
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          className={cn(
+            "h-10 w-10 transition-all active:scale-95",
+            darkTrigger ? "text-[#213147] hover:bg-black/5" : "text-white hover:bg-white/10"
+          )}
+        >
           <Menu className="h-6 w-6" />
         </Button>
       </SheetTrigger>
       <SheetContent side="right" className="w-[300px] sm:w-[400px] p-0 border-l-4 border-primary/20 bg-[#213147] text-white">
         <SheetHeader className="p-6 border-b border-white/5 text-left">
           <StylizedKoopLogo size="md" />
-          <SheetTitle className="text-[10px] font-black uppercase tracking-[0.2em] text-primary mt-2">Solution Navigator</SheetTitle>
-          <SheetDescription className="text-xs text-white/40">Access demo environments and administrative portals.</SheetDescription>
+          <SheetTitle className="text-[10px] font-black uppercase tracking-[0.2em] text-primary mt-2">Global Navigator</SheetTitle>
+          <SheetDescription className="text-xs text-white/40">Switch between demo environments and staff portals.</SheetDescription>
         </SheetHeader>
         <ScrollArea className="h-[calc(100vh-100px)]">
           <div className="p-6 space-y-8 pb-20">
             <div className="space-y-3">
-              <p className="text-[9px] font-black text-white/40 uppercase tracking-[0.2em]">Authentication</p>
+              <p className="text-[9px] font-black text-white/40 uppercase tracking-[0.2em]">Core Identity</p>
               <Button asChild variant="outline" className="w-full justify-start h-12 bg-white/5 border-white/10 hover:bg-white/10 hover:text-white text-white border-2 gap-3 group">
                 <Link href="/login">
                   <LogIn className="h-4 w-4 text-primary" />
@@ -122,9 +133,9 @@ function HomeNavigationMenu() {
                 <p className="text-[9px] font-black text-white/40 uppercase tracking-[0.2em]">Public Golf Demo</p>
               </div>
               <div className="grid gap-2">
-                <MenuLink href="/sellers/demo-course/order?menuType=Beverage Cart&key=public-golf-demo" label="Patron Menu" icon={ShoppingBag} />
-                <MenuLink href="/sellers/demo-course" label="Venue Admin" icon={LayoutDashboard} />
-                <MenuLink href="/sellers/demo-course/staff-login" label="Staff Entry" icon={ShieldCheck} />
+                <MenuLink href="/sellers/demo-course/order?menuType=Beverage Cart&key=public-golf-demo" label="Launch Patron Menu" icon={ShoppingBag} />
+                <MenuLink href="/sellers/demo-course" label="Venue Management" icon={LayoutDashboard} />
+                <MenuLink href="/sellers/demo-course/staff-login" label="Staff Login Terminal" icon={ShieldCheck} />
               </div>
             </div>
 
@@ -134,10 +145,19 @@ function HomeNavigationMenu() {
                 <p className="text-[9px] font-black text-white/40 uppercase tracking-[0.2em]">Bowling Alley Demo</p>
               </div>
               <div className="grid gap-2">
-                <MenuLink href="/sellers/demo-bowling-alley/order?menuType=Lane Delivery&key=bowling-demo" label="Patron Menu" icon={ShoppingBag} />
-                <MenuLink href="/sellers/demo-bowling-alley" label="Venue Admin" icon={LayoutDashboard} />
-                <MenuLink href="/sellers/demo-bowling-alley/staff-login" label="Staff Entry" icon={ShieldCheck} />
+                <MenuLink href="/sellers/demo-bowling-alley/order?menuType=Lane Delivery&key=bowling-demo" label="Launch Patron Menu" icon={ShoppingBag} />
+                <MenuLink href="/sellers/demo-bowling-alley" label="Venue Management" icon={LayoutDashboard} />
+                <MenuLink href="/sellers/demo-bowling-alley/staff-login" label="Staff Login Terminal" icon={ShieldCheck} />
               </div>
+            </div>
+
+            <div className="pt-4 border-t border-white/5">
+              <Button asChild variant="ghost" className="w-full justify-start h-10 text-white/40 hover:text-white text-[9px] font-black uppercase tracking-widest gap-3">
+                <Link href="/">
+                  <ArrowLeftRight className="h-3.5 w-3.5" />
+                  Back to Solution Home
+                </Link>
+              </Button>
             </div>
           </div>
         </ScrollArea>
@@ -196,7 +216,6 @@ export function AppHeader() {
   const { data: seller, isLoading: isSellerLoading } = useDoc(sellerRef);
   const { data: order } = useDoc(orderRef);
 
-  // Early returns must come AFTER all hook calls
   if (!isMounted) return null;
 
   const isMenuPage = pathname?.endsWith('/order');
@@ -206,8 +225,17 @@ export function AppHeader() {
   const isAdminRoute = pathname?.startsWith('/admin') || 
                       (pathname?.startsWith('/sellers/') && !pathname.includes('/order') && !pathname.includes('/staff-login'));
 
-  // On the Ordering and Tracking Screen, we remove the top Koop header entirely to focus on the venue/order
-  if (isMenuPage || isTrackPage || isAdminRoute) return null;
+  // On the Ordering and Tracking Screen, we provide a specialized "Floating Navigator" instead of the standard header
+  if (isMenuPage || isTrackPage) {
+    return (
+      <div className="fixed top-2.5 right-2 z-50 animate-in fade-in slide-in-from-right-4 duration-1000">
+        <GlobalNavigator darkTrigger={isTrackPage} />
+      </div>
+    );
+  }
+
+  // Admin routes have their own custom sidebar-based layouts
+  if (isAdminRoute) return null;
 
   if (isHomePage) {
     return (
@@ -216,7 +244,7 @@ export function AppHeader() {
         <div className="flex-1 flex justify-center">
           <StylizedKoopLogo size="lg" />
         </div>
-        <HomeNavigationMenu />
+        <GlobalNavigator />
       </header>
     );
   }
@@ -245,7 +273,7 @@ export function AppHeader() {
             )}
           </div>
 
-          <div className="flex justify-end shrink-0">
+          <div className="flex items-center gap-1 shrink-0">
             <Button 
               variant="ghost" 
               className="flex items-center gap-2 h-11 px-3 text-white relative"
@@ -258,6 +286,7 @@ export function AppHeader() {
                 </span>
               )}
             </Button>
+            <GlobalNavigator />
           </div>
         </div>
       </div>
