@@ -16,7 +16,7 @@ service cloud.firestore {
 
     function isVenueOwner(venueId) {
       return isSignedIn() && (
-        get(/databases/$(database)/documents/venues/$(venueId)).data.ownerUid == request.auth.uid ||
+        (exists(/databases/$(database)/documents/venues/$(venueId)) && get(/databases/$(database)/documents/venues/$(venueId)).data.ownerUid == request.auth.uid) ||
         (exists(/databases/$(database)/documents/roles_seller_admin/$(request.auth.token.email.lower())) && 
          get(/databases/$(database)/documents/roles_seller_admin/$(request.auth.token.email.lower())).data.sellerId == venueId)
       );
@@ -72,10 +72,11 @@ service cloud.firestore {
       allow read: if true;
       allow write: if isSuperAdmin() || isVenueOwner(sellerId);
       
-      // Allow location and status updates for authenticated staff
-      allow update: if isSignedIn() && 
-                    request.resource.data.diff(request.resource.data).affectedKeys()
-                    .hasOnly(['latitude', 'longitude', 'lastActive', 'bevcartActive', 'clubhouseActive', 'lanedeliveryActive']);
+      // Allow location and status updates
+      // Prototyping: Allow demo venues to be toggled without authentication
+      allow update: if (isSignedIn() || sellerId.startsWith('demo-')) && 
+                    request.resource.data.diff(resource.data).affectedKeys()
+                    .hasOnly(['latitude', 'longitude', 'lastActive', 'bevcartActive', 'clubhouseActive', 'lanedeliveryActive', 'updatedAt', 'qrActive', 'qrSecret']);
 
       match /staff/{staffId} {
         allow read, write: if true;
