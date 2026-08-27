@@ -9,13 +9,13 @@
     {
       "id": "beer-2",
       "description": "A can of light lager",
-      "imageUrl": "https://images.unsplash.com/photo-1609729048422-34ef39ad5465?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw1fHxsYWdlciUyMGNhbnxlbnwwfHx8fDE3NjczNzQyMzN8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageUrl": "https://images.unsplash.com/photo-1609729048422-34ef39ad5465?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxsYWdlciUyMGNhbnxlbnwwfHx8fDE3NjczNzQyMzN8MA&ixlib=rb-4.1.0&q=80&w=1080",
       "imageHint": "lager can"
     },
     {
       "id": "spirits-1",
       "description": "A glass of whiskey on the rocks",
-      "imageUrl": "https://images.unsplash.com/photo-1695057672316-7efe5b856ab0?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw3fHx3aGlza2V5JTIwZ2xhc3N8ZW58MHx8fHwxNzY3MzczNTM0fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageUrl": "https://images.unsplash.com/photo-1695057672316-7efe5b856ab0?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw3fHx3aGlza2V5JTIwZ2xhc3N8ZW58MHx8fHwxNzY3MzczMTI2fDA&ixlib=rb-4.1.0&q=80&w=1080",
       "imageHint": "whiskey glass"
     },
     {
@@ -33,20 +33,62 @@
     {
       "id": "soft-drink-2",
       "description": "A bottle of water",
-      "imageUrl": "https://images.unsplash.com/photo-1561041695-d2fadf9f318c?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw1fHx3YXRlciUyMGJvdHRsZXxlbnwwfHx8fDE3NjczNDgzNjB8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageUrl": "https://images.unsplash.com/photo-1561041695-d2fadf9f318c?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHx3YXRlciUyMGJvdHRsZXxlbnwwfHx8fDE3NjczNDgzNjB8MA&ixlib=rb-4.1.0&q=80&w=1080",
       "imageHint": "water bottle"
     },
     {
       "id": "snack-1",
       "description": "A bag of potato chips",
-      "imageUrl": "https://images.unsplash.com/photo-1599490659213-e2b9527bd087?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw1fHxwb3RhdG8lMjBjaGlwc3xlbnwwfHx8fDE3NjczNjAzMTh8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageUrl": "https://images.unsplash.com/photo-1599490659213-e2b9527bd087?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxwb3RhdG8lMjBjaGlwc3xlbnwwfHx8fDE3NjczNjAzMTh8MA&ixlib=rb-4.1.0&q=80&w=1080",
       "imageHint": "potato chips"
     },
     {
       "id": "snack-2",
       "description": "A chocolate bar",
-      "imageUrl": "https://images.unsplash.com/photo-1565071559227-20ab25b7685e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw5fHxjaG9jb2xhdGUlMjBiYXJ8ZW58MHx8fHwxNzY3Mzc0MjMzfDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageUrl": "https://images.unsplash.com/photo-1565071559227-20ab25b7685e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw1fHxjaG9jb2xhdGUlMjBiYXJ8ZW58MHx8fHwxNzY3MzczMTI2fDA&ixlib=rb-4.1.0&q=80&w=1080",
       "imageHint": "chocolate bar"
+    },
+    {
+      "id": "burger",
+      "description": "Gourmet burger",
+      "imageUrl": "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&q=80&w=800",
+      "imageHint": "burger meal"
+    },
+    {
+      "id": "pizza",
+      "description": "Pepperoni pizza",
+      "imageUrl": "https://images.unsplash.com/photo-1628840042765-356cda07504e?auto=format&fit=crop&q=80&w=800",
+      "imageHint": "pepperoni pizza"
+    },
+    {
+      "id": "wings",
+      "description": "Buffalo wings",
+      "imageUrl": "https://images.unsplash.com/photo-1567620832903-9fc6debc209f?auto=format&fit=crop&q=80&w=800",
+      "imageHint": "chicken wings"
+    },
+    {
+      "id": "nachos",
+      "description": "Loaded nachos",
+      "imageUrl": "https://images.unsplash.com/photo-1513456852971-30c0b8199d4d?auto=format&fit=crop&q=80&w=800",
+      "imageHint": "loaded nachos"
+    },
+    {
+      "id": "hotdog",
+      "description": "Classic hot dog",
+      "imageUrl": "https://images.unsplash.com/photo-1612392062631-94dd858cba88?auto=format&fit=crop&q=80&w=800",
+      "imageHint": "hot dog"
+    },
+    {
+      "id": "salmon",
+      "description": "Grilled salmon",
+      "imageUrl": "https://images.unsplash.com/photo-1467003909585-2f8a72700288?auto=format&fit=crop&q=80&w=800",
+      "imageHint": "grilled salmon"
+    },
+    {
+      "id": "cocktail-blue",
+      "description": "Specialty cocktail",
+      "imageUrl": "https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?auto=format&fit=crop&q=80&w=800",
+      "imageHint": "blue cocktail"
     },
     {
       "id": "map-view",
@@ -55,28 +97,16 @@
       "imageHint": "golf course satellite"
     },
     {
-      "id": "avatar-1",
-      "description": "User avatar 1",
-      "imageUrl": "https://images.unsplash.com/photo-1544005313-94ddf0286df2?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw5fHxwZXJzb24lMjBwb3J0cmFpdHxlbnwwfHx8fDE3NjcyOTI1NDF8MA&ixlib=rb-4.1.0&q=80&w=1080",
-      "imageHint": "person portrait"
+      "id": "hero-golf",
+      "description": "Beautiful golf course on a sunny day",
+      "imageUrl": "https://images.unsplash.com/photo-1623567341691-1f47b5cf949e?auto=format&fit=crop&q=80&w=1080",
+      "imageHint": "golf course"
     },
     {
-      "id": "avatar-2",
-      "description": "User avatar 2",
-      "imageUrl": "https://images.unsplash.com/photo-1600180758890-6b94519a8ba6?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw1fHxwZXJzb24lMjBwb3J0cmFpdHxlbnwwfHx8fDE3NjcyOTI1NDF8MA&ixlib=rb-4.1.0&q=80&w=1080",
-      "imageHint": "person portrait"
-    },
-    {
-      "id": "avatar-3",
-      "description": "User avatar 3",
-      "imageUrl": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw3fHxwZXJzb24lMjBwb3J0cmFpdHxlbnwwfHx8fDE3NjcyOTI1NDF8MA&ixlib=rb-4.1.0&q=80&w=1080",
-      "imageHint": "person portrait"
-    },
-    {
-      "id": "avatar-seller",
-      "description": "Seller avatar",
-      "imageUrl": "https://images.unsplash.com/photo-1531123414780-f74242c2b052?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxMHx8cGVyc29uJTIwcG9ydHJhaXR8ZW58MHx8fHwxNzY3MjkyNTQxfDA&ixlib=rb-4.1.0&q=80&w=1080",
-      "imageHint": "person portrait"
+      "id": "hero-bowling",
+      "description": "A professional bowling lane",
+      "imageUrl": "https://images.unsplash.com/photo-1538510163363-df3b3b1f1314?auto=format&fit=crop&q=80&w=1080",
+      "imageHint": "bowling lane"
     }
   ]
 }

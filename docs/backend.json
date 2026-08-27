@@ -1,208 +1,241 @@
+
 {
   "entities": {
+    "Venue": {
+      "title": "Venue",
+      "type": "object",
+      "description": "Represents the legal/business registry entry for a venue, containing payment and ownership data.",
+      "properties": {
+        "venueId": { "type": "string" },
+        "name": { "type": "string" },
+        "ownerUid": { "type": "string", "description": "The Firebase Auth UID of the primary venue manager." },
+        "stripeAccountId": { "type": "string" },
+        "stripeConnectId": { "type": "string" },
+        "solutionFeeFixed": { "type": "number", "description": "Koop's fixed fee in cents per transaction." },
+        "solutionFeePercent": { "type": "number", "description": "Koop's percentage fee per transaction." },
+        "patronConvenienceFee": { "type": "number", "description": "The fee charged to the patron in cents." },
+        "monthlySolutionFee": { "type": "number", "description": "The monthly subscription fee for the venue in dollars." },
+        "stripeOnboardingComplete": { "type": "boolean" },
+        "payoutsEnabled": { "type": "boolean" },
+        "isFoundingPartner": { "type": "boolean" },
+        "isDemo": { "type": "boolean", "description": "Flag to mark as a demo/test environment to exclude from sitewide results." },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["venueId", "name", "ownerUid"]
+    },
     "Seller": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Seller",
       "type": "object",
-      "description": "Represents a seller in the Koop application.",
+      "description": "The operational profile of a venue managing menus and real-time ordering.",
       "properties": {
-        "ownerId": {
+        "id": { "type": "string" },
+        "courseName": { "type": "string" },
+        "type": { 
           "type": "string",
-          "description": "The UID of the user who owns this seller profile. Optional for prototyping."
+          "enum": ["Golf Course", "Bowling Center"]
         },
-        "courseName": {
-          "type": "string",
-          "description": "The name of the golf course."
-        },
-        "courseAddress": {
-          "type": "string",
-          "description": "The physical address of the golf course."
-        },
-        "latitude": {
-          "type": "number",
-          "description": "The latitude of the golf course."
-        },
-        "longitude": {
-          "type": "number",
-          "description": "The longitude of the golf course."
-        },
-        "contactName": {
-          "type": "string",
-          "description": "The primary contact person for the seller."
-        },
-        "contactEmail": {
-          "type": "string",
-          "description": "The contact email address for the seller.",
-          "format": "email"
-        },
-        "contactPhone": {
-          "type": "string",
-          "description": "The contact phone number for the seller."
-        },
-        "serviceFee": {
-          "type": "number",
-          "description": "The service fee charged by the seller."
-        },
-        "status": {
-          "type": "string",
-          "enum": ["Active", "Inactive"],
-          "description": "The current status of the seller."
-        }
+        "contactEmail": { "type": "string", "format": "email" },
+        "status": { "type": "string", "enum": ["Active", "Inactive"] },
+        "serviceFee": { "type": "number" },
+        "taxRate": { "type": "number" },
+        "isFoundingPartner": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
       },
-      "required": [
-        "courseName",
-        "courseAddress",
-        "contactName",
-        "contactEmail",
-        "status"
-      ]
+      "required": ["id", "courseName", "contactEmail", "status"]
     },
-    "MenuItem": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "MenuItem",
+    "User": {
+      "title": "User",
       "type": "object",
-      "description": "Represents a single item on a menu.",
+      "description": "Patron profile for managing saved payment methods and order history.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the menu item entity."
-        },
-        "name": {
-          "type": "string",
-          "description": "The name of the menu item (e.g., 'Bud Light', 'Chips')."
-        },
-        "description": {
-          "type": "string",
-          "description": "A description of the menu item."
-        },
-        "price": {
-          "type": "number",
-          "description": "The price of the menu item."
-        },
-        "category": {
-          "type": "string",
-          "description": "The category of the menu item.",
-          "enum": ["Beer", "Spirits", "Soft Drinks", "Snacks"]
-        },
-        "rank": {
-          "type": "number",
-          "description": "The display order of the menu item within its category."
-        }
-      },
-      "required": [
-        "id",
-        "name",
-        "price",
-        "category",
-        "rank"
-      ]
+        "uid": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "displayName": { "type": "string" },
+        "phoneNumber": { "type": "string" },
+        "stripeCustomerId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      }
     },
-    "Order": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Order",
+    "SolutionConfig": {
+      "title": "Solution Config",
       "type": "object",
-      "description": "Represents a customer's order.",
+      "description": "Global configuration settings for the KOOP solution.",
       "properties": {
-        "sellerId": {
-          "type": "string",
-          "description": "The ID of the seller this order belongs to."
-        },
-        "customerId": {
-          "type": "string",
-          "description": "The ID of the customer who placed the order."
-        },
-        "customerName": {
-          "type": "string",
-          "description": "The name of the customer."
-        },
-        "deliveryLocation": {
+        "supportEmail": { "type": "string", "format": "email" },
+        "logoUrl": { "type": "string" },
+        "defaultThresholds": { "type": "object" },
+        "mapUpdateSettings": { "type": "object" },
+        "dailyResetHour": { "type": "number", "description": "The hour (0-23) at which all venue sessions are reset." },
+        "smsNotificationsEnabled": { "type": "boolean", "description": "Global toggle for Twilio SMS order updates." },
+        "gpsRefreshIntervalSeconds": { "type": "number", "description": "Global frequency for device location broadcasting to Firestore." },
+        "gpsFreshnessThresholds": {
           "type": "object",
           "properties": {
-            "latitude": { "type": "number" },
-            "longitude": { "type": "number" }
-          },
-          "required": ["latitude", "longitude"]
+            "hot": { "type": "number" },
+            "warm": { "type": "number" },
+            "cold": { "type": "number" }
+          }
         },
-        "items": {
+        "updatedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "AdminRole": {
+      "title": "Admin Role",
+      "type": "object",
+      "description": "Global solution administrator permission marker.",
+      "properties": {
+        "grantedAt": { "type": "string", "format": "date-time" },
+        "grantedBy": { "type": "string" }
+      }
+    },
+    "SellerAdminRole": {
+      "title": "Seller Admin Role",
+      "type": "object",
+      "description": "authorized emails mapped to establishment IDs for venue management.",
+      "properties": {
+        "userName": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "sellerId": { "type": "string" },
+        "courseName": { "type": "string" },
+        "assignedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["sellerId", "email"]
+    },
+    "SalesRepRole": {
+      "title": "Sales Rep Role",
+      "type": "object",
+      "description": "Authorized sales professionals with pipeline management access.",
+      "properties": {
+        "assignedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "MenuItemNormalized": {
+      "title": "Menu Item (Normalized)",
+      "type": "object",
+      "description": "Base product definition in a normalized menu system.",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "price": { "type": "number" },
+        "description": { "type": "string" },
+        "isAvailable": { "type": "boolean" },
+        "modifierGroupIds": {
           "type": "array",
-          "items": { "$ref": "#/backend/entities/MenuItem" }
-        },
-        "subtotal": { "type": "number" },
-        "serviceFee": { "type": "number" },
-        "total": { "type": "number" },
-        "status": {
-          "type": "string",
-          "enum": ["Placed", "Preparing", "Out for Delivery", "Delivered", "Cancelled"]
-        },
-        "createdAt": {
-          "type": "string",
-          "format": "date-time"
+          "items": { "type": "string" },
+          "description": "References to ModifierGroup IDs."
         }
       },
-      "required": ["sellerId", "customerId", "deliveryLocation", "items", "total", "status", "createdAt"]
+      "required": ["name", "price"]
+    },
+    "ModifierGroup": {
+      "title": "Modifier Group",
+      "type": "object",
+      "description": "Set of options for customizing a menu item.",
+      "properties": {
+        "id": { "type": "string" },
+        "sellerId": { "type": "string" },
+        "name": { "type": "string" },
+        "minSelection": { "type": "number" },
+        "maxSelection": { "type": "number" },
+        "options": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "name": { "type": "string" },
+              "priceAdjustment": { "type": "number" },
+              "isAvailable": { "type": "boolean" }
+            }
+          }
+        }
+      },
+      "required": ["sellerId", "name", "options"]
+    },
+    "StarterModifierGroup": {
+      "title": "Starter Modifier Group",
+      "type": "object",
+      "description": "Global template for industry-standard modifier groups.",
+      "properties": {
+        "name": { "type": "string" },
+        "venueType": { "type": "array", "items": { "type": "string" }, "description": "e.g. ['golf', 'bowling']" },
+        "category": { "type": "string", "description": "e.g. 'food', 'beverage', 'universal'" },
+        "selectionType": { "type": "string", "enum": ["single", "multi"] },
+        "required": { "type": "boolean" },
+        "options": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "label": { "type": "string" },
+              "priceModifier": { "type": "number" }
+            }
+          }
+        },
+        "sortOrder": { "type": "number" }
+      },
+      "required": ["name", "venueType", "options"]
+    },
+    "StarterMenuItem": {
+      "title": "Starter Menu Item",
+      "type": "object",
+      "description": "Global template for industry-standard menu items.",
+      "properties": {
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "price": { "type": "number" },
+        "category": { "type": "string", "enum": ["food", "beverage", "alcohol"] },
+        "venueType": { "type": "array", "items": { "type": "string" } },
+        "serviceMode": { "type": "string", "enum": ["beverageCart", "clubhouse", "laneService"] },
+        "suggestedModifierGroups": { "type": "array", "items": { "type": "string" } },
+        "sortOrder": { "type": "number" },
+        "imageUrl": { "type": "string" }
+      },
+      "required": ["name", "price", "category", "venueType", "serviceMode"]
+    },
+    "Lead": {
+      "title": "Lead",
+      "type": "object",
+      "description": "Prospective venue for the Sales CRM.",
+      "properties": {
+        "id": { "type": "string" },
+        "venueName": { "type": "string" },
+        "streetAddress": { "type": "string" },
+        "city": { "type": "string" },
+        "state": { "type": "string" },
+        "county": { "type": "string" },
+        "contactName": { "type": "string" },
+        "phone": { "type": "string" },
+        "email": { "type": "string" },
+        "venueType": { "type": "string", "enum": ["Golf Course", "Bowling Center"] },
+        "stage": { "type": "string", "enum": ["Cold Lead", "On-Site Meeting", "Demo", "Offer", "Closed", "Dead"] },
+        "marketFitData": { "type": "object" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["venueName", "venueType", "stage"]
     }
   },
   "auth": {
-    "providers": [
-      "password",
-      "anonymous"
-    ]
+    "providers": ["password", "anonymous"]
   },
   "firestore": {
     "structure": [
-      {
-        "path": "/sellers/{sellerId}",
-        "definition": {
-          "entityName": "Seller",
-          "schema": {
-            "$ref": "#/backend/entities/Seller"
-          },
-          "description": "Stores seller profiles. Each document represents a seller in the Koop application.",
-          "params": [
-            {
-              "name": "sellerId",
-              "description": "The unique identifier of the seller."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/sellers/{sellerId}/menuItems/{menuItemId}",
-        "definition": {
-          "entityName": "MenuItem",
-          "schema": {
-            "$ref": "#/backend/entities/MenuItem"
-          },
-          "description": "Stores menu items associated with a specific seller.",
-          "params": [
-            {
-              "name": "sellerId",
-              "description": "The unique identifier of the seller."
-            },
-            {
-              "name": "menuItemId",
-              "description": "The unique identifier of the menu item."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/orders/{orderId}",
-        "definition": {
-          "entityName": "Order",
-          "schema": {
-            "$ref": "#/backend/entities/Order"
-          },
-          "description": "Stores all customer orders for all sellers.",
-          "params": [
-             {
-              "name": "orderId",
-              "description": "The unique identifier of the order."
-            }
-          ]
-        }
-      }
-    ],
-    "reasoning": "The Firestore structure is designed to efficiently manage seller and menu item data for the Koop application. Since each seller has only one menu, menu items are stored in a subcollection directly under the seller."
+      { "path": "/venues/{venueId}", "definition": { "entityName": "Venue" } },
+      { "path": "/sellers/{sellerId}", "definition": { "entityName": "Seller" } },
+      { "path": "/users/{userId}", "definition": { "entityName": "User" } },
+      { "path": "/solution/config", "definition": { "entityName": "SolutionConfig" } },
+      { "path": "/roles_admin/{uid}", "definition": { "entityName": "AdminRole" } },
+      { "path": "/roles_seller_admin/{email}", "definition": { "entityName": "SellerAdminRole" } },
+      { "path": "/roles_sales_rep/{email}", "definition": { "entityName": "SalesRepRole" } },
+      { "path": "/menu_items/{itemId}", "definition": { "entityName": "MenuItemNormalized" } },
+      { "path": "/modifier_groups/{groupId}", "definition": { "entityName": "ModifierGroup" } },
+      { "path": "/starter_modifier_library/{groupId}", "definition": { "entityName": "StarterModifierGroup" } },
+      { "path": "/starter_menu_item_library/{itemId}", "definition": { "entityName": "StarterMenuItem" } },
+      { "path": "/leads/{leadId}", "definition": { "entityName": "Lead" } }
+    ]
   }
 }

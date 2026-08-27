@@ -1,248 +1,1003 @@
 'use client';
 
-import { useState, use, useEffect } from 'react';
-import { collection, doc, addDoc, serverTimestamp } from 'firebase/firestore';
-import { useFirestore, useCollection, useMemoFirebase, useDoc, useUser } from '@/firebase';
-import type { Seller, OrderItem, MenuItem, Category, Order } from '@/lib/types';
+import { useState, use, useEffect, useMemo, Suspense } from 'react';
+import { collection, doc, addDoc, serverTimestamp, query, where } from 'firebase/firestore';
+import { signInAnonymously } from 'firebase/auth';
+import { useFirestore, useCollection, useMemoFirebase, useDoc, useAuth, useUser, useFirebase } from '@/firebase';
+import type { Seller, MenuItem, OrderItem, SolutionConfig, Venue, StaffMember, PaymentMethodType, Order } from '@/lib/types';
 import { categories } from '@/lib/types';
 import { BuyerMenu } from '@/components/buyer-menu';
 import { OrderSummary } from '@/components/order-summary';
+import { PricingBreakdown } from '@/components/pricing-breakdown';
+import { TipSelector } from '@/components/tip-selector';
+import { ModifierSelector } from '@/components/modifier-selector';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
-import { categoryIcons } from '@/components/icons';
-import { errorEmitter } from '@/firebase/error-emitter';
-import { FirestorePermissionError } from '@/firebase/errors';
-import { mockBuyerLocation } from '@/lib/data';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetFooter } from '@/components/ui/sheet';
-import { Loader2, Truck, AlertCircle } from 'lucide-react';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetClose, SheetTrigger } from '@/components/ui/sheet';
+import Link from 'next/link';
+import { 
+  Loader2, 
+  Store, 
+  MapPin, 
+  ShoppingBag, 
+  CreditCard, 
+  Banknote, 
+  Check, 
+  AlertTriangle, 
+  Info, 
+  ShoppingCart, 
+  ChevronLeft, 
+  Zap, 
+  User, 
+  Smartphone, 
+  Mail, 
+  X, 
+  UserCircle,
+  ChevronRight,
+  ShieldAlert,
+  ArrowLeft,
+  Lock
+} from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useCart } from '@/lib/cart-context';
-import Link from 'next/link';
+import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
+import { RadioGroup } from '@/components/ui/radio-group';
+import { mockBuyerLocation } from '@/lib/data';
+import { loadStripe } from '@stripe/stripe-js';
+import { Elements, useStripe, useElements } from '@stripe/react-stripe-js';
+import { StripeCheckoutForm } from '@/components/stripe-checkout-form';
+import { cn, AUTHORIZED_SERVICE_MODES } from '@/lib/utils';
+import { getFunctions, httpsCallable } from 'firebase/functions';
+import { Badge } from '@/components/ui/badge';
+import { StylizedKoopLogo } from '@/components/header';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
+import { FEE_DISCLOSURES, getDisclosureCategory } from '@/config/fee-disclosures';
 
-export default function BuyerMenuPage({ params }: { params: { sellerId: string } }) {
-  const { sellerId } = use(params);
-  const firestore = useFirestore();
-  const router = useRouter();
+const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || 'pk_test_placeholder');
+
+const serviceTypeIcons: Record<string, any> = {
+  'Beverage Cart': Zap,
+  'Clubhouse': Zap,
+  'Lane Delivery': MapPin,
+};
+
+const SERVICE_INSTRUCTIONS: Record<string, string> = {
+  'Beverage Cart': 'Drinks and Snacks delivered on Course',
+  'Clubhouse': 'Food and Drinks delivered on Course',
+  'Lane Delivery': 'Food and Drinks delivered to your lane',
+};
+
+function CheckoutBrandingBar() {
+  return (
+    <div className="fixed bottom-0 left-0 right-0 h-7 bg-[#213147] text-white flex items-center justify-center z-[60] w-full border-t border-white/5">
+      <div className="max-w-xl mx-auto w-full px-4 flex items-center justify-between">
+        <span className="text-[10px] font-black uppercase tracking-widest text-white/40">Secure Order</span>
+        <div className="flex items-center gap-0.5">
+          <span className="text-[10px] font-black uppercase tracking-widest text-white/60">Powered by</span>
+          <StylizedKoopLogo size="sm" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PatronIdentifyFields({ patronEmail, setPatronEmail, patronName, setPatronName, patronPhone, setPatronPhone }: any) {
+  return (
+    <div className="space-y-6 bg-slate-50/50 p-5 rounded-[2rem] border-2 border-slate-100 animate-in fade-in duration-500">
+      <div className="space-y-1.5 px-1">
+        <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2">
+          <User className="h-3 w-3" /> Delivery Contact
+        </h3>
+      </div>
+      
+      <div className="space-y-4">
+        <div className="space-y-1.5">
+          <div className="relative">
+            <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+            <Input 
+              placeholder="Email Address" 
+              type="email"
+              value={patronEmail} 
+              onChange={(e) => setPatronEmail(e.target.value)} 
+              className="pl-10 h-12 border-2 border-white rounded-xl font-bold focus-visible:ring-primary bg-white shadow-sm"
+            />
+          </div>
+          <p className="text-[8px] font-bold text-muted-foreground uppercase tracking-wider pl-1">
+            Your digital receipt will be sent here
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="space-y-1.5">
+            <div className="relative">
+              <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+              <Input 
+                placeholder="Full Name" 
+                value={patronName} 
+                onChange={(e) => setPatronName(e.target.value)} 
+                className="pl-10 h-12 border-2 border-white rounded-xl font-bold focus-visible:ring-primary bg-white shadow-sm"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <div className="relative">
+              <Smartphone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+              <Input 
+                placeholder="Mobile Number" 
+                type="tel"
+                value={patronPhone} 
+                onChange={(e) => setPatronPhone(e.target.value)} 
+                className="pl-10 h-12 border-2 border-white rounded-xl font-bold focus-visible:ring-primary bg-white shadow-sm"
+              />
+            </div>
+            <p className="text-[8px] font-bold text-muted-foreground uppercase tracking-wider pl-1">
+              We'll text you order status updates
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StripeActionArea({ 
+  clientSecret, 
+  isProcessing, 
+  setIsProcessing, 
+  onOrderComplete,
+  orderData,
+  patronEmail,
+  patronName,
+  patronPhone,
+  stripeCustomerId,
+  saveInfo,
+  setSaveInfo,
+  isFormValid
+}: any) {
+  const stripe = useStripe();
+  const elements = useElements();
   const { toast } = useToast();
-  const { orderItems, updateItem, isCartOpen, setIsCartOpen, total, totalItems, clearCart } = useCart();
+  const firestore = useFirestore();
+  const [isStripeReady, setIsStripeReady] = useState(false);
 
-  const [selectedCategory, setSelectedCategory] = useState<Category>(categories[0]);
-  const [isPlacingOrder, setIsPlacingOrder] = useState(false);
-
-  const sellerRef = useMemoFirebase(
-    () => (firestore ? doc(firestore, 'sellers', sellerId) : null),
-    [firestore, sellerId]
-  );
-  const { data: seller, isLoading: isSellerLoading } = useDoc<Seller>(sellerRef);
-
-  const menuItemsQuery = useMemoFirebase(
-    () => (firestore ? collection(firestore, 'sellers', sellerId, 'menuItems') : null),
-    [firestore, sellerId]
-  );
-  const { data: menuItems, isLoading: areItemsLoading } = useCollection<MenuItem>(menuItemsQuery);
-
-  const handlePlaceOrder = async () => {
-    if (!firestore || !seller) {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Could not connect to the service. Please try again.',
-      });
-      return;
-    }
-
-    if (seller.status === 'Inactive') {
-      toast({
-        variant: 'destructive',
-        title: 'Service Unavailable',
-        description: 'The beverage cart is currently offline. Please try again later.',
-      });
-      return;
-    }
-
-    setIsPlacingOrder(true);
+  const handleStripePayment = async () => {
+    if (!stripe || !elements || !clientSecret || !firestore) return;
     
-    const activeOrderItems = orderItems.filter((item) => item.quantity > 0);
+    if (!isFormValid) {
+      toast({ variant: 'destructive', title: 'Details Required', description: 'Please complete your contact info to receive tracking updates.' });
+      return;
+    }
 
-    const createOrder = (latitude: number, longitude: number) => {
-      const subtotal = activeOrderItems.reduce((acc, item) => acc + item.price * item.quantity, 0);
-
-      const orderData: Omit<Order, 'id' | 'createdAt'> = {
-        sellerId: sellerId,
-        customerId: 'public-user',
-        customerName: 'Guest Golfer',
-        deliveryLocation: { latitude, longitude },
-        items: activeOrderItems,
-        subtotal,
-        serviceFee: seller.serviceFee || 0,
-        total,
-        status: 'Placed',
-      };
-
-      const ordersCollection = collection(firestore, 'orders');
-      addDoc(ordersCollection, {
-        ...orderData,
-        createdAt: serverTimestamp(),
-      })
-      .then(() => {
-          toast({
-            title: 'Order Placed!',
-            description: "We've sent your order to the cart.",
-          });
-          clearCart();
-          router.push('/order/track');
-      })
-      .catch(() => {
-          const contextualError = new FirestorePermissionError({
-            path: ordersCollection.path,
-            operation: 'create',
-            requestResourceData: orderData
-          });
-          errorEmitter.emit('permission-error', contextualError);
-      }).finally(() => {
-        setIsPlacingOrder(false);
-      });
-    };
-
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          createOrder(position.coords.latitude, position.coords.longitude);
+    setIsProcessing(true);
+    try {
+      const { error, paymentIntent } = await stripe.confirmPayment({
+        elements,
+        confirmParams: {
+          return_url: `${window.location.origin}/order/track`,
+          payment_method_data: {
+            billing_details: {
+              name: patronName,
+              email: patronEmail,
+              phone: patronPhone
+            },
+            allow_redisplay: 'always'
+          },
+          payment_method_data_save: saveInfo ? 'always' : 'never',
+          payment_method_options: {
+            card: {
+              setup_future_usage: saveInfo ? 'off_session' : undefined
+            }
+          }
         },
-        () => {
-          toast({
-            title: 'Location Error',
-            description: 'Could not get your location. Using a fallback for this order.',
-            variant: 'destructive',
-          });
-          const { latitude, longitude } = mockBuyerLocation;
-          createOrder(latitude, longitude);
+        redirect: 'if_required',
+      });
+
+      if (error) throw new Error(error.message);
+
+      if (paymentIntent && (paymentIntent.status === 'succeeded' || paymentIntent.status === 'processing')) {
+        if (saveInfo) {
+          localStorage.setItem('koop_patron_name', patronName);
+          localStorage.setItem('koop_patron_email', patronEmail);
+          localStorage.setItem('koop_patron_phone', patronPhone);
+          if (stripeCustomerId) {
+            localStorage.setItem('koop_stripe_customer_id', stripeCustomerId);
+          }
         }
-      );
-    } else {
-      const { latitude, longitude } = mockBuyerLocation;
-      createOrder(latitude, longitude);
+
+        const finalOrderData = {
+          ...orderData,
+          customerEmail: patronEmail,
+          customerName: patronName,
+          customerPhone: patronPhone.replace(/\D/g, ''),
+          paymentStatus: paymentIntent.status === 'succeeded' ? 'Succeeded' : 'Processing',
+          stripePaymentIntentId: paymentIntent.id,
+        };
+        const ordersCol = collection(firestore, 'orders');
+        addDoc(ordersCol, finalOrderData).then((orderRef) => {
+          onOrderComplete(orderRef.id);
+        }).catch(async (error) => {
+          errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: ordersCol.path,
+            operation: 'create',
+            requestResourceData: finalOrderData,
+          } satisfies SecurityRuleContext));
+          setIsProcessing(false);
+        });
+      }
+    } catch (e: any) {
+      toast({ variant: 'destructive', title: 'Payment Denied', description: e.message });
+      setIsProcessing(false);
     }
   };
 
+  return (
+    <div className="space-y-6">
+      <div className="p-4 border-2 border-slate-100 rounded-[2rem] bg-slate-50/50 animate-in fade-in duration-500">
+        <StripeCheckoutForm onReadyStateChange={setIsStripeReady} />
+      </div>
 
-  const isLoading = isSellerLoading || areItemsLoading;
-  const activeOrderItems = orderItems.filter((item) => item.quantity > 0);
-
-  if (!isLoading && seller?.status === 'Inactive') {
-    return (
-      <div className="flex flex-col items-center justify-center h-[calc(100vh-4rem)] p-8 text-center space-y-6">
-        <div className="bg-muted p-8 rounded-full">
-           <Truck className="h-16 w-16 text-muted-foreground opacity-50" />
+      <div 
+        className="flex items-center space-x-3 p-4 bg-primary/5 rounded-[2rem] border-2 border-primary/10 cursor-pointer transition-all hover:bg-primary/10 animate-in fade-in duration-500"
+        onClick={() => setSaveInfo(!saveInfo)}
+      >
+        <Checkbox id="save-info-stripe" checked={saveInfo} onCheckedChange={(val) => setSaveInfo(!!val)} className="h-5 w-5 data-[state=checked]:bg-primary" />
+        <div className="text-left">
+          <label htmlFor="save-info-stripe" className="text-[10px] font-black uppercase text-[#213147] cursor-pointer block leading-none">Save for faster checkout</label>
+          <p className="text-[8px] font-bold text-muted-foreground uppercase mt-1">Securely saves your contact & payment info on this device.</p>
         </div>
-        <div className="space-y-2">
-          <h2 className="text-3xl font-headline font-bold">Service Currently Unavailable</h2>
-          <p className="text-muted-foreground max-w-sm mx-auto">
-            The beverage cart at {seller.courseName} is currently offline. Please check back later or listen for the cart on the course!
+      </div>
+
+      {isFormValid && (
+        <div className="fixed bottom-7 left-0 right-0 p-4 bg-white/80 backdrop-blur-md border-t z-50 animate-in slide-in-from-bottom-4 duration-500">
+          <div className="max-w-xl mx-auto px-2">
+            <Button 
+              size="lg" 
+              className="w-full h-14 font-black uppercase tracking-widest gap-2 shadow-xl" 
+              onClick={handleStripePayment}
+              disabled={isProcessing || !isStripeReady}
+            >
+              {isProcessing ? <Loader2 className="animate-spin" /> : <CreditCard className="h-5 w-5" />} 
+              PAY & PLACE ORDER
+            </Button>
+          </div>
+        </div>
+      )}
+      <CheckoutBrandingBar />
+    </div>
+  );
+}
+
+function CheckoutDrawerContent({ 
+  seller, 
+  sellerId, 
+  selectedMenuType, 
+  locationValue, 
+  setLocationValue, 
+  activeOrderItems, 
+  subtotal, 
+  solutionFee, 
+  taxRate,
+  onOrderComplete
+}: any) {
+  const { firebaseApp } = useFirebase();
+  const firestore = useFirestore();
+  const auth = useAuth();
+  const { user } = useUser();
+  const { toast } = useToast();
+  const { updateItem, removeItem } = useCart();
+  
+  const [patronEmail, setPatronEmail] = useState('');
+  const [patronName, setPatronName] = useState('');
+  const [patronPhone, setPatronPhone] = useState('');
+  const [saveInfo, setSaveInfo] = useState(false); 
+  const [tip, setTip] = useState(0);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethodType | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [customerSessionClientSecret, setCustomerSessionClientSecret] = useState<string | null>(null);
+  const [stripeCustomerId, setStripeCustomerId] = useState<string | null>(null);
+  const [isFetchingIntent, setIsFetchingIntent] = useState(false);
+
+  const tax = subtotal * (taxRate / 100);
+  const finalTotal = subtotal + solutionFee + tax + tip;
+  const baseTotalForBackend = subtotal + tax + tip;
+
+  const disclosureCategory = getDisclosureCategory(seller?.type);
+  const checkoutNotice = FEE_DISCLOSURES[disclosureCategory].checkout;
+
+  const isContactValid = patronName.length >= 2 && patronPhone.replace(/\D/g, '').length >= 10 && patronEmail.includes('@');
+  const isLocationValid = selectedMenuType !== 'Lane Delivery' || !!locationValue;
+  const isFormValid = isContactValid && isLocationValid && !!paymentMethod;
+
+  const availableMethods = useMemo(() => {
+    return seller?.enabledPaymentMethods || ['Pay at Delivery', 'Digital Payment'];
+  }, [seller]);
+
+  useEffect(() => {
+    if (availableMethods.length > 0 && !paymentMethod) {
+      setPaymentMethod(availableMethods[0]);
+    }
+  }, [availableMethods, paymentMethod]);
+
+  useEffect(() => {
+    const cachedName = localStorage.getItem('koop_patron_name');
+    const cachedEmail = localStorage.getItem('koop_patron_email');
+    const cachedPhone = localStorage.getItem('koop_patron_phone');
+    const cachedCustomerId = localStorage.getItem('koop_stripe_customer_id');
+
+    if (cachedName) setPatronName(cachedName);
+    if (cachedEmail) setPatronEmail(cachedEmail);
+    if (cachedPhone) setPatronPhone(cachedPhone);
+    if (cachedCustomerId) setStripeCustomerId(cachedCustomerId);
+
+    if (cachedName || cachedEmail || cachedPhone || cachedCustomerId) {
+      setSaveInfo(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (paymentMethod === 'Digital Payment' && !isFetchingIntent && baseTotalForBackend > 0) {
+      const fetchIntent = async () => {
+        setIsFetchingIntent(true);
+        try {
+          let currentUser = user;
+          if (!currentUser && auth) {
+            const result = await signInAnonymously(auth);
+            currentUser = result.user;
+          }
+          if (!currentUser) throw new Error("Anonymous session failed.");
+          
+          const functions = getFunctions(firebaseApp, 'us-central1');
+          const createIntent = httpsCallable(functions, 'createPaymentIntent');
+          
+          const result = await createIntent({ 
+            amount: baseTotalForBackend, 
+            sellerId,
+            patronName: patronName || 'Guest',
+            patronPhone: patronPhone.replace(/\D/g, '') || '',
+            patronEmail: patronEmail || '',
+            saveInfo, 
+            stripeCustomerId
+          });
+          
+          const data = result.data as { clientSecret: string; customerSessionClientSecret?: string; stripeCustomerId?: string };
+          if (data?.clientSecret) {
+            setClientSecret(data.clientSecret);
+            if (data.customerSessionClientSecret) setCustomerSessionClientSecret(data.customerSessionClientSecret);
+            if (data.stripeCustomerId) setStripeCustomerId(data.stripeCustomerId);
+          }
+        } catch (e: any) {
+          console.error("Payment Intent Error:", e);
+          toast({ variant: 'destructive', title: 'Gateway Error', description: "Digital checkout unavailable." });
+          setPaymentMethod('Pay at Delivery');
+        } finally {
+          setIsFetchingIntent(false);
+        }
+      };
+      fetchIntent();
+    }
+  }, [paymentMethod, baseTotalForBackend, sellerId, firebaseApp, user, auth]);
+
+  const handleManualOrder = async () => {
+    if (!firestore || activeOrderItems.length === 0) return;
+    if (!isFormValid) {
+      toast({ variant: 'destructive', title: 'Details Required', description: 'Please complete your contact info to receive tracking updates.' });
+      return;
+    }
+    setIsProcessing(true);
+    try {
+      let currentUser = user;
+      if (!currentUser && auth) {
+        const result = await signInAnonymously(auth);
+        currentUser = result.user;
+      }
+      if (!currentUser) throw new Error("Authentication failed.");
+
+      if (saveInfo) {
+        localStorage.setItem('koop_patron_name', patronName);
+        localStorage.setItem('koop_patron_email', patronEmail);
+        localStorage.setItem('koop_patron_phone', patronPhone);
+      }
+
+      const orderData: any = {
+        sellerId,
+        buyerProfileId: currentUser.uid,
+        customerEmail: patronEmail,
+        customerName: patronName || 'Guest Patron',
+        customerPhone: patronPhone.replace(/\D/g, ''),
+        deliveryLocation: mockBuyerLocation,
+        items: activeOrderItems,
+        subtotal,
+        serviceFee: solutionFee,
+        tax,
+        tip,
+        total: finalTotal,
+        status: 'Placed',
+        paymentMethod: paymentMethod,
+        paymentStatus: 'Pending',
+        menuType: selectedMenuType,
+        menuTypeLocation: locationValue || null,
+        createdAt: serverTimestamp(),
+      };
+      const ordersCol = collection(firestore, 'orders');
+      addDoc(ordersCol, orderData).then((orderRef) => {
+        onOrderComplete(orderRef.id);
+      }).catch(async (error) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+          path: ordersCol.path,
+          operation: 'create',
+          requestResourceData: orderData,
+        } satisfies SecurityRuleContext));
+        setIsProcessing(false);
+      });
+    } catch (e: any) {
+      toast({ variant: 'destructive', title: 'Order Failed', description: e.message });
+      setIsProcessing(false);
+    }
+  };
+
+  const currentOrderData = useMemo(() => {
+    if (!user) return null;
+    return {
+      sellerId,
+      buyerProfileId: user.uid,
+      deliveryLocation: mockBuyerLocation,
+      items: activeOrderItems,
+      subtotal,
+      serviceFee: solutionFee,
+      tax,
+      tip,
+      total: finalTotal,
+      status: 'Placed',
+      paymentMethod: 'Digital Payment',
+      menuType: selectedMenuType,
+      menuTypeLocation: locationValue || null,
+      createdAt: serverTimestamp(),
+    };
+  }, [user, sellerId, activeOrderItems, subtotal, solutionFee, tax, tip, finalTotal, selectedMenuType, locationValue]);
+
+  return (
+    <ScrollArea className="flex-1 w-full overflow-x-hidden">
+      <div className="max-w-xl mx-auto px-4 py-8 space-y-10 pb-32">
+        <div className="flex justify-start -mb-6">
+          <SheetClose asChild>
+            <Button variant="ghost" className="text-[10px] font-black uppercase tracking-widest text-primary h-8 gap-1.5 p-0 hover:bg-transparent hover:text-primary/80">
+              <ChevronLeft className="h-3.5 w-3.5" /> Back to Menu
+            </Button>
+          </SheetClose>
+        </div>
+
+        <OrderSummary 
+          items={activeOrderItems} 
+          onUpdateItem={updateItem} 
+          onRemoveItem={removeItem} 
+        />
+        
+        {selectedMenuType === 'Lane Delivery' && seller?.laneCount && (
+          <div className="space-y-4">
+            <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground px-1">STATION / LANE</h3>
+            <div className="grid grid-cols-5 gap-2">
+              {Array.from({ length: seller.laneCount }, (_, i) => (i + 1).toString()).map(l => (
+                <Button key={l} variant={locationValue === `Lane ${l}` ? 'default' : 'outline'} size="sm" onClick={() => setLocationValue(`Lane ${l}`)} className="font-black h-11 px-0 rounded-xl">
+                  {l}
+                </Button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <TipSelector subtotal={subtotal} onTipChange={setTip} />
+
+        <div className="space-y-4">
+          <PricingBreakdown subtotal={subtotal} serviceFee={solutionFee} tax={tax} tip={tip} taxRate={taxRate} />
+          <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest text-center px-4 leading-relaxed opacity-60">
+            {checkoutNotice}
           </p>
         </div>
-        <Button asChild variant="outline" size="lg">
-          <Link href="/">Back to Home</Link>
+
+        <div className="space-y-6">
+          <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground px-1">DELIVERY DETAILS</h3>
+          <PatronIdentifyFields 
+            patronEmail={patronEmail} setPatronEmail={setPatronEmail}
+            patronName={patronName} setPatronName={setPatronName}
+            patronPhone={patronPhone} setPatronPhone={setPatronPhone}
+          />
+        </div>
+
+        <div className="space-y-4">
+          <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground px-1">PAYMENT METHOD</h3>
+          <RadioGroup value={paymentMethod || ''} onValueChange={(v: any) => { setPaymentMethod(v); setClientSecret(null); }} className="grid grid-cols-1 gap-3">
+            {availableMethods.includes('Digital Payment') && (
+              <div className={cn("flex items-center justify-between p-4 rounded-2xl border-2 transition-all cursor-pointer", paymentMethod === 'Digital Payment' ? "border-primary bg-primary/5 shadow-md" : "border-slate-100 hover:border-slate-200")} onClick={() => setPaymentMethod('Digital Payment')}>
+                <div className="flex items-center gap-4">
+                  <div className={cn("p-2 rounded-lg", paymentMethod === 'Digital Payment' ? "bg-primary text-white" : "bg-slate-100 text-slate-400")}><CreditCard className="h-5 w-5" /></div>
+                  <div className="text-left"><p className="text-xs font-black uppercase tracking-tight text-[#213147]">Digital Checkout</p><p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">SECURE CARD PAYMENT</p></div>
+                </div>
+                {paymentMethod === 'Digital Payment' && <Check className="h-4 w-4 text-primary" />}
+              </div>
+            )}
+            
+            {availableMethods.includes('Pay at Delivery') && (
+              <div className={cn("flex items-center justify-between p-4 rounded-2xl border-2 transition-all cursor-pointer", paymentMethod === 'Pay at Delivery' ? "border-primary bg-primary/5" : "border-slate-100 hover:border-slate-200")} onClick={() => setPaymentMethod('Pay at Delivery')}>
+                <div className="flex items-center gap-4">
+                  <div className={cn("p-2 rounded-lg", paymentMethod === 'Pay at Delivery' ? "bg-primary text-white" : "bg-slate-100 text-slate-400")}><Banknote className="h-5 w-5" /></div>
+                  <div className="text-left"><p className="text-xs font-black uppercase tracking-tight text-[#213147]">Pay at Delivery</p><p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">CHECKOUT ON ARRIVAL</p></div>
+                </div>
+                {paymentMethod === 'Pay at Delivery' && <Check className="h-4 w-4 text-primary" />}
+              </div>
+            )}
+
+            {availableMethods.includes('Member Account') && (
+              <div className={cn("flex items-center justify-between p-4 rounded-2xl border-2 transition-all cursor-pointer", paymentMethod === 'Member Account' ? "border-primary bg-primary/5" : "border-slate-100 hover:border-slate-200")} onClick={() => setPaymentMethod('Member Account')}>
+                <div className="flex items-center gap-4">
+                  <div className={cn("p-2 rounded-lg", paymentMethod === 'Member Account' ? "bg-primary text-white" : "bg-slate-100 text-slate-400")}><UserCircle className="h-5 w-5" /></div>
+                  <div className="text-left"><p className="text-xs font-black uppercase tracking-tight text-[#213147]">Member Account</p><p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">CHARGE TO HOUSE ACCOUNT</p></div>
+                </div>
+                {paymentMethod === 'Member Account' && <Check className="h-4 w-4 text-primary" />}
+              </div>
+            )}
+          </RadioGroup>
+
+          {paymentMethod === 'Digital Payment' && (
+            isFetchingIntent ? (
+              <div className="flex flex-col items-center gap-4 py-20 animate-in fade-in duration-300">
+                <Loader2 className="h-10 w-10 animate-spin text-primary opacity-50" />
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Initializing Secure Checkout...</p>
+              </div>
+            ) : clientSecret ? (
+              <Elements 
+                stripe={stripePromise} 
+                options={{ 
+                  clientSecret, 
+                  customerSessionClientSecret: customerSessionClientSecret || undefined,
+                  defaultValues: {
+                    billingDetails: {
+                      name: patronName,
+                      email: patronEmail,
+                      phone: patronPhone
+                    }
+                  }
+                }}
+              >
+                <StripeActionArea 
+                  clientSecret={clientSecret} 
+                  isProcessing={isProcessing} 
+                  setIsProcessing={setIsProcessing} 
+                  onOrderComplete={onOrderComplete} 
+                  orderData={currentOrderData}
+                  patronEmail={patronEmail}
+                  patronName={patronName}
+                  patronPhone={patronPhone}
+                  stripeCustomerId={stripeCustomerId}
+                  saveInfo={saveInfo}
+                  setSaveInfo={setSaveInfo}
+                  isFormValid={isFormValid}
+                />
+              </Elements>
+            ) : null
+          )}
+
+          {(paymentMethod === 'Pay at Delivery' || paymentMethod === 'Member Account') && (
+            <div className="space-y-6">
+              <div 
+                className="flex items-center space-x-3 p-4 bg-primary/5 rounded-[2rem] border-2 border-primary/10 cursor-pointer transition-all hover:bg-primary/10 animate-in fade-in duration-500"
+                onClick={() => setSaveInfo(!saveInfo)}
+              >
+                <Checkbox id="save-info-non-digital" checked={saveInfo} onCheckedChange={(val) => setSaveInfo(!!val)} className="h-5 w-5 data-[state=checked]:bg-primary" />
+                <div className="text-left">
+                  <label htmlFor="save-info-non-digital" className="text-[10px] font-black uppercase text-[#213147] cursor-pointer block leading-none">Save for faster checkout</label>
+                  <p className="text-[8px] font-bold text-muted-foreground uppercase mt-1">Securely saves your contact info on this device.</p>
+                </div>
+              </div>
+              {isFormValid && (
+                <div className="fixed bottom-7 left-0 right-0 p-4 bg-white/80 backdrop-blur-md border-t z-50 animate-in slide-in-from-bottom-4 duration-500">
+                  <div className="max-w-xl mx-auto px-2">
+                    <Button size="lg" className="w-full h-14 font-black uppercase tracking-widest gap-2 shadow-xl" onClick={handleManualOrder} disabled={isProcessing}>
+                      {isProcessing ? <Loader2 className="animate-spin" /> : <ShoppingBag className="h-5 w-5" />} PLACE ORDER
+                    </Button>
+                  </div>
+                </div>
+              )}
+              <CheckoutBrandingBar />
+            </div>
+          )}
+        </div>
+      </div>
+    </ScrollArea>
+  );
+}
+
+function BuyerOrderContent({ sellerId }: { sellerId: string }) {
+  const firestore = useFirestore();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const { user } = useUser();
+  const { orderItems, updateItem, isCartOpen, setIsCartOpen, clearCart, totalItems, total } = useCart();
+  
+  const menuTypeFromUrl = searchParams.get('menuType');
+  const keyParam = searchParams.get('key');
+  const selectedMenuType = menuTypeFromUrl || '';
+  const [locationValue, setLocationValue] = useState<string>('');
+  const [activeCategory, setActiveCategory] = useState<string>('Featured');
+  const [customizingItem, setCustomizingItem] = useState<MenuItem | null>(null);
+
+  const configRef = useMemoFirebase(() => (firestore ? doc(firestore, 'solution', 'config') : null), [firestore]);
+  const { data: solutionConfig, isLoading: isConfigLoading } = useDoc<SolutionConfig>(configRef);
+
+  const sellerRef = useMemoFirebase(() => (firestore ? doc(firestore, 'sellers', sellerId) : null), [firestore, sellerId]);
+  const { data: seller, isLoading: isSellerLoading } = useDoc<Seller>(sellerRef);
+
+  const venueRef = useMemoFirebase(() => (firestore ? doc(firestore, 'venues', sellerId) : null), [firestore, sellerId]);
+  const { data: venue, isLoading: isVenueLoading } = useDoc<Venue>(venueRef);
+
+  const staffQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'sellers', sellerId, 'staff') : null), [firestore, sellerId]);
+  const { data: staffList } = useCollection<StaffMember>(staffQuery);
+
+  const menuItemsQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'sellers', sellerId, 'menuItems') : null), [firestore, sellerId]);
+  const { data: menuItems, isLoading: areItemsLoading } = useCollection<MenuItem>(menuItemsQuery);
+
+  // SECURE ACCESS CHECK WITH SIMPLE PROTOTYPING BYPASS
+  const isAccessValid = useMemo(() => {
+    if (!seller || isSellerLoading) return true;
+    
+    // Prototyping Bypass: Always allow demo venues for simple preview
+    if (sellerId.startsWith('demo-')) return true;
+
+    // Legacy support for venues without keys
+    if (!seller.qrSecret) return true;
+    // If QR is explicitly deactivated, deny access
+    if (seller.qrActive === false) return false;
+    // If key exists, it must match the URL param
+    return seller.qrSecret === keyParam;
+  }, [seller, isSellerLoading, keyParam, sellerId]);
+
+  // FETCH ACTIVE ORDERS FOR CURRENT PATRON SESSION
+  const activeOrdersQuery = useMemoFirebase(() => {
+    if (!firestore || !user?.uid) return null;
+    return query(
+      collection(firestore, 'orders'),
+      where('buyerProfileId', '==', user.uid),
+      where('status', 'in', ['Placed', 'Preparing', 'Out for Delivery'])
+    );
+  }, [firestore, user?.uid]);
+  const { data: userActiveOrders } = useCollection<Order>(activeOrdersQuery);
+
+  const activeTrackingOrder = useMemo(() => {
+    if (!userActiveOrders || userActiveOrders.length === 0) return null;
+    return [...userActiveOrders].sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0))[0];
+  }, [userActiveOrders]);
+
+  const updateMenuType = (type: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('menuType', type);
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  };
+
+  const isModeAvailable = (type: string) => {
+    if (!seller) return false;
+
+    // Prototyping Bypass: Demos are always "Online" to allow exploration
+    if (sellerId.startsWith('demo-')) return true;
+
+    const isGloballyAuthorized = !solutionConfig || (solutionConfig.enabledModes?.includes(type) ?? true);
+    if (!isGloballyAuthorized) return false;
+    const isVenueAuthorized = seller.menuTypes.includes(type);
+    if (!isVenueAuthorized) return false;
+    
+    let isChannelOpen = true;
+    switch(type) {
+      case 'Beverage Cart': isChannelOpen = !!seller.bevcartActive; break;
+      case 'Clubhouse': isChannelOpen = !!seller.clubhouseActive; break;
+      case 'Lane Delivery': isChannelOpen = !!seller.lanedeliveryActive; break;
+    }
+    if (!isChannelOpen) return false;
+
+    // Production constraint: Staff must be active to take orders
+    const activeStaff = staffList?.filter(s => s.activeMode === type && s.isActive !== false);
+    return (activeStaff && activeStaff.length > 0) || false;
+  };
+
+  useEffect(() => {
+    if (!menuTypeFromUrl && seller && !isSellerLoading && staffList && isAccessValid) {
+      let defaultType = seller.type.toLowerCase().includes('bowling') ? 'Lane Delivery' : 'Beverage Cart';
+      if (isModeAvailable(defaultType)) updateMenuType(defaultType);
+      else {
+        const firstAvailable = (seller.menuTypes || []).find(t => isModeAvailable(t));
+        if (firstAvailable) updateMenuType(firstAvailable);
+      }
+    }
+  }, [seller, solutionConfig, menuTypeFromUrl, isSellerLoading, staffList, isAccessValid]);
+
+  useEffect(() => {
+    const options = { root: null, rootMargin: '-160px 0px -50% 0px', threshold: 0 };
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          const catId = entry.target.id;
+          const catName = currentCategories.find(c => c.toLowerCase().replace(/\s+/g, '-') === catId);
+          if (catName) setActiveCategory(catName);
+        }
+      });
+    }, options);
+    document.querySelectorAll('section[id]').forEach(section => observer.observe(section));
+    return () => observer.disconnect();
+  }, [seller, menuItems, selectedMenuType]);
+
+  const activeOrderItems = useMemo(() => orderItems.filter((item) => item.quantity > 0), [orderItems]);
+  const subtotal = useMemo(() => activeOrderItems.reduce((acc, item) => {
+    const modsPrice = item.selectedModifiers ? Object.values(item.selectedModifiers).flat().reduce((s, m) => s + m.priceAdjustment, 0) : 0;
+    return acc + (item.price + modsPrice) * item.quantity;
+  }, 0), [activeOrderItems]);
+  
+  const taxRate = seller?.taxRate ?? 6.0;
+  const solutionFee = useMemo(() => {
+    if (venue?.patronConvenienceFee !== undefined) return venue.patronConvenienceFee / 100;
+    if (!seller) return 0;
+    return (selectedMenuType && seller.serviceFees?.[selectedMenuType]) || seller.serviceFee || 0;
+  }, [seller, venue, selectedMenuType]);
+
+  const disclosureCategory = getDisclosureCategory(seller?.type);
+  const menuNotice = FEE_DISCLOSURES[disclosureCategory].menu;
+
+  const filteredMenuItems = useMemo(() => {
+    if (!menuItems || !selectedMenuType) return [];
+    return menuItems.filter(item => item.isAvailable !== false && (item.availableOn?.includes(selectedMenuType) || item.featuredOn?.includes(selectedMenuType)));
+  }, [menuItems, selectedMenuType]);
+
+  const currentCategories = useMemo(() => {
+    if (!seller || !filteredMenuItems.length) return [];
+    const hasExplicitFeatured = filteredMenuItems.some(i => i.featuredOn?.includes(selectedMenuType));
+    const visibleCategories = categories.filter(c => {
+      if (c === 'Featured') return hasExplicitFeatured;
+      const hasItemsInCat = filteredMenuItems.some(i => i.category === c && i.availableOn?.includes(selectedMenuType));
+      return hasItemsInCat && (seller.categoryVisibility?.[selectedMenuType]?.includes(c) ?? true);
+    });
+    return visibleCategories.sort((a, b) => (a === 'Featured' ? -1 : (b === 'Featured' ? 1 : 0)));
+  }, [seller, filteredMenuItems, selectedMenuType]);
+
+  const handleOrderComplete = (orderId: string) => {
+    router.push(`/order/track?id=${orderId}&sellerId=${sellerId}`);
+    clearCart();
+  };
+
+  const scrollToCategory = (category: string) => {
+    const element = document.getElementById(category.toLowerCase().replace(/\s+/g, '-'));
+    if (element) {
+      const offset = 140; 
+      const elementPosition = element.getBoundingClientRect().top - document.body.getBoundingClientRect().top;
+      window.scrollTo({ top: elementPosition - offset, behavior: 'smooth' });
+      setActiveCategory(category);
+    }
+  };
+
+  const handleConfirmModifiers = (orderItem: OrderItem) => {
+    updateItem(orderItem);
+    setCustomizingItem(null);
+  };
+
+  const isLoading = isSellerLoading || areItemsLoading || isVenueLoading || (isConfigLoading && !solutionConfig);
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col min-h-screen bg-background items-center justify-center">
+        <Loader2 className="animate-spin h-10 w-10 text-primary" />
+        <p className="mt-4 text-[10px] font-black uppercase tracking_widest text-muted-foreground">Initializing Menu...</p>
+      </div>
+    );
+  }
+
+  // ACCESS DENIED RENDER
+  if (!isAccessValid) {
+    return (
+      <div className="flex flex-col min-h-screen bg-[#213147] items-center justify-center p-8 text-center text-white">
+        <div className="bg-red-500/10 p-10 rounded-[3rem] border-2 border-red-500/20 shadow-2xl mb-8 animate-in zoom-in-95 duration-500">
+           <Lock className="h-16 w-16 text-red-500 mx-auto mb-6" />
+           <h2 className="font-headline font-black text-2xl uppercase tracking-tight mb-3">Secure Access Required</h2>
+           <p className="text-white/60 text-sm font-medium leading-relaxed max-w-xs mx-auto">
+             This QR code link is either expired or invalid. Please scan the official Koop signage at your location.
+           </p>
+        </div>
+        <Button variant="ghost" asChild className="text-white/40 hover:text-white uppercase text-[10px] font-black tracking-widest gap-2">
+           <Link href="/"><ArrowLeft className="h-3 w-3" /> Return to Home</Link>
         </Button>
       </div>
     );
   }
 
+  const availableModes = (seller?.menuTypes || []).filter(t => AUTHORIZED_SERVICE_MODES.includes(t)).filter(t => isModeAvailable(t));
+
   return (
-    <div className="flex flex-col h-full">
-      <header className="px-4 pt-4 pb-2 text-center shrink-0">
-        <h1 className="font-headline text-3xl font-bold text-foreground">
-          {isLoading ? <Skeleton className="h-9 w-3/4 mx-auto" /> : seller?.courseName}
-        </h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Place your order and we'll deliver it to you on the course!
-        </p>
+    <div className="flex flex-col min-h-screen bg-[#F0F0F0] relative">
+      <header className="relative w-full flex flex-col bg-[#213147] overflow-hidden shrink-0 pt-4 pb-4 px-6 text-left">
+        <div className="absolute inset-0 z-0 opacity-10 pointer-events-none">
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full border-[30px] border-white" />
+        </div>
+        <div className="relative z-10 flex flex-col items-start text-left space-y-4 max-w-2xl w-full mx-auto pt-2">
+          <div className="flex items-center justify-between w-full gap-4">
+            <h1 className="font-headline text-2xl font-black text-white uppercase tracking-tight leading-none truncate flex-1">{seller?.courseName}</h1>
+            <Button 
+              variant="ghost" 
+              className="flex items-center gap-2 h-11 px-3 text-white hover:bg-white/10 relative group bg-white/5 rounded-xl border border-white/10 shrink-0"
+              onClick={() => setIsCartOpen(true)}
+            >
+              <div className="flex items-center gap-2">
+                <div className="flex flex-col items-end leading-none mr-0.5">
+                  <span className="text-[8px] uppercase font-black text-white/40 tracking-widest group-hover:text-white/60">Cart</span>
+                  <span className="text-xs font-mono font-black text-white">${total.toFixed(2)}</span>
+                </div>
+                <div className="relative">
+                  <ShoppingCart className="h-5 w-5 text-white" />
+                  {totalItems > 0 && (
+                    <span className="absolute -top-2 -right-2 bg-red-600 text-white text-[9px] font-black rounded-full w-4 h-4 flex items-center justify-center shadow-lg animate-in zoom-in duration-300">
+                      {totalItems}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </Button>
+          </div>
+
+          <div className="flex wrap gap-2">
+            {(seller?.menuTypes || [])
+              .filter(t => AUTHORIZED_SERVICE_MODES.includes(t))
+              .map((type) => {
+                const Icon = serviceTypeIcons[type] || Store;
+                const available = availableModes.includes(type);
+                const isSelected = selectedMenuType === type;
+                return (
+                  <button key={type} disabled={!available} onClick={() => updateMenuType(type)} className={cn("flex items-center gap-2 px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all shadow-lg", isSelected ? "bg-primary text-white scale-105" : (available ? "bg-white/10 text-white hover:bg-white/20" : "bg-white/5 text-white/20 grayscale cursor-not-allowed border border-white/5"))}>
+                    <Icon className="h-3.5 w-3.5" /> {type}
+                  </button>
+                );
+              })}
+          </div>
+
+          <div className="space-y-1.5">
+            <p className="text-[10px] font-black uppercase tracking-[0.1em] text-white flex items-center gap-1.5">
+              <Info className="h-2.5 w-2.5 shrink-0 text-primary" /> 
+              {availableModes.includes(selectedMenuType) ? (SERVICE_INSTRUCTIONS[selectedMenuType] || 'Select items to begin your order') : 'Service currently unavailable.'}
+            </p>
+            <p className="text-[8px] font-bold uppercase tracking-[0.15em] text-white/40 pl-4">
+              {menuNotice}
+            </p>
+          </div>
+
+          {/* ACTIVE ORDER PERSISTENCE LINK */}
+          {activeTrackingOrder && (
+            <Link 
+              href={`/order/track?id=${activeTrackingOrder.id}&sellerId=${sellerId}`}
+              className="w-full mt-2 group animate-in slide-in-from-bottom-2 duration-500"
+            >
+              <div className="bg-primary/20 hover:bg-primary/30 border border-primary/40 rounded-2xl p-3 flex items-center justify-between transition-all active:scale-[0.98]">
+                <div className="flex items-center gap-3">
+                  <div className="bg-primary p-2 rounded-xl animate-pulse shadow-lg">
+                    <MapPin className="h-4 w-4 text-white" />
+                  </div>
+                  <div className="text-left">
+                    <p className="text-[10px] font-black uppercase text-white tracking-widest leading-none mb-1.5">Track Active Order</p>
+                    <div className="flex items-center gap-2">
+                       <Badge variant="outline" className="text-[7px] font-black uppercase border-white/20 bg-white/5 text-white/80 h-3.5 px-1.5">{activeTrackingOrder.status}</Badge>
+                       <p className="text-[8px] font-bold text-white/40 uppercase tracking-widest">Live Delivery Updates</p>
+                    </div>
+                  </div>
+                </div>
+                <ChevronRight className="h-4 w-4 text-white/40 group-hover:text-white transition-colors" />
+              </div>
+            </Link>
+          )}
+        </div>
       </header>
 
-      <div className="sticky top-0 bg-background/95 backdrop-blur-sm z-10 py-2 shrink-0 border-b">
-         <ScrollArea className="w-full whitespace-nowrap">
-            <div className="flex gap-2 px-4">
-            {categories.map((category) => {
-                const Icon = categoryIcons[category];
-                return (
-                <Button
-                    key={category}
-                    variant={selectedCategory === category ? 'default' : 'outline'}
-                    onClick={() => setSelectedCategory(category)}
-                    className="shrink-0"
+      {availableModes.includes(selectedMenuType) ? (
+        <>
+          <div className="sticky top-0 z-[35] bg-white/95 backdrop-blur-md border-b-2 shadow-sm w-full">
+            <div className="max-w-2xl auto px-0 py-3 space-y-3">
+              <div className="flex items-center justify-center text-center px-4 py-0.5 animate-in fade-in slide-in-from-top-1 duration-500">
+                <p className="text-[9px] font-black uppercase tracking-tight text-[#213147]">
+                  <span className="opacity-40">Ordering from:</span> {seller?.courseName} <span className="text-primary">{selectedMenuType}</span>
+                </p>
+              </div>
+
+              <div className="relative overflow-hidden">
+                <div 
+                  className="flex gap-2 overflow-x-auto no-scrollbar py-1 px-4 [mask-image:linear-gradient(to_right,transparent,black_20px,black_calc(100%-20px),transparent)]"
                 >
-                    <Icon className="mr-2 h-4 w-4" />
-                    {category}
-                </Button>
-                );
-            })}
+                  {currentCategories.map((cat) => (
+                    <button 
+                      key={cat} 
+                      onClick={() => scrollToCategory(cat)} 
+                      className={cn(
+                        "whitespace-nowrap px-4 py-1.5 rounded-full border-2 text-[9px] font-black uppercase tracking-widest transition-all active:scale-95 shrink-0", 
+                        activeCategory === cat 
+                          ? (cat === 'Featured' ? "bg-[#213147] border-[#213147] text-white shadow-md scale-105" : "bg-primary border-primary text-white shadow-md scale-105") 
+                          : (cat === 'Featured' ? "bg-[#213147]/5 border-[#213147]/20 text-[#213147] hover:bg-[#213147]/10" : "bg-slate-50 border-slate-100 text-slate-500 hover:border-primary/30 hover:text-primary")
+                      )}
+                    >
+                      {cat}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
-        </ScrollArea>
-      </div>
-      
-      <main className="flex-1 overflow-y-auto px-4 pt-4 pb-28"> 
-        {isLoading ? (
-          <div className="space-y-4">
-              <Skeleton className="h-20 w-full" />
-              <Skeleton className="h-20 w-full" />
-              <Skeleton className="h-20 w-full" />
           </div>
-        ) : menuItems ? (
-          <BuyerMenu
-            orderItems={orderItems}
-            onUpdateItem={updateItem}
-            selectedCategory={selectedCategory}
-            menuItems={menuItems}
-          />
-        ) : (
-          <p>No menu items available.</p>
-        )}
-      </main>
+
+          <main className="flex-1 px-4 pt-8 pb-32 max-w-2xl mx-auto w-full">
+            <BuyerMenu orderItems={orderItems} onUpdateItem={updateItem} onOpenModifiers={setCustomizingItem} currentCategories={currentCategories} menuItems={filteredMenuItems} selectedMenuType={selectedMenuType} />
+          </main>
+        </>
+      ) : (
+        <div className="flex-1 flex flex-col items-center justify-center p-12 text-center space-y-6">
+          <div className="bg-white p-10 rounded-[3rem] shadow-xl border-2 border-slate-100 max-w-sm">
+            <AlertTriangle className="h-16 w-16 text-amber-500 mx-auto mb-6" />
+            <h2 className="font-headline font-black text-2xl uppercase tracking-tight text-[#213147] mb-3">Service Offline</h2>
+            <p className="text-muted-foreground text-sm font-medium leading-relaxed">
+              We don't have any staff active for {selectedMenuType || 'this channel'} at the moment. Please select another mode or check back soon.
+            </p>
+          </div>
+          <Button variant="outline" className="font-black uppercase text-[10px] tracking-widest border-2 h-12 px-8 rounded-full" onClick={() => router.push('/')}>
+            Return to Home
+          </Button>
+        </div>
+      )}
+
+      <Sheet open={!!customizingItem} onOpenChange={(o) => !o && setCustomizingItem(null)}>
+        <SheetContent side="bottom" className="rounded-t-[2.5rem] h-[90vh] flex flex-col p-0 overflow-hidden outline-none">
+          <SheetHeader className="px-6 py-5 border-b bg-[#213147] text-white shrink-0 text-left">
+            <div className="max-w-xl mx-auto w-full flex flex-col items-start relative pr-10">
+              <SheetTitle className="font-headline font-black uppercase tracking-tight text-white text-xl">Customize Item</SheetTitle>
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/50">{customizingItem?.name}</p>
+              <SheetClose className="absolute right-0 top-0 text-white/40 hover:text-white"><X className="h-6 w-6" /></SheetClose>
+            </div>
+          </SheetHeader>
+          {customizingItem && <ModifierSelector item={customizingItem} onConfirm={handleConfirmModifiers} onCancel={() => setCustomizingItem(null)} />}
+        </SheetContent>
+      </Sheet>
 
       <Sheet open={isCartOpen} onOpenChange={setIsCartOpen}>
-        {activeOrderItems.length > 0 && (
-          <div className="fixed bottom-0 left-0 right-0 p-4 bg-background/90 backdrop-blur-sm border-t z-20">
-            <SheetTrigger asChild>
-              <Button size="lg" className="w-full text-lg h-14">
-                <div className="flex justify-between items-center w-full">
-                  <span>View Order ({totalItems})</span>
-                  <span className="font-mono">${total.toFixed(2)}</span>
-                </div>
-              </Button>
-            </SheetTrigger>
+        {totalItems > 0 && !customizingItem && (
+          <div className="fixed bottom-7 left-0 right-0 p-4 bg-white/80 backdrop-blur-md border-t z-40">
+            <div className="max-w-xl mx-auto px-2">
+              <SheetTrigger asChild>
+                <Button size="lg" className="w-full h-14 font-black uppercase tracking-widest shadow-xl flex justify-between px-6 sm:px-8">
+                  <div className="flex items-center gap-2 sm:gap-3"><span>REVIEW ORDER</span><span className="bg-white/20 text-[10px] px-2 py-0.5 rounded-full">{totalItems} ITEMS</span></div>
+                  <span className="bg-white/20 px-3 py-1 rounded-lg">${total.toFixed(2)}</span>
+                </Button>
+              </SheetTrigger>
+            </div>
           </div>
         )}
-        <SheetContent side="bottom" className="rounded-t-lg">
-          <SheetHeader>
-             <SheetTitle className="text-center">Your Order</SheetTitle>
+        <SheetContent side="bottom" className="rounded-t-[2.5rem] h-[90vh] flex flex-col p-0 overflow-hidden outline-none">
+          <SheetHeader className="px-6 py-5 border-b bg-[#213147] text-white shrink-0 text-left">
+            <div className="max-w-xl mx-auto w-full flex flex-col items-start pr-10 relative">
+              <div className="flex items-center gap-3 mb-1"><SheetTitle className="font-headline font-black uppercase tracking-tight text-white text-xl">Checkout</SheetTitle><Badge variant="outline" className="text-[9px] font-black border-primary/40 bg-primary/10 text-primary uppercase h-5">{selectedMenuType}</Badge></div>
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/50">{seller?.courseName}</p>
+              <SheetClose className="absolute right-0 top-1 text-white/40 hover:text-white"><X className="h-6 w-6" /></SheetClose>
+            </div>
           </SheetHeader>
-          <div className="py-4 max-h-[50vh] overflow-y-auto">
-            <OrderSummary
-              items={activeOrderItems}
-              serviceFee={seller?.serviceFee}
-            />
-          </div>
-          <SheetFooter>
-            <Button 
-              size="lg" 
-              className="w-full h-12 text-lg" 
-              onClick={handlePlaceOrder}
-              disabled={isPlacingOrder || totalItems === 0}
-            >
-              {isPlacingOrder ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Placing Order...
-                </>
-              ) : (
-                `Place Order - $${total.toFixed(2)}`
-              )}
-            </Button>
-          </SheetFooter>
+          <CheckoutDrawerContent seller={seller} sellerId={sellerId} selectedMenuType={selectedMenuType} locationValue={locationValue} setLocationValue={setLocationValue} activeOrderItems={activeOrderItems} subtotal={subtotal} solutionFee={solutionFee} taxRate={taxRate} onOrderComplete={handleOrderComplete} />
         </SheetContent>
       </Sheet>
     </div>
+  );
+}
+
+export default function BuyerOrderPage({ params }: { params: Promise<{ sellerId: string }> }) {
+  const { sellerId } = use(params);
+
+  return (
+    <Suspense fallback={
+      <div className="flex flex-col min-h-screen bg-background items-center justify-center">
+        <Loader2 className="animate-spin h-10 w-10 text-primary" />
+        <p className="mt-4 text-[10px] font-black uppercase tracking_widest text-muted-foreground">Initializing Menu Feed...</p>
+      </div>
+    }>
+      <BuyerOrderContent sellerId={sellerId} />
+    </Suspense>
   );
 }

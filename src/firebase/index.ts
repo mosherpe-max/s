@@ -2,10 +2,8 @@
 
 import { firebaseConfig } from '@/firebase/config';
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
-import { getAuth, Auth } from 'firebase/auth';
-import { getFirestore, Firestore } from 'firebase/firestore';
-
-const isOpenPrototyping = true;
+import { getAuth } from 'firebase/auth';
+import { getFirestore, initializeFirestore } from 'firebase/firestore'
 
 // IMPORTANT: DO NOT MODIFY THIS FUNCTION
 export function initializeFirebase() {
@@ -34,24 +32,24 @@ export function initializeFirebase() {
   return getSdks(getApp());
 }
 
-interface FirebaseServices {
-  firebaseApp: FirebaseApp;
-  firestore: Firestore;
-  auth: Auth | null;
-}
-
-export function getSdks(firebaseApp: FirebaseApp): FirebaseServices {
-  const services: FirebaseServices = {
-    firebaseApp,
-    firestore: getFirestore(firebaseApp),
-    auth: null,
-  };
-
-  if (!isOpenPrototyping) {
-    services.auth = getAuth(firebaseApp);
+export function getSdks(firebaseApp: FirebaseApp) {
+  // Use initializeFirestore with experimentalForceLongPolling to resolve connectivity issues 
+  // commonly encountered in proxy/workstation environments where standard gRPC streams time out.
+  let firestore;
+  try {
+    firestore = initializeFirestore(firebaseApp, {
+      experimentalForceLongPolling: true,
+    });
+  } catch (e) {
+    // If already initialized, getFirestore will return the existing instance
+    firestore = getFirestore(firebaseApp);
   }
 
-  return services;
+  return {
+    firebaseApp,
+    auth: getAuth(firebaseApp),
+    firestore
+  };
 }
 
 export * from './provider';

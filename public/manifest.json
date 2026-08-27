@@ -1,0 +1,23 @@
+{
+  "name": "KOOP Delivery",
+  "short_name": "KOOP",
+  "description": "On-course refreshment delivery platform.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#213147",
+  "theme_color": "#E50000",
+  "icons": [
+    {
+      "src": "https://picsum.photos/seed/koop/192/192",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "https://picsum.photos/seed/koop/512/512",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

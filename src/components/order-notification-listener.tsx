@@ -1,94 +1,119 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import { collection, query, orderBy, limit } from 'firebase/firestore';
-import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import { collection, query, limit, where } from 'firebase/firestore';
+import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import type { Order } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
-import { Package, CookingPot, Navigation, PartyPopper } from 'lucide-react';
+import { Navigation, CheckCircle2, PartyPopper, BellRing } from 'lucide-react';
 import { ToastAction } from '@/components/ui/toast';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
+import { playNotificationSound } from '@/lib/utils';
 
 /**
- * A global listener that monitors the most recent order status for the buyer.
- * Displays toast notifications when the status changes.
+ * A global listener that monitors order status for the buyer.
+ * Scoped to the current customer session.
+ * Features audible chimes and system-level notifications for PWA users.
  */
 export function OrderNotificationListener() {
   const firestore = useFirestore();
+  const { user } = useUser();
   const { toast } = useToast();
   const router = useRouter();
+  const pathname = usePathname();
   const prevStatusRef = useRef<Order['status'] | undefined>(undefined);
   const prevOrderIdRef = useRef<string | undefined>(undefined);
 
+  // Silent mode for certain paths to avoid redundant notifications
+  const isSilentPath = 
+    pathname === '/login' || 
+    pathname?.startsWith('/admin') || 
+    pathname?.includes('/bevcart') || 
+    pathname?.includes('/clubhouse') ||
+    pathname?.includes('/laneside');
+
   const latestOrderQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
+    // Only query if we have a user identity and aren't on a restricted path
+    if (!firestore || !user?.uid || isSilentPath) return null;
+    
     return query(
       collection(firestore, 'orders'),
-      orderBy('createdAt', 'desc'),
-      limit(1)
+      where('buyerProfileId', '==', user.uid),
+      limit(5)
     );
-  }, [firestore]);
+  }, [firestore, user?.uid, isSilentPath]);
 
   const { data: orders } = useCollection<Order>(latestOrderQuery);
-  const order = orders?.[0];
+  
+  // Sort manually client-side
+  const order = orders && orders.length > 0 
+    ? [...orders].sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0))[0] 
+    : null;
 
   useEffect(() => {
-    if (!order) return;
+    if (!order || isSilentPath) return;
 
-    // If this is a new order, reset tracking
+    const orderUrl = `/order/track?id=${order.id}&sellerId=${order.sellerId}`;
+
+    // Handle initial state or order change
     if (order.id !== prevOrderIdRef.current) {
       prevOrderIdRef.current = order.id;
       prevStatusRef.current = order.status;
       return;
     }
 
-    // Only toast if the status has actually changed for the same order
+    // Trigger toast and audible chime on status change
     if (order.status !== prevStatusRef.current) {
-      let title = '';
-      let description = '';
-      let Icon: React.ElementType = Package;
+      // 1. Play Audible Noise
+      playNotificationSound();
+
+      // 2. Trigger System Notification (PWA)
+      if ("Notification" in window && Notification.permission === "granted") {
+        new Notification("Order Update", {
+          body: `Order status changed to ${order.status}`,
+          icon: '/icon'
+        });
+      }
+
+      const trackAction = (
+        <ToastAction altText="View Order" onClick={() => router.push(orderUrl)}>
+          View
+        </ToastAction>
+      );
+
+      const title = (icon: any, text: string) => (
+        <div className="flex items-center gap-2">
+          {icon}
+          <span className="font-headline font-bold uppercase">{text}</span>
+        </div>
+      );
 
       switch (order.status) {
         case 'Preparing':
-          title = 'Order Confirmed!';
-          description = 'The cart is now preparing your items.';
-          Icon = CookingPot;
+          toast({ 
+            title: title(<CheckCircle2 className="h-5 w-5 text-primary" />, 'Order Confirmed'), 
+            description: 'Venue received your order.', 
+            action: trackAction 
+          });
           break;
         case 'Out for Delivery':
-          title = 'Order is on the way!';
-          description = 'The driver is heading to your location.';
-          Icon = Navigation;
+          toast({ 
+            title: title(<Navigation className="h-5 w-5 text-primary" />, 'Heading Your Way!'), 
+            description: 'The driver is out for delivery.', 
+            action: trackAction 
+          });
           break;
         case 'Delivered':
-          title = 'Order Delivered!';
-          description = 'Enjoy your refreshments.';
-          Icon = PartyPopper;
+          toast({ 
+            title: title(<PartyPopper className="h-5 w-5 text-primary" />, 'Delivered!'), 
+            description: 'Your items have arrived. Enjoy!', 
+            action: trackAction 
+          });
           break;
       }
-
-      if (title) {
-        toast({
-          title: (
-            <div className="flex items-center gap-2">
-              <Icon className="h-5 w-5 text-primary" />
-              <span className="font-headline font-bold">{title}</span>
-            </div>
-          ),
-          description: description,
-          action: (
-            <ToastAction 
-              altText="Track Order" 
-              onClick={() => router.push('/order/track')}
-            >
-              Track Order
-            </ToastAction>
-          ),
-        });
-      }
-      
       prevStatusRef.current = order.status;
     }
-  }, [order, toast, router]);
+  }, [order, toast, router, isSilentPath]);
 
   return null;
 }

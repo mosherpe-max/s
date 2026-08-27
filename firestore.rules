@@ -1,10 +1,118 @@
+
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Insecure: Allow read/write access to all documents by anyone.
-    // This is for prototyping only.
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isSuperAdmin() {
+      return isSignedIn() && (
+        request.auth.uid == 'o9vAQy0aFRPSNPoG0ETvjiGt9If1' || 
+        (request.auth.token.email != null && request.auth.token.email.lower() == 'mosherpe@gmail.com')
+      );
+    }
+
+    function isVenueOwner(venueId) {
+      return isSignedIn() && (
+        (exists(/databases/$(database)/documents/venues/$(venueId)) && get(/databases/$(database)/documents/venues/$(venueId)).data.ownerUid == request.auth.uid) ||
+        (exists(/databases/$(database)/documents/roles_seller_admin/$(request.auth.token.email.lower())) && 
+         get(/databases/$(database)/documents/roles_seller_admin/$(request.auth.token.email.lower())).data.sellerId == venueId)
+      );
+    }
+
+    // User profiles - patrons can read/write their own identity
+    match /users/{userId} {
+      allow read, write: if isSignedIn() && request.auth.uid == userId;
+    }
+
+    // Solution configuration readable by everyone
+    match /solution/config {
+      allow read: if true;
+      allow write: if isSuperAdmin();
+    }
+
+    // Global Starter Libraries
+    match /starter_modifier_library/{groupId} {
+      allow read: if true;
+      allow write: if isSuperAdmin();
+    }
+
+    match /starter_menu_item_library/{itemId} {
+      allow read: if true;
+      allow write: if isSuperAdmin();
+    }
+
+    // Global catch-all for Super Admins
     match /{document=**} {
+      allow read, write: if isSuperAdmin();
+    }
+
+    // Allow users to verify their own administrative roles
+    match /roles_admin/{uid} {
+      allow read: if isSignedIn() && request.auth.uid == uid;
+    }
+
+    match /roles_seller_admin/{email} {
+      allow read: if isSignedIn() && request.auth.token.email.lower() == email.lower();
+    }
+
+    match /roles_sales_rep/{email} {
+      allow read: if isSignedIn() && request.auth.token.email.lower() == email.lower();
+    }
+
+    // Venue registry
+    match /venues/{venueId} {
+      allow read: if true;
+      allow write: if isSuperAdmin() || isVenueOwner(venueId);
+    }
+
+    match /sellers/{sellerId} {
+      allow read: if true;
+      allow write: if isSuperAdmin() || isVenueOwner(sellerId);
+      
+      // Allow location and status updates
+      // Prototyping: Allow demo venues to be toggled without authentication
+      allow update: if (isSignedIn() || sellerId.startsWith('demo-')) && 
+                    request.resource.data.diff(resource.data).affectedKeys()
+                    .hasOnly(['latitude', 'longitude', 'lastActive', 'bevcartActive', 'clubhouseActive', 'lanedeliveryActive', 'updatedAt', 'qrActive', 'qrSecret']);
+
+      match /staff/{staffId} {
+        allow read, write: if true;
+      }
+
+      match /menuItems/{itemId} {
+        allow read: if true;
+        allow write: if isSuperAdmin() || isVenueOwner(sellerId);
+      }
+    }
+
+    match /orders/{orderId} {
       allow read, write: if true;
+    }
+
+    // Sales CRM access
+    match /prospects/{prospectId} {
+      allow read, write: if isSignedIn();
+    }
+
+    match /activities/{activityId} {
+      allow read, write: if isSignedIn();
+    }
+
+    // Normalized Menu and Modifiers
+    match /modifier_groups/{groupId} {
+      allow read: if true;
+      allow write: if isSuperAdmin() || (
+        isSignedIn() && 
+        (
+          (request.method == 'create' || request.method == 'update') && isVenueOwner(request.resource.data.sellerId)
+        ) ||
+        (
+          request.method == 'delete' && isVenueOwner(resource.data.sellerId)
+        )
+      );
     }
   }
 }

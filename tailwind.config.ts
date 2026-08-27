@@ -1,4 +1,4 @@
-import type {Config} from 'tailwindcss';
+import type {Config} from 'tailwind-merge';
 
 export default {
   darkMode: ['class'],
@@ -88,10 +88,15 @@ export default {
             height: '0',
           },
         },
+        'progress-bar-stripes': {
+          from: { backgroundPosition: '1rem 0' },
+          to: { backgroundPosition: '0 0' },
+        },
       },
       animation: {
         'accordion-down': 'accordion-down 0.2s ease-out',
         'accordion-up': 'accordion-up 0.2s ease-out',
+        'progress-bar-stripes': 'progress-bar-stripes 1s linear infinite',
       },
     },
   },

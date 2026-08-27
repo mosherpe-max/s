@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useMemo } from 'react';
-import type { OrderItem } from './types';
+import type { OrderItem, Order, ModifierOption } from './types';
 
 interface CartContextType {
   orderItems: OrderItem[];
@@ -11,7 +11,11 @@ interface CartContextType {
   total: number;
   totalItems: number;
   updateItem: (item: OrderItem) => void;
+  removeItem: (cartId: string) => void;
   clearCart: () => void;
+  editingOrderId: string | null;
+  loadOrder: (order: Order) => void;
+  cancelEditing: () => void;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -19,11 +23,17 @@ const CartContext = createContext<CartContextType | undefined>(undefined);
 export function CartProvider({ children, serviceFee = 0 }: { children: React.ReactNode, serviceFee?: number }) {
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
 
   const activeItems = useMemo(() => orderItems.filter(i => i.quantity > 0), [orderItems]);
   
   const subtotal = useMemo(() => 
-    activeItems.reduce((acc, item) => acc + item.price * item.quantity, 0), 
+    activeItems.reduce((acc, item) => {
+      const basePrice = item.price;
+      const modifiersPrice = item.selectedModifiers ? 
+        Object.values(item.selectedModifiers).flat().reduce((sum, mod) => sum + mod.priceAdjustment, 0) : 0;
+      return acc + (basePrice + modifiersPrice) * item.quantity;
+    }, 0), 
   [activeItems]);
 
   const total = subtotal > 0 ? subtotal + serviceFee : 0;
@@ -31,22 +41,40 @@ export function CartProvider({ children, serviceFee = 0 }: { children: React.Rea
 
   const updateItem = (updatedItem: OrderItem) => {
     setOrderItems((prevItems) => {
-      const existingItemIndex = prevItems.findIndex((i) => i.id === updatedItem.id);
+      const existingItemIndex = prevItems.findIndex((i) => i.cartId === updatedItem.cartId);
+      
       if (updatedItem.quantity === 0) {
-        return prevItems.filter((i) => i.id !== updatedItem.id);
+        return prevItems.filter((i) => i.cartId !== updatedItem.cartId);
       }
+      
       if (existingItemIndex > -1) {
         const newItems = [...prevItems];
         newItems[existingItemIndex] = updatedItem;
         return newItems;
       }
+      
       return [...prevItems, updatedItem];
     });
+  };
+
+  const removeItem = (cartId: string) => {
+    setOrderItems(prev => prev.filter(i => i.cartId !== cartId));
+  };
+
+  const loadOrder = (order: Order) => {
+    setOrderItems(order.items);
+    setEditingOrderId(order.id);
+  };
+
+  const cancelEditing = () => {
+    setEditingOrderId(null);
+    setOrderItems([]);
   };
 
   const clearCart = () => {
     setOrderItems([]);
     setIsCartOpen(false);
+    setEditingOrderId(null);
   };
 
   const value = useMemo(() => ({
@@ -57,8 +85,12 @@ export function CartProvider({ children, serviceFee = 0 }: { children: React.Rea
     total,
     totalItems,
     updateItem,
+    removeItem,
     clearCart,
-  }), [orderItems, isCartOpen, total, totalItems]);
+    editingOrderId,
+    loadOrder,
+    cancelEditing,
+  }), [orderItems, isCartOpen, total, totalItems, editingOrderId]);
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
 }
