@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, use, useEffect, useMemo, Suspense } from 'react';
@@ -643,13 +642,12 @@ function BuyerOrderContent({ sellerId }: { sellerId: string }) {
   const menuItemsQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'sellers', sellerId, 'menuItems') : null), [firestore, sellerId]);
   const { data: menuItems, isLoading: areItemsLoading } = useCollection<MenuItem>(menuItemsQuery);
 
-  // SECURE ACCESS CHECK WITH PROTOTYPING BYPASS
+  // SECURE ACCESS CHECK WITH SIMPLE PROTOTYPING BYPASS
   const isAccessValid = useMemo(() => {
     if (!seller || isSellerLoading) return true;
     
-    // Explicit bypass for prototyping links
-    if (sellerId === 'demo-course' && keyParam === 'public-golf-demo') return true;
-    if (sellerId === 'demo-bowling-alley' && keyParam === 'bowling-demo') return true;
+    // Prototyping Bypass: Always allow demo venues for simple preview
+    if (sellerId.startsWith('demo-')) return true;
 
     // Legacy support for venues without keys
     if (!seller.qrSecret) return true;
@@ -899,7 +897,7 @@ function BuyerOrderContent({ sellerId }: { sellerId: string }) {
       {availableModes.includes(selectedMenuType) ? (
         <>
           <div className="sticky top-0 z-[35] bg-white/95 backdrop-blur-md border-b-2 shadow-sm w-full">
-            <div className="max-w-2xl mx-auto px-0 py-3 space-y-3">
+            <div className="max-w-2xl auto px-0 py-3 space-y-3">
               <div className="flex items-center justify-center text-center px-4 py-0.5 animate-in fade-in slide-in-from-top-1 duration-500">
                 <p className="text-[9px] font-black uppercase tracking-tight text-[#213147]">
                   <span className="opacity-40">Ordering from:</span> {seller?.courseName} <span className="text-primary">{selectedMenuType}</span>

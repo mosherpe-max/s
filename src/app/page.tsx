@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useEffect } from 'react';
@@ -113,7 +112,7 @@ export default function HomePage() {
               ))}
             </ul>
             <div className="flex flex-col gap-3">
-              <Link href="/sellers/demo-course/order?menuType=Beverage Cart&key=public-golf-demo" className="font-headline text-sm font-bold uppercase tracking-widest bg-[#E50000] hover:bg-[#c40000] text-white py-4 rounded text-center transition-colors shadow-xl">
+              <Link href="/sellers/demo-course/order?menuType=Beverage Cart" className="font-headline text-sm font-bold uppercase tracking-widest bg-[#E50000] hover:bg-[#c40000] text-white py-4 rounded text-center transition-colors shadow-xl">
                 Launch Golf Menu Demo
               </Link>
             </div>
@@ -125,7 +124,7 @@ export default function HomePage() {
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_70%_30%,rgba(229,0,0,0.08),transparent_60%)] opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
           
           <div className="relative z-10 text-left">
-            <span className="text-6xl mb-6 block drop-shadow-[0_0_20px_rgba(229,0,0,0.3)]"> bowling</span>
+            <span className="text-6xl mb-6 block drop-shadow-[0_0_20px_rgba(229,0,0,0.3)]">🎳</span>
             <div className="font-headline text-[13px] font-bold uppercase tracking-[0.2em] text-[#E50000] mb-3">Bowling Centers</div>
             <h2 className="font-headline text-4xl md:text-5xl font-black uppercase leading-none mb-5 text-white">
               Order From<br />the Lane
@@ -140,7 +139,7 @@ export default function HomePage() {
                 </li>
               ))}
             </ul>
-            <Link href="/sellers/demo-bowling-alley/order?menuType=Lane Delivery&key=bowling-demo" className="font-headline text-sm font-bold uppercase tracking-widest bg-[#E50000] hover:bg-[#c40000] text-white py-4 rounded text-center transition-colors block shadow-xl">
+            <Link href="/sellers/demo-bowling-alley/order?menuType=Lane Delivery" className="font-headline text-sm font-bold uppercase tracking-widest bg-[#E50000] hover:bg-[#c40000] text-white py-4 rounded text-center transition-colors block shadow-xl">
               Launch Bowling Demo
             </Link>
           </div>

@@ -133,7 +133,7 @@ function GlobalNavigator({ darkTrigger = false }: { darkTrigger?: boolean }) {
                 <p className="text-[9px] font-black text-white/40 uppercase tracking-[0.2em]">Public Golf Demo</p>
               </div>
               <div className="grid gap-2">
-                <MenuLink href="/sellers/demo-course/order?menuType=Beverage Cart&key=public-golf-demo" label="Launch Patron Menu" icon={ShoppingBag} />
+                <MenuLink href="/sellers/demo-course/order?menuType=Beverage Cart" label="Launch Patron Menu" icon={ShoppingBag} />
                 <MenuLink href="/sellers/demo-course" label="Venue Management" icon={LayoutDashboard} />
                 <MenuLink href="/sellers/demo-course/staff-login" label="Staff Login Terminal" icon={ShieldCheck} />
               </div>
@@ -145,7 +145,7 @@ function GlobalNavigator({ darkTrigger = false }: { darkTrigger?: boolean }) {
                 <p className="text-[9px] font-black text-white/40 uppercase tracking-[0.2em]">Bowling Alley Demo</p>
               </div>
               <div className="grid gap-2">
-                <MenuLink href="/sellers/demo-bowling-alley/order?menuType=Lane Delivery&key=bowling-demo" label="Launch Patron Menu" icon={ShoppingBag} />
+                <MenuLink href="/sellers/demo-bowling-alley/order?menuType=Lane Delivery" label="Launch Patron Menu" icon={ShoppingBag} />
                 <MenuLink href="/sellers/demo-bowling-alley" label="Venue Management" icon={LayoutDashboard} />
                 <MenuLink href="/sellers/demo-bowling-alley/staff-login" label="Staff Login Terminal" icon={ShieldCheck} />
               </div>
