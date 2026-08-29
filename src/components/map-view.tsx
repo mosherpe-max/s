@@ -274,7 +274,7 @@ function MapInternal({ buyerLocation, sellerLocation, showPrimaryMarker, primary
 }
 
 export function MapView(props: MapViewProps) {
-  const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+  const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY?.trim();
   const isKeyUnset = !apiKey || apiKey === "REPLACE_WITH_YOUR_KEY_IN_CONSOLE" || apiKey === "";
 
   if (isKeyUnset) {
