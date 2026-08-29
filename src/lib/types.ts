@@ -42,6 +42,8 @@ export interface SolutionConfig {
   venueHealthSettings?: VenueHealthSettings;
   orderThresholds?: Record<string, OrderFulfillmentThresholds>; // Master defaults by Mode
   enabledModes?: string[]; // Globally authorized modes by Koop Admin
+  stripeFeePercent?: number; // Estimated Stripe processing fee %, deducted from Koop's application fee
+  stripeFeeFixed?: number; // Estimated Stripe fixed fee in cents, deducted from Koop's application fee
   updatedAt: Timestamp;
 }
 

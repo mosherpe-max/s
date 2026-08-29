@@ -88,7 +88,7 @@ export const createPaymentIntent = onCall({
   region: 'us-central1',
 }, async (request) => {
   try {
-    const { amount, sellerId, patronName, patronPhone, patronEmail, stripeCustomerId: clientProvidedCustomerId } = request.data || {};
+    const { amount, convenienceFee, sellerId, patronName, patronPhone, patronEmail, stripeCustomerId: clientProvidedCustomerId } = request.data || {};
     const buyerUid = request.auth?.uid;
 
     if (!amount || amount <= 0) throw new HttpsError('invalid-argument', 'Invalid amount.');
@@ -104,6 +104,17 @@ export const createPaymentIntent = onCall({
     if (!venueStripeAccountId) {
       throw new HttpsError('failed-precondition', 'Venue is not configured for digital payments.');
     }
+
+    const configSnap = await db.collection('solution').doc('config').get();
+    const stripeFeePercent = configSnap.exists ? (configSnap.data()?.stripeFeePercent ?? 2.9) : 2.9;
+    const stripeFeeFixed = configSnap.exists ? (configSnap.data()?.stripeFeeFixed ?? 30) : 30;
+
+    const baseCents = Math.round(amount * 100);
+    const convenienceFeeCents = Math.round((convenienceFee || 0) * 100);
+    const totalCents = baseCents + convenienceFeeCents;
+
+    const estimatedStripeFeeCents = Math.round(totalCents * (stripeFeePercent / 100) + stripeFeeFixed);
+    const applicationFeeAmount = Math.max(0, convenienceFeeCents - estimatedStripeFeeCents);
 
     let stripeCustomerId = clientProvidedCustomerId;
     if (!stripeCustomerId && buyerUid) {
@@ -128,12 +139,13 @@ export const createPaymentIntent = onCall({
     });
 
     const paymentIntent = await stripe.paymentIntents.create({
-      amount: Math.round(amount * 100),
+      amount: totalCents,
       currency: 'usd',
       customer: stripeCustomerId,
       automatic_payment_methods: { enabled: true },
       transfer_data: { destination: venueStripeAccountId },
-      metadata: { 
+      application_fee_amount: applicationFeeAmount,
+      metadata: {
         sellerId, 
         buyerUid: buyerUid || 'anonymous', 
         customerName: patronName || 'Guest', 

@@ -355,8 +355,9 @@ function CheckoutDrawerContent({
           const functions = getFunctions(firebaseApp, 'us-central1');
           const createIntent = httpsCallable(functions, 'createPaymentIntent');
           
-          const result = await createIntent({ 
-            amount: baseTotalForBackend, 
+          const result = await createIntent({
+            amount: baseTotalForBackend,
+            convenienceFee: solutionFee,
             sellerId,
             patronName: patronName || 'Guest',
             patronPhone: patronPhone.replace(/\D/g, '') || '',
