@@ -136,7 +136,7 @@ function PatronIdentifyFields({ patronEmail, setPatronEmail, patronName, setPatr
               />
             </div>
             <p className="text-[8px] font-bold text-muted-foreground uppercase tracking-wider pl-1">
-              We'll text you order status updates
+              By providing your number, you agree to receive SMS order status updates. Msg & data rates may apply. Reply STOP to opt out.
             </p>
           </div>
         </div>
