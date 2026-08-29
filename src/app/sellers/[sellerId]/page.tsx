@@ -13,7 +13,8 @@ import {
   deleteDoc,
   writeBatch
 } from 'firebase/firestore';
-import { useFirestore, useDoc, useCollection, useMemoFirebase, useUser, useAuth } from '@/firebase';
+import { useFirestore, useDoc, useCollection, useMemoFirebase, useUser, useAuth, useFirebaseApp } from '@/firebase';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { 
@@ -57,7 +58,9 @@ import {
   Megaphone,
   Share2,
   FileText,
-  Palette
+  Palette,
+  CreditCard,
+  CheckCircle2
 } from 'lucide-react';
 import Image from 'next/image';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -246,6 +249,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
   const { sellerId } = use(params);
   const firestore = useFirestore();
   const auth = useAuth();
+  const { firebaseApp } = useFirebaseApp();
   const { user, isUserLoading } = useUser();
   const router = useRouter();
   const { toast } = useToast();
@@ -260,6 +264,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
   const [isProcessingSave, setIsProcessingSave] = useState(false);
   const [baseUrl, setBaseUrl] = useState('');
   const [isDownloading, setIsDownloading] = useState(false);
+  const [isConnectingStripe, setIsConnectingStripe] = useState(false);
 
   // Analytics State
   const [analyticsTimeframe, setAnalyticsTimeframe] = useState<'7d' | 'month' | 'year'>('7d');
@@ -507,6 +512,26 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
         requestResourceData: { [field]: value },
       } satisfies SecurityRuleContext));
     });
+  };
+
+  const handleConnectStripe = async () => {
+    if (!firebaseApp || !sellerId) return;
+    setIsConnectingStripe(true);
+    try {
+      const functions = getFunctions(firebaseApp, 'us-central1');
+      const initOnboarding = httpsCallable(functions, 'initializeVenueStripeOnboarding');
+      const result = await initOnboarding({ venueId: sellerId });
+      const data = result.data as { url: string };
+      if (data?.url) {
+        window.location.href = data.url;
+      } else {
+        throw new Error('No onboarding URL returned.');
+      }
+    } catch (e: any) {
+      console.error('Stripe Onboarding Error:', e);
+      toast({ variant: 'destructive', title: 'Connection Failed', description: e.message || 'Unable to start Stripe onboarding.' });
+      setIsConnectingStripe(false);
+    }
   };
 
   const handleLogout = async () => { if (!auth) return; await signOut(auth); router.push('/login'); };
@@ -1128,6 +1153,38 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                           <div className="h-10 px-3 flex items-center bg-white border-2 rounded-md font-mono font-black text-sm text-[#213147]">${(venue?.monthlySolutionFee || 0).toFixed(2)}</div>
                           <p className="text-[8px] font-bold text-muted-foreground uppercase leading-tight">Fixed monthly fee for venue operational access.</p>
                         </div>
+                      </CardContent>
+                    </Card>
+                    <Card className="border-2 shadow-sm">
+                      <CardHeader className="bg-slate-50 border-b py-4">
+                        <CardTitle className="text-[10px] font-black uppercase tracking-widest text-[#213147] flex items-center gap-2"><CreditCard className="h-3 w-3" /> Payment Processing</CardTitle>
+                      </CardHeader>
+                      <CardContent className="pt-6 space-y-4">
+                        {venue?.payoutsEnabled ? (
+                          <div className="flex items-center gap-3 p-4 bg-green-50 border-2 border-green-100 rounded-xl">
+                            <CheckCircle2 className="h-5 w-5 text-green-600 shrink-0" />
+                            <div>
+                              <p className="text-xs font-black uppercase text-green-800">Stripe Connected</p>
+                              <p className="text-[8px] font-bold text-green-700 uppercase tracking-widest">Payouts enabled — funds route directly to your account.</p>
+                            </div>
+                          </div>
+                        ) : (
+                          <>
+                            <p className="text-[9px] font-bold text-muted-foreground uppercase leading-tight">
+                              {venue?.stripeAccountId
+                                ? 'Onboarding started but not yet complete — finish setup to enable digital payments.'
+                                : 'Connect a Stripe account to accept digital payments and receive payouts directly.'}
+                            </p>
+                            <Button
+                              onClick={handleConnectStripe}
+                              disabled={isConnectingStripe}
+                              className="w-full h-12 bg-[#635bff] hover:bg-[#5851e0] font-black uppercase tracking-widest text-[10px] gap-2"
+                            >
+                              {isConnectingStripe ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
+                              {venue?.stripeAccountId ? 'Continue Stripe Setup' : 'Connect With Stripe'}
+                            </Button>
+                          </>
+                        )}
                       </CardContent>
                     </Card>
                   </div>
