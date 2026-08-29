@@ -3,7 +3,7 @@ runConfig:
   memoryMiB: 512
   maxInstances: 1
 
-environmentVariables:
+env:
   - variable: NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
     value: AIzaSyAbINAHk0-NJEHg29klLEYN2Qq_3nzpA2s
     availability:
