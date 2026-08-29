@@ -166,6 +166,77 @@ export const createPaymentIntent = onCall({
 });
 
 /**
+ * initializeVenueStripeOnboarding
+ * Creates (if needed) a Stripe Express connected account for a venue and
+ * returns a fresh Account Link URL to complete/continue onboarding.
+ */
+export const initializeVenueStripeOnboarding = onCall({
+  secrets: ["STRIPE_SECRET_KEY"],
+  region: 'us-central1',
+}, async (request) => {
+  try {
+    const { venueId } = request.data || {};
+    if (!venueId) throw new HttpsError('invalid-argument', 'Missing venueId.');
+    if (!request.auth) throw new HttpsError('unauthenticated', 'Sign-in required.');
+
+    const uid = request.auth.uid;
+    const email = request.auth.token.email?.toLowerCase();
+
+    const isSuperAdmin = uid === 'o9vAQy0aFRPSNPoG0ETvjiGt9If1' || email === 'mosherpe@gmail.com';
+
+    let isAuthorized = isSuperAdmin;
+    if (!isAuthorized) {
+      const venueDoc = await db.collection('venues').doc(venueId).get();
+      if (venueDoc.exists && venueDoc.data()?.ownerUid === uid) isAuthorized = true;
+    }
+    if (!isAuthorized && email) {
+      const roleDoc = await db.collection('roles_seller_admin').doc(email).get();
+      if (roleDoc.exists && roleDoc.data()?.sellerId === venueId) isAuthorized = true;
+    }
+    if (!isAuthorized) throw new HttpsError('permission-denied', 'Not authorized for this venue.');
+
+    const apiKey = process.env.STRIPE_SECRET_KEY;
+    if (!apiKey) throw new HttpsError('failed-precondition', 'Gateway not configured.');
+    const stripe = new Stripe(apiKey, { apiVersion: '2025-01-27.acacia' as any });
+
+    const sellerRef = db.collection('sellers').doc(venueId);
+    const sellerDoc = await sellerRef.get();
+    let stripeAccountId = sellerDoc.exists ? sellerDoc.data()?.stripeAccountId : undefined;
+
+    if (!stripeAccountId) {
+      const account = await stripe.accounts.create({
+        type: 'express',
+        country: 'US',
+        email: sellerDoc.data()?.contactEmail || email || undefined,
+        capabilities: {
+          card_payments: { requested: true },
+          transfers: { requested: true },
+        },
+        metadata: { venueId },
+      });
+      stripeAccountId = account.id;
+
+      const batch = db.batch();
+      batch.set(sellerRef, { stripeAccountId, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+      batch.set(db.collection('venues').doc(venueId), { stripeAccountId, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+      await batch.commit();
+    }
+
+    const accountLink = await stripe.accountLinks.create({
+      account: stripeAccountId,
+      refresh_url: `https://koop.app/onboarding-refresh?venueId=${venueId}`,
+      return_url: `https://koop.app/onboarding-success?venueId=${venueId}`,
+      type: 'account_onboarding',
+    });
+
+    return { url: accountLink.url };
+  } catch (err: any) {
+    logger.error("Stripe Onboarding Error", err);
+    throw new HttpsError('internal', err.message || 'Internal onboarding error.');
+  }
+});
+
+/**
  * dailyOperationalReset
  */
 export const dailyOperationalReset = onSchedule({ 
@@ -302,10 +373,27 @@ export const handleStripeWebhook = onRequest({
           updatedAt: FieldValue.serverTimestamp()
         });
       }
+    } else if (event.type === 'account.updated') {
+      const account = event.data.object as Stripe.Account;
+      const venueId = account.metadata?.venueId;
+      if (venueId) {
+        const payoutsEnabled = !!account.payouts_enabled;
+        const onboardingComplete = !!account.details_submitted;
+        const batch = db.batch();
+        batch.set(db.collection('sellers').doc(venueId), {
+          stripeOnboardingComplete: onboardingComplete,
+          updatedAt: FieldValue.serverTimestamp()
+        }, { merge: true });
+        batch.set(db.collection('venues').doc(venueId), {
+          payoutsEnabled,
+          updatedAt: FieldValue.serverTimestamp()
+        }, { merge: true });
+        await batch.commit();
+      }
     }
     res.status(200).send({ received: true });
-  } catch (err: any) { 
+  } catch (err: any) {
     logger.error("Stripe Webhook Error", err);
-    res.status(400).send(`Webhook Error: ${err.message}`); 
+    res.status(400).send(`Webhook Error: ${err.message}`);
   }
 });
