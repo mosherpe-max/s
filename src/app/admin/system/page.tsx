@@ -15,7 +15,8 @@ import {
   Timer,
   RefreshCcw,
   History,
-  Clock
+  Clock,
+  DollarSign
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -137,6 +138,37 @@ export default function AdminSystemConfigPage() {
                    />
                 </div>
              </div>
+           </div>
+
+           {/* STRIPE PLATFORM FEE */}
+           <div className="space-y-6 pt-10 border-t">
+              <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2">
+                <DollarSign className="h-4 w-4" /> Stripe Platform Fee
+              </h4>
+              <p className="text-[9px] text-muted-foreground uppercase font-medium max-w-lg leading-relaxed">
+                Estimated Stripe processing cost, deducted from Koop's application fee before it's collected from the patron's convenience fee. The venue's payout is unaffected.
+              </p>
+              <div className="grid grid-cols-2 gap-4">
+                 <div className="space-y-1.5">
+                    <Label className="text-[9px] font-black uppercase">Stripe Fee %</Label>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      defaultValue={config?.stripeFeePercent ?? 2.9}
+                      className="h-11 border-2 font-bold"
+                      onBlur={(e) => handleUpdateConfig('stripeFeePercent', parseFloat(e.target.value))}
+                    />
+                 </div>
+                 <div className="space-y-1.5">
+                    <Label className="text-[9px] font-black uppercase">Stripe Fixed Fee (Cents)</Label>
+                    <Input
+                      type="number"
+                      defaultValue={config?.stripeFeeFixed ?? 30}
+                      className="h-11 border-2 font-bold"
+                      onBlur={(e) => handleUpdateConfig('stripeFeeFixed', parseInt(e.target.value))}
+                    />
+                 </div>
+              </div>
            </div>
 
            {/* MASTER FULFILLMENT DEFAULTS */}
