@@ -5,7 +5,7 @@ runConfig:
 
 environmentVariables:
   - variable: NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
-    value: AIzaSyAb•••••••••••••••••••••••••••••••
+    value: AIzaSyAbINAHk0-NJEHg29klLEYN2Qq_3nzpA2s
     availability:
       - BUILD
       - RUNTIME
