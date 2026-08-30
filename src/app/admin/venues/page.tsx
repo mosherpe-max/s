@@ -120,7 +120,7 @@ const newVenueSchema = z.object({
 type NewVenueData = z.infer<typeof newVenueSchema>;
 
 export default function AdminVenueRegistryPage() {
-  const { firebaseApp } = useFirebaseApp();
+  const firebaseApp = useFirebaseApp();
   const firestore = useFirestore();
   const { toast } = useToast();
   

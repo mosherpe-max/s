@@ -249,7 +249,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
   const { sellerId } = use(params);
   const firestore = useFirestore();
   const auth = useAuth();
-  const { firebaseApp } = useFirebaseApp();
+  const firebaseApp = useFirebaseApp();
   const { user, isUserLoading } = useUser();
   const router = useRouter();
   const { toast } = useToast();
