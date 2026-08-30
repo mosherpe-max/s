@@ -1,5 +1,5 @@
 
-import { onRequest, onCall, HttpsError } from "firebase-functions/v2/https";
+import { onRequest, onCall, HttpsError, CallableRequest } from "firebase-functions/v2/https";
 import { onDocumentWritten } from "firebase-functions/v2/firestore";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import * as logger from "firebase-functions/logger";
@@ -79,6 +79,42 @@ async function performOperationalReset() {
     throw err;
   }
 }
+
+/**
+ * assertVenueAuthorized
+ * Mirrors firestore.rules' isVenueOwner: super admin, the venue's ownerUid,
+ * or a roles_seller_admin mapping for the caller's email.
+ */
+async function assertVenueAuthorized(request: CallableRequest, venueId: string) {
+  if (!request.auth) throw new HttpsError('unauthenticated', 'Sign-in required.');
+
+  const uid = request.auth.uid;
+  const email = request.auth.token.email?.toLowerCase();
+
+  const isSuperAdmin = uid === 'o9vAQy0aFRPSNPoG0ETvjiGt9If1' || email === 'mosherpe@gmail.com';
+  if (isSuperAdmin) return;
+
+  const venueDoc = await db.collection('venues').doc(venueId).get();
+  if (venueDoc.exists && venueDoc.data()?.ownerUid === uid) return;
+
+  if (email) {
+    const roleDoc = await db.collection('roles_seller_admin').doc(email).get();
+    if (roleDoc.exists && roleDoc.data()?.sellerId === venueId) return;
+  }
+
+  throw new HttpsError('permission-denied', 'Not authorized for this venue.');
+}
+
+const slugify = (name: string) => name.toLowerCase()
+  .replace(/[^a-z0-9]/g, '-')
+  .replace(/-+/g, '-')
+  .replace(/^-|-$/g, '');
+
+const SERVICE_MODE_LABELS: Record<string, string> = {
+  beverageCart: 'Beverage Cart',
+  clubhouse: 'Clubhouse',
+  laneService: 'Lane Delivery',
+};
 
 /**
  * createPaymentIntent
@@ -177,24 +213,9 @@ export const initializeVenueStripeOnboarding = onCall({
   try {
     const { venueId } = request.data || {};
     if (!venueId) throw new HttpsError('invalid-argument', 'Missing venueId.');
-    if (!request.auth) throw new HttpsError('unauthenticated', 'Sign-in required.');
+    await assertVenueAuthorized(request, venueId);
 
-    const uid = request.auth.uid;
-    const email = request.auth.token.email?.toLowerCase();
-
-    const isSuperAdmin = uid === 'o9vAQy0aFRPSNPoG0ETvjiGt9If1' || email === 'mosherpe@gmail.com';
-
-    let isAuthorized = isSuperAdmin;
-    if (!isAuthorized) {
-      const venueDoc = await db.collection('venues').doc(venueId).get();
-      if (venueDoc.exists && venueDoc.data()?.ownerUid === uid) isAuthorized = true;
-    }
-    if (!isAuthorized && email) {
-      const roleDoc = await db.collection('roles_seller_admin').doc(email).get();
-      if (roleDoc.exists && roleDoc.data()?.sellerId === venueId) isAuthorized = true;
-    }
-    if (!isAuthorized) throw new HttpsError('permission-denied', 'Not authorized for this venue.');
-
+    const email = request.auth?.token.email?.toLowerCase();
     const apiKey = process.env.STRIPE_SECRET_KEY;
     if (!apiKey) throw new HttpsError('failed-precondition', 'Gateway not configured.');
     const stripe = new Stripe(apiKey, { apiVersion: '2025-01-27.acacia' as any });
@@ -232,7 +253,112 @@ export const initializeVenueStripeOnboarding = onCall({
     return { url: accountLink.url };
   } catch (err: any) {
     logger.error("Stripe Onboarding Error", err);
+    if (err instanceof HttpsError) throw err;
     throw new HttpsError('internal', err.message || 'Internal onboarding error.');
+  }
+});
+
+/**
+ * applyStarterMenu
+ * Clones global starter modifier-group templates (starter_modifier_library,
+ * filtered by venueType) into the venue's modifier_groups.
+ */
+export const applyStarterMenu = onCall({ region: 'us-central1' }, async (request) => {
+  try {
+    const { venueId, venueType } = request.data || {};
+    if (!venueId) throw new HttpsError('invalid-argument', 'Missing venueId.');
+    if (!venueType) throw new HttpsError('invalid-argument', 'Missing venueType.');
+    await assertVenueAuthorized(request, venueId);
+
+    const librarySnap = await db.collection('starter_modifier_library').get();
+    const relevant = librarySnap.docs.filter(d => {
+      const vt = d.data().venueType;
+      return Array.isArray(vt) && vt.includes(venueType);
+    });
+
+    const modifierGroupsRef = db.collection('modifier_groups');
+    const batch = db.batch();
+    relevant.forEach(templateDoc => {
+      const template = templateDoc.data();
+      const groupId = `${venueId}-${slugify(template.name)}`;
+      batch.set(modifierGroupsRef.doc(groupId), {
+        id: groupId,
+        sellerId: venueId,
+        name: template.name,
+        minSelection: template.required ? 1 : 0,
+        maxSelection: template.selectionType === 'single' ? 1 : 99,
+        options: (template.options || []).map((opt: { label: string; priceModifier: number }) => ({
+          id: slugify(opt.label),
+          name: opt.label,
+          priceAdjustment: opt.priceModifier,
+          isAvailable: true,
+        })),
+        updatedAt: FieldValue.serverTimestamp(),
+      }, { merge: true });
+    });
+    await batch.commit();
+
+    return { totalCreated: relevant.length };
+  } catch (err: any) {
+    logger.error("applyStarterMenu Error", err);
+    if (err instanceof HttpsError) throw err;
+    throw new HttpsError('internal', err.message || 'Failed to clone modifier templates.');
+  }
+});
+
+/**
+ * applyStarterItems
+ * Clones global starter menu-item templates (starter_menu_item_library,
+ * filtered by venueType) into the venue's sellers/{venueId}/menuItems.
+ */
+export const applyStarterItems = onCall({ region: 'us-central1' }, async (request) => {
+  try {
+    const { venueId, venueType } = request.data || {};
+    if (!venueId) throw new HttpsError('invalid-argument', 'Missing venueId.');
+    if (!venueType) throw new HttpsError('invalid-argument', 'Missing venueType.');
+    await assertVenueAuthorized(request, venueId);
+
+    const librarySnap = await db.collection('starter_menu_item_library').get();
+    const relevant = librarySnap.docs.filter(d => {
+      const vt = d.data().venueType;
+      return Array.isArray(vt) && vt.includes(venueType);
+    });
+
+    const menuItemsRef = db.collection('sellers').doc(venueId).collection('menuItems');
+    const existingCountSnap = await menuItemsRef.count().get();
+    const startRank = existingCountSnap.data().count;
+
+    const batch = db.batch();
+    relevant.forEach((templateDoc, index) => {
+      const template = templateDoc.data();
+      const itemId = `${venueId}-${slugify(template.name)}-${slugify(template.serviceMode || '')}`;
+      const modifierGroupIds = Array.from(new Set(
+        (template.suggestedModifierGroups || []).map((name: string) => `${venueId}-${slugify(name)}`)
+      ));
+      const availableOn = SERVICE_MODE_LABELS[template.serviceMode] ? [SERVICE_MODE_LABELS[template.serviceMode]] : [];
+
+      batch.set(menuItemsRef.doc(itemId), {
+        id: itemId,
+        name: template.name,
+        description: template.description || '',
+        price: template.price,
+        category: template.category,
+        rank: startRank + index + 1,
+        imageUrl: template.imageUrl || '',
+        modifierGroupIds,
+        availableOn,
+        isAvailable: true,
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      }, { merge: true });
+    });
+    await batch.commit();
+
+    return { totalCreated: relevant.length };
+  } catch (err: any) {
+    logger.error("applyStarterItems Error", err);
+    if (err instanceof HttpsError) throw err;
+    throw new HttpsError('internal', err.message || 'Failed to clone menu item templates.');
   }
 });
 
