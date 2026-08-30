@@ -332,22 +332,36 @@ export const onGuestOrderStatusUpdate = onDocumentWritten({
 /**
  * handleStripeWebhook
  */
-export const handleStripeWebhook = onRequest({ 
-  secrets: ["STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET"], 
-  region: 'us-central1' 
+export const handleStripeWebhook = onRequest({
+  secrets: ["STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET", "STRIPE_CONNECT_WEBHOOK_SECRET"],
+  region: 'us-central1'
 }, async (req, res) => {
   const sig = req.headers['stripe-signature'];
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  const connectWebhookSecret = process.env.STRIPE_CONNECT_WEBHOOK_SECRET;
   const stripeKey = process.env.STRIPE_SECRET_KEY;
 
-  if (!sig || !webhookSecret || !stripeKey) {
+  if (!sig || !stripeKey || (!webhookSecret && !connectWebhookSecret)) {
     res.status(400).send("Webhook configuration missing.");
     return;
   }
 
   const stripe = new Stripe(stripeKey, { apiVersion: '2025-01-27.acacia' as any });
   try {
-    const event = stripe.webhooks.constructEvent(req.rawBody, sig, webhookSecret);
+    // Two event destinations (platform-account events and connected-account
+    // events) each have their own signing secret, so try both that are configured.
+    const candidateSecrets = [webhookSecret, connectWebhookSecret].filter((s): s is string => !!s);
+    let event: Stripe.Event | undefined;
+    let lastErr: any;
+    for (const candidate of candidateSecrets) {
+      try {
+        event = stripe.webhooks.constructEvent(req.rawBody, sig, candidate);
+        break;
+      } catch (err) {
+        lastErr = err;
+      }
+    }
+    if (!event) throw lastErr;
     if (event.type === 'payment_intent.succeeded') {
       const pi = event.data.object as Stripe.PaymentIntent;
       const existingQuery = await db.collection('orders').where('stripePaymentIntentId', '==', pi.id).limit(1).get();
