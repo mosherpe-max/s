@@ -9,3 +9,8 @@ env:
     availability:
       - BUILD
       - RUNTIME
+  - variable: NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
+    value: pk_test_51TNu2a3fxymhejlWI73A5tUUpSwTOMLslSqy7uDpQJOoV4PzYoAFJF5BQvR29JH7dPbaPLGOGbo3iFDBY5alAfsH00IHMdcDU4
+    availability:
+      - BUILD
+      - RUNTIME
