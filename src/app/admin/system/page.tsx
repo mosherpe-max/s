@@ -30,7 +30,7 @@ import { useToast } from '@/hooks/use-toast';
 import { AUTHORIZED_SERVICE_MODES } from '@/lib/utils';
 
 export default function AdminSystemConfigPage() {
-  const { firebaseApp } = useFirebaseApp();
+  const firebaseApp = useFirebaseApp();
   const firestore = useFirestore();
   const { toast } = useToast();
   
