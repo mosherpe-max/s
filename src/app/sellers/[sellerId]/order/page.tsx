@@ -66,9 +66,9 @@ const serviceTypeIcons: Record<string, any> = {
 };
 
 const SERVICE_INSTRUCTIONS: Record<string, string> = {
-  'Beverage Cart': 'Drinks and Snacks delivered on Course',
-  'Clubhouse': 'Food and Drinks delivered on Course',
-  'Lane Delivery': 'Food and Drinks delivered to your lane',
+  'Beverage Cart': 'Drinks & snacks delivered on course — a small convenience fee applies.',
+  'Clubhouse': 'Food & drinks delivered on course — a small convenience fee applies.',
+  'Lane Delivery': 'Food & drinks delivered to your lane — a small convenience fee applies.',
 };
 
 function CheckoutBrandingBar() {
@@ -743,9 +743,6 @@ function BuyerOrderContent({ sellerId }: { sellerId: string }) {
     return (selectedMenuType && seller.serviceFees?.[selectedMenuType]) || seller.serviceFee || 0;
   }, [seller, venue, selectedMenuType]);
 
-  const disclosureCategory = getDisclosureCategory(seller?.type);
-  const menuNotice = FEE_DISCLOSURES[disclosureCategory].menu;
-
   const filteredMenuItems = useMemo(() => {
     if (!menuItems || !selectedMenuType) return [];
     return menuItems.filter(item => item.isAvailable !== false && (item.availableOn?.includes(selectedMenuType) || item.featuredOn?.includes(selectedMenuType)));
@@ -861,11 +858,8 @@ function BuyerOrderContent({ sellerId }: { sellerId: string }) {
 
           <div className="space-y-1.5">
             <p className="text-[10px] font-black uppercase tracking-[0.1em] text-white flex items-center gap-1.5">
-              <Info className="h-2.5 w-2.5 shrink-0 text-primary" /> 
+              <Info className="h-2.5 w-2.5 shrink-0 text-primary" />
               {availableModes.includes(selectedMenuType) ? (SERVICE_INSTRUCTIONS[selectedMenuType] || 'Select items to begin your order') : 'Service currently unavailable.'}
-            </p>
-            <p className="text-[8px] font-bold uppercase tracking-[0.15em] text-white/40 pl-4">
-              {menuNotice}
             </p>
           </div>
 
@@ -909,15 +903,17 @@ function BuyerOrderContent({ sellerId }: { sellerId: string }) {
                 <div 
                   className="flex gap-2 overflow-x-auto no-scrollbar py-1 px-4 [mask-image:linear-gradient(to_right,transparent,black_20px,black_calc(100%-20px),transparent)]"
                 >
-                  {currentCategories.map((cat) => (
-                    <button 
-                      key={cat} 
-                      onClick={() => scrollToCategory(cat)} 
+                  {/* Featured has no jump pill - it's a small curated highlight reel, not a
+                      section venues expect patrons to navigate to directly. */}
+                  {currentCategories.filter((cat) => cat !== 'Featured').map((cat) => (
+                    <button
+                      key={cat}
+                      onClick={() => scrollToCategory(cat)}
                       className={cn(
-                        "whitespace-nowrap px-4 py-1.5 rounded-full border-2 text-[9px] font-black uppercase tracking-widest transition-all active:scale-95 shrink-0", 
-                        activeCategory === cat 
-                          ? (cat === 'Featured' ? "bg-[#213147] border-[#213147] text-white shadow-md scale-105" : "bg-primary border-primary text-white shadow-md scale-105") 
-                          : (cat === 'Featured' ? "bg-[#213147]/5 border-[#213147]/20 text-[#213147] hover:bg-[#213147]/10" : "bg-slate-50 border-slate-100 text-slate-500 hover:border-primary/30 hover:text-primary")
+                        "whitespace-nowrap px-4 py-1.5 rounded-full border-2 text-[9px] font-black uppercase tracking-widest transition-all active:scale-95 shrink-0",
+                        activeCategory === cat
+                          ? "bg-primary border-primary text-white shadow-md scale-105"
+                          : "bg-slate-50 border-slate-100 text-slate-500 hover:border-primary/30 hover:text-primary"
                       )}
                     >
                       {cat}

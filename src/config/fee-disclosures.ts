@@ -3,16 +3,14 @@
  * These statements are rendered based on the venue type (Golf vs. Bowling).
  */
 
-export type DisclosureContext = 'menu' | 'checkout' | 'status';
+export type DisclosureContext = 'checkout' | 'status';
 
 export const FEE_DISCLOSURES = {
   golf: {
-    menu: "Order from anywhere on the course — a small convenience fee applies at checkout.",
     checkout: "A small convenience fee has been added to support mobile ordering on the course.",
     status: "A convenience fee was applied to this order for mobile ordering on the course.",
   },
   bowling: {
-    menu: "Order from your lane and stay in the game — a small convenience fee applies at checkout.",
     checkout: "A small convenience fee has been added so you can order without leaving your lane.",
     status: "A convenience fee was applied to this order for lane-side mobile ordering.",
   }
