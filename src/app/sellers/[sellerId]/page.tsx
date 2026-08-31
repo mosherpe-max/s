@@ -110,6 +110,7 @@ import { useRouter } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { StylizedKoopLogo } from '@/components/header';
+import { PrintMarketingKit } from '@/components/print-marketing-kit';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { categories } from '@/lib/types';
 import type { MenuItem, Seller, Order, StaffMember, SolutionConfig, Venue } from '@/lib/types';
@@ -884,6 +885,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                       <Card className="border-2 shadow-sm flex items-center justify-between p-6 group hover:border-primary/20 transition-all cursor-pointer"><div className="flex items-center gap-4"><div className="p-3 bg-green-50 rounded-xl text-green-600"><FileText className="h-6 w-6" /></div><div className="text-left"><p className="font-black text-sm uppercase text-[#213147]">Email Blast Templates</p><p className="text-[9px] font-bold text-muted-foreground uppercase">Launch announcement HTML for members</p></div></div><Button variant="ghost" size="icon" className="opacity-20 group-hover:opacity-100 transition-opacity"><ChevronLeft className="rotate-180 h-4 w-4" /></Button></Card>
                     </div>
                   </div>
+                  <PrintMarketingKit courseName={seller?.courseName || ''} patronMenuUrl={patronMenuUrl} />
                 </div>
               )}
 
