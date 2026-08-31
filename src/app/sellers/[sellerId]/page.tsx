@@ -608,12 +608,8 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
     const updateData = { availableOn: newAvailableOn };
     const docRef = doc(firestore, 'sellers', sellerId, 'menuItems', itemId);
 
-    updateDoc(docRef, updateData).catch(async (serverError) => {
-      errorEmitter.emit('permission-error', new FirestorePermissionError({
-        path: docRef.path,
-        operation: 'update',
-        requestResourceData: updateData,
-      } satisfies SecurityRuleContext));
+    updateDoc(docRef, updateData).catch(() => {
+      toast({ variant: 'destructive', title: 'Update Failed', description: 'Sign in as the venue owner or admin to change menu items.' });
     });
   };
 
@@ -623,16 +619,12 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
     if (!item) return;
     const featuredOn = item.featuredOn || [];
     const newFeaturedOn = featuredOn.includes(mode) ? featuredOn.filter(m => m !== mode) : [...featuredOn, mode];
-    
+
     const updateData = { featuredOn: newFeaturedOn };
     const docRef = doc(firestore, 'sellers', sellerId, 'menuItems', itemId);
 
-    updateDoc(docRef, updateData).catch(async (serverError) => {
-      errorEmitter.emit('permission-error', new FirestorePermissionError({
-        path: docRef.path,
-        operation: 'update',
-        requestResourceData: updateData,
-      } satisfies SecurityRuleContext));
+    updateDoc(docRef, updateData).catch(() => {
+      toast({ variant: 'destructive', title: 'Update Failed', description: 'Sign in as the venue owner or admin to change menu items.' });
     });
   };
 
