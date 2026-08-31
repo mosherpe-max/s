@@ -222,8 +222,9 @@ export function AppHeader() {
   const isAdminRoute = pathname?.startsWith('/admin') || 
                       (pathname?.startsWith('/sellers/') && !pathname.includes('/order') && !pathname.includes('/staff-login'));
 
-  // Patron-facing screens (menu, tracking, home) never show the internal "Global
-  // Navigator" hamburger - it's prototyping/staff shortcuts, not anything a patron needs.
+  // The patron ordering flow (menu + tracking) never shows the internal "Global
+  // Navigator" hamburger - it's prototyping/staff shortcuts, not anything a patron
+  // mid-order needs. The home page keeps it.
 
   // The Ordering Screen has its own header (venue name + cart) - no floating nav on top of it.
   if (isMenuPage) return null;
@@ -236,8 +237,12 @@ export function AppHeader() {
 
   if (isHomePage) {
     return (
-      <header className="sticky top-0 z-40 bg-[#213147] border-b-2 border-[#E50000] shadow-md h-20 flex items-center justify-center px-6 shrink-0">
-        <StylizedKoopLogo size="lg" />
+      <header className="sticky top-0 z-40 bg-[#213147] border-b-2 border-[#E50000] shadow-md h-20 flex items-center justify-between px-6 shrink-0">
+        <div className="w-10" />
+        <div className="flex-1 flex justify-center">
+          <StylizedKoopLogo size="lg" />
+        </div>
+        <GlobalNavigator />
       </header>
     );
   }
