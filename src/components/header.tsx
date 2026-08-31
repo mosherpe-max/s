@@ -93,17 +93,14 @@ export function StylizedKoopLogo({ size = 'md', colorClass = 'text-white' }: { s
  * Global Navigator
  * Provides prototyping shortcuts and internal access across the entire solution.
  */
-function GlobalNavigator({ darkTrigger = false }: { darkTrigger?: boolean }) {
+function GlobalNavigator() {
   return (
     <Sheet>
       <SheetTrigger asChild>
-        <Button 
-          variant="ghost" 
-          size="icon" 
-          className={cn(
-            "h-10 w-10 transition-all active:scale-95",
-            darkTrigger ? "text-[#213147] hover:bg-black/5" : "text-white hover:bg-white/10"
-          )}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-10 w-10 transition-all active:scale-95 text-white hover:bg-white/10"
         >
           <Menu className="h-6 w-6" />
         </Button>
@@ -225,14 +222,15 @@ export function AppHeader() {
   const isAdminRoute = pathname?.startsWith('/admin') || 
                       (pathname?.startsWith('/sellers/') && !pathname.includes('/order') && !pathname.includes('/staff-login'));
 
-  // On the Ordering and Tracking Screen, we provide a specialized "Floating Navigator" instead of the standard header
-  if (isMenuPage || isTrackPage) {
-    return (
-      <div className="fixed top-2.5 right-2 z-50 animate-in fade-in slide-in-from-right-4 duration-1000">
-        <GlobalNavigator darkTrigger={isTrackPage} />
-      </div>
-    );
-  }
+  // The patron ordering flow (menu + tracking) never shows the internal "Global
+  // Navigator" hamburger - it's prototyping/staff shortcuts, not anything a patron
+  // mid-order needs. The home page keeps it.
+
+  // The Ordering Screen has its own header (venue name + cart) - no floating nav on top of it.
+  if (isMenuPage) return null;
+
+  // The Tracking Screen has no header of its own by design; it no longer needs one here either.
+  if (isTrackPage) return null;
 
   // Admin routes have their own custom sidebar-based layouts
   if (isAdminRoute) return null;
@@ -240,7 +238,7 @@ export function AppHeader() {
   if (isHomePage) {
     return (
       <header className="sticky top-0 z-40 bg-[#213147] border-b-2 border-[#E50000] shadow-md h-20 flex items-center justify-between px-6 shrink-0">
-        <div className="w-10" /> 
+        <div className="w-10" />
         <div className="flex-1 flex justify-center">
           <StylizedKoopLogo size="lg" />
         </div>
