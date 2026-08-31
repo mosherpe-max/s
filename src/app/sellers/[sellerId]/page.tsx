@@ -2,14 +2,15 @@
 'use client';
 
 import React, { useState, useMemo, useEffect, use } from 'react';
-import { 
-  collection, 
-  doc, 
-  setDoc, 
-  query, 
-  where, 
-  updateDoc, 
-  serverTimestamp, 
+import {
+  collection,
+  doc,
+  addDoc,
+  setDoc,
+  query,
+  where,
+  updateDoc,
+  serverTimestamp,
   deleteDoc,
   writeBatch
 } from 'firebase/firestore';
@@ -262,6 +263,9 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
   const [activeModeTab, setActiveModeTab] = useState('');
   const [isStaffFormOpen, setIsStaffFormOpen] = useState(false);
   const [editingStaff, setEditingStaff] = useState<StaffMember | null>(null);
+  const [isItemFormOpen, setIsItemFormOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
+  const [isProcessingItemSave, setIsProcessingItemSave] = useState(false);
   const [isProcessingSave, setIsProcessingSave] = useState(false);
   const [baseUrl, setBaseUrl] = useState('');
   const [isDownloading, setIsDownloading] = useState(false);
@@ -501,6 +505,60 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
         } satisfies SecurityRuleContext));
         setIsProcessingSave(false);
       });
+  };
+
+  const onSaveItem = async (data: ItemFormData) => {
+    if (!firestore || !sellerId) return;
+    setIsProcessingItemSave(true);
+    const menuItemsCol = collection(firestore, 'sellers', sellerId, 'menuItems');
+
+    if (editingItem) {
+      const docRef = doc(menuItemsCol, editingItem.id);
+      const payload = {
+        name: data.name,
+        description: data.description,
+        price: data.price,
+        category: data.category,
+        isAvailable: data.isAvailable,
+        imageUrl: data.imageUrl,
+        updatedAt: serverTimestamp(),
+      };
+      updateDoc(docRef, payload)
+        .then(() => {
+          setIsItemFormOpen(false);
+          setIsProcessingItemSave(false);
+          toast({ title: "Product Updated" });
+        })
+        .catch(() => {
+          toast({ variant: 'destructive', title: 'Update Failed', description: 'Sign in as the venue owner or admin to change menu items.' });
+          setIsProcessingItemSave(false);
+        });
+    } else {
+      const payload = {
+        name: data.name,
+        description: data.description,
+        price: data.price,
+        category: data.category,
+        isAvailable: data.isAvailable,
+        imageUrl: data.imageUrl,
+        rank: menuItems?.length ?? 0,
+        availableOn: [],
+        featuredOn: [],
+        modifierGroupIds: [],
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      };
+      addDoc(menuItemsCol, payload)
+        .then(() => {
+          setIsItemFormOpen(false);
+          setIsProcessingItemSave(false);
+          toast({ title: "Product Added", description: "Assign it to a service mode from the Service Modes tab to make it orderable." });
+        })
+        .catch(() => {
+          toast({ variant: 'destructive', title: 'Create Failed', description: 'Sign in as the venue owner or admin to add menu items.' });
+          setIsProcessingItemSave(false);
+        });
+    }
   };
 
   const handleUpdateField = (field: string, value: any) => {
@@ -972,7 +1030,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                 <div className="space-y-6 animate-in fade-in duration-500">
                   <div className="flex items-center justify-between">
                     <h2 className="text-xl font-black uppercase text-[#213147]">Master Catalog</h2>
-                    <Button onClick={() => { itemForm.reset(); toast({ title: "Product Module Initializing..." }); }} className="bg-primary font-black uppercase text-xs tracking-widest">
+                    <Button onClick={() => { setEditingItem(null); itemForm.reset({ name: '', description: '', price: 0, category: '', isAvailable: true, imageUrl: '', availableOn: [], featuredOn: [], modifierGroupIds: [] }); setIsItemFormOpen(true); }} className="bg-primary font-black uppercase text-xs tracking-widest">
                       <Plus className="h-4 w-4 mr-2" /> New Product
                     </Button>
                   </div>
@@ -1003,7 +1061,9 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                             <TableCell><Switch checked={item.isAvailable !== false} onCheckedChange={(val) => { const docRef = doc(firestore!, 'sellers', sellerId, 'menuItems', item.id); updateDoc(docRef, { isAvailable: val }).catch(async (e) => { errorEmitter.emit('permission-error', new FirestorePermissionError({ path: docRef.path, operation: 'update', requestResourceData: { isAvailable: val } } satisfies SecurityRuleContext)); }); }} className="scale-75 data-[state=checked]:bg-green-500" /></TableCell>
                             <TableCell className="text-right px-8">
                               <div className="flex justify-end gap-1">
-                                <Button variant="ghost" size="icon" className="h-8 w-8 hover:text-primary"><Edit className="h-4 w-4" /></Button>
+                                <Button variant="ghost" size="icon" className="h-8 w-8 hover:text-primary" onClick={() => { setEditingItem(item); itemForm.reset({ name: item.name, description: item.description || '', price: item.price, category: item.category, isAvailable: item.isAvailable !== false, imageUrl: item.imageUrl || '', availableOn: item.availableOn || [], featuredOn: item.featuredOn || [], modifierGroupIds: item.modifierGroupIds || [] }); setIsItemFormOpen(true); }}>
+                                  <Edit className="h-4 w-4" />
+                                </Button>
                                 <Button variant="ghost" size="icon" className="h-8 w-8 hover:text-destructive" onClick={() => { const docRef = doc(firestore!, 'sellers', sellerId, 'menuItems', item.id); deleteDoc(docRef).catch(async (e) => { errorEmitter.emit('permission-error', new FirestorePermissionError({ path: docRef.path, operation: 'delete' } satisfies SecurityRuleContext)); }); }}>
                                   <Trash2 className="h-4 w-4" />
                                 </Button>
@@ -1188,6 +1248,113 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
           </div>
         </main>
       </div>
+
+      <Dialog open={isItemFormOpen} onOpenChange={setIsItemFormOpen}>
+        <DialogContent className="sm:max-w-[450px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
+          <DialogHeader className="p-8 bg-[#213147] text-white">
+            <DialogTitle className="font-headline font-black uppercase tracking-tight text-white text-xl">
+              {editingItem ? 'Edit Product' : 'New Product'}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="p-8">
+            <Form {...itemForm}>
+              <form onSubmit={itemForm.handleSubmit(onSaveItem)} className="space-y-6">
+                <FormField
+                  control={itemForm.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem className="text-left">
+                      <FormLabel className="text-[10px] font-black uppercase">Product Name</FormLabel>
+                      <FormControl>
+                        <Input {...field} className="h-12 border-2 font-bold" />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={itemForm.control}
+                  name="description"
+                  render={({ field }) => (
+                    <FormItem className="text-left">
+                      <FormLabel className="text-[10px] font-black uppercase">Description</FormLabel>
+                      <FormControl>
+                        <Input {...field} className="h-12 border-2 font-bold" />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={itemForm.control}
+                    name="price"
+                    render={({ field }) => (
+                      <FormItem className="text-left">
+                        <FormLabel className="text-[10px] font-black uppercase">Price ($)</FormLabel>
+                        <FormControl>
+                          <Input type="number" step="0.01" {...field} className="h-12 border-2 font-bold" />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={itemForm.control}
+                    name="category"
+                    render={({ field }) => (
+                      <FormItem className="text-left">
+                        <FormLabel className="text-[10px] font-black uppercase">Category</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger className="h-12 border-2 font-bold">
+                              <SelectValue placeholder="Select..." />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {categories.filter(c => c !== 'Featured').map(c => (
+                              <SelectItem key={c} value={c}>{c}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                <FormField
+                  control={itemForm.control}
+                  name="imageUrl"
+                  render={({ field }) => (
+                    <FormItem className="text-left">
+                      <FormLabel className="text-[10px] font-black uppercase">Image URL</FormLabel>
+                      <FormControl>
+                        <Input {...field} placeholder="https://..." className="h-12 border-2 font-bold" />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={itemForm.control}
+                  name="isAvailable"
+                  render={({ field }) => (
+                    <FormItem className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border-2 border-slate-100">
+                      <FormLabel className="text-[10px] font-black uppercase text-[#213147]">In Stock</FormLabel>
+                      <FormControl>
+                        <Switch checked={field.value} onCheckedChange={field.onChange} className="data-[state=checked]:bg-green-500" />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+                {!editingItem && (
+                  <p className="text-[9px] text-muted-foreground uppercase font-medium leading-relaxed">
+                    New products start unassigned to any service mode. Use the Service Modes tab to make it orderable.
+                  </p>
+                )}
+                <Button type="submit" disabled={isProcessingItemSave} className="w-full h-14 bg-[#213147] font-black uppercase tracking-widest text-[11px] gap-2 shadow-xl">
+                  {isProcessingItemSave ? <Loader2 className="animate-spin" /> : <Save className="h-4 w-4" />} {editingItem ? 'Save Changes' : 'Add Product'}
+                </Button>
+              </form>
+            </Form>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={isStaffFormOpen} onOpenChange={setIsStaffFormOpen}>
         <DialogContent className="sm:max-w-[450px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
