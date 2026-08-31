@@ -115,12 +115,12 @@ export function buildCartStickerSvg({ courseName, qrDataUrl, logoDataUrl }: Prin
   const widthIn = 8;
   const heightIn = 4;
   const name = courseName.toUpperCase();
-  const nameSize = fitFontSize(name, 360, 46, 22);
+  const nameSize = fitFontSize(name, 360, 50, 24);
 
   const rows: IconRow[] = [
-    { cx: 500, cy: 70, icon: iconScan, headline: 'SCAN', sub: 'WITH YOUR PHONE', textX: 545, headlineSize: 20, subSize: 12 },
-    { cx: 500, cy: 150, icon: iconCart, headline: 'ORDER', sub: 'FOOD & DRINKS', textX: 545, headlineSize: 20, subSize: 12 },
-    { cx: 500, cy: 230, icon: iconCloche, headline: 'WE DELIVER', sub: 'TO YOU', textX: 545, headlineSize: 20, subSize: 12 },
+    { cx: 470, cy: 70, icon: iconScan, headline: 'SCAN', sub: 'WITH PHONE', textX: 508, headlineSize: 18, subSize: 11 },
+    { cx: 470, cy: 150, icon: iconCart, headline: 'ORDER', sub: 'FOOD & DRINKS', textX: 508, headlineSize: 18, subSize: 11 },
+    { cx: 470, cy: 230, icon: iconCloche, headline: 'DELIVER', sub: 'TO YOU', textX: 508, headlineSize: 18, subSize: 11 },
   ];
 
   const logo = koopLogoGroup(480, 372, 26, NAVY, logoDataUrl);
@@ -134,19 +134,16 @@ export function buildCartStickerSvg({ courseName, qrDataUrl, logoDataUrl }: Prin
       <text x="40" y="75" font-family="${FONT}" font-weight="900" font-size="32" fill="${RED}">ORDER FOOD &amp; DRINKS</text>
       <text x="40" y="116" font-family="${FONT}" font-weight="900" font-size="32" fill="${WHITE}">FROM RIGHT HERE</text>
 
-      <rect x="40" y="138" width="390" height="112" rx="14" fill="${WHITE}" stroke="${RED}" stroke-width="3" />
-      <text x="235" y="${112 + 90 - nameSize * 0.15}" text-anchor="middle" font-family="${FONT}" font-weight="900" font-size="${nameSize}" fill="${NAVY}">${esc(name)}</text>
-      <line x1="95" y1="222" x2="175" y2="222" stroke="${RED}" stroke-width="2" />
-      <text x="235" y="228" text-anchor="middle" font-family="${FONT}" font-weight="800" font-size="18" fill="${RED}" letter-spacing="1">GOLF CLUB</text>
-      <line x1="295" y1="222" x2="375" y2="222" stroke="${RED}" stroke-width="2" />
+      <rect x="40" y="138" width="390" height="90" rx="14" fill="${WHITE}" stroke="${RED}" stroke-width="3" />
+      <text x="235" y="${138 + 45 + nameSize * 0.32}" text-anchor="middle" font-family="${FONT}" font-weight="900" font-size="${nameSize}" fill="${NAVY}">${esc(name)}</text>
 
-      <line x1="635" y1="45" x2="635" y2="270" stroke="${WHITE}" stroke-opacity="0.15" stroke-width="2" />
+      <line x1="592" y1="45" x2="592" y2="270" stroke="${WHITE}" stroke-opacity="0.15" stroke-width="2" />
       ${rows.map(iconRowMarkup).join('\n')}
 
-      <rect x="655" y="45" width="105" height="105" rx="10" fill="${WHITE}" />
-      <image href="${esc(qrDataUrl)}" x="663" y="53" width="89" height="89" />
-      <rect x="655" y="160" width="105" height="30" rx="15" fill="${RED}" />
-      <text x="707" y="180" text-anchor="middle" font-family="${FONT}" font-weight="900" font-size="11" fill="${WHITE}" letter-spacing="0.5">SCAN TO ORDER</text>
+      <rect x="605" y="42" width="155" height="155" rx="14" fill="${WHITE}" />
+      <image href="${esc(qrDataUrl)}" x="613" y="50" width="139" height="139" />
+      <rect x="605" y="205" width="155" height="32" rx="16" fill="${RED}" />
+      <text x="682" y="226" text-anchor="middle" font-family="${FONT}" font-weight="900" font-size="12" fill="${WHITE}" letter-spacing="0.5">SCAN TO ORDER</text>
 
       <text x="468" y="372" text-anchor="end" font-family="${FONT}" font-weight="700" font-size="16" fill="${MUTED}" letter-spacing="1">POWERED BY</text>
       ${logo.markup}
@@ -161,7 +158,7 @@ export function buildYardSignSvg({ courseName, qrDataUrl, logoDataUrl }: PrintAs
   const widthIn = 18;
   const heightIn = 24;
   const name = courseName.toUpperCase();
-  const nameSize = fitFontSize(name, 480, 60, 30);
+  const nameSize = fitFontSize(name, 480, 66, 32);
 
   const rows: IconRow[] = [
     { cx: 130, cy: 440, icon: iconScan, headline: 'SCAN', sub: 'WITH YOUR PHONE', textX: 175, headlineSize: 22, subSize: 13 },
@@ -182,19 +179,16 @@ export function buildYardSignSvg({ courseName, qrDataUrl, logoDataUrl }: PrintAs
       <text x="360" y="110" text-anchor="middle" font-family="${FONT}" font-weight="900" font-size="40" fill="${RED}">ORDER FOOD &amp; DRINKS</text>
       <text x="360" y="158" text-anchor="middle" font-family="${FONT}" font-weight="900" font-size="40" fill="${WHITE}">FROM RIGHT HERE</text>
 
-      <rect x="90" y="195" width="540" height="175" rx="18" fill="${WHITE}" stroke="${RED}" stroke-width="4" />
-      <text x="360" y="${195 + 175 / 2 + nameSize * 0.32}" text-anchor="middle" font-family="${FONT}" font-weight="900" font-size="${nameSize}" fill="${NAVY}">${esc(name)}</text>
-      <line x1="175" y1="333" x2="290" y2="333" stroke="${RED}" stroke-width="3" />
-      <text x="360" y="340" text-anchor="middle" font-family="${FONT}" font-weight="800" font-size="26" fill="${RED}" letter-spacing="1.5">GOLF CLUB</text>
-      <line x1="430" y1="333" x2="545" y2="333" stroke="${RED}" stroke-width="3" />
+      <rect x="90" y="195" width="540" height="140" rx="18" fill="${WHITE}" stroke="${RED}" stroke-width="4" />
+      <text x="360" y="${195 + 70 + nameSize * 0.32}" text-anchor="middle" font-family="${FONT}" font-weight="900" font-size="${nameSize}" fill="${NAVY}">${esc(name)}</text>
 
-      <line x1="460" y1="405" x2="460" y2="650" stroke="${WHITE}" stroke-opacity="0.15" stroke-width="2" />
+      <line x1="420" y1="405" x2="420" y2="650" stroke="${WHITE}" stroke-opacity="0.15" stroke-width="2" />
       ${rows.map(iconRowMarkup).join('\n')}
 
-      <rect x="500" y="400" width="150" height="150" rx="14" fill="${WHITE}" />
-      <image href="${esc(qrDataUrl)}" x="512" y="412" width="126" height="126" />
-      <rect x="500" y="565" width="150" height="42" rx="21" fill="${RED}" />
-      <text x="575" y="592" text-anchor="middle" font-family="${FONT}" font-weight="900" font-size="15" fill="${WHITE}" letter-spacing="0.5">SCAN TO ORDER</text>
+      <rect x="440" y="390" width="210" height="210" rx="16" fill="${WHITE}" />
+      <image href="${esc(qrDataUrl)}" x="452" y="402" width="186" height="186" />
+      <rect x="440" y="615" width="210" height="46" rx="23" fill="${RED}" />
+      <text x="545" y="644" text-anchor="middle" font-family="${FONT}" font-weight="900" font-size="16" fill="${WHITE}" letter-spacing="0.5">SCAN TO ORDER</text>
 
       <text x="${360 - poweredByWidth / 2}" y="856" text-anchor="start" font-family="${FONT}" font-weight="700" font-size="18" fill="${MUTED}" letter-spacing="1">POWERED BY</text>
       ${logo.markup}
