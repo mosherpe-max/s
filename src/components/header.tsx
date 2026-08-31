@@ -225,11 +225,14 @@ export function AppHeader() {
   const isAdminRoute = pathname?.startsWith('/admin') || 
                       (pathname?.startsWith('/sellers/') && !pathname.includes('/order') && !pathname.includes('/staff-login'));
 
-  // On the Ordering and Tracking Screen, we provide a specialized "Floating Navigator" instead of the standard header
-  if (isMenuPage || isTrackPage) {
+  // The Ordering Screen has its own header (venue name + cart) - no floating nav on top of it.
+  if (isMenuPage) return null;
+
+  // On the Tracking Screen, we provide a specialized "Floating Navigator" instead of the standard header
+  if (isTrackPage) {
     return (
       <div className="fixed top-2.5 right-2 z-50 animate-in fade-in slide-in-from-right-4 duration-1000">
-        <GlobalNavigator darkTrigger={isTrackPage} />
+        <GlobalNavigator darkTrigger />
       </div>
     );
   }
