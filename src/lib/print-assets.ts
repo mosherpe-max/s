@@ -123,13 +123,13 @@ export function buildCartStickerSvg({ courseName, qrDataUrl, logoDataUrl }: Prin
     { cx: 470, cy: 230, icon: iconCloche, headline: 'DELIVER', sub: 'TO YOU', textX: 508, headlineSize: 18, subSize: 11 },
   ];
 
-  const logo = koopLogoGroup(480, 372, 26, NAVY, logoDataUrl);
+  const logo = koopLogoGroup(394, 358, 26, WHITE, logoDataUrl);
 
   const svg = `
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 400">
       <rect x="0" y="0" width="800" height="400" fill="${WHITE}" />
       <rect x="6" y="6" width="788" height="388" rx="26" fill="none" stroke="${RED}" stroke-width="5" />
-      <rect x="18" y="18" width="764" height="310" rx="22" fill="${NAVY}" />
+      <rect x="18" y="18" width="764" height="364" rx="22" fill="${NAVY}" />
 
       <text x="40" y="75" font-family="${FONT}" font-weight="900" font-size="32" fill="${RED}">ORDER FOOD &amp; DRINKS</text>
       <text x="40" y="116" font-family="${FONT}" font-weight="900" font-size="32" fill="${WHITE}">FROM RIGHT HERE</text>
@@ -145,7 +145,7 @@ export function buildCartStickerSvg({ courseName, qrDataUrl, logoDataUrl }: Prin
       <rect x="605" y="205" width="155" height="32" rx="16" fill="${RED}" />
       <text x="682" y="226" text-anchor="middle" font-family="${FONT}" font-weight="900" font-size="12" fill="${WHITE}" letter-spacing="0.5">SCAN TO ORDER</text>
 
-      <text x="468" y="372" text-anchor="end" font-family="${FONT}" font-weight="700" font-size="16" fill="${MUTED}" letter-spacing="1">POWERED BY</text>
+      <text x="382" y="358" text-anchor="end" font-family="${FONT}" font-weight="700" font-size="16" fill="${WHITE}" letter-spacing="1">POWERED BY</text>
       ${logo.markup}
     </svg>
   `.trim();
@@ -166,15 +166,13 @@ export function buildYardSignSvg({ courseName, qrDataUrl, logoDataUrl }: PrintAs
     { cx: 130, cy: 610, icon: iconCloche, headline: 'WE DELIVER', sub: 'TO YOU', textX: 175, headlineSize: 22, subSize: 13 },
   ];
 
-  const logoFontSize = 30;
-  const poweredByWidth = 150;
-  const logo = koopLogoGroup(360 - poweredByWidth / 2 + 20, 850, logoFontSize, NAVY, logoDataUrl);
+  const logo = koopLogoGroup(350, 832, 32, WHITE, logoDataUrl);
 
   const svg = `
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 900">
       <rect x="0" y="0" width="720" height="900" fill="${WHITE}" />
       <rect x="10" y="10" width="700" height="880" rx="30" fill="none" stroke="${RED}" stroke-width="6" />
-      <rect x="24" y="24" width="672" height="770" rx="26" fill="${NAVY}" />
+      <rect x="24" y="24" width="672" height="846" rx="26" fill="${NAVY}" />
 
       <text x="360" y="110" text-anchor="middle" font-family="${FONT}" font-weight="900" font-size="40" fill="${RED}">ORDER FOOD &amp; DRINKS</text>
       <text x="360" y="158" text-anchor="middle" font-family="${FONT}" font-weight="900" font-size="40" fill="${WHITE}">FROM RIGHT HERE</text>
@@ -190,7 +188,7 @@ export function buildYardSignSvg({ courseName, qrDataUrl, logoDataUrl }: PrintAs
       <rect x="440" y="615" width="210" height="46" rx="23" fill="${RED}" />
       <text x="545" y="644" text-anchor="middle" font-family="${FONT}" font-weight="900" font-size="16" fill="${WHITE}" letter-spacing="0.5">SCAN TO ORDER</text>
 
-      <text x="${360 - poweredByWidth / 2}" y="856" text-anchor="start" font-family="${FONT}" font-weight="700" font-size="18" fill="${MUTED}" letter-spacing="1">POWERED BY</text>
+      <text x="336" y="832" text-anchor="end" font-family="${FONT}" font-weight="700" font-size="20" fill="${WHITE}" letter-spacing="1.2">POWERED BY</text>
       ${logo.markup}
     </svg>
   `.trim();
