@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, use, useEffect, useMemo, Suspense } from 'react';
-import { collection, doc, addDoc, serverTimestamp, query, where } from 'firebase/firestore';
+import { collection, doc, addDoc, setDoc, serverTimestamp, query, where } from 'firebase/firestore';
 import { signInAnonymously } from 'firebase/auth';
 import { useFirestore, useCollection, useMemoFirebase, useDoc, useAuth, useUser, useFirebase } from '@/firebase';
 import type { Seller, MenuItem, OrderItem, SolutionConfig, Venue, StaffMember, PaymentMethodType, Order } from '@/lib/types';
@@ -217,13 +217,15 @@ function StripeActionArea({
           paymentStatus: paymentIntent.status === 'succeeded' ? 'Succeeded' : 'Processing',
           stripePaymentIntentId: paymentIntent.id,
         };
-        const ordersCol = collection(firestore, 'orders');
-        addDoc(ordersCol, finalOrderData).then((orderRef) => {
+        // Keyed on the PaymentIntent id (not addDoc's random id) so this write and the
+        // Stripe webhook's own order-upsert can never race into two separate order docs.
+        const orderRef = doc(firestore, 'orders', paymentIntent.id);
+        setDoc(orderRef, finalOrderData, { merge: true }).then(() => {
           onOrderComplete(orderRef.id);
         }).catch(async (error) => {
           errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: ordersCol.path,
-            operation: 'create',
+            path: orderRef.path,
+            operation: 'write',
             requestResourceData: finalOrderData,
           } satisfies SecurityRuleContext));
           setIsProcessing(false);

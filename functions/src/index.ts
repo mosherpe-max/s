@@ -489,30 +489,26 @@ export const handleStripeWebhook = onRequest({
     }
     if (!event) throw lastErr;
     if (event.type === 'payment_intent.succeeded') {
+      // Keyed on the PaymentIntent id (matching the client's own order write) so this
+      // and the client's write always land on the same doc, however they race - a
+      // query-then-create-if-missing here previously let both sides create separate
+      // order docs for one payment, which then each independently triggered SMS
+      // status updates (duplicate texts) once staff acted on either one.
       const pi = event.data.object as Stripe.PaymentIntent;
-      const existingQuery = await db.collection('orders').where('stripePaymentIntentId', '==', pi.id).limit(1).get();
-      
-      if (!existingQuery.empty) {
-        await existingQuery.docs[0].ref.update({
-          paymentStatus: 'Succeeded',
-          updatedAt: FieldValue.serverTimestamp()
-        });
-      } else {
-        const meta = pi.metadata || {};
-        await db.collection('orders').add({
-          customerName: meta.customerName || 'Guest', 
-          customerPhone: (meta.customerPhone || '').replace(/\D/g, ''), 
-          customerEmail: meta.customerEmail || '',
-          status: "Placed", 
-          sellerId: meta.sellerId || '', 
-          buyerProfileId: meta.buyerUid || 'anonymous',
-          stripePaymentIntentId: pi.id, 
-          total: (pi.amount || 0) / 100, 
-          paymentStatus: 'Succeeded',
-          createdAt: FieldValue.serverTimestamp(), 
-          updatedAt: FieldValue.serverTimestamp()
-        });
-      }
+      const meta = pi.metadata || {};
+      await db.collection('orders').doc(pi.id).set({
+        customerName: meta.customerName || 'Guest',
+        customerPhone: (meta.customerPhone || '').replace(/\D/g, ''),
+        customerEmail: meta.customerEmail || '',
+        status: "Placed",
+        sellerId: meta.sellerId || '',
+        buyerProfileId: meta.buyerUid || 'anonymous',
+        stripePaymentIntentId: pi.id,
+        total: (pi.amount || 0) / 100,
+        paymentStatus: 'Succeeded',
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp()
+      }, { merge: true });
     } else if (event.type === 'account.updated') {
       const account = event.data.object as Stripe.Account;
       const venueId = account.metadata?.venueId;
