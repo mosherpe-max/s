@@ -115,7 +115,7 @@ export function buildCartStickerSvg({ courseName, qrDataUrl, logoDataUrl }: Prin
   const widthIn = 8;
   const heightIn = 4;
   const name = courseName.toUpperCase();
-  const nameSize = fitFontSize(name, 360, 46, 22);
+  const nameSize = fitFontSize(name, 360, 50, 24);
 
   const rows: IconRow[] = [
     { cx: 470, cy: 70, icon: iconScan, headline: 'SCAN', sub: 'WITH PHONE', textX: 508, headlineSize: 18, subSize: 11 },
@@ -134,11 +134,8 @@ export function buildCartStickerSvg({ courseName, qrDataUrl, logoDataUrl }: Prin
       <text x="40" y="75" font-family="${FONT}" font-weight="900" font-size="32" fill="${RED}">ORDER FOOD &amp; DRINKS</text>
       <text x="40" y="116" font-family="${FONT}" font-weight="900" font-size="32" fill="${WHITE}">FROM RIGHT HERE</text>
 
-      <rect x="40" y="138" width="390" height="112" rx="14" fill="${WHITE}" stroke="${RED}" stroke-width="3" />
-      <text x="235" y="${112 + 90 - nameSize * 0.15}" text-anchor="middle" font-family="${FONT}" font-weight="900" font-size="${nameSize}" fill="${NAVY}">${esc(name)}</text>
-      <line x1="95" y1="222" x2="175" y2="222" stroke="${RED}" stroke-width="2" />
-      <text x="235" y="228" text-anchor="middle" font-family="${FONT}" font-weight="800" font-size="18" fill="${RED}" letter-spacing="1">GOLF CLUB</text>
-      <line x1="295" y1="222" x2="375" y2="222" stroke="${RED}" stroke-width="2" />
+      <rect x="40" y="138" width="390" height="90" rx="14" fill="${WHITE}" stroke="${RED}" stroke-width="3" />
+      <text x="235" y="${138 + 45 + nameSize * 0.32}" text-anchor="middle" font-family="${FONT}" font-weight="900" font-size="${nameSize}" fill="${NAVY}">${esc(name)}</text>
 
       <line x1="592" y1="45" x2="592" y2="270" stroke="${WHITE}" stroke-opacity="0.15" stroke-width="2" />
       ${rows.map(iconRowMarkup).join('\n')}
@@ -161,7 +158,7 @@ export function buildYardSignSvg({ courseName, qrDataUrl, logoDataUrl }: PrintAs
   const widthIn = 18;
   const heightIn = 24;
   const name = courseName.toUpperCase();
-  const nameSize = fitFontSize(name, 480, 60, 30);
+  const nameSize = fitFontSize(name, 480, 66, 32);
 
   const rows: IconRow[] = [
     { cx: 130, cy: 440, icon: iconScan, headline: 'SCAN', sub: 'WITH YOUR PHONE', textX: 175, headlineSize: 22, subSize: 13 },
@@ -182,11 +179,8 @@ export function buildYardSignSvg({ courseName, qrDataUrl, logoDataUrl }: PrintAs
       <text x="360" y="110" text-anchor="middle" font-family="${FONT}" font-weight="900" font-size="40" fill="${RED}">ORDER FOOD &amp; DRINKS</text>
       <text x="360" y="158" text-anchor="middle" font-family="${FONT}" font-weight="900" font-size="40" fill="${WHITE}">FROM RIGHT HERE</text>
 
-      <rect x="90" y="195" width="540" height="175" rx="18" fill="${WHITE}" stroke="${RED}" stroke-width="4" />
-      <text x="360" y="${195 + 175 / 2 + nameSize * 0.32}" text-anchor="middle" font-family="${FONT}" font-weight="900" font-size="${nameSize}" fill="${NAVY}">${esc(name)}</text>
-      <line x1="175" y1="333" x2="290" y2="333" stroke="${RED}" stroke-width="3" />
-      <text x="360" y="340" text-anchor="middle" font-family="${FONT}" font-weight="800" font-size="26" fill="${RED}" letter-spacing="1.5">GOLF CLUB</text>
-      <line x1="430" y1="333" x2="545" y2="333" stroke="${RED}" stroke-width="3" />
+      <rect x="90" y="195" width="540" height="140" rx="18" fill="${WHITE}" stroke="${RED}" stroke-width="4" />
+      <text x="360" y="${195 + 70 + nameSize * 0.32}" text-anchor="middle" font-family="${FONT}" font-weight="900" font-size="${nameSize}" fill="${NAVY}">${esc(name)}</text>
 
       <line x1="420" y1="405" x2="420" y2="650" stroke="${WHITE}" stroke-opacity="0.15" stroke-width="2" />
       ${rows.map(iconRowMarkup).join('\n')}
