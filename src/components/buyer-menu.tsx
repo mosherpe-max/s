@@ -125,11 +125,11 @@ export function BuyerMenu({
 
                     {/* Content Area */}
                     <div className="p-4 flex flex-col flex-1 min-w-0">
-                      <p className="font-black text-[11px] leading-tight text-[#213147] uppercase tracking-tight">
+                      <p className="font-black text-[12px] leading-tight text-[#213147] uppercase tracking-tight">
                         {item.name}
                       </p>
                       {item.description && (
-                        <p className="text-[8px] text-muted-foreground font-bold mt-1.5 uppercase tracking-tighter leading-normal">
+                        <p className="text-[10px] text-muted-foreground font-bold mt-1.5 uppercase tracking-tighter leading-normal">
                           {item.description}
                         </p>
                       )}
