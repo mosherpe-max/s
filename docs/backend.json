@@ -70,7 +70,8 @@
         "mapUpdateSettings": { "type": "object" },
         "dailyResetHour": { "type": "number", "description": "The hour (0-23) at which all venue sessions are reset." },
         "smsNotificationsEnabled": { "type": "boolean", "description": "Global toggle for Twilio SMS order updates." },
-        "gpsRefreshIntervalSeconds": { "type": "number", "description": "Global frequency for device location broadcasting to Firestore." },
+        "patronGpsRefreshIntervalSeconds": { "type": "number", "description": "Frequency of location broadcasts from a patron's own device while tracking their order." },
+        "driverGpsPollIntervalSeconds": { "type": "number", "description": "Frequency staff/driver devices poll and broadcast their own position." },
         "gpsFreshnessThresholds": {
           "type": "object",
           "properties": {

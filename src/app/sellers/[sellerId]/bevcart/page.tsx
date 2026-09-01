@@ -20,7 +20,7 @@ import { isToday, differenceInSeconds, differenceInMinutes, format } from 'date-
 import { Badge } from '@/components/ui/badge';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
-import { cn, calculateDistance, getSignalColor, getDriverColor, SUPER_ADMIN_ID, isStaffSessionStale, getNumericOrderId, playNotificationSound } from '@/lib/utils';
+import { cn, getSignalColor, getDriverColor, SUPER_ADMIN_ID, isStaffSessionStale, getNumericOrderId, playNotificationSound } from '@/lib/utils';
 import Link from 'next/link';
 import {
   Dialog,
@@ -63,7 +63,6 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
 
   const lastOrderIdsRef = useRef<Set<string>>(new Set());
   const initialLoadRef = useRef(true);
-  const lastBroadcastRef = useRef<{ lat: number; lng: number; time: number } | null>(null);
 
   const primarySellerRef = useMemoFirebase(() => {
     if (!firestore || !sellerId) return null;
@@ -269,25 +268,9 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
   }, []);
 
   const broadcastLocation = (lat: number, lng: number) => {
-    if (!firestore || !sellerId || !user || isExiting) return;
-    
-    const nowTime = Date.now();
-    // System-wide GPS broadcast frequency
-    const syncInterval = (solutionConfig?.gpsRefreshIntervalSeconds || 30) * 1000;
-    
-    if (lastBroadcastRef.current) {
-      const distance = calculateDistance(lat, lng, lastBroadcastRef.current.lat, lastBroadcastRef.current.lng);
-      const timeElapsed = nowTime - lastBroadcastRef.current.time;
-      // High-precision override: if distance > 5m, we update regardless of interval to ensure tracking accuracy
-      if (distance < 5 && timeElapsed < syncInterval) return;
-    }
-
-    lastBroadcastRef.current = { lat, lng, time: nowTime };
-    
-    if (currentStaffId) {
-      const staffRef = doc(firestore, 'sellers', sellerId, 'staff', currentStaffId);
-      setDoc(staffRef, { latitude: lat, longitude: lng, lastActive: serverTimestamp(), activeMode: 'Beverage Cart' }, { merge: true }).catch(() => {});
-    }
+    if (!firestore || !sellerId || !user || isExiting || !currentStaffId) return;
+    const staffRef = doc(firestore, 'sellers', sellerId, 'staff', currentStaffId);
+    setDoc(staffRef, { latitude: lat, longitude: lng, lastActive: serverTimestamp(), activeMode: 'Beverage Cart' }, { merge: true }).catch(() => {});
   };
 
   const handleLocationReady = (position: LatLng | null) => {
@@ -317,26 +300,33 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Continuous watchPosition tracking is what was breaking the standalone PWA
+  // out into Safari chrome (see LocationGate above) - iOS appears to treat it
+  // as a class of usage that requires visible browser chrome, independent of
+  // whether the original permission prompt was gesture-tied. Polling with
+  // discrete getCurrentPosition calls, on an admin-configurable interval,
+  // avoids that continuous-tracking classification.
   useEffect(() => {
-    if (locationEnabled && navigator.geolocation && firestore && sellerId && user && !isExiting) {
-      const watchId = navigator.geolocation.watchPosition(
+    if (!locationEnabled || !navigator.geolocation || !firestore || !sellerId || !user || isExiting) return;
+
+    const pollIntervalMs = (solutionConfig?.driverGpsPollIntervalSeconds || 15) * 1000;
+    const poll = () => {
+      navigator.geolocation.getCurrentPosition(
         (p) => {
           if (isExiting) return;
           const lat = p.coords.latitude;
           const lng = p.coords.longitude;
-          setSellerLocation(prev => {
-            if (!prev) return { latitude: lat, longitude: lng };
-            const dist = calculateDistance(lat, lng, prev.latitude, prev.longitude);
-            return dist > 5 ? { latitude: lat, longitude: lng } : prev;
-          });
+          setSellerLocation({ latitude: lat, longitude: lng });
           broadcastLocation(lat, lng);
         },
         null,
         { enableHighAccuracy: true, timeout: 10000, maximumAge: 5000 }
       );
-      return () => navigator.geolocation.clearWatch(watchId);
-    }
-  }, [locationEnabled, firestore, sellerId, user, currentStaffId, solutionConfig, isExiting]);
+    };
+
+    const intervalId = setInterval(poll, pollIntervalMs);
+    return () => clearInterval(intervalId);
+  }, [locationEnabled, firestore, sellerId, user, currentStaffId, solutionConfig?.driverGpsPollIntervalSeconds, isExiting]);
 
   const handleUpdateOrderStatus = (orderId: string, currentStatus: string) => {
     if (!firestore) return;

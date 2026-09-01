@@ -230,17 +230,33 @@ export default function AdminSystemConfigPage() {
              
              <div className="space-y-6">
                 <div className="space-y-2">
-                   <Label className="text-[10px] font-black uppercase">Global GPS Broadcast Interval (Seconds)</Label>
+                   <Label className="text-[10px] font-black uppercase">Patron Map Broadcast Interval (Seconds)</Label>
                    <div className="flex gap-4 items-center">
-                      <Input 
-                        type="number" 
-                        min="5" max="300" 
-                        defaultValue={config?.gpsRefreshIntervalSeconds || 30} 
+                      <Input
+                        type="number"
+                        min="5" max="300"
+                        defaultValue={config?.patronGpsRefreshIntervalSeconds || 30}
                         className="h-12 border-2 font-bold w-24 text-center"
-                        onBlur={(e) => handleUpdateConfig('gpsRefreshIntervalSeconds', parseInt(e.target.value))}
+                        onBlur={(e) => handleUpdateConfig('patronGpsRefreshIntervalSeconds', parseInt(e.target.value))}
                       />
                       <p className="text-[9px] text-muted-foreground uppercase font-medium max-w-xs leading-relaxed">
-                        Frequency of location updates from patron and driver devices. Lower values increase precision but use more battery.
+                        Frequency of location updates from a patron's own device while tracking their order. Lower values increase precision but use more battery.
+                      </p>
+                   </div>
+                </div>
+
+                <div className="space-y-2 border-t-2 border-slate-50 pt-6">
+                   <Label className="text-[10px] font-black uppercase">Driver GPS Poll Interval (Seconds)</Label>
+                   <div className="flex gap-4 items-center">
+                      <Input
+                        type="number"
+                        min="5" max="300"
+                        defaultValue={config?.driverGpsPollIntervalSeconds || 15}
+                        className="h-12 border-2 font-bold w-24 text-center"
+                        onBlur={(e) => handleUpdateConfig('driverGpsPollIntervalSeconds', parseInt(e.target.value))}
+                      />
+                      <p className="text-[9px] text-muted-foreground uppercase font-medium max-w-xs leading-relaxed">
+                        How often staff driver devices (Beverage Cart, Clubhouse) fetch and broadcast their own position. Uses a periodic fetch instead of continuous tracking to keep the staff portal fullscreen on iOS Home Screen installs.
                       </p>
                    </div>
                 </div>
