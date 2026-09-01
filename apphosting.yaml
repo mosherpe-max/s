@@ -1,7 +1,7 @@
 runConfig:
   cpu: 1
   memoryMiB: 512
-  maxInstances: 1
+  maxInstances: 5
 
 env:
   - variable: NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
