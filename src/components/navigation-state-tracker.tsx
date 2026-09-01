@@ -15,6 +15,18 @@ import { usePathname, useSearchParams, useRouter } from 'next/navigation';
  * (e.g. /sellers/[id]/order). This landing overrides the saved state and 
  * becomes the new "active" session URL.
  */
+// We only track "patron" experience pages (Menu, Tracking, Onboarding Success)
+// We explicitly IGNORE the landing page, login, staff sign-in, and all administrative routes
+function isPatronPath(path: string): boolean {
+  const isInternal =
+    path.startsWith('/admin') ||
+    path.startsWith('/login') ||
+    path.startsWith('/sales') ||
+    path.startsWith('/sellers') && (path.includes('/bevcart') || path.includes('/clubhouse') || path.includes('/laneside') || path.includes('/staff-login'));
+
+  return !isInternal && path !== '/';
+}
+
 export function NavigationStateTracker() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -25,17 +37,7 @@ export function NavigationStateTracker() {
   useEffect(() => {
     if (!pathname) return;
 
-    // We only track "patron" experience pages (Menu, Tracking, Onboarding Success)
-    // We explicitly IGNORE the landing page, login, and all administrative routes
-    const isInternal = 
-      pathname.startsWith('/admin') || 
-      pathname.startsWith('/login') || 
-      pathname.startsWith('/sales') || 
-      pathname.startsWith('/sellers') && (pathname.includes('/bevcart') || pathname.includes('/clubhouse') || pathname.includes('/laneside'));
-    
-    const isHome = pathname === '/';
-
-    if (!isInternal && !isHome) {
+    if (isPatronPath(pathname)) {
       const fullUrl = `${pathname}${searchParams.toString() ? `?${searchParams.toString()}` : ''}`;
       localStorage.setItem('koop_resume_url', fullUrl);
       console.log('[Navigation] Persisting active session:', fullUrl);
@@ -52,12 +54,19 @@ export function NavigationStateTracker() {
     // If they land on any other page (like a QR scan URL), we respect that navigation
     if (pathname === '/') {
       const resumeUrl = localStorage.getItem('koop_resume_url');
-      
-      if (resumeUrl && resumeUrl !== '/') {
-        console.log('[Navigation] Resuming last active session:', resumeUrl);
-        // Use replace to avoid polluting the history stack with the landing page
-        router.replace(resumeUrl);
+      if (!resumeUrl) return;
+
+      // Guards against stale values saved before a path was excluded here
+      // (e.g. staff-login) - self-heals instead of hijack-redirecting forever.
+      const resumePath = resumeUrl.split('?')[0];
+      if (!isPatronPath(resumePath)) {
+        localStorage.removeItem('koop_resume_url');
+        return;
       }
+
+      console.log('[Navigation] Resuming last active session:', resumeUrl);
+      // Use replace to avoid polluting the history stack with the landing page
+      router.replace(resumeUrl);
     }
   }, [pathname, router]);
 
