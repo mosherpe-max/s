@@ -133,7 +133,7 @@ function OrderTrackingContent() {
   const broadcastCurrentLocation = (position: GeolocationPosition) => {
     if (!order || !firestore || isDelivered) return;
     const nowTime = Date.now();
-    const syncInterval = (solutionConfig?.gpsRefreshIntervalSeconds || 30) * 1000;
+    const syncInterval = (solutionConfig?.patronGpsRefreshIntervalSeconds || 30) * 1000;
     
     if (nowTime - lastBroadcastTimeRef.current < syncInterval) return;
 
@@ -154,7 +154,7 @@ function OrderTrackingContent() {
       );
     }
     return () => { if (watchIdRef.current) navigator.geolocation.clearWatch(watchIdRef.current); };
-  }, [order?.status, order?.id, firestore, isDelivered, solutionConfig?.gpsRefreshIntervalSeconds]);
+  }, [order?.status, order?.id, firestore, isDelivered, solutionConfig?.patronGpsRefreshIntervalSeconds]);
 
   const handleManualRefresh = () => {
     if (typeof window !== 'undefined' && navigator.geolocation) {
