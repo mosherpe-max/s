@@ -59,7 +59,7 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
   const [isExiting, setIsExiting] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [notificationPermission, setNotificationPermission] = useState<string>('default');
-  const [locationEnabled, setLocationEnabled] = useState(true); // DIAGNOSTIC: skip LocationGate entirely
+  const [locationEnabled, setLocationEnabled] = useState(false);
 
   const lastOrderIdsRef = useRef<Set<string>>(new Set());
   const initialLoadRef = useRef(true);
@@ -281,18 +281,51 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
     setLocationEnabled(true);
   };
 
-  // DIAGNOSTIC BUILD: both geolocation effects below are disabled (early
-  // return before touching navigator.geolocation at all) to test whether
-  // geolocation itself - any use of it, gesture-gated or polled - is what's
-  // breaking this screen out of standalone PWA mode on iOS. Not for merging
-  // as-is; revert this block once the test result is in.
+  // iOS kicks standalone home-screen web apps out into Safari if geolocation is
+  // requested without a direct user gesture behind it, so the first fetch is
+  // gated behind LocationGate's button tap (see handleLocationReady) instead of
+  // firing automatically here. If permission was already granted in a prior
+  // shift, skip the gate and fetch silently - that's not a fresh prompt.
   useEffect(() => {
-    return;
+    if (typeof navigator === 'undefined' || !navigator.permissions?.query || !navigator.geolocation) return;
+    navigator.permissions.query({ name: 'geolocation' as PermissionName }).then((status) => {
+      if (status.state === 'granted') {
+        navigator.geolocation!.getCurrentPosition(
+          (p) => handleLocationReady({ latitude: p.coords.latitude, longitude: p.coords.longitude }),
+          () => handleLocationReady(null),
+          { enableHighAccuracy: true }
+        );
+      }
+    }).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Continuous watchPosition tracking is what was breaking the standalone PWA
+  // out into Safari chrome (see LocationGate above) - iOS appears to treat it
+  // as a class of usage that requires visible browser chrome, independent of
+  // whether the original permission prompt was gesture-tied. Polling with
+  // discrete getCurrentPosition calls, on an admin-configurable interval,
+  // avoids that continuous-tracking classification.
   useEffect(() => {
-    return;
+    if (!locationEnabled || !navigator.geolocation || !firestore || !sellerId || !user || isExiting) return;
+
+    const pollIntervalMs = (solutionConfig?.driverGpsPollIntervalSeconds || 15) * 1000;
+    const poll = () => {
+      navigator.geolocation.getCurrentPosition(
+        (p) => {
+          if (isExiting) return;
+          const lat = p.coords.latitude;
+          const lng = p.coords.longitude;
+          setSellerLocation({ latitude: lat, longitude: lng });
+          broadcastLocation(lat, lng);
+        },
+        null,
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 5000 }
+      );
+    };
+
+    const intervalId = setInterval(poll, pollIntervalMs);
+    return () => clearInterval(intervalId);
   }, [locationEnabled, firestore, sellerId, user, currentStaffId, solutionConfig?.driverGpsPollIntervalSeconds, isExiting]);
 
   const handleUpdateOrderStatus = (orderId: string, currentStatus: string) => {
