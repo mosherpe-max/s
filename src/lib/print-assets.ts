@@ -29,8 +29,8 @@ function koopLogoGroup(x: number, baselineY: number, fontSize: number, color: st
     const w = h * 2.8;
     return { markup: `<image href="${esc(logoDataUrl)}" x="${x}" y="${baselineY - h * 0.72}" width="${w}" height="${h}" preserveAspectRatio="xMidYMid meet" />`, width: w };
   }
-  const charW = fontSize * 0.72;
-  const gap = fontSize * 0.14;
+  const charW = fontSize * 0.62;
+  const gap = fontSize * 0.08;
   const circleR = fontSize * 0.42;
   let cursor = x;
   const kX = cursor; cursor += charW + gap;
@@ -115,15 +115,15 @@ export function buildCartStickerSvg({ courseName, qrDataUrl, logoDataUrl }: Prin
   const widthIn = 8;
   const heightIn = 4;
   const name = courseName.toUpperCase();
-  const nameSize = fitFontSize(name, 360, 50, 24);
+  const nameSize = fitFontSize(name, 360, 38, 20);
 
   const rows: IconRow[] = [
-    { cx: 470, cy: 70, icon: iconScan, headline: 'SCAN', sub: 'WITH PHONE', textX: 508, headlineSize: 18, subSize: 11 },
-    { cx: 470, cy: 150, icon: iconCart, headline: 'ORDER', sub: 'FOOD & DRINKS', textX: 508, headlineSize: 18, subSize: 11 },
-    { cx: 470, cy: 230, icon: iconCloche, headline: 'DELIVER', sub: 'TO YOU', textX: 508, headlineSize: 18, subSize: 11 },
+    { cx: 90, cy: 323, icon: iconScan, headline: 'SCAN', sub: 'WITH PHONE', textX: 128, headlineSize: 16, subSize: 10 },
+    { cx: 340, cy: 323, icon: iconCart, headline: 'ORDER', sub: 'FOOD & DRINKS', textX: 378, headlineSize: 16, subSize: 10 },
+    { cx: 590, cy: 323, icon: iconCloche, headline: 'DELIVER', sub: 'TO YOU', textX: 628, headlineSize: 16, subSize: 10 },
   ];
 
-  const logo = koopLogoGroup(394, 358, 26, WHITE, logoDataUrl);
+  const logo = koopLogoGroup(430, 364, 20, WHITE, logoDataUrl);
 
   const svg = `
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 400">
@@ -131,21 +131,20 @@ export function buildCartStickerSvg({ courseName, qrDataUrl, logoDataUrl }: Prin
       <rect x="6" y="6" width="788" height="388" rx="26" fill="none" stroke="${RED}" stroke-width="5" />
       <rect x="18" y="18" width="764" height="364" rx="22" fill="${NAVY}" />
 
-      <text x="40" y="75" font-family="${FONT}" font-weight="900" font-size="32" fill="${RED}">ORDER FOOD &amp; DRINKS</text>
-      <text x="40" y="116" font-family="${FONT}" font-weight="900" font-size="32" fill="${WHITE}">FROM RIGHT HERE</text>
+      <text x="40" y="72" font-family="${FONT}" font-weight="900" font-size="30" fill="${RED}">ORDER FOOD &amp; DRINKS</text>
+      <text x="40" y="110" font-family="${FONT}" font-weight="900" font-size="30" fill="${WHITE}">FROM RIGHT HERE</text>
 
-      <rect x="40" y="138" width="390" height="90" rx="14" fill="${WHITE}" stroke="${RED}" stroke-width="3" />
-      <text x="235" y="${138 + 45 + nameSize * 0.32}" text-anchor="middle" font-family="${FONT}" font-weight="900" font-size="${nameSize}" fill="${NAVY}">${esc(name)}</text>
+      <rect x="40" y="132" width="390" height="100" rx="14" fill="${WHITE}" stroke="${RED}" stroke-width="3" />
+      <text x="235" y="${132 + 50 + nameSize * 0.32}" text-anchor="middle" font-family="${FONT}" font-weight="900" font-size="${nameSize}" fill="${NAVY}">${esc(name)}</text>
 
-      <line x1="592" y1="45" x2="592" y2="270" stroke="${WHITE}" stroke-opacity="0.15" stroke-width="2" />
+      <rect x="548" y="40" width="195" height="195" rx="16" fill="${WHITE}" />
+      <image href="${esc(qrDataUrl)}" x="559" y="51" width="173" height="173" />
+      <rect x="548" y="243" width="195" height="30" rx="15" fill="${RED}" />
+      <text x="645" y="263" text-anchor="middle" font-family="${FONT}" font-weight="900" font-size="12" fill="${WHITE}" letter-spacing="0.5">SCAN TO ORDER</text>
+
       ${rows.map(iconRowMarkup).join('\n')}
 
-      <rect x="605" y="42" width="155" height="155" rx="14" fill="${WHITE}" />
-      <image href="${esc(qrDataUrl)}" x="613" y="50" width="139" height="139" />
-      <rect x="605" y="205" width="155" height="32" rx="16" fill="${RED}" />
-      <text x="682" y="226" text-anchor="middle" font-family="${FONT}" font-weight="900" font-size="12" fill="${WHITE}" letter-spacing="0.5">SCAN TO ORDER</text>
-
-      <text x="382" y="358" text-anchor="end" font-family="${FONT}" font-weight="700" font-size="16" fill="${WHITE}" letter-spacing="1">POWERED BY</text>
+      <text x="416" y="364" text-anchor="end" font-family="${FONT}" font-weight="700" font-size="13" fill="${MUTED}" letter-spacing="1.2">POWERED BY</text>
       ${logo.markup}
     </svg>
   `.trim();
