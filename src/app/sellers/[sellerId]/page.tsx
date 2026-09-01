@@ -619,6 +619,20 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
     }
   };
 
+  const handleShareStaffLink = async () => {
+    const url = `${baseUrl}/sellers/${sellerId}/staff-login`;
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: `${seller?.courseName || 'Koop'} Staff Login`, url });
+      } catch (e) {
+        // User cancelled the share sheet - not an error worth surfacing.
+      }
+    } else {
+      navigator.clipboard.writeText(url);
+      toast({ title: "Link Copied", description: "Sharing isn't available on this device, so the link was copied instead." });
+    }
+  };
+
   const handleDownloadPatronQr = async () => {
     if (!seller?.qrSecret) {
       toast({ variant: "destructive", title: "Access Key Missing" });
@@ -1101,9 +1115,14 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                             <CardDescription className="text-[8px] font-bold uppercase tracking-widest">Secure Dashboard Entrance</CardDescription>
                           </div>
                         </div>
-                        <Button variant="outline" size="sm" disabled={isDownloading || !baseUrl} onClick={handleDownloadStaffQr} className="h-9 text-[9px] font-black uppercase tracking-widest border-2 gap-2 bg-white hover:bg-slate-50 transition-all rounded-lg">
-                          {isDownloading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Download className="h-3 w-3" />} Download QR for Print
-                        </Button>
+                        <div className="flex items-center gap-2">
+                          <Button variant="outline" size="sm" disabled={!baseUrl} onClick={handleShareStaffLink} className="h-9 text-[9px] font-black uppercase tracking-widest border-2 gap-2 bg-white hover:bg-slate-50 transition-all rounded-lg">
+                            <Share2 className="h-3 w-3" /> Send to Staff Device
+                          </Button>
+                          <Button variant="outline" size="sm" disabled={isDownloading || !baseUrl} onClick={handleDownloadStaffQr} className="h-9 text-[9px] font-black uppercase tracking-widest border-2 gap-2 bg-white hover:bg-slate-50 transition-all rounded-lg">
+                            {isDownloading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Download className="h-3 w-3" />} Download QR for Print
+                          </Button>
+                        </div>
                       </div>
                     </CardHeader>
                     <CardContent className="p-8 text-center md:text-left">
