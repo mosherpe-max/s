@@ -15,6 +15,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { useRouter } from 'next/navigation';
 import { MapView } from '@/components/map-view';
+import { LocationGate } from '@/components/location-gate';
 import { isToday, differenceInSeconds, differenceInMinutes, format } from 'date-fns';
 import { cn, calculateDistance, getSignalColor, getDriverColor, SUPER_ADMIN_ID, isStaffSessionStale, getNumericOrderId, playNotificationSound } from '@/lib/utils';
 import Link from 'next/link';
@@ -55,6 +56,7 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
   const [isExiting, setIsExiting] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [notificationPermission, setNotificationPermission] = useState<string>('default');
+  const [locationEnabled, setLocationEnabled] = useState(false);
 
   const lastOrderIdsRef = useRef<Set<string>>(new Set());
   const initialLoadRef = useRef(true);
@@ -148,19 +150,35 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
     }
   };
 
-  useEffect(() => {
-    if (navigator.geolocation && firestore && sellerId && user && !isExiting) {
-      navigator.geolocation.getCurrentPosition((p) => {
-        const lat = p.coords.latitude;
-        const lng = p.coords.longitude;
-        setSellerLocation({ latitude: lat, longitude: lng });
-        broadcastLocation(lat, lng);
-      }, null, { enableHighAccuracy: true });
+  const handleLocationReady = (position: LatLng | null) => {
+    if (position) {
+      setSellerLocation(position);
+      broadcastLocation(position.latitude, position.longitude);
     }
-  }, [firestore, sellerId, user, currentStaffId, solutionConfig, isExiting]);
+    setLocationEnabled(true);
+  };
+
+  // iOS kicks standalone home-screen web apps out into Safari if geolocation is
+  // requested without a direct user gesture behind it, so the first fetch is
+  // gated behind LocationGate's button tap (see handleLocationReady) instead of
+  // firing automatically here. If permission was already granted in a prior
+  // shift, skip the gate and fetch silently - that's not a fresh prompt.
+  useEffect(() => {
+    if (typeof navigator === 'undefined' || !navigator.permissions?.query || !navigator.geolocation) return;
+    navigator.permissions.query({ name: 'geolocation' as PermissionName }).then((status) => {
+      if (status.state === 'granted') {
+        navigator.geolocation!.getCurrentPosition(
+          (p) => handleLocationReady({ latitude: p.coords.latitude, longitude: p.coords.longitude }),
+          () => handleLocationReady(null),
+          { enableHighAccuracy: true }
+        );
+      }
+    }).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
-    if (navigator.geolocation && firestore && sellerId && user && !isExiting) {
+    if (locationEnabled && navigator.geolocation && firestore && sellerId && user && !isExiting) {
       const watchId = navigator.geolocation.watchPosition(
         (p) => {
           if (isExiting) return;
@@ -178,7 +196,7 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
       );
       return () => navigator.geolocation.clearWatch(watchId);
     }
-  }, [firestore, sellerId, user, currentStaffId, solutionConfig, isExiting]);
+  }, [locationEnabled, firestore, sellerId, user, currentStaffId, solutionConfig, isExiting]);
 
   const handleToggleActive = (checked: boolean) => {
     if (!firestore || !sellerId || !user) return;
@@ -365,6 +383,10 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
   }, [allStaff, solutionConfig]);
 
   const isLoading = areActiveOrdersLoading || isPrimaryLoading;
+
+  if (!locationEnabled) {
+    return <LocationGate venueName={primarySeller?.courseName} onEnabled={handleLocationReady} />;
+  }
 
   return (
     <div className="flex flex-col h-screen overflow-x-auto bg-muted/20 text-left">
