@@ -75,6 +75,7 @@ export interface StaffMember {
   pin: string;
   isActive: boolean;
   activeMode?: string; // Current shift assignment (Bevcart, Clubhouse, etc)
+  activeSessionId?: string; // Set fresh on every shift login; a mismatch on a driver device means another device has since signed in with this PIN, so that device signs itself out
   createdAt: Timestamp;
   latitude?: number;
   longitude?: number;

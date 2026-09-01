@@ -63,6 +63,7 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
 
   const lastOrderIdsRef = useRef<Set<string>>(new Set());
   const initialLoadRef = useRef(true);
+  const mySessionIdRef = useRef<string | undefined>(undefined);
 
   const primarySellerRef = useMemoFirebase(() => {
     if (!firestore || !sellerId) return null;
@@ -87,6 +88,7 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
       const isImpersonating = localStorage.getItem('koop_is_admin_session') === 'true';
       const sessionStart = localStorage.getItem('koop_staff_session_start');
       const resetHour = solutionConfig?.dailyResetHour ?? 4;
+      mySessionIdRef.current = localStorage.getItem('koop_staff_session_id') || undefined;
 
       if ("Notification" in window) {
         setNotificationPermission(Notification.permission);
@@ -111,6 +113,21 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
       handleExitTerminal('root');
     }
   }, [myStaffData?.activeMode, isAdminSession, isExiting]);
+
+  // B2. Check for SUPERSEDED session - this staff PIN was used to sign in on
+  // another device (same mode or a different one), so this device signs out
+  // rather than silently fighting the new device over the shift.
+  useEffect(() => {
+    if (
+      myStaffData?.activeSessionId &&
+      mySessionIdRef.current &&
+      myStaffData.activeSessionId !== mySessionIdRef.current &&
+      !isAdminSession && !isExiting
+    ) {
+      toast({ variant: 'destructive', title: "Signed In Elsewhere", description: "This staff PIN was used to sign in on another device, so this session has ended." });
+      handleExitTerminal('root', false);
+    }
+  }, [myStaffData?.activeSessionId, isAdminSession, isExiting]);
 
   // C. Check for MODE deactivation by Manager
   useEffect(() => {
@@ -148,19 +165,22 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
     });
   };
 
-  const handleExitTerminal = async (target: 'admin' | 'root') => {
+  const handleExitTerminal = async (target: 'admin' | 'root', clearRemote: boolean = true) => {
     setIsExiting(true);
 
-    if (currentStaffId && firestore && sellerId) {
+    // A superseded (stale) device must NOT clear the staff doc - another device
+    // has already taken over that shift, and this device's exit shouldn't stomp
+    // on its session.
+    if (clearRemote && currentStaffId && firestore && sellerId) {
       const staffRef = doc(firestore, 'sellers', sellerId, 'staff', currentStaffId);
-      
-      await updateDoc(staffRef, { 
-        lastActive: null, 
-        latitude: null, 
+
+      await updateDoc(staffRef, {
+        lastActive: null,
+        latitude: null,
         longitude: null,
         activeMode: null
       }).catch(() => {});
-      
+
       if (isAdminSession) {
         await deleteDoc(staffRef).catch(() => {});
       }
@@ -171,6 +191,7 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
     localStorage.removeItem('koop_staff_name');
     localStorage.removeItem('koop_staff_role');
     localStorage.removeItem('koop_staff_session_start');
+    localStorage.removeItem('koop_staff_session_id');
 
     if (target === 'admin') {
       router.push(`/sellers/${sellerId}`);

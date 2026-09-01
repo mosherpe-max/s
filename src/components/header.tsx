@@ -219,8 +219,8 @@ export function AppHeader() {
   const isTrackPage = pathname?.endsWith('/order/track');
   const isHomePage = pathname === '/';
   
-  const isAdminRoute = pathname?.startsWith('/admin') || 
-                      (pathname?.startsWith('/sellers/') && !pathname.includes('/order') && !pathname.includes('/staff-login'));
+  const isAdminRoute = pathname?.startsWith('/admin') ||
+                      (pathname?.startsWith('/sellers/') && !pathname.includes('/order'));
 
   // The patron ordering flow (menu + tracking) never shows the internal "Global
   // Navigator" hamburger - it's prototyping/staff shortcuts, not anything a patron
