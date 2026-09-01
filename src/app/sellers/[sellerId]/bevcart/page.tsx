@@ -149,19 +149,18 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
     }
   }, [primarySeller, sellerLocation]);
 
-  const isBevCartActive = primarySeller?.bevcartActive === true;
+  // Personal "I'm stepping away" status - this is the individual staff member
+  // taking themselves off signal without ending their shift, NOT the venue-
+  // wide mode open/closed flag (that's primarySeller.bevcartActive, only
+  // changeable by the venue admin in Service Modes).
+  const isMyselfAvailable = myStaffData?.isAvailable !== false;
   const isSuperAdmin = user?.uid === SUPER_ADMIN_ID || user?.email === 'mosherpe@gmail.com';
 
-  const handleToggleActive = (checked: boolean) => {
-    if (!firestore || !sellerId || !user) return;
-    const sellerDocRef = doc(firestore, 'sellers', sellerId);
-    const updateData = { bevcartActive: checked };
-    updateDoc(sellerDocRef, updateData).catch(async (error) => {
-      errorEmitter.emit('permission-error', new FirestorePermissionError({
-        path: sellerDocRef.path,
-        operation: 'update',
-        requestResourceData: updateData,
-      } satisfies SecurityRuleContext));
+  const handleToggleAvailability = (checked: boolean) => {
+    if (!firestore || !sellerId || !currentStaffId) return;
+    const staffRef = doc(firestore, 'sellers', sellerId, 'staff', currentStaffId);
+    updateDoc(staffRef, { isAvailable: checked }).catch(() => {
+      toast({ variant: 'destructive', title: 'Update Failed', description: 'Could not update your availability status.' });
     });
   };
 
@@ -455,7 +454,7 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
           </div>
         </div>
         <div className="flex items-center space-x-5">
-          <Switch checked={isBevCartActive} onCheckedChange={handleToggleActive} className="data-[state=checked]:bg-green-600" />
+          <Switch checked={isMyselfAvailable} onCheckedChange={handleToggleAvailability} className="data-[state=checked]:bg-green-600" />
           <button 
             onClick={() => handleExitTerminal('root')} 
             className="flex flex-col items-center gap-1 text-white/40 hover:text-white transition-colors"
@@ -496,11 +495,11 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
           <div className="absolute top-3 left-3 z-10 pointer-events-none">
             <Badge className={cn(
               "flex items-center gap-1.5 px-2 py-1 border-0 shadow-lg transition-colors",
-              isBevCartActive ? "bg-green-600 text-white" : "bg-slate-500/80 text-white"
+              isMyselfAvailable ? "bg-green-600 text-white" : "bg-slate-500/80 text-white"
             )}>
-              <div className={cn("h-1.5 w-1.5 rounded-full", isBevCartActive ? "bg-white animate-pulse" : "bg-white/40")} />
+              <div className={cn("h-1.5 w-1.5 rounded-full", isMyselfAvailable ? "bg-white animate-pulse" : "bg-white/40")} />
               <span className="text-[8px] font-black uppercase tracking-widest">
-                {isBevCartActive ? "Signal Live" : "Signal Off"}
+                {isMyselfAvailable ? "Signal Live" : "Signal Off"}
               </span>
             </Badge>
           </div>
@@ -514,7 +513,7 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
               drivers={mappedDrivers}
               radius={1609.34} 
               fitTrigger={fitTrigger}
-              showPrimaryMarker={isBevCartActive} 
+              showPrimaryMarker={isMyselfAvailable} 
               interactive={true}
             />
           ) : <Skeleton className="w-full h-full" />}

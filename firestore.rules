@@ -74,9 +74,12 @@ service cloud.firestore {
       
       // Allow location and status updates
       // Prototyping: Allow demo venues to be toggled without authentication
-      allow update: if (isSignedIn() || sellerId.startsWith('demo-')) && 
+      // Service mode open/closed (bevcartActive/clubhouseActive/lanedeliveryActive)
+      // is intentionally NOT in this list - only the venue owner (or super admin,
+      // via the "allow write" rule above) may open or close a service mode.
+      allow update: if (isSignedIn() || sellerId.startsWith('demo-')) &&
                     request.resource.data.diff(resource.data).affectedKeys()
-                    .hasOnly(['latitude', 'longitude', 'lastActive', 'bevcartActive', 'clubhouseActive', 'lanedeliveryActive', 'updatedAt', 'qrActive', 'qrSecret']);
+                    .hasOnly(['latitude', 'longitude', 'lastActive', 'updatedAt', 'qrActive', 'qrSecret']);
 
       match /staff/{staffId} {
         allow read, write: if true;

@@ -76,6 +76,7 @@ export interface StaffMember {
   isActive: boolean;
   activeMode?: string; // Current shift assignment (Bevcart, Clubhouse, etc)
   activeSessionId?: string; // Set fresh on every shift login; a mismatch on a driver device means another device has since signed in with this PIN, so that device signs itself out
+  isAvailable?: boolean; // Personal "stepping away" toggle during a shift - undefined/true means available. Distinct from the venue-wide mode open/closed flag on Seller, which only the venue admin can change.
   createdAt: Timestamp;
   latitude?: number;
   longitude?: number;
