@@ -119,9 +119,15 @@ export default function StaffLoginPage({ params }: { params: Promise<{ sellerId:
       return;
     }
 
+    // Fresh session ID on every login (same mode or a different one) - lets any
+    // device previously signed in with this PIN detect it's been superseded and
+    // sign itself out, instead of two devices silently fighting over one shift.
+    const sessionId = crypto.randomUUID();
+
     // Update Personnel document with active role
     await updateDoc(doc(firestore, 'sellers', sellerId, 'staff', authenticatedStaff.id), {
       activeMode: menuType,
+      activeSessionId: sessionId,
       lastActive: serverTimestamp()
     }).catch(() => {});
 
@@ -132,6 +138,7 @@ export default function StaffLoginPage({ params }: { params: Promise<{ sellerId:
     localStorage.setItem('koop_staff_role', menuType);
     localStorage.setItem('koop_staff_session_start', Date.now().toString());
     localStorage.setItem('koop_venue_id', sellerId);
+    localStorage.setItem('koop_staff_session_id', sessionId);
 
     toast({ 
       title: "Shift Started", 
