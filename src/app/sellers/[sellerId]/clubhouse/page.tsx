@@ -438,14 +438,19 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
           </div>
         </div>
         <div className="flex items-center space-x-5">
-          <Switch checked={isMyselfAvailable} onCheckedChange={handleToggleAvailability} className="data-[state=checked]:bg-green-600" />
-          <button 
-            onClick={() => handleExitTerminal('root')} 
-            className="flex flex-col items-center gap-1 text-white/40 hover:text-white transition-colors"
+          <div className="flex flex-col items-center gap-1">
+            <span className={cn("text-[7px] font-black uppercase tracking-widest leading-none", isMyselfAvailable ? "text-green-400" : "text-white/40")}>
+              {isMyselfAvailable ? 'Available' : 'Away'}
+            </span>
+            <Switch checked={isMyselfAvailable} onCheckedChange={handleToggleAvailability} className="data-[state=checked]:bg-green-600" />
+          </div>
+          <button
+            onClick={() => handleExitTerminal('root')}
+            className="flex flex-col items-center gap-1 text-white/70 hover:text-white transition-colors"
             disabled={isExiting}
           >
             <LogOut className="h-4 w-4" />
-            <span className="text-[7px] font-black uppercase tracking-widest leading-none truncate max-w-[60px]">{currentStaffName}</span>
+            <span className="text-[7px] font-black uppercase tracking-widest leading-none">Log Out</span>
           </button>
         </div>
       </header>
