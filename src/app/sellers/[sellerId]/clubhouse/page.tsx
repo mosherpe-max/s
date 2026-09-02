@@ -140,6 +140,15 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
   }, [firestore, sellerId]);
   const { data: allStaff } = useCollection<StaffMember>(staffQuery);
 
+  // Fall back to the venue's static GPS anchor until the driver's own device
+  // reports a live position - blank for demo venues so the map isn't pinned
+  // to a real-world location and just follows wherever the demo runs.
+  useEffect(() => {
+    if (primarySeller?.latitude && primarySeller?.longitude && !sellerLocation) {
+      setSellerLocation({ latitude: primarySeller.latitude, longitude: primarySeller.longitude });
+    }
+  }, [primarySeller, sellerLocation]);
+
   const isGolf = primarySeller?.type?.toLowerCase().includes('golf');
   // Personal "I'm stepping away" status - this is the individual staff member
   // taking themselves off signal without ending their shift, NOT the venue-
