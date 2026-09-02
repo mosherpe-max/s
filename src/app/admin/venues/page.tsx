@@ -101,7 +101,14 @@ const venueRegistrySchema = z.object({
   laneCount: z.coerce.number().min(0).optional(),
   status: z.enum(['Active', 'Inactive']).default('Active'),
   latitude: z.coerce.number(),
-  longitude: z.coerce.number()
+  longitude: z.coerce.number(),
+  contactName: z.string().optional(),
+  contactEmail: z.string().optional(),
+  contactPhone: z.string().optional(),
+  streetAddress: z.string().optional(),
+  city: z.string().optional(),
+  state: z.string().optional(),
+  zip: z.string().optional()
 });
 
 type VenueRegistryData = z.infer<typeof venueRegistrySchema>;
@@ -110,9 +117,13 @@ const newVenueSchema = z.object({
   courseName: z.string().min(2, 'Course name required'),
   type: z.enum(['Golf Course', 'Bowling Center']),
   ownerUid: z.string().min(10, 'Valid Manager UID required'),
+  contactName: z.string().min(2, 'Contact name required'),
   contactEmail: z.string().email('Valid email required'),
+  contactPhone: z.string().min(10, 'Valid phone number required'),
+  streetAddress: z.string().min(2, 'Street address required'),
   city: z.string().min(2, 'City required'),
   state: z.string().length(2, 'State code (e.g. MI)'),
+  zip: z.string().min(5, 'Valid zip code required'),
   menuTypes: z.array(z.string()).min(1, 'Select at least one mode'),
   laneCount: z.coerce.number().min(0).optional()
 });
@@ -144,6 +155,17 @@ export default function AdminVenueRegistryPage() {
   const { data: sellers, isLoading: isSellersLoading } = useCollection<Seller>(sellersQuery);
   const { data: venuesRegistry } = useCollection<Venue>(venuesQuery);
 
+  // Launch-readiness checks only for the venue currently open in the Manage dialog
+  const staffQuery = useMemoFirebase(() => (
+    firestore && selectedVenue ? collection(firestore, 'sellers', selectedVenue.venueId, 'staff') : null
+  ), [firestore, selectedVenue]);
+  const { data: venueStaff } = useCollection(staffQuery);
+
+  const menuItemsQuery = useMemoFirebase(() => (
+    firestore && selectedVenue ? collection(firestore, 'sellers', selectedVenue.venueId, 'menuItems') : null
+  ), [firestore, selectedVenue]);
+  const { data: venueMenuItems } = useCollection(menuItemsQuery);
+
   const registryForm = useForm<VenueRegistryData>({
     resolver: zodResolver(venueRegistrySchema),
     defaultValues: {
@@ -160,7 +182,14 @@ export default function AdminVenueRegistryPage() {
       laneCount: 0,
       status: 'Active',
       latitude: 0,
-      longitude: 0
+      longitude: 0,
+      contactName: '',
+      contactEmail: '',
+      contactPhone: '',
+      streetAddress: '',
+      city: '',
+      state: '',
+      zip: ''
     }
   });
 
@@ -170,9 +199,13 @@ export default function AdminVenueRegistryPage() {
       courseName: '',
       type: 'Golf Course',
       ownerUid: '',
+      contactName: '',
       contactEmail: '',
+      contactPhone: '',
+      streetAddress: '',
       city: '',
       state: '',
+      zip: '',
       menuTypes: ['Beverage Cart', 'Clubhouse'],
       laneCount: 0
     }
@@ -198,7 +231,14 @@ export default function AdminVenueRegistryPage() {
         laneCount: seller?.laneCount || 0,
         status: seller?.status || 'Active',
         latitude: seller?.latitude || 0,
-        longitude: seller?.longitude || 0
+        longitude: seller?.longitude || 0,
+        contactName: seller?.contactName || '',
+        contactEmail: seller?.contactEmail || '',
+        contactPhone: seller?.contactPhone || '',
+        streetAddress: seller?.streetAddress || '',
+        city: seller?.city || '',
+        state: seller?.state || '',
+        zip: seller?.zip || ''
       });
       setIsManagementOpen(true);
     } else {
@@ -214,10 +254,18 @@ export default function AdminVenueRegistryPage() {
     const venueRef = doc(firestore, 'venues', selectedVenue.venueId);
     const sellerRef = doc(firestore, 'sellers', selectedVenue.venueId);
 
-    const { menuTypes, laneCount, status, latitude, longitude, ...venueData } = data;
+    const {
+      menuTypes, laneCount, status, latitude, longitude,
+      contactName, contactEmail, contactPhone, streetAddress, city, state, zip,
+      ...venueData
+    } = data;
 
     batch.update(venueRef, { ...venueData, updatedAt: serverTimestamp() });
-    batch.update(sellerRef, { menuTypes, laneCount, status, latitude, longitude, updatedAt: serverTimestamp() });
+    batch.update(sellerRef, {
+      menuTypes, laneCount, status, latitude, longitude,
+      contactName, contactEmail, contactPhone, streetAddress, city, state, zip,
+      updatedAt: serverTimestamp()
+    });
 
     batch.commit()
       .then(() => {
@@ -268,7 +316,8 @@ export default function AdminVenueRegistryPage() {
       const sellerRef = doc(firestore, 'sellers', venueId);
       const sellerData: Partial<Seller> = {
         id: venueId, courseName: data.courseName, type: data.type, status: 'Active',
-        contactEmail: data.contactEmail, city: data.city, state: data.state,
+        contactName: data.contactName, contactEmail: data.contactEmail, contactPhone: data.contactPhone,
+        streetAddress: data.streetAddress, city: data.city, state: data.state, zip: data.zip,
         menuTypes: data.menuTypes, taxRate: 6.0, serviceFee: 1.50, ownerId: data.ownerUid,
         laneCount: data.type === 'Bowling Center' ? data.laneCount : 0,
         latitude: 0,
@@ -357,9 +406,79 @@ export default function AdminVenueRegistryPage() {
   };
 
   const currentSeller = sellers?.find(s => s.id === selectedVenue?.venueId);
-  const qrUrl = currentSeller?.qrActive && currentSeller?.qrSecret 
+  const qrUrl = currentSeller?.qrActive && currentSeller?.qrSecret
     ? `${baseUrl}/sellers/${currentSeller.id}/order?key=${currentSeller.qrSecret}`
     : '';
+
+  // Launch readiness - everything a Koop admin needs to have set up before a
+  // venue is ready to take real orders. Recomputed live as fields are edited
+  // in the Manage dialog below, so an admin can see progress as they go.
+  const launchChecklist = React.useMemo(() => {
+    const seller = currentSeller;
+    const venue = selectedVenue;
+    const authorizedModes = (seller?.menuTypes || []).filter(m => AUTHORIZED_SERVICE_MODES.includes(m));
+    const hasOpenMode = authorizedModes.some(mode => {
+      if (mode === 'Beverage Cart') return !!seller?.bevcartActive;
+      if (mode === 'Clubhouse') return !!seller?.clubhouseActive;
+      if (mode === 'Lane Delivery') return !!seller?.lanedeliveryActive;
+      return false;
+    });
+
+    return [
+      {
+        label: 'Manager Contact',
+        done: !!(seller?.contactName && seller?.contactEmail && seller?.contactPhone),
+        detail: 'Add the manager\'s name, email, and phone number.'
+      },
+      {
+        label: 'Venue Address',
+        done: !!(seller?.streetAddress && seller?.city && seller?.state && seller?.zip),
+        detail: 'Add the street address, city, state, and zip.'
+      },
+      {
+        label: 'Map Location',
+        done: !!(seller?.latitude && seller?.longitude),
+        detail: 'Set latitude/longitude so patrons see the venue correctly on the map.'
+      },
+      {
+        label: 'Service Mode Selected',
+        done: authorizedModes.length > 0,
+        detail: 'Choose at least one service mode (Beverage Cart, Clubhouse, Lane Delivery).'
+      },
+      {
+        label: 'A Service Mode Is Open',
+        done: hasOpenMode,
+        detail: 'Open at least one service mode so patrons can actually order.'
+      },
+      {
+        label: 'Stripe Connected',
+        done: !!(venue?.stripeAccountId && venue?.payoutsEnabled),
+        detail: 'Complete Stripe Connect onboarding so the venue can receive payouts.'
+      },
+      {
+        label: 'Payment Methods Enabled',
+        done: (seller?.enabledPaymentMethods?.length || 0) > 0,
+        detail: 'Enable at least one patron payment method.'
+      },
+      {
+        label: 'Staff Added',
+        done: (venueStaff?.length || 0) > 0,
+        detail: 'Add at least one staff member so orders can be fulfilled.'
+      },
+      {
+        label: 'Menu Items Added',
+        done: (venueMenuItems?.length || 0) > 0,
+        detail: 'Add menu items, or clone starter templates below.'
+      },
+      {
+        label: 'QR Access Active',
+        done: !!(seller?.qrActive && seller?.qrSecret),
+        detail: 'Generate a QR code so patrons can reach the ordering page.'
+      },
+    ];
+  }, [currentSeller, selectedVenue, venueStaff, venueMenuItems]);
+
+  const launchReadyCount = launchChecklist.filter(i => i.done).length;
 
   return (
     <div className="p-8 space-y-6 animate-in fade-in duration-500 text-left">
@@ -477,12 +596,37 @@ export default function AdminVenueRegistryPage() {
                   </div>
                   <div className="space-y-4 pt-6 border-t border-slate-100">
                     <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2"><User className="h-3 w-3" /> Identity Mapping</Label>
-                    <FormField control={onboardingForm.control} name="contactEmail" render={({ field }) => (
-                      <FormItem className="text-left"><FormLabel className="text-[10px] font-black uppercase">Manager Email</FormLabel><FormControl><Input {...field} type="email" className="h-12 border-2 font-bold" /></FormControl></FormItem>
+                    <FormField control={onboardingForm.control} name="contactName" render={({ field }) => (
+                      <FormItem className="text-left"><FormLabel className="text-[10px] font-black uppercase">Manager Name</FormLabel><FormControl><Input {...field} className="h-12 border-2 font-bold" /></FormControl></FormItem>
                     )} />
+                    <div className="grid grid-cols-2 gap-4">
+                      <FormField control={onboardingForm.control} name="contactEmail" render={({ field }) => (
+                        <FormItem className="text-left"><FormLabel className="text-[10px] font-black uppercase">Manager Email</FormLabel><FormControl><Input {...field} type="email" className="h-12 border-2 font-bold" /></FormControl></FormItem>
+                      )} />
+                      <FormField control={onboardingForm.control} name="contactPhone" render={({ field }) => (
+                        <FormItem className="text-left"><FormLabel className="text-[10px] font-black uppercase">Manager Phone</FormLabel><FormControl><Input {...field} type="tel" className="h-12 border-2 font-bold" /></FormControl></FormItem>
+                      )} />
+                    </div>
                     <FormField control={onboardingForm.control} name="ownerUid" render={({ field }) => (
                       <FormItem className="text-left"><FormLabel className="text-[10px] font-black uppercase">Owner Firebase UID</FormLabel><FormControl><Input {...field} className="h-12 border-2 font-mono font-bold text-xs" /></FormControl></FormItem>
                     )} />
+                  </div>
+                  <div className="space-y-4 pt-6 border-t border-slate-100">
+                    <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2"><MapPin className="h-3 w-3" /> Venue Address</Label>
+                    <FormField control={onboardingForm.control} name="streetAddress" render={({ field }) => (
+                      <FormItem className="text-left"><FormLabel className="text-[10px] font-black uppercase">Street Address</FormLabel><FormControl><Input {...field} className="h-12 border-2 font-bold" /></FormControl></FormItem>
+                    )} />
+                    <div className="grid grid-cols-3 gap-4">
+                      <FormField control={onboardingForm.control} name="city" render={({ field }) => (
+                        <FormItem className="text-left"><FormLabel className="text-[10px] font-black uppercase">City</FormLabel><FormControl><Input {...field} className="h-12 border-2 font-bold" /></FormControl></FormItem>
+                      )} />
+                      <FormField control={onboardingForm.control} name="state" render={({ field }) => (
+                        <FormItem className="text-left"><FormLabel className="text-[10px] font-black uppercase">State</FormLabel><FormControl><Input {...field} maxLength={2} className="h-12 border-2 font-bold uppercase" /></FormControl></FormItem>
+                      )} />
+                      <FormField control={onboardingForm.control} name="zip" render={({ field }) => (
+                        <FormItem className="text-left"><FormLabel className="text-[10px] font-black uppercase">Zip</FormLabel><FormControl><Input {...field} className="h-12 border-2 font-bold" /></FormControl></FormItem>
+                      )} />
+                    </div>
                   </div>
                   <Button type="submit" disabled={isProcessing} className="w-full h-14 bg-primary font-black uppercase tracking-widest text-[11px] gap-2 shadow-xl rounded-2xl">
                     {isProcessing ? <Loader2 className="animate-spin" /> : <Save className="h-4 w-4" />} Authorize Venue
@@ -497,10 +641,37 @@ export default function AdminVenueRegistryPage() {
       <Dialog open={isManagementOpen} onOpenChange={setIsManagementOpen}>
         <DialogContent className="sm:max-w-[550px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
           <DialogHeader className="p-8 bg-[#213147] text-white">
-            <DialogTitle className="font-headline font-black uppercase text-xl">Venue Controls</DialogTitle>
+            <div className="flex items-center justify-between gap-4">
+              <DialogTitle className="font-headline font-black uppercase text-xl">Venue Controls</DialogTitle>
+              <Badge className={cn("border-0 text-[9px] font-black uppercase tracking-widest h-6 px-3 shrink-0", launchReadyCount === launchChecklist.length ? "bg-green-500" : "bg-amber-500")}>
+                {launchReadyCount}/{launchChecklist.length} Launch Ready
+              </Badge>
+            </div>
           </DialogHeader>
           <ScrollArea className="max-h-[80vh]">
             <div className="p-8 space-y-10">
+               {/* LAUNCH READINESS CHECKLIST */}
+               <div className="space-y-6">
+                  <Label className="text-[11px] font-black uppercase tracking-[0.3em] text-primary flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4" /> Launch Checklist
+                  </Label>
+                  <div className="grid gap-2">
+                    {launchChecklist.map((item) => (
+                      <div key={item.label} className={cn("flex items-start gap-3 p-3 rounded-xl border-2", item.done ? "bg-green-50 border-green-100" : "bg-amber-50 border-amber-100")}>
+                        {item.done ? (
+                          <CheckCircle2 className="h-4 w-4 text-green-600 shrink-0 mt-0.5" />
+                        ) : (
+                          <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
+                        )}
+                        <div className="text-left">
+                          <p className={cn("text-[10px] font-black uppercase tracking-widest leading-none", item.done ? "text-green-700" : "text-amber-700")}>{item.label}</p>
+                          {!item.done && <p className="text-[8px] font-bold text-amber-600/80 uppercase mt-1 leading-relaxed">{item.detail}</p>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+               </div>
+
                {/* QR LOGISTICS SECTION */}
                <div className="space-y-6">
                   <Label className="text-[11px] font-black uppercase tracking-[0.3em] text-primary flex items-center gap-2">
@@ -598,6 +769,39 @@ export default function AdminVenueRegistryPage() {
                           )} />
                           <FormField control={registryForm.control} name="monthlySolutionFee" render={({ field }) => (
                             <FormItem className="text-left"><FormLabel className="text-[9px] font-black uppercase">Monthly Fee ($)</FormLabel><FormControl><Input {...field} type="number" className="h-11 border-2 font-bold" /></FormControl></FormItem>
+                          )} />
+                       </div>
+                    </div>
+
+                    <div className="space-y-4 pt-6 border-t border-slate-100">
+                       <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2"><User className="h-3 w-3" /> Manager Contact</Label>
+                       <div className="grid grid-cols-2 gap-4">
+                          <FormField control={registryForm.control} name="contactName" render={({ field }) => (
+                            <FormItem className="text-left"><FormLabel className="text-[9px] font-black uppercase">Name</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>
+                          )} />
+                          <FormField control={registryForm.control} name="contactPhone" render={({ field }) => (
+                            <FormItem className="text-left"><FormLabel className="text-[9px] font-black uppercase">Phone</FormLabel><FormControl><Input {...field} type="tel" className="h-11 border-2 font-bold" /></FormControl></FormItem>
+                          )} />
+                       </div>
+                       <FormField control={registryForm.control} name="contactEmail" render={({ field }) => (
+                         <FormItem className="text-left"><FormLabel className="text-[9px] font-black uppercase">Email</FormLabel><FormControl><Input {...field} type="email" className="h-11 border-2 font-bold" /></FormControl></FormItem>
+                       )} />
+                    </div>
+
+                    <div className="space-y-4 pt-6 border-t border-slate-100">
+                       <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2"><MapPin className="h-3 w-3" /> Venue Address</Label>
+                       <FormField control={registryForm.control} name="streetAddress" render={({ field }) => (
+                         <FormItem className="text-left"><FormLabel className="text-[9px] font-black uppercase">Street Address</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>
+                       )} />
+                       <div className="grid grid-cols-3 gap-4">
+                          <FormField control={registryForm.control} name="city" render={({ field }) => (
+                            <FormItem className="text-left"><FormLabel className="text-[9px] font-black uppercase">City</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>
+                          )} />
+                          <FormField control={registryForm.control} name="state" render={({ field }) => (
+                            <FormItem className="text-left"><FormLabel className="text-[9px] font-black uppercase">State</FormLabel><FormControl><Input {...field} maxLength={2} className="h-11 border-2 font-bold uppercase" /></FormControl></FormItem>
+                          )} />
+                          <FormField control={registryForm.control} name="zip" render={({ field }) => (
+                            <FormItem className="text-left"><FormLabel className="text-[9px] font-black uppercase">Zip</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>
                           )} />
                        </div>
                     </div>
