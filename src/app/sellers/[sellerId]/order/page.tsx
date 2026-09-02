@@ -71,6 +71,14 @@ const SERVICE_INSTRUCTIONS: Record<string, string> = {
   'Lane Delivery': 'Food & drinks delivered to your lane — a small convenience fee applies.',
 };
 
+// Only shown for on-course delivery modes, where the driver needs a live GPS
+// position to find the patron. Lane Delivery orders go to a fixed lane number
+// instead, so location access isn't relevant there.
+const LOCATION_TRACKING_NOTE: Partial<Record<string, string>> = {
+  'Beverage Cart': "On the next screen, please allow location access — it helps our cart driver find you faster on the course.",
+  'Clubhouse': "On the next screen, please allow location access — it helps our staff find you faster on the course.",
+};
+
 function CheckoutBrandingBar() {
   return (
     <div className="fixed bottom-0 left-0 right-0 h-7 bg-[#213147] text-white flex items-center justify-center z-[60] w-full border-t border-white/5">
@@ -511,6 +519,12 @@ function CheckoutDrawerContent({
             patronPhone={patronPhone} setPatronPhone={setPatronPhone}
           />
         </div>
+
+        {LOCATION_TRACKING_NOTE[selectedMenuType] && (
+          <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest text-center px-4 leading-relaxed opacity-60">
+            {LOCATION_TRACKING_NOTE[selectedMenuType]}
+          </p>
+        )}
 
         <div className="space-y-4">
           <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground px-1">PAYMENT METHOD</h3>
