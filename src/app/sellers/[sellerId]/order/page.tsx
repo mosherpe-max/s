@@ -685,9 +685,12 @@ function BuyerOrderContent({ sellerId }: { sellerId: string }) {
   }, [firestore, user?.uid]);
   const { data: userActiveOrders } = useCollection<Order>(activeOrdersQuery);
 
-  const activeTrackingOrder = useMemo(() => {
-    if (!userActiveOrders || userActiveOrders.length === 0) return null;
-    return [...userActiveOrders].sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0))[0];
+  // All of this patron's currently in-progress orders, most recent first - not
+  // just the latest one, since they may have placed a second order (e.g. they
+  // forgot something) before the first one showed up.
+  const activeTrackingOrders = useMemo(() => {
+    if (!userActiveOrders || userActiveOrders.length === 0) return [];
+    return [...userActiveOrders].sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
   }, [userActiveOrders]);
 
   const updateMenuType = (type: string) => {
@@ -879,28 +882,38 @@ function BuyerOrderContent({ sellerId }: { sellerId: string }) {
             </p>
           </div>
 
-          {/* ACTIVE ORDER PERSISTENCE LINK */}
-          {activeTrackingOrder && (
-            <Link 
-              href={`/order/track?id=${activeTrackingOrder.id}&sellerId=${sellerId}`}
-              className="w-full mt-2 group animate-in slide-in-from-bottom-2 duration-500"
-            >
-              <div className="bg-primary/20 hover:bg-primary/30 border border-primary/40 rounded-2xl p-3 flex items-center justify-between transition-all active:scale-[0.98]">
-                <div className="flex items-center gap-3">
-                  <div className="bg-primary p-2 rounded-xl animate-pulse shadow-lg">
-                    <MapPin className="h-4 w-4 text-white" />
-                  </div>
-                  <div className="text-left">
-                    <p className="text-[10px] font-black uppercase text-white tracking-widest leading-none mb-1.5">Track Active Order</p>
-                    <div className="flex items-center gap-2">
-                       <Badge variant="outline" className="text-[7px] font-black uppercase border-white/20 bg-white/5 text-white/80 h-3.5 px-1.5">{activeTrackingOrder.status}</Badge>
-                       <p className="text-[8px] font-bold text-white/40 uppercase tracking-widest">Live Delivery Updates</p>
+          {/* ACTIVE ORDER PERSISTENCE LINKS */}
+          {activeTrackingOrders.length > 0 && (
+            <div className="w-full mt-2 space-y-2 animate-in slide-in-from-bottom-2 duration-500">
+              {activeTrackingOrders.length > 1 && (
+                <p className="text-[8px] font-black uppercase tracking-widest text-white/40 px-1">
+                  {activeTrackingOrders.length} Active Orders
+                </p>
+              )}
+              {activeTrackingOrders.map((activeOrder) => (
+                <Link
+                  key={activeOrder.id}
+                  href={`/order/track?id=${activeOrder.id}&sellerId=${sellerId}`}
+                  className="w-full group block"
+                >
+                  <div className="bg-primary/20 hover:bg-primary/30 border border-primary/40 rounded-2xl p-3 flex items-center justify-between transition-all active:scale-[0.98]">
+                    <div className="flex items-center gap-3">
+                      <div className="bg-primary p-2 rounded-xl animate-pulse shadow-lg">
+                        <MapPin className="h-4 w-4 text-white" />
+                      </div>
+                      <div className="text-left">
+                        <p className="text-[10px] font-black uppercase text-white tracking-widest leading-none mb-1.5">Track Active Order</p>
+                        <div className="flex items-center gap-2">
+                           <Badge variant="outline" className="text-[7px] font-black uppercase border-white/20 bg-white/5 text-white/80 h-3.5 px-1.5">{activeOrder.status}</Badge>
+                           <p className="text-[8px] font-bold text-white/40 uppercase tracking-widest">Live Delivery Updates</p>
+                        </div>
+                      </div>
                     </div>
+                    <ChevronRight className="h-4 w-4 text-white/40 group-hover:text-white transition-colors" />
                   </div>
-                </div>
-                <ChevronRight className="h-4 w-4 text-white/40 group-hover:text-white transition-colors" />
-              </div>
-            </Link>
+                </Link>
+              ))}
+            </div>
           )}
         </div>
       </header>
