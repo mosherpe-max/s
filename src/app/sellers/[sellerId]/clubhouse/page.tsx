@@ -604,7 +604,7 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
                     onUpdateStatus={handleUpdateOrderStatus} 
                     onAttach={handleAttachOrder} 
                     onRefreshLocation={handleRefreshLocation}
-                    thresholds={primarySeller?.orderThresholds?.[order.menuType]} 
+                    thresholds={primarySeller?.orderThresholds?.[order.menuType] || solutionConfig?.orderThresholds?.[order.menuType]}
                     smsEnabled={solutionConfig?.smsNotificationsEnabled !== false}
                   />
                 ))
