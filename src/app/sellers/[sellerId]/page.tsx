@@ -12,6 +12,7 @@ import {
   updateDoc,
   serverTimestamp,
   deleteDoc,
+  deleteField,
   writeBatch
 } from 'firebase/firestore';
 import { useFirestore, useDoc, useCollection, useMemoFirebase, useUser, useAuth, useFirebaseApp } from '@/firebase';
@@ -287,6 +288,9 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
   const venueRef = useMemoFirebase(() => (firestore ? doc(firestore, 'venues', sellerId) : null), [firestore, sellerId]);
   const { data: venue, isLoading: isVenueLoading } = useDoc<Venue>(venueRef);
 
+  const configRef = useMemoFirebase(() => (firestore ? doc(firestore, 'solution', 'config') : null), [firestore]);
+  const { data: solutionConfig } = useDoc<SolutionConfig>(configRef);
+
   const ordersQuery = useMemoFirebase(() => (firestore ? query(collection(firestore, 'orders'), where('sellerId', '==', sellerId)) : null), [firestore, sellerId]);
   const { data: orders } = useCollection<Order>(ordersQuery);
 
@@ -318,7 +322,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
       const modeOrdersToday = orders.filter(o => o.menuType === mode && o.createdAt && isToday(o.createdAt.toDate()));
       const deliveredToday = modeOrdersToday.filter(o => o.status === 'Delivered');
       
-      const thresholds = seller.orderThresholds?.[mode] || { maxOrderAcknowledgeSeconds: 120, warningOrderProcessingMinutes: 15, maxOrderProcessingMinutes: 25 };
+      const thresholds = seller.orderThresholds?.[mode] || solutionConfig?.orderThresholds?.[mode] || { maxOrderAcknowledgeSeconds: 120, warningOrderProcessingMinutes: 15, maxOrderProcessingMinutes: 25 };
       
       const acknowledged = modeOrdersToday.filter(o => o.acknowledgedAt);
       const avgAck = acknowledged.length > 0 ? acknowledged.reduce((sum, o) => sum + differenceInSeconds(o.acknowledgedAt!.toDate(), o.createdAt.toDate()), 0) / acknowledged.length : 0;
@@ -342,7 +346,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
     });
 
     return { dailyRevenue, modes, realTimeOperations };
-  }, [orders, seller, staffList]);
+  }, [orders, seller, staffList, solutionConfig]);
 
   const analyticsTimeframeData = useMemo(() => {
     if (!orders || !seller) return { revenue: [], acknowledgement: [], duration: [], modes: [] };
@@ -425,7 +429,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
       
       const thresholds = seller.orderThresholds || {};
       const exceedCount = ackOrders.filter(o => {
-        const modeT = thresholds[o.menuType]?.maxOrderAcknowledgeSeconds || 120;
+        const modeT = thresholds[o.menuType]?.maxOrderAcknowledgeSeconds ?? solutionConfig?.orderThresholds?.[o.menuType]?.maxOrderAcknowledgeSeconds ?? 120;
         return differenceInSeconds(o.acknowledgedAt!.toDate(), o.createdAt.toDate()) > modeT;
       }).length;
 
@@ -454,7 +458,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
       
       const thresholds = seller.orderThresholds || {};
       const exceedWarn = filteredOrders.filter(o => {
-        const modeT = thresholds[o.menuType]?.warningOrderProcessingMinutes || 15;
+        const modeT = thresholds[o.menuType]?.warningOrderProcessingMinutes ?? solutionConfig?.orderThresholds?.[o.menuType]?.warningOrderProcessingMinutes ?? 15;
         return differenceInMinutes(o.deliveredAt!.toDate(), o.createdAt.toDate()) > modeT;
       }).length;
       
@@ -470,7 +474,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
     });
 
     return { revenue: revenueData, acknowledgement: ackData, duration: durData, modes };
-  }, [orders, seller, analyticsTimeframe, analyticsMode]);
+  }, [orders, seller, analyticsTimeframe, analyticsMode, solutionConfig]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }), 
@@ -1258,6 +1262,64 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                             </Button>
                           </>
                         )}
+                      </CardContent>
+                    </Card>
+                    <Card className="border-2 shadow-sm md:col-span-2">
+                      <CardHeader className="bg-slate-50 border-b py-4">
+                        <CardTitle className="text-[10px] font-black uppercase tracking-widest text-[#213147] flex items-center gap-2"><Timer className="h-3 w-3" /> Fulfillment Thresholds</CardTitle>
+                        <CardDescription className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest">Defaults to Koop's settings for each mode. Override here to match your location, or leave blank to inherit the default.</CardDescription>
+                      </CardHeader>
+                      <CardContent className="pt-6 space-y-4">
+                        {seller?.menuTypes?.filter(m => AUTHORIZED_SERVICE_MODES.includes(m)).map(mode => {
+                          const koopDefault = solutionConfig?.orderThresholds?.[mode] || { maxOrderAcknowledgeSeconds: 120, warningOrderProcessingMinutes: 15, maxOrderProcessingMinutes: 25 };
+                          const venueOverride = seller?.orderThresholds?.[mode];
+                          return (
+                            <div key={mode} className="space-y-3 p-4 rounded-xl border-2 bg-slate-50 border-slate-100">
+                              <p className="text-[10px] font-black uppercase text-[#213147]">{mode}</p>
+                              <div className="grid grid-cols-3 gap-3">
+                                <div className="space-y-1">
+                                  <Label className="text-[8px] font-black uppercase text-muted-foreground">Ack Seconds</Label>
+                                  <Input
+                                    type="number"
+                                    defaultValue={venueOverride?.maxOrderAcknowledgeSeconds ?? ''}
+                                    placeholder={String(koopDefault.maxOrderAcknowledgeSeconds)}
+                                    onBlur={(e) => {
+                                      const val = e.target.value;
+                                      handleUpdateField(`orderThresholds.${mode}.maxOrderAcknowledgeSeconds`, val === '' ? deleteField() : parseInt(val));
+                                    }}
+                                    className="h-10 border-2 font-bold bg-white"
+                                  />
+                                </div>
+                                <div className="space-y-1">
+                                  <Label className="text-[8px] font-black uppercase text-muted-foreground">Warning Min</Label>
+                                  <Input
+                                    type="number"
+                                    defaultValue={venueOverride?.warningOrderProcessingMinutes ?? ''}
+                                    placeholder={String(koopDefault.warningOrderProcessingMinutes)}
+                                    onBlur={(e) => {
+                                      const val = e.target.value;
+                                      handleUpdateField(`orderThresholds.${mode}.warningOrderProcessingMinutes`, val === '' ? deleteField() : parseInt(val));
+                                    }}
+                                    className="h-10 border-2 font-bold bg-white"
+                                  />
+                                </div>
+                                <div className="space-y-1">
+                                  <Label className="text-[8px] font-black uppercase text-muted-foreground">Max Min</Label>
+                                  <Input
+                                    type="number"
+                                    defaultValue={venueOverride?.maxOrderProcessingMinutes ?? ''}
+                                    placeholder={String(koopDefault.maxOrderProcessingMinutes)}
+                                    onBlur={(e) => {
+                                      const val = e.target.value;
+                                      handleUpdateField(`orderThresholds.${mode}.maxOrderProcessingMinutes`, val === '' ? deleteField() : parseInt(val));
+                                    }}
+                                    className="h-10 border-2 font-bold bg-white"
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
                       </CardContent>
                     </Card>
                   </div>

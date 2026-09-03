@@ -614,7 +614,7 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
                     onAttach={handleAttachOrder}
                     onRefreshLocation={handleRefreshLocation}
                     currentStaffId={currentStaffId}
-                    thresholds={primarySeller?.orderThresholds?.[order.menuType]}
+                    thresholds={primarySeller?.orderThresholds?.[order.menuType] || solutionConfig?.orderThresholds?.[order.menuType]}
                     smsEnabled={solutionConfig?.smsNotificationsEnabled !== false}
                   />
                 ))
