@@ -56,14 +56,15 @@ export default function StaffLoginPage({ params }: { params: Promise<{ sellerId:
       const nextPin = pin + num;
       setPin(nextPin);
       if (nextPin.length === 4) {
-        // REQUEST NOTIFICATION PERMISSION - CRITICAL FOR PWA
-        // Must fire synchronously off this tap, before verifyPin's awaits
-        // (getDocs, signInAnonymously) run - iOS silently drops a standalone
-        // home-screen web app out into Safari chrome if a permission prompt
-        // is requested outside the direct user gesture that triggered it.
-        if ("Notification" in window && Notification.permission === "default") {
-          Notification.requestPermission();
-        }
+        // Do NOT request Notification permission here (or anywhere in this
+        // login flow). Confirmed on-device: even gesture-tied, the mere act
+        // of calling Notification.requestPermission() from inside the
+        // installed standalone PWA silently swaps it into Safari browser
+        // chrome for the rest of the session - the ejection isn't about
+        // gesture timing, it's the API call itself in this iOS webview
+        // context. If push notifications are needed later, they need an
+        // opt-in path that doesn't run inside the installed app's own
+        // critical navigation (e.g. prompted from Safari before install).
         verifyPin(nextPin);
       }
     }
