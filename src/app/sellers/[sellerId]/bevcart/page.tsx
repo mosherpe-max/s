@@ -301,24 +301,16 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
     setLocationEnabled(true);
   };
 
-  // iOS kicks standalone home-screen web apps out into Safari if geolocation is
-  // requested without a direct user gesture behind it, so the first fetch is
-  // gated behind LocationGate's button tap (see handleLocationReady) instead of
-  // firing automatically here. If permission was already granted in a prior
-  // shift, skip the gate and fetch silently - that's not a fresh prompt.
-  useEffect(() => {
-    if (typeof navigator === 'undefined' || !navigator.permissions?.query || !navigator.geolocation) return;
-    navigator.permissions.query({ name: 'geolocation' as PermissionName }).then((status) => {
-      if (status.state === 'granted') {
-        navigator.geolocation!.getCurrentPosition(
-          (p) => handleLocationReady({ latitude: p.coords.latitude, longitude: p.coords.longitude }),
-          () => handleLocationReady(null),
-          { enableHighAccuracy: true }
-        );
-      }
-    }).catch(() => {});
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // Deliberately NOT auto-checking navigator.permissions.query('geolocation')
+  // on mount, even just to silently skip the gate for staff who granted
+  // location on a prior shift. Confirmed on-device that this standalone PWA
+  // drops into Safari browser chrome and never recovers - and laneside,
+  // which has no geolocation code at all, never has this problem, while
+  // bevcart/clubhouse (which had this auto-check) always did, even before
+  // any tap. permissions.query() shouldn't show OS UI on its own, but on
+  // this iOS version it appears to trigger the same ejection as an actual
+  // prompt. Every geolocation call now stays behind LocationGate's explicit
+  // button tap - no exceptions, even at the cost of one extra tap per shift.
 
   // Continuous watchPosition tracking is what was breaking the standalone PWA
   // out into Safari chrome (see LocationGate above) - iOS appears to treat it
