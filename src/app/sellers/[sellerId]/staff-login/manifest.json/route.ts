@@ -18,6 +18,14 @@ export async function GET(
       short_name: 'KOOP Staff',
       description: 'Koop staff sign-in and shift dashboard.',
       start_url: `/sellers/${sellerId}/staff-login`,
+      // Explicit scope, not left to iOS's implicit inference from start_url's
+      // directory. The staff flow's first real navigation (staff-login ->
+      // bevcart/clubhouse/laneside) is exactly where the standalone PWA has
+      // been dropping into Safari browser chrome - the working theory is
+      // that iOS mis-resolves the implicit scope on that first cross-path
+      // navigation. Covers every route under this venue (staff-login,
+      // bevcart, clubhouse, laneside).
+      scope: `/sellers/${sellerId}/`,
       display: 'standalone',
       background_color: '#213147',
       theme_color: '#E50000',
