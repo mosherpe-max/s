@@ -599,30 +599,6 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
 
   const handleLogout = async () => { if (!auth) return; await signOut(auth); router.push('/login'); };
 
-  const handleDownloadStaffQr = async () => {
-    const url = `${baseUrl}/sellers/${sellerId}/staff-login`;
-    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=1000x1000&data=${encodeURIComponent(url)}&ecc=H`;
-    
-    setIsDownloading(true);
-    try {
-      const response = await fetch(qrUrl);
-      const blob = await response.blob();
-      const downloadUrl = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = downloadUrl;
-      link.download = `${seller?.courseName?.replace(/\s+/g, '_')}_Staff_Portal_QR.png`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(downloadUrl);
-      toast({ title: "QR Code Downloaded" });
-    } catch (e) {
-      toast({ variant: "destructive", title: "Download Failed" });
-    } finally {
-      setIsDownloading(false);
-    }
-  };
-
   const handleShareStaffLink = async () => {
     const url = `${baseUrl}/sellers/${sellerId}/staff-login`;
     if (navigator.share) {
@@ -1113,7 +1089,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                     <CardHeader className="bg-white border-b py-6 px-8">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                          <div className="p-2 bg-[#213147]/5 rounded-lg"><QrCode className="h-5 w-5 text-[#213147]" /></div>
+                          <div className="p-2 bg-[#213147]/5 rounded-lg"><Smartphone className="h-5 w-5 text-[#213147]" /></div>
                           <div className="text-left">
                             <CardTitle className="text-xs font-black uppercase tracking-widest text-[#213147]">Staff Access Point</CardTitle>
                             <CardDescription className="text-[8px] font-bold uppercase tracking-widest">Secure Dashboard Entrance</CardDescription>
@@ -1123,34 +1099,24 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                           <Button variant="outline" size="sm" disabled={!baseUrl} onClick={handleShareStaffLink} className="h-9 text-[9px] font-black uppercase tracking-widest border-2 gap-2 bg-white hover:bg-slate-50 transition-all rounded-lg">
                             <Share2 className="h-3 w-3" /> Send to Staff Device
                           </Button>
-                          <Button variant="outline" size="sm" disabled={isDownloading || !baseUrl} onClick={handleDownloadStaffQr} className="h-9 text-[9px] font-black uppercase tracking-widest border-2 gap-2 bg-white hover:bg-slate-50 transition-all rounded-lg">
-                            {isDownloading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Download className="h-3 w-3" />} Download QR for Print
-                          </Button>
                         </div>
                       </div>
                     </CardHeader>
                     <CardContent className="p-8 text-center md:text-left">
-                      <div className="flex flex-col md:flex-row items-center gap-10">
-                        <div className="bg-white p-4 rounded-[2rem] shadow-xl border-4 border-white shrink-0">
-                          {baseUrl ? (
-                            <img src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(`${baseUrl}/sellers/${sellerId}/staff-login`)}&ecc=H`} alt="Staff Login QR" className="w-40 h-40 rounded-2xl" />
-                          ) : <Skeleton className="w-40 h-40 rounded-2xl" />}
+                      <div className="space-y-6">
+                        <div className="space-y-2">
+                          <h3 className="font-headline font-black text-sm uppercase tracking-tight text-[#213147]">Login Procedure for Staff</h3>
+                          <p className="text-[11px] text-muted-foreground font-medium leading-relaxed uppercase">Send this link to staff devices. They open it, enter their 4-digit PIN, and select their shift role.</p>
                         </div>
-                        <div className="space-y-6 flex-1">
-                          <div className="space-y-2">
-                            <h3 className="font-headline font-black text-sm uppercase tracking-tight text-[#213147]">Login Procedure for Staff</h3>
-                            <p className="text-[11px] text-muted-foreground font-medium leading-relaxed uppercase">Post this QR code in secure areas. Staff scan to access the login terminal, where they enter their 4-digit PIN and select their shift role.</p>
-                          </div>
-                          <div className="flex flex-col sm:flex-row gap-3">
-                            <div className="bg-white px-4 py-3 rounded-xl border-2 border-slate-100 flex-1 flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                <Smartphone className="h-4 w-4 text-primary" />
-                                <span className="font-mono text-[9px] font-black text-muted-foreground truncate max-w-[150px]">{baseUrl}/sellers/{sellerId}/staff-login</span>
-                              </div>
-                              <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg" onClick={() => { navigator.clipboard.writeText(`${baseUrl}/sellers/${sellerId}/staff-login`); toast({ title: "Link Copied" }); }}>
-                                <Copy className="h-3.5 w-3.5 text-slate-400" />
-                              </Button>
+                        <div className="flex flex-col sm:flex-row gap-3">
+                          <div className="bg-white px-4 py-3 rounded-xl border-2 border-slate-100 flex-1 flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <Smartphone className="h-4 w-4 text-primary" />
+                              <span className="font-mono text-[9px] font-black text-muted-foreground truncate max-w-[150px]">{baseUrl}/sellers/{sellerId}/staff-login</span>
                             </div>
+                            <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg" onClick={() => { navigator.clipboard.writeText(`${baseUrl}/sellers/${sellerId}/staff-login`); toast({ title: "Link Copied" }); }}>
+                              <Copy className="h-3.5 w-3.5 text-slate-400" />
+                            </Button>
                           </div>
                         </div>
                       </div>
