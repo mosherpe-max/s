@@ -56,6 +56,14 @@ export default function StaffLoginPage({ params }: { params: Promise<{ sellerId:
       const nextPin = pin + num;
       setPin(nextPin);
       if (nextPin.length === 4) {
+        // REQUEST NOTIFICATION PERMISSION - CRITICAL FOR PWA
+        // Must fire synchronously off this tap, before verifyPin's awaits
+        // (getDocs, signInAnonymously) run - iOS silently drops a standalone
+        // home-screen web app out into Safari chrome if a permission prompt
+        // is requested outside the direct user gesture that triggered it.
+        if ("Notification" in window && Notification.permission === "default") {
+          Notification.requestPermission();
+        }
         verifyPin(nextPin);
       }
     }
@@ -86,11 +94,6 @@ export default function StaffLoginPage({ params }: { params: Promise<{ sellerId:
         await signInAnonymously(auth);
         const staffData = snapshot.docs[0].data() as StaffMember;
         setAuthenticatedStaff(staffData);
-        
-        // REQUEST NOTIFICATION PERMISSION - CRITICAL FOR PWA
-        if ("Notification" in window && Notification.permission === "default") {
-          Notification.requestPermission();
-        }
 
         toast({ title: `Identity Verified`, description: `Hello, ${staffData.name}. Please select your shift role.` });
       }
