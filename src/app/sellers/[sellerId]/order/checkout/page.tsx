@@ -72,6 +72,7 @@ function CheckoutContent({ sellerId }: { sellerId: string }) {
   const [customerSessionClientSecret, setCustomerSessionClientSecret] = useState<string | null>(null);
   const [stripeCustomerId, setStripeCustomerId] = useState<string | null>(null);
   const [isFetchingIntent, setIsFetchingIntent] = useState(false);
+  const [orderJustPlaced, setOrderJustPlaced] = useState(false);
 
   const activeOrderItems = useMemo(() => orderItems.filter((item) => item.quantity > 0), [orderItems]);
   const subtotal = useMemo(() => activeOrderItems.reduce((acc, item) => {
@@ -242,16 +243,19 @@ function CheckoutContent({ sellerId }: { sellerId: string }) {
   }, [user, sellerId, activeOrderItems, subtotal, solutionFee, tax, tip, finalTotal, menuTypeFromUrl, locationValue]);
 
   const handleOrderComplete = (orderId: string) => {
+    // Set before clearCart() so the empty-cart guard below doesn't see the
+    // now-empty cart and redirect to the menu, racing the push to /order/track.
+    setOrderJustPlaced(true);
     router.push(`/order/track?id=${orderId}&sellerId=${sellerId}`);
     clearCart();
   };
 
   // Nothing to check out without items or a menu context - send back to the menu.
   useEffect(() => {
-    if (!isSellerLoading && (activeOrderItems.length === 0 || !menuTypeFromUrl)) {
+    if (!orderJustPlaced && !isSellerLoading && (activeOrderItems.length === 0 || !menuTypeFromUrl)) {
       router.replace(menuUrl);
     }
-  }, [isSellerLoading, activeOrderItems.length, menuTypeFromUrl, menuUrl, router]);
+  }, [orderJustPlaced, isSellerLoading, activeOrderItems.length, menuTypeFromUrl, menuUrl, router]);
 
   const isLoading = isSellerLoading || isVenueLoading;
 
@@ -302,13 +306,13 @@ function CheckoutContent({ sellerId }: { sellerId: string }) {
       </header>
 
       <ScrollArea className="flex-1 w-full overflow-x-hidden">
-        <div className="max-w-xl mx-auto px-4 py-8 space-y-10 pb-32">
+        <div className="max-w-xl mx-auto px-4 py-4 space-y-4 pb-28">
           {menuTypeFromUrl === 'Lane Delivery' && seller?.laneCount && (
-            <div className="space-y-4">
+            <div className="space-y-2">
               <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground px-1">STATION / LANE</h3>
               <div className="grid grid-cols-5 gap-2">
                 {Array.from({ length: seller.laneCount }, (_, i) => (i + 1).toString()).map(l => (
-                  <Button key={l} variant={locationValue === `Lane ${l}` ? 'default' : 'outline'} size="sm" onClick={() => setLocationValue(`Lane ${l}`)} className="font-black h-11 px-0 rounded-xl">
+                  <Button key={l} variant={locationValue === `Lane ${l}` ? 'default' : 'outline'} size="sm" onClick={() => setLocationValue(`Lane ${l}`)} className="font-black h-10 px-0 rounded-xl">
                     {l}
                   </Button>
                 ))}
@@ -316,54 +320,55 @@ function CheckoutContent({ sellerId }: { sellerId: string }) {
             </div>
           )}
 
-          <div className="space-y-6">
-            <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground px-1">DELIVERY DETAILS</h3>
-            <PatronIdentifyFields
-              patronEmail={patronEmail} setPatronEmail={setPatronEmail}
-              patronName={patronName} setPatronName={setPatronName}
-              patronPhone={patronPhone} setPatronPhone={setPatronPhone}
-            />
-          </div>
+          <PatronIdentifyFields
+            patronEmail={patronEmail} setPatronEmail={setPatronEmail}
+            patronName={patronName} setPatronName={setPatronName}
+            patronPhone={patronPhone} setPatronPhone={setPatronPhone}
+          />
 
           {LOCATION_TRACKING_NOTE[menuTypeFromUrl] && (
-            <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest text-center px-4 leading-relaxed opacity-60">
+            <p className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest text-center px-4 leading-relaxed opacity-60">
               {LOCATION_TRACKING_NOTE[menuTypeFromUrl]}
             </p>
           )}
 
-          <div className="space-y-4">
-            <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground px-1">PAYMENT METHOD</h3>
-            <RadioGroup value={paymentMethod || ''} onValueChange={(v: any) => { setPaymentMethod(v); setClientSecret(null); }} className="grid grid-cols-1 gap-3">
-              {availableMethods.includes('Digital Payment') && (
-                <div className={cn("flex items-center justify-between p-4 rounded-2xl border-2 transition-all cursor-pointer", paymentMethod === 'Digital Payment' ? "border-primary bg-primary/5 shadow-md" : "border-slate-100 hover:border-slate-200")} onClick={() => setPaymentMethod('Digital Payment')}>
-                  <div className="flex items-center gap-4">
-                    <div className={cn("p-2 rounded-lg", paymentMethod === 'Digital Payment' ? "bg-primary text-white" : "bg-slate-100 text-slate-400")}><CreditCard className="h-5 w-5" /></div>
-                    <div className="text-left"><p className="text-xs font-black uppercase tracking-tight text-[#213147]">Digital Checkout</p><p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">SECURE CARD PAYMENT</p></div>
-                  </div>
-                  {paymentMethod === 'Digital Payment' && <Check className="h-4 w-4 text-primary" />}
-                </div>
-              )}
+          <div className="space-y-2">
+            {availableMethods.length > 1 && (
+              <>
+                <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground px-1">PAYMENT METHOD</h3>
+                <RadioGroup value={paymentMethod || ''} onValueChange={(v: any) => { setPaymentMethod(v); setClientSecret(null); }} className="grid grid-cols-1 gap-2">
+                  {availableMethods.includes('Digital Payment') && (
+                    <div className={cn("flex items-center justify-between p-2.5 rounded-xl border-2 transition-all cursor-pointer", paymentMethod === 'Digital Payment' ? "border-primary bg-primary/5 shadow-md" : "border-slate-100 hover:border-slate-200")} onClick={() => setPaymentMethod('Digital Payment')}>
+                      <div className="flex items-center gap-3">
+                        <div className={cn("p-1.5 rounded-lg", paymentMethod === 'Digital Payment' ? "bg-primary text-white" : "bg-slate-100 text-slate-400")}><CreditCard className="h-4 w-4" /></div>
+                        <p className="text-xs font-black uppercase tracking-tight text-[#213147]">Digital Checkout</p>
+                      </div>
+                      {paymentMethod === 'Digital Payment' && <Check className="h-4 w-4 text-primary" />}
+                    </div>
+                  )}
 
-              {availableMethods.includes('Pay at Delivery') && (
-                <div className={cn("flex items-center justify-between p-4 rounded-2xl border-2 transition-all cursor-pointer", paymentMethod === 'Pay at Delivery' ? "border-primary bg-primary/5" : "border-slate-100 hover:border-slate-200")} onClick={() => setPaymentMethod('Pay at Delivery')}>
-                  <div className="flex items-center gap-4">
-                    <div className={cn("p-2 rounded-lg", paymentMethod === 'Pay at Delivery' ? "bg-primary text-white" : "bg-slate-100 text-slate-400")}><Banknote className="h-5 w-5" /></div>
-                    <div className="text-left"><p className="text-xs font-black uppercase tracking-tight text-[#213147]">Pay at Delivery</p><p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">CHECKOUT ON ARRIVAL</p></div>
-                  </div>
-                  {paymentMethod === 'Pay at Delivery' && <Check className="h-4 w-4 text-primary" />}
-                </div>
-              )}
+                  {availableMethods.includes('Pay at Delivery') && (
+                    <div className={cn("flex items-center justify-between p-2.5 rounded-xl border-2 transition-all cursor-pointer", paymentMethod === 'Pay at Delivery' ? "border-primary bg-primary/5" : "border-slate-100 hover:border-slate-200")} onClick={() => setPaymentMethod('Pay at Delivery')}>
+                      <div className="flex items-center gap-3">
+                        <div className={cn("p-1.5 rounded-lg", paymentMethod === 'Pay at Delivery' ? "bg-primary text-white" : "bg-slate-100 text-slate-400")}><Banknote className="h-4 w-4" /></div>
+                        <p className="text-xs font-black uppercase tracking-tight text-[#213147]">Pay at Delivery</p>
+                      </div>
+                      {paymentMethod === 'Pay at Delivery' && <Check className="h-4 w-4 text-primary" />}
+                    </div>
+                  )}
 
-              {availableMethods.includes('Member Account') && (
-                <div className={cn("flex items-center justify-between p-4 rounded-2xl border-2 transition-all cursor-pointer", paymentMethod === 'Member Account' ? "border-primary bg-primary/5" : "border-slate-100 hover:border-slate-200")} onClick={() => setPaymentMethod('Member Account')}>
-                  <div className="flex items-center gap-4">
-                    <div className={cn("p-2 rounded-lg", paymentMethod === 'Member Account' ? "bg-primary text-white" : "bg-slate-100 text-slate-400")}><UserCircle className="h-5 w-5" /></div>
-                    <div className="text-left"><p className="text-xs font-black uppercase tracking-tight text-[#213147]">Member Account</p><p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">CHARGE TO HOUSE ACCOUNT</p></div>
-                  </div>
-                  {paymentMethod === 'Member Account' && <Check className="h-4 w-4 text-primary" />}
-                </div>
-              )}
-            </RadioGroup>
+                  {availableMethods.includes('Member Account') && (
+                    <div className={cn("flex items-center justify-between p-2.5 rounded-xl border-2 transition-all cursor-pointer", paymentMethod === 'Member Account' ? "border-primary bg-primary/5" : "border-slate-100 hover:border-slate-200")} onClick={() => setPaymentMethod('Member Account')}>
+                      <div className="flex items-center gap-3">
+                        <div className={cn("p-1.5 rounded-lg", paymentMethod === 'Member Account' ? "bg-primary text-white" : "bg-slate-100 text-slate-400")}><UserCircle className="h-4 w-4" /></div>
+                        <p className="text-xs font-black uppercase tracking-tight text-[#213147]">Member Account</p>
+                      </div>
+                      {paymentMethod === 'Member Account' && <Check className="h-4 w-4 text-primary" />}
+                    </div>
+                  )}
+                </RadioGroup>
+              </>
+            )}
 
             {paymentMethod === 'Digital Payment' && (
               isFetchingIntent ? (
@@ -405,9 +410,9 @@ function CheckoutContent({ sellerId }: { sellerId: string }) {
             )}
 
             {(paymentMethod === 'Pay at Delivery' || paymentMethod === 'Member Account') && (
-              <div className="space-y-6">
+              <div className="space-y-3">
                 <div
-                  className="flex items-center space-x-3 p-4 bg-primary/5 rounded-[2rem] border-2 border-primary/10 cursor-pointer transition-all hover:bg-primary/10 animate-in fade-in duration-500"
+                  className="flex items-center space-x-3 p-3 bg-primary/5 rounded-2xl border-2 border-primary/10 cursor-pointer transition-all hover:bg-primary/10 animate-in fade-in duration-500"
                   onClick={() => setSaveInfo(!saveInfo)}
                 >
                   <Checkbox id="save-info-non-digital" checked={saveInfo} onCheckedChange={(val) => setSaveInfo(!!val)} className="h-5 w-5 data-[state=checked]:bg-primary" />
