@@ -16,6 +16,10 @@ interface CartContextType {
   editingOrderId: string | null;
   loadOrder: (order: Order) => void;
   cancelEditing: () => void;
+  // Tip is selected on the review page and consumed on the separate checkout
+  // page, so it needs to live here rather than as local state on either page.
+  tip: number;
+  setTip: (amount: number) => void;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -24,6 +28,7 @@ export function CartProvider({ children, serviceFee = 0 }: { children: React.Rea
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
+  const [tip, setTip] = useState(0);
 
   const activeItems = useMemo(() => orderItems.filter(i => i.quantity > 0), [orderItems]);
   
@@ -75,6 +80,7 @@ export function CartProvider({ children, serviceFee = 0 }: { children: React.Rea
     setOrderItems([]);
     setIsCartOpen(false);
     setEditingOrderId(null);
+    setTip(0);
   };
 
   const value = useMemo(() => ({
@@ -90,7 +96,9 @@ export function CartProvider({ children, serviceFee = 0 }: { children: React.Rea
     editingOrderId,
     loadOrder,
     cancelEditing,
-  }), [orderItems, isCartOpen, total, totalItems, editingOrderId]);
+    tip,
+    setTip,
+  }), [orderItems, isCartOpen, total, totalItems, editingOrderId, tip]);
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
 }
