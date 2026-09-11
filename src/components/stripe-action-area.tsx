@@ -121,13 +121,13 @@ export function StripeActionArea({
   };
 
   return (
-    <div className="space-y-6">
-      <div className="p-4 border-2 border-slate-100 rounded-[2rem] bg-slate-50/50 animate-in fade-in duration-500">
+    <div className="space-y-3">
+      <div className="p-3 border-2 border-slate-100 rounded-2xl bg-slate-50/50 animate-in fade-in duration-500">
         <StripeCheckoutForm onReadyStateChange={setIsStripeReady} />
       </div>
 
       <div
-        className="flex items-center space-x-3 p-4 bg-primary/5 rounded-[2rem] border-2 border-primary/10 cursor-pointer transition-all hover:bg-primary/10 animate-in fade-in duration-500"
+        className="flex items-center space-x-3 p-3 bg-primary/5 rounded-2xl border-2 border-primary/10 cursor-pointer transition-all hover:bg-primary/10 animate-in fade-in duration-500"
         onClick={() => setSaveInfo(!saveInfo)}
       >
         <Checkbox id="save-info-stripe" checked={saveInfo} onCheckedChange={(val) => setSaveInfo(!!val)} className="h-5 w-5 data-[state=checked]:bg-primary" />
