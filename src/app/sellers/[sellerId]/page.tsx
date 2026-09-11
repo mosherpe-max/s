@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { useState, useMemo, useEffect, use } from 'react';
+import React, { useState, useMemo, useEffect, useRef, use } from 'react';
 import {
   collection,
   doc,
@@ -63,7 +63,8 @@ import {
   Palette,
   CreditCard,
   CheckCircle2,
-  Sparkles
+  Sparkles,
+  Ban
 } from 'lucide-react';
 import Image from 'next/image';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -300,6 +301,39 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
 
   const menuItemsQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'sellers', sellerId, 'menuItems') : null), [firestore, sellerId]);
   const { data: menuItems } = useCollection<MenuItem>(menuItemsQuery);
+
+  // Items staff have 86'd (temporarily out of stock), across any mode.
+  const outOfStockItems = useMemo(() => {
+    return (menuItems || []).filter(i => i.outOfStockModes && i.outOfStockModes.length > 0);
+  }, [menuItems]);
+
+  const handleRestock = (item: MenuItem, mode: string) => {
+    if (!firestore) return;
+    const itemRef = doc(firestore, 'sellers', sellerId, 'menuItems', item.id);
+    updateDoc(itemRef, { outOfStockModes: (item.outOfStockModes || []).filter(m => m !== mode) }).catch(async () => {
+      errorEmitter.emit('permission-error', new FirestorePermissionError({
+        path: itemRef.path,
+        operation: 'update',
+        requestResourceData: { outOfStockModes: mode },
+      } satisfies SecurityRuleContext));
+    });
+  };
+
+  // Toast the moment a NEW item goes out of stock while this dashboard is
+  // open - the persistent card below covers "shows up on their dashboard"
+  // even when they're not looking at it live.
+  const prevOutOfStockIdsRef = useRef<Set<string> | null>(null);
+  useEffect(() => {
+    const currentIds = new Set(outOfStockItems.map(i => i.id));
+    if (prevOutOfStockIdsRef.current) {
+      for (const item of outOfStockItems) {
+        if (!prevOutOfStockIdsRef.current.has(item.id)) {
+          toast({ variant: 'destructive', title: '86\'d by Staff', description: `${item.name} was just marked out of stock.` });
+        }
+      }
+    }
+    prevOutOfStockIdsRef.current = currentIds;
+  }, [outOfStockItems, toast]);
 
   const analyticsData = useMemo(() => {
     if (!orders || !seller) return { dailyRevenue: [], modes: [], realTimeOperations: {} };
@@ -787,6 +821,29 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
             <div className="max-w-6xl mx-auto space-y-8 pb-24 text-left min-w-0">
               {activeNav === 'dashboard' && (
                 <div className="space-y-12 animate-in fade-in duration-500">
+                  {outOfStockItems.length > 0 && (
+                    <Card className="border-2 border-destructive/30 bg-destructive/5 shadow-sm overflow-hidden">
+                      <CardHeader className="py-4 border-b border-destructive/20">
+                        <CardTitle className="text-[10px] font-black uppercase tracking-widest text-destructive flex items-center gap-2">
+                          <Ban className="h-3.5 w-3.5" /> {outOfStockItems.length} Item{outOfStockItems.length > 1 ? 's' : ''} 86'd by Staff
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="pt-4 space-y-2">
+                        {outOfStockItems.map(item => (
+                          <div key={item.id} className="flex items-center justify-between p-3 bg-white rounded-xl border-2 border-destructive/10">
+                            <p className="text-[10px] font-black uppercase text-[#213147] truncate">{item.name}</p>
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              {(item.outOfStockModes || []).map(mode => (
+                                <Button key={mode} variant="outline" size="sm" onClick={() => handleRestock(item, mode)} className="h-7 rounded-lg text-[8px] font-black uppercase tracking-widest border-destructive/30 text-destructive hover:bg-destructive/10">
+                                  Restock {mode}
+                                </Button>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </CardContent>
+                    </Card>
+                  )}
                   <div className="space-y-6">
                      <div className="flex items-center gap-3">
                         <div className="p-2 bg-primary/10 rounded-lg"><Activity className="h-6 w-6 text-primary" /></div>

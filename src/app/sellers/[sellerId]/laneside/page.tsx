@@ -10,7 +10,8 @@ import type { Order, Seller, StaffMember, SolutionConfig } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
-import { Package, LogOut, MapPin, LayoutList, ChevronLeft, ShieldAlert, History, AlertTriangle, BellRing, User } from 'lucide-react';
+import { Package, LogOut, MapPin, LayoutList, ChevronLeft, ShieldAlert, History, AlertTriangle, BellRing, User, Ban } from 'lucide-react';
+import { StockToggleDialog } from '@/components/stock-toggle-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { isToday, differenceInSeconds, differenceInMinutes, format } from 'date-fns';
@@ -44,6 +45,7 @@ export default function LaneSideServerDashboardPage({ params }: { params: Promis
   const [currentStaffName, setCurrentStaffName] = useState<string>('');
   const [isAdminSession, setIsAdminSession] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [isStockOpen, setIsStockOpen] = useState(false);
   const [isExiting, setIsExiting] = useState(false);
   const [notificationPermission, setNotificationPermission] = useState<string>('default');
   
@@ -380,6 +382,10 @@ export default function LaneSideServerDashboardPage({ params }: { params: Promis
               <Badge className="bg-[#213147] text-white font-black border-0">{lanesideOrders.length}</Badge>
             </h2>
 
+            <div className="flex items-center gap-1">
+            <Button variant="ghost" size="sm" onClick={() => setIsStockOpen(true)} className="h-7 rounded-full text-destructive font-black uppercase text-[9px] tracking-widest gap-1.5 hover:bg-destructive/10">
+              <Ban className="h-3 w-3" /> 86
+            </Button>
             <Dialog open={isHistoryOpen} onOpenChange={setIsHistoryOpen}>
               <DialogTrigger asChild>
                 <Button variant="ghost" size="sm" className="h-7 rounded-full text-indigo-600 font-black uppercase text-[9px] tracking-widest gap-1.5 hover:bg-indigo-50">
@@ -444,8 +450,10 @@ export default function LaneSideServerDashboardPage({ params }: { params: Promis
                 </ScrollArea>
               </DialogContent>
             </Dialog>
+            </div>
+            <StockToggleDialog sellerId={sellerId} mode="Lane Delivery" open={isStockOpen} onOpenChange={setIsStockOpen} />
           </div>
-          
+
           <div className="flex-1 overflow-auto text-left">
             <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-4 text-left">
               {isLoading ? (
