@@ -62,7 +62,8 @@ import {
   FileText,
   Palette,
   CreditCard,
-  CheckCircle2
+  CheckCircle2,
+  Sparkles
 } from 'lucide-react';
 import Image from 'next/image';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -971,6 +972,58 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                               </div>
                             ); 
                           })}
+                        </CardContent>
+                      </Card>
+
+                      <Card className="border-2 shadow-sm overflow-hidden">
+                        <CardHeader className="bg-[#213147] text-white py-4 border-b">
+                          <CardTitle className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
+                            <Sparkles className="h-3.5 w-3.5" /> Upsell Picks
+                          </CardTitle>
+                          <CardDescription className="text-[8px] font-bold text-white/50 uppercase tracking-wider">
+                            Offered on the Review screen for {activeModeTab}
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent className="pt-6 space-y-3">
+                          {(() => {
+                            // Excludes items with modifiers - the patron-side quick add has no
+                            // way to collect required modifier choices, so only offer items
+                            // that can be added with a single tap.
+                            const modeItems = (menuItems || []).filter(i => i.availableOn?.includes(activeModeTab) && !(i.modifierGroupIds && i.modifierGroupIds.length > 0));
+                            const currentPicks = seller?.upsellItems?.[activeModeTab] || [];
+                            const updatePick = (slot: number, itemId: string) => {
+                              const next = [...currentPicks];
+                              if (itemId === 'none') {
+                                next.splice(slot, 1);
+                              } else {
+                                next[slot] = itemId;
+                              }
+                              handleUpdateField(`upsellItems.${activeModeTab}`, next.filter(Boolean));
+                            };
+                            return [0, 1].map((slot) => {
+                              const selectedId = currentPicks[slot] || 'none';
+                              return (
+                                <div key={slot} className="space-y-1.5">
+                                  <Label className="text-[8px] font-black uppercase text-muted-foreground">Slot {slot + 1}</Label>
+                                  <Select value={selectedId} onValueChange={(val) => updatePick(slot, val)}>
+                                    <SelectTrigger className="h-10 border-2 rounded-xl text-[10px] font-black uppercase">
+                                      <SelectValue placeholder="None" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="none" className="text-[10px] font-bold uppercase text-muted-foreground">None</SelectItem>
+                                      {modeItems
+                                        .filter(i => i.id === selectedId || !currentPicks.includes(i.id))
+                                        .map(i => (
+                                          <SelectItem key={i.id} value={i.id} className="text-[10px] font-bold uppercase">
+                                            {i.name} · ${i.price.toFixed(2)}
+                                          </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                              );
+                            });
+                          })()}
                         </CardContent>
                       </Card>
                     </div>

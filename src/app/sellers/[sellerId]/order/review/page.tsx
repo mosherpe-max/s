@@ -1,12 +1,13 @@
 'use client';
 
 import { use, useEffect, useMemo, Suspense } from 'react';
-import { doc } from 'firebase/firestore';
-import { useFirestore, useDoc, useMemoFirebase } from '@/firebase';
-import type { Seller, Venue } from '@/lib/types';
+import { collection, doc } from 'firebase/firestore';
+import { useFirestore, useCollection, useDoc, useMemoFirebase } from '@/firebase';
+import type { MenuItem, Seller, Venue } from '@/lib/types';
 import { useCart } from '@/lib/cart-context';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { OrderSummary } from '@/components/order-summary';
+import { UpsellRail } from '@/components/upsell-rail';
 import { PricingBreakdown } from '@/components/pricing-breakdown';
 import { TipSelector } from '@/components/tip-selector';
 import { Button } from '@/components/ui/button';
@@ -25,6 +26,9 @@ function ReviewOrderContent({ sellerId }: { sellerId: string }) {
 
   const venueRef = useMemoFirebase(() => (firestore ? doc(firestore, 'venues', sellerId) : null), [firestore, sellerId]);
   const { data: venue, isLoading: isVenueLoading } = useDoc<Venue>(venueRef);
+
+  const menuItemsQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'sellers', sellerId, 'menuItems') : null), [firestore, sellerId]);
+  const { data: menuItems } = useCollection<MenuItem>(menuItemsQuery);
 
   const menuTypeFromUrl = searchParams.get('menuType') || '';
   const menuUrl = `/sellers/${sellerId}/order?${searchParams.toString()}`;
@@ -81,11 +85,17 @@ function ReviewOrderContent({ sellerId }: { sellerId: string }) {
         </div>
       </header>
 
-      <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4">
+      <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4 space-y-4">
         <OrderSummary
           items={activeOrderItems}
           onUpdateItem={updateItem}
           onRemoveItem={removeItem}
+        />
+        <UpsellRail
+          upsellItemIds={seller?.upsellItems?.[menuTypeFromUrl] || []}
+          menuItems={menuItems || []}
+          onAdd={updateItem}
+          orderItems={orderItems}
         />
       </div>
 
