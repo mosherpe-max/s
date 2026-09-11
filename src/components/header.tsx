@@ -216,6 +216,7 @@ export function AppHeader() {
   if (!isMounted) return null;
 
   const isMenuPage = pathname?.endsWith('/order');
+  const isReviewOrCheckoutPage = pathname?.endsWith('/order/review') || pathname?.endsWith('/order/checkout');
   const isTrackPage = pathname?.endsWith('/order/track');
   const isHomePage = pathname === '/';
   
@@ -228,6 +229,10 @@ export function AppHeader() {
 
   // The Ordering Screen has its own header (venue name + cart) - no floating nav on top of it.
   if (isMenuPage) return null;
+
+  // Review and checkout each have their own compact header - the review page in
+  // particular needs full control of vertical space to fit without scrolling.
+  if (isReviewOrCheckoutPage) return null;
 
   // The Tracking Screen has no header of its own by design; it no longer needs one here either.
   if (isTrackPage) return null;
