@@ -124,12 +124,25 @@ function BuyerOrderContent({ sellerId }: { sellerId: string }) {
   }, [firestore, user?.uid, sellerId, selectedMenuType]);
   const { data: pastOrders } = useCollection<Order>(pastOrdersQuery);
 
+  // A past order's items are a frozen snapshot from when it was placed - the
+  // menu may have changed since (item moved to a different mode, deleted,
+  // admin-disabled, or 86'd by staff). Only suggest a reorder if every item
+  // in it is still genuinely orderable on THIS mode right now, so we never
+  // one-tap-add something that's no longer actually available here.
   const reorderSuggestions = useMemo(() => {
-    if (!pastOrders || pastOrders.length === 0) return [];
+    if (!pastOrders || pastOrders.length === 0 || !menuItems) return [];
+    const isStillOrderable = (pastItem: OrderItem) => {
+      const current = menuItems.find((m) => m.id === pastItem.id);
+      return !!current
+        && current.isAvailable !== false
+        && !!current.availableOn?.includes(selectedMenuType)
+        && !current.outOfStockModes?.includes(selectedMenuType);
+    };
     return [...pastOrders]
+      .filter((order) => order.items.every(isStillOrderable))
       .sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0))
       .slice(0, 2);
-  }, [pastOrders]);
+  }, [pastOrders, menuItems, selectedMenuType]);
 
   const handleReorder = (pastOrder: Order) => {
     pastOrder.items.forEach((pastItem) => {
