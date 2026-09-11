@@ -85,19 +85,22 @@ function ReviewOrderContent({ sellerId }: { sellerId: string }) {
         </div>
       </header>
 
-      <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4 space-y-4">
+      <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4">
         <OrderSummary
           items={activeOrderItems}
           onUpdateItem={updateItem}
           onRemoveItem={removeItem}
         />
-        <UpsellRail
-          upsellItemIds={seller?.upsellItems?.[menuTypeFromUrl] || []}
-          menuItems={menuItems || []}
-          onAdd={updateItem}
-          orderItems={orderItems}
-        />
       </div>
+
+      {/* Fixed band, not part of the scrollable item list above, so it stays
+          visible regardless of how long the order is. */}
+      <UpsellRail
+        upsellItemIds={seller?.upsellItems?.[menuTypeFromUrl] || []}
+        menuItems={menuItems || []}
+        onAdd={updateItem}
+        orderItems={orderItems}
+      />
 
       <div className="shrink-0 bg-white border-t-2 border-slate-100 px-4 pt-4 pb-5 space-y-4 shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
         <TipSelector subtotal={subtotal} onTipChange={setTip} />
