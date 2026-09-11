@@ -1,6 +1,5 @@
 'use client';
 
-import { Button } from '@/components/ui/button';
 import type { OrderItem, MenuItem, Category } from '@/lib/types';
 import { Image as LucideImage, Plus, Minus, Star, Settings2 } from 'lucide-react';
 import { categoryIcons } from './icons';
@@ -97,18 +96,18 @@ export function BuyerMenu({
                 const hasModifiers = item.modifierGroupIds && item.modifierGroupIds.length > 0;
                 
                 return (
-                  <div 
-                    key={item.id} 
-                    className="bg-white rounded-[1.5rem] border shadow-sm overflow-hidden flex flex-col transition-all active:scale-[0.98] group"
+                  <div
+                    key={item.id}
+                    className="bg-white rounded-[1.25rem] border-2 border-slate-100 shadow-sm overflow-hidden flex flex-col transition-all active:scale-[0.98] group"
                   >
-                    {/* Immersive Image - Aspect Square fixed to prevent jumping */}
-                    <div className="relative aspect-square w-full bg-muted shrink-0 shadow-sm border-b overflow-hidden">
+                    {/* Image - shorter aspect ratio than before to fit more cards per screen */}
+                    <div className="relative aspect-[4/3] w-full bg-muted shrink-0 border-b-2 border-slate-100 overflow-hidden">
                       {item.imageUrl ? (
-                        <Image 
-                          src={item.imageUrl} 
-                          alt={item.name} 
-                          fill 
-                          className="object-cover transition-transform duration-500 group-hover:scale-110" 
+                        <Image
+                          src={item.imageUrl}
+                          alt={item.name}
+                          fill
+                          className="object-cover transition-transform duration-500 group-hover:scale-110"
                           data-ai-hint={item.name}
                         />
                       ) : (
@@ -116,92 +115,78 @@ export function BuyerMenu({
                           <LucideImage className="w-8 h-8" />
                         </div>
                       )}
+
+                      {/* Price pill - solid navy fill for max contrast in direct sunlight */}
+                      <div className="absolute top-2 left-2 bg-[#213147] px-2.5 py-1 rounded-lg shadow-md z-10">
+                        <span className="font-mono text-[12px] font-black text-white leading-none">
+                          ${item.price.toFixed(2)}
+                        </span>
+                      </div>
+
                       {hasModifiers && (
-                        <div className="absolute top-2 right-2 bg-white/90 backdrop-blur-sm p-1.5 rounded-lg border shadow-sm z-10">
+                        <div className="absolute top-2 right-2 bg-white p-1.5 rounded-lg border-2 border-slate-100 shadow-md z-10">
                           <Settings2 className="h-3 w-3 text-[#213147]" />
                         </div>
                       )}
                     </div>
 
                     {/* Content Area */}
-                    <div className="p-4 flex flex-col flex-1 min-w-0">
-                      <p className="font-black text-[12px] leading-tight text-[#213147] uppercase tracking-tight">
-                        {item.name}
-                      </p>
-                      {item.description && (
-                        <p className="text-[10px] text-muted-foreground font-bold mt-1.5 uppercase tracking-tighter leading-normal">
-                          {item.description}
+                    <div className="p-3 flex flex-col flex-1 min-w-0 gap-2">
+                      <div>
+                        <p className="font-black text-[12px] leading-tight text-[#213147] uppercase tracking-tight">
+                          {item.name}
                         </p>
-                      )}
-                      
-                      <div className="mt-auto pt-5 flex items-center justify-between gap-1">
-                        <div className="flex flex-col shrink-0">
-                          <span className="font-mono text-[13px] font-black text-primary leading-none">
-                            ${item.price.toFixed(2)}
-                          </span>
-                          {hasModifiers && (
-                            <span className="text-[7px] font-black text-muted-foreground uppercase tracking-widest mt-1">Options</span>
-                          )}
-                        </div>
+                        {item.description && (
+                          <p className="text-[10px] text-slate-600 font-bold mt-1 uppercase tracking-tighter leading-snug line-clamp-2">
+                            {item.description}
+                          </p>
+                        )}
+                      </div>
 
-                        {/* Stepper Controls - Refined sizes for mobile stability */}
-                        <div className="flex items-center shrink-0">
-                          {hasModifiers ? (
-                            <div className="flex items-center gap-1 bg-muted/40 p-0.5 rounded-xl border border-muted/60 shadow-inner">
-                              {totalQuantity > 0 && (
-                                <span className="text-[9px] font-black w-4 text-center text-[#213147]">{totalQuantity}</span>
-                              )}
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => onOpenModifiers(item)}
-                                className="h-7 w-7 rounded-lg transition-all text-primary bg-white shadow-sm hover:bg-white active:scale-95"
-                              >
-                                <Plus className="h-3.5 w-3.5" />
-                              </Button>
-                            </div>
-                          ) : (
-                            <div className={cn(
-                              "flex items-center gap-0.5 p-0.5 rounded-xl border transition-all duration-300",
-                              totalQuantity > 0 
-                                ? "bg-primary/5 border-primary/20 shadow-inner" 
-                                : "bg-muted/30 border-muted"
-                            )}>
-                              {totalQuantity > 0 ? (
-                                <>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => handleQuantityChange(item, -1)}
-                                    className="h-6 w-6 rounded-lg hover:bg-white transition-colors bg-white/50 shadow-sm"
-                                  >
-                                    <Minus className="h-3 w-3" />
-                                  </Button>
-                                  <span className="text-[9px] font-black w-4 text-center text-[#213147]">
-                                    {totalQuantity}
-                                  </span>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => handleQuantityChange(item, 1)}
-                                    className="h-6 w-6 rounded-lg transition-colors text-primary bg-white shadow-sm hover:bg-white"
-                                  >
-                                    <Plus className="h-3 w-3" />
-                                  </Button>
-                                </>
-                              ) : (
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => handleQuantityChange(item, 1)}
-                                  className="h-7 w-7 rounded-lg transition-colors text-primary bg-white shadow-sm hover:bg-white active:scale-95"
-                                >
-                                  <Plus className="h-3.5 w-3.5" />
-                                </Button>
-                              )}
-                            </div>
-                          )}
-                        </div>
+                      {/* Full-width stepper - large, high-contrast tap targets for outdoor/sunlight use */}
+                      <div className="mt-auto">
+                        {hasModifiers ? (
+                          <button
+                            onClick={() => onOpenModifiers(item)}
+                            className="w-full h-10 rounded-xl bg-primary text-white font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-1.5 shadow-sm active:scale-[0.97] transition-transform"
+                          >
+                            {totalQuantity > 0 ? (
+                              <>
+                                <span className="bg-white/25 rounded-md px-1.5 py-0.5 text-[10px]">{totalQuantity}</span>
+                                Add Another
+                              </>
+                            ) : (
+                              <>
+                                <Plus className="h-4 w-4" /> Add
+                              </>
+                            )}
+                          </button>
+                        ) : totalQuantity > 0 ? (
+                          <div className="w-full h-10 rounded-xl border-2 border-primary bg-primary/5 flex items-center justify-between overflow-hidden shadow-sm">
+                            <button
+                              onClick={() => handleQuantityChange(item, -1)}
+                              className="h-full w-10 shrink-0 flex items-center justify-center bg-[#213147] text-white active:opacity-80"
+                            >
+                              <Minus className="h-4 w-4" />
+                            </button>
+                            <span className="flex-1 text-center text-[13px] font-black text-[#213147]">
+                              {totalQuantity}
+                            </span>
+                            <button
+                              onClick={() => handleQuantityChange(item, 1)}
+                              className="h-full w-10 shrink-0 flex items-center justify-center bg-primary text-white active:opacity-80"
+                            >
+                              <Plus className="h-4 w-4" />
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => handleQuantityChange(item, 1)}
+                            className="w-full h-10 rounded-xl bg-primary text-white font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-1.5 shadow-sm active:scale-[0.97] transition-transform"
+                          >
+                            <Plus className="h-4 w-4" /> Add
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>
