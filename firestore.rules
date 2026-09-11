@@ -88,6 +88,13 @@ service cloud.firestore {
       match /menuItems/{itemId} {
         allow read: if true;
         allow write: if isSuperAdmin() || isVenueOwner(sellerId);
+
+        // Staff on shift need to 86 an item (mark it out of stock on their
+        // cart/station) and un-86 it, without full menu-editing rights -
+        // restricted to just this one field.
+        allow update: if isSignedIn() &&
+                      request.resource.data.diff(resource.data).affectedKeys()
+                      .hasOnly(['outOfStockModes']);
       }
     }
 

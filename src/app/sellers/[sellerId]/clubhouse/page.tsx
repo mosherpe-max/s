@@ -10,7 +10,8 @@ import type { Order, Seller, StaffMember, SolutionConfig } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
-import { Package, LogOut, Building, LayoutList, Focus, ChevronLeft, ShieldAlert, History, AlertTriangle, BellRing, User } from 'lucide-react';
+import { Package, LogOut, Building, LayoutList, Focus, ChevronLeft, ShieldAlert, History, AlertTriangle, BellRing, User, Ban } from 'lucide-react';
+import { StockToggleDialog } from '@/components/stock-toggle-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { useRouter } from 'next/navigation';
@@ -55,6 +56,7 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
   const [isAdminSession, setIsAdminSession] = useState(false);
   const [isExiting, setIsExiting] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [isStockOpen, setIsStockOpen] = useState(false);
   const [notificationPermission, setNotificationPermission] = useState<string>('default');
   const [locationEnabled, setLocationEnabled] = useState(false);
 
@@ -516,6 +518,10 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
               <Badge className="bg-[#213147] text-white font-black border-0">{clubhouseOrders.length}</Badge>
             </h2>
 
+            <div className="flex items-center gap-1">
+            <Button variant="ghost" size="sm" onClick={() => setIsStockOpen(true)} className="h-7 rounded-full text-destructive font-black uppercase text-[9px] tracking-widest gap-1.5 hover:bg-destructive/10">
+              <Ban className="h-3 w-3" /> 86
+            </Button>
             <Dialog open={isHistoryOpen} onOpenChange={setIsHistoryOpen}>
               <DialogTrigger asChild>
                 <Button variant="ghost" size="sm" className="h-7 rounded-full text-indigo-600 font-black uppercase text-[9px] tracking-widest gap-1.5 hover:bg-indigo-50">
@@ -580,8 +586,10 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
                 </ScrollArea>
               </DialogContent>
             </Dialog>
+            </div>
+            <StockToggleDialog sellerId={sellerId} mode="Clubhouse" open={isStockOpen} onOpenChange={setIsStockOpen} />
           </div>
-          
+
           <div className={cn("flex-1 overflow-auto px-2 text-left", isGolf ? "" : "p-4")}>
             <div className={cn("py-2.5 gap-3 text-left", isGolf ? "space-y-3" : "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3")}>
               {isLoading ? <Skeleton className="h-40 w-full" /> : clubhouseOrders.length === 0 ? (

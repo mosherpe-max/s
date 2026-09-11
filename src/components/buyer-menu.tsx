@@ -1,7 +1,7 @@
 'use client';
 
 import type { OrderItem, MenuItem, Category } from '@/lib/types';
-import { Image as LucideImage, Plus, Minus, Star, Settings2 } from 'lucide-react';
+import { Image as LucideImage, Plus, Minus, Star, Settings2, Ban } from 'lucide-react';
 import { categoryIcons } from './icons';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
@@ -94,7 +94,8 @@ export function BuyerMenu({
                 const relevantCartItems = orderItems.filter(i => i.id === item.id);
                 const totalQuantity = relevantCartItems.reduce((acc, i) => acc + i.quantity, 0);
                 const hasModifiers = item.modifierGroupIds && item.modifierGroupIds.length > 0;
-                
+                const isSoldOut = !!(selectedMenuType && item.outOfStockModes?.includes(selectedMenuType));
+
                 return (
                   <div
                     key={item.id}
@@ -107,12 +108,20 @@ export function BuyerMenu({
                           src={item.imageUrl}
                           alt={item.name}
                           fill
-                          className="object-cover transition-transform duration-500 group-hover:scale-110"
+                          className={cn("object-cover transition-transform duration-500 group-hover:scale-110", isSoldOut && "grayscale opacity-50")}
                           data-ai-hint={item.name}
                         />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center text-muted-foreground/20">
                           <LucideImage className="w-8 h-8" />
+                        </div>
+                      )}
+
+                      {isSoldOut && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/20 z-10">
+                          <span className="bg-[#213147] text-white font-black text-[10px] uppercase tracking-widest px-3 py-1 rounded-lg shadow-md">
+                            Sold Out
+                          </span>
                         </div>
                       )}
 
@@ -123,7 +132,7 @@ export function BuyerMenu({
                         </span>
                       </div>
 
-                      {hasModifiers && (
+                      {hasModifiers && !isSoldOut && (
                         <div className="absolute top-2 right-2 bg-white p-1.5 rounded-lg border-2 border-slate-100 shadow-md z-10">
                           <Settings2 className="h-3 w-3 text-[#213147]" />
                         </div>
@@ -145,7 +154,14 @@ export function BuyerMenu({
 
                       {/* Full-width stepper - large, high-contrast tap targets for outdoor/sunlight use */}
                       <div className="mt-auto">
-                        {hasModifiers ? (
+                        {isSoldOut ? (
+                          <button
+                            disabled
+                            className="w-full h-10 rounded-xl bg-slate-100 text-slate-400 font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-1.5 cursor-not-allowed"
+                          >
+                            <Ban className="h-4 w-4" /> Sold Out
+                          </button>
+                        ) : hasModifiers ? (
                           <button
                             onClick={() => onOpenModifiers(item)}
                             className="w-full h-10 rounded-xl bg-primary text-white font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-1.5 shadow-sm active:scale-[0.97] transition-transform"

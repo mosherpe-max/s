@@ -194,7 +194,8 @@ export interface MenuItem {
     featuredOn?: string[]; // Mode-specific featured flag
     menuRanks?: Record<string, number>; // Mode-specific sort ranking within category
     featuredRanks?: Record<string, number>; // Mode-specific sort ranking within Featured category
-    isAvailable?: boolean; // 86'd feature
+    isAvailable?: boolean; // Permanent, admin-only, global on/off switch
+    outOfStockModes?: string[]; // Modes where staff have temporarily 86'd this item (out of stock right now on that cart/station), independent of isAvailable
     modifierGroupIds?: string[]; // References to ModifierGroup IDs
 }
 

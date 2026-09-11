@@ -13,7 +13,8 @@ import type { Order, Seller, StaffMember, SolutionConfig } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
-import { Focus, Package, LogOut, Truck, ChevronLeft, LayoutDashboard, ShieldAlert, History, User, DollarSign, CheckCircle2, AlertTriangle, BellRing } from 'lucide-react';
+import { Focus, Package, LogOut, Truck, ChevronLeft, LayoutDashboard, ShieldAlert, History, User, DollarSign, CheckCircle2, AlertTriangle, BellRing, Ban } from 'lucide-react';
+import { StockToggleDialog } from '@/components/stock-toggle-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { isToday, differenceInSeconds, differenceInMinutes, format } from 'date-fns';
@@ -58,6 +59,7 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
   const [isAdminSession, setIsAdminSession] = useState(false);
   const [isExiting, setIsExiting] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [isStockOpen, setIsStockOpen] = useState(false);
   const [notificationPermission, setNotificationPermission] = useState<string>('default');
   const [locationEnabled, setLocationEnabled] = useState(false);
 
@@ -521,7 +523,11 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
               <span>Active Orders</span>
               <span className="bg-[#213147] text-white text-[10px] font-black rounded-full px-2 py-0.5">{driverOrders.length}</span>
             </h2>
-            
+
+            <div className="flex items-center gap-1">
+            <Button variant="ghost" size="sm" onClick={() => setIsStockOpen(true)} className="h-7 rounded-full text-destructive font-black uppercase text-[9px] tracking-widest gap-1.5 hover:bg-destructive/10">
+              <Ban className="h-3 w-3" /> 86
+            </Button>
             <Dialog open={isHistoryOpen} onOpenChange={setIsHistoryOpen}>
               <DialogTrigger asChild>
                 <Button variant="ghost" size="sm" className="h-7 rounded-full text-indigo-600 font-black uppercase text-[9px] tracking-widest gap-1.5 hover:bg-indigo-50">
@@ -586,8 +592,10 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
                 </ScrollArea>
               </DialogContent>
             </Dialog>
+            </div>
+            <StockToggleDialog sellerId={sellerId} mode="Beverage Cart" open={isStockOpen} onOpenChange={setIsStockOpen} />
           </div>
-          
+
           <div className="flex-1 overflow-auto px-2 text-left">
             <div className="py-2.5 space-y-3 text-left">
               {isLoading ? <Skeleton className="h-40 w-full" /> : driverOrders.length === 0 ? (
