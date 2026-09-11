@@ -30,7 +30,7 @@ export function StripeCheckoutForm({ onReadyStateChange }: StripeCheckoutFormPro
   };
 
   return (
-    <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-500 text-left">
+    <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-500 text-left">
       <div className="flex items-center justify-between px-1">
         <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
           Secure Payment
@@ -39,9 +39,9 @@ export function StripeCheckoutForm({ onReadyStateChange }: StripeCheckoutFormPro
           <ShieldCheck className="h-2.5 w-2.5" /> PCI Compliant
         </span>
       </div>
-      
+
       <div className={cn(
-        "bg-white p-4 rounded-2xl border-2 transition-all duration-300 relative min-h-[100px]",
+        "bg-white p-3 rounded-2xl border-2 transition-all duration-300 relative min-h-[90px]",
         error ? "border-destructive/50 ring-4 ring-destructive/10" : "border-slate-100 shadow-sm"
       )}>
         {!isElementLoaded && (
@@ -82,7 +82,7 @@ export function StripeCheckoutForm({ onReadyStateChange }: StripeCheckoutFormPro
         </p>
       )}
 
-      <div className="flex items-center justify-center gap-2 text-[9px] font-bold text-muted-foreground uppercase py-2">
+      <div className="flex items-center justify-center gap-2 text-[9px] font-bold text-muted-foreground uppercase py-0.5">
         <Lock className="h-2.5 w-2.5" /> AES-256 Encryption Active
       </div>
     </div>
