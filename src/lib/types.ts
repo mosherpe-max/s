@@ -119,6 +119,7 @@ export interface Seller {
   enabledPaymentMethods?: PaymentMethodType[];
   qrActive?: boolean;
   qrSecret?: string;
+  upsellItems?: Record<string, string[]>; // Map of Mode -> up to 2 menuItem ids, offered on the Review screen
 }
 
 export type Category = 'Featured' | 'Beer' | 'Spirits' | 'Soft Drinks' | 'Snacks' | 'Other' | 'Handhelds' | 'Appetizers' | 'Entrees' | 'Pizza' | 'Salad' | 'Dessert' | 'Kids';
