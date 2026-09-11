@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetClose } from '@/components/ui/sheet';
 import Link from 'next/link';
+import { useToast } from '@/hooks/use-toast';
 import {
   Loader2,
   Store,
@@ -22,7 +23,8 @@ import {
   X,
   ChevronRight,
   ArrowLeft,
-  Lock
+  Lock,
+  RotateCcw
 } from 'lucide-react';
 import { useCart } from '@/lib/cart-context';
 import { cn, AUTHORIZED_SERVICE_MODES } from '@/lib/utils';
@@ -46,6 +48,7 @@ function BuyerOrderContent({ sellerId }: { sellerId: string }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { user } = useUser();
+  const { toast } = useToast();
   const { orderItems, updateItem, clearCart, totalItems, total } = useCart();
   
   const menuTypeFromUrl = searchParams.get('menuType');
@@ -102,6 +105,42 @@ function BuyerOrderContent({ sellerId }: { sellerId: string }) {
     if (!userActiveOrders || userActiveOrders.length === 0) return [];
     return [...userActiveOrders].sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
   }, [userActiveOrders]);
+
+  // FETCH PAST ORDERS FOR REORDER - scoped to this venue AND this specific
+  // service mode, so a patron who orders at multiple Koop locations (or uses
+  // Beverage Cart at one visit and Clubhouse the next) only ever sees reorder
+  // suggestions relevant to what they're looking at right now. No orderBy
+  // here deliberately - sorting client-side (like activeTrackingOrders above)
+  // avoids needing a Firestore composite index for this many equality filters.
+  const pastOrdersQuery = useMemoFirebase(() => {
+    if (!firestore || !user?.uid || !selectedMenuType) return null;
+    return query(
+      collection(firestore, 'orders'),
+      where('buyerProfileId', '==', user.uid),
+      where('sellerId', '==', sellerId),
+      where('menuType', '==', selectedMenuType),
+      where('status', '==', 'Delivered')
+    );
+  }, [firestore, user?.uid, sellerId, selectedMenuType]);
+  const { data: pastOrders } = useCollection<Order>(pastOrdersQuery);
+
+  const reorderSuggestions = useMemo(() => {
+    if (!pastOrders || pastOrders.length === 0) return [];
+    return [...pastOrders]
+      .sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0))
+      .slice(0, 2);
+  }, [pastOrders]);
+
+  const handleReorder = (pastOrder: Order) => {
+    pastOrder.items.forEach((pastItem) => {
+      const existing = orderItems.find((i) => i.cartId === pastItem.cartId);
+      updateItem({ ...pastItem, quantity: (existing?.quantity || 0) + pastItem.quantity });
+    });
+    toast({
+      title: 'Added to Cart',
+      description: `${pastOrder.items.length} item${pastOrder.items.length > 1 ? 's' : ''} from your last order added.`,
+    });
+  };
 
   const updateMenuType = (type: string) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -282,6 +321,29 @@ function BuyerOrderContent({ sellerId }: { sellerId: string }) {
               {availableModes.includes(selectedMenuType) ? (SERVICE_INSTRUCTIONS[selectedMenuType] || 'Select items to begin your order') : 'Service currently unavailable.'}
             </p>
           </div>
+
+          {/* REORDER - past orders at this venue, for this service mode, before Track Active Order */}
+          {reorderSuggestions.length > 0 && (
+            <div className="w-full mt-2 space-y-2 animate-in slide-in-from-bottom-2 duration-500">
+              <p className="text-[8px] font-black uppercase tracking-widest text-white/40 px-1">
+                Reorder
+              </p>
+              {reorderSuggestions.map((pastOrder) => (
+                <button
+                  key={pastOrder.id}
+                  onClick={() => handleReorder(pastOrder)}
+                  className="w-full group block bg-white/10 hover:bg-white/15 border border-white/10 rounded-2xl p-3 flex items-center gap-3 transition-all active:scale-[0.98] text-left"
+                >
+                  <div className="bg-white/10 p-2 rounded-xl shrink-0">
+                    <RotateCcw className="h-4 w-4 text-white" />
+                  </div>
+                  <p className="text-[10px] font-bold text-white/80 uppercase tracking-wide truncate flex-1 min-w-0">
+                    {pastOrder.items.map((i) => `${i.quantity}x ${i.name}`).join(', ')}
+                  </p>
+                </button>
+              ))}
+            </div>
+          )}
 
           {/* ACTIVE ORDER PERSISTENCE LINKS */}
           {activeTrackingOrders.length > 0 && (
