@@ -47,7 +47,7 @@ export function BuyerMenu({
   };
 
   return (
-    <div className="space-y-10">
+    <div className="space-y-6">
       {currentCategories.map((category) => {
         const CategoryIcon = categoryIcons[category];
         
