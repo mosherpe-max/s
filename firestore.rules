@@ -82,7 +82,19 @@ service cloud.firestore {
                     .hasOnly(['latitude', 'longitude', 'lastActive', 'updatedAt', 'qrActive', 'qrSecret']);
 
       match /staff/{staffId} {
-        allow read, write: if true;
+        // Read stays open: the PIN login screen looks up a staff doc by PIN
+        // before the device has signed in (see the anonymous-auth carve-out
+        // below), so it can't yet satisfy isSignedIn().
+        allow read: if true;
+        allow write: if isSuperAdmin() || isVenueOwner(sellerId);
+
+        // On-shift staff devices sign in anonymously (no admin rights) after
+        // PIN verification, and need to keep their own operational status
+        // current - active shift/session, heartbeat, availability, and live
+        // location - without full staff-editing rights (PIN, name, role).
+        allow update: if isSignedIn() &&
+                      request.resource.data.diff(resource.data).affectedKeys()
+                      .hasOnly(['activeMode', 'activeSessionId', 'lastActive', 'isAvailable', 'latitude', 'longitude']);
       }
 
       match /menuItems/{itemId} {
