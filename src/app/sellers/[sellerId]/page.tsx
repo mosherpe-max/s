@@ -1260,6 +1260,9 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                                 <Button variant="ghost" size="icon" onClick={() => { setEditingStaff(staff); staffForm.reset(staff); setIsStaffFormOpen(true); }} className="h-8 w-8 hover:text-primary">
                                   <Edit className="h-4 w-4" />
                                 </Button>
+                                <Button variant="ghost" size="icon" className="h-8 w-8 hover:text-destructive" onClick={() => { const docRef = doc(firestore!, 'sellers', sellerId, 'staff', staff.id); deleteDoc(docRef).catch(async (e) => { errorEmitter.emit('permission-error', new FirestorePermissionError({ path: docRef.path, operation: 'delete' } satisfies SecurityRuleContext)); }); }}>
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
                               </div>
                             </TableCell>
                           </TableRow>
