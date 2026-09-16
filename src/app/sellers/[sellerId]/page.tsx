@@ -115,6 +115,7 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { StylizedKoopLogo } from '@/components/header';
 import { PrintMarketingKit } from '@/components/print-marketing-kit';
+import { ImageUploadDropzone } from '@/components/image-upload-dropzone';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { categories } from '@/lib/types';
 import type { MenuItem, Seller, Order, StaffMember, SolutionConfig, Venue } from '@/lib/types';
@@ -1483,9 +1484,13 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                   name="imageUrl"
                   render={({ field }) => (
                     <FormItem className="text-left">
-                      <FormLabel className="text-[10px] font-black uppercase">Image URL</FormLabel>
+                      <FormLabel className="text-[10px] font-black uppercase">Photo</FormLabel>
                       <FormControl>
-                        <Input {...field} placeholder="https://..." className="h-12 border-2 font-bold" />
+                        <ImageUploadDropzone
+                          value={field.value}
+                          onChange={field.onChange}
+                          storagePath={`menuItemImages/${sellerId}`}
+                        />
                       </FormControl>
                     </FormItem>
                   )}
