@@ -34,6 +34,7 @@ export function StripeCheckoutForm({ onReadyStateChange, clientSecret }: StripeC
   // mode mismatch, expired secret, etc).
   const [retrieveStatus, setRetrieveStatus] = useState<'pending' | 'ok' | 'error'>('pending');
   const [diagnosticMessage, setDiagnosticMessage] = useState<string | null>(null);
+  const [paymentIntentInfo, setPaymentIntentInfo] = useState<{ status: string; methods: string[] } | null>(null);
 
   useEffect(() => {
     if (isElementLoaded) return;
@@ -56,7 +57,7 @@ export function StripeCheckoutForm({ onReadyStateChange, clientSecret }: StripeC
   useEffect(() => {
     if (!stripe || !clientSecret) return;
     let cancelled = false;
-    stripe.retrievePaymentIntent(clientSecret).then(({ error: retrieveError }) => {
+    stripe.retrievePaymentIntent(clientSecret).then(({ error: retrieveError, paymentIntent }) => {
       if (cancelled) return;
       if (retrieveError) {
         setDiagnosticMessage(retrieveError.message || null);
@@ -64,6 +65,18 @@ export function StripeCheckoutForm({ onReadyStateChange, clientSecret }: StripeC
         setTimedOut(true);
       } else {
         setRetrieveStatus('ok');
+        // A destination charge (transfer_data.destination) resolves its
+        // available payment method types from BOTH the platform and the
+        // connected account's capabilities/country/currency. If that
+        // resolves to nothing usable, the PaymentElement can have literally
+        // nothing to render and never fires onReady - this is what would
+        // show up here as an empty methods list.
+        if (paymentIntent) {
+          setPaymentIntentInfo({
+            status: paymentIntent.status,
+            methods: paymentIntent.payment_method_types || [],
+          });
+        }
       }
     });
     return () => { cancelled = true; };
@@ -74,7 +87,9 @@ export function StripeCheckoutForm({ onReadyStateChange, clientSecret }: StripeC
     : diagnosticMessage
     ? diagnosticMessage
     : retrieveStatus === 'ok'
-    ? "Connected fine, but the secure payment frame itself didn't render. If you're inside an app's built-in browser (a link preview, QR scanner, etc.), try opening this checkout in Safari or Chrome directly instead."
+    ? (paymentIntentInfo?.methods.length === 0
+        ? `Connected fine, but no payment methods are available for this order (status: ${paymentIntentInfo.status}). This usually means the venue's connected Stripe account isn't fully enabled for card payments yet.`
+        : `Connected fine (methods: ${paymentIntentInfo?.methods.join(', ') || 'unknown'}), but the secure payment frame itself didn't render. If you're inside an app's built-in browser (a link preview, QR scanner, etc.), try opening this checkout in Safari or Chrome directly instead.`)
     : "Could not reach the payment gateway. Check your connection and try again.";
 
   const handleChange = (event: any) => {
