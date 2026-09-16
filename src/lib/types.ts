@@ -31,6 +31,7 @@ export interface SolutionConfig {
   logoUrl?: string;
   mapUpdateSettings?: Record<string, MapUpdateSettings>;
   dailyResetHour?: number; // 0-23
+  staffIdleTimeoutMinutes?: number; // Backgrounded staff terminal auto-signout threshold; defaults to 30
   smsNotificationsEnabled?: boolean;
   patronGpsRefreshIntervalSeconds?: number; // Frequency of location broadcasts from the patron's own device (order tracking map)
   driverGpsPollIntervalSeconds?: number; // Frequency staff/driver devices poll and broadcast their own position
