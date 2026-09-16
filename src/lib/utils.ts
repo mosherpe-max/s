@@ -144,6 +144,19 @@ export function isStaffSessionStale(lastActive: Date | null | undefined, resetHo
   return lastActive < threshold;
 }
 
+export const STAFF_IDLE_TIMEOUT_MINUTES = 30;
+
+/**
+ * True once a staff terminal has been backgrounded (screen off, app
+ * switched away, tab hidden) longer than the idle timeout. A brief
+ * screen-off shouldn't force a fresh PIN entry; being away significantly
+ * longer than that should.
+ */
+export function isStaffSessionIdle(lastHidden: Date | null | undefined, timeoutMinutes: number = STAFF_IDLE_TIMEOUT_MINUTES): boolean {
+  if (!lastHidden) return false;
+  return (Date.now() - lastHidden.getTime()) > timeoutMinutes * 60 * 1000;
+}
+
 /**
  * Calculates distance between two points in meters (Haversine formula).
  */
