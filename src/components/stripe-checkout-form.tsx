@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils';
 
 interface StripeCheckoutFormProps {
   onReadyStateChange: (ready: boolean) => void;
+  clientSecret: string;
 }
 
 // If Stripe.js never calls onReady - a mismatched/misconfigured publishable
@@ -21,18 +22,40 @@ const READY_TIMEOUT_MS = 12000;
  * Integrated Stripe Checkout Form.
  * Configured for zero-friction experience with layout: tabs and hidden billing detail fields.
  */
-export function StripeCheckoutForm({ onReadyStateChange }: StripeCheckoutFormProps) {
+export function StripeCheckoutForm({ onReadyStateChange, clientSecret }: StripeCheckoutFormProps) {
   const stripe = useStripe();
   const elements = useElements();
   const [error, setError] = useState<string | null>(null);
   const [isElementLoaded, setIsElementLoaded] = useState(false);
   const [timedOut, setTimedOut] = useState(false);
+  const [diagnosticMessage, setDiagnosticMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (isElementLoaded) return;
     const timer = setTimeout(() => setTimedOut(true), READY_TIMEOUT_MS);
     return () => clearTimeout(timer);
   }, [isElementLoaded]);
+
+  // Independently ask Stripe.js whether it can even retrieve this payment
+  // intent with the publishable key we loaded - this is what actually
+  // surfaces a mismatched key/account/mode (Stripe's own error message for
+  // that case is explicit, e.g. "a similar object exists in live mode, but
+  // a test mode key was used"). Running this in parallel with the
+  // PaymentElement mount means a real misconfiguration is diagnosed
+  // immediately rather than only after the generic timeout fires, and lets
+  // us show the actual reason on screen instead of a guess - useful since
+  // most patrons/staff have no practical way to check a browser console.
+  useEffect(() => {
+    if (!stripe || !clientSecret) return;
+    let cancelled = false;
+    stripe.retrievePaymentIntent(clientSecret).then(({ error: retrieveError }) => {
+      if (!cancelled && retrieveError) {
+        setDiagnosticMessage(retrieveError.message || null);
+        setTimedOut(true);
+      }
+    });
+    return () => { cancelled = true; };
+  }, [stripe, clientSecret]);
 
   const handleChange = (event: any) => {
     onReadyStateChange(event.complete);
@@ -69,6 +92,9 @@ export function StripeCheckoutForm({ onReadyStateChange }: StripeCheckoutFormPro
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-white z-10 gap-2 px-4 text-center">
             <AlertTriangle className="h-6 w-6 text-destructive" />
             <span className="text-[9px] font-black uppercase text-destructive tracking-widest">Payment Form Unavailable</span>
+            {diagnosticMessage && (
+              <span className="text-[8px] font-bold text-destructive/80 normal-case tracking-normal max-w-[280px]">{diagnosticMessage}</span>
+            )}
             <span className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest">Please try again, or use Pay at Delivery.</span>
             <button
               type="button"
