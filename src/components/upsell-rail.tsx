@@ -14,9 +14,10 @@ interface UpsellRailProps {
 }
 
 /**
- * Fixed (non-scrolling) band on the Review screen, between the order item
- * list and the tip/checkout footer - deliberately NOT inside the scrollable
- * item list, so it stays visible regardless of how long the order is.
+ * Rendered inside the Review screen's scrollable content, directly below
+ * the order item list - a natural next section the patron scrolls past,
+ * rather than a fixed band competing with the tip/checkout footer for
+ * screen space on every visit.
  * "No Thanks" dismisses both picks at once; adding one still leaves the
  * other offered. No persistence across visits - a one-shot nudge.
  */
@@ -38,7 +39,7 @@ export function UpsellRail({ upsellItemIds, menuItems, orderItems, onAdd }: Upse
   };
 
   return (
-    <div className="shrink-0 bg-white border-t-2 border-b-2 border-slate-100 px-4 py-2.5 animate-in fade-in duration-300">
+    <div className="bg-white border-t-2 border-slate-100 py-2.5 animate-in fade-in duration-300">
       <div className="flex items-center justify-between mb-2">
         <h3 className="text-[9px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-1.5">
           <Sparkles className="h-3 w-3" /> Add to Your Order?
