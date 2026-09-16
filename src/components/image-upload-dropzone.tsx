@@ -17,7 +17,7 @@ interface ImageUploadDropzoneProps {
   className?: string;
 }
 
-// Every upload is center-cropped to this aspect ratio (matching the 4:3
+// Every upload is center-cropped to this aspect ratio (matching the square
 // customer-facing menu card) and resized to a fixed width, so a photo shot
 // on any phone/tablet, in any orientation, always comes out the same
 // consistent size - no manual cropping or "right dimensions" knowledge needed.
@@ -27,7 +27,7 @@ export function ImageUploadDropzone({
   value,
   onChange,
   storagePath,
-  aspectRatio = 4 / 3,
+  aspectRatio = 1,
   disabled,
   className,
 }: ImageUploadDropzoneProps) {

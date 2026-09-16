@@ -101,8 +101,10 @@ export function BuyerMenu({
                     key={item.id}
                     className="bg-white rounded-[1.25rem] border-2 border-slate-100 shadow-sm overflow-hidden flex flex-col transition-all active:scale-[0.98] group"
                   >
-                    {/* Image - shorter aspect ratio than before to fit more cards per screen */}
-                    <div className="relative aspect-[4/3] w-full bg-muted shrink-0 border-b-2 border-slate-100 overflow-hidden">
+                    {/* Square - more forgiving of tall product photos (cans,
+                        bottles) than the old 4:3 landscape crop, which chopped
+                        off their tops/bases, while still keeping cards compact. */}
+                    <div className="relative aspect-square w-full bg-muted shrink-0 border-b-2 border-slate-100 overflow-hidden">
                       {item.imageUrl ? (
                         <Image
                           src={item.imageUrl}
