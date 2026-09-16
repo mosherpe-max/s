@@ -101,21 +101,25 @@ function ReviewOrderContent({ sellerId }: { sellerId: string }) {
           onAdd={updateItem}
           orderItems={orderItems}
         />
-      </div>
 
-      <div className="shrink-0 bg-white border-t-2 border-slate-100 px-4 pt-4 pb-5 space-y-4 shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
-        <TipSelector subtotal={subtotal} onTipChange={setTip} />
-        <PricingBreakdown subtotal={subtotal} serviceFee={solutionFee} tax={tax} tip={tip} taxRate={taxRate} />
-        <p className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest text-center leading-relaxed opacity-60">
-          {checkoutNotice}
-        </p>
-        <Button
-          size="lg"
-          className="w-full h-14 font-black uppercase tracking-widest gap-2 shadow-xl"
-          onClick={() => router.push(checkoutUrl)}
-        >
-          Checkout <ChevronRight className="h-5 w-5" />
-        </Button>
+        {/* Also part of the scroll, below the upsell picks, instead of a
+            sticky footer - a sticky footer on a short order (a couple
+            items) sat tall enough to cover the upsell section entirely.
+            A little scrolling to reach checkout is an acceptable trade. */}
+        <div className="bg-white border-2 border-slate-100 rounded-2xl px-4 pt-4 pb-5 space-y-4 shadow-sm">
+          <TipSelector subtotal={subtotal} onTipChange={setTip} />
+          <PricingBreakdown subtotal={subtotal} serviceFee={solutionFee} tax={tax} tip={tip} taxRate={taxRate} />
+          <p className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest text-center leading-relaxed opacity-60">
+            {checkoutNotice}
+          </p>
+          <Button
+            size="lg"
+            className="w-full h-14 font-black uppercase tracking-widest gap-2 shadow-xl"
+            onClick={() => router.push(checkoutUrl)}
+          >
+            Checkout <ChevronRight className="h-5 w-5" />
+          </Button>
+        </div>
       </div>
     </div>
   );
