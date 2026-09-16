@@ -88,6 +88,7 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
       const sessionStart = localStorage.getItem('koop_staff_session_start');
       const lastHidden = localStorage.getItem('koop_staff_last_hidden');
       const resetHour = solutionConfig?.dailyResetHour ?? 4;
+      const idleTimeoutMinutes = solutionConfig?.staffIdleTimeoutMinutes;
       mySessionIdRef.current = localStorage.getItem('koop_staff_session_id') || undefined;
 
       if ("Notification" in window) {
@@ -98,7 +99,7 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
       if (sessionStart && isStaffSessionStale(new Date(parseInt(sessionStart, 10)), resetHour)) {
         handleExitTerminal('root');
         toast({ title: "Shift Expired", description: "Your shift has ended per the daily reset policy." });
-      } else if (!isImpersonating && lastHidden && isStaffSessionIdle(new Date(parseInt(lastHidden, 10)))) {
+      } else if (!isImpersonating && lastHidden && isStaffSessionIdle(new Date(parseInt(lastHidden, 10)), idleTimeoutMinutes)) {
         // The OS may fully discard a backgrounded tab (screen off for a
         // while) and reload it fresh - this catches that case too, since
         // it's checked against the same localStorage timestamp the
@@ -112,18 +113,19 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
         localStorage.removeItem('koop_staff_last_hidden');
       }
     }
-  }, [sellerId, router, toast, solutionConfig?.dailyResetHour]);
+  }, [sellerId, router, toast, solutionConfig?.dailyResetHour, solutionConfig?.staffIdleTimeoutMinutes]);
 
   // Track how long the terminal has been backgrounded (screen off, app
   // switched away, tab hidden) - a brief absence should resume silently,
-  // but more than STAFF_IDLE_TIMEOUT_MINUTES away requires a fresh PIN.
+  // but more than the configured idle timeout (Koop admin setting,
+  // defaults to STAFF_IDLE_TIMEOUT_MINUTES) away requires a fresh PIN.
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'hidden') {
         localStorage.setItem('koop_staff_last_hidden', Date.now().toString());
       } else if (document.visibilityState === 'visible') {
         const lastHidden = localStorage.getItem('koop_staff_last_hidden');
-        if (lastHidden && isStaffSessionIdle(new Date(parseInt(lastHidden, 10))) && !isAdminSession && !isExiting) {
+        if (lastHidden && isStaffSessionIdle(new Date(parseInt(lastHidden, 10)), solutionConfig?.staffIdleTimeoutMinutes) && !isAdminSession && !isExiting) {
           handleExitTerminal('root');
           toast({ title: "Session Timed Out", description: "You were away for a while - please sign back in." });
         } else {
@@ -133,7 +135,7 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
     };
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, [isAdminSession, isExiting]);
+  }, [isAdminSession, isExiting, solutionConfig?.staffIdleTimeoutMinutes]);
 
   // B. Check for REMOTE logout (activeMode cleared by backend reset)
   useEffect(() => {

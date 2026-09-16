@@ -121,11 +121,25 @@ export default function AdminSystemConfigPage() {
                       </Button>
                    </div>
                    <p className="text-[9px] text-muted-foreground uppercase font-medium max-w-lg leading-relaxed">
-                      The hour at which all staff shifts are system-terminated and stale orders cancelled. 
+                      The hour at which all staff shifts are system-terminated and stale orders cancelled.
                       Use <strong className="text-[#213147]">Force Global Reset</strong> to trigger this logic immediately for testing.
                    </p>
                 </div>
-                
+
+                <div className="space-y-4">
+                   <Label className="text-[10px] font-black uppercase">Staff Terminal Idle Timeout (Minutes)</Label>
+                   <Input
+                     type="number"
+                     min="1"
+                     defaultValue={config?.staffIdleTimeoutMinutes || 30}
+                     className="h-12 border-2 font-bold w-24 text-center"
+                     onBlur={(e) => handleUpdateConfig('staffIdleTimeoutMinutes', parseInt(e.target.value))}
+                   />
+                   <p className="text-[9px] text-muted-foreground uppercase font-medium max-w-lg leading-relaxed">
+                      How long a staff terminal can sit backgrounded (screen off, app switched away) before requiring the PIN again. A shorter absence resumes the shift silently.
+                   </p>
+                </div>
+
                 <div className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border-2 border-slate-100">
                    <div className="text-left">
                       <p className="text-xs font-black uppercase text-[#213147]">Twilio SMS Notifications</p>
