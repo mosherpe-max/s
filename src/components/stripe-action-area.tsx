@@ -29,6 +29,12 @@ interface StripeActionAreaProps {
   // reads as one unified form. This is just whether that form has finished
   // loading, to gate the Pay button.
   isStripeReady: boolean;
+  // When set (and useNewCard is false), the parent renders a "Pay with
+  // Visa •••• 1234" summary instead of the Payment Element, and payment
+  // is confirmed directly against this saved payment method id - no card
+  // form is mounted at all for this path.
+  savedPaymentMethod: { id: string; brand: string; last4: string } | null;
+  useNewCard: boolean;
 }
 
 export function StripeActionArea({
@@ -45,14 +51,19 @@ export function StripeActionArea({
   setSaveInfo,
   isFormValid,
   isStripeReady,
+  savedPaymentMethod,
+  useNewCard,
 }: StripeActionAreaProps) {
   const stripe = useStripe();
   const elements = useElements();
   const { toast } = useToast();
   const firestore = useFirestore();
 
+  const usingSavedCard = !!savedPaymentMethod && !useNewCard;
+
   const handleStripePayment = async () => {
-    if (!stripe || !elements || !clientSecret || !firestore) return;
+    if (!stripe || !clientSecret || !firestore) return;
+    if (!usingSavedCard && !elements) return;
 
     if (!isFormValid) {
       toast({ variant: 'destructive', title: 'Details Required', description: 'Please complete your contact info to receive tracking updates.' });
@@ -61,26 +72,32 @@ export function StripeActionArea({
 
     setIsProcessing(true);
     try {
-      const { error, paymentIntent } = await stripe.confirmPayment({
-        elements,
-        confirmParams: {
-          return_url: `${window.location.origin}/order/track`,
-          payment_method_data: {
-            billing_details: {
-              name: patronName,
-              email: patronEmail,
-              phone: patronPhone
+      // Saved-card path bypasses the Payment Element entirely - confirm
+      // directly against the saved payment method id, no card form needed.
+      const { error, paymentIntent } = usingSavedCard
+        ? await stripe.confirmCardPayment(clientSecret, {
+            payment_method: savedPaymentMethod!.id,
+          })
+        : await stripe.confirmPayment({
+            elements: elements!,
+            confirmParams: {
+              return_url: `${window.location.origin}/order/track`,
+              payment_method_data: {
+                billing_details: {
+                  name: patronName,
+                  email: patronEmail,
+                  phone: patronPhone
+                },
+                allow_redisplay: 'always'
+              },
+              payment_method_options: {
+                card: {
+                  setup_future_usage: saveInfo ? 'off_session' : undefined
+                }
+              }
             },
-            allow_redisplay: 'always'
-          },
-          payment_method_options: {
-            card: {
-              setup_future_usage: saveInfo ? 'off_session' : undefined
-            }
-          }
-        },
-        redirect: 'if_required',
-      });
+            redirect: 'if_required',
+          });
 
       if (error) throw new Error(error.message);
 
@@ -142,7 +159,7 @@ export function StripeActionArea({
               size="lg"
               className="w-full h-14 font-black uppercase tracking-widest gap-2 shadow-xl"
               onClick={handleStripePayment}
-              disabled={isProcessing || !isStripeReady}
+              disabled={isProcessing || (!usingSavedCard && !isStripeReady)}
             >
               {isProcessing ? <Loader2 className="animate-spin" /> : <CreditCard className="h-5 w-5" />}
               PAY & PLACE ORDER
