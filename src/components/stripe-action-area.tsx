@@ -123,7 +123,7 @@ export function StripeActionArea({
   return (
     <div className="space-y-3">
       <div className="p-3 border-2 border-slate-100 rounded-2xl bg-slate-50/50 animate-in fade-in duration-500">
-        <StripeCheckoutForm onReadyStateChange={setIsStripeReady} />
+        <StripeCheckoutForm onReadyStateChange={setIsStripeReady} clientSecret={clientSecret} />
       </div>
 
       <div
