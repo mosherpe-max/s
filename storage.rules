@@ -1,0 +1,49 @@
+
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isSuperAdmin() {
+      return isSignedIn() && (
+        request.auth.uid == 'o9vAQy0aFRPSNPoG0ETvjiGt9If1' ||
+        (request.auth.token.email != null && request.auth.token.email.lower() == 'mosherpe@gmail.com')
+      );
+    }
+
+    // Mirrors isVenueOwner() in firestore.rules. Cross-service rules let
+    // Storage read the same Firestore documents used there, so a venue
+    // admin can only upload into their own venue's image folder.
+    function isVenueOwner(venueId) {
+      return isSignedIn() && (
+        (firestore.exists(/databases/(default)/documents/venues/$(venueId)) &&
+         firestore.get(/databases/(default)/documents/venues/$(venueId)).data.ownerUid == request.auth.uid) ||
+        (firestore.exists(/databases/(default)/documents/roles_seller_admin/$(request.auth.token.email.lower())) &&
+         firestore.get(/databases/(default)/documents/roles_seller_admin/$(request.auth.token.email.lower())).data.sellerId == venueId)
+      );
+    }
+
+    function isValidImageUpload() {
+      return request.resource.size < 8 * 1024 * 1024 &&
+             request.resource.contentType.matches('image/.*');
+    }
+
+    // Venue admins photograph and upload their own menu item images here,
+    // one folder per venue.
+    match /menuItemImages/{sellerId}/{fileName} {
+      allow read: if true;
+      allow write: if (isSuperAdmin() || isVenueOwner(sellerId)) && isValidImageUpload();
+    }
+
+    // Koop (super admin) starter library product photos - shared defaults
+    // offered to every venue's menu template.
+    match /starterLibraryImages/{fileName} {
+      allow read: if true;
+      allow write: if isSuperAdmin() && isValidImageUpload();
+    }
+  }
+}

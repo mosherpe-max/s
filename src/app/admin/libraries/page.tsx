@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import {
   Library,
@@ -30,6 +30,7 @@ import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, doc, setDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 import type { StarterMenuItem, StarterModifierGroup } from '@/lib/types';
 import { seedGlobalStarterMenuLibrary } from '@/lib/seed-data';
+import { ImageUploadDropzone } from '@/components/image-upload-dropzone';
 import { useToast } from '@/hooks/use-toast';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
@@ -66,6 +67,11 @@ export default function GlobalLibrariesPage() {
   const [editingItem, setEditingItem] = useState<StarterMenuItem | null>(null);
   const [editingMod, setEditingMod] = useState<StarterModifierGroup | null>(null);
   const [isSeedingKit, setIsSeedingKit] = useState(false);
+  const [itemImageUrl, setItemImageUrl] = useState('');
+
+  useEffect(() => {
+    if (isItemDialogOpen) setItemImageUrl(editingItem?.imageUrl || '');
+  }, [isItemDialogOpen, editingItem]);
 
   const menuTemplatesQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'starter_menu_item_library') : null), [firestore]);
   const modTemplatesQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'starter_modifier_library') : null), [firestore]);
@@ -302,7 +308,11 @@ export default function GlobalLibrariesPage() {
                        </Select>
                     </div>
                   </div>
-                  <div className="space-y-2"><Label className="text-[10px] font-black uppercase">Image URL</Label><Input name="imageUrl" defaultValue={editingItem?.imageUrl} className="h-11 border-2 font-bold" /></div>
+                  <div className="space-y-2">
+                    <Label className="text-[10px] font-black uppercase">Photo</Label>
+                    <ImageUploadDropzone value={itemImageUrl} onChange={setItemImageUrl} storagePath="starterLibraryImages" />
+                    <input type="hidden" name="imageUrl" value={itemImageUrl} readOnly />
+                  </div>
                 </div>
               </div>
             </ScrollArea>
