@@ -71,7 +71,6 @@ function CheckoutContent({ sellerId }: { sellerId: string }) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [isStripeReady, setIsStripeReady] = useState(false);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
-  const [customerSessionClientSecret, setCustomerSessionClientSecret] = useState<string | null>(null);
   const [stripeCustomerId, setStripeCustomerId] = useState<string | null>(null);
   const [isFetchingIntent, setIsFetchingIntent] = useState(false);
   const [orderJustPlaced, setOrderJustPlaced] = useState(false);
@@ -156,10 +155,9 @@ function CheckoutContent({ sellerId }: { sellerId: string }) {
             new Promise((_, reject) => setTimeout(() => reject(new Error('Payment gateway timed out.')), 20000))
           ]);
 
-          const data = result.data as { clientSecret: string; customerSessionClientSecret?: string; stripeCustomerId?: string };
+          const data = result.data as { clientSecret: string; stripeCustomerId?: string };
           if (data?.clientSecret) {
             setClientSecret(data.clientSecret);
-            if (data.customerSessionClientSecret) setCustomerSessionClientSecret(data.customerSessionClientSecret);
             if (data.stripeCustomerId) setStripeCustomerId(data.stripeCustomerId);
           }
         } catch (e: any) {
@@ -423,19 +421,16 @@ function CheckoutContent({ sellerId }: { sellerId: string }) {
                   stripe={stripePromise}
                   options={{
                     clientSecret,
-                    // Temporarily disabled: the Payment Element frame was
-                    // never rendering (onReady never fired) even with a
-                    // fully valid clientSecret, correct key pairing, and a
-                    // real resolved payment method (card) - every server-side
-                    // and key-mismatch cause was ruled out via diagnostics.
-                    // Customer Session's redisplay/Link features are the
-                    // remaining untested variable and have their own
-                    // account-level setup requirements beyond a plain
-                    // checkout. Dropping this here only removes the "show
-                    // previously saved cards" UI - saving a new card via
-                    // setup_future_usage in stripe-action-area.tsx is
-                    // unaffected. Re-enable once confirmed this was the cause.
-                    // customerSessionClientSecret: customerSessionClientSecret || undefined,
+                    // Confirmed live: the Payment Element never rendered
+                    // (onReady never fired) with a Customer Session attached,
+                    // even with a fully valid clientSecret, correct key
+                    // pairing, and a real resolved payment method - dropping
+                    // it fixed checkout. Its only purpose was showing
+                    // previously-saved cards/Link in the form; saving a new
+                    // card via setup_future_usage in stripe-action-area.tsx
+                    // is unrelated and unaffected. Revisit only alongside
+                    // confirming the account-level setup Customer Sessions
+                    // needs, since that's the likely reason it hung.
                     defaultValues: {
                       billingDetails: {
                         name: patronName,

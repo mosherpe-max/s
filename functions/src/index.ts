@@ -122,6 +122,11 @@ const SERVICE_MODE_LABELS: Record<string, string> = {
 export const createPaymentIntent = onCall({
   secrets: ["STRIPE_SECRET_KEY"],
   region: 'us-central1',
+  // Cold starts on this function are directly patron-visible checkout
+  // latency (Node.js + firebase-admin + stripe init can add seconds on a
+  // cold invocation). Keeping one instance warm removes that entirely for
+  // the function on the critical path to loading the payment form.
+  minInstances: 1,
 }, async (request) => {
   try {
     const { amount, convenienceFee, sellerId, patronName, patronPhone, patronEmail, stripeCustomerId: clientProvidedCustomerId } = request.data || {};
@@ -170,11 +175,6 @@ export const createPaymentIntent = onCall({
       stripeCustomerId = customer.id;
     }
 
-    const customerSession = await stripe.customerSessions.create({
-      customer: stripeCustomerId,
-      components: { payment_element: { enabled: true, features: { payment_method_save: 'enabled', payment_method_redisplay: 'enabled' } } }
-    });
-
     const paymentIntent = await stripe.paymentIntents.create({
       amount: totalCents,
       currency: 'usd',
@@ -191,10 +191,9 @@ export const createPaymentIntent = onCall({
       }
     });
 
-    return { 
-      clientSecret: paymentIntent.client_secret, 
-      customerSessionClientSecret: customerSession.client_secret,
-      stripeCustomerId 
+    return {
+      clientSecret: paymentIntent.client_secret,
+      stripeCustomerId
     };
   } catch (err: any) {
     logger.error("Stripe PI Error", err);
