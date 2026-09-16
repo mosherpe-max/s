@@ -1,6 +1,5 @@
 'use client';
 
-import { useState } from 'react';
 import { useStripe, useElements } from '@stripe/react-stripe-js';
 import { doc, setDoc } from 'firebase/firestore';
 import { useFirestore } from '@/firebase';
@@ -8,7 +7,6 @@ import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Loader2, CreditCard } from 'lucide-react';
-import { StripeCheckoutForm } from '@/components/stripe-checkout-form';
 import { CheckoutBrandingBar } from '@/components/checkout-branding-bar';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
@@ -26,6 +24,11 @@ interface StripeActionAreaProps {
   saveInfo: boolean;
   setSaveInfo: (value: boolean) => void;
   isFormValid: boolean;
+  // The card fields themselves (StripeCheckoutForm) are rendered by the
+  // parent, inside its own shared card alongside contact info, so this
+  // reads as one unified form. This is just whether that form has finished
+  // loading, to gate the Pay button.
+  isStripeReady: boolean;
 }
 
 export function StripeActionArea({
@@ -41,12 +44,12 @@ export function StripeActionArea({
   saveInfo,
   setSaveInfo,
   isFormValid,
+  isStripeReady,
 }: StripeActionAreaProps) {
   const stripe = useStripe();
   const elements = useElements();
   const { toast } = useToast();
   const firestore = useFirestore();
-  const [isStripeReady, setIsStripeReady] = useState(false);
 
   const handleStripePayment = async () => {
     if (!stripe || !elements || !clientSecret || !firestore) return;
@@ -122,10 +125,6 @@ export function StripeActionArea({
 
   return (
     <div className="space-y-3">
-      <div className="p-3 border-2 border-slate-100 rounded-2xl bg-slate-50/50 animate-in fade-in duration-500">
-        <StripeCheckoutForm onReadyStateChange={setIsStripeReady} clientSecret={clientSecret} />
-      </div>
-
       <div
         className="flex items-center space-x-3 p-3 bg-primary/5 rounded-2xl border-2 border-primary/10 cursor-pointer transition-all hover:bg-primary/10 animate-in fade-in duration-500"
         onClick={() => setSaveInfo(!saveInfo)}

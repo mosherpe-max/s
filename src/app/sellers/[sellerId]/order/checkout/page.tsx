@@ -14,6 +14,7 @@ import { RadioGroup } from '@/components/ui/radio-group';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { PatronIdentifyFields } from '@/components/patron-identify-fields';
 import { StripeActionArea } from '@/components/stripe-action-area';
+import { StripeCheckoutForm } from '@/components/stripe-checkout-form';
 import { CheckoutBrandingBar } from '@/components/checkout-branding-bar';
 import { Loader2, ChevronLeft, CreditCard, Banknote, UserCircle, Check, ShoppingBag, Lock, ArrowLeft } from 'lucide-react';
 import { loadStripe } from '@stripe/stripe-js';
@@ -68,6 +69,7 @@ function CheckoutContent({ sellerId }: { sellerId: string }) {
   const [saveInfo, setSaveInfo] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethodType | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isStripeReady, setIsStripeReady] = useState(false);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [customerSessionClientSecret, setCustomerSessionClientSecret] = useState<string | null>(null);
   const [stripeCustomerId, setStripeCustomerId] = useState<string | null>(null);
@@ -95,7 +97,7 @@ function CheckoutContent({ sellerId }: { sellerId: string }) {
   const isFormValid = isContactValid && isLocationValid && !!paymentMethod;
 
   const availableMethods = useMemo<PaymentMethodType[]>(() => {
-    return seller?.enabledPaymentMethods || ['Pay at Delivery', 'Digital Payment'];
+    return seller?.enabledPaymentMethods || ['Digital Payment', 'Pay at Delivery'];
   }, [seller]);
 
   useEffect(() => {
@@ -328,11 +330,13 @@ function CheckoutContent({ sellerId }: { sellerId: string }) {
             </div>
           )}
 
-          <PatronIdentifyFields
-            patronEmail={patronEmail} setPatronEmail={setPatronEmail}
-            patronName={patronName} setPatronName={setPatronName}
-            patronPhone={patronPhone} setPatronPhone={setPatronPhone}
-          />
+          {paymentMethod !== 'Digital Payment' && (
+            <PatronIdentifyFields
+              patronEmail={patronEmail} setPatronEmail={setPatronEmail}
+              patronName={patronName} setPatronName={setPatronName}
+              patronPhone={patronPhone} setPatronPhone={setPatronPhone}
+            />
+          )}
 
           {LOCATION_TRACKING_NOTE[menuTypeFromUrl] && (
             <p className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest text-center px-4 leading-relaxed opacity-60">
@@ -342,6 +346,21 @@ function CheckoutContent({ sellerId }: { sellerId: string }) {
 
           <div className="space-y-2">
             {availableMethods.length > 1 && (
+              new Set(availableMethods).size === 2 && availableMethods.includes('Digital Payment') && availableMethods.includes('Pay at Delivery') ? (
+                // Prototyping-only affordance: at launch a venue's
+                // enabledPaymentMethods will just be ['Digital Payment'] and
+                // this whole selector disappears (availableMethods.length
+                // becomes 1). Until then, Digital Payment is still the
+                // default/primary flow - this checkbox exists purely so the
+                // venue admin can flip to Pay at Delivery for their own
+                // testing without a customer-facing "pick a method" choice.
+                <div className="flex items-center gap-3 px-1 py-1" onClick={() => { const next = paymentMethod === 'Pay at Delivery' ? 'Digital Payment' : 'Pay at Delivery'; setPaymentMethod(next); setClientSecret(null); }}>
+                  <Checkbox id="test-pay-at-delivery" checked={paymentMethod === 'Pay at Delivery'} className="shrink-0" />
+                  <label htmlFor="test-pay-at-delivery" className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest cursor-pointer">
+                    Testing: Use Pay at Delivery instead of card
+                  </label>
+                </div>
+              ) : (
               <>
                 <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground px-1">PAYMENT METHOD</h3>
                 <RadioGroup value={paymentMethod || ''} onValueChange={(v: any) => { setPaymentMethod(v); setClientSecret(null); }} className="grid grid-cols-1 gap-2">
@@ -376,15 +395,30 @@ function CheckoutContent({ sellerId }: { sellerId: string }) {
                   )}
                 </RadioGroup>
               </>
+              )
             )}
 
             {paymentMethod === 'Digital Payment' && (
-              isFetchingIntent ? (
-                <div className="flex flex-col items-center gap-4 py-20 animate-in fade-in duration-300">
-                  <Loader2 className="h-10 w-10 animate-spin text-primary opacity-50" />
-                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Initializing Secure Checkout...</p>
+              isFetchingIntent || !clientSecret ? (
+                // One shared card for contact info + payment - Koop's own
+                // fields and Stripe's card fields read as one form, not two
+                // stacked ones, and this data already flows to both: it's
+                // saved on the order doc and passed to Stripe as the
+                // PaymentMethod's billing_details in stripe-action-area.tsx.
+                <div className="p-3 border-2 border-slate-100 rounded-2xl bg-slate-50/50 animate-in fade-in duration-500 space-y-3">
+                  <PatronIdentifyFields
+                    bare
+                    patronEmail={patronEmail} setPatronEmail={setPatronEmail}
+                    patronName={patronName} setPatronName={setPatronName}
+                    patronPhone={patronPhone} setPatronPhone={setPatronPhone}
+                  />
+                  <div className="border-t-2 border-white" />
+                  <div className="flex flex-col items-center gap-4 py-16 animate-in fade-in duration-300">
+                    <Loader2 className="h-10 w-10 animate-spin text-primary opacity-50" />
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Initializing Secure Checkout...</p>
+                  </div>
                 </div>
-              ) : clientSecret ? (
+              ) : (
                 <Elements
                   stripe={stripePromise}
                   options={{
@@ -411,6 +445,16 @@ function CheckoutContent({ sellerId }: { sellerId: string }) {
                     }
                   }}
                 >
+                  <div className="p-3 border-2 border-slate-100 rounded-2xl bg-slate-50/50 animate-in fade-in duration-500 space-y-3">
+                    <PatronIdentifyFields
+                      bare
+                      patronEmail={patronEmail} setPatronEmail={setPatronEmail}
+                      patronName={patronName} setPatronName={setPatronName}
+                      patronPhone={patronPhone} setPatronPhone={setPatronPhone}
+                    />
+                    <div className="border-t-2 border-white" />
+                    <StripeCheckoutForm onReadyStateChange={setIsStripeReady} clientSecret={clientSecret} />
+                  </div>
                   <StripeActionArea
                     clientSecret={clientSecret}
                     isProcessing={isProcessing}
@@ -424,9 +468,10 @@ function CheckoutContent({ sellerId }: { sellerId: string }) {
                     saveInfo={saveInfo}
                     setSaveInfo={setSaveInfo}
                     isFormValid={isFormValid}
+                    isStripeReady={isStripeReady}
                   />
                 </Elements>
-              ) : null
+              )
             )}
 
             {(paymentMethod === 'Pay at Delivery' || paymentMethod === 'Member Account') && (
