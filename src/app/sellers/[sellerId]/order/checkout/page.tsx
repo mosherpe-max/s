@@ -389,7 +389,19 @@ function CheckoutContent({ sellerId }: { sellerId: string }) {
                   stripe={stripePromise}
                   options={{
                     clientSecret,
-                    customerSessionClientSecret: customerSessionClientSecret || undefined,
+                    // Temporarily disabled: the Payment Element frame was
+                    // never rendering (onReady never fired) even with a
+                    // fully valid clientSecret, correct key pairing, and a
+                    // real resolved payment method (card) - every server-side
+                    // and key-mismatch cause was ruled out via diagnostics.
+                    // Customer Session's redisplay/Link features are the
+                    // remaining untested variable and have their own
+                    // account-level setup requirements beyond a plain
+                    // checkout. Dropping this here only removes the "show
+                    // previously saved cards" UI - saving a new card via
+                    // setup_future_usage in stripe-action-area.tsx is
+                    // unaffected. Re-enable once confirmed this was the cause.
+                    // customerSessionClientSecret: customerSessionClientSecret || undefined,
                     defaultValues: {
                       billingDetails: {
                         name: patronName,
