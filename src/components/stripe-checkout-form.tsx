@@ -1,14 +1,21 @@
 
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
-import { Lock, ShieldCheck, Loader2 } from 'lucide-react';
+import { Lock, ShieldCheck, Loader2, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface StripeCheckoutFormProps {
   onReadyStateChange: (ready: boolean) => void;
 }
+
+// If Stripe.js never calls onReady - a mismatched/misconfigured publishable
+// key, a blocked iframe (ad/privacy blocker), or Stripe's own network being
+// unreachable - this component previously had no way to signal that and
+// would show its loading spinner forever with zero feedback. This timeout
+// turns that silent hang into a visible, actionable error.
+const READY_TIMEOUT_MS = 12000;
 
 /**
  * Integrated Stripe Checkout Form.
@@ -19,6 +26,13 @@ export function StripeCheckoutForm({ onReadyStateChange }: StripeCheckoutFormPro
   const elements = useElements();
   const [error, setError] = useState<string | null>(null);
   const [isElementLoaded, setIsElementLoaded] = useState(false);
+  const [timedOut, setTimedOut] = useState(false);
+
+  useEffect(() => {
+    if (isElementLoaded) return;
+    const timer = setTimeout(() => setTimedOut(true), READY_TIMEOUT_MS);
+    return () => clearTimeout(timer);
+  }, [isElementLoaded]);
 
   const handleChange = (event: any) => {
     onReadyStateChange(event.complete);
@@ -44,10 +58,25 @@ export function StripeCheckoutForm({ onReadyStateChange }: StripeCheckoutFormPro
         "bg-white p-3 rounded-2xl border-2 transition-all duration-300 relative min-h-[90px]",
         error ? "border-destructive/50 ring-4 ring-destructive/10" : "border-slate-100 shadow-sm"
       )}>
-        {!isElementLoaded && (
+        {!isElementLoaded && !timedOut && (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/80 z-10 gap-2">
             <Loader2 className="h-6 w-6 animate-spin text-primary" />
             <span className="text-[8px] font-black uppercase text-muted-foreground tracking-widest">Securing Terminal...</span>
+          </div>
+        )}
+
+        {!isElementLoaded && timedOut && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-white z-10 gap-2 px-4 text-center">
+            <AlertTriangle className="h-6 w-6 text-destructive" />
+            <span className="text-[9px] font-black uppercase text-destructive tracking-widest">Payment Form Unavailable</span>
+            <span className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest">Please try again, or use Pay at Delivery.</span>
+            <button
+              type="button"
+              onClick={() => window.location.reload()}
+              className="mt-1 text-[9px] font-black uppercase tracking-widest text-primary underline underline-offset-2"
+            >
+              Retry
+            </button>
           </div>
         )}
 

@@ -135,16 +135,24 @@ function CheckoutContent({ sellerId }: { sellerId: string }) {
           const functions = getFunctions(firebaseApp, 'us-central1');
           const createIntent = httpsCallable(functions, 'createPaymentIntent');
 
-          const result = await createIntent({
-            amount: baseTotalForBackend,
-            convenienceFee: solutionFee,
-            sellerId,
-            patronName: patronName || 'Guest',
-            patronPhone: patronPhone.replace(/\D/g, '') || '',
-            patronEmail: patronEmail || '',
-            saveInfo,
-            stripeCustomerId
-          });
+          // A callable's own deadline can be as long as 70s of silent
+          // spinning with zero feedback - race it against a much shorter
+          // timeout so a hung/unreachable gateway fails fast and visibly
+          // instead of leaving the "Initializing Secure Checkout" spinner
+          // running indefinitely.
+          const result: any = await Promise.race([
+            createIntent({
+              amount: baseTotalForBackend,
+              convenienceFee: solutionFee,
+              sellerId,
+              patronName: patronName || 'Guest',
+              patronPhone: patronPhone.replace(/\D/g, '') || '',
+              patronEmail: patronEmail || '',
+              saveInfo,
+              stripeCustomerId
+            }),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('Payment gateway timed out.')), 20000))
+          ]);
 
           const data = result.data as { clientSecret: string; customerSessionClientSecret?: string; stripeCustomerId?: string };
           if (data?.clientSecret) {
