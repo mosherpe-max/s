@@ -158,10 +158,12 @@ export const createPaymentIntent = onCall({
     const applicationFeeAmount = Math.max(0, convenienceFeeCents - estimatedStripeFeeCents);
 
     let stripeCustomerId = clientProvidedCustomerId;
+    let isReturningCustomer = !!stripeCustomerId;
     if (!stripeCustomerId && buyerUid) {
       const userDoc = await db.collection('users').doc(buyerUid).get();
       if (userDoc.exists && userDoc.data()?.stripeCustomerId) {
         stripeCustomerId = userDoc.data()?.stripeCustomerId;
+        isReturningCustomer = true;
       }
     }
 
@@ -173,6 +175,18 @@ export const createPaymentIntent = onCall({
         metadata: { buyerUid: buyerUid || 'anonymous' }
       });
       stripeCustomerId = customer.id;
+    }
+
+    // Only look up saved cards for a customer we already knew about - a
+    // brand-new customer can't have any, and skipping the extra Stripe
+    // round-trip keeps first-time checkout as fast as before.
+    let savedPaymentMethod: { id: string; brand: string; last4: string } | null = null;
+    if (isReturningCustomer) {
+      const paymentMethods = await stripe.paymentMethods.list({ customer: stripeCustomerId, type: 'card', limit: 1 });
+      const pm = paymentMethods.data[0];
+      if (pm?.card) {
+        savedPaymentMethod = { id: pm.id, brand: pm.card.brand, last4: pm.card.last4 };
+      }
     }
 
     const paymentIntent = await stripe.paymentIntents.create({
@@ -193,7 +207,8 @@ export const createPaymentIntent = onCall({
 
     return {
       clientSecret: paymentIntent.client_secret,
-      stripeCustomerId
+      stripeCustomerId,
+      savedPaymentMethod
     };
   } catch (err: any) {
     logger.error("Stripe PI Error", err);

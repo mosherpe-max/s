@@ -72,6 +72,8 @@ function CheckoutContent({ sellerId }: { sellerId: string }) {
   const [isStripeReady, setIsStripeReady] = useState(false);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [stripeCustomerId, setStripeCustomerId] = useState<string | null>(null);
+  const [savedPaymentMethod, setSavedPaymentMethod] = useState<{ id: string; brand: string; last4: string } | null>(null);
+  const [useNewCard, setUseNewCard] = useState(false);
   const [isFetchingIntent, setIsFetchingIntent] = useState(false);
   const [orderJustPlaced, setOrderJustPlaced] = useState(false);
 
@@ -155,10 +157,11 @@ function CheckoutContent({ sellerId }: { sellerId: string }) {
             new Promise((_, reject) => setTimeout(() => reject(new Error('Payment gateway timed out.')), 20000))
           ]);
 
-          const data = result.data as { clientSecret: string; stripeCustomerId?: string };
+          const data = result.data as { clientSecret: string; stripeCustomerId?: string; savedPaymentMethod?: { id: string; brand: string; last4: string } | null };
           if (data?.clientSecret) {
             setClientSecret(data.clientSecret);
             if (data.stripeCustomerId) setStripeCustomerId(data.stripeCustomerId);
+            setSavedPaymentMethod(data.savedPaymentMethod || null);
           }
         } catch (e: any) {
           console.error("Payment Intent Error:", e);
@@ -448,7 +451,30 @@ function CheckoutContent({ sellerId }: { sellerId: string }) {
                       patronPhone={patronPhone} setPatronPhone={setPatronPhone}
                     />
                     <div className="border-t-2 border-white" />
-                    <StripeCheckoutForm onReadyStateChange={setIsStripeReady} clientSecret={clientSecret} />
+                    {savedPaymentMethod && !useNewCard ? (
+                      // Bypasses the Payment Element entirely for a
+                      // returning patron with a saved card - only Stripe's
+                      // own opaque payment method id and non-sensitive
+                      // display info (brand/last4) are ever handled here,
+                      // never the actual card number.
+                      <div className="bg-white p-3 rounded-2xl border-2 border-slate-100 shadow-sm flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <CreditCard className="h-4 w-4 text-primary shrink-0" />
+                          <span className="text-[11px] font-black uppercase text-[#213147] truncate">
+                            {savedPaymentMethod.brand} •••• {savedPaymentMethod.last4}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setUseNewCard(true)}
+                          className="text-[9px] font-black uppercase tracking-widest text-primary underline underline-offset-2 shrink-0"
+                        >
+                          Use a Different Card
+                        </button>
+                      </div>
+                    ) : (
+                      <StripeCheckoutForm onReadyStateChange={setIsStripeReady} clientSecret={clientSecret} />
+                    )}
                   </div>
                   <StripeActionArea
                     clientSecret={clientSecret}
@@ -464,6 +490,8 @@ function CheckoutContent({ sellerId }: { sellerId: string }) {
                     setSaveInfo={setSaveInfo}
                     isFormValid={isFormValid}
                     isStripeReady={isStripeReady}
+                    savedPaymentMethod={savedPaymentMethod}
+                    useNewCard={useNewCard}
                   />
                 </Elements>
               )
