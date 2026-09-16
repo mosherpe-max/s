@@ -28,6 +28,11 @@ export function StripeCheckoutForm({ onReadyStateChange, clientSecret }: StripeC
   const [error, setError] = useState<string | null>(null);
   const [isElementLoaded, setIsElementLoaded] = useState(false);
   const [timedOut, setTimedOut] = useState(false);
+  // 'pending' = still waiting on Stripe; 'ok' = Stripe confirmed this
+  // client secret is valid for our key (so only the embedded frame itself
+  // failed to render); 'error' = Stripe rejected it outright (key/account/
+  // mode mismatch, expired secret, etc).
+  const [retrieveStatus, setRetrieveStatus] = useState<'pending' | 'ok' | 'error'>('pending');
   const [diagnosticMessage, setDiagnosticMessage] = useState<string | null>(null);
 
   useEffect(() => {
@@ -45,17 +50,32 @@ export function StripeCheckoutForm({ onReadyStateChange, clientSecret }: StripeC
   // immediately rather than only after the generic timeout fires, and lets
   // us show the actual reason on screen instead of a guess - useful since
   // most patrons/staff have no practical way to check a browser console.
+  // A successful retrieve here with the frame still never rendering points
+  // at something else entirely: the embedding browser/webview blocking
+  // Stripe's third-party iframe.
   useEffect(() => {
     if (!stripe || !clientSecret) return;
     let cancelled = false;
     stripe.retrievePaymentIntent(clientSecret).then(({ error: retrieveError }) => {
-      if (!cancelled && retrieveError) {
+      if (cancelled) return;
+      if (retrieveError) {
         setDiagnosticMessage(retrieveError.message || null);
+        setRetrieveStatus('error');
         setTimedOut(true);
+      } else {
+        setRetrieveStatus('ok');
       }
     });
     return () => { cancelled = true; };
   }, [stripe, clientSecret]);
+
+  const timeoutDiagnosis = !stripe
+    ? "Stripe's secure payment library failed to load in this browser."
+    : diagnosticMessage
+    ? diagnosticMessage
+    : retrieveStatus === 'ok'
+    ? "Connected fine, but the secure payment frame itself didn't render. If you're inside an app's built-in browser (a link preview, QR scanner, etc.), try opening this checkout in Safari or Chrome directly instead."
+    : "Could not reach the payment gateway. Check your connection and try again.";
 
   const handleChange = (event: any) => {
     onReadyStateChange(event.complete);
@@ -92,9 +112,7 @@ export function StripeCheckoutForm({ onReadyStateChange, clientSecret }: StripeC
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-white z-10 gap-2 px-4 text-center">
             <AlertTriangle className="h-6 w-6 text-destructive" />
             <span className="text-[9px] font-black uppercase text-destructive tracking-widest">Payment Form Unavailable</span>
-            {diagnosticMessage && (
-              <span className="text-[8px] font-bold text-destructive/80 normal-case tracking-normal max-w-[280px]">{diagnosticMessage}</span>
-            )}
+            <span className="text-[8px] font-bold text-destructive/80 normal-case tracking-normal max-w-[280px]">{timeoutDiagnosis}</span>
             <span className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest">Please try again, or use Pay at Delivery.</span>
             <button
               type="button"
