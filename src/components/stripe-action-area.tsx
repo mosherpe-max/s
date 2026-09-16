@@ -73,7 +73,6 @@ export function StripeActionArea({
             },
             allow_redisplay: 'always'
           },
-          payment_method_data_save: saveInfo ? 'always' : 'never',
           payment_method_options: {
             card: {
               setup_future_usage: saveInfo ? 'off_session' : undefined
