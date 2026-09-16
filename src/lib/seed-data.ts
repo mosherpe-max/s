@@ -51,7 +51,23 @@ export const GLOBAL_STARTER_LIBRARY: Omit<StarterModifierGroup, 'id'>[] = [
 
 export const getGlobalStarterMenuItems = (): Omit<StarterMenuItem, 'id'>[] => [
   { name: "Bud Light (canned)", description: "Chilled 12oz can.", price: 6.00, category: "Beer", venueType: ["golf"], serviceMode: "beverageCart", imageUrl: getImg('lager can'), sortOrder: 1 },
-  { name: "Stone Fired Pizza", description: "16-inch jumbo family size.", price: 22.00, category: "Pizza", venueType: ["bowling"], serviceMode: "laneService", imageUrl: getImg('pepperoni pizza'), sortOrder: 2 }
+  { name: "Stone Fired Pizza", description: "16-inch jumbo family size.", price: 22.00, category: "Pizza", venueType: ["bowling"], serviceMode: "laneService", imageUrl: getImg('pepperoni pizza'), sortOrder: 2 },
+
+  // --- Standard Beverage Cart starter kit (golf) ---
+  { name: "Premium Domestic Lager", description: "Chilled 12oz can.", price: 6.50, category: "Beer", venueType: ["golf"], serviceMode: "beverageCart", imageUrl: getImg('lager can'), sortOrder: 10 },
+  { name: "Local Craft IPA", description: "Local craft brew selection.", price: 8.00, category: "Beer", venueType: ["golf"], serviceMode: "beverageCart", imageUrl: getImg('craft beer'), sortOrder: 11 },
+  { name: "Hard Seltzer Variety Pack", description: "Chilled 12oz can.", price: 7.00, category: "Beer", venueType: ["golf"], serviceMode: "beverageCart", imageUrl: getImg('lager can'), sortOrder: 12 },
+  { name: "Travel-Size Vodka", description: "1.75oz single-serve bottle.", price: 9.00, category: "Spirits", venueType: ["golf"], serviceMode: "beverageCart", imageUrl: getImg('vodka bottle'), sortOrder: 20 },
+  { name: "Travel-Size Whiskey", description: "1.75oz single-serve bottle.", price: 10.00, category: "Spirits", venueType: ["golf"], serviceMode: "beverageCart", imageUrl: getImg('whiskey glass'), sortOrder: 21 },
+  { name: "Classic Cola", description: "Chilled 12oz can.", price: 3.00, category: "Soft Drinks", venueType: ["golf"], serviceMode: "beverageCart", imageUrl: getImg('cola can'), sortOrder: 30 },
+  { name: "Diet Cola", description: "Chilled 12oz can.", price: 3.00, category: "Soft Drinks", venueType: ["golf"], serviceMode: "beverageCart", imageUrl: getImg('cola can'), sortOrder: 31 },
+  { name: "Bottled Water", description: "Purified spring water.", price: 2.50, category: "Soft Drinks", venueType: ["golf"], serviceMode: "beverageCart", imageUrl: getImg('water bottle'), sortOrder: 32 },
+  { name: "Sports Drink", description: "20oz bottle.", price: 3.50, category: "Soft Drinks", venueType: ["golf"], serviceMode: "beverageCart", imageUrl: getImg('water bottle'), sortOrder: 33 },
+  { name: "Potato Chips", description: "Sea salt kettle cooked.", price: 3.00, category: "Snacks", venueType: ["golf"], serviceMode: "beverageCart", imageUrl: getImg('potato chips'), sortOrder: 40 },
+  { name: "Pretzels", description: "Individual bag.", price: 3.00, category: "Snacks", venueType: ["golf"], serviceMode: "beverageCart", imageUrl: getImg('potato chips'), sortOrder: 41 },
+  { name: "Trail Mix", description: "Individual bag.", price: 3.50, category: "Snacks", venueType: ["golf"], serviceMode: "beverageCart", imageUrl: getImg('potato chips'), sortOrder: 42 },
+  { name: "Chocolate Bar", description: "Individual bar.", price: 2.50, category: "Snacks", venueType: ["golf"], serviceMode: "beverageCart", imageUrl: getImg('chocolate bar'), sortOrder: 43 },
+  { name: "All-Beef Hot Dog", description: "Grab-and-go, with condiments on the side.", price: 9.00, category: "Handhelds", venueType: ["golf"], serviceMode: "beverageCart", imageUrl: getImg('hot dog'), sortOrder: 50 }
 ];
 
 export async function seedDemoSellers(db: Firestore) {

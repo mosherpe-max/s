@@ -2,16 +2,17 @@
 
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { 
-  Library, 
-  Plus, 
-  UtensilsCrossed, 
-  Tags, 
-  Save, 
-  Trash2, 
+import {
+  Library,
+  Plus,
+  UtensilsCrossed,
+  Tags,
+  Save,
+  Trash2,
   Edit,
   Loader2,
-  Edit2
+  Edit2,
+  Sparkles
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -28,6 +29,7 @@ import {
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, doc, setDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 import type { StarterMenuItem, StarterModifierGroup } from '@/lib/types';
+import { seedGlobalStarterMenuLibrary } from '@/lib/seed-data';
 import { useToast } from '@/hooks/use-toast';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
@@ -63,6 +65,7 @@ export default function GlobalLibrariesPage() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [editingItem, setEditingItem] = useState<StarterMenuItem | null>(null);
   const [editingMod, setEditingMod] = useState<StarterModifierGroup | null>(null);
+  const [isSeedingKit, setIsSeedingKit] = useState(false);
 
   const menuTemplatesQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'starter_menu_item_library') : null), [firestore]);
   const modTemplatesQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'starter_modifier_library') : null), [firestore]);
@@ -128,6 +131,15 @@ export default function GlobalLibrariesPage() {
       .finally(() => setIsProcessing(false));
   };
 
+  const handleLoadStarterKit = async () => {
+    if (!firestore) return;
+    setIsSeedingKit(true);
+    seedGlobalStarterMenuLibrary(firestore)
+      .then(() => toast({ title: "Starter Kit Loaded", description: "Standard products, including the beverage cart lineup, are now in the library below." }))
+      .catch(() => toast({ variant: "destructive", title: "Load Failed", description: "Could not load the starter kit." }))
+      .finally(() => setIsSeedingKit(false));
+  };
+
   return (
     <div className="p-8 space-y-8 animate-in fade-in duration-500 text-left">
       <div className="flex justify-between items-center max-w-7xl mx-auto w-full">
@@ -153,9 +165,21 @@ export default function GlobalLibrariesPage() {
                 <Tags className="h-3.5 w-3.5" /> Modifiers
               </TabsTrigger>
             </TabsList>
-            <Button onClick={() => activeTab === 'products' ? setIsItemDialogOpen(true) : setIsModDialogOpen(true)} className="bg-primary font-black uppercase text-[10px] tracking-widest h-11 px-6 rounded-xl gap-2 shadow-lg">
-              <Plus className="h-4 w-4" /> Create {activeTab === 'products' ? 'Product' : 'Modifier'} Template
-            </Button>
+            <div className="flex items-center gap-2">
+              {activeTab === 'products' && (
+                <Button
+                  onClick={handleLoadStarterKit}
+                  disabled={isSeedingKit}
+                  variant="outline"
+                  className="font-black uppercase text-[10px] tracking-widest h-11 px-6 rounded-xl gap-2 border-2"
+                >
+                  {isSeedingKit ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />} Load Starter Kit
+                </Button>
+              )}
+              <Button onClick={() => activeTab === 'products' ? setIsItemDialogOpen(true) : setIsModDialogOpen(true)} className="bg-primary font-black uppercase text-[10px] tracking-widest h-11 px-6 rounded-xl gap-2 shadow-lg">
+                <Plus className="h-4 w-4" /> Create {activeTab === 'products' ? 'Product' : 'Modifier'} Template
+              </Button>
+            </div>
           </div>
 
           <TabsContent value="products" className="animate-in slide-in-from-bottom-2 duration-300">
