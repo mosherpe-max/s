@@ -2,6 +2,7 @@
 
 import { Input } from '@/components/ui/input';
 import { User, Smartphone, Mail } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface PatronIdentifyFieldsProps {
   patronEmail: string;
@@ -10,15 +11,20 @@ interface PatronIdentifyFieldsProps {
   setPatronName: (value: string) => void;
   patronPhone: string;
   setPatronPhone: (value: string) => void;
+  // Drops this component's own card/background so it can be nested inside
+  // another container - used on the Digital Payment path so contact info
+  // and the card form read as one unified card instead of two stacked ones.
+  bare?: boolean;
 }
 
 export function PatronIdentifyFields({
   patronEmail, setPatronEmail,
   patronName, setPatronName,
   patronPhone, setPatronPhone,
+  bare,
 }: PatronIdentifyFieldsProps) {
   return (
-    <div className="space-y-3 bg-slate-50/50 p-3 rounded-2xl border-2 border-slate-100 animate-in fade-in duration-500">
+    <div className={cn("space-y-3 animate-in fade-in duration-500", !bare && "bg-slate-50/50 p-3 rounded-2xl border-2 border-slate-100")}>
       <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2 px-1">
         <User className="h-3 w-3" /> Delivery Contact
       </h3>

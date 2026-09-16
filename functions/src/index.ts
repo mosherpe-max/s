@@ -161,10 +161,11 @@ export const createPaymentIntent = onCall({
     }
 
     if (!stripeCustomerId) {
-      const customer = await stripe.customers.create({ 
-        email: patronEmail || undefined, 
-        name: patronName || 'Guest Patron', 
-        metadata: { buyerUid: buyerUid || 'anonymous' } 
+      const customer = await stripe.customers.create({
+        email: patronEmail || undefined,
+        name: patronName || 'Guest Patron',
+        phone: patronPhone || undefined,
+        metadata: { buyerUid: buyerUid || 'anonymous' }
       });
       stripeCustomerId = customer.id;
     }
