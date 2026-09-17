@@ -143,6 +143,7 @@ export default function StaffLoginPage({ params }: { params: Promise<{ sellerId:
     localStorage.setItem('koop_staff_session_start', Date.now().toString());
     localStorage.setItem('koop_venue_id', sellerId);
     localStorage.setItem('koop_staff_session_id', sessionId);
+    localStorage.removeItem('koop_staff_last_hidden');
 
     toast({ 
       title: "Shift Started", 
