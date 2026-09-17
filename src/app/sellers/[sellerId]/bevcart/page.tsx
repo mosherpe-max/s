@@ -13,7 +13,7 @@ import type { Order, Seller, StaffMember, SolutionConfig } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
-import { Focus, Package, LogOut, Truck, ChevronLeft, LayoutDashboard, ShieldAlert, History, User, DollarSign, CheckCircle2, AlertTriangle, BellRing, Ban } from 'lucide-react';
+import { Focus, Package, LogOut, Truck, ChevronLeft, LayoutDashboard, ShieldAlert, History, User, DollarSign, CheckCircle2, AlertTriangle, Ban } from 'lucide-react';
 import { StockToggleDialog } from '@/components/stock-toggle-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
@@ -60,7 +60,6 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
   const [isExiting, setIsExiting] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isStockOpen, setIsStockOpen] = useState(false);
-  const [notificationPermission, setNotificationPermission] = useState<string>('default');
   const [locationEnabled, setLocationEnabled] = useState(false);
 
   const lastOrderIdsRef = useRef<Set<string>>(new Set());
@@ -113,17 +112,6 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
       }
     }
   }, [sellerId, router, toast, solutionConfig?.dailyResetHour, solutionConfig?.staffIdleTimeoutMinutes]);
-
-  // Reading Notification.permission is a permission-status touch just like
-  // navigator.permissions.query('geolocation') above - deferred until past
-  // the LocationGate tap for the same reason: this iOS version ejects the
-  // standalone PWA into Safari chrome for permission-adjacent API access
-  // that happens before any user gesture, even a read-only status check.
-  useEffect(() => {
-    if (locationEnabled && "Notification" in window) {
-      setNotificationPermission(Notification.permission);
-    }
-  }, [locationEnabled]);
 
   // Track how long the terminal has been backgrounded (screen off, app
   // switched away, tab hidden) - a brief absence should resume silently,
@@ -304,19 +292,11 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
     const newOrders = driverOrders.filter(o => !lastOrderIdsRef.current.has(o.id));
 
     if (newOrders.length > 0 && !initialLoadRef.current) {
-      // 1. Audible Alert
+      // Audible + in-app alert only - the standalone PWA on this iOS
+      // version ejects into Safari chrome the moment any code touches the
+      // Notification API (even a permission status read), regardless of
+      // gesture timing, so system notifications are never used here.
       playNotificationSound();
-
-      // 2. System Notification (PWA Support)
-      if ("Notification" in window && Notification.permission === "granted") {
-        newOrders.forEach(o => {
-          new Notification("New Koop Order", {
-            body: `${o.customerName} - ${o.items.length} items`,
-            icon: '/icon'
-          });
-        });
-      }
-
       toast({ title: "NEW ORDER RECEIVED!" });
     }
     lastOrderIdsRef.current = currentOrderIds;
@@ -479,11 +459,6 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
               <div className="flex items-center gap-1.5">
                 <Badge className="bg-primary/20 text-primary border-0 h-4 px-1.5 text-[8px] font-black uppercase tracking-widest">Beverage Cart</Badge>
               </div>
-              {notificationPermission === 'granted' && (
-                <Badge className="bg-green-500/20 text-green-400 border-0 h-3 px-1 text-[6px] font-black uppercase tracking-widest gap-1">
-                  <BellRing className="h-2 w-2" /> Alerts Active
-                </Badge>
-              )}
             </div>
           </div>
         </div>
