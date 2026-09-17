@@ -11,7 +11,7 @@
         "ownerUid": { "type": "string", "description": "The Firebase Auth UID of the primary venue manager." },
         "stripeAccountId": { "type": "string" },
         "stripeConnectId": { "type": "string" },
-        "solutionFeeFixed": { "type": "number", "description": "Koop's fixed fee in cents per transaction." },
+        "solutionFeeFixed": { "type": "number", "description": "Cents of the Stripe processing fee Koop covers per transaction; the remainder is charged to the venue's own Stripe balance (via on_behalf_of), not Koop's." },
         "solutionFeePercent": { "type": "number", "description": "Koop's percentage fee per transaction." },
         "patronConvenienceFee": { "type": "number", "description": "The fee charged to the patron in cents." },
         "monthlySolutionFee": { "type": "number", "description": "The monthly subscription fee for the venue in dollars." },

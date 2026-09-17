@@ -1,4 +1,3 @@
-
 import { onRequest, onCall, HttpsError } from "firebase-functions/v2/https";
 import { onDocumentWritten } from "firebase-functions/v2/firestore";
 import { onSchedule } from "firebase-functions/v2/scheduler";
@@ -7,15 +6,14 @@ import { initializeApp } from "firebase-admin/app";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import Stripe from 'stripe';
 import twilio from 'twilio';
-
 /**
  * Initialize the Firebase Admin SDK.
  */
 initializeApp();
 const db = getFirestore();
-
 /**
  * performOperationalReset
+ * High-performance system-wide sweep using bulk queries and parallel batching.
  */
 async function performOperationalReset() {
     logger.info("[performOperationalReset] STARTING ROBUST SYSTEM SWEEP");
@@ -72,16 +70,52 @@ async function performOperationalReset() {
         throw err;
     }
 }
-
+/**
+ * assertVenueAuthorized
+ * Mirrors firestore.rules' isVenueOwner: super admin, the venue's ownerUid,
+ * or a roles_seller_admin mapping for the caller's email.
+ */
+async function assertVenueAuthorized(request, venueId) {
+    if (!request.auth)
+        throw new HttpsError('unauthenticated', 'Sign-in required.');
+    const uid = request.auth.uid;
+    const email = request.auth.token.email?.toLowerCase();
+    const isSuperAdmin = uid === 'o9vAQy0aFRPSNPoG0ETvjiGt9If1' || email === 'mosherpe@gmail.com';
+    if (isSuperAdmin)
+        return;
+    const venueDoc = await db.collection('venues').doc(venueId).get();
+    if (venueDoc.exists && venueDoc.data()?.ownerUid === uid)
+        return;
+    if (email) {
+        const roleDoc = await db.collection('roles_seller_admin').doc(email).get();
+        if (roleDoc.exists && roleDoc.data()?.sellerId === venueId)
+            return;
+    }
+    throw new HttpsError('permission-denied', 'Not authorized for this venue.');
+}
+const slugify = (name) => name.toLowerCase()
+    .replace(/[^a-z0-9]/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
+const SERVICE_MODE_LABELS = {
+    beverageCart: 'Beverage Cart',
+    clubhouse: 'Clubhouse',
+    laneService: 'Lane Delivery',
+};
 /**
  * createPaymentIntent
  */
 export const createPaymentIntent = onCall({
     secrets: ["STRIPE_SECRET_KEY"],
     region: 'us-central1',
+    // Cold starts on this function are directly patron-visible checkout
+    // latency (Node.js + firebase-admin + stripe init can add seconds on a
+    // cold invocation). Keeping one instance warm removes that entirely for
+    // the function on the critical path to loading the payment form.
+    minInstances: 1,
 }, async (request) => {
     try {
-        const { amount, sellerId, patronName, patronPhone, patronEmail, stripeCustomerId: clientProvidedCustomerId } = request.data || {};
+        const { amount, convenienceFee, sellerId, patronName, patronPhone, patronEmail, stripeCustomerId: clientProvidedCustomerId } = request.data || {};
         const buyerUid = request.auth?.uid;
         if (!amount || amount <= 0)
             throw new HttpsError('invalid-argument', 'Invalid amount.');
@@ -96,31 +130,53 @@ export const createPaymentIntent = onCall({
         if (!venueStripeAccountId) {
             throw new HttpsError('failed-precondition', 'Venue is not configured for digital payments.');
         }
+        const venueDoc = await db.collection('venues').doc(sellerId).get();
+        const koopStripeFeeCoverageCents = Math.round(venueDoc.data()?.solutionFeeFixed ?? 0);
+        const baseCents = Math.round(amount * 100);
+        const convenienceFeeCents = Math.round((convenienceFee || 0) * 100);
+        const totalCents = baseCents + convenienceFeeCents;
+        // Koop keeps the convenience fee minus its own per-venue contribution
+        // toward Stripe's processing cost (solutionFeeFixed). The rest of that
+        // real cost lands on the venue's own balance via on_behalf_of below,
+        // rather than being deducted from the platform's balance.
+        const applicationFeeAmount = Math.max(0, convenienceFeeCents - koopStripeFeeCoverageCents);
         let stripeCustomerId = clientProvidedCustomerId;
+        let isReturningCustomer = !!stripeCustomerId;
         if (!stripeCustomerId && buyerUid) {
             const userDoc = await db.collection('users').doc(buyerUid).get();
             if (userDoc.exists && userDoc.data()?.stripeCustomerId) {
                 stripeCustomerId = userDoc.data()?.stripeCustomerId;
+                isReturningCustomer = true;
             }
         }
         if (!stripeCustomerId) {
             const customer = await stripe.customers.create({
                 email: patronEmail || undefined,
                 name: patronName || 'Guest Patron',
+                phone: patronPhone || undefined,
                 metadata: { buyerUid: buyerUid || 'anonymous' }
             });
             stripeCustomerId = customer.id;
         }
-        const customerSession = await stripe.customerSessions.create({
-            customer: stripeCustomerId,
-            components: { payment_element: { enabled: true, features: { payment_method_save: 'enabled', payment_method_redisplay: 'enabled' } } }
-        });
+        // Only look up saved cards for a customer we already knew about - a
+        // brand-new customer can't have any, and skipping the extra Stripe
+        // round-trip keeps first-time checkout as fast as before.
+        let savedPaymentMethod = null;
+        if (isReturningCustomer) {
+            const paymentMethods = await stripe.paymentMethods.list({ customer: stripeCustomerId, type: 'card', limit: 1 });
+            const pm = paymentMethods.data[0];
+            if (pm?.card) {
+                savedPaymentMethod = { id: pm.id, brand: pm.card.brand, last4: pm.card.last4 };
+            }
+        }
         const paymentIntent = await stripe.paymentIntents.create({
-            amount: Math.round(amount * 100),
+            amount: totalCents,
             currency: 'usd',
             customer: stripeCustomerId,
             automatic_payment_methods: { enabled: true },
+            on_behalf_of: venueStripeAccountId,
             transfer_data: { destination: venueStripeAccountId },
+            application_fee_amount: applicationFeeAmount,
             metadata: {
                 sellerId,
                 buyerUid: buyerUid || 'anonymous',
@@ -131,8 +187,8 @@ export const createPaymentIntent = onCall({
         });
         return {
             clientSecret: paymentIntent.client_secret,
-            customerSessionClientSecret: customerSession.client_secret,
-            stripeCustomerId
+            stripeCustomerId,
+            savedPaymentMethod
         };
     }
     catch (err) {
@@ -140,7 +196,160 @@ export const createPaymentIntent = onCall({
         throw new HttpsError('internal', err.message || 'Internal payment gateway error.');
     }
 });
-
+/**
+ * initializeVenueStripeOnboarding
+ * Creates (if needed) a Stripe Express connected account for a venue and
+ * returns a fresh Account Link URL to complete/continue onboarding.
+ */
+export const initializeVenueStripeOnboarding = onCall({
+    secrets: ["STRIPE_SECRET_KEY"],
+    region: 'us-central1',
+}, async (request) => {
+    try {
+        const { venueId } = request.data || {};
+        if (!venueId)
+            throw new HttpsError('invalid-argument', 'Missing venueId.');
+        await assertVenueAuthorized(request, venueId);
+        const email = request.auth?.token.email?.toLowerCase();
+        const apiKey = process.env.STRIPE_SECRET_KEY;
+        if (!apiKey)
+            throw new HttpsError('failed-precondition', 'Gateway not configured.');
+        const stripe = new Stripe(apiKey, { apiVersion: '2025-01-27.acacia' });
+        const sellerRef = db.collection('sellers').doc(venueId);
+        const sellerDoc = await sellerRef.get();
+        let stripeAccountId = sellerDoc.exists ? sellerDoc.data()?.stripeAccountId : undefined;
+        if (!stripeAccountId) {
+            const account = await stripe.accounts.create({
+                type: 'express',
+                country: 'US',
+                email: sellerDoc.data()?.contactEmail || email || undefined,
+                capabilities: {
+                    card_payments: { requested: true },
+                    transfers: { requested: true },
+                },
+                metadata: { venueId },
+            });
+            stripeAccountId = account.id;
+            const batch = db.batch();
+            batch.set(sellerRef, { stripeAccountId, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+            batch.set(db.collection('venues').doc(venueId), { stripeAccountId, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+            await batch.commit();
+        }
+        const accountLink = await stripe.accountLinks.create({
+            account: stripeAccountId,
+            refresh_url: `https://koop.app/onboarding-refresh?venueId=${venueId}`,
+            return_url: `https://koop.app/onboarding-success?venueId=${venueId}`,
+            type: 'account_onboarding',
+        });
+        return { url: accountLink.url };
+    }
+    catch (err) {
+        logger.error("Stripe Onboarding Error", err);
+        if (err instanceof HttpsError)
+            throw err;
+        throw new HttpsError('internal', err.message || 'Internal onboarding error.');
+    }
+});
+/**
+ * applyStarterMenu
+ * Clones global starter modifier-group templates (starter_modifier_library,
+ * filtered by venueType) into the venue's modifier_groups.
+ */
+export const applyStarterMenu = onCall({ region: 'us-central1' }, async (request) => {
+    try {
+        const { venueId, venueType } = request.data || {};
+        if (!venueId)
+            throw new HttpsError('invalid-argument', 'Missing venueId.');
+        if (!venueType)
+            throw new HttpsError('invalid-argument', 'Missing venueType.');
+        await assertVenueAuthorized(request, venueId);
+        const librarySnap = await db.collection('starter_modifier_library').get();
+        const relevant = librarySnap.docs.filter(d => {
+            const vt = d.data().venueType;
+            return Array.isArray(vt) && vt.includes(venueType);
+        });
+        const modifierGroupsRef = db.collection('modifier_groups');
+        const batch = db.batch();
+        relevant.forEach(templateDoc => {
+            const template = templateDoc.data();
+            const groupId = `${venueId}-${slugify(template.name)}`;
+            batch.set(modifierGroupsRef.doc(groupId), {
+                id: groupId,
+                sellerId: venueId,
+                name: template.name,
+                minSelection: template.required ? 1 : 0,
+                maxSelection: template.selectionType === 'single' ? 1 : 99,
+                options: (template.options || []).map((opt) => ({
+                    id: slugify(opt.label),
+                    name: opt.label,
+                    priceAdjustment: opt.priceModifier,
+                    isAvailable: true,
+                })),
+                updatedAt: FieldValue.serverTimestamp(),
+            }, { merge: true });
+        });
+        await batch.commit();
+        return { totalCreated: relevant.length };
+    }
+    catch (err) {
+        logger.error("applyStarterMenu Error", err);
+        if (err instanceof HttpsError)
+            throw err;
+        throw new HttpsError('internal', err.message || 'Failed to clone modifier templates.');
+    }
+});
+/**
+ * applyStarterItems
+ * Clones global starter menu-item templates (starter_menu_item_library,
+ * filtered by venueType) into the venue's sellers/{venueId}/menuItems.
+ */
+export const applyStarterItems = onCall({ region: 'us-central1' }, async (request) => {
+    try {
+        const { venueId, venueType } = request.data || {};
+        if (!venueId)
+            throw new HttpsError('invalid-argument', 'Missing venueId.');
+        if (!venueType)
+            throw new HttpsError('invalid-argument', 'Missing venueType.');
+        await assertVenueAuthorized(request, venueId);
+        const librarySnap = await db.collection('starter_menu_item_library').get();
+        const relevant = librarySnap.docs.filter(d => {
+            const vt = d.data().venueType;
+            return Array.isArray(vt) && vt.includes(venueType);
+        });
+        const menuItemsRef = db.collection('sellers').doc(venueId).collection('menuItems');
+        const existingCountSnap = await menuItemsRef.count().get();
+        const startRank = existingCountSnap.data().count;
+        const batch = db.batch();
+        relevant.forEach((templateDoc, index) => {
+            const template = templateDoc.data();
+            const itemId = `${venueId}-${slugify(template.name)}-${slugify(template.serviceMode || '')}`;
+            const modifierGroupIds = Array.from(new Set((template.suggestedModifierGroups || []).map((name) => `${venueId}-${slugify(name)}`)));
+            const availableOn = SERVICE_MODE_LABELS[template.serviceMode] ? [SERVICE_MODE_LABELS[template.serviceMode]] : [];
+            batch.set(menuItemsRef.doc(itemId), {
+                id: itemId,
+                name: template.name,
+                description: template.description || '',
+                price: template.price,
+                category: template.category,
+                rank: startRank + index + 1,
+                imageUrl: template.imageUrl || '',
+                modifierGroupIds,
+                availableOn,
+                isAvailable: true,
+                createdAt: FieldValue.serverTimestamp(),
+                updatedAt: FieldValue.serverTimestamp(),
+            }, { merge: true });
+        });
+        await batch.commit();
+        return { totalCreated: relevant.length };
+    }
+    catch (err) {
+        logger.error("applyStarterItems Error", err);
+        if (err instanceof HttpsError)
+            throw err;
+        throw new HttpsError('internal', err.message || 'Failed to clone menu item templates.');
+    }
+});
 /**
  * dailyOperationalReset
  */
@@ -156,7 +365,6 @@ export const dailyOperationalReset = onSchedule({
         return;
     await performOperationalReset();
 });
-
 /**
  * manualOperationalReset
  */
@@ -165,14 +373,14 @@ export const manualOperationalReset = onCall({ region: 'us-central1' }, async (r
         throw new HttpsError('unauthenticated', 'Unauthorized access.');
     return await performOperationalReset();
 });
-
 /**
  * onGuestOrderStatusUpdate
+ * Dispatches SMS updates via Twilio for key fulfillment stages.
  */
 export const onGuestOrderStatusUpdate = onDocumentWritten({
     document: "orders/{orderId}",
     secrets: ["TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN", "TWILIO_FROM_NUMBER"],
-    region: 'us-central1',
+    region: 'us-central1'
 }, async (event) => {
     const after = event.data?.after;
     if (!after || !after.exists)
@@ -193,23 +401,26 @@ export const onGuestOrderStatusUpdate = onDocumentWritten({
         let body = "";
         const link = `https://koop.app/orders/${event.params.orderId}`;
         const beforeData = event.data?.before?.exists ? event.data.before.data() : null;
-        
         if (beforeData) {
             // 1. STATUS CHANGE ALERTS
             if (data.status !== beforeData.status) {
-                if (data.status === 'Preparing')
+                if (data.status === 'Preparing') {
                     body = `Order confirmed! We're getting it ready: ${link}`;
-                else if (data.status === 'Out for Delivery')
+                }
+                else if (data.status === 'Out for Delivery') {
                     body = `Order out for delivery! Track live: ${link}`;
-                else if (data.status === 'Delivered')
+                }
+                else if (data.status === 'Delivered') {
                     body = `Order delivered! Enjoy your time at the venue: ${link}`;
+                }
             }
-
             // 2. MANUAL "PIN" REQUEST
+            // Using value-based comparison for the timestamp object to detect any new Pin hit
             const oldReq = beforeData.refreshRequestedAt;
             const newReq = data.refreshRequestedAt;
-            const isNewPinRequest = newReq && (!oldReq || newReq.seconds !== oldReq.seconds || newReq.nanoseconds !== oldReq.nanoseconds);
-
+            const isNewPinRequest = newReq && (!oldReq ||
+                (newReq.seconds !== oldReq.seconds) ||
+                (newReq.nanoseconds !== oldReq.nanoseconds));
             if (!body && isNewPinRequest) {
                 body = `Hey! Your Koop order is on the way — tap to help us find you: ${link}`;
             }
@@ -227,47 +438,77 @@ export const onGuestOrderStatusUpdate = onDocumentWritten({
         logger.error("Twilio Trigger Failed", err);
     }
 });
-
 /**
  * handleStripeWebhook
  */
 export const handleStripeWebhook = onRequest({
-    secrets: ["STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET"],
-    region: 'us-central1',
+    secrets: ["STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET", "STRIPE_CONNECT_WEBHOOK_SECRET"],
+    region: 'us-central1'
 }, async (req, res) => {
     const sig = req.headers['stripe-signature'];
     const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+    const connectWebhookSecret = process.env.STRIPE_CONNECT_WEBHOOK_SECRET;
     const stripeKey = process.env.STRIPE_SECRET_KEY;
-    if (!sig || !webhookSecret || !stripeKey) {
+    if (!sig || !stripeKey || (!webhookSecret && !connectWebhookSecret)) {
         res.status(400).send("Webhook configuration missing.");
         return;
     }
     const stripe = new Stripe(stripeKey, { apiVersion: '2025-01-27.acacia' });
     try {
-        const event = stripe.webhooks.constructEvent(req.rawBody, sig, webhookSecret);
+        // Two event destinations (platform-account events and connected-account
+        // events) each have their own signing secret, so try both that are configured.
+        const candidateSecrets = [webhookSecret, connectWebhookSecret].filter((s) => !!s);
+        let event;
+        let lastErr;
+        for (const candidate of candidateSecrets) {
+            try {
+                event = stripe.webhooks.constructEvent(req.rawBody, sig, candidate);
+                break;
+            }
+            catch (err) {
+                lastErr = err;
+            }
+        }
+        if (!event)
+            throw lastErr;
         if (event.type === 'payment_intent.succeeded') {
+            // Keyed on the PaymentIntent id (matching the client's own order write) so this
+            // and the client's write always land on the same doc, however they race - a
+            // query-then-create-if-missing here previously let both sides create separate
+            // order docs for one payment, which then each independently triggered SMS
+            // status updates (duplicate texts) once staff acted on either one.
             const pi = event.data.object;
-            const existingQuery = await db.collection('orders').where('stripePaymentIntentId', '==', pi.id).limit(1).get();
-            if (!existingQuery.empty) {
-                await existingQuery.docs[0].ref.update({
-                    paymentStatus: 'Succeeded',
+            const meta = pi.metadata || {};
+            await db.collection('orders').doc(pi.id).set({
+                customerName: meta.customerName || 'Guest',
+                customerPhone: (meta.customerPhone || '').replace(/\D/g, ''),
+                customerEmail: meta.customerEmail || '',
+                status: "Placed",
+                sellerId: meta.sellerId || '',
+                buyerProfileId: meta.buyerUid || 'anonymous',
+                stripePaymentIntentId: pi.id,
+                total: (pi.amount || 0) / 100,
+                paymentStatus: 'Succeeded',
+                createdAt: FieldValue.serverTimestamp(),
+                updatedAt: FieldValue.serverTimestamp()
+            }, { merge: true });
+        }
+        else if (event.type === 'account.updated') {
+            const account = event.data.object;
+            const venueId = account.metadata?.venueId;
+            if (venueId) {
+                const payoutsEnabled = !!account.payouts_enabled;
+                const onboardingComplete = !!account.details_submitted;
+                const batch = db.batch();
+                batch.set(db.collection('sellers').doc(venueId), {
+                    stripeOnboardingComplete: onboardingComplete,
                     updatedAt: FieldValue.serverTimestamp()
-                });
-            } else {
-                const meta = pi.metadata || {};
-                await db.collection('orders').add({
-                    customerName: meta.customerName || 'Guest',
-                    customerPhone: (meta.customerPhone || '').replace(/\D/g, ''),
-                    customerEmail: meta.customerEmail || '',
-                    status: "Placed",
-                    sellerId: meta.sellerId || '',
-                    buyerProfileId: meta.buyerUid || 'anonymous',
-                    stripePaymentIntentId: pi.id,
-                    total: (pi.amount || 0) / 100,
-                    paymentStatus: 'Succeeded',
-                    createdAt: FieldValue.serverTimestamp(),
+                }, { merge: true });
+                batch.set(db.collection('venues').doc(venueId), {
+                    payoutsEnabled,
                     updatedAt: FieldValue.serverTimestamp()
-                });
+                }, { merge: true });
+                await batch.commit();
             }
         }
         res.status(200).send({ received: true });
@@ -277,3 +518,4 @@ export const handleStripeWebhook = onRequest({
         res.status(400).send(`Webhook Error: ${err.message}`);
     }
 });
+//# sourceMappingURL=index.js.map

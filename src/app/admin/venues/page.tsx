@@ -757,7 +757,7 @@ export default function AdminVenueRegistryPage() {
                        <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2"><DollarSign className="h-3 w-3" /> Transaction Model</Label>
                        <div className="grid grid-cols-2 gap-4">
                           <FormField control={registryForm.control} name="solutionFeeFixed" render={({ field }) => (
-                            <FormItem className="text-left"><FormLabel className="text-[9px] font-black uppercase">Koop Fixed Fee (Cents)</FormLabel><FormControl><Input {...field} type="number" className="h-11 border-2 font-bold" /></FormControl></FormItem>
+                            <FormItem className="text-left"><FormLabel className="text-[9px] font-black uppercase">Koop Stripe Fee Coverage (Cents)</FormLabel><FormControl><Input {...field} type="number" className="h-11 border-2 font-bold" /></FormControl><FormDescription className="text-[9px]">Cents of the Stripe fee Koop covers; venue absorbs the rest</FormDescription></FormItem>
                           )} />
                           <FormField control={registryForm.control} name="solutionFeePercent" render={({ field }) => (
                             <FormItem className="text-left"><FormLabel className="text-[9px] font-black uppercase">Koop % Fee</FormLabel><FormControl><Input {...field} type="number" step="0.1" className="h-11 border-2 font-bold" /></FormControl></FormItem>

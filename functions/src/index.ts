@@ -146,16 +146,18 @@ export const createPaymentIntent = onCall({
       throw new HttpsError('failed-precondition', 'Venue is not configured for digital payments.');
     }
 
-    const configSnap = await db.collection('solution').doc('config').get();
-    const stripeFeePercent = configSnap.exists ? (configSnap.data()?.stripeFeePercent ?? 2.9) : 2.9;
-    const stripeFeeFixed = configSnap.exists ? (configSnap.data()?.stripeFeeFixed ?? 30) : 30;
+    const venueDoc = await db.collection('venues').doc(sellerId).get();
+    const koopStripeFeeCoverageCents = Math.round(venueDoc.data()?.solutionFeeFixed ?? 0);
 
     const baseCents = Math.round(amount * 100);
     const convenienceFeeCents = Math.round((convenienceFee || 0) * 100);
     const totalCents = baseCents + convenienceFeeCents;
 
-    const estimatedStripeFeeCents = Math.round(totalCents * (stripeFeePercent / 100) + stripeFeeFixed);
-    const applicationFeeAmount = Math.max(0, convenienceFeeCents - estimatedStripeFeeCents);
+    // Koop keeps the convenience fee minus its own per-venue contribution
+    // toward Stripe's processing cost (solutionFeeFixed). The rest of that
+    // real cost lands on the venue's own balance via on_behalf_of below,
+    // rather than being deducted from the platform's balance.
+    const applicationFeeAmount = Math.max(0, convenienceFeeCents - koopStripeFeeCoverageCents);
 
     let stripeCustomerId = clientProvidedCustomerId;
     let isReturningCustomer = !!stripeCustomerId;
@@ -194,6 +196,7 @@ export const createPaymentIntent = onCall({
       currency: 'usd',
       customer: stripeCustomerId,
       automatic_payment_methods: { enabled: true },
+      on_behalf_of: venueStripeAccountId,
       transfer_data: { destination: venueStripeAccountId },
       application_fee_amount: applicationFeeAmount,
       metadata: {
