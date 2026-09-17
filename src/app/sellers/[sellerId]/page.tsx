@@ -64,7 +64,8 @@ import {
   CreditCard,
   CheckCircle2,
   Sparkles,
-  Ban
+  Ban,
+  SlidersHorizontal
 } from 'lucide-react';
 import Image from 'next/image';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -115,6 +116,7 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { StylizedKoopLogo } from '@/components/header';
 import { PrintMarketingKit } from '@/components/print-marketing-kit';
+import { ModifierManagement } from '@/components/modifier-management';
 import { ImageUploadDropzone } from '@/components/image-upload-dropzone';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { categories } from '@/lib/types';
@@ -746,6 +748,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
     { id: "modes", label: "Service Modes", icon: Zap },
     { id: "menu", label: "Menu Items", icon: UtensilsCrossed },
     { id: "staff", label: "Staff", icon: Users },
+    { id: "modifiers", label: "Modifiers", icon: SlidersHorizontal },
     { id: "settings", label: "Settings", icon: SettingsIcon }
   ];
 
@@ -1272,6 +1275,10 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                     </Table>
                   </Card>
                 </div>
+              )}
+
+              {activeNav === 'modifiers' && (
+                <ModifierManagement sellerId={sellerId} />
               )}
 
               {activeNav === 'settings' && (
