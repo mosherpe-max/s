@@ -52,28 +52,28 @@ export function UpsellRail({ upsellItemIds, menuItems, orderItems, onAdd }: Upse
         </button>
       </div>
 
-      <div className={cn("grid gap-2", upsellItems.length === 1 ? "grid-cols-1" : "grid-cols-2")}>
+      <div className={cn("grid gap-3", upsellItems.length === 1 ? "grid-cols-1" : "grid-cols-2")}>
         {upsellItems.map(item => (
-          <div key={item.id} className="bg-slate-50/50 rounded-xl border-2 border-slate-100 overflow-hidden flex flex-col">
-            <div className="relative h-14 w-full bg-muted shrink-0">
+          <div key={item.id} className="bg-white rounded-[1.25rem] border-2 border-slate-100 shadow-sm overflow-hidden flex flex-col">
+            <div className="relative aspect-square w-full bg-muted shrink-0 border-b-2 border-slate-100 overflow-hidden">
               {item.imageUrl ? (
                 <Image src={item.imageUrl} alt={item.name} fill className="object-cover" />
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-muted-foreground/20">
-                  <LucideImage className="w-4 h-4" />
+                  <LucideImage className="w-8 h-8" />
                 </div>
               )}
-              <div className="absolute top-1 left-1 bg-[#213147] px-1.5 py-0.5 rounded-md shadow-sm">
-                <span className="font-mono text-[9px] font-black text-white leading-none">${item.price.toFixed(2)}</span>
+              <div className="absolute top-2 left-2 bg-[#213147] px-2.5 py-1 rounded-lg shadow-md z-10">
+                <span className="font-mono text-[12px] font-black text-white leading-none">${item.price.toFixed(2)}</span>
               </div>
             </div>
-            <div className="p-1.5 flex flex-col gap-1">
-              <p className="text-[9px] font-black uppercase text-[#213147] leading-tight truncate">{item.name}</p>
+            <div className="p-3 flex flex-col flex-1 gap-2">
+              <p className="font-black text-[12px] leading-tight text-[#213147] uppercase tracking-tight truncate">{item.name}</p>
               <button
                 onClick={() => handleAdd(item)}
-                className="w-full h-6 rounded-md bg-primary text-white font-black text-[8px] uppercase tracking-widest flex items-center justify-center gap-1 active:scale-95 transition-all"
+                className="w-full h-10 rounded-xl bg-primary text-white font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-1.5 shadow-sm active:scale-[0.97] transition-transform mt-auto"
               >
-                <Plus className="h-3 w-3" /> Add
+                <Plus className="h-4 w-4" /> Add
               </button>
             </div>
           </div>
